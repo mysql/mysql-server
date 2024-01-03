@@ -83,7 +83,7 @@ SET GTID_NEXT='AUTOMATIC';
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
---let $relay_log_file= query_get_value("SHOW SLAVE STATUS", Relay_Log_File, 1)
+--let $relay_log_file= query_get_value("SHOW REPLICA STATUS", Relay_Log_File, 1)
 --echo $relay_log_file
 --let $mysqld_datadir= `select @@datadir`
 

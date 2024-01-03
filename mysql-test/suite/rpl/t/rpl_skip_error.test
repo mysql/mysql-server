@@ -121,7 +121,7 @@ UPDATE t1 SET id= id + 3, data = 2;
 
 --source include/sync_slave_sql_with_master.inc
 
-let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+let $error= query_get_value("SHOW REPLICA STATUS", Last_SQL_Error, 1);
 echo $error;
 
 --echo **** We cannot execute a select as there are differences in the 

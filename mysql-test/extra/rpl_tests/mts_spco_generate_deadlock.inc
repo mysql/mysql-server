@@ -281,7 +281,7 @@ if ($mts_spco_gd_trx_blocking_client != '')
 #      allowing it to error out, if any is defined.
 if ($mts_spco_gd_wait_for_coordinator_running_state != '')
 {
-  --let $slave_param = Slave_SQL_Running_State
+  --let $slave_param = Replica_SQL_Running_State
   --let $slave_param_value = $mts_spco_gd_wait_for_coordinator_running_state
   --source include/wait_for_slave_param.inc
 

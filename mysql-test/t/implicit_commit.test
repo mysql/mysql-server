@@ -432,7 +432,7 @@ source include/implicit_commit_helper.inc;
 --echo #
 
 let $statement=
-  show slave status;
+  SHOW REPLICA STATUS;
 source include/implicit_commit_helper.inc;
 
 --echo #

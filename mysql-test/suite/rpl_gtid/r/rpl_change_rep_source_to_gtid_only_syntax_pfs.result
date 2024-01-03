@@ -109,7 +109,7 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl_restart_server.inc [server_number=2 parameters: --gtid-mode=on_permissive]
 include/assert_grep.inc [Replication channel '' could not be started as GTID_MODE was not ON.]
-include/check_slave_param.inc [Slave_IO_Running FOR CHANNEL '']
+include/check_slave_param.inc [Replica_IO_Running FOR CHANNEL '']
 START REPLICA;
 ERROR HY000: Replication cannot start for channel '' with GTID_ONLY = 1 as this server uses @@GLOBAL.GTID_MODE <> ON.
 #

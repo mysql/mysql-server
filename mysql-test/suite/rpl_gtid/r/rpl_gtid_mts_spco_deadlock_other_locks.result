@@ -324,7 +324,7 @@ include/wait_condition.inc [Client connection must wait for state]
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave1]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection slave1]
 UNLOCK TABLES;
 [connection slave]
@@ -381,7 +381,7 @@ include/wait_condition.inc [Client connection must wait for state]
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave1]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection slave1]
 UNLOCK TABLES;
 include/wait_condition.inc [Coordinator must wait for workers to stop]
@@ -451,7 +451,7 @@ include/wait_condition.inc [Client connection must wait for state]
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave1]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection slave1]
 UNLOCK TABLES;
 [connection slave]
@@ -508,7 +508,7 @@ include/wait_condition.inc [Client connection must wait for state]
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave1]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection slave1]
 UNLOCK TABLES;
 include/wait_condition.inc [Coordinator must wait for workers to stop]

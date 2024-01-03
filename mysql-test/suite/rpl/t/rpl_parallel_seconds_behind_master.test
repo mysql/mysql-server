@@ -1,5 +1,5 @@
 #
-# Testing of Seconds_Behind_Master (SBM) to behave as the following
+# Testing of Seconds_Behind_Source (SBM) to behave as the following
 # SBM changes discretely per some number of processed group of events,
 # e.g transactions.
 # The number is either @@global.replica_checkpoint_group or less if
@@ -83,18 +83,18 @@ let $count= 1;
 let $table= t1;
 source include/wait_until_rows_count.inc;
 
---echo First transaction is done, now get Seconds_Behind_Master after it...
+--echo # First transaction is done, now get Seconds_Behind_Source after it...
 
 #
 # demo 1:
 # So now 1st is over, and it SBM must have gain at least $idle seconds.
 #
-let $slave_param= Seconds_Behind_Master;
+let $slave_param= Seconds_Behind_Source;
 let $slave_param_comparison= >=; 
 let $slave_param_value= $idle;
 source include/wait_for_slave_param.inc;
 
---echo Seconds_Behind_Master after first transaction is as expected.
+--echo # Seconds_Behind_Source after first transaction is as expected.
 
 connection slave1;
 unlock tables;
@@ -104,7 +104,7 @@ unlock tables;
 #         nothing left in relay-log.
 #
 connection slave;
-let $slave_param= Seconds_Behind_Master;
+let $slave_param= Seconds_Behind_Source;
 let $slave_param_comparison= =; 
 let $slave_param_value= 0;
 source include/wait_for_slave_param.inc;

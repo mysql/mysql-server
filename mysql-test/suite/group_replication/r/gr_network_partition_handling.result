@@ -59,8 +59,8 @@ ERROR HY000: Error on observer while running replication hook 'before_commit'.
 include/assert.inc [The super_read_only mode should be 1.]
 
 # 6. Confirm on server1 Slave IO and SQL threads are not running.
-include/check_slave_param.inc [Slave_IO_Running]
-include/check_slave_param.inc [Slave_SQL_Running]
+include/check_slave_param.inc [Replica_IO_Running]
+include/check_slave_param.inc [Replica_SQL_Running]
 #
 # 7. Clean up.
 #

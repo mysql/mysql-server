@@ -23,13 +23,13 @@
 --sleep $slave_sleep
 
 --let $remaining_delay= query_get_value(SELECT REMAINING_DELAY FROM performance_schema.replication_applier_status, REMAINING_DELAY, 1)
---let $sql_remaining_delay= query_get_value(SHOW SLAVE STATUS, SQL_Remaining_Delay, 1)
+--let $sql_remaining_delay= query_get_value(SHOW REPLICA STATUS, SQL_Remaining_Delay, 1)
 
-# Assert that the remaining delay value shown by both show slave status
+# Assert that the remaining delay value shown by both show replica status
 # and replication_applier_status table of performance schema is same.
 # using '>=' since $remaining_delay is obtained before $sql_remaining_delay.
 
---let $assert_text= Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.
+--let $assert_text= Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.
 --let $assert_cond= $remaining_delay >= $sql_remaining_delay
 --source include/assert.inc
 
@@ -37,7 +37,7 @@
 --source include/sync_slave_sql_with_master.inc
 
 --let $assert_text= Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event'
---let $assert_cond= NOT("[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Waiting until % seconds after source executed event")
+--let $assert_cond= NOT("[SHOW REPLICA STATUS, Replica_SQL_Running_State, 1]" LIKE "Waiting until % seconds after source executed event")
 --source include/assert.inc
 
 --source include/rpl_connection_master.inc
@@ -50,7 +50,7 @@
 --let $gtid= $server_uuid:$trx_num
 --source include/get_immediate_commit_timestamp.inc
 --let $slave_immediate_commit_timestamp= $immediate_commit_timestamp
---let $sql_delay= query_get_value("SHOW SLAVE STATUS", SQL_Delay, 1)
+--let $sql_delay= query_get_value("SHOW REPLICA STATUS", SQL_Delay, 1)
 # Ceiling is also used when computing the delay in the code
 --let $timestamp_diff_ms= `SELECT $slave_immediate_commit_timestamp-$master_immediate_commit_timestamp`
 --let $timestamp_diff_sec= `SELECT CEILING($timestamp_diff_ms / 1000000)`

@@ -1,6 +1,6 @@
 ################################################################################
 # This test verifies that the CHANGE MASTER command will only accept
-# MASTER_USER and MASTER_PASSWORD as valid values for the recovery channel.
+# Source_User and MASTER_PASSWORD as valid values for the recovery channel.
 # All other options for the CHANGE MASTER will cause an error.
 #
 # Test:
@@ -8,7 +8,7 @@
 # 1. Create a user on M1 to be used by the recovery channel. Bootstrap and start
 #    group on M1.
 # 2. Add some data for recovery.
-# 3. On M2, CHANGE MASTER with options apart from the MASTER_USER and
+# 3. On M2, CHANGE MASTER with options apart from the Source_User and
 #    MASTER_PASSWORD will cause error.
 # 4. MASTER_PASSWORD for the CHANGE MASTER command will not be logged in the
 #    error log.
@@ -44,7 +44,7 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---echo # CHANGE MASTER with options apart from the MASTER_USER and
+--echo # CHANGE MASTER with options apart from the Source_User and
 --echo # MASTER_PASSWORD will cause error.
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_USER='MANISH', SOURCE_PASSWORD='abc_manish_abc', SOURCE_PORT=13000 FOR CHANNEL 'group_replication_recovery';

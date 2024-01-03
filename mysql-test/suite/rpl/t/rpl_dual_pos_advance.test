@@ -1,7 +1,7 @@
 # This test checks that in a dual-head setup
 # A->B->A, where A has --log-replica-updates (why would it?
 # assume that there is a C as slave of A),
-# then the Exec_master_log_pos of SHOW SLAVE STATUS does
+# then the Exec_Source_Log_Pos of SHOW REPLICA STATUS does
 # not stay too low on B(BUG#13023 due to events ignored because
 # of their server id).
 # It also will test BUG#13861.

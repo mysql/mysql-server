@@ -130,7 +130,7 @@ source include/start_slave.inc;
 
 if (`select count(*) != 3 from t1`)
 {
-    query_vertical show slave status;
+    query_vertical SHOW REPLICA STATUS;
     --die Wrong recovery after restart
 }
 
@@ -278,7 +278,7 @@ drop view coord_proc_list;
 #
 # A new UNTIL condition is introduced as a tool to
 # fill gaps in the sequence of executed transaction started
-# at Exec_Master_Log_Pos.
+# at Exec_Source_Log_Pos.
 # The gaps could be caused by the previous slave session stop
 # with an error, or it was killed, or the server crashed.
 #
@@ -378,8 +378,8 @@ source include/wait_for_slave_sql_error.inc;
 
 rollback; # the blocker
 
-# find out Exec_Master_Log_Pos to store it in Exec_0
-let $exec_pos_0= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+# find out Exec_Source_Log_Pos to store it in Exec_0
+let $exec_pos_0= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1);
 
 START REPLICA until sql_after_mts_gaps;
 
@@ -395,14 +395,14 @@ if (`select count(*) <> 4 from d1.t1`)
 }
 
 # Efficiency of gap filling proof:
-# find out Exec_Master_Log_Pos and compare with Exec_0
-let $exec_pos_1= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+# find out Exec_Source_Log_Pos and compare with Exec_0
+let $exec_pos_1= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1);
 
 if (`select $exec_pos_1 - $exec_pos_0 <= 0`)
 {
     --echo *** No gap transaction is executed as expected ***
     --connection slave
-    show slave status;
+    SHOW REPLICA STATUS;
     --connection master
     show binary log status;
     --die

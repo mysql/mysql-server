@@ -44,8 +44,8 @@ FLUSH LOGS;
 --connection slave
 --source include/stop_slave.inc
 
-let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
-let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
+let $relay_file = query_get_value( SHOW REPLICA STATUS, Relay_Log_File, 1 );
+let $relay_pos = query_get_value( SHOW REPLICA STATUS, Relay_Log_Pos, 1 );
 
 --replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
@@ -54,8 +54,8 @@ eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$r
 --sleep 5
 --source include/stop_slave.inc
 
-let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
-let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
+let $relay_file = query_get_value( SHOW REPLICA STATUS, Relay_Log_File, 1 );
+let $relay_pos = query_get_value( SHOW REPLICA STATUS, Relay_Log_Pos, 1 );
 --replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos, SOURCE_DELAY=0;
 
@@ -95,8 +95,8 @@ COMMIT;
 
 --source include/stop_slave_io.inc
 
-let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
-let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
+let $relay_file = query_get_value( SHOW REPLICA STATUS, Relay_Log_File, 1 );
+let $relay_pos = query_get_value( SHOW REPLICA STATUS, Relay_Log_Pos, 1 );
 --replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
 --error ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;

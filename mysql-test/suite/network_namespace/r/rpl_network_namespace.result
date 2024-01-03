@@ -42,7 +42,7 @@ master_network_namespace
 SELECT Network_namespace FROM mysql.slave_master_info;
 Network_namespace
 
-Namespace from 'SHOW SLAVE STATUS' : 
+Namespace from 'SHOW REPLICA STATUS' : 
 # Check slave connection on the 'blue' namespace
 a	b
 1	abc
@@ -65,7 +65,7 @@ red
 SELECT Network_namespace FROM mysql.slave_master_info;
 Network_namespace
 red
-Namespace from 'SHOW SLAVE STATUS' : red 
+Namespace from 'SHOW REPLICA STATUS' : red 
 # Check slave connection on the 'blue' namespace
 a	b
 1	abc
@@ -88,7 +88,7 @@ master_network_namespace
 SELECT Network_namespace FROM mysql.slave_master_info;
 Network_namespace
 
-Namespace from 'SHOW SLAVE STATUS' : 
+Namespace from 'SHOW REPLICA STATUS' : 
 # Check that the table is replicated properly
 include/diff_tables.inc [master:t1, slave:t1]
 # Cleanup

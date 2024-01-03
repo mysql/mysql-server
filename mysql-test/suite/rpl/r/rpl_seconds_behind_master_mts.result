@@ -17,7 +17,7 @@ Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a fu
 SET @@global.replica_parallel_workers= 4;
 SET @@global.replica_preserve_commit_order=0;
 include/start_slave.inc
-# Scenario 1: With two workers, check if Seconds_Behind_Master is
+# Scenario 1: With two workers, check if Seconds_Behind_Source is
 # calculated correctly when all the workers are waiting.
 CREATE TABLE t1 (f1 INT);
 CREATE DATABASE test2;
@@ -36,14 +36,14 @@ SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be between 5 and upper_bound]
+include/assert.inc [Seconds_Behind_Source must be between 5 and upper_bound]
 UNLOCK TABLES;
 # Adding debug point 'mta_checkpoint' to @@GLOBAL.debug
 SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be between 2 and upper_bound]
+include/assert.inc [Seconds_Behind_Source must be between 2 and upper_bound]
 UNLOCK TABLES;
 include/sync_slave_sql_with_master.inc
 # Adding debug point 'mta_checkpoint' to @@GLOBAL.debug
@@ -51,8 +51,8 @@ SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be 0]
-# Scenario 2: With two workers, check if Seconds_Behind_Master is
+include/assert.inc [Seconds_Behind_Source must be 0]
+# Scenario 2: With two workers, check if Seconds_Behind_Source is
 # calculated correctly when first worker compeletes first.
 LOCK TABLE test2.t2 WRITE;
 USE test;
@@ -65,15 +65,15 @@ SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be between 2 and upper_bound]
+include/assert.inc [Seconds_Behind_Source must be between 2 and upper_bound]
 UNLOCK TABLES;
 # Adding debug point 'mta_checkpoint' to @@GLOBAL.debug
 SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be 0]
-# Scenario 3: With three workers, check if Seconds_Behind_Master is
+include/assert.inc [Seconds_Behind_Source must be 0]
+# Scenario 3: With three workers, check if Seconds_Behind_Source is
 # calculated correctly when second worker completes first.
 CREATE DATABASE test3;
 USE test3;
@@ -93,21 +93,21 @@ SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be between 7 and upper_bound]
+include/assert.inc [Seconds_Behind_Source must be between 7 and upper_bound]
 UNLOCK TABLES;
 # Adding debug point 'mta_checkpoint' to @@GLOBAL.debug
 SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be between 2 and upper_bound]
+include/assert.inc [Seconds_Behind_Source must be between 2 and upper_bound]
 UNLOCK TABLES;
 # Adding debug point 'mta_checkpoint' to @@GLOBAL.debug
 SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be 0]
+include/assert.inc [Seconds_Behind_Source must be 0]
 DROP TABLE test.t1;
 DROP DATABASE test2;
 DROP DATABASE test3;
@@ -120,7 +120,7 @@ Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a fu
 SET GLOBAL replica_parallel_workers = 3;
 SET GLOBAL replica_preserve_commit_order=1;
 include/start_slave.inc
-# Scenario 1: With two workers, check if Seconds_Behind_Master is
+# Scenario 1: With two workers, check if Seconds_Behind_Source is
 # calculated correctly when two statements are applied in parallel on
 # one database and both the workers are blocked to to lock.
 USE test;
@@ -141,7 +141,7 @@ SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be between 3 and upper_bound]
+include/assert.inc [Seconds_Behind_Source must be between 3 and upper_bound]
 UNLOCK TABLES;
 include/sync_slave_sql_with_master.inc
 # Adding debug point 'mta_checkpoint' to @@GLOBAL.debug
@@ -149,8 +149,8 @@ SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be 0]
-# Scenario 2: With two workers, check if Seconds_Behind_Master is
+include/assert.inc [Seconds_Behind_Source must be 0]
+# Scenario 2: With two workers, check if Seconds_Behind_Source is
 # calculated correctly when the first worker is blocked.
 INSERT INTO t1 SET a=1;
 include/sync_slave_sql_with_master.inc
@@ -169,7 +169,7 @@ SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be between 2 and upper_bound]
+include/assert.inc [Seconds_Behind_Source must be between 2 and upper_bound]
 UNLOCK TABLES;
 include/sync_slave_sql_with_master.inc
 # Adding debug point 'mta_checkpoint' to @@GLOBAL.debug
@@ -177,8 +177,8 @@ SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be 0]
-# Scenario 3: With three workers, check if Seconds_Behind_Master is
+include/assert.inc [Seconds_Behind_Source must be 0]
+# Scenario 3: With three workers, check if Seconds_Behind_Source is
 # calculated correctly when two workers working on table from the same
 # database and 3rd worker working on another database.
 CREATE DATABASE second_test;
@@ -202,28 +202,28 @@ SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be between 2 and upper_bound]
+include/assert.inc [Seconds_Behind_Source must be between 2 and upper_bound]
 UNLOCK TABLES;
 # Adding debug point 'mta_checkpoint' to @@GLOBAL.debug
 SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be between 3 and upper_bound]
+include/assert.inc [Seconds_Behind_Source must be between 3 and upper_bound]
 UNLOCK TABLES;
 # Adding debug point 'mta_checkpoint' to @@GLOBAL.debug
 SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be between 4 and upper_bound]
+include/assert.inc [Seconds_Behind_Source must be between 4 and upper_bound]
 UNLOCK TABLE;
 # Adding debug point 'mta_checkpoint' to @@GLOBAL.debug
 SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Master must be 0]
+include/assert.inc [Seconds_Behind_Source must be 0]
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP DATABASE second_test;

@@ -33,7 +33,7 @@ loose-innodb_read_io_threads=     2
 
 
 # Values reported by slave when it connect to master
-# and shows up in SHOW SLAVE STATUS;
+# and shows up in SHOW REPLICA STATUS;
 report-host=                127.0.0.1
 report-port=                @mysqld.2.port
 report-user=                root

@@ -16,7 +16,7 @@
 # 2. Apply the binary logs on the slave (which is fresh).  The binary
 #    logs are applied in N parallel connections.  In addition, for
 #    increased concurrency, we open N concurrent connections that
-#    repeatedly execute SHOW SLAVE STATUS, and N concurrent
+#    repeatedly execute SHOW REPLICA STATUS, and N concurrent
 #    connections that repeatedly read @@GLOBAL.GTID_EXECUTED and
 #    @@GLOBAL.GTID_PURGED.
 #
@@ -52,7 +52,7 @@ CREATE PROCEDURE show_slave_status ()
 BEGIN
   DECLARE name VARCHAR(100) DEFAULT('');
   WHILE name = '' DO
-    SHOW SLAVE STATUS;
+    SHOW REPLICA STATUS;
     SELECT TABLE_NAME INTO name
       FROM INFORMATION_SCHEMA.TABLES
       WHERE TABLE_NAME = 't_end';

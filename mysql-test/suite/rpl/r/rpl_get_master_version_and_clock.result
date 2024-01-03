@@ -19,7 +19,7 @@ Check network error happened here
 include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
 set @@global.debug = "-d,'debug_lock.before_get_UNIX_TIMESTAMP'";
 include/rpl_start_server.inc [server_number=1]
-include/wait_for_slave_param.inc [Slave_IO_Running]
+include/wait_for_slave_param.inc [Replica_IO_Running]
 include/stop_slave.inc
 SET @@global.debug= "+d,'debug_lock.before_get_SERVER_ID'";
 include/start_slave.inc
@@ -31,7 +31,7 @@ Check network error happened here
 include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
 set @@global.debug = "-d,'debug_lock.before_get_SERVER_ID'";
 include/rpl_start_server.inc [server_number=1]
-include/wait_for_slave_param.inc [Slave_IO_Running]
+include/wait_for_slave_param.inc [Replica_IO_Running]
 include/stop_slave.inc
 SET @@global.debug= "+d,'dbug.before_get_SOURCE_UUID'";
 include/start_slave.inc
@@ -43,7 +43,7 @@ Check network error happened here
 include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
 set @@global.debug = "-d,'dbug.before_get_SOURCE_UUID'";
 include/rpl_start_server.inc [server_number=1]
-include/wait_for_slave_param.inc [Slave_IO_Running]
+include/wait_for_slave_param.inc [Replica_IO_Running]
 reset binary logs and gtids;
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_PORT=SLAVE_PORT;
@@ -57,7 +57,7 @@ RESET REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_PORT=MASTER_PORT;;
 # Adding debug point 'dbug.simulate_no_such_var_server_uuid' to @@GLOBAL.debug
 include/start_slave_io.inc
-include/assert.inc [Master_uuid must be empty string]
+include/assert.inc [Source_UUID must be empty string]
 include/stop_slave_io.inc
 # Removing debug point 'dbug.simulate_no_such_var_server_uuid' from @@GLOBAL.debug
 include/rpl_end.inc

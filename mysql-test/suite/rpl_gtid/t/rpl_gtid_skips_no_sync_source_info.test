@@ -13,7 +13,7 @@
 # master.
 #
 # Master will skip all the GTID events that are present on slave and will
-# generate a HEARTBEAT event which contains the master_log_file and
+# generate a HEARTBEAT event which contains the Source_Log_File and
 # master_log_pos at which the skipped events end.
 #
 # Upon receiving the HEARTBEAT event store the write requests that are made to

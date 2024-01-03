@@ -20,13 +20,13 @@
 --echo # "RESET REPLICA ALL FOR CHANNEL ''" removes the default channel and all
 --echo # replication filters of the channel firstly, but then create a new
 --echo # default channel which is not configured yet. So performance_schema.
---echo # replication_applier_filters and SHOW SLAVE STATUS do not show it.
+--echo # replication_applier_filters and SHOW REPLICA STATUS do not show it.
 --echo #
 --echo # Verify that default channel would copy global replication filters
 --echo # to its per-channel replication filters if there are no per-channel
 --echo # replication filters and there are global replication filters on the
 --echo # filter type when it is being configured. Then performance_schema.
---echo # replication_applier_filters and SHOW SLAVE STATUS show it.
+--echo # replication_applier_filters and SHOW REPLICA STATUS show it.
 --echo #
 --echo # Verify that "RESET REPLICA ALL" with no FOR CHANNEL clause removes all
 --echo # replication channels, so it shall remove all per-channel replication
@@ -151,7 +151,7 @@ RESET REPLICA ALL FOR CHANNEL 'ch1';
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 RESET REPLICA ALL FOR CHANNEL 'ch1';
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-SHOW SLAVE STATUS FOR CHANNEL 'ch1';
+SHOW REPLICA STATUS FOR CHANNEL 'ch1';
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
@@ -160,7 +160,7 @@ RESET REPLICA ALL FOR CHANNEL '';
 --echo # "RESET REPLICA ALL FOR CHANNEL ''" removes the default channel and all
 --echo # replication filters of the channel firstly, but then create a new
 --echo # default channel which is not configured yet. So performance_schema.
---echo # replication_applier_filters and SHOW SLAVE STATUS do not show it.
+--echo # replication_applier_filters and SHOW REPLICA STATUS do not show it.
 --echo #
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
@@ -173,7 +173,7 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 --echo # to its per-channel replication filters if there are no per-channel
 --echo # replication filters and there are global replication filters on the
 --echo # filter type when it is being configured. Then performance_schema.
---echo # replication_applier_filters and SHOW SLAVE STATUS show it.
+--echo # replication_applier_filters and SHOW REPLICA STATUS show it.
 --echo #
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -211,9 +211,9 @@ RESET REPLICA ALL;
 # clear all replication filters but does not touch all global
 # replication filters.
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-SHOW SLAVE STATUS FOR CHANNEL 'ch1';
+SHOW REPLICA STATUS FOR CHANNEL 'ch1';
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-SHOW SLAVE STATUS FOR CHANNEL 'ch2';
+SHOW REPLICA STATUS FOR CHANNEL 'ch2';
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;

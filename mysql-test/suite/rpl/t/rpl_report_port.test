@@ -32,7 +32,7 @@ connection master;
 
 connection slave;
 --source include/start_slave.inc
---let $slave_param= Slave_IO_State
+--let $slave_param= Replica_IO_State
 --let $slave_param_value= Waiting for source to send event
 --source include/wait_for_slave_param.inc
 
@@ -55,7 +55,7 @@ connection master;
 
 connection slave;
 --source include/start_slave.inc
---let $slave_param= Slave_IO_State
+--let $slave_param= Replica_IO_State
 --let $slave_param_value= Waiting for source to send event
 --source include/wait_for_slave_param.inc
 

@@ -2,7 +2,7 @@
 # WL#4677 Unique Server Ids for Replication Topology (UUIDs)                 #
 #
 # Master and slave exchange their UUID each other when connecting. Master's
-# UUID is set into the result of 'SHOW SLAVE STATUS' and stored into
+# UUID is set into the result of 'SHOW REPLICA STATUS' and stored into
 # master.info file. Slave's UUID appears in the result of 'SHOW SLAVE HOSTS'.
 # Slave and master cannot have the same UUID, except
 # --replicate-same-server-id is set.
@@ -46,11 +46,11 @@ connection master;
 
 --echo
 --echo # Case 1:
---echo # Master's UUID appears in the result of 'SHOW SLAVE STATUS'.
+--echo # Master's UUID appears in the result of 'SHOW REPLICA STATUS'.
 --echo # Slave's UUID appears in the result of 'SHOW SLAVE HOSTS'.
 --echo -----------------------------------------------------------------------------
 
---let $assert_cond= "[master:SELECT @@SERVER_UUID AS a, a, 1]" = "[slave:SHOW SLAVE STATUS, Master_UUID, 1]"
+--let $assert_cond= "[master:SELECT @@SERVER_UUID AS a, a, 1]" = "[slave:SHOW REPLICA STATUS, Source_UUID, 1]"
 --let $assert_text= "Slave's SHOW SLAVE HOST should contain the correct value for master's server_uuid
 --source include/assert.inc
 
@@ -92,7 +92,7 @@ connection master;
 connection slave;
 START REPLICA IO_THREAD;
 
-let $show_statement= SHOW SLAVE STATUS;
+let $show_statement= SHOW REPLICA STATUS;
 --let $slave_io_errno= 13117
 --source include/wait_for_slave_io_error.inc
 
@@ -130,28 +130,28 @@ connection master;
 --echo
 --echo # Case 4:
 --echo # When executing 'CHANGE MASTER ...', master's UUID and server_id will be
---echo # cleared if master_host or/and master_port are changed.
---echo # Master's UUID and server_id will not be cleared if both master_port
---echo # and master_host are not changed.
+--echo # cleared if Source_Host or/and Source_Port are changed.
+--echo # Master's UUID and server_id will not be cleared if both Source_Port
+--echo # and Source_Host are not changed.
 --echo -----------------------------------------------------------------------------
 connection slave;
 --source include/start_slave_io.inc
---let $slave_param= Master_UUID
+--let $slave_param= Source_UUID
 --let $slave_param_value= $original_master_uuid
 --source include/wait_for_slave_param.inc
 
 --source include/stop_slave.inc
 
 --echo
---echo # Only change MASTER_PORT
-let $old_master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
-let $old_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
+--echo # Only change Source_Port
+let $old_master_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1);
+let $old_master_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
 
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
---let $slave_param= Master_UUID
+--let $slave_param= Source_UUID
 --let $slave_param_value= 
 --source include/check_slave_param.inc
---let $slave_param= Master_Server_Id
+--let $slave_param= Source_Server_Id
 --let $slave_param_value= 0
 --source include/check_slave_param.inc
 
@@ -159,22 +159,22 @@ CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
 eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT,
        SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave_io.inc
---let $slave_param= Master_UUID
+--let $slave_param= Source_UUID
 --let $slave_param_value= $original_master_uuid
 --source include/wait_for_slave_param.inc
 
 --echo
---echo # Only change MASTER_HOST
+--echo # Only change Source_Host
 STOP REPLICA IO_THREAD;
 --source include/wait_for_slave_io_to_stop.inc
-let $old_master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
-let $old_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
+let $old_master_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1);
+let $old_master_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
---let $slave_param= Master_UUID
+--let $slave_param= Source_UUID
 --let $slave_param_value=
 --source include/check_slave_param.inc
---let $slave_param= Master_Server_Id
+--let $slave_param= Source_Server_Id
 --let $slave_param_value= 0
 --source include/check_slave_param.inc
 
@@ -182,20 +182,20 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
        SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave_io.inc
---let $slave_param= Master_UUID
+--let $slave_param= Source_UUID
 --let $slave_param_value= $original_master_uuid
 --source include/wait_for_slave_param.inc
 
 --echo
---echo # Both MASTER_HOST and MASTER_PORT are changed
+--echo # Both Source_Host and Source_Port are changed
 STOP REPLICA IO_THREAD;
 
 --source include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
---let $slave_param= Master_UUID
+--let $slave_param= Source_UUID
 --let $slave_param_value=
 --source include/check_slave_param.inc
---let $slave_param= Master_Server_Id
+--let $slave_param= Source_Server_Id
 --let $slave_param_value= 0
 --source include/check_slave_param.inc
 
@@ -203,12 +203,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT,
        SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave_io.inc
---let $slave_param= Master_UUID
+--let $slave_param= Source_UUID
 --let $slave_param_value= $original_master_uuid
 --source include/wait_for_slave_param.inc
 
 --echo
---echo # Both MASTER_HOST and MASTER_PORT are NOT changed
+--echo # Both Source_Host and Source_Port are NOT changed
 STOP REPLICA IO_THREAD;
 --source include/wait_for_slave_io_to_stop.inc
 

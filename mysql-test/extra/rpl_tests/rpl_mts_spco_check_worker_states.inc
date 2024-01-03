@@ -105,7 +105,7 @@ ROLLBACK;
 
 --echo # Wait for all worker threads to exit
 --let $slave_timeout= 60
---let $slave_param= Slave_SQL_Running
+--let $slave_param= Replica_SQL_Running
 --let $slave_param_value= No
 --source include/wait_for_slave_param.inc
 
@@ -131,7 +131,7 @@ COMMIT;
 --source include/start_slave_sql.inc
 
 --let $slave_timeout= 60
---let $slave_param= Slave_SQL_Running_State
+--let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
 --source include/wait_for_slave_param.inc
 

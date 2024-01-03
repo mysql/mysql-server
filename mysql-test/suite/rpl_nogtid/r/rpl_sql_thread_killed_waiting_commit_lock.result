@@ -27,7 +27,7 @@ include/wait_for_slave_sql_error.inc [errno=1317]
 # Restart sql thread to let it finish the replication
 SET @@GLOBAL.DEBUG= '-d,dbug.reached_commit';
 UNLOCK TABLES;
-include/assert.inc [Exec_Master_Log_Pos in SHOW SLAVE STATUS must be equal to mater_log_pos in slave's repository]
+include/assert.inc [Exec_Source_Log_Pos in SHOW REPLICA STATUS must be equal to mater_log_pos in slave's repository]
 include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc

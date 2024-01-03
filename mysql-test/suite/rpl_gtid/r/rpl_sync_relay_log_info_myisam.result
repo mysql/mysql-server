@@ -29,7 +29,7 @@ CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=MyISAM;
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=0, step=2) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=0, step=2) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -38,7 +38,7 @@ INSERT INTO t1 VALUES (1);
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=0, step=3) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=0, step=3) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -47,7 +47,7 @@ FLUSH LOCAL BINARY LOGS;
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=0, step=4) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=0, step=4) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -56,7 +56,7 @@ DROP TABLE t1;
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=0, step=5) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=0, step=5) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -64,7 +64,7 @@ include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=0, step=6) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=0, step=6) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -74,14 +74,14 @@ CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=MyISAM;
 include/rpl_receive_event_count.inc [hang after 1 Gtid event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=0, step=7) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=0, step=7) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=0, step=8) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=0, step=8) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -90,7 +90,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=0, step=9) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=0, step=9) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -98,7 +98,7 @@ include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=0, step=10) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=0, step=10) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -108,14 +108,14 @@ INSERT INTO t1 VALUES (2);
 include/rpl_receive_event_count.inc [hang after 1 Gtid event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=0, step=11) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=0, step=11) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=0, step=12) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=0, step=12) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -124,7 +124,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=0, step=13) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=0, step=13) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -132,7 +132,7 @@ include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=0, step=14) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=0, step=14) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -143,14 +143,14 @@ INSERT INTO t1 VALUES (@v);
 include/rpl_receive_event_count.inc [hang after 1 User var event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=0, step=15) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=0, step=15) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=0, step=16) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=0, step=16) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -159,7 +159,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=0, step=17) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=0, step=17) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -168,7 +168,7 @@ DROP TABLE t1;
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=0, step=18) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=0, step=18) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -193,7 +193,7 @@ CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=MyISAM;
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=2) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=2) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -202,7 +202,7 @@ INSERT INTO t1 VALUES (1);
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=3) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=3) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -211,7 +211,7 @@ FLUSH LOCAL BINARY LOGS;
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=4) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=4) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -220,7 +220,7 @@ DROP TABLE t1;
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=5) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=5) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -228,7 +228,7 @@ include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=6) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=6) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -238,14 +238,14 @@ CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=MyISAM;
 include/rpl_receive_event_count.inc [hang after 1 Gtid event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=1, step=7) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=1, step=7) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=1, step=8) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=1, step=8) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -254,7 +254,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=9) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=9) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -262,7 +262,7 @@ include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=10) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=10) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -272,14 +272,14 @@ INSERT INTO t1 VALUES (2);
 include/rpl_receive_event_count.inc [hang after 1 Gtid event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=1, step=11) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=1, step=11) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=1, step=12) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=1, step=12) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -288,7 +288,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=13) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=13) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -296,7 +296,7 @@ include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=14) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=14) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -307,14 +307,14 @@ INSERT INTO t1 VALUES (@v);
 include/rpl_receive_event_count.inc [hang after 1 User var event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=1, step=15) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=1, step=15) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/assert.inc [(MYISAM, sync_rli=1, step=16) SQL thread did not synced master binlog file]
 include/assert.inc [(MYISAM, sync_rli=1, step=16) SQL thread did not synced master binlog position]
 include/gtid_step_assert.inc [count=0, only_count=0]
@@ -323,7 +323,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=17) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=17) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -332,7 +332,7 @@ DROP TABLE t1;
 include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 Wait until (MYISAM, sync_rli=1, step=18) SQL thread synced master binlog file
 Wait until (MYISAM, sync_rli=1, step=18) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]

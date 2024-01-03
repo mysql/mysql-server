@@ -27,7 +27,7 @@ include/stop_slave_io.inc
 include/start_slave_io.inc
 [connection slave]
 include/gtid_step_assert_on_retrieved.inc [count=4, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t1 (info) VALUE ('Insert data rotating master binlog between two transactions');
 BEGIN;
@@ -47,7 +47,7 @@ include/stop_slave_io.inc
 include/start_slave_io.inc
 [connection slave]
 include/gtid_step_assert_on_retrieved.inc [count=4, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_gtid_log_event');
@@ -63,7 +63,7 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Removing debug point 'stop_io_after_reading_gtid_log_event' from @@GLOBAL.debug
 include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 1 + 3);
 [connection slave]
@@ -71,7 +71,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_query_log_event');
@@ -87,7 +87,7 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Removing debug point 'stop_io_after_reading_query_log_event' from @@GLOBAL.debug
 include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 2 + 3);
 [connection slave]
@@ -95,7 +95,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_table_map_event');
@@ -111,7 +111,7 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Removing debug point 'stop_io_after_reading_table_map_event' from @@GLOBAL.debug
 include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 3 + 3);
 [connection slave]
@@ -119,7 +119,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_xid_log_event');
@@ -135,7 +135,7 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Removing debug point 'stop_io_after_reading_xid_log_event' from @@GLOBAL.debug
 include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 4 + 3);
 [connection slave]
@@ -143,7 +143,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 DROP TABLE t1,t2;
 ## Starting and syncing the SQL thread before next round
@@ -327,7 +327,7 @@ include/stop_slave_io.inc
 include/start_slave_io.inc
 [connection slave]
 include/gtid_step_assert_on_retrieved.inc [count=4, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t1 (info) VALUE ('Insert data rotating master binlog between two transactions');
 BEGIN;
@@ -347,7 +347,7 @@ include/stop_slave_io.inc
 include/start_slave_io.inc
 [connection slave]
 include/gtid_step_assert_on_retrieved.inc [count=4, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_gtid_log_event');
@@ -363,7 +363,7 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Removing debug point 'stop_io_after_reading_gtid_log_event' from @@GLOBAL.debug
 include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 1 + 3);
 [connection slave]
@@ -371,7 +371,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_query_log_event');
@@ -387,7 +387,7 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Removing debug point 'stop_io_after_reading_query_log_event' from @@GLOBAL.debug
 include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 2 + 3);
 [connection slave]
@@ -395,7 +395,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_table_map_event');
@@ -411,7 +411,7 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Removing debug point 'stop_io_after_reading_table_map_event' from @@GLOBAL.debug
 include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 3 + 3);
 [connection slave]
@@ -419,7 +419,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_xid_log_event');
@@ -435,7 +435,7 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Removing debug point 'stop_io_after_reading_xid_log_event' from @@GLOBAL.debug
 include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 4 + 3);
 [connection slave]
@@ -443,7 +443,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 DROP TABLE t1,t2;
 ## Starting and syncing the SQL thread before next round

@@ -124,7 +124,7 @@ connection slave;
 --let $slave_sql_errno= convert_error(ER_ROW_IS_REFERENCED_2)
 source include/wait_for_slave_sql_to_stop.inc;
 
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+let $last_error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
@@ -159,7 +159,7 @@ connection slave;
 --let $slave_sql_errno= convert_error(ER_NO_REFERENCED_ROW_2)
 source include/wait_for_slave_sql_to_stop.inc;
 
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+let $last_error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
@@ -199,7 +199,7 @@ connection slave;
 --let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
 source include/wait_for_slave_sql_to_stop.inc;
 
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+let $last_error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
@@ -235,7 +235,7 @@ connection slave;
 --let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
 source include/wait_for_slave_sql_to_stop.inc;
 
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+let $last_error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
@@ -253,7 +253,7 @@ DELETE FROM t2 WHERE a = -2;
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+let $last_error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
@@ -275,7 +275,7 @@ UPDATE t1 SET a = 1 WHERE a = -1;
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+let $last_error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
@@ -295,7 +295,7 @@ UPDATE t2 SET a = 1 WHERE a = -1;
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+let $last_error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;

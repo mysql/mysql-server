@@ -28,8 +28,8 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert = 1;
 # Verify that none of the above SSL options are already set
 # These options are only set when distributed recovery starts
 #
-Master_SSL_Allowed = 'No such row'
-Master_SSL_Verify_Server_Cert = 'No such row'
+Source_SSL_Allowed = 'No such row'
+Source_SSL_Verify_Server_Cert = 'No such row'
 #
 # See when SSL is required that Recovery cannot advance when not properly configured
 #
@@ -38,10 +38,10 @@ INSERT INTO t1 VALUES (1);
 [connection server2]
 include/start_group_replication.inc
 #
-# Verify that SSL options are shown in SHOW SLAVE STATUS output
+# Verify that SSL options are shown in SHOW REPLICA STATUS output
 #
-Master_SSL_Allowed = 'Yes'
-Master_SSL_Verify_Server_Cert = 'Yes'
+Source_SSL_Allowed = 'Yes'
+Source_SSL_Verify_Server_Cert = 'Yes'
 include/stop_group_replication.inc
 #
 # Reset SSL variables for recovery channel
@@ -56,10 +56,10 @@ INSERT INTO t1 VALUES (2);
 [connection server2]
 include/start_group_replication.inc
 #
-# Verify that Master_SSL_Allowed and Master_SSL_Verify_Server_Cert are set to default.
+# Verify that Source_SSL_Allowed and Source_SSL_Verify_Server_Cert are set to default.
 #
-Master_SSL_Allowed = 'No'
-Master_SSL_Verify_Server_Cert = 'No'
+Source_SSL_Allowed = 'No'
+Source_SSL_Verify_Server_Cert = 'No'
 #
 # Clean up
 #

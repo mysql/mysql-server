@@ -25,11 +25,11 @@ if ($rpl_channel_name)
 --source include/begin_include_file.inc
 
 
---let $slave_param= Slave_IO_Running
+--let $slave_param= Replica_IO_Running
 --let $slave_param_value= Yes
 --source include/check_slave_param.inc
 
---let $slave_param= Slave_SQL_Running
+--let $slave_param= Replica_SQL_Running
 --let $slave_param_value= Yes
 --source include/check_slave_param.inc
 

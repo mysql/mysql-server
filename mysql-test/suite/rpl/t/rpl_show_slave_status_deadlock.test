@@ -5,7 +5,7 @@
 # Problem:
 # ========
 # If a client thread on an slave does FLUSH TABLES WITH READ
-# LOCK; then master does some updates, SHOW SLAVE STATUS in
+# LOCK; then master does some updates, SHOW REPLICA STATUS in
 # the same client will be blocked.
 #
 # Test:
@@ -15,7 +15,7 @@
 # continue. The sql thread will be blocked in a state where it has acquired
 # rli->data_lock and it is waiting for MDL COMMIT lock. Now execute show slave
 # status command from the same client where FLUSH TABLES WITH READ LOCK was
-# issued. The show slave status command should not be blocked.
+# issued. The show replica status command should not be blocked.
 ###############################################################################
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
@@ -51,7 +51,7 @@ let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 
 --source include/rpl_connection_slave.inc
 --disable_result_log
-query_vertical SHOW SLAVE STATUS;
+query_vertical SHOW REPLICA STATUS;
 --enable_result_log
 UNLOCK TABLES;
 

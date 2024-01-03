@@ -61,14 +61,14 @@ if ($rpl_channel_name)
 
 if ($rpl_only_running_threads)
 {
-  --let $_slave_sql_running= query_get_value(SHOW SLAVE STATUS $_for_channel_clause, Slave_SQL_Running, 1)
-  --let $_slave_io_running= query_get_value(SHOW SLAVE STATUS $_for_channel_clause, Slave_IO_Running, 1)
+  --let $_replica_sql_running= query_get_value(SHOW REPLICA STATUS $_for_channel_clause, Replica_SQL_Running, 1)
+  --let $_replica_io_running= query_get_value(SHOW REPLICA STATUS $_for_channel_clause, Replica_IO_Running, 1)
   if ($rpl_debug)
   {
-    --echo Stop SQL: $_slave_sql_running; Stop IO: $_slave_io_running
+    --echo Stop SQL: $_replica_sql_running; Stop IO: $_replica_io_running
   }
 
-  --let $_slave_running_bits= `SELECT IF('$_slave_io_running' = 'Yes', 1, 0) + IF('$_slave_sql_running' = 'Yes', 2, 0)`
+  --let $_slave_running_bits= `SELECT IF('$_replica_io_running' = 'Yes', 1, 0) + IF('$_replica_sql_running' = 'Yes', 2, 0)`
   if ($_slave_running_bits)
   {
     --dec $_slave_running_bits

@@ -31,7 +31,7 @@ if ( `SELECT '$_storage_engine' <> 'INNODB' AND '$_storage_engine' <> 'MYISAM'` 
 
 # Check if SQL thread is running
 --source include/rpl_connection_slave.inc
---let $_is_sql_thread_running= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1)
+--let $_is_sql_thread_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
 
 # If the SQL thread is stopped, we will assert GTIDs based on
 # Retrieved_Gtid_Set

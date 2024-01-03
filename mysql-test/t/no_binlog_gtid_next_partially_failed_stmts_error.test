@@ -70,10 +70,10 @@ SHOW CREATE TABLE t1;
 --echo # it encounters an error when saving its gtid into
 --echo # mysql.GTID_EXECUTED table.
 --echo #
---let $assert_text= Did not commit gtid MASTER_UUID:3 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Did not commit gtid Source_UUID:3 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-2"
 --source include/assert.inc
---let $assert_text= Did not save gtid MASTER_UUID:3 into mysql.gtid_executed table
+--let $assert_text= Did not save gtid Source_UUID:3 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 3]" = 0
 --source include/assert.inc
 
@@ -95,10 +95,10 @@ SET SESSION debug="-d,simulate_err_on_write_gtid_into_table";
 --echo # it encounters an error when saving its gtid into
 --echo # mysql.GTID_EXECUTED table.
 --echo #
---let $assert_text= Did not commit gtid MASTER_UUID:4 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Did not commit gtid Source_UUID:4 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3"
 --source include/assert.inc
---let $assert_text= Did not save gtid MASTER_UUID:4 into mysql.gtid_executed table
+--let $assert_text= Did not save gtid Source_UUID:4 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 4]" = 0
 --source include/assert.inc
 

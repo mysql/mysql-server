@@ -51,10 +51,10 @@ while($i>0)
   if ($i == 1)
   {
     #
-    # 4. Assertion: assert that the hostname reported in SHOW SLAVE STATUS is correct
+    # 4. Assertion: assert that the hostname reported in SHOW REPLICA STATUS is correct
     #
-    --let $hostname_read= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
-    --let $hostname_source= SHOW SLAVE STATUS
+    --let $hostname_read= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+    --let $hostname_source= SHOW REPLICA STATUS
   }
 
   --let $assert_cond= "$hostname_read" = "$lengthy_hostname"

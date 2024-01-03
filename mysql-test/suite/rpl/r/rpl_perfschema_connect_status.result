@@ -7,16 +7,16 @@ include/assert.inc [On master, the table should return an empty set.]
 include/assert.inc [On slave, the group_name should be set NULL]
 
 # Verify that SELECT works for every field and produces an output similar
-# to the corresponding field in SHOW SLAVE STATUS(SSS). To verify the
+# to the corresponding field in SHOW REPLICA STATUS(SRS). To verify the
 # correctness of thread_id field, we check for the name of the thread.
 
-include/assert.inc [Value returned by SSS and PS table for Source_UUID should be same.]
+include/assert.inc [Value returned by SRS and PS table for Source_UUID should be same.]
 include/assert.inc [thread_name should should indicate io thread.]
-include/assert.inc [SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".]
+include/assert.inc [SRS shows Replica_IO_Running as "Yes". So, Service_State from this PS table should be "ON".]
 include/assert.inc [PS table should output 0000-00-00 00:00:00.000000 indicating no heartbeats have been received]
-include/assert.inc [Value returned by SSS and PS table for Received_Transaction_Set should be same.]
-include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
-include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should be same.]
+include/assert.inc [Value returned by SRS and PS table for Received_Transaction_Set should be same.]
+include/assert.inc [Value returned by SRS and PS table for Last_Error_Number should be same.]
+include/assert.inc [Value returned by SRS and PS table for Last_Error_Message should be same.]
 include/assert.inc [Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.]
 include/stop_slave.inc
 
@@ -47,12 +47,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA io_thread;
 include/wait_for_slave_param.inc [Last_IO_Errno]
 
-# Extract the error related fields from SSS and PS table and compare
+# Extract the error related fields from SRS and PS table and compare
 # them for correctness.
 
-include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
-Value returned by SSS and PS table for Last_Error_Message is same.
-include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
+include/assert.inc [Value returned by SRS and PS table for Last_Error_Number should be same.]
+Value returned by SRS and PS table for Last_Error_Message is same.
+include/assert.inc [Value returned by SRS and PS table for Last_Error_Timestamp should be same.]
 
 # Verify that source_UUID and the error related fields are preserved
 # after STOP REPLICA, thread_id changes to NULL and service_state to "off".
@@ -63,15 +63,15 @@ include/stop_slave.inc
 #    STOP REPLICA.
 
 include/assert.inc [After STOP REPLICA, thread_id should be NULL]
-include/assert.inc [SSS shows Slave_IO_Running as "No". So, Service_State from this PS table should be "OFF".]
+include/assert.inc [SRS shows Replica_IO_Running as "No". So, Service_State from this PS table should be "OFF".]
 
-# 2. Extract the source_UUID and the error related fields from SSS and PS
+# 2. Extract the source_UUID and the error related fields from SRS and PS
 #    table and compare them. These fields should preserve their values.
 
-include/assert.inc [Value returned by SSS and PS table for Source_UUID should be same.]
-include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
-Value returned by SSS and PS table for Last_Error_Message is same.
-include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
+include/assert.inc [Value returned by SRS and PS table for Source_UUID should be same.]
+include/assert.inc [Value returned by SRS and PS table for Last_Error_Number should be same.]
+Value returned by SRS and PS table for Last_Error_Message is same.
+include/assert.inc [Value returned by SRS and PS table for Last_Error_Timestamp should be same.]
 
 # Restart the master and slave servers in gtid-mode=on, execute some
 # transactions and verify the 'Received_Transaction_Set' field.
@@ -89,7 +89,7 @@ use test;
 create table t(a int);
 insert into t values(1);
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Value returned by SSS and PS table for Received_Transaction_Set should be same.]
+include/assert.inc [Value returned by SRS and PS table for Received_Transaction_Set should be same.]
 
 # Verify that the value for 'Received_Transaction_Set' field is preserved
 # after STOP REPLICA.

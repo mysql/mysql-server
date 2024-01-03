@@ -27,7 +27,7 @@ relay-log=                  slave-relay-bin
 
 
 # Values reported by slave when it connect to master
-# and shows up in SHOW SLAVE STATUS;
+# and shows up in SHOW REPLICA STATUS;
 report-host=                localhost
 report-port=                @mysqld.2.port
 report-user=                root

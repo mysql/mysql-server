@@ -31,7 +31,7 @@ include/assert.inc ['Auto_position is enabled']
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
 include/rpl_restart_server.inc [server_number=2 parameters: --gtid-mode=off_permissive]
 include/assert_grep.inc [Replication channel '' could not be started as GTID_MODE was not ON.]
-include/check_slave_param.inc [Slave_IO_Running FOR CHANNEL '']
+include/check_slave_param.inc [Replica_IO_Running FOR CHANNEL '']
 #
 # 5. Verify start replica after restart server also does not start
 #    replica threads and fails with with

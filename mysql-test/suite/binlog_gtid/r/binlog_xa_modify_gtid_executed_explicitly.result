@@ -47,5 +47,5 @@ XA COMMIT '1';
 # Verify that users can not delete from mysql.gtid_executed
 # table explicitly by a XA transaction.
 #
-include/assert.inc [Table mysql.gtid_executed must contain GTID(s) with source_uuid = master_uuid]
+include/assert.inc [Table mysql.gtid_executed must contain GTID(s) with source_uuid = Source_UUID]
 DROP TABLE t1;

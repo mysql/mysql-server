@@ -56,7 +56,7 @@ if ($can_convert) {
 if (!$can_convert) {
   --source include/rpl_connection_slave.inc
   wait_for_slave_to_stop;
-  let $error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+  let $error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Error, 1);
   eval INSERT INTO type_conversions SET
        Source = "$source_type",
        Target = "$target_type",

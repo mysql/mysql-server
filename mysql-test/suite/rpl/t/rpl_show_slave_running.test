@@ -1,7 +1,7 @@
 #
 # Bug #30703  SHOW STATUS LIKE 'Slave_running' is not compatible with `SHOW SLAVE STATUS'
 # The test verifies that  SHOW STATUS LIKE 'Slave_running' displays ON
-# if and only if `SHOW SLAVE STATUS' displays YES for Slave_IO_Running and  Slave_SQL_Running
+# if and only if `SHOW REPLICA STATUS' displays YES for Replica_IO_Running and  Replica_SQL_Running
 #
 --source include/not_group_replication_plugin.inc
 source include/have_debug.inc;
@@ -18,9 +18,9 @@ source include/stop_slave.inc;
 
 # Test 1. Slave is stopped
 
---echo Slave_running, Slave_IO_Running, Slave_SQL_Running, must be OFF, NO, NO in three following queries
+--echo # Replica_IO_Running, Replica_SQL_Running, must be OFF, OFF in the following queries
 
-select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+select rcs.SERVICE_STATE as Replica_IO_Running, ras.SERVICE_STATE as Replica_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
 
 #  Test 2. The slave IO thread is started but not yet got connected to master
 #          and SQL thread is not started
@@ -34,21 +34,21 @@ START REPLICA io_thread;
 # Hence, 5.1 must display OFF NO NO where as 5.1+ OFF Connecting NO
 # (thank you, Andrei for leaving these comments. -- Andrei repl MC at the moment)
 #
---echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF Connecting NO in three following queries
+--echo # Replica_IO_Running, Replica_SQL_Running, must be CONNECTING, OFF in the following queries
 
-select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+select rcs.SERVICE_STATE as Replica_IO_Running, ras.SERVICE_STATE as Replica_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
 
 # Test 3. The slave IO thread is started and got connected to master
 #         and SQL thread is still not started
 
 SET DEBUG_SYNC='now SIGNAL signal.io_thread_let_running'; # unblock IO thread now
-let $slave_param= Slave_IO_Running;
+let $slave_param= Replica_IO_Running;
 let $slave_param_value= YES;
 source include/wait_for_slave_param.inc;
 
---echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF YES NO in three following queries
+--echo # Replica_IO_Running, Replica_SQL_Running, must be ON, OFF in the following queries
 
-select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+select rcs.SERVICE_STATE as Replica_IO_Running, ras.SERVICE_STATE as Replica_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
 
 # Test 4. The slave IO thread is started and got connected to master
 #         and SQL thread is started
@@ -56,9 +56,9 @@ select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Run
 START REPLICA sql_thread;
 source include/wait_for_slave_sql_to_start.inc;
 
---echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be ON, YES, YES in three following queries
+--echo # Replica_IO_Running, Replica_SQL_Running, must be ON, ON in the following queries
 
-select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+select rcs.SERVICE_STATE as Replica_IO_Running, ras.SERVICE_STATE as Replica_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
 
 # cleanup
 

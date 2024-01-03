@@ -1,12 +1,12 @@
 ################################################################################
 # BUG#25813258 CRASH ON
-#              SHOW SLAVE STATUS FOR CHANNEL 'GROUP_REPLICATION_RECOVERY'
+#              SHOW REPLICA STATUS FOR CHANNEL 'GROUP_REPLICATION_RECOVERY'
 #
 # Verify the command doesn't crash after server restarts.
 # Step 1. Setup group replication
 # Step 2. Leave and rejoin server_2. Keeps server_2 in RECOVERY status
 # Step 3. Restart server_2
-# Step 4. Execute SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery'
+# Step 4. Execute SHOW REPLICA STATUS FOR CHANNEL 'group_replication_recovery'
 ################################################################################
 
 --source include/big_test.inc
@@ -65,7 +65,7 @@ START GROUP_REPLICATION;
 --echo # Verify no crash happens
 --echo #
 --disable_result_log
-SHOW SLAVE STATUS FOR CHANNEL "group_replication_recovery";
+SHOW REPLICA STATUS FOR CHANNEL "group_replication_recovery";
 --enable_result_log
 
 DROP TABLE t1;

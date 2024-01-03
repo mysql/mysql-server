@@ -49,7 +49,7 @@ FLUSH TABLES;
 # Verify ALTER TABLE and ALTER DATABASE do not run in parallel.
 --connection master
 --source include/sync_slave_sql_with_master.inc
---let $binlog_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $binlog_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 --let $logical_timestamps=3 4
 --source include/assert_logical_timestamps.inc
 --source include/stop_slave.inc

@@ -7,7 +7,7 @@ SET GLOBAL super_read_only= ON;
 #
 # Verify that we can get correct gtid sets after server restarts
 #
-include/assert.inc [committed gtid set is MASTER_UUID:1-2]
+include/assert.inc [committed gtid set is Source_UUID:1-2]
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag

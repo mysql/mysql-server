@@ -48,7 +48,7 @@ SET @old_relay_log_purge= @@global.relay_log_purge;
 
 --echo ==== Test ====
 --source include/start_slave_sql.inc
---let $slave_param= Exec_Master_Log_Pos
+--let $slave_param= Exec_Source_Log_Pos
 --let $slave_param_value=11102
 --source include/wait_for_slave_param.inc
 

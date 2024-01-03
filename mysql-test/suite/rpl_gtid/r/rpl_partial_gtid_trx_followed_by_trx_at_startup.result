@@ -12,20 +12,20 @@ include/start_slave_io.inc
 include/gtid_step_reset_on_retrieved.inc
 # Adding debug point 'simulate_unknown_ignorable_log_event_with_xid' to @@GLOBAL.debug
 [connection master]
-# This should be MASTER_UUID:1
+# This should be Source_UUID:1
 CREATE TABLE t1 (c1 INT) ENGINE= InnoDB;
 include/sync_slave_io_with_master.inc
 [connection master]
-# This should be MASTER_UUID:2,
+# This should be Source_UUID:2,
 # but it will not be fully retrieved nor applied on slave
 INSERT INTO t1 VALUES (1);
-# This should be MASTER_UUID:3,
+# This should be Source_UUID:3,
 CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
 include/sync_slave_io_with_master.inc
 include/stop_slave_io.inc
 # Removing debug point 'simulate_unknown_ignorable_log_event_with_xid' from @@GLOBAL.debug
 [connection master]
-# This should be MASTER_UUID:4
+# This should be Source_UUID:4
 INSERT INTO t1 VALUES (3);
 [connection slave]
 include/rpl_restart_server.inc [server_number=2]
@@ -33,7 +33,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=3, only_count=1]
-Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 include/stop_slave_io.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;

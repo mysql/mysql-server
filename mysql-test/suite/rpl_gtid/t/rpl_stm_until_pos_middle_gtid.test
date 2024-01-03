@@ -7,7 +7,7 @@
 # ==== Method ====
 #
 # The test will create a two events transaction (GTID + QUERY), and will start
-# the SQL thread using the UNTIL MASTER_LOG_FILE/POS clause, pointing to the
+# the SQL thread using the UNTIL Source_Log_File/POS clause, pointing to the
 # first byte of the created transaction (inside of the Gtid_log_event).
 #
 # The test expects that, after issuing the START REPLICA SQL_THREAD with the
@@ -63,13 +63,13 @@ eval START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE = "$master_file", SOURCE_LOG
 --enable_warnings
 
 --echo # Wait until SQL thread reaches last master binlog file
---let $slave_param= Relay_Master_Log_File
+--let $slave_param= Relay_Source_Log_File
 --let $slave_param_value= $master_file
 --let $slave_param_comparison= =
 --source include/wait_for_slave_param.inc
 
 --echo # Wait until SQL thread reaches desired master binlog position
---let $slave_param= Exec_Master_Log_Pos
+--let $slave_param= Exec_Source_Log_Pos
 --let $slave_param_value= $master_pos
 --let $slave_param_comparison= >=
 --source include/wait_for_slave_param.inc

@@ -95,7 +95,7 @@ while ($i < 7)
 SET DEBUG_SYNC="now wait_for signal.reached";
 
 # Calcualte SBM
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
 --let $assert_text= Seconds Behind Master should be less than $idle seconds.
 --let $assert_cond= $sbm < $idle
 --source include/assert.inc

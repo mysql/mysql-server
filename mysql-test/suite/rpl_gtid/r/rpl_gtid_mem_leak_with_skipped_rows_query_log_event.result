@@ -20,7 +20,7 @@ SET @@session.binlog_rows_query_log_events=ON;
 #
 CREATE TABLE t1(i INT);
 #
-# Step 4) Switch to slave and change the slave gtid_next to master_uuid
+# Step 4) Switch to slave and change the slave gtid_next to Source_UUID
 #         and execute two empty transactions so that the next two events
 #         from master are skipped on slave.
 #

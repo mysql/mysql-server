@@ -13,7 +13,7 @@ SET DEBUG_SYNC= 'now SIGNAL notified_thread_complete';
 # Veriry that we can get correct gtid sets after server restarts
 # from a crash of compressing gtid_executed table.
 #
-include/assert.inc [committed gtid set is MASTER_UUID:1-3]
+include/assert.inc [committed gtid set is Source_UUID:1-3]
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag
@@ -23,7 +23,7 @@ MASTER_UUID	1	3
 # rotation if no gtid is stored into the last binlog.
 #
 FLUSH LOGS;
-include/assert.inc [committed gtid set is MASTER_UUID:1-3]
+include/assert.inc [committed gtid set is Source_UUID:1-3]
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag
 MASTER_UUID	1	3	
@@ -38,7 +38,7 @@ SET @@GLOBAL.DEBUG= '-d, simulate_error_on_compress_gtid_table';
 # is not compressed if we encountered an error when compressing
 # gtid_executed table.
 #
-include/assert.inc [committed gtid set is MASTER_UUID:1-4]
+include/assert.inc [committed gtid set is Source_UUID:1-4]
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag
 MASTER_UUID	1	3	

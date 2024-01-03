@@ -1,7 +1,7 @@
 ###############################################################################
 # Bug#23532304 SECONDS_BEHIND_MASTER REPORTS IO_THREAD TIME WHEN USING MTS &
 #              ROTATING RELAY-LOG
-# Problem: The value of 'Seconds_Behind_Master' (SBM) reports distorted number
+# Problem: The value of 'Seconds_Behind_Source' (SBM) reports distorted number
 #         when rotating a relay-log.
 #
 # Steps to reproduce:
@@ -47,7 +47,7 @@ while ($iter < 2)
 # I/O thread age that it should be atleast less
 # than the age of I/O thread.
 SET DEBUG_SYNC="now wait_for signal.reached";
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
 --let $assert_text= Seconds Behind Master should be less than IO_THREAD's time.
 --let $assert_cond= $sbm < 180
 --source include/assert.inc

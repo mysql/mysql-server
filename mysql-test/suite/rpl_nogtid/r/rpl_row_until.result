@@ -24,7 +24,7 @@ n
 2
 3
 4
-include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/check_slave_param.inc [Exec_Source_Log_Pos]
 START REPLICA UNTIL SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
 include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t1;
@@ -33,7 +33,7 @@ n
 2
 3
 4
-include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/check_slave_param.inc [Exec_Source_Log_Pos]
 START REPLICA;
 include/wait_for_slave_to_start.inc
 include/sync_slave_sql_with_master.inc
@@ -41,7 +41,7 @@ include/stop_slave.inc
 START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=master_pos_create_t2
 include/wait_for_slave_param.inc [Until_Log_Pos]
 include/wait_for_slave_sql_to_stop.inc
-include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/check_slave_param.inc [Exec_Source_Log_Pos]
 START REPLICA UNTIL SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=SOURCE_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS, RELAY_LOG_POS=RELAY_LOG_POS;

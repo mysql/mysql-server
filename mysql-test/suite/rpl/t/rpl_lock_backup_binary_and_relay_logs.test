@@ -46,7 +46,7 @@ SET @@GLOBAL.binlog_expire_logs_seconds= 1;
 LOCK INSTANCE FOR BACKUP;
 --source include/rpl_connection_slave.inc
 LOCK INSTANCE FOR BACKUP;
---let $s1= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $s1= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 
 # Generate workload on master
 --source include/rpl_connection_master.inc
@@ -68,7 +68,7 @@ INSERT INTO t1 VALUES (7);
 
 # Ensure slave has consumed first three binary log files
 --source include/sync_slave_sql_with_master.inc
---let $sN= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $sN= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 
 --source include/rpl_connection_master.inc
 # Take a nap to allow binary log expiration to take action

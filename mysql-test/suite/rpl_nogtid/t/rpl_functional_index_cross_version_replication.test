@@ -66,9 +66,9 @@ START REPLICA SQL_THREAD;
 # Test if the slave arrived at a sane state and finished processing all
 # relay-logs.
 #
---let $slave_param = Slave_SQL_Running_State
+--let $slave_param = Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
---let $slave_io_running_check_disable = 1
+--let $replica_io_running_check_disable = 1
 --source include/wait_for_slave_param.inc
 
 # Even with the above validation, we should protect against future changes that

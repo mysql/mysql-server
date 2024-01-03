@@ -13,11 +13,11 @@ INSERT INTO t1 VALUES ("zero", 0);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/start_slave.inc
-include/assert.inc [SHOW SLAVE STATUS should return the same delay that we set with CHANGE MASTER]
+include/assert.inc [SHOW REPLICA STATUS should return the same delay that we set with CHANGE MASTER]
 [on master]
 INSERT INTO t1 VALUES ('normal setup', 1);
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
@@ -33,7 +33,7 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
@@ -43,7 +43,7 @@ include/assert.inc [The difference between the immediate_commit_timestamp should
 [connection master]
 INSERT INTO t1 VALUES ('slave is already lagging: this statement should execute immediately', 3);
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
@@ -56,7 +56,7 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
@@ -78,7 +78,7 @@ include/assert.inc [Status should be '' after STOP REPLICA]
 include/start_slave.inc
 [connection master]
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
@@ -99,7 +99,7 @@ include/assert.inc [Status should be '' after STOP REPLICA]
 include/start_slave.inc
 [connection master]
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']

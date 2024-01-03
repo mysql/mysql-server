@@ -248,7 +248,7 @@ SELECT * FROM t1 ORDER BY a;
 --echo **** On Slave ****
 --source include/sync_slave_sql_with_master.inc
 set @@global.replica_exec_mode= default;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+let $last_error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Error, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;

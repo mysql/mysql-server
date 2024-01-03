@@ -79,17 +79,17 @@ if ($rpl_channel_name != '')
   --let $_for_channel= FOR CHANNEL '$rpl_channel_name'
 }
 
---let $is_slave_io_running= query_get_value(SHOW SLAVE STATUS $_for_channel, Slave_IO_Running, 1)
+--let $is_replica_io_running= query_get_value(SHOW REPLICA STATUS $_for_channel, Replica_IO_Running, 1)
 if (!$rpl_continue_event_count_after_hanging)
 {
-  if ($is_slave_io_running != 'No' )
+  if ($is_replica_io_running != 'No' )
   {
     --die ERROR IN TEST: The I/O thread was expected to be stopped.
   }
 }
 if ($rpl_continue_event_count_after_hanging)
 {
-  if ($is_slave_io_running != 'Yes' )
+  if ($is_replica_io_running != 'Yes' )
   {
     --die ERROR IN TEST: The I/O thread was expected to be running.
   }

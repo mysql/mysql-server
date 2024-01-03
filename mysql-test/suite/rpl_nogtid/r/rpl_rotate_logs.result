@@ -10,8 +10,8 @@ insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break replica'),('Tried hard');
 include/sync_slave_sql_with_master.inc
-Master_Log_File = 'master-bin.000001'
-Relay_Master_Log_File = 'master-bin.000001'
+Source_Log_File = 'master-bin.000001'
+Relay_Source_Log_File = 'master-bin.000001'
 include/check_slave_is_running.inc
 include/assert.inc [Table t1 should contain the first inserted line]
 include/assert.inc [Table t1 should contain the second inserted line]
@@ -57,8 +57,8 @@ Log_name	File_size	Encrypted
 master-bin.000003	#	#
 insert into t2 values (65);
 include/sync_slave_sql_with_master.inc
-Master_Log_File = 'master-bin.000003'
-Relay_Master_Log_File = 'master-bin.000003'
+Source_Log_File = 'master-bin.000003'
+Relay_Source_Log_File = 'master-bin.000003'
 include/check_slave_is_running.inc
 include/assert.inc [Table t2 should still contain the first inserted line after creation]
 include/assert.inc [Table t2 should contain the line inserted after the purge]

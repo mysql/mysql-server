@@ -5,7 +5,7 @@
 # It includes verifying that replication works on using the         #
 # NETWORK_NAMESPACE clause added to the CHANGE REPLICATION SOURCE   #
 # command and that details about the network namespace used for the #
-# replication is reflected through SHOW SLAVE STATUS and below      #
+# replication is reflected through SHOW REPLICA STATUS and below      #
 # tables -                                                          #
 # - performance_schema.replication_connection_configuration         #
 # - mysql.slave_master_info                                         #
@@ -77,8 +77,8 @@ SHOW CREATE TABLE t1;
 --echo # Check network namspace of currently connected master
 SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
 SELECT Network_namespace FROM mysql.slave_master_info;
---let $slave_status_namespace= query_get_value(SHOW SLAVE STATUS,Network_Namespace, 1)
---echo Namespace from 'SHOW SLAVE STATUS' : $slave_status_namespace
+--let $slave_status_namespace= query_get_value(SHOW REPLICA STATUS,Network_Namespace, 1)
+--echo Namespace from 'SHOW REPLICA STATUS' : $slave_status_namespace
 
 --echo # Check slave connection on the 'blue' namespace
 --replace_result $SLAVE_MYPORT SLAVE_PORT
@@ -118,8 +118,8 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 --echo # Check network namspace of currently connected master
 SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
 SELECT Network_namespace FROM mysql.slave_master_info;
---let $slave_status_namespace= query_get_value(SHOW SLAVE STATUS,Network_Namespace, 1)
---echo Namespace from 'SHOW SLAVE STATUS' : $slave_status_namespace 
+--let $slave_status_namespace= query_get_value(SHOW REPLICA STATUS,Network_Namespace, 1)
+--echo Namespace from 'SHOW REPLICA STATUS' : $slave_status_namespace 
 
 --echo # Check slave connection on the 'blue' namespace
 --exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "SELECT * FROM t1"
@@ -155,8 +155,8 @@ INSERT INTO t1 VALUES (5, 'mno');
 --echo # Check network namspace of currently connected master
 SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
 SELECT Network_namespace FROM mysql.slave_master_info;
---let $slave_status_namespace= query_get_value(SHOW SLAVE STATUS,Network_Namespace, 1)
---echo Namespace from 'SHOW SLAVE STATUS' : $slave_status_namespace
+--let $slave_status_namespace= query_get_value(SHOW REPLICA STATUS,Network_Namespace, 1)
+--echo Namespace from 'SHOW REPLICA STATUS' : $slave_status_namespace
 
 --echo # Check that the table is replicated properly
 --let $diff_tables = master:t1, slave:t1

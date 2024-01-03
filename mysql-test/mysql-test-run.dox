@@ -2583,17 +2583,17 @@
     <li>
       <tt>wait_for_slave_param.inc</tt>
 
-      Waits until <b>SHOW SLAVE STATUS</b> output contains a given
+      Waits until <b>SHOW REPLICA STATUS</b> output contains a given
       value or a timeout occurs. Before including the file, you should
       set the <b>$slave_param</b> variable to the column name to
-      look for in <b>SHOW SLAVE STATUS</b> output, and
+      look for in <b>SHOW REPLICA STATUS</b> output, and
       <b>$slave_param_value</b> to the value that you are waiting
       for the column to have.
 
       Example:
 
       @verbatim
-  --let $slave_param= Slave_SQL_Running
+  --let $slave_param= Replica_SQL_Running
   --let $slave_param_value= No
   --source include/slave_wait_slave_param.inc
       @endverbatim
@@ -2605,7 +2605,7 @@
       Waits until the SQL thread for the current connection has gotten
       an error or a timeout occurs. Occurrence of an error is
       determined by waiting for the <b>Last_SQL_Errno</b> column of
-      <b>SHOW SLAVE STATUS</b> output to have a nonzero value.
+      <b>SHOW REPLICA STATUS</b> output to have a nonzero value.
     </li>
   </ul>
 */

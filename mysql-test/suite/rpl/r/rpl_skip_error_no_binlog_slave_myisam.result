@@ -12,17 +12,17 @@ INSERT INTO t1_nontrans VALUES (2);
 [connection master]
 CREATE TABLE t2_nontrans (a INT);
 include/sync_slave_sql_with_master.inc
-include/assert.inc [exec_master_log_pos should be equal to read_master_log_pos after CREATE TABLE]
+include/assert.inc [Exec_Source_Log_Pos should be equal to Read_Source_Log_Pos after CREATE TABLE]
 [connection master]
 INSERT INTO t1_nontrans VALUES (1);
 include/sync_slave_sql_with_master.inc
-include/assert.inc [exec_master_log_pos should be equal to read_master_log_pos after INSERT]
+include/assert.inc [Exec_Source_Log_Pos should be equal to Read_Source_Log_Pos after INSERT]
 [connection master]
 BEGIN;
 INSERT INTO t1_nontrans VALUES (2);
 COMMIT;
 include/sync_slave_sql_with_master.inc
-include/assert.inc [exec_master_log_pos should be equal to read_master_log_pos after INSERT inside transaction]
+include/assert.inc [Exec_Source_Log_Pos should be equal to Read_Source_Log_Pos after INSERT inside transaction]
 [connection master]
 DROP TABLE t1_nontrans, t2_nontrans;
 include/sync_slave_sql_with_master.inc

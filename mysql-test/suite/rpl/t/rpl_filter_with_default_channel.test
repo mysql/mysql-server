@@ -6,7 +6,7 @@
 # specifying channel_name in filter variable and CHANGE REPLICATION FILTER ...
 # FOR CHANNEL '', and do not copy global replication filters to its per-channel
 # replication filters if there are per-channel replication filters on the
-# filter type. We also verify that SHOW SLAVE STATUS FOR CHANNEL '' and
+# filter type. We also verify that SHOW REPLICA STATUS FOR CHANNEL '' and
 # P_S.replication_applier_filters display correct per-channel replication
 # filters on the configured default channel.
 #
@@ -18,7 +18,7 @@
 # 1. On the configured default channel, verify that per-channel
 #    replication filters can be configured with startup options:
 #    --replicate-* without specifying channel_name in filter variable.
-#    SHOW SLAVE STATUS FOR CHANNEL '' displays correct per-channel
+#    SHOW REPLICA STATUS FOR CHANNEL '' displays correct per-channel
 #    replication filters.
 #
 # 2. Verify that performance_schema.replication_applier_filters can
@@ -36,7 +36,7 @@
 #
 # 4. Verify that CHANGE REPLICATION FILTER FOR CHANNEL '' shall
 #    change per-channel replication filters on default channel.
-#    SHOW SLAVE STATUS FOR CHANNEL '' displays correct replication
+#    SHOW REPLICA STATUS FOR CHANNEL '' displays correct replication
 #    filters.
 #
 # 5. Verify that performance_schema.replication_applier_filters can
@@ -71,7 +71,7 @@
 --echo # 1. On the configured default channel, verify that per-channel
 --echo # replication filters can be configured with startup options:
 --echo # --replicate-* without specifying channel_name in filter variable.
---echo # SHOW SLAVE STATUS FOR CHANNEL '' displays
+--echo # SHOW REPLICA STATUS FOR CHANNEL '' displays
 --echo # the following per-channel replication filters:
 --echo # Replicate_Do_DB = 'test,my_db2,my_db3'
 --echo # Replicate_Ignore_DB = 'db1,db11,my_db6'
@@ -142,7 +142,7 @@ REPLICATE_IGNORE_DB = (my_initfiledb3) FOR CHANNEL '';
 --echo #
 --echo # 4. Verify that CHANGE REPLICATION FILTER FOR CHANNEL '' shall
 --echo # change per-channel replication filters on default channel.
---echo # SHOW SLAVE STATUS FOR CHANNEL '' displays the following
+--echo # SHOW REPLICA STATUS FOR CHANNEL '' displays the following
 --echo # filters:
 --echo # Replicate_Do_DB = ':test,my_db3,my_db4'
 --echo # Replicate_Ignore_DB = 'my_initfiledb3'

@@ -33,8 +33,8 @@ eval CHANGE REPLICATION SOURCE TO
     SOURCE_SSL_KEY='$MYSQL_TEST_DIR/std_data/client-key.pem';
 --source include/start_slave.inc
 # Check SSL state of slave
-let $slave_ssl_status= query_get_value(SHOW SLAVE STATUS, Master_SSL_Allowed, 1);
---echo Master_SSL_Allowed: $slave_ssl_status
+let $slave_ssl_status= query_get_value(SHOW REPLICA STATUS, Source_SSL_Allowed, 1);
+--echo Source_SSL_Allowed: $slave_ssl_status
 # Wait until hearbeat event is received
 let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $status_col= count_received_heartbeats;

@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection slave]
 RESET REPLICA;
 START REPLICA;
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 DROP TABLE t1;
 DROP VIEW v1;
 include/stop_slave.inc

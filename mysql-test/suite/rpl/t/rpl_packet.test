@@ -55,7 +55,7 @@ INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 eval select count(*) from `$db`.`t1` /* must be 1 */;
 
 --disable_warnings
-select ras.SERVICE_STATE as Slave_SQL_Running, rcs.SERVICE_STATE as Slave_IO_Running 
+select ras.SERVICE_STATE as Replica_SQL_Running, rcs.SERVICE_STATE as Replica_IO_Running 
 from performance_schema.replication_applier_status ras, 
 performance_schema.replication_connection_status rcs;
 --enable_warnings
@@ -218,12 +218,12 @@ INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 
---echo # Record Read_Master_Log_Pos for the Table_map_log_event
---let $table_map_log_pos= query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1)
+--echo # Record Read_Source_Log_Pos for the Table_map_log_event
+--let $table_map_log_pos= query_get_value("SHOW REPLICA STATUS", Read_Source_Log_Pos, 1)
 
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
---let $start_pos= query_get_value("SHOW SLAVE STATUS", Relay_Log_Pos, 1)
---let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $start_pos= query_get_value("SHOW REPLICA STATUS", Relay_Log_Pos, 1)
+--let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 --let $outfile= $MYSQLTEST_VARDIR/tmp/b55790-mysqlbinlog
 --let $i= 2
 

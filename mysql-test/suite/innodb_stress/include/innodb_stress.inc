@@ -131,7 +131,7 @@ queries issued before the crash.;
     connection slave;
     eval select * into outfile '$MYSQLTEST_VARDIR/tmp/slave_all' from t1 order by id;
     eval select id into outfile '$MYSQLTEST_VARDIR/tmp/slave_id' from t1 order by id;
-    show slave status;
+    SHOW REPLICA STATUS;
 
     die;
   }

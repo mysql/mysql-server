@@ -37,8 +37,8 @@ ERROR HY000: START REPLICA FOR CHANNEL cannot be performed on channel 'group_rep
 STOP REPLICA FOR CHANNEL 'group_replication_applier';
 ERROR HY000: STOP REPLICA FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
-# error when executing SHOW SLAVE STATUS FOR CHANNEL
-SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
+# error when executing SHOW REPLICA STATUS FOR CHANNEL
+SHOW REPLICA STATUS FOR CHANNEL 'group_replication_applier';
 ERROR HY000: SHOW REPLICA STATUS cannot be performed on channel 'group_replication_applier'.
 
 # START REPLICA SQL_THREAD command will not work for group_replication_applier
@@ -94,8 +94,8 @@ ERROR HY000: START REPLICA FOR CHANNEL cannot be performed on channel 'group_rep
 STOP REPLICA FOR CHANNEL 'group_replication_applier';
 ERROR HY000: STOP REPLICA FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
-# error when executing SHOW SLAVE STATUS FOR CHANNEL
-SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
+# error when executing SHOW REPLICA STATUS FOR CHANNEL
+SHOW REPLICA STATUS FOR CHANNEL 'group_replication_applier';
 ERROR HY000: SHOW REPLICA STATUS cannot be performed on channel 'group_replication_applier'.
 
 # START REPLICA SQL_THREAD command will work for group_replication_applier

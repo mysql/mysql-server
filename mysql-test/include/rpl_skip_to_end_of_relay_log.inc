@@ -38,7 +38,7 @@ if (!$rpl_debug)
 
 --source include/rpl_get_end_of_relay_log.inc
 
---let $_rsteorl_is_auto_position= query_get_value(SHOW SLAVE STATUS, Auto_Position, 1)
+--let $_rsteorl_is_auto_position= query_get_value(SHOW REPLICA STATUS, Auto_Position, 1)
 
 if ($_rsteorl_is_auto_position)
 {
@@ -47,7 +47,7 @@ if ($_rsteorl_is_auto_position)
     --die include/rpl_skip_to_end_of_relay_log.inc uses GTID_FROM_GTID_SET() which exists in include/gtid_utils.inc. Please source it or use "$rpl_gtid_utils= 1" before sourcing include/master_slave.inc
   }
 
-  --let $_rsteorl_received_gtid_set= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
+  --let $_rsteorl_received_gtid_set= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
   # Find transactions in relay log which are not in gtid_executed.
   --let $_rsteorl_skip_set= `SELECT GTID_SUBTRACT('$_rsteorl_received_gtid_set', @@GLOBAL.GTID_EXECUTED)`
   # Generate empty transactions.

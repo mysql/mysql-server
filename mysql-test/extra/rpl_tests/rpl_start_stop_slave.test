@@ -80,7 +80,7 @@ commit;
 
 connection slave;
 # slave sql thread must be locked out by the conn `slave' explicit lock
-let $pos0_slave= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+let $pos0_slave= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1);
 --disable_query_log
 eval select $pos0_master - $pos0_slave as zero;
 --enable_query_log
@@ -97,7 +97,7 @@ rollback; # release the sql thread
 connection slave1;
 reap;
 source include/wait_for_slave_to_stop.inc;
-let $sql_status= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
+let $sql_status= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1);
 --echo *** sql thread is *not* running: $sql_status ***
 
 
@@ -106,7 +106,7 @@ let $pos1_master= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 connection slave;
 
-let $pos1_slave= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+let $pos1_slave= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1);
 
 --echo *** the prove: the stopped slave has finished the current transaction ***
 

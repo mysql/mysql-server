@@ -21,7 +21,7 @@ FLUSH TABLES WITH READ LOCK;
 SET DEBUG_SYNC= 'now SIGNAL signal.commit_continue';
 # Wait until sql thread enters "Waiting for commit lock" state
 [connection slave]
-SHOW SLAVE STATUS;
+SHOW REPLICA STATUS;
 UNLOCK TABLES;
 # Removing debug point 'dbug.reached_commit' from @@GLOBAL.debug
 # Restart SQL thread so that it notices debug has changed

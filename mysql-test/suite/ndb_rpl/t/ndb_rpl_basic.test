@@ -200,7 +200,7 @@ UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 --echo **** On Slave ****
 
 # Replication should have stopped, since max retries were not enough.
-# verify with show slave status
+# verify with show replica status
 # 1205 = ER_LOCK_WAIT_TIMEOUT 
 --let $slave_sql_errno= 1205 
 --let $show_slave_sql_error= 0

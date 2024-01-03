@@ -47,10 +47,10 @@ if ($rpl_channel_name)
 
 
 # Note: here, we should not wait for Slave_SQL_Errno!=0.
-# Slave_SQL_Errno and Slave_SQL_Running are not set atomically.
-# Slave_SQL_Errno is set first, then Slave_SQL_Running.  So we wait
-# until Slave_SQL_Running=No to be sure that both conditions hold.
-let $slave_param= Slave_SQL_Running;
+# Slave_SQL_Errno and Replica_SQL_Running are not set atomically.
+# Slave_SQL_Errno is set first, then Replica_SQL_Running.  So we wait
+# until Replica_SQL_Running=No to be sure that both conditions hold.
+let $slave_param= Replica_SQL_Running;
 let $slave_param_value= No;
 source include/wait_for_slave_param.inc;
 

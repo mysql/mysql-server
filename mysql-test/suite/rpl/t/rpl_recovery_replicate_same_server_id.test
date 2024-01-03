@@ -14,23 +14,23 @@
 # - The IO_THREAD position will NOT be initialized to the SQL_THREAD position,
 # - SQL_THREAD position will NOT be initialized to the new relay log.
 #
-# It looks like, when the SQL_THREAD does not have a Relay_Master_Log_File,
+# It looks like, when the SQL_THREAD does not have a Relay_Source_Log_File,
 # relay_log_recovery does not work.
 #
 # Test:
 # =====
-# If SQL_THREAD does not have a Relay_Master_Log_File set recovery process
+# If SQL_THREAD does not have a Relay_Source_Log_File set recovery process
 # will try to extract the first rotate event from the master and try to
-# extract master_log_file and master_log_pos from the rotate event. But when
+# extract Source_Log_File and master_log_pos from the rotate event. But when
 # replicate-same-server-id is set master and slave will have same server_id
 # and it will not be possible to identify the rotate event from master. Hence
-# if recovery is happening with empty Relay_Master_Log_File and
+# if recovery is happening with empty Relay_Source_Log_File and
 # replicate-same-server-id is set we generate an error saying recovery is not
 # possible.
 #
 # Enable replicate-same-server-id. Set slave's info repository to be tables
 # and set relay-log-recovery=1. Start replica io_thread to ensure that
-# Relay_Master_Log_File is not initialized. Stop and restart the slave server.
+# Relay_Source_Log_File is not initialized. Stop and restart the slave server.
 # Relay log recovery will not happen slave will generate an error in error log
 # as shown below.
 #

@@ -65,9 +65,9 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 --source include/save_master_pos.inc
 
 # Save current slave relay log coordinates
---let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
---let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
---let $ch1_relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 2)
+--let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
+--let $relay_log_pos= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
+--let $ch1_relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 2)
 # As we do not start ch1, we cannot verify its positions accurately for this
 # test case purposes. That is fine as the objective is to test a non-empty
 # channel name.

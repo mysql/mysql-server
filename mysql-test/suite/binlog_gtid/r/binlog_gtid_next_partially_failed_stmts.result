@@ -22,7 +22,7 @@ user	column_name	column_priv
 # Verify that the failed GRANT statement does not generate
 # a gtid and save the gtid into @@GLOBAL.GTID_EXECUTED.
 #
-include/assert.inc [Committed gtid MASTER_UUID:3 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Committed gtid Source_UUID:3 into @@GLOBAL.GTID_EXECUTED]
 #
 # Verify that the failed GRANT statement is not binlogged
 #
@@ -46,9 +46,9 @@ user	column_name	column_priv
 u1	a	Select
 #
 # Verify that the partially failed REVOKE statement does not generate
-# a gtid master_uuid:5 and save the gtid into @@GLOBAL.GTID_EXECUTED.
+# a gtid Source_UUID:5 and save the gtid into @@GLOBAL.GTID_EXECUTED.
 #
-include/assert.inc [Committed gtid MASTER_UUID:4 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Committed gtid Source_UUID:4 into @@GLOBAL.GTID_EXECUTED]
 #
 # Verify that the partially failed REVOKE statement is not binlogged
 #
@@ -65,7 +65,7 @@ u1
 # Verify that the failed DROP USER statement does not generate
 # a gtid and save it into @@GLOBAL.GTID_EXECUTED.
 #
-include/assert.inc [Does not generate MASTER_UUID:5 and commit it into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Does not generate Source_UUID:5 and commit it into @@GLOBAL.GTID_EXECUTED]
 #
 # Verify failed DROP USER statement is not binlogged
 #
@@ -84,9 +84,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Verify that the failed RENAME TABLE statement does not generate
-# a new GTID MASTER_UUID:7 and save it into @@GLOBAL.GTID_EXECUTED.
+# a new GTID Source_UUID:7 and save it into @@GLOBAL.GTID_EXECUTED.
 #
-include/assert.inc [Does not generate MASTER_UUID:6 and commit it into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Does not generate Source_UUID:6 and commit it into @@GLOBAL.GTID_EXECUTED]
 #
 # Verify that the failed RENAME TABLE statement is not binlogged
 #
@@ -105,7 +105,7 @@ test.t_non_existent	optimize	status	Operation failed
 # When optimizing a non-existent table, verify that the OPTIMIZE TABLE
 # statement generates a gtid and save it into @@GLOBAL.GTID_EXECUTED.
 #
-include/assert.inc [Committed gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Committed gtid Source_UUID:7 into @@GLOBAL.GTID_EXECUTED]
 #
 # When optimizing a non-existent table, verify that the OPTIMIZE TABLE
 # statement is binlogged.
@@ -126,7 +126,7 @@ test.t_non_existent	analyze	status	Operation failed
 # When analyzing a non-existent table, verify that the ANALYZE TABLE
 # statement generates a gtid and save it into @@GLOBAL.GTID_EXECUTED.
 #
-include/assert.inc [Committed gtid MASTER_UUID:8 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Committed gtid Source_UUID:8 into @@GLOBAL.GTID_EXECUTED]
 #
 # When analyzing a non-existent table, verify that the ANALYZE TABLE
 # statement is binlogged.
@@ -147,7 +147,7 @@ test.t_non_existent	repair	status	Operation failed
 # When repairing a non-existent table, verify that the REPAIR TABLE
 # statement generates a gtid and save it into @@GLOBAL.GTID_EXECUTED.
 #
-include/assert.inc [Committed gtid MASTER_UUID:9 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Committed gtid Source_UUID:9 into @@GLOBAL.GTID_EXECUTED]
 #
 # When repairing a non-existent table, verify that the REPAIR TABLE
 # statement is binlogged.
@@ -169,7 +169,7 @@ Error	1146	Table 'test.t_non_existent' doesn't exist
 # When checksuming a non-existent table, verify that the CHECKSUM TABLE
 # statement generates a gtid and save it into @@GLOBAL.GTID_EXECUTED.
 #
-include/assert.inc [Does not generate MASTER_UUID:10 and commit it into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Does not generate Source_UUID:10 and commit it into @@GLOBAL.GTID_EXECUTED]
 #
 # When checksuming a non-existent table, verify that the CHECKSUM TABLE
 # statement is not binlogged.

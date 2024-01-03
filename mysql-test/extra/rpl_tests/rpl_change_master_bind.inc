@@ -1,8 +1,8 @@
 #
-# Test CHANGE MASTER MASTER_BIND=xxx
+# Test CHANGE MASTER Source_Bind=xxx
 #
 # Parameters:
-#  $source_bind - the address to use for MASTER_BIND
+#  $source_bind - the address to use for Source_Bind
 #  $source_bind_error_expected - expect an error when using the specified
 #                                source_bind address
 #
@@ -22,7 +22,7 @@ create table t1(n int, b varchar(256));
 eval insert into t1 values(1, $source_bind);
 
 # Configure slave to connect to master with the give bind address
-# for source_bind and master_host unless it's an invalid address
+# for source_bind and Source_Host unless it's an invalid address
 connection slave;
 let $_master_host=;
 if (!$source_bind_error_expected)
@@ -37,13 +37,13 @@ if (!$source_bind_error_expected)
 eval CHANGE REPLICATION SOURCE to $_master_host SOURCE_BIND=$source_bind;
 START REPLICA;
 
-# Check that SHOW SLAVE STATUS has Master_bind column set to $source_bind
-let $source_bind_value= query_get_value(SHOW SLAVE STATUS, Master_Bind, 1);
+# Check that SHOW REPLICA STATUS has Source_Bind column set to $source_bind
+let $source_bind_value= query_get_value(SHOW REPLICA STATUS, Source_Bind, 1);
 if (`select '$source_bind_value' != $source_bind`)
 {
   source include/show_rpl_debug_info.inc;
   echo 'source_bind_value: $source_bind_value' != 'source_bind: $source_bind';
-  die Master_bind in SHOW SLAVE STAUS not showing configured value;
+  die Master_bind in SHOW REPLICA STATUS not showing configured value;
 }
 
 if ($source_bind_error_expected)

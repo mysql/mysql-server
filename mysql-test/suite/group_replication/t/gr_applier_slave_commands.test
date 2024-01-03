@@ -23,7 +23,7 @@
 #  d) STOP REPLICA IO_THREAD is blocked on group_replication_applier
 #  r) START REPLICA is blocked on group_replication_applier
 #  f) STOP REPLICA is blocked on group_replication_applier
-#  g) SHOW SLAVE STATUS is blocked on group_replication_applier
+#  g) SHOW REPLICA STATUS is blocked on group_replication_applier
 #  h) START REPLICA SQL_THREAD is not allowed on group_replication_applier
 #  i) START REPLICA SQL_THREAD with UNTIL option is not allowed on
 #     group_replication_applier
@@ -37,7 +37,7 @@
 #  c) STOP REPLICA IO_THREAD is blocked on group_replication_applier
 #  d) START REPLICA is blocked on group_replication_applier
 #  e) STOP REPLICA is blocked on group_replication_applier
-#  f) SHOW SLAVE STATUS is blocked on group_replication_applier
+#  f) SHOW REPLICA STATUS is blocked on group_replication_applier
 #  g) START REPLICA SQL_THREAD is allowed on group_replication_applier
 #  h) STOP REPLICA SQL_THREAD is allowed on group_replication_applier
 #  i) SHOW RELAYLOG EVENTS is allowed on group_replication_applier
@@ -112,9 +112,9 @@ START REPLICA FOR CHANNEL 'group_replication_applier';
 STOP REPLICA FOR CHANNEL 'group_replication_applier';
 
 --echo
---echo # error when executing SHOW SLAVE STATUS FOR CHANNEL
+--echo # error when executing SHOW REPLICA STATUS FOR CHANNEL
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
+SHOW REPLICA STATUS FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # START REPLICA SQL_THREAD command will not work for group_replication_applier
@@ -191,9 +191,9 @@ START REPLICA FOR CHANNEL 'group_replication_applier';
 STOP REPLICA FOR CHANNEL 'group_replication_applier';
 
 --echo
---echo # error when executing SHOW SLAVE STATUS FOR CHANNEL
+--echo # error when executing SHOW REPLICA STATUS FOR CHANNEL
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
+SHOW REPLICA STATUS FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # START REPLICA SQL_THREAD command will work for group_replication_applier

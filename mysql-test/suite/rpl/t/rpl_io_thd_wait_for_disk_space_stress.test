@@ -82,14 +82,14 @@ while (!$done)
   --let $need_to_wait= 1
   while ($need_to_wait)
   {
-    --let $io_thread_state= query_get_value(SHOW SLAVE STATUS, Slave_IO_State, 1)
+    --let $io_thread_state= query_get_value(SHOW REPLICA STATUS, Replica_IO_State, 1)
     if ($io_thread_state == Waiting for disk space)
     {
       --let $need_to_wait= 0
     }
     if ($io_thread_state != Waiting for disk space)
     {
-      --let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+      --let $read_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1)
       if ($read_pos == $master_pos)
       {
         --let $need_to_wait= 0

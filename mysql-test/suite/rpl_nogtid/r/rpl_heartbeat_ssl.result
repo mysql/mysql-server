@@ -22,7 +22,7 @@ Warning	####	CHANGE REPLICATION SOURCE TO with a SOURCE_LOG_FILE clause but no S
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
-Master_SSL_Allowed: Yes
+Source_SSL_Allowed: Yes
 Heartbeat event has received
 
 *** Clean up ***

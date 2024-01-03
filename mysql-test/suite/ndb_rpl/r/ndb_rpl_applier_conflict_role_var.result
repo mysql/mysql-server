@@ -6,9 +6,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 show global variables like 'ndb_applier_conflict_role';
 Variable_name	Value
 ndb_applier_conflict_role	NONE
-Slave_SQL_Running = 'Yes'
+Replica_SQL_Running = 'Yes'
 STOP REPLICA sql_thread;
-Slave_SQL_Running = 'No'
+Replica_SQL_Running = 'No'
 Show set-to-same state is ok
 set global ndb_applier_conflict_role = NONE;
 Now transition through all status, including set-to-self
@@ -61,7 +61,7 @@ set global ndb_applier_conflict_role = "NONE";
 Now test transitions not possible due to 
 Slave SQL thread running
 START REPLICA sql_thread;
-Slave_SQL_Running = 'Yes'
+Replica_SQL_Running = 'Yes'
 From NONE
 set global ndb_applier_conflict_role = "NONE";
 set global ndb_applier_conflict_role = "PRIMARY";

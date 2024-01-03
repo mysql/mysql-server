@@ -33,7 +33,7 @@
 #
 #   $slave_io_error_is_nonfatal
 #     By default, we wait for the slave IO thread to stop completely
-#     (i.e., until Slave_IO_State is empty).  If this variable is set,
+#     (i.e., until Replica_IO_State is empty).  If this variable is set,
 #     then we don't wait. This is useful if the error is non-fatal
 #     (e.g., temporary connection error) and does not cause the slave
 #     IO thread to stop.
@@ -61,7 +61,7 @@ if ($rpl_channel_name)
 
 
 # Wait until an IO Error different from zero is found in result of the query
-# 'SHOW SLAVE STATUS'
+# 'SHOW REPLICA STATUS'
 let $old_slave_param_comparison= $slave_param_comparison;
 let $slave_param= Last_IO_Errno;
 let $slave_param_comparison= !=;
@@ -69,7 +69,7 @@ let $slave_param_value= 0;
 source include/wait_for_slave_param.inc;
 let $slave_param_comparison= $old_slave_param_comparison;
 
-# Get the IO error number from the 'SHOW SLAVE STATUS' query which returned error
+# Get the IO error number from the 'SHOW REPLICA STATUS' query which returned error
 let $_wait_for_slave_io_errno= $_show_slave_status_value;
 
 if ($slave_io_errno == '')
@@ -109,7 +109,7 @@ if ($show_slave_io_error)
 
 if (!$slave_io_error_is_nonfatal)
 {
-  --let $slave_param= Slave_IO_State
+  --let $slave_param= Replica_IO_State
   --let $slave_param_value=
   --source include/wait_for_slave_param.inc
 }

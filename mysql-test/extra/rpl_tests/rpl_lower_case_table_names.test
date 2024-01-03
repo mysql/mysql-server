@@ -131,7 +131,7 @@ if (`SELECT count(*) = 1 FROM information_schema.routines WHERE routine_name lik
   -- die Procedure not dropped on SLAVE
 }
 
--- let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+-- let $last_error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1)
 if ($last_error)
 {
   -- die UNEXPECTED SLAVE SQL error: $last_error

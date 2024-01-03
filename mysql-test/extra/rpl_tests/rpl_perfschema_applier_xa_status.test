@@ -50,7 +50,7 @@ if ($gtid_mode == ON)
 {
   --let $gno_0 = 2
   --let $expected_gtid = $master_uuid:$gno_0
-  --echo Waiting until gtid is MASTER_UUID:$gno_0
+  --echo Waiting until gtid is Source_UUID:$gno_0
   --let $wait_condition = SELECT GTID = '$expected_gtid' FROM performance_schema.events_transactions_current where XID_GTRID = 'xatest' AND XA_STATE = 'PREPARED'
   --source include/wait_condition_or_abort.inc
 }
@@ -71,7 +71,7 @@ if ($gtid_mode == ON)
 {
   --let $gno_0 = 3
   --let $expected_gtid = $master_uuid:$gno_0
-  --echo Waiting until gtid is MASTER_UUID:$gno_0
+  --echo Waiting until gtid is Source_UUID:$gno_0
   # We need the "XA_STATE='COMMITTED'" condition, since there
   # can be multiple rows having XID_GTRID='xatest' in case XA PREPARE
   # and XA COMMIT were handled by different applier worker threads.

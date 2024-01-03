@@ -89,7 +89,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
 
 
 --let $rpl_channel_name= ''
---let $slave_param= Slave_IO_Running
+--let $slave_param= Replica_IO_Running
 --let $slave_param_value= No
 --source include/check_slave_param.inc
 

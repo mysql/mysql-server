@@ -22,10 +22,10 @@ include/sync_slave_sql_with_master.inc
 select count(*) from `DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________`.`t1` /* must be 1 */;
 count(*)
 1
-select ras.SERVICE_STATE as Slave_SQL_Running, rcs.SERVICE_STATE as Slave_IO_Running 
+select ras.SERVICE_STATE as Replica_SQL_Running, rcs.SERVICE_STATE as Replica_IO_Running 
 from performance_schema.replication_applier_status ras, 
 performance_schema.replication_connection_status rcs;
-Slave_SQL_Running	Slave_IO_Running
+Replica_SQL_Running	Replica_IO_Running
 ON	ON
 drop database DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 include/sync_slave_sql_with_master.inc
@@ -78,7 +78,7 @@ INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
 # 13125 = ER_SERVER_NET_PACKET_TOO_LARGE
 include/wait_for_slave_io_error.inc [errno=13125]
 Last_IO_Error = 'Got a packet bigger than 'replica_max_allowed_packet' bytes'
-# Record Read_Master_Log_Pos for the Table_map_log_event
+# Record Read_Source_Log_Pos for the Table_map_log_event
 SET @@global.max_allowed_packet=1048576;
 WARNING: The range of printed events ends with a row event or a table map event that does not have the STMT_END_F flag set. This might be because the last statement was not fully written to the log, or because you are using a --stop-position or --stop-datetime that refers to an event in the middle of a statement. The event(s) from the partial statement have not been written to output.
 WARNING: The range of printed events ends with a row event or a table map event that does not have the STMT_END_F flag set. This might be because the last statement was not fully written to the log, or because you are using a --stop-position or --stop-datetime that refers to an event in the middle of a statement. The event(s) from the partial statement have not been written to output.

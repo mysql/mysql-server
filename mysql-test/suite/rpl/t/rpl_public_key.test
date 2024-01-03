@@ -46,7 +46,7 @@ INSERT INTO t1 VALUES (1);
 --source include/rpl_connection_slave.inc
 SELECT * FROM t1;
 
---echo ==== Stop replica and used empty values for master_public_key_path ====
+--echo ==== Stop replica and used empty values for Source_public_key_path ====
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 --replace_column 2 ###
@@ -74,7 +74,7 @@ START REPLICA;
 eval CHANGE REPLICATION SOURCE TO SOURCE_USER='u27122947', SOURCE_PASSWORD='pwd', SOURCE_PUBLIC_KEY_PATH='$MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
 --source include/start_slave.inc
 
---echo ==== Try setting master_public_key_path to '' ====
+--echo ==== Try setting Source_public_key_path to '' ====
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 --replace_column 2 ###

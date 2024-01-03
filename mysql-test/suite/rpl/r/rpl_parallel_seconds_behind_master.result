@@ -25,11 +25,11 @@ commit;
 include/sync_slave_io_with_master.inc
 lock table t2 write;
 include/start_slave_sql.inc
-First transaction is done, now get Seconds_Behind_Master after it...
-include/wait_for_slave_param.inc [Seconds_Behind_Master]
-Seconds_Behind_Master after first transaction is as expected.
+# First transaction is done, now get Seconds_Behind_Source after it...
+include/wait_for_slave_param.inc [Seconds_Behind_Source]
+# Seconds_Behind_Source after first transaction is as expected.
 unlock tables;
-include/wait_for_slave_param.inc [Seconds_Behind_Master]
+include/wait_for_slave_param.inc [Seconds_Behind_Source]
 drop tables t1, t2;
 include/sync_slave_sql_with_master.inc
 set @@global.replica_checkpoint_period= @save.replica_checkpoint_period;

@@ -284,7 +284,7 @@ RESET REPLICA ALL;
 --source include/assert_grep.inc
 
 --let $rpl_channel_name= ''
---let $slave_param= Slave_IO_Running
+--let $slave_param= Replica_IO_Running
 --let $slave_param_value= No
 --source include/check_slave_param.inc
 

@@ -5,9 +5,9 @@ connection slave;
 
 show global variables like 'ndb_applier_conflict_role';
 
-#show slave status;
+#show replica status;
 
---let $status_items=Slave_SQL_Running
+--let $status_items=Replica_SQL_Running
 --source include/show_slave_status.inc
 STOP REPLICA sql_thread;
 --source include/show_slave_status.inc

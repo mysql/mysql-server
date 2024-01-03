@@ -10,7 +10,7 @@
 
 #  - Verify that SELECT works for every field in the table.
 #  - The SELECT per field produces an output similar to the corresponding field
-#    in SHOW SLAVE STATUS(SSS), if there is one.
+#    in SHOW REPLICA STATUS(SRS), if there is one.
 #  - If there is no matching field in SSS, we resort to other method of testing
 #    those fields.
 #
@@ -49,13 +49,13 @@ source include/have_binlog_format_mixed.inc;
 
 --echo
 --echo # Verify that SELECT works for every field and produces an output similar
---echo # to the corresponding field in SHOW SLAVE STATUS(SSS). To verify the
+--echo # to the corresponding field in SHOW REPLICA STATUS(SRS). To verify the
 --echo # correctness of thread_id field, we check for the name of the thread.
 --echo
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Master_UUID, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Source_UUID, 1);
 let $ps_value= query_get_value(select Source_UUID from performance_schema.replication_connection_status, Source_UUID, 1);
-let $assert_text= Value returned by SSS and PS table for Source_UUID should be same.;
+let $assert_text= Value returned by SRS and PS table for Source_UUID should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
@@ -64,41 +64,41 @@ let $assert_text= thread_name should should indicate io thread.;
 let $assert_cond= "$thread_name" = "thread/sql/replica_io";
 source include/assert.inc;
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);
-let $assert_text= SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".;
+let $assert_text= SRS shows Replica_IO_Running as "Yes". So, Service_State from this PS table should be "ON".;
 let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "ON";
 source include/assert.inc;
 
 #
 # Heartbeat count and last hearbeat timestamp are not in SSS, but these are in
 # IS. So to test count_received_heartbeats and last_heartbeat_timestamp
-# we compare values from IS and PS unlike SSS and PS for other fields in this
+# we compare values from IS and PS unlike SRS and PS for other fields in this
 # test.
 let $ps_value= query_get_value(select last_heartbeat_timestamp from performance_schema.replication_connection_status, last_heartbeat_timestamp, 1);
 let $assert_text= PS table should output 0000-00-00 00:00:00.000000 indicating no heartbeats have been received;
 let $assert_cond= "$ps_value"= "0000-00-00 00:00:00.000000";
 source include/assert.inc;
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1);
 let $ps_value= query_get_value(select Received_Transaction_Set from performance_schema.replication_connection_status, Received_Transaction_Set, 1);
-let $assert_text= Value returned by SSS and PS table for Received_Transaction_Set should be same.;
+let $assert_text= Value returned by SRS and PS table for Received_Transaction_Set should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1);
 let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_connection_status, Last_Error_Number, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
+let $assert_text= Value returned by SRS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Last_IO_Error, 1);
 let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_connection_status, Last_Error_Message, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Message should be same.;
+let $assert_text= Value returned by SRS and PS table for Last_Error_Message should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Last_IO_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
 let $assert_text= Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.;
 let $assert_cond= "$ps_value" = "0000-00-00 00:00:00.000000";
@@ -141,7 +141,7 @@ while (!$slave_value)
   dec $slave_wait_param_counter;
   if (!$slave_wait_param_counter)
   {
-    query_vertical show slave status;
+    query_vertical SHOW REPLICA STATUS;
     select count_received_heartbeats from performance_schema.replication_connection_status;
     --die ERROR: failed while waiting for replica to generate a heartbeat.
     exit;
@@ -185,13 +185,13 @@ let $slave_param_value= 1045;
 source include/wait_for_slave_param.inc;
 
 --echo
---echo # Extract the error related fields from SSS and PS table and compare
+--echo # Extract the error related fields from SRS and PS table and compare
 --echo # them for correctness.
 --echo
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1);
 let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_connection_status, Last_Error_Number, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
+let $assert_text= Value returned by SRS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
@@ -199,7 +199,7 @@ source include/assert.inc;
 # makes it difficult use the assert.inc or mysql functionstrcmp().
 # So, the equality of error messages is checked using the below perl code.
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Last_IO_Error, 1);
 let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_connection_status, Last_Error_Message, 1);
 
 let PS_VALUE= $ps_value;
@@ -212,29 +212,29 @@ my $sss_value= $ENV{'SSS_VALUE'};
 
 if ($ps_value eq $sss_value)
 {
-  print "Value returned by SSS and PS table for Last_Error_Message is same.\n";
+  print "Value returned by SRS and PS table for Last_Error_Message is same.\n";
 }
 else
 {
-  print "Value returned by SSS and PS table for Last_Error_Message is NOT same\n";
+  print "Value returned by SRS and PS table for Last_Error_Message is NOT same\n";
 }
 EOF
 
 # End of perl code for testing the error message.
 
-# The timestamp format is slightly different in SSS and PS.
-# SSS => YYMMDD HH:MM:SS
+# The timestamp format is slightly different in SRS and PS.
+# SRS => YYMMDD HH:MM:SS
 # PS  => YYYY-MM-DD HH:MM:SS.ssssss
 # To match the two, we get rid of hyphons from PS output and first two digits
 # the year field and the microseconds (after WL7319) so that it can be matched
 # directly.
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Last_IO_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
 let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
 let $ps_value_without_microseconds= `select substring_index("$ps_value_in_sss_format", '.', 1)`;
-let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
+let $assert_text= Value returned by SRS and PS table for Last_Error_Timestamp should be same.;
 let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
@@ -256,26 +256,26 @@ let $assert_text= After STOP REPLICA, thread_id should be NULL;
 let $assert_cond= "$ps_value" = "NULL";
 source include/assert.inc;
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);
-let $assert_text= SSS shows Slave_IO_Running as "No". So, Service_State from this PS table should be "OFF".;
+let $assert_text= SRS shows Replica_IO_Running as "No". So, Service_State from this PS table should be "OFF".;
 let $assert_cond= "$sss_value" = "No" AND "$ps_value"= "OFF";
 source include/assert.inc;
 
 --echo
---echo # 2. Extract the source_UUID and the error related fields from SSS and PS
+--echo # 2. Extract the source_UUID and the error related fields from SRS and PS
 --echo #    table and compare them. These fields should preserve their values.
 --echo
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Master_UUID, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Source_UUID, 1);
 let $ps_value= query_get_value(select Source_UUID from performance_schema.replication_connection_status, Source_UUID, 1);
-let $assert_text= Value returned by SSS and PS table for Source_UUID should be same.;
+let $assert_text= Value returned by SRS and PS table for Source_UUID should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1);
 let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_connection_status, Last_Error_Number, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
+let $assert_text= Value returned by SRS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
@@ -283,7 +283,7 @@ source include/assert.inc;
 # makes it difficult use the assert.inc or mysql functionstrcmp().
 # So, the equality of error messages is checked using the below perl code.
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Last_IO_Error, 1);
 let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_connection_status, Last_Error_Message, 1);
 
 let PS_VALUE= $ps_value;
@@ -296,30 +296,30 @@ my $sss_value= $ENV{'SSS_VALUE'};
 
 if ($ps_value eq $sss_value)
 {
-  print "Value returned by SSS and PS table for Last_Error_Message is same.\n";
+  print "Value returned by SRS and PS table for Last_Error_Message is same.\n";
 }
 else
 {
-  print "Value returned by SSS and PS table for Last_Error_Message is NOT same\n";
+  print "Value returned by SRS and PS table for Last_Error_Message is NOT same\n";
 }
 EOF
 
 # End of perl code for testing error message.
 
-# The timestamp format is slightly different in SSS and PS.
-# SSS => YYMMDD HH:MM:SS
+# The timestamp format is slightly different in SRS and PS.
+# SRS => YYMMDD HH:MM:SS
 # PS  => YYYY-MM-DD HH:MM:SS.ssssss
 # To match the two, we get rid of hyphons from PS output and first two digits
 # the year field and also the microseconds (after WL#7319) so that it can be
 # matched directly.
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Last_IO_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
+let $assert_text= Value returned by SRS and PS table for Last_Error_Timestamp should be same.;
 let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
 let $ps_value_without_microseconds= `select substring_index("$ps_value_in_sss_format", '.', 1)`;
-let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
+let $assert_text= Value returned by SRS and PS table for Last_Error_Timestamp should be same.;
 let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
@@ -350,9 +350,9 @@ insert into t values(1);
 
 --source include/sync_slave_sql_with_master.inc
 
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1);
+let $sss_value= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1);
 let $ps_value= query_get_value(select Received_Transaction_Set from performance_schema.replication_connection_status, Received_Transaction_Set, 1);
-let $assert_text= Value returned by SSS and PS table for Received_Transaction_Set should be same.;
+let $assert_text= Value returned by SRS and PS table for Received_Transaction_Set should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 

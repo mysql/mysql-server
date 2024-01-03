@@ -17,8 +17,8 @@ master-bin.000002	#	Rotate	#	#	master-bin.000003;pos=POS
 START REPLICA;
 Sync Slave with master
 Show that Slave has not stopped (has skipped GAP)
-Slave_IO_Running = 'Yes'
-Slave_SQL_Running = 'Yes'
+Replica_IO_Running = 'Yes'
+Replica_SQL_Running = 'Yes'
 Last_Errno = '0'
 Last_Error = ''
 Show that replication can continue

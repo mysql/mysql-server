@@ -13,7 +13,7 @@ set session sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 
 # CHM for 'group_replication_recovery' channel won't accept parameters other than
-# MASTER_USER and MASTER_PASSWORD
+# Source_User and MASTER_PASSWORD
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE REPLICATION SOURCE with the given parameters cannot be performed on channel 'group_replication_recovery'.
 CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES="foo" FOR CHANNEL "group_replication_recovery";
@@ -45,8 +45,8 @@ ERROR HY000: Replica channel 'group_replication_recovery' does not exist.
 START REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: Replica channel 'group_replication_recovery' does not exist.
 
-# ERROR when executing SHOW SLAVE STATUS on GR recovery channel
-SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery';
+# ERROR when executing SHOW REPLICA STATUS on GR recovery channel
+SHOW REPLICA STATUS FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: Replica channel 'group_replication_recovery' does not exist.
 
 # ERROR when executing SHOW RELAYLOG EVENTS on GR recovery channel
@@ -103,7 +103,7 @@ ERROR HY000: STOP REPLICA SQL_THREAD FOR CHANNEL cannot be performed on channel 
 START REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: START REPLICA SQL_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_recovery'.
 
-# SHOW SLAVE STATUS - check that recovery channel is inactive
+# SHOW REPLICA STATUS - check that recovery channel is inactive
 include/assert.inc [recovery channel is inactive]
 
 # SHOW RELAYLOG EVENTS - check that relaylogs are created
@@ -173,7 +173,7 @@ ERROR HY000: START REPLICA SQL_THREAD FOR CHANNEL cannot be performed on channel
 START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replication_recovery.000001', RELAY_LOG_POS = 854 FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: START REPLICA SQL_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_recovery'.
 
-# SHOW SLAVE STATUS - check that recovery channel is active
+# SHOW REPLICA STATUS - check that recovery channel is active
 include/assert.inc [recovery channel is active]
 
 # SHOW RELAYLOG EVENTS - Relay log files should exists
@@ -226,7 +226,7 @@ ERROR HY000: STOP REPLICA SQL_THREAD FOR CHANNEL cannot be performed on channel 
 START REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: START REPLICA SQL_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_recovery'.
 
-# SHOW SLAVE STATUS - check that recovery channel is inactive
+# SHOW REPLICA STATUS - check that recovery channel is inactive
 include/assert.inc [recovery channel is inactive]
 
 # SHOW RELAYLOG EVENTS - check that relaylogs are not deleted

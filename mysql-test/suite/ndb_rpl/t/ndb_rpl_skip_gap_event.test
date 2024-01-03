@@ -66,7 +66,7 @@ START REPLICA;
 
 --echo Show that Slave has not stopped (has skipped GAP)
 
-let $status_items= Slave_IO_Running, Slave_SQL_Running, Last_Errno, Last_Error;	
+let $status_items= Replica_IO_Running, Replica_SQL_Running, Last_Errno, Last_Error;	
 -- source include/show_slave_status.inc
 
 --echo Show that replication can continue

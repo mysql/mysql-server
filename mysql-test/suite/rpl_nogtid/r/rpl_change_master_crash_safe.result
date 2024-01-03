@@ -10,7 +10,7 @@ n
 STOP REPLICA sql_thread;
 insert into t1 values(1);
 insert into t1 values(2);
-include/wait_for_slave_param.inc [Read_Master_Log_Pos]
+include/wait_for_slave_param.inc [Read_Source_Log_Pos]
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
@@ -39,7 +39,7 @@ include/wait_for_slave_io_to_start.inc
 set global relay_log_purge=1;
 drop table t1;
 include/rpl_reset.inc
-Master_Retry_Count: 
+Source_Retry_Count: 
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=20;
 include/start_slave.inc

@@ -22,11 +22,11 @@ gtid_executed	CREATE TABLE `gtid_executed` (
 SET GTID_NEXT='MASTER_UUID:3';
 BEGIN;
 COMMIT;
-include/assert.inc [committed gtids MASTER_UUID:1:3]
+include/assert.inc [committed gtids Source_UUID:1:3]
 SET GTID_NEXT='AUTOMATIC';
 FLUSH LOGS;
 #
-# Store gtids MASTER_UUID:1:3 in gtid_executed table on binlog rotation
+# Store gtids Source_UUID:1:3 in gtid_executed table on binlog rotation
 #
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag
@@ -38,9 +38,9 @@ MASTER_UUID	3	3
 #
 CREATE TABLE IF NOT EXISTS t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT) ENGINE=MyISAM;
-include/assert.inc [committed gtids MASTER_UUID:1-4]
+include/assert.inc [committed gtids Source_UUID:1-4]
 #
-# Store gtids MASTER_UUID:1-4 in gtid_executed table on binlog rotation
+# Store gtids Source_UUID:1-4 in gtid_executed table on binlog rotation
 #
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
@@ -59,9 +59,9 @@ DROP TEMPORARY TABLE tmp1, t3;
 ERROR 42S02: Unknown table 'test.t3'
 DROP TEMPORARY TABLE tmp1;
 DROP TABLE t3;
-include/assert.inc [committed gtids MASTER_UUID:1-8]
+include/assert.inc [committed gtids Source_UUID:1-8]
 #
-# Store gtids MASTER_UUID:1-8 in gtid_executed table on binlog rotation
+# Store gtids Source_UUID:1-8 in gtid_executed table on binlog rotation
 #
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
@@ -88,13 +88,13 @@ SET @@SESSION.GTID_NEXT= 'MASTER_UUID:11';
 BEGIN;
 INSERT INTO t1 VALUES(3);
 COMMIT;
-include/assert.inc [committed gtids MASTER_UUID:1-11]
+include/assert.inc [committed gtids Source_UUID:1-11]
 SET GTID_NEXT='AUTOMATIC';
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 #
-# Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
+# Store gtids Source_UUID:1-11 in gtid_executed table on binlog rotation
 #
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag
@@ -107,9 +107,9 @@ MASTER_UUID	1	11
 BEGIN;
 INSERT INTO t1 VALUES(4);
 ROLLBACK;
-include/assert.inc [committed gtids MASTER_UUID:1-11]
+include/assert.inc [committed gtids Source_UUID:1-11]
 #
-# Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
+# Store gtids Source_UUID:1-11 in gtid_executed table on binlog rotation
 #
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
@@ -127,12 +127,12 @@ include/sync_slave_sql_with_master.inc
 SET @@SESSION.GTID_NEXT= 'MASTER_UUID:6';
 INSERT INTO t1 VALUES(11);
 include/assert.inc [Table t1 must not contain 11]
-include/assert.inc [committed gtids MASTER_UUID:1-11]
+include/assert.inc [committed gtids Source_UUID:1-11]
 #
 # The gtid_executed table would only have GTID for Innodb transactions
 #
 #
-# Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
+# Store gtids Source_UUID:1-11 in gtid_executed table on binlog rotation
 #
 SET GTID_NEXT='AUTOMATIC';
 FLUSH LOGS;
@@ -146,9 +146,9 @@ MASTER_UUID	1	11
 #
 SET @@SESSION.GTID_NEXT= 'MASTER_UUID:17';
 COMMIT;
-include/assert.inc [committed gtids MASTER_UUID:1-11:17]
+include/assert.inc [committed gtids Source_UUID:1-11:17]
 #
-# Store gtids MASTER_UUID:1-11:17 in gtid_executed table
+# Store gtids Source_UUID:1-11:17 in gtid_executed table
 # on next binlog rotation.
 #
 SET GTID_NEXT='AUTOMATIC';
@@ -162,7 +162,7 @@ MASTER_UUID	17	17
 # when purging logs.
 #
 PURGE BINARY LOGS TO 'slave-bin.000003';
-include/assert.inc [purged gtids MASTER_UUID:1-11:17]
+include/assert.inc [purged gtids Source_UUID:1-11:17]
 #
 # Verify that transaction's gtid generated on slave is stored
 # into gtid_executed table on next binlog rotation.
@@ -171,7 +171,7 @@ BEGIN;
 INSERT INTO t1 VALUES(12);
 COMMIT;
 #
-# Store gtids MASTER_UUID:1-11:17 and SLAVE_UUID:1
+# Store gtids Source_UUID:1-11:17 and SLAVE_UUID:1
 # in gtid_executed table on binlog rotation.
 #
 FLUSH LOGS;

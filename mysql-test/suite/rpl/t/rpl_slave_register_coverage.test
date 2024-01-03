@@ -2,7 +2,7 @@
 # Coverage test for WL#9219 Remove cross compatibility code for binlog V1-V3
 #
 # It tests two errors on COM_REGISTER_SLAVE command
-# 1. master_user has no privilege to replicate.
+# 1. Source_User has no privilege to replicate.
 # 2. Slave IO thread is killed when registering to master
 ################################################################################
 --source include/have_debug.inc
@@ -10,7 +10,7 @@
 --source include/master-slave.inc
 
 --echo #
---echo # Test Case 1: master_user has no privilege
+--echo # Test Case 1: Source_User has no privilege
 --echo #
 
 CREATE USER rpl_user;

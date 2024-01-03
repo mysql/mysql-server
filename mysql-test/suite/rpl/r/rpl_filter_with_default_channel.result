@@ -14,7 +14,7 @@ include/start_slave.inc
 # 1. On the configured default channel, verify that per-channel
 # replication filters can be configured with startup options:
 # --replicate-* without specifying channel_name in filter variable.
-# SHOW SLAVE STATUS FOR CHANNEL '' displays
+# SHOW REPLICA STATUS FOR CHANNEL '' displays
 # the following per-channel replication filters:
 # Replicate_Do_DB = 'test,my_db2,my_db3'
 # Replicate_Ignore_DB = 'db1,db11,my_db6'
@@ -98,7 +98,7 @@ REPLICATE_IGNORE_DB = (my_initfiledb3) FOR CHANNEL '';
 #
 # 4. Verify that CHANGE REPLICATION FILTER FOR CHANNEL '' shall
 # change per-channel replication filters on default channel.
-# SHOW SLAVE STATUS FOR CHANNEL '' displays the following
+# SHOW REPLICA STATUS FOR CHANNEL '' displays the following
 # filters:
 # Replicate_Do_DB = ':test,my_db3,my_db4'
 # Replicate_Ignore_DB = 'my_initfiledb3'

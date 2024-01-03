@@ -52,7 +52,7 @@ while($i>0)
   if ($i == 1)
   {
     #
-    # 1. Assertion: assert that the hostname reported in SHOW SLAVE STATUS is correct
+    # 1. Assertion: assert that the hostname reported in SHOW REPLICA STATUS is correct
     #
     --let $hostname_read= `SELECT MEMBER_HOST FROM performance_schema.replication_group_members`
     --let $hostname_source= performance_schema.replication_group_members

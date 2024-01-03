@@ -34,11 +34,11 @@ INSERT INTO t2 VALUES(1);
 --echo # Verify that transactions' gtids can be reported
 --echo # from global.gtid_executed correctly.
 --echo #
---let $assert_text= committed gtids MASTER_UUID:1-4
+--let $assert_text= committed gtids Source_UUID:1-4
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
 --source include/assert.inc
 --echo #
---echo # Store gtids MASTER_UUID:1-4 in gtid_executed table on binlog rotation
+--echo # Store gtids Source_UUID:1-4 in gtid_executed table on binlog rotation
 --echo #
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
@@ -49,7 +49,7 @@ SELECT * FROM mysql.gtid_executed;
 --echo # connection slave
 --echo #
 --let $replica_uuid= `SELECT @@GLOBAL.SERVER_UUID`
---let $assert_text= committed gtids MASTER_UUID:1-4
+--let $assert_text= committed gtids Source_UUID:1-4
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
 --source include/assert.inc
 --echo #
@@ -87,7 +87,7 @@ SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD= @old_compression_period;
 --echo # logs if binlog is enabled and log_replica_updates is disabled.
 --echo #
 --eval PURGE BINARY LOGS TO '$binlog_file'
---let $assert_text= purged gtids SLAVE_UUID:1-2,MASTER_UUID:1-4
+--let $assert_text= purged gtids SLAVE_UUID:1-2,Source_UUID:1-4
 --let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_PURGED]", "$replica_uuid:1-2,$master_uuid:1-4")
 --source include/assert.inc
 

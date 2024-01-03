@@ -6,7 +6,7 @@
 # CHANNEL clause. And a new channel would copy the global replication
 # filters to its own per-channel replication filters on configuration and
 # these per-channel replication filters work well. We also verify that
-# SHOW SLAVE STATUS FOR CHANNEL '' and P_S.replication_applier_filters
+# SHOW REPLICA STATUS FOR CHANNEL '' and P_S.replication_applier_filters
 # display correct per-channel replication filters on default channel,
 # and P_S.replication_applier_global_filters table displays correct
 # global replication filters.
@@ -20,7 +20,7 @@
 #
 # 1. Verify that the new channel with channel_name '' would copy the
 #    global replication filters to its own per-channel replication
-#    filters on configuration by CHANGE MASTER TO. SHOW SLAVE STATUS
+#    filters on configuration by CHANGE MASTER TO. SHOW REPLICA STATUS
 #    FOR CHANNEL '' displays correct per-channel replication filters.
 #
 # 2. Verify that performance_schema.replication_applier_filters can
@@ -40,10 +40,10 @@
 # 4. Verify that CHANGE REPLICATION FILTER with no FOR CHANNEL
 #    clause shall change both the per-channel replication filters
 #    for each channel, and all global replication filters.
-#    SHOW SLAVE STATUS FOR CHANNEL '' displays correct
+#    SHOW REPLICA STATUS FOR CHANNEL '' displays correct
 #    replication filters.
 #
-# 5. Verify that SHOW SLAVE STATUS FOR CHANNEL '' displays correct
+# 5. Verify that SHOW REPLICA STATUS FOR CHANNEL '' displays correct
 #    per-channel replication filters.
 #
 # 6. Verify that performance_schema.replication_applier_filters can
@@ -106,7 +106,7 @@ SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replicati
 --echo #
 --echo # 1. Verify that the new channel with channel_name '' would copy
 --echo # global replication filters to its own per-channel replication
---echo # filters on configuration by CHANGE MASTER TO. SHOW SLAVE STATUS
+--echo # filters on configuration by CHANGE MASTER TO. SHOW REPLICA STATUS
 --echo # FOR CHANNEL '' displays the following per-channel replication
 --echo # filters:
 --echo # Replicate_Do_DB = 'test,my_db2,my_db3'
@@ -187,7 +187,7 @@ REPLICATE_DO_DB = (`:test`,my_db3,my_db4),
 REPLICATE_IGNORE_DB = (my_initfiledb3);
 CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(test.t3);
 --echo #
---echo # 5. Verify that SHOW SLAVE STATUS FOR CHANNEL '' displays
+--echo # 5. Verify that SHOW REPLICA STATUS FOR CHANNEL '' displays
 --echo # the following per-channel replication filters:
 --echo # Replicate_Do_DB = ':test,my_db3,my_db4'
 --echo # Replicate_Ignore_DB = 'my_initfiledb3'

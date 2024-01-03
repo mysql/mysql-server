@@ -1,8 +1,8 @@
 # ==== Purpose ====
 #
 # Waits until the IO thread of the current connection has started and
-# connected to the master (i.e., until SHOW SLAVE STATUS returns Yes
-# in the Slave_IO_Running field), or until a timeout is reached.
+# connected to the master (i.e., until SHOW REPLICA STATUS returns Yes
+# in the Replica_IO_Running field), or until a timeout is reached.
 #
 #
 # ==== Usage ====
@@ -39,7 +39,7 @@ if ($rpl_channel_name)
 --source include/begin_include_file.inc
 
 
-let $slave_param= Slave_IO_Running;
+let $slave_param= Replica_IO_Running;
 let $slave_param_value= Yes;
 if (!$rpl_allow_error)
 {

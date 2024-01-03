@@ -103,7 +103,7 @@ eval START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$ma
 --source include/wait_for_slave_sql_to_stop.inc
 
 # Test BUG#43263
---let $assert_cond= [SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1] = $master_end_trans_pos
+--let $assert_cond= [SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1] = $master_end_trans_pos
 --let $assert_text= Slave should have stopped after executing the stored procedure transaction
 --source include/assert.inc
 
@@ -139,7 +139,7 @@ eval START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$ma
 source include/wait_for_slave_sql_to_stop.inc;
 
 # Test BUG#43263
---let $assert_cond= [SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1] = $master_end_trans_pos
+--let $assert_cond= [SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1] = $master_end_trans_pos
 --let $assert_text= Slave should have stopped after executing the stored procedure transaction
 --source include/assert.inc
 

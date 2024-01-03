@@ -66,8 +66,8 @@ START REPLICA;
 START REPLICA;
 
 # Retrieve master executed position before reset replica.
---let $master_exec_file= query_get_value("SHOW SLAVE STATUS", Relay_Master_Log_File, 1)
---let $master_exec_pos= query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1)
+--let $master_exec_file= query_get_value("SHOW REPLICA STATUS", Relay_Source_Log_File, 1)
+--let $master_exec_pos= query_get_value("SHOW REPLICA STATUS", Exec_Source_Log_Pos, 1)
 
 # Reset replica.
 # Disable "Warning  1612  Being purged log ./slave-relay-bin.0* was not found"

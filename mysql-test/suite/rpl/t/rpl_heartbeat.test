@@ -133,7 +133,7 @@ create table t1 (f1 int);
 --source include/sync_slave_sql_with_master.inc
 
 let $slave_param= Relay_Log_File;
-let $slave_param_value= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+let $slave_param_value= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1);
 
 # there is an explicit sleep lasting longer than replica_net_timeout
 # to ensure that nothing will come to slave from master for that period.

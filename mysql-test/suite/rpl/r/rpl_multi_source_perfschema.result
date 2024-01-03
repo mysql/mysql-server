@@ -45,7 +45,7 @@ include/assert.inc [there shall be 2*global.replica_parallel_workers rows for 2 
 #
 include/assert.inc [pfs query shall return the correct query value of the channel_3 port.]
 include/assert.inc [service state of receiver thread shall be ON.]
-include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+include/assert.inc [Value returned by SRS and PS table for Desired_Delay should be same.]
 include/assert.inc [service state shall be ON]
 include/assert.inc [service state of coordinator shall be ON]
 #

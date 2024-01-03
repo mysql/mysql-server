@@ -29,7 +29,7 @@ select * from t11;
 connection master;
 drop table if exists t1,t2,t11;
 --source include/sync_slave_sql_with_master.inc
-# show slave status, just to see of it prints replicate-do-table
+# show replica status, just to see of it prints replicate-do-table
 let $status_items= Replicate_Do_Table;
 source include/show_slave_status.inc;
 

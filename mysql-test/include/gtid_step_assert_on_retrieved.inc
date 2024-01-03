@@ -79,8 +79,8 @@ if ($_gtid_step_uuid == '')
 
 --let $_gsa_extra_debug_eval_old= $extra_debug_eval
 
---let $local_gtid_set= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
---echo Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+--let $local_gtid_set= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--echo Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 
 --let $extra_debug_eval= "$local_gtid_set", GTID_NEXT_GENERATED_MULTIPLE("$gtid_step_last", "$_gtid_step_uuid", $_gtid_step_count), GTID_SUBTRACT("$local_gtid_set", "$gtid_step_last")
 

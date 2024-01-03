@@ -40,7 +40,7 @@ DELETE FROM child WHERE a=3;
 DELETE FROM parent WHERE a=3;
 include/sync_slave_io_with_master.inc
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 include/stop_slave_sql.inc
 [connection slave1]
 ROLLBACK;

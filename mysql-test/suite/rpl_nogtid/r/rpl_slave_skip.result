@@ -46,7 +46,7 @@ c	d
 **** On Slave ****
 START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=MASTER_LOG_POS;
 include/wait_for_slave_sql_to_stop.inc
-include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/check_slave_param.inc [Exec_Source_Log_Pos]
 include/check_slave_no_error.inc
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
 START REPLICA;

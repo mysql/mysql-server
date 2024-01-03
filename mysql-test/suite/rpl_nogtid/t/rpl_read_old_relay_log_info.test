@@ -28,10 +28,10 @@ if ($SYSTEM_PATH_SEPARATOR != /) {
 START REPLICA IO_THREAD;
 --source include/wait_for_slave_io_to_start.inc
 --echo # Check that relay log coordinates are equal to those we saved in old-format_relay-log.info
---let $master_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
---let $master_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
---let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
---let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+--let $master_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 1)
+--let $master_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
+--let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
+--let $relay_log_pos= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
 --echo $master_file= $master_file, $master_pos, $relay_log_file, $relay_log_pos
 if (`SELECT "$master_file" != "" OR
             "$master_pos" != "0" OR

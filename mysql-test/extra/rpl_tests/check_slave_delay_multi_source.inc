@@ -18,7 +18,7 @@
 --source include/sync_slave_sql_with_master.inc
 
 --let $assert_text= Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event'
---let $assert_cond= NOT("[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Waiting until % seconds after source executed event")
+--let $assert_cond= NOT("[SHOW REPLICA STATUS, Replica_SQL_Running_State, 1]" LIKE "Waiting until % seconds after source executed event")
 --source include/assert.inc
 
 --let $rpl_connection_name= $master
@@ -35,7 +35,7 @@
 --let $gtid= $server_uuid:$trx_num
 --source include/get_immediate_commit_timestamp.inc
 --let $slave_immediate_commit_timestamp= `SELECT $immediate_commit_timestamp`
---let $sql_delay= query_get_value("SHOW SLAVE STATUS", SQL_Delay, 1)
+--let $sql_delay= query_get_value("SHOW REPLICA STATUS", SQL_Delay, 1)
 #ceiling is also used when computing the delay in the code
 --let $timestamp_diff= `SELECT CEILING(($slave_immediate_commit_timestamp-$master_immediate_commit_timestamp)/1000000)`
 

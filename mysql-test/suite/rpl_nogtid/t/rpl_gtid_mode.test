@@ -274,7 +274,7 @@ CREATE TABLE t2(a int);
 
 --source include/rpl_connection_slave.inc
 
-# Errors in queue_event() are overwritten in SHOW SLAVE STATUS/P_S
+# Errors in queue_event() are overwritten in SHOW REPLICA STATUS/P_S
 # by (13122 ER_REPLICA_RELAY_LOG_WRITE_FAILURE).
 # So the only place where old error exists is slave error log.
 # Grep error log to look for old error.

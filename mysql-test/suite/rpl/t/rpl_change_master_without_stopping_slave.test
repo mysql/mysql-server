@@ -54,11 +54,11 @@ GRANT REPLICATION SLAVE ON *.* TO replssl@localhost;
 
 --source include/stop_slave.inc
 
-let $master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
-let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
-let $master_id= query_get_value(SHOW SLAVE STATUS, Master_Server_Id, 1);
+let $master_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1);
+let $master_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
+let $master_id= query_get_value(SHOW REPLICA STATUS, Source_Server_Id, 1);
 
---let $save_autoposition= query_get_value(SHOW SLAVE STATUS, Auto_Position, 1)  
+--let $save_autoposition= query_get_value(SHOW REPLICA STATUS, Auto_Position, 1)  
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 
 --connection slave
@@ -88,11 +88,11 @@ eval CHANGE REPLICATION SOURCE TO
 
 --enable_query_log
 
-let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1);
 --replace_result $relay_log_file RELAY_LOG_FILE
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE= '$relay_log_file';
 
-let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
+let $relay_log_pos= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1);
 --replace_result $relay_log_pos RELAY_LOG_POS
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_POS= $relay_log_pos;
 

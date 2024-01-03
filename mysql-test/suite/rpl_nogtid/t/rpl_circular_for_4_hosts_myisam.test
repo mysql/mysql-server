@@ -145,8 +145,8 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
 # Exclude Master C 
 --connection server_3
 --source include/stop_slave_io.inc
---let $pos_c= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
---let $file_c= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1)
+--let $pos_c= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
+--let $file_c= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1)
 
 --connection server_4
 --source include/stop_slave.inc

@@ -62,7 +62,7 @@ while ($_atlal_channel_counter)
   --let $_atlal_channel_name=query_get_value(SELECT CHANNEL_NAME FROM performance_schema.replication_connection_configuration, CHANNEL_NAME, $_atlal_channel_counter)
   # Check if it is a GR channel
   --error 0, ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-  --let $_atlal_current_relaylog_file= query_get_value(SHOW SLAVE STATUS FOR CHANNEL '$_atlal_channel_name', Relay_Log_File, 1)
+  --let $_atlal_current_relaylog_file= query_get_value(SHOW REPLICA STATUS FOR CHANNEL '$_atlal_channel_name', Relay_Log_File, 1)
   --let $_atlal_error= query_get_value(SHOW ERRORS, Code, 1)
   # Skip GR channels assertion
   if ($_atlal_error == 3139)
@@ -74,7 +74,7 @@ while ($_atlal_channel_counter)
   {
     --let $_atlal_relaylog_prefix=`SELECT CONCAT(SUBSTRING_INDEX('$_atlal_current_relaylog_file', '.', 1), '.')`
     --let $_atlal_relaylog_number=`SELECT CAST(SUBSTRING_INDEX('$_atlal_current_relaylog_file', '.', -1) AS UNSIGNED)`
-    --let $_atlal_current_relaylog_pos= query_get_value(SHOW SLAVE STATUS FOR CHANNEL '$_atlal_channel_name', Relay_Log_Pos, 1)
+    --let $_atlal_current_relaylog_pos= query_get_value(SHOW REPLICA STATUS FOR CHANNEL '$_atlal_channel_name', Relay_Log_Pos, 1)
     # This channel was just RESET and probably has no relay log file yet.
     if ($_atlal_relaylog_number == 2)
     {

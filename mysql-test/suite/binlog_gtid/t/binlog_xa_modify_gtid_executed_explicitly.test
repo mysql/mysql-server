@@ -79,7 +79,7 @@ XA COMMIT '1';
 --echo # Verify that users can not delete from mysql.gtid_executed
 --echo # table explicitly by a XA transaction.
 --echo #
---let $assert_text= Table mysql.gtid_executed must contain GTID(s) with source_uuid = master_uuid
+--let $assert_text= Table mysql.gtid_executed must contain GTID(s) with source_uuid = Source_UUID
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE source_uuid = "$master_uuid"]" > 0
 --source include/assert.inc
 

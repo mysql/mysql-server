@@ -14,7 +14,7 @@ CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 # even if we encounter an error on writing gtids into table on
 # server shutdown.
 #
-include/assert.inc [committed gtid set is MASTER_UUID:1-2]
+include/assert.inc [committed gtid set is Source_UUID:1-2]
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag
 MASTER_UUID	1	2	
@@ -41,6 +41,6 @@ SET GLOBAL debug="-d,simulate_err_on_write_gtid_into_table";
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag
 MASTER_UUID	1	2	
-include/assert.inc [committed gtid set is MASTER_UUID:1-5]
+include/assert.inc [committed gtid set is Source_UUID:1-5]
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 DROP TABLE t1;

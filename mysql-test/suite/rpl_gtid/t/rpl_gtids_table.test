@@ -29,13 +29,13 @@ SHOW CREATE TABLE mysql.gtid_executed;
 --eval SET GTID_NEXT='$master_uuid:3'
 BEGIN;
 COMMIT;
---let $assert_text= committed gtids MASTER_UUID:1:3
+--let $assert_text= committed gtids Source_UUID:1:3
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1:3"
 --source include/assert.inc
 --eval SET GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
 --echo #
---echo # Store gtids MASTER_UUID:1:3 in gtid_executed table on binlog rotation
+--echo # Store gtids Source_UUID:1:3 in gtid_executed table on binlog rotation
 --echo #
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
@@ -46,11 +46,11 @@ SELECT * FROM mysql.gtid_executed;
 --echo #
 CREATE TABLE IF NOT EXISTS t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT) ENGINE=MyISAM;
---let $assert_text= committed gtids MASTER_UUID:1-4
+--let $assert_text= committed gtids Source_UUID:1-4
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
 --source include/assert.inc
 --echo #
---echo # Store gtids MASTER_UUID:1-4 in gtid_executed table on binlog rotation
+--echo # Store gtids Source_UUID:1-4 in gtid_executed table on binlog rotation
 --echo #
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
@@ -86,11 +86,11 @@ if (`SELECT @@BINLOG_FORMAT = 'ROW' || @@BINLOG_FORMAT = 'MIXED'`)
   --enable_query_log
 }
 DROP TABLE t3;
---let $assert_text= committed gtids MASTER_UUID:1-8
+--let $assert_text= committed gtids Source_UUID:1-8
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-8"
 --source include/assert.inc
 --echo #
---echo # Store gtids MASTER_UUID:1-8 in gtid_executed table on binlog rotation
+--echo # Store gtids Source_UUID:1-8 in gtid_executed table on binlog rotation
 --echo #
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
@@ -118,7 +118,7 @@ COMMIT;
 BEGIN;
 INSERT INTO t1 VALUES(3);
 COMMIT;
---let $assert_text= committed gtids MASTER_UUID:1-11
+--let $assert_text= committed gtids Source_UUID:1-11
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
 --source include/assert.inc
 --eval SET GTID_NEXT='AUTOMATIC'
@@ -126,7 +126,7 @@ SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 --echo #
---echo # Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
+--echo # Store gtids Source_UUID:1-11 in gtid_executed table on binlog rotation
 --echo #
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
@@ -139,11 +139,11 @@ SELECT * FROM mysql.gtid_executed;
 BEGIN;
 INSERT INTO t1 VALUES(4);
 ROLLBACK;
---let $assert_text= committed gtids MASTER_UUID:1-11
+--let $assert_text= committed gtids Source_UUID:1-11
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
 --source include/assert.inc
 --echo #
---echo # Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
+--echo # Store gtids Source_UUID:1-11 in gtid_executed table on binlog rotation
 --echo #
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
@@ -167,16 +167,16 @@ INSERT INTO t1 VALUES(11);
 --let $assert_text= Table t1 must not contain 11
 --let $assert_cond= "[SELECT a FROM t1 WHERE a=11]" = ""
 --source include/assert.inc
---let $assert_text= committed gtids MASTER_UUID:1-11
+--let $assert_text= committed gtids Source_UUID:1-11
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
 --source include/assert.inc
 --echo #
 --echo # The gtid_executed table would only have GTID for Innodb transactions
 --echo #
-#--replace_result $master_uuid MASTER_UUID
+#--replace_result $master_uuid Source_UUID
 #SELECT * FROM mysql.gtid_executed;
 --echo #
---echo # Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
+--echo # Store gtids Source_UUID:1-11 in gtid_executed table on binlog rotation
 --echo #
 --eval SET GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
@@ -191,11 +191,11 @@ SELECT * FROM mysql.gtid_executed;
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:17'
 COMMIT;
---let $assert_text= committed gtids MASTER_UUID:1-11:17
+--let $assert_text= committed gtids Source_UUID:1-11:17
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11:17"
 --source include/assert.inc
 --echo #
---echo # Store gtids MASTER_UUID:1-11:17 in gtid_executed table
+--echo # Store gtids Source_UUID:1-11:17 in gtid_executed table
 --echo # on next binlog rotation.
 --echo #
 --eval SET GTID_NEXT='AUTOMATIC'
@@ -209,7 +209,7 @@ SELECT * FROM mysql.gtid_executed;
 --echo # when purging logs.
 --echo #
 --eval PURGE BINARY LOGS TO '$binlog_file'
---let $assert_text= purged gtids MASTER_UUID:1-11:17
+--let $assert_text= purged gtids Source_UUID:1-11:17
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1-11:17"
 --source include/assert.inc
 
@@ -221,7 +221,7 @@ BEGIN;
 INSERT INTO t1 VALUES(12);
 COMMIT;
 --echo #
---echo # Store gtids MASTER_UUID:1-11:17 and SLAVE_UUID:1
+--echo # Store gtids Source_UUID:1-11:17 and SLAVE_UUID:1
 --echo # in gtid_executed table on binlog rotation.
 --echo #
 FLUSH LOGS;

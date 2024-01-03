@@ -65,7 +65,7 @@ DELETE FROM parent WHERE a=3;
 #
 --source include/sync_slave_io_with_master.inc
 --source include/start_slave_sql.inc
---let $slave_param= Slave_SQL_Running_State
+--let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Waiting for dependent transaction to commit
 --source include/wait_for_slave_param.inc
 #

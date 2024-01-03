@@ -14,10 +14,10 @@ START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=1045]
 ---- Check performance_schema ----
 include/assert.inc [Error should contain the reason (Access denied for user foo) for connection failure]
----- Check SHOW SLAVE STATUS ----
+---- Check SHOW REPLICA STATUS ----
 include/assert.inc [Error should contain the reason (Access denied for user foo) for connection failure]
 ---- Check that messages are the same in both places ----
-include/assert.inc [Error should be the same in both SSS and P_S]
+include/assert.inc [Error should be the same in both SRS and P_S]
 #### Test 2: invalid port ####
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_PORT = 1;
@@ -25,10 +25,10 @@ START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=2003 # CR_CONN_HOST_ERROR]
 ---- Check performance_schema ----
 include/assert.inc [Error should contain the reason (Cant connect to MySQL server on) for connection failure]
----- Check SHOW SLAVE STATUS ----
+---- Check SHOW REPLICA STATUS ----
 include/assert.inc [Error should contain the reason (Cant connect to MySQL server on) for connection failure]
 ---- Check that messages are the same in both places ----
-include/assert.inc [Error should be the same in both SSS and P_S]
+include/assert.inc [Error should be the same in both SRS and P_S]
 #### Test 3: invalid host ####
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = '999.999.999.999';
@@ -36,10 +36,10 @@ START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=2005 # CR_UNKNOWN_HOST]
 ---- Check performance_schema ----
 include/assert.inc [Error should contain the reason (Unknown MySQL server host) for connection failure]
----- Check SHOW SLAVE STATUS ----
+---- Check SHOW REPLICA STATUS ----
 include/assert.inc [Error should contain the reason (Unknown MySQL server host) for connection failure]
 ---- Check that messages are the same in both places ----
-include/assert.inc [Error should be the same in both SSS and P_S]
+include/assert.inc [Error should be the same in both SRS and P_S]
 #### Clean up ####
 RESET REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = PORT, SOURCE_USER = 'root';

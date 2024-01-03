@@ -82,7 +82,7 @@ sync_with_master 0;
 
 source include/stop_slave.inc;
 
---let $status_items=Slave_IO_State,Last_SQL_Error,Last_IO_Error
+--let $status_items=Replica_IO_State,Last_SQL_Error,Last_IO_Error
 --source include/show_slave_status.inc
 
 --let $assert_text= Assert that the slave table has no rows

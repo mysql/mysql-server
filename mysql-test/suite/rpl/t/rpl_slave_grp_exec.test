@@ -74,7 +74,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 # 1146 = ER_NO_SUCH_TABLE
 #--let $slave_sql_errno= 1146
 --source include/wait_for_slave_sql_to_stop.inc
-let $slave_sql_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+let $slave_sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1);
 if (`select $slave_sql_errno != 1146 and $slave_sql_errno != 1593`)
 {
     --echo Unexpected error: $slave_sql_errno
@@ -146,7 +146,7 @@ UPDATE t1 SET b = 'X' WHERE a = 2;
 #--let $slave_sql_errno= 1146
 
 --source include/wait_for_slave_sql_to_stop.inc
-let $slave_sql_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+let $slave_sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1);
 if (`select $slave_sql_errno != 1146 and $slave_sql_errno != 1593`)
 {
     --echo Unexpected error: $slave_sql_errno
@@ -212,7 +212,7 @@ COMMIT;
 #--let $slave_sql_errno= 1146
 
 --source include/wait_for_slave_sql_to_stop.inc
-let $slave_sql_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+let $slave_sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1);
 if (`select $slave_sql_errno != 1146 and $slave_sql_errno != 1593`)
 {
     --echo Unexpected error: $slave_sql_errno

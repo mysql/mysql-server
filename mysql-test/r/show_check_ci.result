@@ -670,7 +670,7 @@ show create database test;
 show create table t1;
 show create view v1;
 show binary log status;
-show slave status;
+SHOW REPLICA STATUS;
 show create procedure p1;
 show create function f1;
 show create trigger tr1;

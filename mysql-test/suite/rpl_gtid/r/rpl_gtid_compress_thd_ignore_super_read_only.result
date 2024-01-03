@@ -21,10 +21,10 @@ include/sync_slave_sql_with_master.inc
 #
 # connection slave
 #
-include/assert.inc [committed gtids MASTER_UUID:1-6]
+include/assert.inc [committed gtids Source_UUID:1-6]
 #
 # Wait till gtid_executed table has one row and verify that
-# it is MASTER_UUID:1:6
+# it is Source_UUID:1:6
 #
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag

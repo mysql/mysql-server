@@ -27,10 +27,10 @@ if ($_rrli_expected != "N")
 --source include/rpl_connection_slave.inc
 
 # Ensure that the SQL thread is waiting for more events if started
---let $is_slave_sql_running= query_get_value(SHOW SLAVE STATUS $_for_channel, Slave_SQL_Running, 1)
-if ($is_slave_sql_running == 'Yes' )
+--let $is_replica_sql_running= query_get_value(SHOW REPLICA STATUS $_for_channel, Replica_SQL_Running, 1)
+if ($is_replica_sql_running == 'Yes' )
 {
-  --let $slave_param= Slave_SQL_Running_State
+  --let $slave_param= Replica_SQL_Running_State
   --let $slave_param_value= Replica has read all relay log; waiting for more updates
   --source include/wait_for_slave_param.inc
 }

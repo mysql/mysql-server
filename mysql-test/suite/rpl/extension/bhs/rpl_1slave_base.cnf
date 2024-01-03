@@ -22,7 +22,7 @@ relay-log=                  slave-relay-bin
 
 
 # Values reported by slave when it connect to master
-# and shows up in SHOW SLAVE STATUS;
+# and shows up in SHOW REPLICA STATUS;
 report-host=                127.0.0.1
 report-port=                @mysqld.2.port
 report-user=                root
@@ -42,7 +42,7 @@ relay-log=                  blackhole-slave-relay-bin
 
 
 # Values reported by slave when it connect to master
-# and shows up in SHOW SLAVE STATUS;
+# and shows up in SHOW REPLICA STATUS;
 report-host=                127.0.0.1
 report-port=                @mysqld.5.port
 report-user=                root

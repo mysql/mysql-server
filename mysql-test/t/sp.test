@@ -2753,7 +2753,7 @@ show binlog events|
 show storage engines|
 show binary log status|
 show slave hosts|
-show slave status|
+SHOW REPLICA STATUS|
 --enable_testcase
 
 call bug4902()|
@@ -9173,7 +9173,7 @@ show binlog events|
 show storage engines|
 show binary log status|
 show slave hosts|
-show slave status|
+SHOW REPLICA STATUS|
 --enable_testcase
 
 call bug4902()|

@@ -29,10 +29,10 @@ if ($rpl_channel_name)
 --source include/begin_include_file.inc
 
 
-let $slave_param= Slave_SQL_Running;
+let $slave_param= Replica_SQL_Running;
 let $slave_param_value= Yes;
 
-# Unfortunately, the slave sql thread sets Slave_SQL_Running=Yes
+# Unfortunately, the slave sql thread sets Replica_SQL_Running=Yes
 # *before* it clears Last_SQL_Errno.  So we have to allow errors in
 # the SQL thread here.
 

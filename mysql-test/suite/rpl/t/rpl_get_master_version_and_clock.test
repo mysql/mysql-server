@@ -43,7 +43,7 @@ let $dbug_sync_point= 'debug_lock.before_get_SERVER_ID';
 let $debug_sync_action= 'now SIGNAL signal.get_server_id';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 
-#Test case 3: Try to get the value of the MASTER_UUID from master under network disconnection
+#Test case 3: Try to get the value of the Source_UUID from master under network disconnection
 connection slave;
 
 let $dbug_sync_point= 'dbug.before_get_SOURCE_UUID';
@@ -83,8 +83,8 @@ RESET REPLICA;
 --let $debug_point=dbug.simulate_no_such_var_server_uuid
 --source include/add_debug_point.inc
 --source include/start_slave_io.inc
---let $assert_text= Master_uuid must be empty string
---let $assert_cond= "[SHOW SLAVE STATUS, Master_UUID, 1]" = ""
+--let $assert_text= Source_UUID must be empty string
+--let $assert_cond= "[SHOW REPLICA STATUS, Source_UUID, 1]" = ""
 --source include/assert.inc
 
 --source include/stop_slave_io.inc

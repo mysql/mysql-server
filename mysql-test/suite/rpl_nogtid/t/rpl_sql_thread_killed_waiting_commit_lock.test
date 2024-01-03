@@ -85,8 +85,8 @@ UNLOCK TABLES;
 
 --let $slave_master_log_pos_in_repo= `SELECT Master_log_pos FROM mysql.slave_relay_log_info LIMIT 1`
 
---let $slave_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
---let $assert_text= Exec_Master_Log_Pos in SHOW SLAVE STATUS must be equal to mater_log_pos in slave's repository
+--let $slave_master_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
+--let $assert_text= Exec_Source_Log_Pos in SHOW REPLICA STATUS must be equal to mater_log_pos in slave's repository
 --let $assert_cond= $slave_master_log_pos = $slave_master_log_pos_in_repo
 --source include/assert.inc
 --source include/start_slave_sql.inc

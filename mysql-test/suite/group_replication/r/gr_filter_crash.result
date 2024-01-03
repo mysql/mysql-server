@@ -31,7 +31,7 @@ include/rpl_reconnect.inc
 #
 # Verify no crash happens
 #
-SHOW SLAVE STATUS FOR CHANNEL "group_replication_recovery";
+SHOW REPLICA STATUS FOR CHANNEL "group_replication_recovery";
 DROP TABLE t1;
 #
 # Cleanup

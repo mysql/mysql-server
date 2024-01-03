@@ -53,7 +53,7 @@
   --eval $statement
 
   # 3) Check that the slave hasn't stop.
-  --let $slave_param = Slave_SQL_Running
+  --let $slave_param = Replica_SQL_Running
   --let $slave_param_value = Yes
   --source include/wait_for_slave_param.inc
 

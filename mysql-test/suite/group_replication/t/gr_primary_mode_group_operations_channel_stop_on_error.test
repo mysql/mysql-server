@@ -96,11 +96,11 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 --echo
 --echo # 6. Confirm server1 Slave IO and SQL thread are not running.
 
---let $slave_param= Slave_IO_Running
+--let $slave_param= Replica_IO_Running
 --let $slave_param_value= No
 --source include/check_slave_param.inc
 
---let $slave_param= Slave_SQL_Running
+--let $slave_param= Replica_SQL_Running
 --let $slave_param_value= No
 --source include/check_slave_param.inc
 

@@ -32,7 +32,7 @@
 #     sync, but you need to disable sync if you use multi-source.
 #
 #  $rpl_skip_delete_channels
-#     In multi-source repliation, to restore the SHOW SLAVE STATUS state,
+#     In multi-source repliation, to restore the SHOW REPLICA STATUS state,
 #     it is necessary to delete the channels that are created. By default,
 #     channels are deleted in multi-source. set it to 1, if channel deletion
 #     is not required.
@@ -105,7 +105,7 @@ while ($_rpl_server)
 
   # Only check slave threads for error on hosts that were at some
   # point configured as slave.
-  --let $_tmp= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+  --let $_tmp= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
   if ($_tmp != 'No such row')
   {
     --source include/check_slave_no_error.inc

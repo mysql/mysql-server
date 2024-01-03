@@ -5,14 +5,14 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 STOP REPLICA;
 include/wait_for_slave_to_stop.inc
-Master_Host = '127.0.0.1' (expected '127.0.0.1')
+Source_Host = '127.0.0.1' (expected '127.0.0.1')
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="";
 ERROR HY000: Incorrect arguments to SOURCE_HOST
-Master_Host = '127.0.0.1' (expected '127.0.0.1')
+Source_Host = '127.0.0.1' (expected '127.0.0.1')
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="foo";
-Master_Host = 'foo' (expected 'foo')
+Source_Host = 'foo' (expected 'foo')
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1";
-Master_Host = '127.0.0.1' (expected '127.0.0.1')
+Source_Host = '127.0.0.1' (expected '127.0.0.1')
 START REPLICA;
 include/wait_for_slave_to_start.inc
 include/rpl_end.inc

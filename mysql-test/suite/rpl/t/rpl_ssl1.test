@@ -42,8 +42,8 @@ insert into t1 values (1);
 #checking that replication is ok
 select * from t1;
 
-#checking show slave status
-let $status_items= Master_SSL_Allowed, Master_SSL_CA_Path, Master_SSL_CA_File, Master_SSL_Cert, Master_SSL_Key, Master_TLS_Version;
+#checking show replica status
+let $status_items= Source_SSL_Allowed, Source_SSL_CA_Path, Source_SSL_CA_File, Source_SSL_Cert, Source_SSL_Key, Source_TLS_Version;
 source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
 
@@ -91,7 +91,7 @@ echo on slave;
 #checking that replication is ok
 select * from t1;
 
-#checking show slave status
+#checking show replica status
 source include/show_slave_status.inc;
 --source include/check_slave_is_running.inc
 
@@ -120,29 +120,29 @@ drop table t1;
 
 --source include/stop_slave.inc
 
---let $assert_cond= "[SHOW SLAVE STATUS, Master_SSL_Verify_Server_Cert, 1]" = "Yes"
---let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on STOP REPLICA.
+--let $assert_cond= "[SHOW REPLICA STATUS, Source_SSL_Verify_Server_Cert, 1]" = "Yes"
+--let $assert_text= Source_SSL_Verify_Server_Cert should NOT change on STOP REPLICA.
 --source include/assert.inc
 
---let $log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1)
---let $log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+--let $log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1)
+--let $log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1)
 
 RESET REPLICA;
 
---let $assert_cond= "[SHOW SLAVE STATUS, Master_SSL_Verify_Server_Cert, 1]" = "Yes"
---let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on RESET REPLICA.
+--let $assert_cond= "[SHOW REPLICA STATUS, Source_SSL_Verify_Server_Cert, 1]" = "Yes"
+--let $assert_text= Source_SSL_Verify_Server_Cert should NOT change on RESET REPLICA.
 --source include/assert.inc
 
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT
 
---let $assert_cond= "[SHOW SLAVE STATUS, Master_SSL_Verify_Server_Cert, 1]" = "Yes"
---let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.
+--let $assert_cond= "[SHOW REPLICA STATUS, Source_SSL_Verify_Server_Cert, 1]" = "Yes"
+--let $assert_text= Source_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.
 --source include/assert.inc
 
 --source include/start_slave.inc
---let $assert_cond= "[SHOW SLAVE STATUS, Master_SSL_Verify_Server_Cert, 1]" = "Yes"
---let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on START REPLICA.
+--let $assert_cond= "[SHOW REPLICA STATUS, Source_SSL_Verify_Server_Cert, 1]" = "Yes"
+--let $assert_text= Source_SSL_Verify_Server_Cert should NOT change on START REPLICA.
 --source include/assert.inc
 
 --connection master

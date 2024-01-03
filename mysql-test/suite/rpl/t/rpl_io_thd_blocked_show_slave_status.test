@@ -1,12 +1,12 @@
 # ==== Purpose ====
 #
-# Check that the execution of SHOW SLAVE STATUS command is not blocked when IO
+# Check that the execution of SHOW REPLICA STATUS command is not blocked when IO
 # thread is blocked writing an event to the relay log.
 #
 # ==== Implementation ====
 #
 # Simulate a scenario where IO thread is waiting while writing into the relay
-# log, holding LOCK_log. Execute SHOW SLAVE STATUS command after IO thread is
+# log, holding LOCK_log. Execute SHOW REPLICA STATUS command after IO thread is
 # blocked writing an event. The command should not be blocked.
 #
 # ==== References ====
@@ -41,10 +41,10 @@ INSERT INTO t1 (c1) VALUES (2);
 # Wait until IO thread is queuing events from master
 SET DEBUG_SYNC="now WAIT_FOR receiver_reached_pause_on_queue_event";
 
-# Notice that this is performed by querying SHOW SLAVE STATUS
---let $master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1)
+# Notice that this is performed by querying SHOW REPLICA STATUS
+--let $master_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1)
 --let $assert_cond= "$master_log_file" = "$master_file"
---let $assert_text= Consulting SHOW SLAVE STATUS was successful
+--let $assert_text= Consulting SHOW REPLICA STATUS was successful
 --source include/assert.inc
 
 # We can even stop SQL thread

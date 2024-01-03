@@ -1,17 +1,17 @@
 # ==== Purpose ====
 #
-# Waits until SHOW SLAVE STATUS has returned a specified value, or
+# Waits until SHOW REPLICA STATUS has returned a specified value, or
 # until a timeout is reached.
 #
 #
 # ==== Usage ====
 #
-# --let $slave_param= Slave_SQL_Running
+# --let $slave_param= Replica_SQL_Running
 # --let $slave_param_value= No
 # [--let $slave_param_comparison= [ < | <= | >= | > | = | != ]]
 # [--let $slave_timeout= NUMBER]
 # [--let $slave_error_param= [Last_SQL_Errno | Last_IO_Errno]]
-# [--let $slave_io_running_check_disable= 1]
+# [--let $replica_io_running_check_disable= 1]
 # [--let $rpl_channel_name= 'NAME']
 # [--let $rpl_debug= 1]
 # [ --let $slave_io_errno= NUMBER [, NUMBER ...] [# comment] ]
@@ -21,7 +21,7 @@
 # Parameters:
 #
 # $slave_param, $slave_param_value
-#   This macro will wait until the column of the output of SHOW SLAVE
+#   This macro will wait until the column of the output of SHOW REPLICA
 #   STATUS named $slave_param gets the value $slave_param_value.  See
 #   the example above.
 #
@@ -34,7 +34,7 @@
 #
 # $rpl_channel_name
 #   If this is set, adds a FOR CHANNEL $rpl_channel_name clause
-#   to SHOW SLAVE STATUS.
+#   to SHOW REPLICA STATUS.
 #
 # $slave_timeout
 #   The default timeout is 30 seconds. You can change the timeout by
@@ -42,13 +42,13 @@
 #
 # $slave_error_param
 #   If set, this script will check for errors in the column of the
-#   output from SHOW SLAVE STATUS named $slave_error_param while
+#   output from SHOW REPLICA STATUS named $slave_error_param while
 #   waiting for the parameter. Once finding an error that is not
 #   expected (see $slave_io_errno and $slave_sql_errno parameters)
 #   this script will fail immediately. Typically, this should be set
 #   to Last_IO_Errno or Last_SQL_Errno.
 #
-# $slave_io_running_check_disable
+# $replica_io_running_check_disable
 #   If set, this bypasses the check to see if the IO thread is started,
 #   so params can be checked and verified for a stopped IO thread as
 #   well. Otherwise check is made, and it is checked if the IO thread
@@ -66,10 +66,10 @@
 # ==== mysqltest variables configured by this file ====
 #
 # This file sets $slave_param_statement to the SQL statement used to
-# get the slave status: either SHOW SLAVE STATUS or SHOW SLAVE STATUS
+# get the slave status: either SHOW REPLICA STATUS or SHOW REPLICA STATUS
 # FOR CHANNEL  '<channel>'.
 #
-# Variable $_show_slave_status_value is set to the value of SHOW SLAVE STATUS's
+# Variable $_show_slave_status_value is set to the value of SHOW REPLICA STATUS's
 # column identified by $slave_param .
 
 
@@ -121,17 +121,17 @@ if ($rpl_debug)
   --echo Waiting until '$slave_param' $_slave_param_comparison '$slave_param_value' [timeout='$_slave_timeout', \$slave_error_param='$slave_error_param']
 }
 
---let $slave_param_statement= SHOW SLAVE STATUS $_for_channel_clause
+--let $slave_param_statement= SHOW REPLICA STATUS $_for_channel_clause
 
-if (!$slave_io_running_check_disable)
+if (!$replica_io_running_check_disable)
 {
-  --let $_slave_check_configured= query_get_value($slave_param_statement, Slave_IO_Running, 1)
+  --let $_slave_check_configured= query_get_value($slave_param_statement, Replica_IO_Running, 1)
 
   if ($_slave_check_configured == 'No such row')
   {
     --echo **** ERROR: $slave_param_statement returned empty result set. Slave not configured. ****
     --source include/show_rpl_debug_info.inc
-    --die SHOW SLAVE STATUS returned empty result set. Slave not configured.
+    --die SHOW REPLICA STATUS returned empty result set. Slave not configured.
   }
 }
 

@@ -35,14 +35,14 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 
 -- source include/wait_for_slave_sql_error.inc
 
---let $errts0= query_get_value("SHOW SLAVE STATUS", $field, 1)
+--let $errts0= query_get_value("SHOW REPLICA STATUS", $field, 1)
 --let $assert_text= $field is not null and matches the expected format
 --let $assert_cond= `SELECT ("$errts0" REGEXP "$ts_regexp")`
 --source include/assert.inc
 
 # action: stop the slave (this should preserve the error)
 -- source include/stop_slave.inc
---let $assert_cond= "$errts0" = "[SHOW SLAVE STATUS, $field, 1]"
+--let $assert_cond= "$errts0" = "[SHOW REPLICA STATUS, $field, 1]"
 --let $assert_text= $field matches the one reported before stopping slave threads
 --source include/assert.inc
 
@@ -50,7 +50,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 # action: create the table again on the slave so that it resumes replication
 #         correctly when we restart the slave
 CREATE TABLE  t1 (a INT, b blob, PRIMARY KEY(b(512)));
--- let $sql_errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+-- let $sql_errno= query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1)
 -- echo Last_SQL_Errno: $sql_errno
 -- source include/start_slave.inc
 
@@ -83,7 +83,7 @@ START REPLICA;
 -- source include/wait_for_slave_param.inc
 -- echo *** must be having the replicate-same-server-id IO thread error ***
 
---let $errts0= query_get_value("SHOW SLAVE STATUS", $field, 1)
+--let $errts0= query_get_value("SHOW REPLICA STATUS", $field, 1)
 --let $assert_text= $field is not null and matches the expected format
 --let $assert_cond= `SELECT ("$errts0" REGEXP "$ts_regexp")`
 --source include/assert.inc
@@ -91,14 +91,14 @@ START REPLICA;
 # action: stop the slave
 -- source include/stop_slave.inc
 
---let $assert_cond= "$errts0" = "[SHOW SLAVE STATUS, $field, 1]"
+--let $assert_cond= "$errts0" = "[SHOW REPLICA STATUS, $field, 1]"
 --let $assert_text= $field matches the one reported before stopping slave threads
 --source include/assert.inc
 
 # action: restore correct settings
 -- replace_result $MASTER_MYPORT MASTER_PORT
 -- eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$MASTER_MYPORT
--- let $io_errno= query_get_value("SHOW SLAVE STATUS", Last_IO_Errno, 1)
+-- let $io_errno= query_get_value("SHOW REPLICA STATUS", Last_IO_Errno, 1)
 -- echo Last_IO_Errno: $io_errno
 -- source include/start_slave.inc
 

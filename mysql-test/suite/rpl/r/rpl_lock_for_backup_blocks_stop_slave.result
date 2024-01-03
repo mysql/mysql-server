@@ -11,7 +11,7 @@ CALL mtr.add_suppression("Cannot stop the replica SQL thread while the instance 
 LOCK INSTANCE FOR BACKUP;
 STOP REPLICA;
 ERROR HY000: Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.
-include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/wait_for_slave_param.inc [Replica_SQL_Running]
 UNLOCK INSTANCE;
 #
 # TC2. Lock instance for backup and execute `STOP REPLICA SQL_THREAD`
@@ -21,6 +21,6 @@ CALL mtr.add_suppression("Cannot stop the replica SQL thread while the instance 
 LOCK INSTANCE FOR BACKUP;
 STOP REPLICA SQL_THREAD;
 ERROR HY000: Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.
-include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/wait_for_slave_param.inc [Replica_SQL_Running]
 UNLOCK INSTANCE;
 include/rpl_end.inc

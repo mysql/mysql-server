@@ -68,7 +68,7 @@ call mtr.add_suppression("The query does not comply with variable require_row_fo
   --source include/rpl_connection_master.inc
   --source include/sync_slave_io_with_master.inc
 
-  --let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+  --let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 
   --source include/stop_slave.inc
 

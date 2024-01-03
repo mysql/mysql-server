@@ -40,10 +40,10 @@ DROP TABLE t1;
 #
 # restart:--gtid-mode=on --enforce-gtid-consistency --log-replica-updates --binlog-gtid-simple-recovery=ON
 #
-# Verify that GLOBAL.GTID_EXECUTED contains committed gtid MASTER_UUID:1
+# Verify that GLOBAL.GTID_EXECUTED contains committed gtid Source_UUID:1
 # and GLOBAL.GTID_PURGED is empty after server restarts again.
 #
-include/assert.inc [committed gtid MASTER_UUID:1]
+include/assert.inc [committed gtid Source_UUID:1]
 include/assert.inc [GLOBAL.GTID_PURGED is empty]
 #
 # Move binary logs back.
@@ -52,4 +52,4 @@ include/assert.inc [GLOBAL.GTID_PURGED is empty]
 # PURGE BINARY LOGS TO binlog.000006
 #
 PURGE BINARY LOGS TO 'binlog.000006';
-include/assert.inc [purged gtids MASTER_UUID:1]
+include/assert.inc [purged gtids Source_UUID:1]

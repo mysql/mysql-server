@@ -2323,19 +2323,15 @@ drop function func_1;
 ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show binlog events";
 deallocate prepare abc;
-create procedure proc_1() show slave status;
-Warnings:
-Warning	1287	'SHOW SLAVE STATUS' is deprecated and will be removed in a future release. Please use SHOW REPLICA STATUS instead
+create procedure proc_1() SHOW REPLICA STATUS;
 drop procedure proc_1;
-create function func_1() returns int begin show slave status; return 1; end|
+create function func_1() returns int begin SHOW REPLICA STATUS; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
 select func_1(), func_1(), func_1() from dual;
 ERROR 42000: FUNCTION test.func_1 does not exist
 drop function func_1;
 ERROR 42000: FUNCTION test.func_1 does not exist
-prepare abc from "show slave status";
-Warnings:
-Warning	1287	'SHOW SLAVE STATUS' is deprecated and will be removed in a future release. Please use SHOW REPLICA STATUS instead
+prepare abc from "SHOW REPLICA STATUS";
 deallocate prepare abc;
 create procedure proc_1() show binary log status;
 drop procedure proc_1;

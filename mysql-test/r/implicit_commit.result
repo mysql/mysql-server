@@ -423,7 +423,7 @@ NO
 # SQLCOM_SHOW_SLAVE_STAT
 #
 INSERT INTO db1.trans (a) VALUES (1);
-show slave status;
+SHOW REPLICA STATUS;
 CALL db1.test_if_commit();
 IMPLICIT COMMIT
 NO

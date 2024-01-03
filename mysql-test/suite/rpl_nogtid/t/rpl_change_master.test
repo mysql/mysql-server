@@ -24,7 +24,7 @@
 connection slave;
 
 ###
-### This should fail with error ER_WRONG_ARGUMENTS due to empty MASTER_HOST
+### This should fail with error ER_WRONG_ARGUMENTS due to empty Source_Host
 ### value.
 ###
 --source include/stop_slave.inc
@@ -65,7 +65,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='master2.mycom
 eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT;
 
 --source include/start_slave.inc
---let $status_items= Master_Host
+--let $status_items= Source_Host
 --source include/show_slave_status.inc
 --source include/rpl_reset.inc
 
@@ -92,7 +92,7 @@ connection slave;
 
 --source include/start_slave_io.inc
 
---let $slave_param= Slave_IO_Running
+--let $slave_param= Replica_IO_Running
 --let $slave_param_value= Yes
 --source include/check_slave_param.inc
 

@@ -34,7 +34,7 @@ REPLICATE_REWRITE_DB	(my_db7,rewrite_db7),(my_db8,rewrite_db8)	STARTUP_OPTIONS
 #
 # 1. Verify that the new channel with channel_name '' would copy
 # global replication filters to its own per-channel replication
-# filters on configuration by CHANGE MASTER TO. SHOW SLAVE STATUS
+# filters on configuration by CHANGE MASTER TO. SHOW REPLICA STATUS
 # FOR CHANNEL '' displays the following per-channel replication
 # filters:
 # Replicate_Do_DB = 'test,my_db2,my_db3'
@@ -127,7 +127,7 @@ REPLICATE_DO_DB = (`:test`,my_db3,my_db4),
 REPLICATE_IGNORE_DB = (my_initfiledb3);
 CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(test.t3);
 #
-# 5. Verify that SHOW SLAVE STATUS FOR CHANNEL '' displays
+# 5. Verify that SHOW REPLICA STATUS FOR CHANNEL '' displays
 # the following per-channel replication filters:
 # Replicate_Do_DB = ':test,my_db3,my_db4'
 # Replicate_Ignore_DB = 'my_initfiledb3'

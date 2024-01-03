@@ -19,7 +19,7 @@ CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk bef
 [connection master]
 INSERT INTO t1 VALUES(2);
 [connection slave]
-include/wait_for_slave_param.inc [Slave_IO_State]
+include/wait_for_slave_param.inc [Replica_IO_State]
 include/assert.inc [I/O thread PROCESSLIST_STATE should be Waiting for disk space at performance_schema.threads]
 include/assert.inc [I/O thread STATE should be Waiting for disk space at information_schema.processlist]
 [connection slave1]
@@ -49,7 +49,7 @@ INSERT INTO t1 VALUES(7);
 INSERT INTO t1 VALUES(8);
 INSERT INTO t1 VALUES(9);
 [connection slave]
-include/wait_for_slave_param.inc [Slave_IO_State]
+include/wait_for_slave_param.inc [Replica_IO_State]
 include/stop_slave_sql.inc
 include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc

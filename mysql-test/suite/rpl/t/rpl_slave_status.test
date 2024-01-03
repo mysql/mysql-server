@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Verify that a slave without replication privileges has
-# Slave_IO_Running = No
+# Replica_IO_Running = No
 #
 # ==== Method ====
 #
@@ -12,7 +12,7 @@
 #   inserting a row into it.
 # - Delete the user from the master.
 # - Stop and start the slave (this should fail).
-# - Check the Slave_IO_Running column of SHOW SLAVE STATUS.
+# - Check the Replica_IO_Running column of SHOW REPLICA STATUS.
 #
 # ==== Related bugs and modifications ====
 #

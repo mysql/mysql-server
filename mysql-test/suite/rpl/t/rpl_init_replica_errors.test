@@ -1,6 +1,6 @@
 ######################################################################
 # Some errors that cause the slave SQL thread to stop are not shown in 
-# the Slave_SQL_Error column of "SHOW SLAVE STATUS". Instead, the error 
+# the Last_SQL_Error column of "SHOW REPLICA STATUS". Instead, the error 
 # is only in the server's error log.
 #
 # Two failures and their respective reporting are verified:

@@ -7,11 +7,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 7;
 include/start_slave.inc
 include/assert.inc [Assert that the desired delay from performance_schema is same as set in the Change master to command.]
-include/assert.inc [Assert that the sql_delay in show slave status is same as set in the Change master to command.]
+include/assert.inc [Assert that the sql_delay in show replica status is same as set in the Change master to command.]
 [connection master]
 CREATE TABLE t1 (a INT);
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
@@ -21,7 +21,7 @@ include/assert.inc [The difference between the immediate_commit_timestamp should
 [connection master]
 INSERT INTO t1 VALUES (1);
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
@@ -31,7 +31,7 @@ include/assert.inc [The difference between the immediate_commit_timestamp should
 [connection master]
 UPDATE t1 SET a=2;
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
@@ -41,7 +41,7 @@ include/assert.inc [The difference between the immediate_commit_timestamp should
 [connection master]
 DELETE FROM t1 WHERE a=2;
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
@@ -55,7 +55,7 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 COMMIT;
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
@@ -65,7 +65,7 @@ include/assert.inc [The difference between the immediate_commit_timestamp should
 [connection master]
 DROP TABLE t1;
 [connection slave]
-include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show replica status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']

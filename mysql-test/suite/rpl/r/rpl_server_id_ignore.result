@@ -25,7 +25,7 @@ ignore server id list: 1, 3, 4, 5
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 create table t1 (n int);
-include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+include/wait_for_slave_param.inc [Exec_Source_Log_Pos]
 *** must be empty as the event is to be filtered out ***
 show tables;
 Tables_in_test

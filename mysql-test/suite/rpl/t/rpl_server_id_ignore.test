@@ -3,7 +3,7 @@
 #
 # phases of tests:
 #
-# 0. master_id new line in show slave status
+# 0. master_id new line in show replica status
 # 1. syntax related:
 #    a. error reporting if options clash;
 #    b. overriding the old IGNORE_SERVER_IDS setup by the following
@@ -27,7 +27,7 @@ source include/have_binlog_format_mixed.inc;
 connection slave;
 
 # a new line for master_id
-let $master_id= query_get_value(SHOW SLAVE STATUS, Master_Server_Id, 1);
+let $master_id= query_get_value(SHOW REPLICA STATUS, Source_Server_Id, 1);
 echo master_id: $master_id;
 
 STOP REPLICA;
@@ -36,17 +36,17 @@ STOP REPLICA;
 --error ER_REPLICA_IGNORE_SERVER_IDS
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (2, 1);
 --echo *** must be empty due to the error ***
-let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+let $ignore_list= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 --echo *** must be 10, 100 ***
-let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+let $ignore_list= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 RESET REPLICA;
 --echo *** must be still (10,100) after reset replica ***
-let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+let $ignore_list= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
@@ -54,7 +54,7 @@ CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
 --echo *** must be 1, 3, 4, 5 due to overriding policy ***
-let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+let $ignore_list= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 --echo *** ignore master (server 1) queries for a while ***
 --source include/start_slave.inc
@@ -63,27 +63,27 @@ connection master;
 
 #connection slave;
 --source include/sync_slave_sql_with_master.inc
-let $slave_relay_pos0= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
+let $slave_relay_pos0= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1);
 
 connection master;
 create table t1 (n int);
 let $master_binlog_end= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 connection slave;
-let $slave_param= Exec_Master_Log_Pos;
+let $slave_param= Exec_Source_Log_Pos;
 let $slave_param_value= $master_binlog_end;
 source include/wait_for_slave_param.inc;
 --echo *** must be empty as the event is to be filtered out ***
 show tables;
 --echo *** allowing events from master ***
-let $slave_relay_pos1= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
+let $slave_relay_pos1= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1);
 #
 # checking stability of relay log pos
 #
 if (`select $slave_relay_pos1 - $slave_relay_pos0`)
 {
     --echo Error: relay log position changed:  $slave_relay_pos0, $slave_relay_pos1
-    query_vertical show slave status;
+    query_vertical SHOW REPLICA STATUS;
 }
 
 STOP REPLICA;
@@ -92,18 +92,18 @@ RESET REPLICA;
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 --echo *** the list must remain (10, 100) after reset replica ***
-let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+let $ignore_list= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1);
 
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= ();
 --echo *** must be empty due to IGNORE_SERVER_IDS empty list ***
-let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+let $ignore_list= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 
 --echo *** RESET REPLICA ALL should empty the list ***
 
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (10, 100);
-let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+let $ignore_list= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 
 RESET REPLICA ALL;
@@ -114,7 +114,7 @@ eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_M
 --source include/start_slave.inc
 
 --let $assert_text= RESET REPLICA ALL must empty the list of server-ids.
---let $assert_cond= "[SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1]" = ""
+--let $assert_cond= "[SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1]" = ""
 --source include/assert.inc
 
 connection master;
@@ -132,7 +132,7 @@ drop table t1;
 
 --echo # === Bug#18192817 IGNORE_SERVER_IDS IS SHOWING DUPLICATE SERVER IDS ===
 
-# The bug caused the field Replicate_Ignore_Server_Ids in SHOW SLAVE STATUS
+# The bug caused the field Replicate_Ignore_Server_Ids in SHOW REPLICA STATUS
 # show up duplicate values. Verify that the values are NOT duplicated.
 
 --source include/stop_slave.inc

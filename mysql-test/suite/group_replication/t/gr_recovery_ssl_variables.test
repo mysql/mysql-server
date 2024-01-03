@@ -11,7 +11,7 @@
 # 2. On M2 take a backup of existing ssl specific variables.
 # 3. Set group_replication_recovery_use_ssl and
 #    group_replication_recovery_ssl_verify_server_cert variables.
-# 4. Verify using SHOW SLAVE STATUS that none of these options options are
+# 4. Verify using SHOW REPLICA STATUS that none of these options options are
 #    enabled for recovery channel on M2.
 # 5. Verify that recovery cannot advance as SSL options are not configured
 #    properly.
@@ -62,7 +62,7 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert = 1;
 --echo #
 
 --let $rpl_channel_name= 'group_replication_recovery'
---let $status_items= Master_SSL_Allowed, Master_SSL_Verify_Server_Cert
+--let $status_items= Source_SSL_Allowed, Source_SSL_Verify_Server_Cert
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --disable_warnings
 --source include/show_slave_status.inc
@@ -84,11 +84,11 @@ INSERT INTO t1 VALUES (1);
 --source include/start_group_replication.inc
 
 --echo #
---echo # Verify that SSL options are shown in SHOW SLAVE STATUS output
+--echo # Verify that SSL options are shown in SHOW REPLICA STATUS output
 --echo #
 
 --let $rpl_channel_name= 'group_replication_recovery'
---let $status_items= Master_SSL_Allowed, Master_SSL_Verify_Server_Cert
+--let $status_items= Source_SSL_Allowed, Source_SSL_Verify_Server_Cert
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --disable_warnings
 --source include/show_slave_status.inc
@@ -119,11 +119,11 @@ INSERT INTO t1 VALUES (2);
 --source include/start_group_replication.inc
 
 --echo #
---echo # Verify that Master_SSL_Allowed and Master_SSL_Verify_Server_Cert are set to default.
+--echo # Verify that Source_SSL_Allowed and Source_SSL_Verify_Server_Cert are set to default.
 --echo #
 
 --let $rpl_channel_name= 'group_replication_recovery'
---let $status_items= Master_SSL_Allowed, Master_SSL_Verify_Server_Cert
+--let $status_items= Source_SSL_Allowed, Source_SSL_Verify_Server_Cert
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --disable_warnings
 --source include/show_slave_status.inc

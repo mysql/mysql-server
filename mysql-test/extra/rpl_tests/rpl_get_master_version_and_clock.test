@@ -86,6 +86,6 @@ eval set @@global.debug = "-d,$dbug_sync_point";
 # We don't source include/wait_for_slave_io_to_start.inc, because the
 # IO thread has an error and wait_for_slave_io_to_start.inc fails if
 # the IO thread has an error.
---let $slave_param= Slave_IO_Running
+--let $slave_param= Replica_IO_Running
 --let $slave_param_value= Yes
 --source include/wait_for_slave_param.inc

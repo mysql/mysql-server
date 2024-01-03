@@ -14,7 +14,7 @@
 # - The IO_THREAD position will NOT be initialized to the SQL_THREAD position,
 # - SQL_THREAD position will NOT be initialized to the new relay log.
 #
-# It looks like, when the SQL_THREAD does not have a Relay_Master_Log_File,
+# It looks like, when the SQL_THREAD does not have a Relay_Source_Log_File,
 # relay_log_recovery does not work.
 #
 # Test:

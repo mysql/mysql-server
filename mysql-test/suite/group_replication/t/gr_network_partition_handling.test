@@ -161,11 +161,11 @@ SET @@GLOBAL.group_replication_unreachable_majority_timeout= 11;
 --echo
 --echo # 6. Confirm on server1 Slave IO and SQL threads are not running.
 
---let $slave_param= Slave_IO_Running
+--let $slave_param= Replica_IO_Running
 --let $slave_param_value= No
 --source include/check_slave_param.inc
 
---let $slave_param= Slave_SQL_Running
+--let $slave_param= Replica_SQL_Running
 --let $slave_param_value= No
 --source include/check_slave_param.inc
 

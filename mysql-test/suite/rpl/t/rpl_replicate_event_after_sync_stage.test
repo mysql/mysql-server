@@ -29,7 +29,7 @@ send CREATE TABLE t1(c1 INT);
 --source include/rpl_connection_slave.inc
 --sleep 3
 --let $assert_text= "CREATE TABLE t1 is not be replicated"
---let $assert_cond= [SHOW SLAVE STATUS, Read_Master_Log_Pos, 1] = $master_pos
+--let $assert_cond= [SHOW REPLICA STATUS, Read_Source_Log_Pos, 1] = $master_pos
 --source include/assert.inc
 
 --let $rpl_connection_name= default

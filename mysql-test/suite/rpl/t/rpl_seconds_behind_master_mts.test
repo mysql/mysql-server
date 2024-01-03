@@ -1,6 +1,6 @@
 # ==== Purpose ====
 #
-# Verify that Seconds_Behind_Master is calculated correctly on a
+# Verify that Seconds_Behind_Source is calculated correctly on a
 # Multi-threaded Slave.
 #
 # ==== References ====

@@ -33,7 +33,7 @@
 
 --source include/get_immediate_commit_timestamp.inc
 --let $slave1_immediate_commit_timestamp= `SELECT $immediate_commit_timestamp`
---let $sql_delay_1= query_get_value("SHOW SLAVE STATUS", SQL_Delay, 1)
+--let $sql_delay_1= query_get_value("SHOW REPLICA STATUS", SQL_Delay, 1)
 #ceiling is also used when computing the delay in the code
 --let $timestamp_1_diff= `SELECT CEILING(($slave1_immediate_commit_timestamp-$master_immediate_commit_timestamp)/ 1000000)`
 
@@ -42,7 +42,7 @@
 
 --source include/get_immediate_commit_timestamp.inc
 --let $slave2_immediate_commit_timestamp= `SELECT $immediate_commit_timestamp`
---let $sql_delay_2= query_get_value("SHOW SLAVE STATUS", SQL_Delay, 1)
+--let $sql_delay_2= query_get_value("SHOW REPLICA STATUS", SQL_Delay, 1)
 #ceiling is also used when computing the delay in the code
 --let $timestamp_2_diff= `SELECT CEILING(($slave2_immediate_commit_timestamp-$master_immediate_commit_timestamp)/ 1000000)`
 

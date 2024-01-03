@@ -2294,17 +2294,17 @@ prepare abc from "show binlog events";
 deallocate prepare abc;
 
 
-create procedure proc_1() show slave status;
+create procedure proc_1() SHOW REPLICA STATUS;
 drop procedure proc_1;
 delimiter |;
 --error ER_SP_NO_RETSET
-create function func_1() returns int begin show slave status; return 1; end|
+create function func_1() returns int begin SHOW REPLICA STATUS; return 1; end|
 delimiter ;|
 --error ER_SP_DOES_NOT_EXIST
 select func_1(), func_1(), func_1() from dual;
 --error ER_SP_DOES_NOT_EXIST
 drop function func_1;
-prepare abc from "show slave status";
+prepare abc from "SHOW REPLICA STATUS";
 deallocate prepare abc;
 
 

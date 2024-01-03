@@ -14,7 +14,7 @@ call mtr.add_suppression('Unsafe statement binlogged in statement format since B
 # What to test? 
 #
 # We want to check that issuing FLUSH LOGS on the slave does not cause
-# transient, incorrect calculation of Seconds_Behind_Master while SQL
+# transient, incorrect calculation of Seconds_Behind_Source while SQL
 # thread is executing an event.
 #
 # How to test?
@@ -24,9 +24,9 @@ call mtr.add_suppression('Unsafe statement binlogged in statement format since B
 # 2. while locking t1 for write (SQL thread is on-hold) assert that
 #    slave is 3 seconds behind the master
 # 3. sleep 3 more seconds
-# 4. repeat step #2, but before checking Seconds_Behind_Master, issue
+# 4. repeat step #2, but before checking Seconds_Behind_Source, issue
 #    a FLUSH LOGS.
-# 5. assert that Seconds_Behind_Master is within the expected time window
+# 5. assert that Seconds_Behind_Source is within the expected time window
 
 connection master;
 create table t1 (f1 int);
@@ -51,19 +51,19 @@ let $condition= = 'insert into t1 values (1)';
 source include/wait_show_condition.inc;
 
 # While the SQL thread executes an event, the following should hold:
-# Seconds_Behind_Master = NOW - the event timestamp set by the master
+# Seconds_Behind_Source = NOW - the event timestamp set by the master
 # (for query log events it's event creation time + exec_time).
 #
 # ASSERTION: check that SBM shows at least 3 seconds
 
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
 # We need to deduct execution time on master to SBM lower_bound.
 # SBM= now - (ev.when + ev.exec_time)
 # Also deduct a second to handle rounding differences.
 let $lower_bound= `SELECT 3 - ($stop_exec - $start) - 1`;
 let $stop= `SELECT UNIX_TIMESTAMP()`;
 let $upper_bound= `SELECT $stop - $start`;
-let $assert_text= Seconds_Behind_Master must be between 'lower_bound' and 'upper_bound';
+let $assert_text= Seconds_Behind_Source must be between 'lower_bound' and 'upper_bound';
 let $assert_cond= $lower_bound <= $sbm AND $sbm <= $upper_bound;
 source include/assert.inc;
 
@@ -87,21 +87,21 @@ let $condition= = 'insert into t1 values (2)';
 source include/wait_show_condition.inc;
 
 # If FLUSH LOGS is executed while the slave is executing an event, it
-# should not affect Seconds_Behind_Master.
+# should not affect Seconds_Behind_Source.
 #
 # ASSERTION: flush logs will not reset the sbm value
 flush logs;
 
 sleep 3;
 
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
 # We need to deduct execution time on master to SBM lower_bound.
 # SBM= now - (ev.when + ev.exec_time)
 # Also deduct a second to handle rounding differences.
 let $lower_bound= `SELECT 6 - ($stop_exec - $start) - 1`;
 let $stop= `SELECT UNIX_TIMESTAMP()`;
 let $upper_bound= `SELECT $stop - $start`;
-let $assert_text= Seconds_Behind_Master must be between 'lower_bound' and 'upper_bound';
+let $assert_text= Seconds_Behind_Source must be between 'lower_bound' and 'upper_bound';
 let $assert_cond= $lower_bound <= $sbm AND $sbm <= $upper_bound;
 source include/assert.inc;
 
@@ -115,23 +115,23 @@ drop table t1;
 #
 # What to test?
 #
-# We want to test that Seconds_Behind_Master does not spike when SQL
+# We want to test that Seconds_Behind_Source does not spike when SQL
 # thread awakes to process a newly arrived event (queued by IO
 # thread). Additionally, we want to assert that while SQL thread is
-# waiting Seconds_Behind_Master will show zero.
+# waiting Seconds_Behind_Source will show zero.
 #
 # How to test?
 #
 #  1. Check that seconds behind master is set to 0 when SQL thread
 #     waits for more events. We do this by first waiting for process
 #     list to show SQL thread is indeed waiting and then inspect
-#     Seconds_Behind_Master value.
+#     Seconds_Behind_Source value.
 #
 #  2. Check that seconds behind master is updated once after a newly
 #     received event starts to be processed. We do this by putting SQL
 #     thread on hold by locking explicitly table t1. We then wait for
 #     process list to show that SQL thread started processing the
-#     desired query. At that time we inspect the Seconds_Behind_Master
+#     desired query. At that time we inspect the Seconds_Behind_Source
 #     and assert that it is in the desired time window.
 
 -- source include/rpl_reset.inc
@@ -151,8 +151,8 @@ let $field= State;
 let $condition= = 'Replica has read all relay log; waiting for more updates';
 -- source include/wait_show_condition.inc
 
--- let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1)
-let $assert_text= Seconds_Behind_Master must be 0;
+-- let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
+let $assert_text= Seconds_Behind_Source must be 0;
 let $assert_cond= $sbm = 0;
 source include/assert.inc;
 
@@ -168,7 +168,7 @@ LOCK TABLE t1 WRITE;
 # becomes clear). 
 #
 # 10 seconds, this will give us time at the slave to 
-# show that Seconds_Behind_Master will increase when
+# show that Seconds_Behind_Source will increase when
 # this query starts to execute.
 #
 let $start= `SELECT UNIX_TIMESTAMP()`;
@@ -186,12 +186,12 @@ let $field= Info;
 let $condition= = 'INSERT INTO t1 VALUES (3)';
 -- source include/wait_show_condition.inc
 
--- let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1)
+-- let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
 # We need to deduct execution time on master to SBM lower_bound.
 # SBM= now - (ev.when + ev.exec_time)
 # Also deduct 5 seconds to have a safety margin.
 let $lower_bound= `SELECT 3600 - ($stop_exec - $start) - 5`;
-let $assert_text= Seconds_Behind_Master must be greater or equal than 'lower_bound';
+let $assert_text= Seconds_Behind_Source must be greater or equal than 'lower_bound';
 let $assert_cond= $lower_bound <= $sbm;
 source include/assert.inc;
 
@@ -203,7 +203,7 @@ UNLOCK TABLES;
 --source include/sync_slave_sql_with_master.inc
 
 
-# Check that Seconds_behind_master is greater than or equal to the delay when
+# Check that Seconds_Behind_Source is greater than or equal to the delay when
 # the slave has not yet applied the event
 
 --let $delay= 10
@@ -228,12 +228,12 @@ LOCK TABLE t1 WRITE;
 --source include/wait_show_condition.inc
 
 # While the SQL thread executes an event, the following should hold:
-# Seconds_Behind_Master = NOW - the event timestamp set by the master
+# Seconds_Behind_Source = NOW - the event timestamp set by the master
 # (for query log events it's event creation time + exec_time).
 #
 # ASSERTION: check that SBM shows at least the delay
 
---let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1)
+--let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
 # We need to deduct execution time on master to SBM lower_bound.
 # SBM= now - (ev.when + ev.exec_time)
 # Also deduct a second to handle rounding differences.
@@ -241,7 +241,7 @@ LOCK TABLE t1 WRITE;
 --let $stop= `SELECT UNIX_TIMESTAMP()`
 # Also add a second to handle rounding differences.
 --let $upper_bound= `SELECT $stop - $start +1`
---let $assert_text= Seconds_Behind_Master must be between 'lower_bound' and 'upper_bound'
+--let $assert_text= Seconds_Behind_Source must be between 'lower_bound' and 'upper_bound'
 --let $assert_cond= $lower_bound <= $sbm AND $sbm <= $upper_bound
 --source include/assert.inc
 

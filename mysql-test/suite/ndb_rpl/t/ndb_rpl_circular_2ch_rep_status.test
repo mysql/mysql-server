@@ -220,7 +220,7 @@ if (!$res)
   show status like 'Ndb_slave_max_replicated_epoch';
   select * from mysql.ndb_apply_status order by server_id;
   select * from mysql.ndb_binlog_index;
-  SHOW SLAVE STATUS;
+  SHOW REPLICA STATUS;
   SHOW BINARY LOGS;
   SHOW BINLOG EVENTS IN 'master-bin.000001';
 #  SHOW BINLOG EVENTS IN 'master-bin.000002';
@@ -232,7 +232,7 @@ if (!$res)
   show status like 'Ndb_slave_max_replicated_epoch';
   select * from mysql.ndb_apply_status order by server_id;
   select * from mysql.ndb_binlog_index;
-  SHOW SLAVE STATUS;
+  SHOW REPLICA STATUS;
   SHOW BINARY LOGS;
   SHOW BINLOG EVENTS IN 'master-bin.000001';
   SHOW BINLOG EVENTS IN 'master-bin.000002';
@@ -244,7 +244,7 @@ if (!$res)
   show status like 'Ndb_slave_max_replicated_epoch';
   select * from mysql.ndb_apply_status order by server_id;
   select * from mysql.ndb_binlog_index;
-  SHOW SLAVE STATUS;
+  SHOW REPLICA STATUS;
   SHOW BINARY LOGS;
   SHOW BINLOG EVENTS IN 'master-bin.000001';
   SHOW BINLOG EVENTS IN 'master-bin.000002';
@@ -256,7 +256,7 @@ if (!$res)
   show status like 'Ndb_slave_max_replicated_epoch';
   select * from mysql.ndb_apply_status order by server_id;
   select * from mysql.ndb_binlog_index;
-  SHOW SLAVE STATUS;
+  SHOW REPLICA STATUS;
   SHOW BINARY LOGS;
   SHOW BINLOG EVENTS IN 'master-bin.000001';
 #  SHOW BINLOG EVENTS IN 'master-bin.000002';

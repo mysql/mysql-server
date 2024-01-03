@@ -48,7 +48,7 @@ INSERT INTO t VALUES(10);
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOURCE_AUTO_POSITION = 0;
 --source include/start_slave.inc
 
---let $slave_param= Slave_SQL_Running_State
+--let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
 --source include/wait_for_slave_param.inc
 
@@ -79,7 +79,7 @@ INSERT INTO t VALUES(10);
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_AUTO_POSITION = 0;
 --source include/start_slave.inc
 
---let $slave_param= Slave_SQL_Running_State
+--let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
 --source include/wait_for_slave_param.inc
 
@@ -125,7 +125,7 @@ SET GLOBAL sql_replica_skip_counter = 1;
 
 --source include/start_slave.inc
 
---let $slave_param= Slave_SQL_Running_State
+--let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
 --source include/wait_for_slave_param.inc
 

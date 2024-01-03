@@ -20,7 +20,7 @@ CALL mtr.add_suppression("Recovery from source pos");
 # stop the slave applier thread
 --source include/stop_slave_sql.inc
 
---let $relay_log= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $relay_log= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 
 --source include/rpl_connection_master.inc
 
@@ -40,20 +40,20 @@ INSERT INTO t1 VALUES (1);
 --let $create_tbl_stmt_trx_pos_in_bl= query_get_value(SHOW RELAYLOG EVENTS in '$relay_log', End_log_pos, 7)
 --let $end_of_insert_trx_log_pos_in_rl= query_get_value(SHOW RELAYLOG EVENTS in '$relay_log', End_log_pos, 11)
 
---let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
---let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
---let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+--let $exec_source_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
+--let $read_source_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1)
+--let $relay_log_pos= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
 
 --let $assert_cond= $begin_of_insert_trx_pos_in_rl = $relay_log_pos
 --let $assert_text= "Relay_log_pos points at the beginning of the INSERT trx."
 --source include/assert.inc
 
---let $assert_cond= $create_tbl_stmt_trx_pos_in_bl = $exec_master_log_pos
---let $assert_text= "Exec_master_log_pos points at the CREATE TABLE statement."
+--let $assert_cond= $create_tbl_stmt_trx_pos_in_bl = $exec_source_log_pos
+--let $assert_text= "Exec_Source_Log_Pos points at the CREATE TABLE statement."
 --source include/assert.inc
 
---let $assert_cond= $end_of_insert_trx_log_pos_in_rl = $read_master_log_pos
---let $assert_text= "Read_master_log_pos points at the end of the INSERT trx."
+--let $assert_cond= $end_of_insert_trx_log_pos_in_rl = $read_source_log_pos
+--let $assert_text= "Read_Source_Log_Pos points at the end of the INSERT trx."
 --source include/assert.inc
 
 #
@@ -63,14 +63,14 @@ INSERT INTO t1 VALUES (1);
 --echo Omitting server parameters, since there is a path in one of them.
 --source include/rpl_restart_server.inc
 
---let $exec_master_log_pos_restart= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
---let $read_master_log_pos_restart= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
---let $relay_log_pos_restart= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+--let $exec_source_log_pos_restart= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
+--let $read_source_log_pos_restart= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1)
+--let $relay_log_pos_restart= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
 
 # Assert that the entry in the log contains the old relay log positions as well
 --let $assert_text= Assert that the expected entry is in the error log
 --let $assert_file= $slave_error_log
---let $assert_select= Recovery from source pos $exec_master_log_pos and file $binlog_file for channel ''. Previous relay log pos and relay log file had been set to $relay_log_pos, .*$relay_log respectively.
+--let $assert_select= Recovery from source pos $exec_source_log_pos and file $binlog_file for channel ''. Previous relay log pos and relay log file had been set to $relay_log_pos, .*$relay_log respectively.
 --let $assert_count= 1
 --source include/assert_grep.inc
 
@@ -78,8 +78,8 @@ INSERT INTO t1 VALUES (1);
 --let $assert_text= "Relay_log_pos points at the beginning of the new relay log file now."
 --source include/assert.inc
 
---let $assert_cond= $read_master_log_pos_restart = $create_tbl_stmt_trx_pos_in_bl
---let $assert_text= "Read_master_log_pos after restart points at the CREATE TABLE position."
+--let $assert_cond= $read_source_log_pos_restart = $create_tbl_stmt_trx_pos_in_bl
+--let $assert_text= "Read_Source_Log_Pos after restart points at the CREATE TABLE position."
 --source include/assert.inc
 
 #

@@ -1,13 +1,13 @@
 # ==== Purpose ====
 #
-# Show selected columns of output from SHOW SLAVE STATUS FOR CHANNEL channel.
+# Show selected columns of output from SHOW REPLICA STATUS FOR CHANNEL channel.
 #
-# Note: test cases should never call SHOW SLAVE STATUS FOR CHANNEL channel,
+# Note: test cases should never call SHOW REPLICA STATUS FOR CHANNEL channel,
 # directly, because that outputs more information to the query log than
 # what is needed for the property that is being tested.  That would
 # cause maintenance problems, because (1) it is hard for a human to
 # understand what property is being tested; (2) the output of many of
-# the fields is non-deterministic (e.g., Slave_IO_State) or changes
+# the fields is non-deterministic (e.g., Replica_IO_State) or changes
 # frequently (e.g., binlog positions).
 #
 # Instead, what you want most of the time is to source one of the
@@ -17,7 +17,7 @@
 #     Assert that Slave_SQL_Errno = Slave_IO_Errno = 0.
 #
 #   include/check_slave_is_running.inc
-#     Assert that Slave_IO_Running = Slave_SQL_Running = 'Yes'.
+#     Assert that Replica_IO_Running = Replica_SQL_Running = 'Yes'.
 #
 #   include/wait_for_slave_sql_error.inc
 #     Wait for the SQL thread to get a given error (and assert that
@@ -47,15 +47,15 @@
 #
 # Parameters:
 #   $status_items
-#     Set to the name of the column in the output of SHOW SLAVE STATUS
+#     Set to the name of the column in the output of SHOW REPLICA STATUS
 #     that you want to display. Example:
 #
-#       --let $status_items= Master_SSL_Allowed
+#       --let $status_items= Source_SSL_Allowed
 #
 #     You can show multiple columns by setting $status_items to a
 #     comma-separated list. Example:
 #
-#       --let $status_items= Master_Log_File, Relay_Master_Log_File
+#       --let $status_items= Source_Log_File, Relay_Source_Log_File
 #
 #   $slave_field_result_replace
 #     If set, one or more regex patterns for replacing variable
@@ -69,7 +69,7 @@
 #       --let $slave_sql_mode= NO_BACKSLASH_ESCAPES
 #
 #   $rpl_channel_name
-#     If set, FOR CHANNEL clause is added to SHOW SLAVE STATUS command.
+#     If set, FOR CHANNEL clause is added to SHOW REPLICA STATUS command.
 #
 
 --let $_show_slave_status_items= $status_items
@@ -94,7 +94,7 @@ if ($slave_sql_mode)
 eval SET sql_mode= '$_slave_sql_mode';
 --enable_query_log
 
---let $show_slave_status_cmd=SHOW SLAVE STATUS
+--let $show_slave_status_cmd=SHOW REPLICA STATUS
 if ($rpl_channel_name)
 {
   --let $show_slave_status_cmd= $show_slave_status_cmd FOR CHANNEL $rpl_channel_name

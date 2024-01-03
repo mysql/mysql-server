@@ -6,7 +6,7 @@
 # replication filters to its per-channel replication filters if there are
 # no per-channel replication filters and there are global replication
 # filters on the filter type on creation, CHANGE REPLICATION FILTER filter
-# [, filter...] with no FOR CHANNEL clause works well, SHOW SLAVE STATUS
+# [, filter...] with no FOR CHANNEL clause works well, SHOW REPLICA STATUS
 # FOR CHANNEL <channel_name> and P_S.replication_applier_filters display
 # correct per-channel replication filters for the channel(s).
 # Example: Suppose channels '' and 'ch1' exist before the server starts,
@@ -61,10 +61,10 @@
 # 7. On channel6, verify that filters works well with the following setting:
 # CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1) FOR CHANNEL 'channel_6';
 #
-# 8. Verify that SHOW SLAVE STATUS FOR CHANNEL 'channel_name' throws an
+# 8. Verify that SHOW REPLICA STATUS FOR CHANNEL 'channel_name' throws an
 # error 'ER_REPLICA_CHANNEL_DOES_NOT_EXIST' if the channel does not exist.
 #
-# 9. Verify that SHOW SLAVE STATUS FOR CHANNEL 'channel_name' displays the
+# 9. Verify that SHOW REPLICA STATUS FOR CHANNEL 'channel_name' displays the
 # specified channel's replication filters  after executing CHANGE REPLICATION
 # FILTER filter [, filter...] FOR CHANNEL <channel_name>.
 #
@@ -78,7 +78,7 @@
 # replacing them with the specified ones. Filter types that
 # were not explicitly listed in the statement are not modified.
 #
-# 12. Verify that SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays
+# 12. Verify that SHOW REPLICA STATUS FOR CHANNEL 'channel_1' displays
 # correct per-channel replication filters on channel_1.
 #
 # 13. Verify that performance_schema.replication_applier_filters can
@@ -384,14 +384,14 @@ SHOW TABLES FROM db66;
 --source include/rpl_stop_slaves.inc
 
 --echo #
---echo # 8. SHOW SLAVE STATUS FOR CHANNEL 'channel_2' throws an error, since
+--echo # 8. SHOW REPLICA STATUS FOR CHANNEL 'channel_2' throws an error, since
 --echo # the channel does not exist.
 --echo #
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-SHOW SLAVE STATUS FOR CHANNEL 'channel_2';
+SHOW REPLICA STATUS FOR CHANNEL 'channel_2';
 
 --echo #
---echo # 9.1 SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays replication
+--echo # 9.1 SHOW REPLICA STATUS FOR CHANNEL 'channel_1' displays replication
 --echo # filters set by the following commands:
 --echo # CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_1';
 --echo # CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=(db%.t1%) FOR CHANNEL 'channel_1';
@@ -401,7 +401,7 @@ SHOW SLAVE STATUS FOR CHANNEL 'channel_2';
 --source include/show_slave_status.inc
 
 --echo #
---echo # 9.2 SHOW SLAVE STATUS FOR CHANNEL 'channel_3' displays replication
+--echo # 9.2 SHOW REPLICA STATUS FOR CHANNEL 'channel_3' displays replication
 --echo # filters set by the following commands:
 --echo # CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db33) FOR CHANNEL 'channel_3';
 --echo # CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=(db%.t1%) FOR CHANNEL 'channel_3';
@@ -411,7 +411,7 @@ SHOW SLAVE STATUS FOR CHANNEL 'channel_2';
 --source include/show_slave_status.inc
 
 --echo #
---echo # 9.3 SHOW SLAVE STATUS FOR CHANNEL 'channel_4' displays replication
+--echo # 9.3 SHOW REPLICA STATUS FOR CHANNEL 'channel_4' displays replication
 --echo # filters set by the following command:
 --echo # CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(db4->db44) FOR CHANNEL 'channel_4';
 --echo #
@@ -420,7 +420,7 @@ SHOW SLAVE STATUS FOR CHANNEL 'channel_2';
 --source include/show_slave_status.inc
 
 --echo #
---echo # 9.4 SHOW SLAVE STATUS FOR CHANNEL 'channel_5' displays replication
+--echo # 9.4 SHOW REPLICA STATUS FOR CHANNEL 'channel_5' displays replication
 --echo # filters set by the following command:
 --echo # CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db5.t1) FOR CHANNEL 'channel_5';
 --echo #
@@ -429,7 +429,7 @@ SHOW SLAVE STATUS FOR CHANNEL 'channel_2';
 --source include/show_slave_status.inc
 
 --echo #
---echo # 9.5 SHOW SLAVE STATUS FOR CHANNEL 'channel_6' displays replication
+--echo # 9.5 SHOW REPLICA STATUS FOR CHANNEL 'channel_6' displays replication
 --echo # filters set by the following command:
 --echo # CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1) FOR CHANNEL 'channel_6';
 --echo #
@@ -456,7 +456,7 @@ CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.initfilet3) FOR CHANNEL 
 CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('initfiled%.t%') FOR CHANNEL 'channel_1';
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db2,`db32`,`db,3`), REPLICATE_DO_DB = (db1,my_db3,my_db4), Replicate_Ignore_DB = (my_initfiledb3) FOR CHANNEL 'channel_1';
 --echo #
---echo # 12. Verify that SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays
+--echo # 12. Verify that SHOW REPLICA STATUS FOR CHANNEL 'channel_1' displays
 --echo # the following filters:
 --echo # Replicate_Do_DB = 'db1,my_db3,my_db4'
 --echo # Replicate_Ignore_DB = 'my_initfiledb3'

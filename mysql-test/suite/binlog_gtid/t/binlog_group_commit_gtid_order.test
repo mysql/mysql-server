@@ -55,7 +55,7 @@ SET DEBUG_SYNC='reached_finish_commit SIGNAL go_con2 WAIT_FOR go_con1';
 # allow con2 to proceed with other INSERT to be part of the commit group
 # and will wait for a signal to continue with its own finish_commit.
 --send INSERT INTO t1 VALUES (1)
-# The above INSERT will be MASTER_UUID:3
+# The above INSERT will be Source_UUID:3
 
 --echo # At con2
 --connection con2
@@ -70,7 +70,7 @@ SET DEBUG_SYNC='now WAIT_FOR go_con2';
 
 # The following INSERT is not the group commit leader.
 INSERT INTO t2 VALUES (2);
-# The above INSERT will be MASTER_UUID:4
+# The above INSERT will be Source_UUID:4
 
 # In a non-fixed server, the GTIDs of transactions committed in group were
 # added to gtid_executed at finish_commit by each thread.

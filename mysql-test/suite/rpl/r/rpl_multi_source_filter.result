@@ -250,13 +250,13 @@ include/assert.inc [Slave should have 1 row in db66.t1 on channel_6]
 #
 include/rpl_stop_slaves.inc
 #
-# 8. SHOW SLAVE STATUS FOR CHANNEL 'channel_2' throws an error, since
+# 8. SHOW REPLICA STATUS FOR CHANNEL 'channel_2' throws an error, since
 # the channel does not exist.
 #
-SHOW SLAVE STATUS FOR CHANNEL 'channel_2';
+SHOW REPLICA STATUS FOR CHANNEL 'channel_2';
 ERROR HY000: Replica channel 'channel_2' does not exist.
 #
-# 9.1 SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays replication
+# 9.1 SHOW REPLICA STATUS FOR CHANNEL 'channel_1' displays replication
 # filters set by the following commands:
 # CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_1';
 # CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=(db%.t1%) FOR CHANNEL 'channel_1';
@@ -269,7 +269,7 @@ Replicate_Wild_Do_Table = 'db%.t1%'
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
 #
-# 9.2 SHOW SLAVE STATUS FOR CHANNEL 'channel_3' displays replication
+# 9.2 SHOW REPLICA STATUS FOR CHANNEL 'channel_3' displays replication
 # filters set by the following commands:
 # CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db33) FOR CHANNEL 'channel_3';
 # CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=(db%.t1%) FOR CHANNEL 'channel_3';
@@ -282,7 +282,7 @@ Replicate_Wild_Do_Table = ''
 Replicate_Wild_Ignore_Table = 'db%.t1%'
 Replicate_Rewrite_DB = ''
 #
-# 9.3 SHOW SLAVE STATUS FOR CHANNEL 'channel_4' displays replication
+# 9.3 SHOW REPLICA STATUS FOR CHANNEL 'channel_4' displays replication
 # filters set by the following command:
 # CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(db4->db44) FOR CHANNEL 'channel_4';
 #
@@ -294,7 +294,7 @@ Replicate_Wild_Do_Table = ''
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = '(db4,db44)'
 #
-# 9.4 SHOW SLAVE STATUS FOR CHANNEL 'channel_5' displays replication
+# 9.4 SHOW REPLICA STATUS FOR CHANNEL 'channel_5' displays replication
 # filters set by the following command:
 # CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db5.t1) FOR CHANNEL 'channel_5';
 #
@@ -306,7 +306,7 @@ Replicate_Wild_Do_Table = ''
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
 #
-# 9.5 SHOW SLAVE STATUS FOR CHANNEL 'channel_6' displays replication
+# 9.5 SHOW REPLICA STATUS FOR CHANNEL 'channel_6' displays replication
 # filters set by the following command:
 # CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1) FOR CHANNEL 'channel_6';
 #
@@ -349,7 +349,7 @@ CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.initfilet3) FOR CHANNEL 
 CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('initfiled%.t%') FOR CHANNEL 'channel_1';
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db2,`db32`,`db,3`), REPLICATE_DO_DB = (db1,my_db3,my_db4), Replicate_Ignore_DB = (my_initfiledb3) FOR CHANNEL 'channel_1';
 #
-# 12. Verify that SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays
+# 12. Verify that SHOW REPLICA STATUS FOR CHANNEL 'channel_1' displays
 # the following filters:
 # Replicate_Do_DB = 'db1,my_db3,my_db4'
 # Replicate_Ignore_DB = 'my_initfiledb3'

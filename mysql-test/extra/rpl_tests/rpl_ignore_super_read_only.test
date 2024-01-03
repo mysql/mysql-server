@@ -123,13 +123,13 @@ RESET BINARY LOGS AND GTIDS;
 --echo ####################################################################
 
 # Restart Replica and verify that slave_master_info table is updated during shutdown.
---let $io_pos_before_restart = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1)
+--let $io_pos_before_restart = query_get_value("SHOW REPLICA STATUS", Read_Source_Log_Pos, 1)
 --let $rpl_server_number = 2
 --source include/rpl_restart_server.inc
---let $io_pos_after_restart = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1)
+--let $io_pos_after_restart = query_get_value("SHOW REPLICA STATUS", Read_Source_Log_Pos, 1)
 
-# Assert that IO thread Read_Master_Log_Pos before and after restart are same.
---let $assert_text= Read_Master_Log_Pos before and after restart are same.
+# Assert that IO thread Read_Source_Log_Pos before and after restart are same.
+--let $assert_text= Read_Source_Log_Pos before and after restart are same.
 --let $assert_cond= $io_pos_before_restart = $io_pos_after_restart
 --source include/assert.inc
 

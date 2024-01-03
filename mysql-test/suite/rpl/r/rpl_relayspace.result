@@ -11,7 +11,7 @@ create table t1 (a int);
 drop table t1;
 RESET REPLICA;
 START REPLICA io_thread;
-include/wait_for_slave_param.inc [Slave_IO_State]
+include/wait_for_slave_param.inc [Replica_IO_State]
 include/stop_slave_io.inc
 RESET REPLICA;
 include/start_slave.inc

@@ -101,9 +101,9 @@ include/assert.inc [SOURCE_POS_WAIT should return NULL for channel '' and positi
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
 SHOW RELAYLOG EVENTS FOR CHANNEL '';
-===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel ''.
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '13124'
@@ -116,9 +116,9 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
-Master_Retry_Count = '100'
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+Source_Retry_Count = '100'
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Channel_Name = ''
 ===== Executing RESET REPLICA FOR CHANNEL on channel ''.
 RESET REPLICA FOR CHANNEL '';
@@ -136,9 +136,9 @@ include/assert.inc [SOURCE_POS_WAIT should return -1 for channel 'channel_2' and
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
-===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
-include/wait_for_slave_param.inc [Slave_IO_State FOR CHANNEL 'channel_2']
-include/wait_for_slave_param.inc [Slave_SQL_Running_State FOR CHANNEL 'channel_2']
+===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel 'channel_2'.
+include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL 'channel_2']
+include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_2']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -155,9 +155,9 @@ include/stop_slave.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
-Master_Retry_Count = '100'
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+Source_Retry_Count = '100'
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Channel_Name = 'channel_2'
 ===== Executing RESET REPLICA FOR CHANNEL on channel 'channel_2'.
 RESET REPLICA FOR CHANNEL 'channel_2';
@@ -175,9 +175,9 @@ include/assert.inc [SOURCE_POS_WAIT should return -1 for channel 'channel_3' and
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
-===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
-include/wait_for_slave_param.inc [Slave_IO_State FOR CHANNEL 'channel_3']
-include/wait_for_slave_param.inc [Slave_SQL_Running_State FOR CHANNEL 'channel_3']
+===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel 'channel_3'.
+include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL 'channel_3']
+include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_3']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -194,9 +194,9 @@ include/stop_slave.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
-Master_Retry_Count = '100'
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+Source_Retry_Count = '100'
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Channel_Name = 'channel_3'
 ===== Executing RESET REPLICA FOR CHANNEL on channel 'channel_3'.
 RESET REPLICA FOR CHANNEL 'channel_3';
@@ -295,9 +295,9 @@ include/assert.inc [SOURCE_POS_WAIT should return -1 for channel '' and position
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
 SHOW RELAYLOG EVENTS FOR CHANNEL '';
-===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
-include/wait_for_slave_param.inc [Slave_IO_State FOR CHANNEL '']
-include/wait_for_slave_param.inc [Slave_SQL_Running_State FOR CHANNEL '']
+===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel ''.
+include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL '']
+include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL '']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -314,9 +314,9 @@ include/stop_slave.inc [FOR CHANNEL '']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
-Master_Retry_Count = '100'
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+Source_Retry_Count = '100'
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Channel_Name = ''
 ===== Executing RESET REPLICA FOR CHANNEL on channel ''.
 RESET REPLICA FOR CHANNEL '';
@@ -334,9 +334,9 @@ include/assert.inc [SOURCE_POS_WAIT should return NULL for channel 'channel_2' a
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
-===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel 'channel_2'.
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '13124'
@@ -349,9 +349,9 @@ Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
-Master_Retry_Count = '100'
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+Source_Retry_Count = '100'
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Channel_Name = 'channel_2'
 ===== Executing RESET REPLICA FOR CHANNEL on channel 'channel_2'.
 RESET REPLICA FOR CHANNEL 'channel_2';
@@ -369,9 +369,9 @@ include/assert.inc [SOURCE_POS_WAIT should return -1 for channel 'channel_3' and
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
-===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
-include/wait_for_slave_param.inc [Slave_IO_State FOR CHANNEL 'channel_3']
-include/wait_for_slave_param.inc [Slave_SQL_Running_State FOR CHANNEL 'channel_3']
+===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel 'channel_3'.
+include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL 'channel_3']
+include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_3']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -388,9 +388,9 @@ include/stop_slave.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
-Master_Retry_Count = '100'
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+Source_Retry_Count = '100'
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Channel_Name = 'channel_3'
 ===== Executing RESET REPLICA FOR CHANNEL on channel 'channel_3'.
 RESET REPLICA FOR CHANNEL 'channel_3';
@@ -489,9 +489,9 @@ include/assert.inc [SOURCE_POS_WAIT should return -1 for channel '' and position
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
 SHOW RELAYLOG EVENTS FOR CHANNEL '';
-===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
-include/wait_for_slave_param.inc [Slave_IO_State FOR CHANNEL '']
-include/wait_for_slave_param.inc [Slave_SQL_Running_State FOR CHANNEL '']
+===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel ''.
+include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL '']
+include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL '']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -508,9 +508,9 @@ include/stop_slave.inc [FOR CHANNEL '']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
-Master_Retry_Count = '100'
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+Source_Retry_Count = '100'
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Channel_Name = ''
 ===== Executing RESET REPLICA FOR CHANNEL on channel ''.
 RESET REPLICA FOR CHANNEL '';
@@ -528,9 +528,9 @@ include/assert.inc [SOURCE_POS_WAIT should return -1 for channel 'channel_2' and
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
-===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
-include/wait_for_slave_param.inc [Slave_IO_State FOR CHANNEL 'channel_2']
-include/wait_for_slave_param.inc [Slave_SQL_Running_State FOR CHANNEL 'channel_2']
+===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel 'channel_2'.
+include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL 'channel_2']
+include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_2']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -547,9 +547,9 @@ include/stop_slave.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
-Master_Retry_Count = '100'
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+Source_Retry_Count = '100'
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Channel_Name = 'channel_2'
 ===== Executing RESET REPLICA FOR CHANNEL on channel 'channel_2'.
 RESET REPLICA FOR CHANNEL 'channel_2';
@@ -567,9 +567,9 @@ include/assert.inc [SOURCE_POS_WAIT should return NULL for channel 'channel_3' a
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
-===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel 'channel_3'.
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '13124'
@@ -582,9 +582,9 @@ Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
-Master_Retry_Count = '100'
-Slave_IO_State = ''
-Slave_SQL_Running_State = ''
+Source_Retry_Count = '100'
+Replica_IO_State = ''
+Replica_SQL_Running_State = ''
 Channel_Name = 'channel_3'
 ===== Executing RESET REPLICA FOR CHANNEL on channel 'channel_3'.
 RESET REPLICA FOR CHANNEL 'channel_3';

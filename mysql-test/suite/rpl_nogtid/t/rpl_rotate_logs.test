@@ -27,7 +27,7 @@ insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break replica'),('Tried hard');
 --source include/sync_slave_sql_with_master.inc
-let $status_items= Master_Log_File, Relay_Master_Log_File;
+let $status_items= Source_Log_File, Relay_Source_Log_File;
 source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
 

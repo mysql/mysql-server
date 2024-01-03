@@ -63,8 +63,8 @@ if ($rpl_debug)
 # timeout will make mtr throw an error almost promptly, without having
 # to wait 300 seconds to notice a sync problem between master and slave.
 #
---let $_slave_master_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
---let $_slave_master_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $_slave_master_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 1)
+--let $_slave_master_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
 
 if ($rpl_debug)
 {

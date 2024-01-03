@@ -1,6 +1,6 @@
 ################################################################################
 # This test verifies that running
-# `show slave status for channel 'group_replication_recovery'`
+# `show replica status for channel 'group_replication_recovery'`
 # should not cause assert error.
 #
 # Test:
@@ -9,7 +9,7 @@
 #    recovery on M2.
 # 2. Start GR on M2. Verify it is in recovering stage.
 # 3. Wait for the recovery channel to actually be created. Verify the same with
-#    SHOW SLAVE STATUS FOR CHANNEL "group_replication_recovery" command.
+#    SHOW REPLICA STATUS FOR CHANNEL "group_replication_recovery" command.
 # 4. Verify Until_Condition is set to SQL_VIEW_ID for channel
 #    group_replication_recovery
 # 5. Clean up.
@@ -41,10 +41,10 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 # otherwise there is a chance that there is a race
 # between the START GROUP_REPLICATION and the
 # wait_for_slave_param script below as the channel may
-# not show up in SHOW SLAVE STATUS before that script
+# not show up in SHOW REPLICA STATUS before that script
 # is run.
 #
---let $show_statement= SHOW SLAVE STATUS FOR CHANNEL "group_replication_recovery"
+--let $show_statement= SHOW REPLICA STATUS FOR CHANNEL "group_replication_recovery"
 --let $field = Channel_Name
 --let $condition= = "group_replication_recovery"
 --source include/wait_show_condition.inc

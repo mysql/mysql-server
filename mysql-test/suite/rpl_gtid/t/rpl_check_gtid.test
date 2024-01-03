@@ -250,7 +250,7 @@ while ($i != 5)
 --enable_warnings
 
 --connection master
-# This transaction will be the MASTER_UUID:1
+# This transaction will be the Source_UUID:1
 BEGIN;
 INSERT INTO t1 VALUES(0);
 COMMIT;
@@ -624,7 +624,7 @@ RESET BINARY LOGS AND GTIDS;
 --connection master
 RESET BINARY LOGS AND GTIDS;
 --connection slave
---let $slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+--let $slave_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
 --error ER_BAD_REPLICA_AUTO_POSITION
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1, SOURCE_LOG_FILE= 'master-bin.000001', SOURCE_LOG_POS= 4;
 --disable_warnings
@@ -726,7 +726,7 @@ RESET BINARY LOGS AND GTIDS;
 --connection master
 RESET BINARY LOGS AND GTIDS;
 --connection slave
---let $slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+--let $slave_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
 --replace_result $slave_master_host SLAVE_MASTER_HOST
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_master_host', SOURCE_AUTO_POSITION= 1
 

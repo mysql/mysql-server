@@ -46,9 +46,9 @@ if ($rpl_multi_source)
 #
 # Always save IO thread positions, this will be useful to check missing GTIDs.
 #
---let $sss_statement= SHOW SLAVE STATUS $_for_channel_clause
---let $_saved_file= query_get_value($sss_statement, Master_Log_File, 1)
---let $_saved_pos= query_get_value($sss_statement, Read_Master_Log_Pos, 1)
+--let $sss_statement= SHOW REPLICA STATUS $_for_channel_clause
+--let $_saved_file= query_get_value($sss_statement, Source_Log_File, 1)
+--let $_saved_pos= query_get_value($sss_statement, Read_Source_Log_Pos, 1)
 --let $_saved_channel_name= $rpl_channel_name
 if ($use_gtids)
 {

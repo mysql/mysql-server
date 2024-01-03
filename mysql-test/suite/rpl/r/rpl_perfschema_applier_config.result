@@ -6,34 +6,34 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/assert.inc [On master, the table should return an empty set.]
 
 # Verify that SELECT works and produces an output similar to
-# the corresponding field in SHOW SLAVE STATUS(SSS) in all scenarios.
+# the corresponding field in SHOW REPLICA STATUS(SRS) in all scenarios.
 
 
-# Verify that output is same as SSS on a fresh slave.
+# Verify that output is same as SRS on a fresh slave.
 
-include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+include/assert.inc [Value returned by SRS and PS table for Desired_Delay should be same.]
 
 # Verify that the value of this field is correct after STOP REPLICA.
 
 include/stop_slave.inc
-include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+include/assert.inc [Value returned by SRS and PS table for Desired_Delay should be same.]
 
 # Verify that, when desired delay is set, the value is shown corectly.
 
 CHANGE REPLICATION SOURCE to SOURCE_DELAY= 2;
 include/start_slave.inc
-include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+include/assert.inc [Value returned by SRS and PS table for Desired_Delay should be same.]
 
 # Verify that the value is preserved after STOP REPLICA.
 
 include/stop_slave.inc
-include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+include/assert.inc [Value returned by SRS and PS table for Desired_Delay should be same.]
 
 # Verify that, when desired delay is reset, the value is shown corectly.
 
 CHANGE REPLICATION SOURCE to SOURCE_DELAY= 0;
 include/start_slave.inc
-include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+include/assert.inc [Value returned by SRS and PS table for Desired_Delay should be same.]
 
 # Verify that `privilege_checks_user` is initialized to `NULL`.
 

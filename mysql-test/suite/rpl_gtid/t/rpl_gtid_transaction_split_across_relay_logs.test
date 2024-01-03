@@ -71,8 +71,8 @@ START REPLICA;
 # Assert that relay log info pos is stored on table
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
---let $sql_thread_pos=query_get_value('SHOW SLAVE STATUS', Exec_Master_Log_Pos, 1)
---let $sql_thread_file=query_get_value('SHOW SLAVE STATUS', Relay_Master_Log_File, 1)
+--let $sql_thread_pos=query_get_value('SHOW REPLICA STATUS', Exec_Source_Log_Pos, 1)
+--let $sql_thread_file=query_get_value('SHOW REPLICA STATUS', Relay_Source_Log_File, 1)
 --let $assert_cond= Master_log_pos = $sql_thread_pos FROM mysql.slave_relay_log_info
 --let $assert_text= SQL thread position should be updated to after the split transaction
 --source include/assert.inc

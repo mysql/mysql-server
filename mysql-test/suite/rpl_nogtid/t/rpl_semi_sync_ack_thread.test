@@ -227,8 +227,8 @@ SET GLOBAL rpl_semi_sync_source_enabled= ON;
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 --source include/stop_slave.inc
---let $save_retry_count= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
---let $save_retry_time= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
+--let $save_retry_count= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
+--let $save_retry_time= query_get_value(SHOW REPLICA STATUS, Connect_Retry, 1)
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 1, SOURCE_CONNECT_RETRY = 5;
 
 # Make IO thread hungs after connecting to master. So we can make sure it is

@@ -26,12 +26,12 @@ include/sync_slave_sql_with_master.inc
 select * from t1;
 t
 1
-Master_SSL_Allowed = 'Yes'
-Master_SSL_CA_Path = ''
-Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
-Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
-Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
-Master_TLS_Version = 'TLSv1.2'
+Source_SSL_Allowed = 'Yes'
+Source_SSL_CA_Path = ''
+Source_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
+Source_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
+Source_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
+Source_TLS_Version = 'TLSv1.2'
 include/check_slave_is_running.inc
 STOP REPLICA;
 include/wait_for_slave_to_stop.inc
@@ -46,12 +46,12 @@ drop user replssl@localhost;
 SET SQL_LOG_BIN= 1;
 drop table t1;
 include/sync_slave_sql_with_master.inc
-Master_SSL_Allowed = 'No'
-Master_SSL_CA_Path = ''
-Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
-Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
-Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
-Master_TLS_Version = 'TLSv1.2'
+Source_SSL_Allowed = 'No'
+Source_SSL_CA_Path = ''
+Source_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
+Source_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
+Source_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
+Source_TLS_Version = 'TLSv1.2'
 include/check_slave_is_running.inc
 STOP REPLICA;
 include/wait_for_slave_to_stop.inc
@@ -71,23 +71,23 @@ on slave
 select * from t1;
 t
 1
-Master_SSL_Allowed = 'Yes'
-Master_SSL_CA_Path = ''
-Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
-Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
-Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
-Master_TLS_Version = 'TLSv1.2'
+Source_SSL_Allowed = 'Yes'
+Source_SSL_CA_Path = ''
+Source_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
+Source_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
+Source_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
+Source_TLS_Version = 'TLSv1.2'
 include/check_slave_is_running.inc
 drop table t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on STOP REPLICA.]
+include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on STOP REPLICA.]
 RESET REPLICA;
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on RESET REPLICA.]
+include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on RESET REPLICA.]
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_MYPORT;
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.]
+include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.]
 include/start_slave.inc
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on START REPLICA.]
+include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on START REPLICA.]
 DROP TABLE IF EXISTS t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc

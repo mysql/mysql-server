@@ -66,7 +66,7 @@ while ($_rpl_server <= 2)
   }
   if ($_rpl_server == 2)
   {
-    --let $before_sighup_log_name=query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+    --let $before_sighup_log_name=query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
   }
 
   # Step2: send SIGHUP(signal 1) to server which will rotate bin(relay)log
@@ -81,7 +81,7 @@ while ($_rpl_server <= 2)
   }
   if ($_rpl_server == 2)
   {
-    --let $show_statement=SHOW SLAVE STATUS
+    --let $show_statement=SHOW REPLICA STATUS
     --let $field=Relay_Log_File
   }
   --let $condition= <> '$before_sighup_log_name'

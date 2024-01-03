@@ -764,7 +764,7 @@ select left(b,1), length(b) from test.t5 order by a;
 
 --let $slave_sql_errno=1296
 --source include/wait_for_slave_sql_error.inc
-#SHOW SLAVE STATUS;
+#SHOW REPLICA STATUS;
 
 --echo Restart Primary Slave
 set global sql_replica_skip_counter=1;

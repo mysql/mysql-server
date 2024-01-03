@@ -41,7 +41,7 @@ source include/wait_for_slave_sql_to_stop.inc;
 --source include/check_slave_no_error.inc
 
 --let $assert_text= Everything that was read, was executed
---let $assert_cond= [SHOW SLAVE STATUS, Read_Master_Log_Pos, 1] = [SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1]
+--let $assert_cond= [SHOW REPLICA STATUS, Read_Source_Log_Pos, 1] = [SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1]
 --source include/assert.inc
 
 --let $assert_text= There is one row in table tm
@@ -99,7 +99,7 @@ let $slave_sql_errno= 13117,1756; # ER_REPLICA_FATAL_ERROR, ER_MTA_INCONSISTENT_
 # checking: the error and group unfinished
 
 --let $assert_text= Not everything that was read, was executed
---let $assert_cond= [SHOW SLAVE STATUS, Read_Master_Log_Pos, 1] > [SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1]
+--let $assert_cond= [SHOW REPLICA STATUS, Read_Source_Log_Pos, 1] > [SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1]
 --source include/assert.inc
 
 --let $assert_text= There is one row in table tm
@@ -145,7 +145,7 @@ let $slave_sql_errno= 13117,1756; # ER_REPLICA_FATAL_ERROR, ER_MTA_INCONSISTENT_
 --source include/wait_for_slave_sql_error.inc
 
 --let $assert_text= Not everything that was read, was executed
---let $assert_cond= [SHOW SLAVE STATUS, Read_Master_Log_Pos, 1] > [SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1]
+--let $assert_cond= [SHOW REPLICA STATUS, Read_Source_Log_Pos, 1] > [SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1]
 --source include/assert.inc
 
 --let $assert_text= The max value for field 'a' is 2

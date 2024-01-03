@@ -84,7 +84,7 @@ RESET BINARY LOGS AND GTIDS;
 
 # Save slave Retrieved_Gtid_Set to add it as slave's GTID_PURGED
 --source include/rpl_connection_slave.inc
---let $slave_gtid_purged= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
+--let $slave_gtid_purged= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
 RESET BINARY LOGS AND GTIDS;
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@GLOBAL.GTID_PURGED='$slave_gtid_purged'

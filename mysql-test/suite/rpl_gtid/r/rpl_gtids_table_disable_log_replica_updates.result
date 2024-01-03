@@ -12,9 +12,9 @@ INSERT INTO t2 VALUES(1);
 # Verify that transactions' gtids can be reported
 # from global.gtid_executed correctly.
 #
-include/assert.inc [committed gtids MASTER_UUID:1-4]
+include/assert.inc [committed gtids Source_UUID:1-4]
 #
-# Store gtids MASTER_UUID:1-4 in gtid_executed table on binlog rotation
+# Store gtids Source_UUID:1-4 in gtid_executed table on binlog rotation
 #
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
@@ -24,7 +24,7 @@ include/sync_slave_sql_with_master.inc
 #
 # connection slave
 #
-include/assert.inc [committed gtids MASTER_UUID:1-4]
+include/assert.inc [committed gtids Source_UUID:1-4]
 #
 # Verify that slave thread stores gtid into gtid_executed table within
 # each transaction if binlog is on and log_slave_updated is disabled.
@@ -57,7 +57,7 @@ SLAVE_UUID	1	2
 # logs if binlog is enabled and log_replica_updates is disabled.
 #
 PURGE BINARY LOGS TO 'slave-bin.000002';
-include/assert.inc [purged gtids SLAVE_UUID:1-2,MASTER_UUID:1-4]
+include/assert.inc [purged gtids SLAVE_UUID:1-2,Source_UUID:1-4]
 #
 # Verify that we can get the correct set from 'gtid_executed' table
 # when executing a big transaction that exceeds the max size of the

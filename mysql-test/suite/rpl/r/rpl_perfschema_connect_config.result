@@ -8,24 +8,24 @@ call mtr.add_suppression(" * does not exist in the InnoDB internal");
 include/assert.inc [On master, the table should return an empty set.]
 
 # Verify that SELECT works for every field and produces an output
-# similar to the corresponding field in SHOW SLAVE STATUS(SSS).
+# similar to the corresponding field in SHOW REPLICA STATUS(SRS).
 
-include/assert.inc [Value returned by SSS and PS table for Host should be same.]
-include/assert.inc [Value returned by SSS and PS table for Port should be same.]
-include/assert.inc [Value returned by SSS and PS table for User should be same.]
-include/assert.inc [Value returned by SSS and PS table for Network_Interface should be same.]
-include/assert.inc [Value returned by SSS and PS table for Auto_Position should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Allowed should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_CA_File should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_CA_Path should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Certificate should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Cipher should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Key should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Verify_Server_Certificate should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Crl_File should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Crl_Path should be same.]
-include/assert.inc [Value returned by SSS and PS table for Connection_Retry_Interval should be same.]
-include/assert.inc [Value returned by SSS and PS table for Connection_Retry_Count should be same.]
+include/assert.inc [Value returned by SRS and PS table for Host should be same.]
+include/assert.inc [Value returned by SRS and PS table for Port should be same.]
+include/assert.inc [Value returned by SRS and PS table for User should be same.]
+include/assert.inc [Value returned by SRS and PS table for Network_Interface should be same.]
+include/assert.inc [Value returned by SRS and PS table for Auto_Position should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Allowed should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_CA_File should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_CA_Path should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Certificate should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Cipher should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Key should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Verify_Server_Certificate should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Crl_File should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Crl_Path should be same.]
+include/assert.inc [Value returned by SRS and PS table for Connection_Retry_Interval should be same.]
+include/assert.inc [Value returned by SRS and PS table for Connection_Retry_Count should be same.]
 
 # Change configuration parameters and verify that these changes
 # are shown correctly by SELECTs from PS table.
@@ -49,18 +49,18 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Checking SSL parameters, they were empty in tests done in the
 # previous section.
 
-include/assert.inc [Value returned by SSS and PS table for SSL_Allowed should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_CA_File should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_CA_Path should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Certificate should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Cipher should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Key should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Verify_Server_Certificate should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Allowed should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_CA_File should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_CA_Path should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Certificate should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Cipher should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Key should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Verify_Server_Certificate should be same.]
 CHANGE REPLICATION SOURCE to SOURCE_SSL=0;
 CHANGE REPLICATION SOURCE to SOURCE_SSL_CRL= 'MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', SOURCE_SSL_CRLPATH= 'MYSQL_TEST_DIR/std_data/crldir';
-include/assert.inc [Value returned by SSS and PS table for SSL_Crl_File should be same.]
-include/assert.inc [Value returned by SSS and PS table for SSL_Crl_Path should be same.]
-include/assert.inc [Value returned by SSS and PS table for TLS version should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Crl_File should be same.]
+include/assert.inc [Value returned by SRS and PS table for SSL_Crl_Path should be same.]
+include/assert.inc [Value returned by SRS and PS table for TLS version should be same.]
 
 # Test with servers in gtid-mode=on.
 
@@ -69,7 +69,7 @@ include/rpl_restart_server.inc [server_number=2 gtids=on]
 
 # 1) Test for Auto_position= 0.
 
-include/assert.inc [Value returned by SSS and PS table for Auto_Position should be same.]
+include/assert.inc [Value returned by SRS and PS table for Auto_Position should be same.]
 CHANGE REPLICATION SOURCE to
 SOURCE_USER = 'root',
 SOURCE_AUTO_POSITION= 1;
@@ -79,7 +79,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 
 # 2) Test for Auto_position= 1.
 
-include/assert.inc [Value returned by SSS and PS table for Auto_Position should be same.]
+include/assert.inc [Value returned by SRS and PS table for Auto_Position should be same.]
 CHANGE REPLICATION SOURCE to
 SOURCE_AUTO_POSITION= 0,
 SOURCE_SSL_CRL= '',

@@ -18,7 +18,7 @@
 # SET GLOBAL sql_replica_skip_counter = 5;
 # START REPLICA FOR CHANNEL 'ch1';
 #
-# SHOW SLAVE STATUS FOR CHANNEL 'channel_1';
+# SHOW REPLICA STATUS FOR CHANNEL 'channel_1';
 # Skip_count item will be 5.
 #
 # SELECT @@GLOBAL.sql_replica_skip_counter;
@@ -51,7 +51,7 @@ call mtr.add_suppression("Replica: Could not start replica for channel");
 --echo #
 SET GLOBAL sql_replica_skip_counter= 1;
 
---let $skip_counter= query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'channel_1', Skip_Counter, 1)
+--let $skip_counter= query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'channel_1', Skip_Counter, 1)
 --let $assert_text= check that channel_1's Skip_Counter is 0.
 --echo $skip_counter
 --let $assert_cond= $skip_counter=0
@@ -75,7 +75,7 @@ STOP REPLICA SQL_THREAD;
 --let $rpl_channel_name= 'channel_1'
 --source include/start_slave.inc
 
---let $skip_counter= query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'channel_1', Skip_Counter, 1)
+--let $skip_counter= query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'channel_1', Skip_Counter, 1)
 --let $assert_text= check that channel_1's Skip_Counter is 0.
 --echo $skip_counter
 --let $assert_cond= $skip_counter= 1

@@ -55,17 +55,17 @@ call mtr.add_suppression("GTID_LOG_EVENT.* is not expected in an event stream");
 
 # Create a table at the master using GTID
 --source include/rpl_connection_master.inc
---echo # This should be MASTER_UUID:1
+--echo # This should be Source_UUID:1
 CREATE TABLE t1 (c1 INT) ENGINE= InnoDB;
 --source include/sync_slave_io_with_master.inc
 
 # Inserting some data
 --source include/rpl_connection_master.inc
---echo # This should be MASTER_UUID:2,
+--echo # This should be Source_UUID:2,
 --echo # but it will not be fully retrieved nor applied on slave
 INSERT INTO t1 VALUES (1);
 
---echo # This should be MASTER_UUID:3,
+--echo # This should be Source_UUID:3,
 # This should not have a XID to avoid the transformation into an
 # unknown ignorable event, but it will be at the same binlog/relaylog
 # file as the incomplete transaction.
@@ -78,7 +78,7 @@ CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
 
 # Insert more data on master
 --source include/rpl_connection_master.inc
---echo # This should be MASTER_UUID:4
+--echo # This should be Source_UUID:4
 INSERT INTO t1 VALUES (3);
 
 --source include/rpl_connection_slave.inc

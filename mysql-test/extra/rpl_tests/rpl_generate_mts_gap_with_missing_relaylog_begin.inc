@@ -50,7 +50,7 @@ INSERT INTO d1.t VALUES (1, 'T1');
 
 # Create back up for newly created relay log
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
---let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 --copy_file $MYSQLD_DATADIR/$relay_log_file $MYSQLD_DATADIR/relay.backup
 
 BEGIN;

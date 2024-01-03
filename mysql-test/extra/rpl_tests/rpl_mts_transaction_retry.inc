@@ -176,7 +176,7 @@ INSERT INTO db2.t1 VALUES(30, NULL);
 
 #
 # It is for verifying the fix of Bug#19282301
-# To verify the temporary error is not reported through SHOW SLAVE STATUS
+# To verify the temporary error is not reported through SHOW REPLICA STATUS
 --source include/check_slave_no_error.inc
 
 # Release the lock of db1.t2

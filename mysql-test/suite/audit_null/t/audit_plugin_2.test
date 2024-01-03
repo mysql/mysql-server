@@ -1864,7 +1864,7 @@ SET @@null_audit_event_order_check_exact = 1;
 --replace_regex /;command_id="[0-9]+"/;command_id="<expected_command_id>"/
 eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id="$command_end_id";;'
                                           'MYSQL_AUDIT_COMMAND_START;command_id="XXX";';
-#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT Source_Port
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT $command_start_id INVALID_ID
 --error ER_AUDIT_API_ABORT
 SELECT 1;

@@ -3,7 +3,7 @@
 # This test will create two channels and will make one of them to be blocked
 # while stopping.
 #
-# Then, the test case shows that it is possible to execute SHOW SLAVE STATUS
+# Then, the test case shows that it is possible to execute SHOW REPLICA STATUS
 # for the channel being stopped, as well as to stop another channel.
 #
 # ==== Related Bugs and Worklogs ====
@@ -55,11 +55,11 @@ INSERT INTO t1 VALUES (1);
 
 --let $rpl_connection_name= server_2_2
 --source include/rpl_connection.inc
---let $ch1_sql_running=query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'ch1', Slave_SQL_Running, 1)
+--let $ch1_sql_running=query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'ch1', Replica_SQL_Running, 1)
 --let $assert_cond= [ SELECT "$ch1_sql_running" = "Yes" ]
 --let $assert_text= SQL thread for ch1 is running
 --source include/assert.inc
---let $ch1_sql_status=query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'ch1', Slave_SQL_Running_State, 1)
+--let $ch1_sql_status=query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'ch1', Replica_SQL_Running_State, 1)
 # This is the expected state with a non-MTS slave.
 --let $cond1 = "System lock"
 # This is the expected state with a MTS slave.
@@ -75,7 +75,7 @@ STOP REPLICA SQL_THREAD FOR CHANNEL 'ch2';
 --let $rpl_channel_name= 'ch2'
 --source include/wait_for_slave_sql_to_stop.inc
 
---let $ch1_sql_running=query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'ch1', Slave_SQL_Running, 1)
+--let $ch1_sql_running=query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'ch1', Replica_SQL_Running, 1)
 --let $assert_cond= [ SELECT "$ch1_sql_running" = "Yes" ]
 --let $assert_text= SQL thread for ch1 is still running
 --source include/assert.inc

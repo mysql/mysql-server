@@ -36,7 +36,7 @@ SET GLOBAL super_read_only= ON;
 --echo #
 --echo # Verify that we can get correct gtid sets after server restarts
 --echo #
---let $assert_text= committed gtid set is MASTER_UUID:1-2
+--let $assert_text= committed gtid set is Source_UUID:1-2
 --let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$master_uuid:1-2"
 --source include/assert.inc
 

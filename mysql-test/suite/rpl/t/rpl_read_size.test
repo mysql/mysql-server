@@ -63,7 +63,7 @@ while ($case < 2)
   --let $count_read_end= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' ORDER BY file_name, count_read, 2)
 
   --let $rpl_read_size_value= `SELECT @@GLOBAL.rpl_read_size`
-  --let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+  --let $relay_log_pos= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
   --let $expected_read_count= ` SELECT CEILING($relay_log_pos/$rpl_read_size_value)`
   --expr $count_read= $count_read_end - $count_read_start
 

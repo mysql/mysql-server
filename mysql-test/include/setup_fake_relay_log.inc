@@ -45,8 +45,8 @@ let $_fake_relay_log_printable= `SELECT REPLACE('$fake_relay_log', '$MYSQL_TEST_
 
 # Sanity check.
 let $running= 0;
-let $_sql_running= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
-let $_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
+let $_sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1);
+let $_io_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1);
 if ($_sql_running == Yes) {
   let $running= 1;
 }
@@ -56,7 +56,7 @@ if ($_io_running == Yes) {
 if ($running) {
   --echo Error: Slave was running when test case sourced
   --echo include/setup_fake_replication.inc
-  --echo Slave_IO_Running = $_io_running; Slave_SQL_Running = $_sql_running
+  --echo Replica_IO_Running = $_io_running; Replica_SQL_Running = $_sql_running
   --source include/show_rpl_debug_info.inc
   --die
 }
@@ -74,7 +74,7 @@ let $_fake_relay_index= $_fake_datadir/$_fake_filename.index;
 let $_fake_relay_log_purge= `SELECT @@global.relay_log_purge`;
 
 RESET REPLICA;
-let $_orphan_relay_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+let $_orphan_relay_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1);
 
 # Create relay log file.
 --copy_file $fake_relay_log $_fake_relay_log

@@ -1,17 +1,17 @@
 # ==== Purpose ====
 #
-# Verify that Seconds_Behind_Master is calculated correctly on a
+# Verify that Seconds_Behind_Source is calculated correctly on a
 # Multi-threaded Slave when replica_parallel_type = 'LOGICAL_CLOCK'.
 # The test covers these scenarios:
 #
-# 1) With two workers, check if Seconds_Behind_Master is calculated
+# 1) With two workers, check if Seconds_Behind_Source is calculated
 # correctly when two statements are applied in parallel on one database
 # and both the workers are blocked to to lock.
 #
-# 2) With two workers, check if Seconds_Behind_Master is calculated
+# 2) With two workers, check if Seconds_Behind_Source is calculated
 # correctly when the first worker is blocked.
 #
-# 3) With three workers, check if Seconds_Behind_Master is calculated
+# 3) With three workers, check if Seconds_Behind_Source is calculated
 # correctly when two workers working on table from the same database and
 # 3rd worker working on another database.
 
@@ -21,7 +21,7 @@
 # Scenario 1: On slave, two statements are applied in parallel on one database.
 # Both workers are blocked.
 ###############################################################################
---echo # Scenario 1: With two workers, check if Seconds_Behind_Master is
+--echo # Scenario 1: With two workers, check if Seconds_Behind_Source is
 --echo # calculated correctly when two statements are applied in parallel on
 --echo # one database and both the workers are blocked to to lock.
 connect (master2, localhost, root, , );
@@ -70,10 +70,10 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 --sleep 3
 --source include/wait_for_mta_checkpoint.inc
 
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
 let $stop= `SELECT UNIX_TIMESTAMP()`;
 let $upper_bound= `SELECT $stop - $start`;
-let $assert_text= Seconds_Behind_Master must be between 3 and upper_bound;
+let $assert_text= Seconds_Behind_Source must be between 3 and upper_bound;
 let $assert_cond= 3 <= $sbm AND $sbm <= $upper_bound;
 --source include/assert.inc
 
@@ -88,9 +88,9 @@ let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 --source include/wait_condition.inc
 --source include/wait_for_mta_checkpoint.inc
 
-# Now both workers have completed. Thus Seconds_Behind_Master shoud be equal to 0.
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
-let $assert_text= Seconds_Behind_Master must be 0;
+# Now both workers have completed. Thus Seconds_Behind_Source shoud be equal to 0.
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $assert_text= Seconds_Behind_Source must be 0;
 let $assert_cond= $sbm = 0;
 --source include/assert.inc
 
@@ -98,7 +98,7 @@ let $assert_cond= $sbm = 0;
 # Scenario 2: Now only the first worker is blocked. Make sure there is a parent
 # commit
 ###############################################################################
---echo # Scenario 2: With two workers, check if Seconds_Behind_Master is
+--echo # Scenario 2: With two workers, check if Seconds_Behind_Source is
 --echo # calculated correctly when the first worker is blocked.
 
 connection master;
@@ -147,15 +147,15 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
                                                                              OR State = 'update';
 --source include/wait_condition.inc
 
-# Sleep for 2 seconds so Seconds_Behind_Master was at least 2
+# Sleep for 2 seconds so Seconds_Behind_Source was at least 2
 --sleep 2
 
 --source include/wait_for_mta_checkpoint.inc
 
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
 let $stop= `SELECT UNIX_TIMESTAMP()`;
 let $upper_bound= `SELECT $stop - $start`;
-let $assert_text= Seconds_Behind_Master must be between 2 and upper_bound;
+let $assert_text= Seconds_Behind_Source must be between 2 and upper_bound;
 let $assert_cond= 2 <= $sbm AND $sbm <= $upper_bound;
 --source include/assert.inc
 
@@ -170,8 +170,8 @@ let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 --source include/wait_condition.inc
 --source include/wait_for_mta_checkpoint.inc
 
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
-let $assert_text= Seconds_Behind_Master must be 0;
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $assert_text= Seconds_Behind_Source must be 0;
 let $assert_cond= $sbm = 0;
 --source include/assert.inc
 
@@ -179,7 +179,7 @@ let $assert_cond= $sbm = 0;
 # Scenario 3: Now there are 3 workers working in pararell. Two workers working
 # on table from the same database and a 3rd worker working on another database
 ###############################################################################
---echo # Scenario 3: With three workers, check if Seconds_Behind_Master is
+--echo # Scenario 3: With three workers, check if Seconds_Behind_Source is
 --echo # calculated correctly when two workers working on table from the same
 --echo # database and 3rd worker working on another database.
 
@@ -247,15 +247,15 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 --sleep 2
 --source include/wait_for_mta_checkpoint.inc
 
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
 let $stop= `SELECT UNIX_TIMESTAMP()`;
 let $upper_bound= `SELECT $stop - $start`;
-let $assert_text= Seconds_Behind_Master must be between 2 and upper_bound;
+let $assert_text= Seconds_Behind_Source must be between 2 and upper_bound;
 let $assert_cond= 2 <= $sbm AND $sbm <= $upper_bound;
 --source include/assert.inc
 
 # Lets finish concurrent write on second_test and check if workers on test report
-# correct Seconds_Behind_Master
+# correct Seconds_Behind_Source
 connection slave3;
 UNLOCK TABLES;
 
@@ -276,10 +276,10 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 --source include/wait_condition.inc
 --source include/wait_for_mta_checkpoint.inc
 
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
 let $stop= `SELECT UNIX_TIMESTAMP()`;
 let $upper_bound= `SELECT $stop - $start`;
-let $assert_text= Seconds_Behind_Master must be between 3 and upper_bound;
+let $assert_text= Seconds_Behind_Source must be between 3 and upper_bound;
 let $assert_cond= 3 <= $sbm AND $sbm <= $upper_bound;
 --source include/assert.inc
 
@@ -298,10 +298,10 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 
 --source include/wait_for_mta_checkpoint.inc
 
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
 let $stop= `SELECT UNIX_TIMESTAMP()`;
 let $upper_bound= `SELECT $stop - $start`;
-let $assert_text= Seconds_Behind_Master must be between 4 and upper_bound;
+let $assert_text= Seconds_Behind_Source must be between 4 and upper_bound;
 let $assert_cond= 4 <= $sbm AND $sbm <= $upper_bound;
 --source include/assert.inc
 
@@ -313,14 +313,14 @@ UNLOCK TABLE;
 let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
 
-# All catched up Seconds_Behind_Master should be 0. Lets wait some more to see if it does not increase
-# Seconds_Behind_Master
+# All catched up Seconds_Behind_Source should be 0. Lets wait some more to see if it does not increase
+# Seconds_Behind_Source
 
 --sleep 1
 --source include/wait_for_mta_checkpoint.inc
 
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
-let $assert_text= Seconds_Behind_Master must be 0;
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $assert_text= Seconds_Behind_Source must be 0;
 let $assert_cond= $sbm = 0;
 --source include/assert.inc
 

@@ -307,8 +307,8 @@ let $occurrences =
         "column_index": 5 },
       { "sql": "SHOW REPLICA STATUS", "column_index": 1, "row_count": 1 },
       { "sql": "SHOW REPLICA STATUS", "column_index": 45, "row_count": 1 },
-      { "sql": "SHOW SLAVE STATUS", "column_index": 1, "row_count": 1 },
-      { "sql": "SHOW SLAVE STATUS", "column_index": 45, "row_count": 1 }
+      { "sql": "SHOW REPLICA STATUS", "column_index": 1, "row_count": 1 },
+      { "sql": "SHOW REPLICA STATUS", "column_index": 45, "row_count": 1 }
     ]
   }
 };

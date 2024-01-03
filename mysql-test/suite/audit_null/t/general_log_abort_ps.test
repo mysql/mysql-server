@@ -95,7 +95,7 @@ EXECUTE stmt;
 #                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
 #                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="100";;'
 #                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
-#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT Source_Port
 #--error ER_AUDIT_API_ABORT
 #EXECUTE stmt;
 #SELECT @@null_audit_event_order_check;
@@ -126,7 +126,7 @@ EXECUTE stmt;
 #                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
 #                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="100";;'
 #                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
-#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT Source_Port
 #--error ER_AUDIT_API_ABORT
 #EXECUTE stmt;
 #SELECT @@null_audit_event_order_check;

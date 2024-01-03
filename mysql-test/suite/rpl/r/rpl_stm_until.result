@@ -27,7 +27,7 @@ n
 2
 3
 4
-include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/check_slave_param.inc [Exec_Source_Log_Pos]
 START REPLICA until SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=MASTER_LOG_POS;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
@@ -37,7 +37,7 @@ n
 2
 3
 4
-include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/check_slave_param.inc [Exec_Source_Log_Pos]
 START REPLICA until relay_log_file='slave-relay-bin.000003', relay_log_pos=RELAY_LOG_POS;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
@@ -45,7 +45,7 @@ select * from t2;
 n
 1
 2
-include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/check_slave_param.inc [Exec_Source_Log_Pos]
 START REPLICA;
 [on master]
 [on slave]
@@ -54,7 +54,7 @@ include/stop_slave.inc
 START REPLICA until SOURCE_LOG_FILE='MASTER_LOG_FILE', SOURCE_LOG_POS=MASTER_LOG_POS;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
-include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/check_slave_param.inc [Exec_Source_Log_Pos]
 ==== Test various error conditions ====
 START REPLICA until SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=MASTER_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
@@ -115,9 +115,9 @@ include/sync_slave_io_with_master.inc
 # Start SQL thread until it executed the CREATE TABLE
 START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE = "MASTER_FILE", SOURCE_LOG_POS = MASTER_POS;
 # Wait until SQL thread reaches last master binlog file
-include/wait_for_slave_param.inc [Relay_Master_Log_File]
+include/wait_for_slave_param.inc [Relay_Source_Log_File]
 # Wait until SQL thread reaches desired master binlog position
-include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+include/wait_for_slave_param.inc [Exec_Source_Log_Pos]
 # If the desired position was reached, SQL thread should stop.
 include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [t1 should be replicated]

@@ -51,7 +51,7 @@ SET DEBUG_SYNC= 'now SIGNAL notified_thread_complete';
 --echo # Veriry that we can get correct gtid sets after server restarts
 --echo # from a crash of compressing gtid_executed table.
 --echo #
---let $assert_text= committed gtid set is MASTER_UUID:1-3
+--let $assert_text= committed gtid set is Source_UUID:1-3
 --let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$master_uuid:1-3"
 --source include/assert.inc
 FLUSH LOGS;
@@ -63,7 +63,7 @@ SELECT * FROM mysql.gtid_executed;
 --echo # rotation if no gtid is stored into the last binlog.
 --echo #
 FLUSH LOGS;
---let $assert_text= committed gtid set is MASTER_UUID:1-3
+--let $assert_text= committed gtid set is Source_UUID:1-3
 --let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$master_uuid:1-3"
 --source include/assert.inc
 --replace_result $master_uuid MASTER_UUID
@@ -82,7 +82,7 @@ SET @@GLOBAL.DEBUG= '-d, simulate_error_on_compress_gtid_table';
 --echo # is not compressed if we encountered an error when compressing
 --echo # gtid_executed table.
 --echo #
---let $assert_text= committed gtid set is MASTER_UUID:1-4
+--let $assert_text= committed gtid set is Source_UUID:1-4
 --let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$master_uuid:1-4"
 --source include/assert.inc
 --replace_result $master_uuid MASTER_UUID

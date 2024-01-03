@@ -1,6 +1,6 @@
 # ==== Purpose ====
 #
-# Assert that a given column in SHOW SLAVE STATUS has a given value.
+# Assert that a given column in SHOW REPLICA STATUS has a given value.
 #
 # ==== Usage ====
 #
@@ -12,9 +12,9 @@
 #
 # Parameters:
 #   $slave_param, $slave_param_value
-#     Column name in output of SHOW SLAVE STATUS that should be checked,
+#     Column name in output of SHOW REPLICA STATUS that should be checked,
 #     and the expected value. Example:
-#       --let $slave_param= Exec_Master_Log_Pos
+#       --let $slave_param= Exec_Source_Log_Pos
 #       --let $slave_param_value= 4711
 #
 #   $rpl_channel_name
@@ -34,7 +34,7 @@ if ($rpl_channel_name)
 --source include/begin_include_file.inc
 
 
---let $_param_value= query_get_value(SHOW SLAVE STATUS $_csp_for_channel, $slave_param, 1)
+--let $_param_value= query_get_value(SHOW REPLICA STATUS $_csp_for_channel, $slave_param, 1)
 if ($_param_value != $slave_param_value) {
   --source include/show_rpl_debug_info.inc
   --echo Wrong value for $slave_param. Expected '$slave_param_value', got '$_param_value'

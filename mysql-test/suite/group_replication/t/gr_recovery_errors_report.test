@@ -1,6 +1,6 @@
 ################################################################################
 # Validate that recovery errors are properly reported between attempts on
-# performance_schema.replication_applier_status_by_worker and SHOW SLAVE STATUS.
+# performance_schema.replication_applier_status_by_worker and SHOW REPLICA STATUS.
 #
 # Test:
 # 0. The test requires two servers: M1 and M2.
@@ -9,7 +9,7 @@
 #    the group, recovery will fail.
 #    Assert that error is visible on
 #    performance_schema.replication_applier_status_by_worker
-#    and SHOW SLAVE STATUS between retry attempts.
+#    and SHOW REPLICA STATUS between retry attempts.
 # 3. Clean up.
 ################################################################################
 --source include/have_group_replication_plugin.inc
@@ -32,7 +32,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo #    the group, recovery will fail.
 --echo #    Assert that error is visible on
 --echo #    performance_schema.replication_applier_status_by_worker
---echo #    and SHOW SLAVE STATUS between retry attempts.
+--echo #    and SHOW REPLICA STATUS between retry attempts.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET SESSION sql_log_bin= 0;
@@ -56,12 +56,12 @@ START GROUP_REPLICATION;
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name='group_replication_recovery' AND last_error_number=1050;
 --source include/wait_condition.inc
 
---let $last_errno = query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery', Last_Errno, 1)
+--let $last_errno = query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'group_replication_recovery', Last_Errno, 1)
 --let $assert_text= Recovery channel error is reported on Last_Errno
 --let $assert_cond= $last_errno = 1050
 --source include/assert.inc
 
---let $last_sql_errno = query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery', Last_SQL_Errno, 1)
+--let $last_sql_errno = query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'group_replication_recovery', Last_SQL_Errno, 1)
 --let $assert_text= Recovery channel error is reported on Last_SQL_Errno
 --let $assert_cond= $last_sql_errno = 1050
 --source include/assert.inc

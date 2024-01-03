@@ -9,7 +9,7 @@
 # REPLACE was used on the master) (bug 571).
 #
 # check if START REPLICA, RESET REPLICA, CHANGE MASTER reset Last_slave_error and
-# Last_slave_errno in SHOW SLAVE STATUS (1st and 3rd commands did not: bug 986)
+# Last_slave_errno in SHOW REPLICA STATUS (1st and 3rd commands did not: bug 986)
 
 -- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
@@ -76,7 +76,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error_and_skip.inc
 
-# Skip the bad event and see if error is cleared in SHOW SLAVE STATUS by START
+# Skip the bad event and see if error is cleared in SHOW REPLICA STATUS by START
 # SLAVE, even though we are not executing any event (as sql_replica_skip_counter
 # takes us directly to the end of the relay log).
 
@@ -93,13 +93,13 @@ eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
 save_master_pos;
 connection slave;
 # The SQL slave thread should be stopped now. 
-# Exec_Master_Log_Pos should point to the start of Execute event
+# Exec_Source_Log_Pos should point to the start of Execute event
 # for last load data.
 # 1062 = ER_DUP_ENTRY
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error.inc
 
-# CHANGE MASTER and see if error is cleared in SHOW SLAVE STATUS.
+# CHANGE MASTER and see if error is cleared in SHOW REPLICA STATUS.
 --source include/stop_slave_io.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='test';
@@ -124,7 +124,7 @@ connection slave;
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error.inc
 
-# RESET REPLICA and see if error is cleared in SHOW SLAVE STATUS.
+# RESET REPLICA and see if error is cleared in SHOW REPLICA STATUS.
 STOP REPLICA;
 RESET REPLICA;
 --source include/check_slave_no_error.inc

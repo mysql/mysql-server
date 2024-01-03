@@ -71,7 +71,7 @@ let $slave_sql_errno= 13119; # ER_REPLICA_INCIDENT
 let $show_slave_sql_error=1;
 -- source include/wait_for_slave_sql_error.inc
 
-let $status_items= Slave_IO_Running, Slave_SQL_Running, Last_Errno, Last_Error;	
+let $status_items= Replica_IO_Running, Replica_SQL_Running, Last_Errno, Last_Error;	
 -- source include/show_slave_status.inc
 
 # Cleanup

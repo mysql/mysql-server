@@ -10,7 +10,7 @@ source include/check_ipv6.inc;
 let $check_ipv6_just_check=0;
 
 connection slave;
-let $save_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+let $save_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
 
 connection master;
 # Make SQL slave thread advance a bit
@@ -23,29 +23,29 @@ connection master;
 insert into t1 values(1);
 insert into t1 values(2);
 save_master_pos;
-let $slave_param= Read_Master_Log_Pos;
+let $slave_param= Read_Source_Log_Pos;
 let $slave_param_value= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 connection slave;
 source include/wait_for_slave_param.inc;
 source include/stop_slave.inc;
 
-let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
-let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+let $read_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
+let $exec_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1);
 if ($read_pos == $exec_pos)
 {
   source include/show_rpl_debug_info.inc;
-  echo 'Read_Master_Log_Pos: $read_pos' == 'Exec_Master_Log_Pos: $exec_pos';
-  die Failed because Read_Master_Log_Pos is equal to Exec_Master_Log_Pos;
+  echo 'Read_Source_Log_Pos: $read_pos' == 'Exec_Source_Log_Pos: $exec_pos';
+  die Failed because Read_Source_Log_Pos is equal to Exec_Source_Log_Pos;
 } 
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
-let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
-let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+let $read_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
+let $exec_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1);
 if ($read_pos != $exec_pos)
 {
   source include/show_rpl_debug_info.inc;
-  echo 'Read_Master_Log_Pos: $read_pos' <> 'Exec_Master_Log_Pos: $exec_pos';
-  die Failed because Read_Master_Log_Pos is not equal to Exec_Master_Log_Pos;
+  echo 'Read_Source_Log_Pos: $read_pos' <> 'Exec_Source_Log_Pos: $exec_pos';
+  die Failed because Read_Source_Log_Pos is not equal to Exec_Source_Log_Pos;
 }
 
 START REPLICA;
@@ -116,10 +116,10 @@ drop table t1;
 -- source include/rpl_reset.inc
 
 -- connection slave
--- let $retry_count0= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- let $retry_count0= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 
 # assertion: show that the command line is still valid (MTR sets it to 10)
--- echo Master_Retry_Count: $retry_count
+-- echo Source_Retry_Count: $retry_count
 
 -- source include/stop_slave.inc
 
@@ -129,7 +129,7 @@ drop table t1;
 
 -- source include/start_slave.inc
 
--- let $retry_count1= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- let $retry_count1= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 # assertion: it shows the new value -- retry_count0 +10
 if (`SELECT $retry_count1 <> ($retry_count0+10)`)
 {
@@ -140,13 +140,13 @@ if (`SELECT $retry_count1 <> ($retry_count0+10)`)
 
 -- source include/stop_slave.inc
 
-# action: change master_retry_count to zero will set it to zero.
+# action: change Source_Retry_Count to zero will set it to zero.
 -- let $retry_count1= 0
 -- eval CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=$retry_count1
 
 -- source include/start_slave.inc
 
--- let $retry_count2= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- let $retry_count2= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 # assertion: it shows no changes
 if ($retry_count2 != $retry_count1)
 {
@@ -161,7 +161,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=1;
 
 -- source include/start_slave.inc
 
--- let $retry_count3= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- let $retry_count3= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 # assertion: it should show 1
 if ($retry_count3 != 1)
 {
@@ -176,7 +176,7 @@ if ($retry_count3 != 1)
 
 -- source include/start_slave.inc
 
--- let $retry_count4= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- let $retry_count4= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 # assertion: it should show 1
 if ($retry_count4 != $retry_count0)
 {
@@ -184,11 +184,11 @@ if ($retry_count4 != $retry_count0)
   -- die
 }
 
-## Now lets change master_retry_count to the maximum value possible
+## Now lets change Source_Retry_Count to the maximum value possible
 ## and stop and restart the slave to check that (in the middle of it 
 ## we also check that when issueing CHANGE MASTER TO without specifying
-## master_retry_count will not affect its current value):
-##   1. master_retry_count persists after restart
+## Source_Retry_Count will not affect its current value):
+##   1. Source_Retry_Count persists after restart
 ##   2. setting a value higher than the max will make the max to be set.
 ##   3. maximum value is accepted and persists after serialization 
 ##      and de-serialization
@@ -196,17 +196,17 @@ if ($retry_count4 != $retry_count0)
 -- let $retry_count_set= 18446744073709551616
 -- replace_result 18446744073709551616 RETRY_COUNT_SET
 -- eval CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=$retry_count_set
--- let $retry_count_expected= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- let $retry_count_expected= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 -- replace_result 18446744073709551615 RETRY_COUNT_EXPECTED 4294967295 RETRY_COUNT_EXPECTED 9223372036854775807 RETRY_COUNT_EXPECTED
 -- eval SELECT $retry_count_expected AS current_retry_count
 
-## assert that issuing CHANGE MASTER without changing master_retry_count
-## does not affect the existing value for master_retry_count
--- let $connect_retry_old= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
+## assert that issuing CHANGE MASTER without changing Source_Retry_Count
+## does not affect the existing value for Source_Retry_Count
+-- let $connect_retry_old= query_get_value(SHOW REPLICA STATUS, Connect_Retry, 1)
 -- let $connect_retry_new= `SELECT $connect_retry_old + 1`
--- let $retry_count_before= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- let $retry_count_before= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 -- eval CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= $connect_retry_new
--- let $retry_count_after= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- let $retry_count_after= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 if ($retry_count_before != $retry_count_after)
 {
   -- echo Unexpected retry count value! Got: $retry_count_after, expected: $retry_count_before
@@ -220,7 +220,7 @@ if ($retry_count_before != $retry_count_after)
 
 -- source include/start_slave.inc
 
--- let $retry_count5= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- let $retry_count5= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 if ($retry_count5 != $retry_count_expected)
 {
   -- echo Unexpected retry count value! Got: $retry_count5, expected: $retry_count_expected
@@ -242,7 +242,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=-1;
 -- source include/start_slave.inc
 
 ## assert that the test has cleaned itself up
--- let $retry_count6= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- let $retry_count6= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 if ($retry_count6 != $retry_count0)
 {
   -- echo Unexpected retry count value! Got: $retry_count6, expected: $retry_count0
@@ -254,21 +254,21 @@ if ($retry_count6 != $retry_count0)
 --connection slave
 -- source include/stop_slave.inc
 
--- let $connect_old_value= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
--- let $ignore_old_value= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1)
+-- let $connect_old_value= query_get_value(SHOW REPLICA STATUS, Connect_Retry, 1)
+-- let $ignore_old_value= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1)
 
 -- eval CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= 200, IGNORE_SERVER_IDS= (100, 200, 300, 400, 500)
 
--- let $connect_new_value= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
--- let $ignore_new_value= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1)
+-- let $connect_new_value= query_get_value(SHOW REPLICA STATUS, Connect_Retry, 1)
+-- let $ignore_new_value= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1)
 
 --let $rpl_server_number= 2
 --source include/rpl_restart_server.inc
 
 -- source include/start_slave.inc
 
--- let $connect_crash_value= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
--- let $ignore_crash_value= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1)
+-- let $connect_crash_value= query_get_value(SHOW REPLICA STATUS, Connect_Retry, 1)
+-- let $ignore_crash_value= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1)
 
 -- echo Eexpected values: "$ignore_new_value" == "$ignore_crash_value" or $connect_new_value == $connect_crash_value
 if (`SELECT "$ignore_new_value" <> "$ignore_crash_value" || $connect_new_value <> $connect_crash_value`)
@@ -284,8 +284,8 @@ CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 
 #
 # WL#3127 slave side TCP address binding
-# - CHANGE MASTER ... MASTER_BIND='interface'
-# - SHOW SLAVE STATUS has new column Master_Bind
+# - CHANGE MASTER ... Source_Bind='interface'
+# - SHOW REPLICA STATUS has new column Source_Bind
 #
 
 # Test valid IPv4 address
@@ -311,7 +311,7 @@ if (!$check_ipv6_supported)
 let $master_bind='';
 --source extra/rpl_tests/rpl_change_master_bind.inc
 
-### Revert to original master_host value
+### Revert to original Source_Host value
 --source include/stop_slave.inc
 --replace_result $save_master_host SAVE_MASTER_HOST
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='$save_master_host'

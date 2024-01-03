@@ -71,8 +71,8 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY = $delay;
 
 --source include/start_slave.inc
 
---let $assert_text= SHOW SLAVE STATUS should return the same delay that we set with CHANGE MASTER
---let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = $delay
+--let $assert_text= SHOW REPLICA STATUS should return the same delay that we set with CHANGE MASTER
+--let $assert_cond= [SHOW REPLICA STATUS, SQL_Delay, 1] = $delay
 --source include/assert.inc
 
 --echo [on master]
@@ -128,11 +128,11 @@ INSERT INTO t1 VALUES ('STOP REPLICA and START REPLICA: DML', 5);
 --connection slave
 --sleep $slave_sleep
 --let $timestamp_before_stop= `SELECT UNIX_TIMESTAMP()`
---let $relay_log_pos_before_stop= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+--let $relay_log_pos_before_stop= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
 --source include/stop_slave.inc
 
 --let $assert_text= SQL thread position should not increase after STOP REPLICA
---let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] = $relay_log_pos_before_stop
+--let $assert_cond= [SHOW REPLICA STATUS, Relay_Log_Pos, 1] = $relay_log_pos_before_stop
 --source include/assert.inc
 
 --let $assert_text= Query should not be executed after STOP REPLICA
@@ -140,7 +140,7 @@ INSERT INTO t1 VALUES ('STOP REPLICA and START REPLICA: DML', 5);
 --source include/assert.inc
 
 --let $assert_text= Status should be '' after STOP REPLICA
---let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" = ""
+--let $assert_cond= "[SHOW REPLICA STATUS, Replica_SQL_Running_State, 1]" = ""
 --source include/assert.inc
 
 --source include/start_slave.inc
@@ -164,11 +164,11 @@ CREATE TABLE t_check_dml_not_executed_prematurely (a INT);
 --sleep $slave_sleep
 
 --let $timestamp_before_stop= `SELECT UNIX_TIMESTAMP()`
---let $relay_log_pos_before_stop= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+--let $relay_log_pos_before_stop= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
 --source include/stop_slave.inc
 
 --let $assert_text= SQL thread position should not increase after STOP REPLICA
---let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] = $relay_log_pos_before_stop
+--let $assert_cond= [SHOW REPLICA STATUS, Relay_Log_Pos, 1] = $relay_log_pos_before_stop
 --source include/assert.inc
 
 --let $assert_text= Query should not be executed after STOP REPLICA
@@ -176,7 +176,7 @@ CREATE TABLE t_check_dml_not_executed_prematurely (a INT);
 --source include/assert.inc
 
 --let $assert_text= Status should be '' after STOP REPLICA
---let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" = ""
+--let $assert_cond= "[SHOW REPLICA STATUS, Replica_SQL_Running_State, 1]" = ""
 --source include/assert.inc
 
 --source include/start_slave.inc
@@ -202,7 +202,7 @@ CREATE TABLE t_check_dml_not_executed_prematurely (a INT);
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 0;
 
 --let $assert_text= Delay should be 0 when we set it to 0
---let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = 0
+--let $assert_cond= [SHOW REPLICA STATUS, SQL_Delay, 1] = 0
 --source include/assert.inc
 
 
@@ -212,7 +212,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 71;
 --source include/start_slave.inc
 
 --let $assert_text= Delay should be 71 when we set it to 71
---let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = 71
+--let $assert_cond= [SHOW REPLICA STATUS, SQL_Delay, 1] = 71
 --source include/assert.inc
 
 --source include/stop_slave.inc
@@ -220,7 +220,7 @@ RESET REPLICA;
 --source include/start_slave.inc
 
 --let $assert_text= Delay should be 0 after RESET REPLICA
---let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = 0
+--let $assert_cond= [SHOW REPLICA STATUS, SQL_Delay, 1] = 0
 --source include/assert.inc
 
 

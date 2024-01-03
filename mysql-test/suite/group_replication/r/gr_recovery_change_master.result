@@ -15,7 +15,7 @@ include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 [connection server2]
-# CHANGE MASTER with options apart from the MASTER_USER and
+# CHANGE MASTER with options apart from the Source_User and
 # MASTER_PASSWORD will cause error.
 CHANGE REPLICATION SOURCE TO SOURCE_USER='MANISH', SOURCE_PASSWORD='abc_manish_abc', SOURCE_PORT=13000 FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: CHANGE REPLICATION SOURCE with the given parameters cannot be performed on channel 'group_replication_recovery'.

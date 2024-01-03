@@ -285,23 +285,23 @@ while ($i <= $number_of_channels)
   --enable_result_log
 
   #############################################################################
-  # Step 4.4: SHOW SLAVE STATUS FOR CHANNEL 'channel_name'
+  # Step 4.4: SHOW REPLICA STATUS FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing SHOW SLAVE FOR CHANNEL on channel $channel_name.
+  --echo ===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel $channel_name.
 
-  --let $status_items=Slave_IO_State,Slave_SQL_Running_State,Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Channel_Name
+  --let $status_items=Replica_IO_State,Replica_SQL_Running_State,Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Channel_Name
   --let $rpl_channel_name=$channel_name
 
   if ($channel_name != $rpl_corrupt_channel_name)
   {
   --let $slave_timeout= 60
 
-  --let $slave_param= Slave_IO_State
+  --let $slave_param= Replica_IO_State
   --let $slave_param_value= Waiting for source to send event
   --source include/wait_for_slave_param.inc
 
-  --let $slave_param= Slave_SQL_Running_State
+  --let $slave_param= Replica_SQL_Running_State
   --let $slave_param_value= Replica has read all relay log; waiting for more updates
   --source include/wait_for_slave_param.inc
 
@@ -345,7 +345,7 @@ while ($i <= $number_of_channels)
 
   --echo ===== Executing CHANGE MASTER FOR CHANNEL on channel $channel_name.
   --eval CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL $channel_name
-  --let $status_items=Connect_Retry, Master_Retry_Count, Slave_IO_State,Slave_SQL_Running_State, Channel_Name
+  --let $status_items=Connect_Retry, Source_Retry_Count, Replica_IO_State,Replica_SQL_Running_State, Channel_Name
   --let $rpl_channel_name=$channel_name
   --source include/show_slave_status.inc
 

@@ -2,12 +2,12 @@
 #
 # R1. When slave fails to connect to master, the error message shown in
 #     performance_schema.replication_connection_status/LAST_ERROR_MESSAGE,
-#     and in SHOW SLAVE STATUS/LAST_IO_ERROR, should contain the reason
+#     and in SHOW REPLICA STATUS/LAST_IO_ERROR, should contain the reason
 #     for the failure.
 #
 # R2. When slave fails to connect to master, the messages in
 #     performance_schema.replication_connection_status/LAST_ERROR_MESSAGE,
-#     and in SHOW SLAVE STATUS/LAST_IO_ERROR, should both be identical.
+#     and in SHOW REPLICA STATUS/LAST_IO_ERROR, should both be identical.
 #
 # ==== Implementation ====
 #
@@ -18,7 +18,7 @@
 # In each of the cases:
 # - Verify that the error message in performance_schema contains
 #   'Access denied'/'Cant connect to MySQL'/'Unknown MySQL server host'
-# - Verify that the error message in SHOW SLAVE STATUS contains the same.
+# - Verify that the error message in SHOW REPLICA STATUS contains the same.
 #
 # ==== References ====
 #
@@ -57,11 +57,11 @@
   --source include/assert.inc
 EOF
 
-# Check messages in both performance_schema and SHOW SLAVE STATUS.
+# Check messages in both performance_schema and SHOW REPLICA STATUS.
 #
 # This will check that the receiver error in performance_schema and
-# SHOW SLAVE STATUS contains $expected_message. It also checks that
-# both performance_schema and SHOW SLAVE STATUS contain literally the
+# SHOW REPLICA STATUS contains $expected_message. It also checks that
+# both performance_schema and SHOW REPLICA STATUS contain literally the
 # same message.
 #
 # Usage:
@@ -84,16 +84,16 @@ EOF
   --source $script_dir/check_message.inc
   --let $message_ps = $message_noquotes
 
-  --echo ---- Check SHOW SLAVE STATUS ----
+  --echo ---- Check SHOW REPLICA STATUS ----
 
-  --let $message = query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1)
+  --let $message = query_get_value(SHOW REPLICA STATUS, Last_IO_Error, 1)
   --source $script_dir/check_message.inc
   --let $message_sss = $message_noquotes
 
   --echo ---- Check that messages are the same in both places ----
 
   --let $assert_cond = "$message_ps" = "$message_sss"
-  --let $assert_text = Error should be the same in both SSS and P_S
+  --let $assert_text = Error should be the same in both SRS and P_S
   --source include/assert.inc
 EOF
 

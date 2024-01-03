@@ -16,7 +16,7 @@ CREATE TABLE t (a int);
 DROP TABLE t;
 --source include/sync_slave_sql_with_master.inc
 
---let $slave_param= Slave_SQL_Running_State
+--let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
 --source include/wait_for_slave_param.inc
 

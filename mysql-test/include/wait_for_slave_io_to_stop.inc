@@ -37,7 +37,7 @@ if ($rpl_channel_name)
 --source include/begin_include_file.inc
 
 
---let $slave_param= Slave_IO_Running
+--let $slave_param= Replica_IO_Running
 --let $slave_param_value= No
 --let $slave_error_param= Last_IO_Errno
 --source include/wait_for_slave_param.inc

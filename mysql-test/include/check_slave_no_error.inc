@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Assert that Slave_SQL_Errno = Slave_IO_Errno = 0 in the output from
-# SHOW SLAVE STATUS.
+# SHOW REPLICA STATUS.
 #
 #
 # ==== Usage ====

@@ -9,7 +9,7 @@ include/setup_fake_relay_log.inc
 Setting up fake replication from MYSQL_TEST_DIR/std_data/bug27213339-bin.000001
 ==== Test ====
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+include/wait_for_slave_param.inc [Exec_Source_Log_Pos]
 ==== Check ====
 SHOW CREATE EVENT db1.e_DB2;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation

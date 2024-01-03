@@ -12,7 +12,7 @@ SET @@GLOBAL.debug="+d,pause_on_queue_event_after_write_buffer";
 INSERT INTO t1 (c1) VALUES (2);
 [connection slave]
 SET DEBUG_SYNC="now WAIT_FOR receiver_reached_pause_on_queue_event";
-include/assert.inc [Consulting SHOW SLAVE STATUS was successful]
+include/assert.inc [Consulting SHOW REPLICA STATUS was successful]
 include/stop_slave_sql.inc
 include/start_slave_sql.inc
 SET @@GLOBAL.debug="-d,pause_on_queue_event_after_write_buffer";

@@ -32,7 +32,7 @@ Waiting to reconnect after a failed registration on source
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Waiting to reconnect after a failed registration on source
-Slave_IO_State = 'Waiting to reconnect after a failed registration on source'
+Replica_IO_State = 'Waiting to reconnect after a failed registration on source'
 # Removing debug point 'simulate_reconnect_after_failed_registration' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_waiting_to_reconnect' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -53,7 +53,7 @@ Reconnecting after a failed registration on source
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Reconnecting after a failed registration on source
-Slave_IO_State = 'Reconnecting after a failed registration on source'
+Replica_IO_State = 'Reconnecting after a failed registration on source'
 # Removing debug point 'simulate_reconnect_after_failed_registration' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_reconnecting' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -74,7 +74,7 @@ Waiting to reconnect after a failed binlog dump request
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Waiting to reconnect after a failed binlog dump request
-Slave_IO_State = 'Waiting to reconnect after a failed binlog dump request'
+Replica_IO_State = 'Waiting to reconnect after a failed binlog dump request'
 # Removing debug point 'simulate_reconnect_after_failed_binlog_dump' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_waiting_to_reconnect' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -95,7 +95,7 @@ Reconnecting after a failed binlog dump request
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Reconnecting after a failed binlog dump request
-Slave_IO_State = 'Reconnecting after a failed binlog dump request'
+Replica_IO_State = 'Reconnecting after a failed binlog dump request'
 # Removing debug point 'simulate_reconnect_after_failed_binlog_dump' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_reconnecting' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -116,7 +116,7 @@ Waiting to reconnect after a failed source event read
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Waiting to reconnect after a failed source event read
-Slave_IO_State = 'Waiting to reconnect after a failed source event read'
+Replica_IO_State = 'Waiting to reconnect after a failed source event read'
 # Removing debug point 'simulate_reconnect_after_failed_event_read' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_waiting_to_reconnect' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -137,7 +137,7 @@ Reconnecting after a failed source event read
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Reconnecting after a failed source event read
-Slave_IO_State = 'Reconnecting after a failed source event read'
+Replica_IO_State = 'Reconnecting after a failed source event read'
 # Removing debug point 'simulate_reconnect_after_failed_event_read' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_reconnecting' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -163,7 +163,7 @@ Waiting to reconnect after a failed registration on master
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Waiting to reconnect after a failed registration on master
-Slave_IO_State = 'Waiting to reconnect after a failed registration on master'
+Replica_IO_State = 'Waiting to reconnect after a failed registration on master'
 # Removing debug point 'simulate_reconnect_after_failed_registration' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_waiting_to_reconnect' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -184,7 +184,7 @@ Reconnecting after a failed registration on master
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Reconnecting after a failed registration on master
-Slave_IO_State = 'Reconnecting after a failed registration on master'
+Replica_IO_State = 'Reconnecting after a failed registration on master'
 # Removing debug point 'simulate_reconnect_after_failed_registration' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_reconnecting' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -205,7 +205,7 @@ Waiting to reconnect after a failed binlog dump request
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Waiting to reconnect after a failed binlog dump request
-Slave_IO_State = 'Waiting to reconnect after a failed binlog dump request'
+Replica_IO_State = 'Waiting to reconnect after a failed binlog dump request'
 # Removing debug point 'simulate_reconnect_after_failed_binlog_dump' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_waiting_to_reconnect' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -226,7 +226,7 @@ Reconnecting after a failed binlog dump request
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Reconnecting after a failed binlog dump request
-Slave_IO_State = 'Reconnecting after a failed binlog dump request'
+Replica_IO_State = 'Reconnecting after a failed binlog dump request'
 # Removing debug point 'simulate_reconnect_after_failed_binlog_dump' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_reconnecting' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -247,7 +247,7 @@ Waiting to reconnect after a failed master event read
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Waiting to reconnect after a failed master event read
-Slave_IO_State = 'Waiting to reconnect after a failed master event read'
+Replica_IO_State = 'Waiting to reconnect after a failed master event read'
 # Removing debug point 'simulate_reconnect_after_failed_event_read' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_waiting_to_reconnect' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;
@@ -268,7 +268,7 @@ Reconnecting after a failed master event read
 SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 PROCESSLIST_STATE
 Reconnecting after a failed master event read
-Slave_IO_State = 'Reconnecting after a failed master event read'
+Replica_IO_State = 'Reconnecting after a failed master event read'
 # Removing debug point 'simulate_reconnect_after_failed_event_read' from @@GLOBAL.debug
 # Removing debug point 'hang_in_stage_replica_reconnecting' from @@GLOBAL.debug
 KILL THREAD_ID_OF_RECEIVER;

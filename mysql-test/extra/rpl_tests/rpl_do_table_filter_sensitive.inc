@@ -10,7 +10,7 @@
 -- source include/have_binlog_format_statement.inc
 
 -- source extra/rpl_tests/rpl_filters.test 
-let $replicate_do_table= query_get_value(SHOW SLAVE STATUS, Replicate_Do_Table, 1);
+let $replicate_do_table= query_get_value(SHOW REPLICA STATUS, Replicate_Do_Table, 1);
 --echo Replicate_Do_Table: $replicate_do_table
 
 --source include/rpl_end.inc

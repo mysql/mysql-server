@@ -19,7 +19,7 @@ user	column_name	column_priv
 # Verify that the partially failed GRANT statement does not generate
 # a gtid and save the gtid into @@GLOBAL.GTID_EXECUTED.
 #
-include/assert.inc [Does not generate MASTER_UUID:4 and commit it into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Does not generate Source_UUID:4 and commit it into @@GLOBAL.GTID_EXECUTED]
 #
 # Verify that the partially failed GRANT statement is not binlogged.
 #

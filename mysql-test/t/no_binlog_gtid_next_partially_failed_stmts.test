@@ -71,12 +71,12 @@ SHOW CREATE TABLE t1;
 --echo #
 --echo # Verify that the above DROP TABLE statement has not consumed gtid.
 --echo #
---let $assert_text= Committed gtid MASTER_UUID:2 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Committed gtid Source_UUID:2 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-2"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Saved gtid MASTER_UUID:2 into mysql.gtid_executed table
+--let $assert_text= Saved gtid Source_UUID:2 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 2]" = 1
 --source include/assert.inc
 
@@ -103,12 +103,12 @@ SHOW CREATE TABLE t1;
 --echo # mysql.gtid_executed table when binlog is disabled as it did when
 --echo # binlog is enabled.
 --echo #
---let $assert_text= Committed gtid MASTER_UUID:2 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Committed gtid Source_UUID:2 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Saved gtid MASTER_UUID:2 into mysql.gtid_executed table
+--let $assert_text= Saved gtid Source_UUID:2 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 3]" = 1
 --source include/assert.inc
 
@@ -133,12 +133,12 @@ DROP TEMPORARY TABLE tmp1, t2;
 --echo # Verify that failed DROP TEMPORARY TABLE statement has not
 --echo # consumed its gtid.
 --echo #
---let $assert_text= Committed gtid MASTER_UUID:4 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Committed gtid Source_UUID:4 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Saved gtid MASTER_UUID:4 into mysql.gtid_executed table
+--let $assert_text= Saved gtid Source_UUID:4 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 4]" = 1
 --source include/assert.inc
 
@@ -171,12 +171,12 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo # mysql.gtid_executed table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Did not commit gtid Source_UUID:7 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table
+--let $assert_text= Did not save gtid Source_UUID:7 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 7]" = 0
 --source include/assert.inc
 
@@ -198,12 +198,12 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo # mysql.gtid_executed table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Did not commit gtid Source_UUID:7 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table
+--let $assert_text= Did not save gtid Source_UUID:7 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 7]" = 0
 --source include/assert.inc
 
@@ -224,12 +224,12 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo # and mysql.gtid_executed table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Did not commit gtid Source_UUID:7 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table
+--let $assert_text= Did not save gtid Source_UUID:7 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 7]" = 0
 --source include/assert.inc
 
@@ -249,12 +249,12 @@ SELECT user FROM mysql.user where user='u1';
 --echo # mysql.gtid_executed table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Did not commit gtid Source_UUID:7 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table
+--let $assert_text= Did not save gtid Source_UUID:7 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 7]" = 0
 --source include/assert.inc
 
@@ -275,12 +275,12 @@ SHOW CREATE TABLE t1;
 --echo # when binlog is enabled.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Did not commit gtid Source_UUID:7 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table
+--let $assert_text= Did not save gtid Source_UUID:7 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 7]" = 0
 --source include/assert.inc
 
@@ -299,12 +299,12 @@ OPTIMIZE TABLE t1, t_non_existent;
 --echo # when binlog is enabled.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Committed gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Committed gtid Source_UUID:7 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-7"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Saved gtid MASTER_UUID:7 into mysql.gtid_executed table
+--let $assert_text= Saved gtid Source_UUID:7 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 7]" = 1
 --source include/assert.inc
 
@@ -323,12 +323,12 @@ ANALYZE TABLE t1, t_non_existent;
 --echo # when binlog is enabled.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Committed gtid MASTER_UUID:8 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Committed gtid Source_UUID:8 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-8"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Saved gtid MASTER_UUID:8 into mysql.gtid_executed table
+--let $assert_text= Saved gtid Source_UUID:8 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 8]" = 1
 --source include/assert.inc
 
@@ -347,12 +347,12 @@ REPAIR TABLE t1, t_non_existent;
 --echo # when binlog is enabled.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Committed gtid MASTER_UUID:9 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Committed gtid Source_UUID:9 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Saved gtid MASTER_UUID:9 into mysql.gtid_executed table
+--let $assert_text= Saved gtid Source_UUID:9 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 9]" = 1
 --source include/assert.inc
 
@@ -371,12 +371,12 @@ CHECKSUM TABLE t1, t_non_existent;
 --echo # when binlog is enabled.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:10 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Did not commit gtid Source_UUID:10 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Did not save gtid MASTER_UUID:10 into mysql.gtid_executed table
+--let $assert_text= Did not save gtid Source_UUID:10 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 10]" = 0
 --source include/assert.inc
 
@@ -396,12 +396,12 @@ SELECT user FROM mysql.user where user='u1';
 --echo # mysql.gtid_executed table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:11 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Did not commit gtid Source_UUID:11 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Did not save gtid MASTER_UUID:11 and :12 into mysql.gtid_executed table
+--let $assert_text= Did not save gtid Source_UUID:11 and :12 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 11]" = 0
 --source include/assert.inc
 
@@ -422,12 +422,12 @@ SELECT password_expired FROM mysql.user where user='u1';
 --echo # mysql.gtid_executed table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
---let $assert_text= Did not commit gtid MASTER_UUID:13 into @@GLOBAL.GTID_EXECUTED
+--let $assert_text= Did not commit gtid Source_UUID:13 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
 --source include/assert.inc
 --eval SET SESSION GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---let $assert_text= Did not save gtid MASTER_UUID:13 into mysql.gtid_executed table
+--let $assert_text= Did not save gtid Source_UUID:13 into mysql.gtid_executed table
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 13]" = 0
 --source include/assert.inc
 

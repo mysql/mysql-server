@@ -17,7 +17,7 @@
 # 4. STOP REPLICA FOR CHANNEL
 # 5. START REPLICA SQL_THREAD
 # 6. STOP REPLICA SQL_THREAD
-# 7. SHOW SLAVE STATUS
+# 7. SHOW REPLICA STATUS
 # 8. SHOW RELAYLOG EVENTS
 # 9. FLUSH RELAY LOGS
 # 10. RESET REPLICA
@@ -74,7 +74,7 @@ set session sql_log_bin=1;
 
 --echo
 --echo # CHM for 'group_replication_recovery' channel won't accept parameters other than
---echo # MASTER_USER and MASTER_PASSWORD
+--echo # Source_User and MASTER_PASSWORD
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_recovery";
 
@@ -115,9 +115,9 @@ STOP REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 START REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
---echo # ERROR when executing SHOW SLAVE STATUS on GR recovery channel
+--echo # ERROR when executing SHOW REPLICA STATUS on GR recovery channel
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
---query_vertical SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery'
+--query_vertical SHOW REPLICA STATUS FOR CHANNEL 'group_replication_recovery'
 
 --echo
 --echo # ERROR when executing SHOW RELAYLOG EVENTS on GR recovery channel
@@ -197,8 +197,8 @@ STOP REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 START REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
---echo # SHOW SLAVE STATUS - check that recovery channel is inactive
---let $io_thread = query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery', Slave_IO_Running, 1)
+--echo # SHOW REPLICA STATUS - check that recovery channel is inactive
+--let $io_thread = query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'group_replication_recovery', Replica_IO_Running, 1)
 --let $assert_text= recovery channel is inactive
 --let $assert_cond= "$io_thread" = "No"
 --source include/assert.inc
@@ -310,8 +310,8 @@ START REPLICA SQL_THREAD UNTIL SQL_AFTER_GTIDS='11111111-1111-1111-1111-11111111
 START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replication_recovery.000001', RELAY_LOG_POS = 854 FOR CHANNEL 'group_replication_recovery';
 
 --echo
---echo # SHOW SLAVE STATUS - check that recovery channel is active
---let $io_thread = query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery', Slave_IO_Running, 1)
+--echo # SHOW REPLICA STATUS - check that recovery channel is active
+--let $io_thread = query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'group_replication_recovery', Replica_IO_Running, 1)
 --let $assert_text= recovery channel is active
 --let $assert_cond= "$io_thread" = "Yes"
 --source include/assert.inc
@@ -391,8 +391,8 @@ STOP REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 START REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
---echo # SHOW SLAVE STATUS - check that recovery channel is inactive
---let $io_thread = query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery', Slave_IO_Running, 1)
+--echo # SHOW REPLICA STATUS - check that recovery channel is inactive
+--let $io_thread = query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'group_replication_recovery', Replica_IO_Running, 1)
 --let $assert_text= recovery channel is inactive
 --let $assert_cond= "$io_thread" = "No"
 --source include/assert.inc

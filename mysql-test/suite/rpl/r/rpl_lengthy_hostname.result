@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890", SOURCE_PORT=MASTER_PORT;
 include/assert.inc [Hostname in mysql.slave_master_info matches the one set through CHANGE MASTER TO]
 include/assert.inc [Hostname in performance_schema.replication_connection_configuration matches the one set through CHANGE MASTER TO]
-include/assert.inc [Hostname in SHOW SLAVE STATUS matches the one set through CHANGE MASTER TO]
+include/assert.inc [Hostname in SHOW REPLICA STATUS matches the one set through CHANGE MASTER TO]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1";
 include/start_slave.inc
 include/rpl_end.inc

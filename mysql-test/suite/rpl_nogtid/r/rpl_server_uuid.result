@@ -14,7 +14,7 @@ SET @@GLOBAL.LOG_ERROR_VERBOSITY= 3;
 include/sync_slave_sql_with_master.inc
 
 # Case 1:
-# Master's UUID appears in the result of 'SHOW SLAVE STATUS'.
+# Master's UUID appears in the result of 'SHOW REPLICA STATUS'.
 # Slave's UUID appears in the result of 'SHOW SLAVE HOSTS'.
 -----------------------------------------------------------------------------
 include/assert.inc ["Slave's SHOW SLAVE HOST should contain the correct value for master's server_uuid]
@@ -25,12 +25,12 @@ include/assert.inc [Master's SHOW SLAVE HOSTS should contain the correct value f
 # is still kept into Slave status.
 -----------------------------------------------------------------------------
 include/stop_slave_io.inc
-include/check_slave_param.inc [Slave_IO_Running]
+include/check_slave_param.inc [Replica_IO_Running]
 include/stop_slave_sql.inc
-include/check_slave_param.inc [Slave_SQL_Running]
+include/check_slave_param.inc [Replica_SQL_Running]
 include/start_slave.inc
 include/stop_slave.inc
-include/check_slave_param.inc [Slave_IO_Running]
+include/check_slave_param.inc [Replica_IO_Running]
 
 # Case 3:
 # Slave generates an error and aborts, if master's UUID is
@@ -59,60 +59,60 @@ include/rpl_restart_server.inc [server_number=1]
 
 # Case 4:
 # When executing 'CHANGE MASTER ...', master's UUID and server_id will be
-# cleared if master_host or/and master_port are changed.
-# Master's UUID and server_id will not be cleared if both master_port
-# and master_host are not changed.
+# cleared if Source_Host or/and Source_Port are changed.
+# Master's UUID and server_id will not be cleared if both Source_Port
+# and Source_Host are not changed.
 -----------------------------------------------------------------------------
 include/start_slave_io.inc
-include/wait_for_slave_param.inc [Master_UUID]
+include/wait_for_slave_param.inc [Source_UUID]
 include/stop_slave.inc
 
-# Only change MASTER_PORT
+# Only change Source_Port
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
-include/check_slave_param.inc [Master_UUID]
-include/check_slave_param.inc [Master_Server_Id]
+include/check_slave_param.inc [Source_UUID]
+include/check_slave_param.inc [Source_Server_Id]
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_PORT,
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
-include/wait_for_slave_param.inc [Master_UUID]
+include/wait_for_slave_param.inc [Source_UUID]
 
-# Only change MASTER_HOST
+# Only change Source_Host
 STOP REPLICA IO_THREAD;
 include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
-include/check_slave_param.inc [Master_UUID]
-include/check_slave_param.inc [Master_Server_Id]
+include/check_slave_param.inc [Source_UUID]
+include/check_slave_param.inc [Source_Server_Id]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
-include/wait_for_slave_param.inc [Master_UUID]
+include/wait_for_slave_param.inc [Source_UUID]
 
-# Both MASTER_HOST and MASTER_PORT are changed
+# Both Source_Host and Source_Port are changed
 STOP REPLICA IO_THREAD;
 include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
-include/check_slave_param.inc [Master_UUID]
-include/check_slave_param.inc [Master_Server_Id]
+include/check_slave_param.inc [Source_UUID]
+include/check_slave_param.inc [Source_Server_Id]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT,
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
-include/wait_for_slave_param.inc [Master_UUID]
+include/wait_for_slave_param.inc [Source_UUID]
 
-# Both MASTER_HOST and MASTER_PORT are NOT changed
+# Both Source_Host and Source_Port are NOT changed
 STOP REPLICA IO_THREAD;
 include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT;
-include/check_slave_param.inc [Slave_IO_Running]
+include/check_slave_param.inc [Replica_IO_Running]
 CHANGE REPLICATION SOURCE TO 
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
-include/check_slave_param.inc [Slave_IO_Running]
+include/check_slave_param.inc [Replica_IO_Running]
 
 # Case 5:
 # After executing 'RESET REPLICA' successfully, Master's UUID is still kept 
 # into Slave status.
 -----------------------------------------------------------------------------
 RESET REPLICA;
-include/check_slave_param.inc [Slave_IO_Running]
+include/check_slave_param.inc [Replica_IO_Running]
 CHANGE REPLICATION SOURCE TO 
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave.inc

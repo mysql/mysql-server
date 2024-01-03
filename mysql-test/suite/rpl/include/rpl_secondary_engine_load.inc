@@ -206,7 +206,7 @@ ALTER TABLE t2 SECONDARY_LOAD;
 ALTER TABLE t2 SECONDARY_ENGINE=MOCK;
 
 --source include/start_slave_sql.inc
---let $slave_param= Slave_SQL_Running_State
+--let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
 --source include/wait_for_slave_param.inc
 
@@ -293,7 +293,7 @@ ALTER TABLE t1 SECONDARY_LOAD;
 
 --sleep 3
 --source include/start_slave_sql.inc
---let $slave_param= Slave_SQL_Running_State
+--let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
 --source include/wait_for_slave_param.inc
 

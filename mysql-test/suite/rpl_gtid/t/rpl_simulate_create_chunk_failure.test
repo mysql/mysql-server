@@ -62,7 +62,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 --replace_result $master_uuid MASTER_UUID
 --eval SELECT * FROM mysql.gtid_executed
---let $assert_text= committed gtids MASTER_UUID:1
+--let $assert_text= committed gtids Source_UUID:1
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1"
 
 --let $assert_text= Table t1 exists and is empty

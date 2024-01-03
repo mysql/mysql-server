@@ -1,12 +1,12 @@
 #
 # ==== Purpose ====
 #
-# This test checks if the Exec_Master_Log_Pos and the Read_Master_Log_Pos match
+# This test checks if the Exec_Source_Log_Pos and the Read_Source_Log_Pos match
 # after a statement with an error ignored by the slave.
 #
 # ==== Implementation ====
 #
-# Assert if Exec_Master_Log_Pos is the same as Read_Master_Log_Pos after three
+# Assert if Exec_Source_Log_Pos is the same as Read_Source_Log_Pos after three
 # different scenarios using non-transactional tables:
 #   1) DDL
 #   2) DML with autocommit
@@ -38,11 +38,11 @@ CREATE TABLE t2_nontrans (a INT);
 --let $ignore_gtids_on_sync= 1
 --source include/sync_slave_sql_with_master.inc
 
---let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
---let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+--let $exec_source_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
+--let $read_source_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1)
 
---let $assert_text= exec_master_log_pos should be equal to read_master_log_pos after CREATE TABLE
---let $assert_cond= $exec_master_log_pos = $read_master_log_pos
+--let $assert_text= Exec_Source_Log_Pos should be equal to Read_Source_Log_Pos after CREATE TABLE
+--let $assert_cond= $exec_source_log_pos = $read_source_log_pos
 --source include/assert.inc
 
 --source include/rpl_connection_master.inc
@@ -50,11 +50,11 @@ CREATE TABLE t2_nontrans (a INT);
 INSERT INTO t1_nontrans VALUES (1);
 --source include/sync_slave_sql_with_master.inc
 
---let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
---let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+--let $exec_source_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
+--let $read_source_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1)
 
---let $assert_text= exec_master_log_pos should be equal to read_master_log_pos after INSERT
---let $assert_cond= $exec_master_log_pos = $read_master_log_pos
+--let $assert_text= Exec_Source_Log_Pos should be equal to Read_Source_Log_Pos after INSERT
+--let $assert_cond= $exec_source_log_pos = $read_source_log_pos
 --source include/assert.inc
 
 --source include/rpl_connection_master.inc
@@ -64,11 +64,11 @@ INSERT INTO t1_nontrans VALUES (2);
 COMMIT;
 --source include/sync_slave_sql_with_master.inc
 
---let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
---let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+--let $exec_source_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
+--let $read_source_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1)
 
---let $assert_text= exec_master_log_pos should be equal to read_master_log_pos after INSERT inside transaction
---let $assert_cond= $exec_master_log_pos = $read_master_log_pos
+--let $assert_text= Exec_Source_Log_Pos should be equal to Read_Source_Log_Pos after INSERT inside transaction
+--let $assert_cond= $exec_source_log_pos = $read_source_log_pos
 --source include/assert.inc
 
 # cleanup

@@ -1,6 +1,6 @@
 # ==== Purpose ====
 #
-# Check that the execution of SHOW SLAVE STATUS command is not blocked when IO
+# Check that the execution of SHOW REPLICA STATUS command is not blocked when IO
 # thread is blocked waiting for disk space.
 #
 # ==== Implementation ====
@@ -10,7 +10,7 @@
 # 1st Step
 #
 # Simulate a scenario where IO thread is waiting for disk space while writing
-# into the relay log. Execute SHOW SLAVE STATUS command after IO thread is
+# into the relay log. Execute SHOW REPLICA STATUS command after IO thread is
 # blocked waiting for space. The command should not be blocked.
 #
 # 2nd Step
@@ -57,8 +57,8 @@ INSERT INTO t1 VALUES(2);
 
 --source include/rpl_connection_slave.inc
 # Wait until IO thread is waiting for disk space
-# Notice that this is performed by querying SHOW SLAVE STATUS
---let $slave_param= Slave_IO_State
+# Notice that this is performed by querying SHOW REPLICA STATUS
+--let $slave_param= Replica_IO_State
 --let $slave_param_value= Waiting for disk space
 --source include/wait_for_slave_param.inc
 
@@ -73,8 +73,8 @@ INSERT INTO t1 VALUES(2);
 --let $assert_cond= "$io_state" = "Waiting for disk space"
 --source include/assert.inc
 
-# Get the relay log file name, also using SHOW SLAVE STATUS
---let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+# Get the relay log file name, also using SHOW REPLICA STATUS
+--let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 
 # STOP REPLICA IO_THREAD should be blocked
 --source include/rpl_connection_slave1.inc
@@ -141,8 +141,8 @@ INSERT INTO t1 VALUES(9);
 
 --source include/rpl_connection_slave.inc
 # Wait until IO thread is waiting for disk space
-# Notice that this is performed by querying SHOW SLAVE STATUS
---let $slave_param= Slave_IO_State
+# Notice that this is performed by querying SHOW REPLICA STATUS
+--let $slave_param= Replica_IO_State
 --let $slave_param_value= Waiting for disk space
 --source include/wait_for_slave_param.inc
 

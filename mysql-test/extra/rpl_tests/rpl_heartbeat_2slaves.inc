@@ -104,7 +104,7 @@ SHOW TABLES;
 --let $sync_slave_connection= slave_2
 --source include/sync_slave_sql_with_master.inc
 SHOW TABLES;
-let $slave_2_pos_before= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
+let $slave_2_pos_before= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
 --echo [on slave_1]
 --let $sync_slave_connection= slave_1
 --source include/sync_slave_sql_with_master.inc
@@ -121,7 +121,7 @@ while ($i) {
   eval SET @c_text=REPEAT('1234567890', $j);
   eval UPDATE t1 SET a=$j, c=@c_text;
   --connection slave_2
-  let $slave_2_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);  
+  let $slave_2_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);  
   if (`SELECT ($k*($slave_2_pos - $slave_2_pos_before)) > 0`) {
     --connection slave_1
     let $slave_1_rcvd_heartbeats_before= query_get_value(SELECT count_received_heartbeats from performance_schema.replication_connection_status,count_received_heartbeats, 1);

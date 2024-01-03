@@ -1,7 +1,7 @@
 # TBF - difference in row level logging
 # Temp tables are not replicated in rbr, but it is still good to hit rbr with everthing
 
-# See SHOW SLAVE STATUS displays well after RESET REPLICA (it should display the
+# See SHOW REPLICA STATUS displays well after RESET REPLICA (it should display the
 # --master-* options from mysqld, as this is what is going to be used next time
 # slave threads will be started). In bug 985, it displayed old values (of before
 # RESET REPLICA).
@@ -13,7 +13,7 @@ sync_slave_with_master;
 --disable_query_log
 call mtr.add_suppression('Replica I/O: Get source BINLOG_CHECKSUM failed with error');
 --enable_query_log
-let $status_items= Master_User, Master_Host;
+let $status_items= Source_User, Source_Host;
 source include/show_slave_status.inc;
 
 source include/stop_slave.inc;
@@ -113,15 +113,15 @@ RESET REPLICA;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
---let $_slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
---let $_slave_master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1)
---let $_slave_master_port= query_get_value(SHOW SLAVE STATUS, Master_Port, 1)
+--let $_slave_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+--let $_slave_master_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
+--let $_slave_master_port= query_get_value(SHOW REPLICA STATUS, Source_Port, 1)
 
 RESET REPLICA all;
 --error ER_BAD_REPLICA
 START REPLICA;
 
---let $_show_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+--let $_show_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
 if ($_show_master_host != No such row)
 {
   die;

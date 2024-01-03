@@ -13,7 +13,7 @@
 --let $include_filename= gtid_step_reset_on_retrieved.inc
 --source include/begin_include_file.inc
 
---let $gtid_step_last= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
+--let $gtid_step_last= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
 
 --let $include_filename= gtid_step_reset_on_retrieved.inc
 --source include/end_include_file.inc

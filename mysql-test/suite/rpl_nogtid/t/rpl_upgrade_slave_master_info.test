@@ -19,7 +19,7 @@
 # after the upgrade.
 #
 # The test case will create two additional channels, assert that the channels
-# were created and are displayed at SHOW SLAVE STATUS, will execute a RESET
+# were created and are displayed at SHOW REPLICA STATUS, will execute a RESET
 # SLAVE ALL and will recreate the default channel.
 #
 # Finally, the test will generate some workload on the master and will sync
@@ -112,18 +112,18 @@ CREATE TABLE `slave_master_info` (
 --replace_result $SERVER_MYPORT_2 MASTER_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2 FOR CHANNEL 'channel_2'
 
-# Assert that all three channels are reached by name in SHOW SLAVE STATUS
---let $channel_name= query_get_value(SHOW SLAVE STATUS, Channel_Name, 1)
+# Assert that all three channels are reached by name in SHOW REPLICA STATUS
+--let $channel_name= query_get_value(SHOW REPLICA STATUS, Channel_Name, 1)
 --let $assert_text= Default channel name is ''
 --let $assert_cond= "$channel_name" = ""
 --source include/assert.inc
 
---let $channel_name= query_get_value(SHOW SLAVE STATUS, Channel_Name, 2)
+--let $channel_name= query_get_value(SHOW REPLICA STATUS, Channel_Name, 2)
 --let $assert_text= Second channel name is 'channel_1'
 --let $assert_cond= "$channel_name" = "channel_1"
 --source include/assert.inc
 
---let $channel_name= query_get_value(SHOW SLAVE STATUS, Channel_Name, 3)
+--let $channel_name= query_get_value(SHOW REPLICA STATUS, Channel_Name, 3)
 --let $assert_text= Third channel name is 'channel_2'
 --let $assert_cond= "$channel_name" = "channel_2"
 --source include/assert.inc

@@ -208,7 +208,7 @@ ALTER TABLE t2 SECONDARY_LOAD;
 [ Connection Slave ]
 ALTER TABLE t2 SECONDARY_ENGINE=MOCK;
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 FLUSH STATUS;
 SELECT * FROM t2;
 pk	vc	j	b	vb
@@ -311,7 +311,7 @@ ALTER TABLE t1 SECONDARY_LOAD;
 [ Connection Slave ]
 INSTALL PLUGIN mock SONAME 'ha_mock.so';
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb

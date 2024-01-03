@@ -37,7 +37,7 @@ INSERT INTO t1_c VALUES (1), (2), (3);
 --error ER_TABLE_EXISTS_ERROR
 CREATE TABLE t1(c1 INT, c2 INT);
 
---let $assert_text= rollback gtid MASTER_UUID:1
+--let $assert_text= rollback gtid Source_UUID:1
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -47,7 +47,7 @@ CREATE TABLE t1(c1 INT, c2 INT);
 --error ER_NO_SUCH_TABLE
 ALTER TABLE t2 ADD COLUMN other_column INT;
 
---let $assert_text= rollback gtid MASTER_UUID:2
+--let $assert_text= rollback gtid Source_UUID:2
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -57,7 +57,7 @@ ALTER TABLE t2 ADD COLUMN other_column INT;
 --error ER_BAD_TABLE_ERROR
 DROP TABLE t2;
 
---let $assert_text= rollback gtid MASTER_UUID:3
+--let $assert_text= rollback gtid Source_UUID:3
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -67,7 +67,7 @@ DROP TABLE t2;
 --error ER_DUP_KEYNAME
 CREATE INDEX t_index ON t1(c1);
 
---let $assert_text= rollback gtid MASTER_UUID:4
+--let $assert_text= rollback gtid Source_UUID:4
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -77,7 +77,7 @@ CREATE INDEX t_index ON t1(c1);
 --error ER_CANT_DROP_FIELD_OR_KEY
 DROP INDEX t_index2 ON t1;
 
---let $assert_text= rollback gtid MASTER_UUID:5
+--let $assert_text= rollback gtid Source_UUID:5
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -87,7 +87,7 @@ DROP INDEX t_index2 ON t1;
 --error ER_NO_SUCH_TABLE
 RENAME TABLE t3 TO t4;
 
---let $assert_text= rollback gtid MASTER_UUID:6
+--let $assert_text= rollback gtid Source_UUID:6
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -97,7 +97,7 @@ RENAME TABLE t3 TO t4;
 --error ER_TABLE_EXISTS_ERROR
 CREATE TEMPORARY TABLE temp1(c1 INT);
 
---let $assert_text= rollback gtid MASTER_UUID:7
+--let $assert_text= rollback gtid Source_UUID:7
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -107,7 +107,7 @@ CREATE TEMPORARY TABLE temp1(c1 INT);
 --error ER_DUP_FIELDNAME
 ALTER TABLE temp1 ADD COLUMN other_column INT;
 
---let $assert_text= rollback gtid MASTER_UUID:8
+--let $assert_text= rollback gtid Source_UUID:8
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -117,7 +117,7 @@ ALTER TABLE temp1 ADD COLUMN other_column INT;
 --error ER_BAD_TABLE_ERROR
 DROP TEMPORARY TABLE temp2;
 
---let $assert_text= rollback gtid MASTER_UUID:9
+--let $assert_text= rollback gtid Source_UUID:9
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -127,18 +127,18 @@ DROP TEMPORARY TABLE temp2;
 --error ER_DB_CREATE_EXISTS
 CREATE DATABASE db1;
 
---let $assert_text= rollback gtid MASTER_UUID:10
+--let $assert_text= rollback gtid Source_UUID:10
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
 # We disable the case due to differnces between
 # linux and windows in the results
 # Check-11: Roll back a failed ALTER DATABASE
-#--replace_result $master_uuid MASTER_UUID
+#--replace_result $master_uuid Source_UUID
 #--eval SET SESSION GTID_NEXT='$master_uuid:11'
 #--error 1
 #ALTER DATABASE db2 DEFAULT CHARACTER SET utf8mb3;
-#--let $assert_text= rollback gtid MASTER_UUID:11
+#--let $assert_text= rollback gtid Source_UUID:11
 #--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 #--source include/assert.inc
 
@@ -148,7 +148,7 @@ CREATE DATABASE db1;
 --error ER_DB_DROP_EXISTS
 DROP DATABASE db2;
 
---let $assert_text= rollback gtid MASTER_UUID:12
+--let $assert_text= rollback gtid Source_UUID:12
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -167,7 +167,7 @@ DROP DATABASE db2;
 --error ER_CANNOT_USER
 CREATE USER user1;
 
---let $assert_text= rollback gtid MASTER_UUID:13
+--let $assert_text= rollback gtid Source_UUID:13
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -177,7 +177,7 @@ CREATE USER user1;
 --error ER_CANNOT_USER
 ALTER USER user2 IDENTIFIED BY 'passwd';
 
---let $assert_text= rollback gtid MASTER_UUID:14
+--let $assert_text= rollback gtid Source_UUID:14
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -187,7 +187,7 @@ ALTER USER user2 IDENTIFIED BY 'passwd';
 --error ER_PASSWORD_NO_MATCH
 GRANT ALL ON *.* TO user2;
 
---let $assert_text= rollback gtid MASTER_UUID:15
+--let $assert_text= rollback gtid Source_UUID:15
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -197,7 +197,7 @@ GRANT ALL ON *.* TO user2;
 --error ER_NONEXISTING_GRANT
 REVOKE ALL PRIVILEGES ON *.* FROM user2;
 
---let $assert_text= rollback gtid MASTER_UUID:16
+--let $assert_text= rollback gtid Source_UUID:16
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -207,7 +207,7 @@ REVOKE ALL PRIVILEGES ON *.* FROM user2;
 --error ER_CANNOT_USER
 DROP USER user2;
 
---let $assert_text= rollback gtid MASTER_UUID:17
+--let $assert_text= rollback gtid Source_UUID:17
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 --enable_testcase
@@ -218,7 +218,7 @@ DROP USER user2;
 --error ER_BAD_TABLE_ERROR
 DROP VIEW v2;
 
---let $assert_text= rollback gtid MASTER_UUID:18
+--let $assert_text= rollback gtid Source_UUID:18
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -228,7 +228,7 @@ DROP VIEW v2;
 --error ER_TABLE_EXISTS_ERROR
 CREATE VIEW v1 as SELECT 1;
 
---let $assert_text= rollback gtid MASTER_UUID:19
+--let $assert_text= rollback gtid Source_UUID:19
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -239,7 +239,7 @@ CREATE VIEW v1 as SELECT 1;
 --error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (3), (2);
 
---let $assert_text= rollback gtid MASTER_UUID:20
+--let $assert_text= rollback gtid Source_UUID:20
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -250,7 +250,7 @@ INSERT INTO t1 VALUES (3), (2);
 --error ER_DUP_ENTRY
 INSERT INTO t1 SELECT * FROM t1;
 
---let $assert_text= rollback gtid MASTER_UUID:21
+--let $assert_text= rollback gtid Source_UUID:21
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -262,7 +262,7 @@ INSERT INTO t1 SELECT * FROM t1;
 --error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (2), (3);
 
---let $assert_text= rollback gtid MASTER_UUID:22
+--let $assert_text= rollback gtid Source_UUID:22
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -274,7 +274,7 @@ INSERT INTO t1 VALUES (2), (3);
 --error ER_DUP_ENTRY
 INSERT INTO t1 SELECT * FROM t1_c;
 
---let $assert_text= rollback gtid MASTER_UUID:23
+--let $assert_text= rollback gtid Source_UUID:23
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -285,7 +285,7 @@ INSERT INTO t1 SELECT * FROM t1_c;
 --error ER_DUP_ENTRY
 UPDATE t1 SET c1=3 WHERE c1=4;
 
---let $assert_text= rollback gtid MASTER_UUID:24
+--let $assert_text= rollback gtid Source_UUID:24
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -297,7 +297,7 @@ UPDATE t1 SET c1=3 WHERE c1=4;
 --error ER_DUP_ENTRY
 UPDATE t1_c, t1 SET t1_c.c1=6, t1.c1=3 WHERE t1_c.c1=1 AND t1.c1=4;
 
---let $assert_text= rollback gtid MASTER_UUID:25
+--let $assert_text= rollback gtid Source_UUID:25
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
@@ -308,19 +308,19 @@ UPDATE t1_c, t1 SET t1_c.c1=6, t1.c1=3 WHERE t1_c.c1=1 AND t1.c1=4;
 --error ER_DUP_ENTRY
 UPDATE t1, t1_c SET t1.c1=3, t1_c.c1=6 WHERE t1.c1=4 OR t1_c.c1=1;
 
---let $assert_text= rollback gtid MASTER_UUID:26
+--let $assert_text= rollback gtid Source_UUID:26
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
 # In ps protocol, the test case failed. Bug#21679228 is addressing it.
 # Check-27: Roll back a failed DELETE, the single stmt trx does not modify
 # the transactional table, so its owned gtid is rolled back.
-#--replace_result $master_uuid MASTER_UUID
+#--replace_result $master_uuid Source_UUID
 #--eval SET SESSION GTID_NEXT='$master_uuid:27'
 #--error ER_NO_SUCH_TABLE
 #DELETE FROM t2 WHERE c1=100;
 
-#--let $assert_text= rollback gtid MASTER_UUID:27
+#--let $assert_text= rollback gtid Source_UUID:27
 #--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 #--source include/assert.inc
 

@@ -15,7 +15,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 #    the group, recovery will fail.
 #    Assert that error is visible on
 #    performance_schema.replication_applier_status_by_worker
-#    and SHOW SLAVE STATUS between retry attempts.
+#    and SHOW REPLICA STATUS between retry attempts.
 [connection server2]
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Worker [0-9] failed executing transaction .*; Error 'Table 't1' already exists' on query.*");

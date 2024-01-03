@@ -42,7 +42,7 @@ include/wait_for_slave_param.inc [Last_Errno]
 [connection slave]
 ROLLBACK;
 # Wait for all worker threads to exit
-include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/wait_for_slave_param.inc [Replica_SQL_Running]
 include/assert.inc [Verify table t1 has 3 values]
 # Delete conflicting transactions on slave
 [connection slave]
@@ -53,7 +53,7 @@ DELETE FROM t1 WHERE a = 5;
 COMMIT;
 # Start replica sql thread
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify table t1 has 5 rows]
@@ -92,7 +92,7 @@ include/wait_for_slave_param.inc [Last_Errno]
 [connection slave]
 ROLLBACK;
 # Wait for all worker threads to exit
-include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/wait_for_slave_param.inc [Replica_SQL_Running]
 include/assert.inc [Verify table t1 has 3 values]
 # Delete conflicting transactions on slave
 [connection slave]
@@ -102,7 +102,7 @@ DELETE FROM t1 WHERE a = 4;
 COMMIT;
 # Start replica sql thread
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify table t1 has 5 rows]
@@ -141,7 +141,7 @@ include/wait_for_slave_param.inc [Last_Errno]
 [connection slave]
 ROLLBACK;
 # Wait for all worker threads to exit
-include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/wait_for_slave_param.inc [Replica_SQL_Running]
 include/assert.inc [Verify table t1 has 3 values]
 # Delete conflicting transactions on slave
 [connection slave]
@@ -151,7 +151,7 @@ DELETE FROM t1 WHERE a = 5;
 COMMIT;
 # Start replica sql thread
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify table t1 has 5 rows]
@@ -189,7 +189,7 @@ include/wait_for_slave_param.inc [Last_Errno]
 [connection slave]
 ROLLBACK;
 # Wait for all worker threads to exit
-include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/wait_for_slave_param.inc [Replica_SQL_Running]
 include/assert.inc [Verify table t1 has 3 values]
 # Delete conflicting transactions on slave
 [connection slave]
@@ -198,7 +198,7 @@ DELETE FROM t1 WHERE a = 3;
 COMMIT;
 # Start replica sql thread
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify table t1 has 5 rows]
@@ -237,7 +237,7 @@ include/wait_for_slave_param.inc [Last_Errno]
 [connection slave]
 ROLLBACK;
 # Wait for all worker threads to exit
-include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/wait_for_slave_param.inc [Replica_SQL_Running]
 include/assert.inc [Verify table t1 has 3 values]
 # Delete conflicting transactions on slave
 [connection slave]
@@ -248,7 +248,7 @@ DELETE FROM t1 WHERE a = 5;
 COMMIT;
 # Start replica sql thread
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify table t1 has 5 rows]
@@ -286,7 +286,7 @@ include/wait_for_slave_param.inc [Last_Errno]
 [connection slave]
 ROLLBACK;
 # Wait for all worker threads to exit
-include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/wait_for_slave_param.inc [Replica_SQL_Running]
 include/assert.inc [Verify table t1 has 3 values]
 # Delete conflicting transactions on slave
 [connection slave]
@@ -296,7 +296,7 @@ DELETE FROM t1 WHERE a = 4;
 COMMIT;
 # Start replica sql thread
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify table t1 has 5 rows]
@@ -334,7 +334,7 @@ include/wait_for_slave_param.inc [Last_Errno]
 [connection slave]
 ROLLBACK;
 # Wait for all worker threads to exit
-include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/wait_for_slave_param.inc [Replica_SQL_Running]
 include/assert.inc [Verify table t1 has 3 values]
 # Delete conflicting transactions on slave
 [connection slave]
@@ -344,7 +344,7 @@ DELETE FROM t1 WHERE a = 5;
 COMMIT;
 # Start replica sql thread
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify table t1 has 5 rows]
@@ -381,7 +381,7 @@ include/wait_for_slave_param.inc [Last_Errno]
 [connection slave]
 ROLLBACK;
 # Wait for all worker threads to exit
-include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/wait_for_slave_param.inc [Replica_SQL_Running]
 include/assert.inc [Verify table t1 has 3 values]
 # Delete conflicting transactions on slave
 [connection slave]
@@ -390,7 +390,7 @@ DELETE FROM t1 WHERE a = 3;
 COMMIT;
 # Start replica sql thread
 include/start_slave_sql.inc
-include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Verify table t1 has 5 rows]

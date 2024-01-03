@@ -62,7 +62,7 @@ if (`SELECT "$binlog" = "binlog"`)
 
 if (`SELECT "$binlog" = "relaylog"`)
 {
-  --let $command_set= SHOW SLAVE STATUS
+  --let $command_set= SHOW REPLICA STATUS
   --let $command_set_info= Relay_Log_File
   --let $command_show= SHOW RELAYLOG EVENTS
 }
