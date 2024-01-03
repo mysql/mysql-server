@@ -467,7 +467,7 @@ inline cstatus ObjectArrayConvImpl<J, C>::copyToCObjectArray(C *c,
     s = 0;
   }
 
-  return c;
+  return s;
 }
 
 template <typename J, typename C>
@@ -514,7 +514,7 @@ inline cstatus ObjectArrayConvImpl<J, C>::copyToJavaObjectArray(jobjectArray j,
     s = 0;
   }
 
-  return c;
+  return s;
 }
 
 // ---------------------------------------------------------------------------
