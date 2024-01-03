@@ -161,37 +161,30 @@ ulonglong Item_sum::ram_limitation(THD *thd) {
 */
 
 bool Item_sum::init_sum_func_check(THD *thd) {
+  LEX *const lex = thd->lex;
+  base_query_block = lex->current_query_block();
   if (m_is_window_function) {
-    /*
-      Are either no aggregates of any kind allowed at this level, or
-      specifically not window functions?
-    */
-    LEX *const lex = thd->lex;
-    if (((~lex->allow_sum_func | lex->m_deny_window_func) >>
-         lex->current_query_block()->nest_level) &
-        0x1) {
+    if (lex->deny_window_function(base_query_block)) {
       my_error(ER_WINDOW_INVALID_WINDOW_FUNC_USE, MYF(0), func_name());
       return true;
     }
     in_sum_func = nullptr;
   } else {
-    if (!thd->lex->allow_sum_func) {
+    if (!lex->allow_sum_func) {
       my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
       return true;
     }
     // Set a reference to the containing set function if there is one
-    in_sum_func = thd->lex->in_sum_func;
+    in_sum_func = lex->in_sum_func;
     /*
       Set this object as the current containing set function, used when
       checking arguments of this set function.
     */
-    thd->lex->in_sum_func = this;
+    lex->in_sum_func = this;
   }
-  save_deny_window_func = thd->lex->m_deny_window_func;
-  thd->lex->m_deny_window_func |=
-      (nesting_map)1 << thd->lex->current_query_block()->nest_level;
+  save_deny_window_func = lex->m_deny_window_func;
+  lex->m_deny_window_func |= (nesting_map)1 << base_query_block->nest_level;
   // @todo: When resolving once, move following code to constructor
-  base_query_block = thd->lex->current_query_block();
   aggr_query_block = nullptr;  // Aggregation query block is undetermined yet
   referenced_by[0] = nullptr;
   /*
@@ -199,8 +192,7 @@ bool Item_sum::init_sum_func_check(THD *thd) {
     re-done, so referenced_by[1] isn't set again. So keep it as it was in
     preparation.
   */
-  if (thd->lex->current_query_block()->first_execution)
-    referenced_by[1] = nullptr;
+  if (base_query_block->first_execution) referenced_by[1] = nullptr;
   max_aggr_level = -1;
   max_sum_func_level = -1;
   used_tables_cache = 0;

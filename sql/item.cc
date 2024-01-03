@@ -5353,12 +5353,9 @@ static bool resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
 
   if (select_ref == nullptr) return false;
 
-  if (select->resolve_place != Query_block::RESOLVE_QUALIFY &&
-      (*select_ref)->has_wf()) {
-    /*
-      We can't reference an alias to a window function expr from within
-      a subquery or a HAVING clause
-    */
+  if ((*select_ref)->has_wf() && (thd->lex->deny_window_function(select))) {
+    // E.g. SELECT wf() AS x .. grouped-aggregate-function( ..x.. )
+    //      SELECT wf() AS x .., (SELECT ... x FROM..)
     my_error(ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE, MYF(0), ref->field_name);
     return true;
   }
@@ -5955,8 +5952,16 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
             intermediate value to resolve referenced item only.
             In this case the new Item_ref item is unused.
           */
-          if (resolution == RESOLVED_AGAINST_ALIAS)
+          if (resolution == RESOLVED_AGAINST_ALIAS) {
             res = &qb->base_ref_items[counter];
+
+            if ((*res)->has_wf() && thd->lex->deny_window_function(qb)) {
+              // SELECT wf() AS x .. ORDER BY grouped-aggregate-function(..x..)
+              my_error(ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE, MYF(0),
+                       field_name);
+              return true;
+            }
+          }
 
           Item_ref *rf =
               new Item_ref(context, res, db_name, table_name, field_name,
