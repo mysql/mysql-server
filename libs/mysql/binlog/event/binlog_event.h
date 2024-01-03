@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -708,7 +708,7 @@ class Log_event_header {
 
   /*
     The offset in the log where this event originally appeared (it is
-    preserved in relay logs, making SHOW SLAVE STATUS able to print
+    preserved in relay logs, making SHOW REPLICA STATUS able to print
     coordinates of the event in the master's binlog).
   */
   unsigned long long log_pos;

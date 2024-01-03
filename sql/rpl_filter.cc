@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -203,7 +203,7 @@ int Rpl_filter::copy_global_replication_filters() {
     /*
       Acquire the write lock when copying global replication filter if
       a new channel is being created by CHANGE MASTER TO ... FOR CHANNEL
-      command after server startup, in case SHOW SLAVE STATUS or
+      command after server startup, in case SHOW REPLICA STATUS or
       SELECT * FROM performance_schema.replication_applier_filters is
       querying the filter in parallel. We do not have the race problem
       when creating a new channel from repository during server startup.

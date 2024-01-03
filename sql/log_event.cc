@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2973,7 +2973,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
     }
     ptr_group->checkpoint_seqno = rli->rli_checkpoint_seqno;
     ptr_group->ts = common_header->when.tv_sec +
-                    (time_t)exec_time;  // Seconds_behind_master related
+                    (time_t)exec_time;  // Seconds_behind_source related
     rli->rli_checkpoint_seqno++;
     /*
       Coordinator should not use the main memroot however its not

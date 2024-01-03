@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -371,11 +371,11 @@ void Relay_log_info::reset_notified_relay_log_change() {
    the current bitmap and starts using the clean bitmap indexed from zero
    of being reset rli_checkpoint_seqno.
 
-    New seconds_behind_master timestamp is installed.
+    New seconds_behind_source timestamp is installed.
 
    @param shift            number of bits to shift by Worker due to the
                            current checkpoint change.
-   @param new_ts           new seconds_behind_master timestamp value
+   @param new_ts           new seconds_behind_source timestamp value
                            unless zero. Zero could be due to FD event
                            or fake rotate event.
    @param update_timestamp if true, this function will update the
@@ -966,7 +966,7 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     when the slave and master are 5.0 but with different event length (for
     example the slave is more recent than the master and features the event
     UID). It would give false SOURCE_POS_WAIT, false Exec_master_log_pos in
-    SHOW SLAVE STATUS, and so the user would do some CHANGE MASTER using this
+    SHOW REPLICA STATUS, and so the user would do some CHANGE MASTER using this
     value which would lead to badly broken replication.
     Even the relay_log_pos will be corrupted in this case, because the len is
     the relay log is not "val".
@@ -1077,9 +1077,9 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
     In that pathological case, master_log_pos* will be properly reinited at
     the next START REPLICA (as RESET REPLICA or CHANGE MASTER, the callers of
     purge_relay_logs, will delete bogus *.info files or replace them with
-    correct files), however if the user does SHOW SLAVE STATUS before START
+    correct files), however if the user does SHOW REPLICA STATUS before START
     SLAVE, he will see old, confusing master_log_*. In other words, we reinit
-    master_log_* for SHOW SLAVE STATUS to display fine in any case.
+    master_log_* for SHOW REPLICA STATUS to display fine in any case.
   */
   group_master_log_name[0] = 0;
   group_master_log_pos = 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ The slave stopped to replicate changes from the master/group and may
 contain stale information.
 
 @note
-    Checking for ``SHOW SLAVE STATUS`` and ``io_thread`` and
+    Checking for ``SHOW REPLICA STATUS`` and ``io_thread`` and
     ``sql_thread`` leads to a race condition for the following query.
     One would have to check after query of the slave is still running to
     see if it didn't stop in between.

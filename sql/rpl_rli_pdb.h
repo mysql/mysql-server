@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -195,7 +195,7 @@ struct Slave_job_group {
   char *checkpoint_relay_log_name;
   std::atomic<int32> done;  // Flag raised by W,  read and reset by Coordinator
   ulong shifted;            // shift the last CP bitmap at receiving a new CP
-  time_t ts;                // Group's timestamp to update Seconds_behind_master
+  time_t ts;                // Group's timestamp to update Seconds_behind_source
 #ifndef NDEBUG
   bool notified{false};  // to debug group_master_log_name change notification
 #endif

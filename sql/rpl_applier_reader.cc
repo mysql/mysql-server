@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -290,7 +290,7 @@ bool Rpl_applier_reader::wait_for_new_event() {
   mysql_mutex_assert_owner(&m_rli->data_lock);
   /*
     We can, and should release data_lock while we are waiting for
-    update. If we do not, show slave status will block
+    update. If we do not, show replica status will block
   */
   mysql_mutex_unlock(&m_rli->data_lock);
 
@@ -564,7 +564,7 @@ void Rpl_applier_reader::debug_print_next_event_positions() {
 
 void Rpl_applier_reader::reset_seconds_behind_master() {
   /*
-    We say in Seconds_Behind_Master that we have "caught up". Note that for
+    We say in Seconds_Behind_Source that we have "caught up". Note that for
     example if network link is broken but I/O slave thread hasn't noticed it
     (replica_net_timeout not elapsed), then we'll say "caught up" whereas we're
     not really caught up. Fixing that would require internally cutting timeout
@@ -575,13 +575,13 @@ void Rpl_applier_reader::reset_seconds_behind_master() {
 
     Transient phases like this can be fixed with implementing Heartbeat event
     which provides the slave the status of the master at time the master does
-    not have any new update to send. Seconds_Behind_Master would be zero only
+    not have any new update to send. Seconds_Behind_Source would be zero only
     when master has no more updates in binlog for slave. The heartbeat can be
     sent in a (small) fraction of replica_net_timeout. Until it's done
     m_rli->last_master_timestamp is temporarily (for time of waiting for the
     following event) reset whenever EOF is reached.
 
-    Note, in MTS case Seconds_Behind_Master resetting follows
+    Note, in MTS case Seconds_Behind_Source resetting follows
     slightly different schema where reaching EOF is not enough.  The status
     parameter is updated per some number of processed group of events. The
     number can't be greater than @@global.replica_checkpoint_group and anyway

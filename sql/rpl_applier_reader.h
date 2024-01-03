@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,7 @@ class Rpl_applier_reader {
   */
   bool reopen_log_reader_if_needed();
 
-  /* reset seconds_behind_master when starting to wait for events coming */
+  /* reset seconds_behind_source when starting to wait for events coming */
   void reset_seconds_behind_master();
   /* relay_log_space_limit should be disabled temporarily in some cases. */
   void disable_relay_log_space_limit_if_needed();

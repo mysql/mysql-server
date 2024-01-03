@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1688,7 +1688,7 @@ class Relay_log_info : public Rpl_info {
 
     This does not actually sleep; it only sets the state of this
     Relay_log_info object to delaying so that the correct state can be
-    reported by SHOW SLAVE STATUS and SHOW PROCESSLIST.
+    reported by SHOW REPLICA STATUS and SHOW PROCESSLIST.
 
     Requires rli->data_lock.
 
@@ -1854,7 +1854,7 @@ class Relay_log_info : public Rpl_info {
     Guarded by data_lock.  Initialized by the client thread executing
     START REPLICA.  Written by client threads executing CHANGE MASTER TO
     MASTER_DELAY=X.  Read by SQL thread and by client threads
-    executing SHOW SLAVE STATUS.  Note: must not be written while the
+    executing SHOW REPLICA STATUS.  Note: must not be written while the
     slave SQL thread is running, since the SQL thread reads it without
     a lock when executing flush_info().
   */
@@ -1863,10 +1863,10 @@ class Relay_log_info : public Rpl_info {
   /**
     During a delay, specifies the point in time when the delay ends.
 
-    This is used for the SQL_Remaining_Delay column in SHOW SLAVE STATUS.
+    This is used for the SQL_Remaining_Delay column in SHOW REPLICA STATUS.
 
     Guarded by data_lock. Written by the sql thread.  Read by client
-    threads executing SHOW SLAVE STATUS.
+    threads executing SHOW REPLICA STATUS.
   */
   time_t sql_delay_end;
 

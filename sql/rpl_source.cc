@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -564,8 +564,8 @@ bool show_replicas(THD *thd) {
   logs.
 
   It is added by the master after the replication connection was idle for
-  `x` seconds to update the slave's `Seconds_behind_master timestamp in the
-  SHOW SLAVE STATUS output.
+  `x` seconds to update the slave's  Seconds_behind_source timestamp in the
+  SHOW REPLICA STATUS output.
 
   It has no payload nor post-header.
 

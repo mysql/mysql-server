@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3564,7 +3564,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->ssl_key, &my_charset_bin);
 
   /*
-     The pseudo code to compute Seconds_Behind_Master:
+     The pseudo code to compute Seconds_Behind_Source:
      if (SQL thread is running)
      {
        if (SQL thread processed all the available relay log)
@@ -3575,7 +3575,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
             print NULL;
        }
         else
-          compute Seconds_Behind_Master;
+          compute Seconds_Behind_Source;
       }
       else
        print NULL;
@@ -3656,7 +3656,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
     }
     protocol->store(buff, &my_charset_bin);
   }
-  // Master_Server_id
+  // Source_Server_id
   protocol->store((uint32)mi->master_id);
   protocol->store(mi->master_uuid, &my_charset_bin);
   // Master_info_file
@@ -3669,19 +3669,19 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
     protocol->store((uint32)(t < sql_delay_end ? sql_delay_end - t : 0));
   } else
     protocol->store_null();
-  // Slave_SQL_Running_State
+  // Replica_SQL_Running_State
   protocol->store(slave_sql_running_state, &my_charset_bin);
-  // Master_Retry_Count
+  // Source_Retry_Count
   protocol->store((ulonglong)mi->retry_count);
-  // Master_Bind
+  // Source_Bind
   protocol->store(mi->bind_addr, &my_charset_bin);
   // Last_IO_Error_Timestamp
   protocol->store(mi->last_error().timestamp, &my_charset_bin);
   // Last_SQL_Error_Timestamp
   protocol->store(mi->rli->last_error().timestamp, &my_charset_bin);
-  // Master_Ssl_Crl
+  // Source_Ssl_Crl
   protocol->store(mi->ssl_crl, &my_charset_bin);
-  // Master_Ssl_Crlpath
+  // Source_Ssl_Crlpath
   protocol->store(mi->ssl_crlpath, &my_charset_bin);
   // Retrieved_Gtid_Set
   protocol->store(io_gtid_set_buffer, &my_charset_bin);
@@ -3694,11 +3694,11 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(&tmp);
   // channel_name
   protocol->store(mi->get_channel(), &my_charset_bin);
-  // Master_TLS_Version
+  // Source_TLS_Version
   protocol->store(mi->tls_version, &my_charset_bin);
-  // Master_public_key_path
+  // Source_public_key_path
   protocol->store(mi->public_key_path, &my_charset_bin);
-  // Get_master_public_key
+  // Get_Source_public_key
   protocol->store(mi->get_public_key ? 1 : 0);
 
   protocol->store(mi->network_namespace_str(), &my_charset_bin);
@@ -3853,7 +3853,7 @@ err:
   @retval false success
   @retval true failure
 
-  Currently, show slave status works for a channel too, in multisource
+  Currently, show replica status works for a channel too, in multisource
   replication. But using performance schema tables is better.
 
 */
@@ -3882,7 +3882,7 @@ bool show_slave_status(THD *thd, Master_info *mi) {
     }
   }
 
-  /* Fill the metadata required for show slave status. */
+  /* Fill the metadata required for show replica status. */
 
   mem_root_deque<Item *> field_list(thd->mem_root);
   show_slave_status_metadata(&field_list, io_gtid_set_size, sql_gtid_set_size);
@@ -6543,7 +6543,7 @@ bool mta_checkpoint_routine(Relay_log_info *rli, bool force) {
 
   /*
     Update the rli->last_master_timestamp for reporting correct
-    Seconds_behind_master.
+    Seconds_behind_source.
 
     If GAQ is empty, set it to zero.
     Else, update it with the timestamp of the first job of the Slave_job_queue
@@ -7110,11 +7110,11 @@ extern "C" void *handle_slave_sql(void *arg) {
     }
     /*
       We are going to set slave_running to 1. Assuming slave I/O thread is
-      alive and connected, this is going to make Seconds_Behind_Master be 0
+      alive and connected, this is going to make Seconds_Behind_Source be 0
       i.e. "caught up". Even if we're just at start of thread. Well it's ok, at
       the moment we start we can think we are caught up, and the next second we
       start receiving data so we realize we are not caught up and
-      Seconds_Behind_Master grows. No big deal.
+      Seconds_Behind_Source grows. No big deal.
     */
     rli->abort_slave = false;
 
