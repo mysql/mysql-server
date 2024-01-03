@@ -1,4 +1,4 @@
---  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+--  Copyright (c) 2015, 2024, Oracle and/or its affiliates.
 -- 
 --  This program is free software; you can redistribute it and/or modify
 --  it under the terms of the GNU General Public License as published by
@@ -664,8 +664,8 @@ BEGIN
         END IF;
 
         IF (v_has_replication <> 'NO') THEN
-            SELECT 'SHOW SLAVE STATUS' AS 'The following output is:';
-            SHOW SLAVE STATUS;
+            SELECT 'SHOW REPLICA STATUS' AS 'The following output is:';
+            SHOW REPLICA STATUS;
 
             IF (v_has_ps_replication = 'YES') THEN
                 SELECT 'Replication Connection Status' AS 'The following output is:';
