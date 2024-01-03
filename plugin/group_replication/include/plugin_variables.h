@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,12 +173,6 @@ struct plugin_options_variables {
   uint recovery_zstd_compression_level_var;
   char *recovery_tls_version_var;
   char *recovery_tls_ciphersuites_var;
-
-  const char *recovery_policies[3] = {"TRANSACTIONS_CERTIFIED",
-                                      "TRANSACTIONS_APPLIED", (char *)nullptr};
-  TYPELIB recovery_policies_typelib_t = {2, "recovery_policies_typelib_t",
-                                         recovery_policies, nullptr};
-  ulong recovery_completion_policy_var;
 
   ulong components_stop_timeout_var;
 

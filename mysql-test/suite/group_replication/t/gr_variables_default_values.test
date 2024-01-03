@@ -53,7 +53,6 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_local_address = `SELECT @@GLOBAL.group_replication_local_address;`
 --let $saved_gr_group_seeds = `SELECT @@GLOBAL.group_replication_group_seeds;`
 --let $saved_gr_poll_spin_loops = `SELECT @@GLOBAL.group_replication_poll_spin_loops;`
---let $saved_gr_recovery_complete_at = `SELECT @@GLOBAL.group_replication_recovery_complete_at;`
 --let $saved_gr_recovery_reconnect_interval = `SELECT @@GLOBAL.group_replication_recovery_reconnect_interval;`
 --let $saved_gr_recovery_retry_count = `SELECT @@GLOBAL.group_replication_recovery_retry_count;`
 --let $saved_gr_recovery_ssl_ca = `SELECT @@GLOBAL.group_replication_recovery_ssl_ca;`
@@ -91,7 +90,7 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_paxos_single_leader = `SELECT @@GLOBAL.group_replication_paxos_single_leader;`
 
 # Total number of GR variables.
---let $total_gr_vars= 60
+--let $total_gr_vars= 59
 
 --echo #
 --echo # Test Unit#1
@@ -128,7 +127,6 @@ SET @@GLOBAL.group_replication_force_members= default;
 SET @@GLOBAL.group_replication_local_address= default;
 SET @@GLOBAL.group_replication_group_seeds= default;
 SET @@GLOBAL.group_replication_poll_spin_loops= default;
-SET @@GLOBAL.group_replication_recovery_complete_at= default;
 SET @@GLOBAL.group_replication_recovery_reconnect_interval= default;
 SET @@GLOBAL.group_replication_recovery_retry_count= default;
 SET @@GLOBAL.group_replication_recovery_ssl_ca= default;
@@ -219,11 +217,6 @@ SET @@SESSION.group_replication_consistency= default;
 # group_replication_poll_spin_loops
 --let $assert_text= Default group_replication_poll_spin_loops is 0
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_poll_spin_loops]" = 0
---source include/assert.inc
-
-# group_replication_recovery_complete_at
---let $assert_text= Default group_replication_recovery_complete_at is TRANSACTIONS_APPLIED
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_complete_at]" = "TRANSACTIONS_APPLIED"
 --source include/assert.inc
 
 # group_replication_recovery_reconnect_interval
@@ -418,7 +411,6 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_local_address= "$saved_gr_local_address"
 --eval SET @@GLOBAL.group_replication_group_seeds= "$saved_gr_group_seeds"
 --eval SET @@GLOBAL.group_replication_poll_spin_loops= $saved_gr_poll_spin_loops
---eval SET @@GLOBAL.group_replication_recovery_complete_at= "$saved_gr_recovery_complete_at"
 --eval SET @@GLOBAL.group_replication_recovery_reconnect_interval= $saved_gr_recovery_reconnect_interval
 --eval SET @@GLOBAL.group_replication_recovery_retry_count= $saved_gr_recovery_retry_count
 --eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$saved_gr_recovery_ssl_ca"

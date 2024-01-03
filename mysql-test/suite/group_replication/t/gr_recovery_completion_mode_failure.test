@@ -5,8 +5,6 @@
 #   0. The test requires two servers.
 #   1. Create 2 tables (t1,t2) on both servers.
 #   2. Start group replication on server1 with some data inserted on t1.
-#      Change recovery policy on server2 to wait for transaction execution i.e.
-#      transactions_applied.
 #   3. Lock table t1 on server2 and start group replication to block first
 #      phase of recovery. Recovery will get stuck as the member can't execute
 #      data on t1.
@@ -62,16 +60,6 @@ call mtr.add_suppression("Can't evaluate the group replication applier execution
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 SET SESSION sql_log_bin=1;
-
---echo #
---echo # Change recovery policy on server 2 to wait for transaction execution.
---echo #
-
---connection server2
---echo server2
-
-SET @configured_rec_policy= @@GLOBAL.group_replication_recovery_complete_at;
-SET GLOBAL group_replication_recovery_complete_at= "transactions_applied";
 
 --echo #
 --echo # Lock table t1 on server 2
@@ -154,7 +142,5 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 DROP TABLE t1;
 DROP TABLE t2;
-
-SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
 
 --source include/group_replication_end.inc

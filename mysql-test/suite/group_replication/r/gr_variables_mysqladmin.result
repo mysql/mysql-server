@@ -22,8 +22,6 @@ group_replication_ip_allowlist
 AUTOMATIC
 group_replication_poll_spin_loops
 0
-group_replication_recovery_complete_at
-TRANSACTIONS_APPLIED
 group_replication_recovery_reconnect_interval
 60
 group_replication_recovery_retry_count

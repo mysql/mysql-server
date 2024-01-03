@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,6 @@ Recovery_module::Recovery_module(Applier_module_interface *applier,
       recovery_thd_state(),
       m_until_condition(CHANNEL_UNTIL_VIEW_ID),
       m_max_metadata_wait_time(MAX_RECOVERY_METADATA_WAIT_TIME),
-      recovery_completion_policy(RECOVERY_POLICY_WAIT_CERTIFIED),
       m_state_transfer_return(STATE_TRANSFER_OK) {
   mysql_mutex_init(key_GR_LOCK_recovery_module_run, &run_lock,
                    MY_MUTEX_INIT_FAST);
@@ -658,18 +657,6 @@ int Recovery_module::wait_for_applier_module_recovery() {
         pipeline_stats->get_delta_transactions_applied_during_recovery();
 
     /*
-      When the recovery completion policy is only wait for conflict
-      detection, once all transactions are checked the member state
-      changes to ONLINE.
-    */
-    if (RECOVERY_POLICY_WAIT_CERTIFIED == recovery_completion_policy &&
-        pipeline_stats
-                ->get_transactions_waiting_certification_during_recovery() <=
-            0) {
-      applier_monitoring = false;
-    }
-
-    /*
       When the recovery completion policy is wait for transactions apply,
       the member will first wait until one of the conditions is fulfilled:
        1) the transactions to apply do fit on the flow control period
@@ -686,13 +673,10 @@ int Recovery_module::wait_for_applier_module_recovery() {
       transactions on the group_replication_applier channel, before the
       member state changes to ONLINE.
     */
-    else if (RECOVERY_POLICY_WAIT_EXECUTED == recovery_completion_policy &&
-             ((pipeline_stats
-                   ->get_transactions_waiting_apply_during_recovery() <=
-               transactions_applied_during_recovery_delta) ||
-              (0 == queue_size &&
-               0 == transactions_applied_during_recovery_delta &&
-               0 != channel_is_applier_waiting("group_replication_applier")))) {
+    if ((pipeline_stats->get_transactions_waiting_apply_during_recovery() <=
+         transactions_applied_during_recovery_delta) ||
+        (0 == queue_size && 0 == transactions_applied_during_recovery_delta &&
+         0 != channel_is_applier_waiting("group_replication_applier"))) {
       /*
         Fetch current retrieved gtid set of group_replication_applier channel.
       */
@@ -720,8 +704,7 @@ int Recovery_module::wait_for_applier_module_recovery() {
       }
 
       int error = 1;
-      while (recovery_completion_policy == RECOVERY_POLICY_WAIT_EXECUTED &&
-             !recovery_aborted && error != 0) {
+      while (!recovery_aborted && error != 0) {
         /*
           Wait until the fetched gtid set is applied.
         */

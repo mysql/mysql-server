@@ -94,9 +94,6 @@ ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is 
 SET @value= @@GLOBAL.group_replication_paxos_single_leader;
 SET @@GLOBAL.group_replication_paxos_single_leader= @value;
 ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
-SET @value= @@GLOBAL.group_replication_recovery_complete_at;
-SET @@GLOBAL.group_replication_recovery_complete_at= @value;
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET @value= @@GLOBAL.group_replication_recovery_compression_algorithms;
 SET @@GLOBAL.group_replication_recovery_compression_algorithms= @value;
 ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.

@@ -61,7 +61,6 @@ if ( ($found == 0) && (not $line =~ m{$search_pattern}) ) {
 &mySubroutine('group_replication_force_members');
 &mySubroutine('group_replication_ip_allowlist');
 &mySubroutine('group_replication_poll_spin_loops');
-&mySubroutine('group_replication_recovery_complete_at');
 &mySubroutine('group_replication_recovery_reconnect_interval');
 &mySubroutine('group_replication_recovery_retry_count');
 &mySubroutine('group_replication_start_on_boot');

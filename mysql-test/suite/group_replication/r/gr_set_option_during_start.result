@@ -27,8 +27,6 @@ SET GLOBAL group_replication_recovery_use_ssl= ON;
 ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_recovery_ssl_verify_server_cert= ON;
 ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
-SET GLOBAL group_replication_recovery_complete_at= "transactions_applied";
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_group_name= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
 ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET GLOBAL group_replication_recovery_retry_count= 1;

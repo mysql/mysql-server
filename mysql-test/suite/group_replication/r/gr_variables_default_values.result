@@ -26,9 +26,9 @@ include/stop_group_replication.inc
 #
 # Test Unit#1
 # Set global/session group replication variables to default.
-# Curently there are 60 group replication variables.
+# Curently there are 59 group replication variables.
 #
-include/assert.inc [There are 60 GR variables at present.]
+include/assert.inc [There are 59 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -50,7 +50,6 @@ SET @@GLOBAL.group_replication_force_members= default;
 SET @@GLOBAL.group_replication_local_address= default;
 SET @@GLOBAL.group_replication_group_seeds= default;
 SET @@GLOBAL.group_replication_poll_spin_loops= default;
-SET @@GLOBAL.group_replication_recovery_complete_at= default;
 SET @@GLOBAL.group_replication_recovery_reconnect_interval= default;
 SET @@GLOBAL.group_replication_recovery_retry_count= default;
 SET @@GLOBAL.group_replication_recovery_ssl_ca= default;
@@ -99,7 +98,6 @@ include/assert.inc [Default group_replication_ip_allowlist is AUTOMATIC]
 include/assert.inc [Default group_replication_local_address is ""(EMPTY)]
 include/assert.inc [Default group_replication_group_seeds is ""(EMPTY)]
 include/assert.inc [Default group_replication_poll_spin_loops is 0]
-include/assert.inc [Default group_replication_recovery_complete_at is TRANSACTIONS_APPLIED]
 include/assert.inc [Default group_replication_recovery_reconnect_interval is 60]
 include/assert.inc [Default group_replication_recovery_retry_count is 10]
 include/assert.inc [Default group_replication_recovery_ssl_ca is ""(EMPTY)]
@@ -137,8 +135,6 @@ include/assert.inc [Default group_replication_paxos_single_leader is 0]
 #
 # Clean up
 #
-Warnings:
-Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

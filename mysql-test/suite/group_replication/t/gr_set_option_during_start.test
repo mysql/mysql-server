@@ -69,9 +69,6 @@ SET GLOBAL group_replication_recovery_use_ssl= ON;
 SET GLOBAL group_replication_recovery_ssl_verify_server_cert= ON;
 
 --error ER_UNABLE_TO_SET_OPTION
-SET GLOBAL group_replication_recovery_complete_at= "transactions_applied";
-
---error ER_UNABLE_TO_SET_OPTION
 SET GLOBAL group_replication_group_name= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
 
 --error ER_UNABLE_TO_SET_OPTION

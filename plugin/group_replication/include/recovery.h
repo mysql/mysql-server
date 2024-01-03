@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,13 +34,6 @@
 #include "plugin/group_replication/include/recovery_state_transfer.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
-
-/* The possible policies used on recovery when applying cached transactions */
-enum enum_recovery_completion_policies {
-  RECOVERY_POLICY_WAIT_CERTIFIED =
-      0,                          // Wait for the certification of transactions
-  RECOVERY_POLICY_WAIT_EXECUTED,  // Wait for the execution of transactions
-};
 
 class Recovery_module {
  public:
@@ -282,16 +275,6 @@ class Recovery_module {
     recovery_state_transfer.set_stop_wait_timeout(timeout);
   }
 
-  /**
-    Sets recovery threshold policy on what to wait when handling transactions
-    @param completion_policy  if recovery shall wait for execution
-                              or certification
-  */
-  void set_recovery_completion_policy(
-      enum_recovery_completion_policies completion_policy) {
-    this->recovery_completion_policy = completion_policy;
-  }
-
   /** Set a public key file*/
   void set_recovery_public_key_path(const char *public_key_path) {
     if (public_key_path != nullptr)
@@ -461,9 +444,6 @@ class Recovery_module {
   // run conditions and locks
   mysql_mutex_t run_lock;
   mysql_cond_t run_cond;
-
-  /* Recovery strategy when waiting for the cache transaction handling*/
-  enum_recovery_completion_policies recovery_completion_policy;
 
   /* The return value from state transfer operation*/
   State_transfer_status m_state_transfer_return;

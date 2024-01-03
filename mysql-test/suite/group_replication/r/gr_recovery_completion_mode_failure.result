@@ -30,14 +30,6 @@ call mtr.add_suppression("The server was automatically set into read only mode a
 call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 SET SESSION sql_log_bin=1;
 #
-# Change recovery policy on server 2 to wait for transaction execution.
-#
-server2
-SET @configured_rec_policy= @@GLOBAL.group_replication_recovery_complete_at;
-SET GLOBAL group_replication_recovery_complete_at= "transactions_applied";
-Warnings:
-Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
-#
 # Lock table t1 on server 2
 # Table t1: Blocks first phase of recovery
 #
@@ -80,7 +72,4 @@ include/stop_group_replication.inc
 include/start_group_replication.inc
 DROP TABLE t1;
 DROP TABLE t2;
-SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
-Warnings:
-Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

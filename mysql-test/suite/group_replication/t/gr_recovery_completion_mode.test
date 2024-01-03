@@ -1,23 +1,9 @@
 ################################################################################
-# This test evaluates both recovery policies on when a member should become
-# online.
+# This test evaluates recovery waits for the execution of all executed
+# transactions.
 #
 # Test:
 #   0. The test requires two servers.
-#
-# Phase 1: Recovery only waits for the certification of all cached transactions
-#   1. Create 2 tables (t1,t2) on both servers
-#   2. Start group replication on server1 with some data inserted on t1
-#   3. Lock table t1 on server 2 and start group replication
-#      Recovery will get stuck as the member can't execute data on t1
-#   4. Lock table t2 on server 2 and insert some data on t2 on server 1
-#      Recovery application of cached data is blocked as t2 is locked
-#   5. Unlock t1 and recovery first phase will unblock.
-#      The member should become online as it does not wait for the application
-#      of cached transactions, only its certification.
-#   6. Clean up.
-#
-# Phase 2: Recovery waits for the execution of all executed transactions
 #   1. Create 2 tables (t1,t2) on both servers
 #   2. Start group replication on server1 with some data inserted on t1
 #   3. Lock table t1 on server 2 and start group replication
@@ -38,11 +24,6 @@
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
---echo ######################################################################
---echo # Phase 1:
---echo # Recovery only waits for the certification of all cached transactions
---echo ######################################################################
-
 --echo #
 --echo # Create t1 and t2 on both servers
 --echo # Start group replication on server 1 after inserting data on t1
@@ -58,8 +39,6 @@ SET SESSION sql_log_bin=1;
 
 --source include/start_and_bootstrap_group_replication.inc
 
-INSERT INTO t1 VALUES (1);
-
 --connection server2
 --echo server2
 
@@ -67,96 +46,6 @@ SET SESSION sql_log_bin=0;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 SET SESSION sql_log_bin=1;
-
---echo #
---echo # Lock table t1 and table t2 on server 2
---echo # Table t1: Blocks first phase of recovery
---echo # Table t2: Blocks second phase of recovery
---echo #
-
-SET @configured_rec_policy= @@GLOBAL.group_replication_recovery_complete_at;
-SET GLOBAL group_replication_recovery_complete_at= "transactions_certified";
-
---connection server_2
---echo server_2 (server2)
-LOCK TABLE t1 READ;
-
---connection slave
---echo slave (server2)
-LOCK TABLE t2 READ;
-
---echo #
---echo # Start group replication on server 2 and check it is stuck on recovery
---echo #
-
---connection server2
---echo server2
-
---let $group_replication_start_member_state= RECOVERING
---source include/start_group_replication.inc
-
---echo #
---echo # Insert some transaction on server 1 that will be cached on server 2
---echo #
-
---connection server1
---echo server1
-
-# Wait for the View Change event to reach the binlog.
---eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1')
-INSERT INTO t2 VALUES (1);
-
---echo #
---echo # UnLock table t1: First phase of recovery can carry on.
---echo # Member 1 is online as it only waits for certification of cached data
---echo #
-
---connection server_2
---echo server_2 (server2)
-
-UNLOCK TABLES;
-
---connection server2
---echo server2
-
---let $group_replication_member_state= ONLINE
---source include/gr_wait_for_member_state.inc
-
---echo #
---echo # UnLock table t2: Second phase of recovery can carry on.
---echo # The data should be there.
---echo #
-
---connection slave
---echo slave (server2)
-
-UNLOCK TABLES;
-
---let $wait_condition= SELECT COUNT(*)=1 FROM t2;
---source include/wait_condition.inc
-
---echo #
---echo # Phase 1 cleanup
---echo # Remove the data from the tables and stop group replication on server 2
---echo #
-
---connection server1
---echo server1
-
-TRUNCATE TABLE t1;
-TRUNCATE TABLE t2;
-
---source include/rpl_sync.inc
-
---connection server2
---echo server2
-
---source include/stop_group_replication.inc
-
---echo ######################################################################
---echo # Phase 2:
---echo # Recovery waits for the execution of all executed transactions
---echo ######################################################################
 
 --echo #
 --echo # Start group replication on server 1 after inserting data on t1
@@ -173,8 +62,6 @@ INSERT INTO t1 VALUES (1);
 
 --connection server2
 --echo server2
-
-SET GLOBAL group_replication_recovery_complete_at= "transactions_applied";
 
 --echo #
 --echo # Lock table t1 and table t2 on server 2
@@ -269,7 +156,5 @@ UNLOCK TABLES;
 
 DROP TABLE t1;
 DROP TABLE t2;
-
-SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
 
 --source include/group_replication_end.inc

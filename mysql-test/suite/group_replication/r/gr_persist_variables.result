@@ -55,9 +55,6 @@ SET PERSIST group_replication_member_weight = @@GLOBAL.group_replication_member_
 SET PERSIST group_replication_message_cache_size = @@GLOBAL.group_replication_message_cache_size;
 SET PERSIST group_replication_paxos_single_leader = @@GLOBAL.group_replication_paxos_single_leader;
 SET PERSIST group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
-SET PERSIST group_replication_recovery_complete_at = @@GLOBAL.group_replication_recovery_complete_at;
-Warnings:
-Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 SET PERSIST group_replication_recovery_compression_algorithms = @@GLOBAL.group_replication_recovery_compression_algorithms;
 SET PERSIST group_replication_recovery_get_public_key = @@GLOBAL.group_replication_recovery_get_public_key;
 SET PERSIST group_replication_recovery_public_key_path = @@GLOBAL.group_replication_recovery_public_key_path;
@@ -85,7 +82,7 @@ SET PERSIST group_replication_view_change_uuid = @@GLOBAL.group_replication_view
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
-include/assert.inc ['Expect 59 persisted variables.']
+include/assert.inc ['Expect 58 persisted variables.']
 
 ############################################################
 # 2. Restart server, it must bootstrap the group and preserve
@@ -94,9 +91,9 @@ include/assert.inc ['Expect 59 persisted variables.']
 include/rpl_reconnect.inc
 include/gr_wait_for_member_state.inc
 
-include/assert.inc ['Expect 59 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 58 variables which last value was set through SET PERSIST.']
-include/assert.inc ['Expect 58 variables which last value was set through SET PERSIST is equal to its global value.']
+include/assert.inc ['Expect 58 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 57 variables which last value was set through SET PERSIST.']
+include/assert.inc ['Expect 57 variables which last value was set through SET PERSIST is equal to its global value.']
 
 ############################################################
 # 3. Test RESET PERSIST.
@@ -135,7 +132,6 @@ RESET PERSIST group_replication_member_weight;
 RESET PERSIST group_replication_message_cache_size;
 RESET PERSIST group_replication_paxos_single_leader;
 RESET PERSIST group_replication_poll_spin_loops;
-RESET PERSIST group_replication_recovery_complete_at;
 RESET PERSIST group_replication_recovery_compression_algorithms;
 RESET PERSIST group_replication_recovery_get_public_key;
 RESET PERSIST group_replication_recovery_public_key_path;

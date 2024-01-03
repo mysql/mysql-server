@@ -55,7 +55,6 @@ SET PERSIST_ONLY group_replication_member_weight = @@GLOBAL.group_replication_me
 SET PERSIST_ONLY group_replication_message_cache_size = @@GLOBAL.group_replication_message_cache_size;
 SET PERSIST_ONLY group_replication_paxos_single_leader = @@GLOBAL.group_replication_paxos_single_leader;
 SET PERSIST_ONLY group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
-SET PERSIST_ONLY group_replication_recovery_complete_at = @@GLOBAL.group_replication_recovery_complete_at;
 SET PERSIST_ONLY group_replication_recovery_compression_algorithms = @@GLOBAL.group_replication_recovery_compression_algorithms;
 SET PERSIST_ONLY group_replication_recovery_get_public_key = @@GLOBAL.group_replication_recovery_get_public_key;
 SET PERSIST_ONLY group_replication_recovery_public_key_path = @@GLOBAL.group_replication_recovery_public_key_path;
@@ -81,7 +80,7 @@ SET PERSIST_ONLY group_replication_transaction_size_limit = @@GLOBAL.group_repli
 SET PERSIST_ONLY group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
 SET PERSIST_ONLY group_replication_view_change_uuid = @@GLOBAL.group_replication_view_change_uuid;
 
-include/assert.inc ['Expect 59 persisted variables.']
+include/assert.inc ['Expect 58 persisted variables.']
 
 ############################################################
 # 2. Restart server, it must bootstrap the group and preserve
@@ -90,9 +89,9 @@ include/assert.inc ['Expect 59 persisted variables.']
 include/rpl_reconnect.inc
 include/gr_wait_for_member_state.inc
 
-include/assert.inc ['Expect 59 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 58 variables which last value was set through SET PERSIST.']
-include/assert.inc ['Expect 49 persisted variables with matching persisted and global values.']
+include/assert.inc ['Expect 58 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 57 variables which last value was set through SET PERSIST.']
+include/assert.inc ['Expect 48 persisted variables with matching persisted and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS.
@@ -131,7 +130,6 @@ RESET PERSIST IF EXISTS group_replication_member_weight;
 RESET PERSIST IF EXISTS group_replication_message_cache_size;
 RESET PERSIST IF EXISTS group_replication_paxos_single_leader;
 RESET PERSIST IF EXISTS group_replication_poll_spin_loops;
-RESET PERSIST IF EXISTS group_replication_recovery_complete_at;
 RESET PERSIST IF EXISTS group_replication_recovery_compression_algorithms;
 RESET PERSIST IF EXISTS group_replication_recovery_get_public_key;
 RESET PERSIST IF EXISTS group_replication_recovery_public_key_path;

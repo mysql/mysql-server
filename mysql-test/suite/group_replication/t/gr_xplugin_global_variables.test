@@ -100,10 +100,6 @@ EOF
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_poll_spin_loops]" = "0"
 --source include/assert.inc
 
---let $assert_text= group_replication_recovery_complete_at is TRANSACTIONS_APPLIED
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_complete_at]" = "TRANSACTIONS_APPLIED"
---source include/assert.inc
-
 --let $assert_text= group_replication_recovery_reconnect_interval is 60
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_reconnect_interval]" = "60"
 --source include/assert.inc
@@ -137,7 +133,6 @@ SET @group_replication_gtid_assignment_block_size_save= @@GLOBAL.group_replicati
 SET @group_replication_group_seeds_save= @@GLOBAL.group_replication_group_seeds;
 SET @group_replication_local_address_save= @@GLOBAL.group_replication_local_address;
 SET @group_replication_poll_spin_loops_save= @@GLOBAL.group_replication_poll_spin_loops;
-SET @group_replication_recovery_complete_at_save= @@GLOBAL.group_replication_recovery_complete_at;
 SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET @group_replication_recovery_retry_count_save= @@GLOBAL.group_replication_recovery_retry_count;
 SET @group_replication_recovery_ssl_ca_save= @@GLOBAL.group_replication_recovery_ssl_ca;
@@ -174,7 +169,6 @@ SET GLOBAL group_replication_gtid_assignment_block_size= 2;
 SET GLOBAL group_replication_ip_allowlist= "AUTOMATIC";
 SET GLOBAL group_replication_local_address= CONCAT("localhost:",%XCOM_PORT%);
 SET GLOBAL group_replication_poll_spin_loops= 10;
-SET GLOBAL group_replication_recovery_complete_at= TRANSACTIONS_CERTIFIED;
 SET GLOBAL group_replication_recovery_reconnect_interval= 20;
 SET GLOBAL group_replication_recovery_retry_count= 5;
 SET GLOBAL group_replication_recovery_ssl_ca= '%TEST_DIR%/std_data/cacert.pem';
@@ -258,10 +252,6 @@ EOF
 
 --let $assert_text= group_replication_local_address is 127.0.0.1:xcom_port
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_local_address]" = "localhost:$xcom_port"
---source include/assert.inc
-
---let $assert_text= group_replication_recovery_complete_at is TRANSACTIONS_CERTIFIED
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_complete_at]" = "TRANSACTIONS_CERTIFIED"
 --source include/assert.inc
 
 --let $assert_text= group_replication_recovery_reconnect_interval is 20
@@ -357,7 +347,6 @@ SET GLOBAL group_replication_group_seeds= @group_replication_group_seeds_save;
 SET GLOBAL group_replication_gtid_assignment_block_size= @group_replication_gtid_assignment_block_size_save;
 SET GLOBAL group_replication_local_address= @group_replication_local_address_save;
 SET GLOBAL group_replication_group_seeds= @group_replication_group_seeds_save;
-SET GLOBAL group_replication_recovery_complete_at= @group_replication_recovery_complete_at_save;
 SET GLOBAL group_replication_poll_spin_loops= @group_replication_poll_spin_loops_save;
 SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
 SET GLOBAL group_replication_recovery_retry_count= @group_replication_recovery_retry_count_save;

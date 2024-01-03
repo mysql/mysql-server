@@ -30,7 +30,7 @@
 --source include/start_and_bootstrap_group_replication.inc
 --source include/stop_group_replication.inc
 
---let $gr_var_count= 60
+--let $gr_var_count= 59
 --echo
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 
@@ -55,7 +55,6 @@
 --let $saved_gr_local_address = `SELECT @@GLOBAL.group_replication_local_address;`
 --let $saved_gr_group_seeds = `SELECT @@GLOBAL.group_replication_group_seeds;`
 --let $saved_gr_poll_spin_loops = `SELECT @@GLOBAL.group_replication_poll_spin_loops;`
---let $saved_gr_recovery_complete_at = `SELECT @@GLOBAL.group_replication_recovery_complete_at;`
 --let $saved_gr_recovery_reconnect_interval = `SELECT @@GLOBAL.group_replication_recovery_reconnect_interval;`
 --let $saved_gr_recovery_retry_count = `SELECT @@GLOBAL.group_replication_recovery_retry_count;`
 --let $saved_gr_recovery_ssl_ca = `SELECT @@GLOBAL.group_replication_recovery_ssl_ca;`
@@ -120,8 +119,6 @@ SET @@SESSION.group_replication_local_address= "";
 SET @@SESSION.group_replication_group_seeds= "";
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_poll_spin_loops= 1;
---error ER_GLOBAL_VARIABLE
-SET @@SESSION.group_replication_recovery_complete_at= "TRANSACTIONS_APPLIED";
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_recovery_reconnect_interval= 10;
 --error ER_GLOBAL_VARIABLE
@@ -198,7 +195,6 @@ SET GLOBAL group_replication_ip_allowlist= "AUTOMATIC";
 eval SET GLOBAL group_replication_local_address= "$saved_gr_local_address";
 eval SET GLOBAL group_replication_group_seeds= "$saved_gr_group_seeds";
 SET GLOBAL group_replication_poll_spin_loops= 10;
-SET GLOBAL group_replication_recovery_complete_at= "TRANSACTIONS_CERTIFIED";
 SET GLOBAL group_replication_recovery_reconnect_interval= 20;
 SET GLOBAL group_replication_recovery_retry_count= 5;
 eval SET GLOBAL group_replication_recovery_ssl_ca= '$MYSQL_TEST_DIR/std_data/cacert.pem';
@@ -471,23 +467,6 @@ SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 
 --let $assert_text= Verify SESSION value of group_replication_poll_spin_loops
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_poll_spin_loops\', VARIABLE_VALUE, 1]" = 10
---source include/assert.inc
-
-# group_replication_recovery_complete_at
---let $assert_text= Verify GLOBAL value of group_replication_recovery_complete_at
---let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_complete_at\', Value, 1]" = "TRANSACTIONS_CERTIFIED"
---source include/assert.inc
-
---let $assert_text= Verify GLOBAL value of group_replication_recovery_complete_at
---let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_complete_at\', VARIABLE_VALUE, 1]" = "TRANSACTIONS_CERTIFIED"
---source include/assert.inc
-
---let $assert_text= Verify SESSION value of group_replication_recovery_complete_at
---let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_complete_at\', Value, 1]" = "TRANSACTIONS_CERTIFIED"
---source include/assert.inc
-
---let $assert_text= Verify SESSION value of group_replication_recovery_complete_at
---let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_complete_at\', VARIABLE_VALUE, 1]" = "TRANSACTIONS_CERTIFIED"
 --source include/assert.inc
 
 # group_replication_recovery_reconnect_interval
@@ -1024,7 +1003,6 @@ SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 --eval SET @@GLOBAL.group_replication_local_address= "$saved_gr_local_address"
 --eval SET @@GLOBAL.group_replication_group_seeds= "$saved_gr_group_seeds"
 --eval SET @@GLOBAL.group_replication_poll_spin_loops= $saved_gr_poll_spin_loops
---eval SET @@GLOBAL.group_replication_recovery_complete_at= "$saved_gr_recovery_complete_at"
 --eval SET @@GLOBAL.group_replication_recovery_reconnect_interval= $saved_gr_recovery_reconnect_interval
 --eval SET @@GLOBAL.group_replication_recovery_retry_count= $saved_gr_recovery_retry_count
 --eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$saved_gr_recovery_ssl_ca"

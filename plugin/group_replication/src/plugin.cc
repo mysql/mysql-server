@@ -217,10 +217,6 @@ void set_auto_increment_handler_values();
 
 static void check_deprecated_variables() {
   MYSQL_THD thd = lv.plugin_is_auto_starting_on_install ? nullptr : current_thd;
-  if (ov.recovery_completion_policy_var != RECOVERY_POLICY_WAIT_EXECUTED) {
-    push_deprecated_warn_no_replacement(
-        thd, "group_replication_recovery_complete_at");
-  }
   if (ov.view_change_uuid_var != nullptr &&
       strcmp(ov.view_change_uuid_var, "AUTOMATIC")) {
     push_deprecated_warn_no_replacement(thd,
@@ -2798,8 +2794,6 @@ int initialize_recovery_module() {
       ov.recovery_ssl_crl_var, ov.recovery_ssl_crlpath_var,
       ov.recovery_ssl_verify_server_cert_var, ov.recovery_tls_version_var,
       ov.recovery_tls_ciphersuites_var);
-  recovery_module->set_recovery_completion_policy(
-      (enum_recovery_completion_policies)ov.recovery_completion_policy_var);
   recovery_module->set_recovery_donor_retry_count(ov.recovery_retry_count_var);
   recovery_module->set_recovery_donor_reconnect_interval(
       ov.recovery_reconnect_interval_var);
@@ -3430,60 +3424,6 @@ static void update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR *,
   if (recovery_module != nullptr) {
     recovery_module->set_recovery_ssl_verify_server_cert(
         ssl_verify_server_cert);
-  }
-}
-
-// Recovery threshold update method
-static int check_recovery_completion_policy(MYSQL_THD thd, SYS_VAR *,
-                                            void *save,
-                                            struct st_mysql_value *value) {
-  DBUG_TRACE;
-
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  const char *str;
-  TYPELIB *typelib = &ov.recovery_policies_typelib_t;
-  long long tmp;
-  long result;
-  int length;
-
-  push_deprecated_warn_no_replacement(thd,
-                                      "group_replication_recovery_complete_at");
-
-  Checkable_rwlock::Guard g(*lv.plugin_running_lock,
-                            Checkable_rwlock::TRY_READ_LOCK);
-  if (!plugin_running_lock_is_rdlocked(g)) return 1;
-
-  if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
-    length = sizeof(buff);
-    if (!(str = value->val_str(value, buff, &length))) goto err;
-    if ((result = (long)find_type(str, typelib, 0) - 1) < 0) goto err;
-  } else {
-    if (value->val_int(value, &tmp)) goto err;
-    if (tmp < 0 || tmp >= static_cast<long long>(typelib->count)) goto err;
-    result = (long)tmp;
-  }
-  *(long *)save = result;
-
-  return 0;
-
-err:
-  return 1;
-}
-
-static void update_recovery_completion_policy(MYSQL_THD, SYS_VAR *,
-                                              void *var_ptr, const void *save) {
-  DBUG_TRACE;
-
-  Checkable_rwlock::Guard g(*lv.plugin_running_lock,
-                            Checkable_rwlock::TRY_READ_LOCK);
-  if (!plugin_running_lock_is_rdlocked(g)) return;
-
-  ulong in_val = *static_cast<const ulong *>(save);
-  *static_cast<ulong *>(var_ptr) = in_val;
-
-  if (recovery_module != nullptr) {
-    recovery_module->set_recovery_completion_policy(
-        (enum_recovery_completion_policies)in_val);
   }
 }
 
@@ -4691,21 +4631,6 @@ static void initialize_ssl_option_map() {
       ov.RECOVERY_TLS_CIPHERSUITES_OPT;
 }
 
-// Recovery threshold options
-
-static MYSQL_SYSVAR_ENUM(recovery_complete_at,              /* name */
-                         ov.recovery_completion_policy_var, /* var */
-                         PLUGIN_VAR_OPCMDARG |
-                             PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
-                         "Recovery policies when handling cached transactions "
-                         "after state transfer."
-                         "possible values are TRANSACTIONS_CERTIFIED or "
-                         "TRANSACTION_APPLIED",             /* values */
-                         check_recovery_completion_policy,  /* check func. */
-                         update_recovery_completion_policy, /* update func. */
-                         RECOVERY_POLICY_WAIT_EXECUTED,     /* default */
-                         &ov.recovery_policies_typelib_t);  /* type lib */
-
 // Generic timeout setting
 
 static MYSQL_SYSVAR_ULONG(
@@ -5324,7 +5249,6 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(recovery_ssl_crl),
     MYSQL_SYSVAR(recovery_ssl_crlpath),
     MYSQL_SYSVAR(recovery_ssl_verify_server_cert),
-    MYSQL_SYSVAR(recovery_complete_at),
     MYSQL_SYSVAR(recovery_reconnect_interval),
     MYSQL_SYSVAR(recovery_public_key_path),
     MYSQL_SYSVAR(recovery_get_public_key),
