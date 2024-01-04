@@ -1,0 +1,38 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+############################################################
+# 1. Suppress expected error messages on the replica.
+[connection slave]
+include/suppress_messages.inc
+# Connection 2 suppresses message <Unknown network namespace 'unknown'>.
+# Connection 2 suppresses message <Replica I/O for channel 'ch1': Fatal error: failed to set network namespace 'unknown', Error_code: MY-013117>.
+# Connection 2 suppresses message <Replica I/O for channel 'ch1': Fatal error: Network Namespaces is not supported on this platform, Error_code: MY-013117>.
+# Connection 2 suppresses message <Network Namespaces is not supported on this platform>.
+
+############################################################
+# 2. Configure a replication channel with a unknown network
+#    namespace.
+#    When started, the receiver thread must stop due to the
+#    error of the unknown network namespace or unsupported
+#    network namespaces. For both cases it will report the
+#    ER_REPLICA_FATAL_ERROR with a appropriate message.
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=MASTER_PORT, NETWORK_NAMESPACE='unknown' FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+START REPLICA FOR CHANNEL 'ch1';
+include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch1']
+SELECT CHANNEL_NAME, SERVICE_STATE, LAST_ERROR_NUMBER FROM performance_schema.replication_connection_status where CHANNEL_NAME='ch1';
+CHANNEL_NAME	ch1
+SERVICE_STATE	OFF
+LAST_ERROR_NUMBER	13117
+
+############################################################
+# 3. Clean up.
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+include/rpl_end.inc

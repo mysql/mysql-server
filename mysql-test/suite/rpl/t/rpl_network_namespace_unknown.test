@@ -1,0 +1,56 @@
+#####################################################################
+# Validate that when a replication channel is configured with a     #
+# unknown network namespace, once the channel is started that error #
+# is properly reported and handled.                                 #
+#####################################################################
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Suppress expected error messages on the replica.
+--source include/rpl_connection_slave.inc
+
+let $messages =
+Unknown network namespace 'unknown'
+Replica I/O for channel 'ch1': Fatal error: failed to set network namespace 'unknown', Error_code: MY-013117
+Replica I/O for channel 'ch1': Fatal error: Network Namespaces is not supported on this platform, Error_code: MY-013117
+Network Namespaces is not supported on this platform
+;
+--let $suppress_on_current_connection = 1
+--source include/suppress_messages.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Configure a replication channel with a unknown network
+--echo #    namespace.
+--echo #    When started, the receiver thread must stop due to the
+--echo #    error of the unknown network namespace or unsupported
+--echo #    network namespaces. For both cases it will report the
+--echo #    ER_REPLICA_FATAL_ERROR with a appropriate message.
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='unknown' FOR CHANNEL 'ch1'
+
+START REPLICA FOR CHANNEL 'ch1';
+
+--let $rpl_channel_name= 'ch1'
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
+--source include/wait_for_slave_io_error.inc
+--let $rpl_channel_name=
+
+--query_vertical SELECT CHANNEL_NAME, SERVICE_STATE, LAST_ERROR_NUMBER FROM performance_schema.replication_connection_status where CHANNEL_NAME='ch1'
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--let $rpl_channel_name= 'ch1'
+--source include/stop_slave.inc
+--let $rpl_channel_name=
+
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

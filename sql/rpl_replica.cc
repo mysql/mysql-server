@@ -8288,10 +8288,21 @@ static int connect_to_master_via_namespace(THD *thd, MYSQL *mysql,
                                            const uint port) {
   if (mi->is_set_network_namespace()) {
 #ifdef HAVE_SETNS
-    if (set_network_namespace(mi->network_namespace)) return 1;
+    if (set_network_namespace(mi->network_namespace)) {
+      std::stringstream ss;
+      ss << "failed to set network namespace '";
+      ss << mi->network_namespace;
+      ss << "'";
+      mi->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                 ER_THD(thd, ER_REPLICA_FATAL_ERROR), ss.str().c_str());
+      return 1;
+    }
 #else
     // Network namespace not supported by the platform. Report error.
     LogErr(ERROR_LEVEL, ER_NETWORK_NAMESPACES_NOT_SUPPORTED);
+    mi->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+               ER_THD(thd, ER_REPLICA_FATAL_ERROR),
+               ER_THD(thd, ER_NETWORK_NAMESPACES_NOT_SUPPORTED));
     return 1;
 #endif
     // Save default value of network namespace
