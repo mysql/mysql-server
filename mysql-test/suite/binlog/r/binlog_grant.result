@@ -32,7 +32,6 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 drop user mysqltest_1@localhost;
 CREATE USER 'mysqltest_1'@'localhost';
 GRANT REPLICATION CLIENT ON *.* TO 'mysqltest_1'@'localhost';
-SHOW MASTER LOGS;
 SHOW BINARY LOGS;
 DROP USER 'mysqltest_1'@'localhost';
 #
