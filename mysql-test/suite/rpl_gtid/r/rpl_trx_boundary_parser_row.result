@@ -7,6 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 ## Running the test with the SQL thread stopped
 [connection slave]
 include/stop_slave_sql.inc
+# Adding debug point 'dbug_disable_relay_log_truncation' to @@GLOBAL.debug
 [connection slave]
 [connection master]
 [connection slave]
@@ -144,6 +145,7 @@ include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
+# Removing debug point 'dbug_disable_relay_log_truncation' from @@GLOBAL.debug
 [connection master]
 DROP TABLE t1,t2;
 ## Starting and syncing the SQL thread before next round
@@ -152,6 +154,7 @@ include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 ## Running the test with the SQL thread started
+# Adding debug point 'dbug_disable_relay_log_truncation' to @@GLOBAL.debug
 [connection slave]
 [connection master]
 [connection slave]
@@ -285,6 +288,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/gtid_step_assert.inc [count=1, only_count=0]
+# Removing debug point 'dbug_disable_relay_log_truncation' from @@GLOBAL.debug
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
@@ -307,6 +311,7 @@ include/start_slave.inc
 ## Running the test with the SQL thread stopped
 [connection slave]
 include/stop_slave_sql.inc
+# Adding debug point 'dbug_disable_relay_log_truncation' to @@GLOBAL.debug
 [connection slave]
 [connection master]
 [connection slave]
@@ -444,6 +449,7 @@ include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
+# Removing debug point 'dbug_disable_relay_log_truncation' from @@GLOBAL.debug
 [connection master]
 DROP TABLE t1,t2;
 ## Starting and syncing the SQL thread before next round
@@ -452,6 +458,7 @@ include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 ## Running the test with the SQL thread started
+# Adding debug point 'dbug_disable_relay_log_truncation' to @@GLOBAL.debug
 [connection slave]
 [connection master]
 [connection slave]
@@ -585,6 +592,7 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/gtid_step_assert.inc [count=1, only_count=0]
+# Removing debug point 'dbug_disable_relay_log_truncation' from @@GLOBAL.debug
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]

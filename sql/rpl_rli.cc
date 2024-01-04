@@ -1517,6 +1517,9 @@ int Relay_log_info::rli_init_info(
       !is_relay_log_recovery && !relay_log_sanitized &&
       !skip_received_gtid_set_and_relaylog_recovery;
 
+  DBUG_EXECUTE_IF("dbug_disable_relay_log_truncation",
+                  { execute_relay_log_sanitization = false; };);
+
   /*
     If Relay_log_info is issued again after a failed init_info(), for
     instance because of missing relay log files, it will generate new

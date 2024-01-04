@@ -7,7 +7,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server_2]
 RESET REPLICA;
-include/start_slave.inc
+START REPLICA;
 include/wait_for_slave_param.inc [Replica_SQL_Running_State]
 [connection server_3]
 RESET REPLICA;
@@ -17,6 +17,7 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 RESET REPLICA;
 [connection server_2]
+call mtr.add_suppression("Client requested source to start replication from position > file size");
 include/stop_slave.inc
 RESET REPLICA;
 include/rpl_end.inc

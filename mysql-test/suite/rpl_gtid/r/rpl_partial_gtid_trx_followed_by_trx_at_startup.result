@@ -32,7 +32,7 @@ include/rpl_restart_server.inc [server_number=2]
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
-include/gtid_step_assert_on_retrieved.inc [count=3, only_count=1]
+include/gtid_step_assert_on_retrieved.inc [count=4, only_count=1]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 include/stop_slave_io.inc
 RESET REPLICA;

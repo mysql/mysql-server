@@ -8149,6 +8149,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
          (ulong)mi->get_master_log_pos(), uint4korr(buf + SERVER_ID_OFFSET)));
   } else {
     bool is_error = false;
+    DBUG_EXECUTE_IF("simulate_truncated_relay_log_event", { event_len -= 5; });
     /* write the event to the relay log */
     if (likely(rli->relay_log.write_buffer(buf, event_len, mi) == 0)) {
       DBUG_SIGNAL_WAIT_FOR(current_thd,

@@ -1,0 +1,148 @@
+# ==== PURPOSE ====
+#
+# This is a test simulating a crash of the replica while receiver thread
+# is writing to the relay log. In this test, we issue the crash in the specific
+# position of the receiver thread. When a partially
+# written transaction is detected, we expect the replica to truncate this
+# transaction (including removal of invalid relay log files from disk and
+# relay log index), which will allow applier to proceed after the crash
+# without issuing the ER_REPLICA_RELAY_LOG_READ_FAILURE.
+#
+# ==== REQUIREMENTS ====
+#
+# FR1. During the replica start, when relay log recovery option is turned off,
+#   the server shall run the relay log sanitization procedure.
+# FR2. When performing relay-log sanitization,
+#   when a partially-written transaction is detected at the end of the relay
+#   log, the transaction shall be removed.
+# FR3. When performing relay-log sanitization, when the relay log file contains
+#   only a part of unfinished transaction, relay log file shall be removed.
+# FR4. When performing relay-log sanitization, when relay log file is removed,
+#   it shall be also removed from the relay log index file.
+# FR5: When performing relay-log sanitization, when a valid source position and
+#   source filename is obtained from the relay log, the position of the receiver
+#   thread shall be updated to match the recovered relay log position.
+# FR6: When performing relay-log sanitization, when no valid source position and
+#   source filename was read from the relay log, the position of the receiver
+#   thread shall be updated to match the applier position.
+#
+# ==== IMPLEMENTATION ====
+#
+#
+# T1.
+#     Test steps:
+#
+#     1. On the replica: set up test configuration
+#     2. On the source: execute several large transactions
+#     3. On the replica: Force receiver thread to truncate event in
+#        a transaction before writing to the relay log
+#     4. On the replica: Kill the server, restart replication
+#     5. On the replica: Wait for the replica to replicate all of the
+#        transactions
+#
+#     Test pass conditions:
+#
+#     - No errors in execution
+#
+#
+# ==== REFERENCES ====
+#
+# WL#7353 Recover relay log by truncating half written transactions
+#
+
+# This test does not depend on binlog format
+--source include/have_binlog_format_row.inc
+# We need debug points to stop receiver thread at a specified position
+--source include/have_debug.inc
+# This test uses debug sync to stop the receiver thread in the middle of
+# a transaction
+--source include/have_debug_sync.inc
+# This test case makes the receiver thread to simulate relay log truncation
+# by altering the length of the Query_log_event. These events are enclosed in
+# a Transaction_payload event when compression is on.
+--source include/not_binlog_transaction_compression_on.inc
+--source include/master-slave.inc
+
+--echo
+--echo # T1.1. On the replica: set up test configuration
+--echo
+
+--source include/rpl_connection_slave.inc
+SET @@global.max_relay_log_size = 256;
+
+--echo
+--echo # T1.2. On the source: execute several large transactions
+--echo
+
+--source include/rpl_connection_master.inc
+
+--let $string_length=128
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE=InnoDB;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave_io.inc
+--source include/stop_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+
+BEGIN;
+--eval INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length))
+--eval INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length))
+--eval INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length))
+COMMIT;
+
+BEGIN;
+--eval INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length))
+--eval INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length))
+--eval INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length))
+COMMIT;
+
+--echo
+--echo # T1.3. On the replica: Force receiver thread to truncate event in
+--echo         a transaction before writing to the relay log
+--echo
+
+--source include/rpl_connection_slave.inc
+
+# Make the I/O to stop in the middle of the transaction
+# right after the QUERY(BEGIN)
+--let $rpl_after_received_events_action= stop
+--let $rpl_event_count= 2
+--let $rpl_count_only_event_type= Query
+--source include/rpl_receive_event_count.inc
+
+--let $debug_point= simulate_truncated_relay_log_event
+--source include/add_debug_point.inc
+--source include/start_slave_io.inc
+
+--echo
+--echo # T1.4. On the replica: Kill the server, restart replication
+--echo
+
+--source include/kill_and_restart_mysqld.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--echo
+--echo # T1.5. On the replica: Wait for the replica to replicate all of the
+--echo #       transactions
+--echo
+
+--source include/start_slave.inc
+
+--let $wait_timeout = 60
+--let $wait_condition=SELECT COUNT(*)=6 FROM t1
+--source include/wait_condition.inc
+
+--echo #
+--echo # Clean-up
+--echo #
+
+SET @@global.max_relay_log_size = DEFAULT;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc

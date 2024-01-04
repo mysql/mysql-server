@@ -1,0 +1,55 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# T1.1. On the replica: set up test configuration
+
+[connection slave]
+SET @@global.max_relay_log_size = 256;
+Warnings:
+Warning	1292	Truncated incorrect max_relay_log_size value: '256'
+
+# T1.2. On the source: execute several large transactions
+
+[connection master]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+include/stop_slave_io.inc
+include/stop_slave_sql.inc
+[connection master]
+BEGIN;
+INSERT INTO t1 (c2) VALUES (REPEAT('a', 128));
+INSERT INTO t1 (c2) VALUES (REPEAT('a', 128));
+INSERT INTO t1 (c2) VALUES (REPEAT('a', 128));
+COMMIT;
+BEGIN;
+INSERT INTO t1 (c2) VALUES (REPEAT('a', 128));
+INSERT INTO t1 (c2) VALUES (REPEAT('a', 128));
+INSERT INTO t1 (c2) VALUES (REPEAT('a', 128));
+COMMIT;
+
+# T1.3. On the replica: Force receiver thread to truncate event in
+a transaction before writing to the relay log
+
+[connection slave]
+include/rpl_receive_event_count.inc [stop after 2 Query events]
+include/start_slave_io.inc
+
+# T1.4. On the replica: Kill the server, restart replication
+
+# Kill and restart
+include/rpl_reconnect.inc
+
+# T1.5. On the replica: Wait for the replica to replicate all of the
+#       transactions
+
+include/start_slave.inc
+#
+# Clean-up
+#
+SET @@global.max_relay_log_size = DEFAULT;
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

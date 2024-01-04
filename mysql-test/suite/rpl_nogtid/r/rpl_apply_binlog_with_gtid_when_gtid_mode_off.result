@@ -23,6 +23,7 @@ START REPLICA;
 call mtr.add_suppression("Replica.* @@SESSION.GTID_NEXT cannot be set to UUID:NUMBER when @@GLOBAL.GTID_MODE = OFF.");
 call mtr.add_suppression("Replica worker thread has failed to apply an event");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Client requested source to start replication from position > file size");
 include/wait_for_slave_sql_error.inc [errno=1781]
 include/stop_slave.inc
 RESET BINARY LOGS AND GTIDS;
