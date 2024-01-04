@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,15 +79,15 @@ class InternalLogListHandler : public LogHandler {
               const char *pMsg, time_t now) override {
     Guard g(m_listMutex);
 
-    LogHandler *pHandler = NULL;
-    while ((pHandler = m_pHandlerList->next()) != NULL) {
+    LogHandler *pHandler = nullptr;
+    while ((pHandler = m_pHandlerList->next()) != nullptr) {
       pHandler->append(pCategory, level, pMsg, now);
     }
   }
 
   bool addHandler(LogHandler *pHandler) {
     Guard g(m_listMutex);
-    assert(pHandler != NULL);
+    assert(pHandler != nullptr);
 
     if (!pHandler->is_open() && !pHandler->open()) {
       // Failed to open
@@ -112,7 +112,7 @@ class InternalLogListHandler : public LogHandler {
   void setRepeatFrequency(unsigned val) override {
     Guard g(m_listMutex);
     LogHandler *pHandler;
-    while ((pHandler = m_pHandlerList->next()) != NULL) {
+    while ((pHandler = m_pHandlerList->next()) != nullptr) {
       pHandler->setRepeatFrequency(val);
     }
   }
