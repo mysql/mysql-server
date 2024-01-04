@@ -1010,6 +1010,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     std::memcpy(ptr, str, len);
     // std::cout << "redo log" << std::endl;
 
+    // get latch for redo_log_remote_buf
+
     ut_a(len <= str_len);
 
     str_len -= len;
