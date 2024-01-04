@@ -181,7 +181,7 @@ SET @group_replication_components_stop_timeout_save = @@GLOBAL.group_replication
 SET GLOBAL group_replication_components_stop_timeout= 2;
 
 --source include/stop_group_replication.inc
-# Remove all M1 data and force a RESET MASTER to allow server1 to
+# Remove all M1 data and force a RESET BINARY LOGS AND GTIDS to allow server1 to
 # join, despite intentionally has more transactions than the group.
 ALTER EVENT e1 DISABLE;
 --let $wait_timeout= 300

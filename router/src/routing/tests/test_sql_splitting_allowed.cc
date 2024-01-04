@@ -203,7 +203,6 @@ INSTANTIATE_TEST_SUITE_P(Trx, SharingAllowedTest,
 
 const SharingAllowedParam replication_source[] = {
     {"purge binary logs", Allowed::Never},             // instance
-    {"reset master", Allowed::Never},                  // instance
     {"reset binary logs and gtids ", Allowed::Never},  // instance
                                                        //
     {"set sql_log_bin = 1", Allowed::Always},          // session
