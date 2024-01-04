@@ -66,7 +66,7 @@ DELETE FROM test_table WHERE id = 1;
 INSERT INTO test_table VALUES (2, 1, 'aaaddd', 'bbbeee', 2);
 
 # Flush logs to force binlog to rotate
---let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $logical_timestamps=2 3;3 4;4 5
 --source include/assert_logical_timestamps.inc
 
@@ -111,7 +111,7 @@ DELETE FROM test2 WHERE did = 3;
 --echo #
 
 # Flush logs to force binlog to rotate
---let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $logical_timestamps=7 8;8 9;9 10;10 11;11 12;12 13
 --source include/assert_logical_timestamps.inc
 

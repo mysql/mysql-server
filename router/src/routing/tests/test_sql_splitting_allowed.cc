@@ -341,7 +341,6 @@ const SharingAllowedParam show_statements[] = {
     {"SHOW grants for user", Allowed::Always},              //
     {"SHOW index from tbl", Allowed::Always},               //
     {"SHOW master logs", Allowed::OnlyReadWrite},           //
-    {"SHOW master status", Allowed::OnlyReadWrite},         //
     {"SHOW binary log status", Allowed::OnlyReadWrite},     //
     {"SHOW open tables", Allowed::InTransaction},           //
     {"SHOW plugins", Allowed::Always},                      //
