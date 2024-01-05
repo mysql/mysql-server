@@ -3342,20 +3342,9 @@ void AddMultipleEqualityPredicate(THD *thd,
   expr->equijoin_conditions.push_back(
       eq_item);  // NOTE: We run after MakeHashJoinConditions().
 
-  for (int i : {left_node_idx, right_node_idx}) {
-    const Mem_root_array<Item *> &pushables{
-        graph->nodes[i].pushable_conditions()};
-
-    // An equivalent condition may be present already, cf. bug#36135001.
-    if (std::none_of(pushables.cbegin(), pushables.cend(),
-                     [&](const Item *other) {
-                       return ItemsAreEqual(eq_item, other, true);
-                     })) {
-      // Make this predicate potentially sargable.
-      graph->nodes[i].AddPushable(eq_item);
-      ;
-    }
-  }
+  // Make this predicate potentially sargable.
+  graph->nodes[left_node_idx].AddPushable(eq_item);
+  graph->nodes[right_node_idx].AddPushable(eq_item);
 }
 
 /**

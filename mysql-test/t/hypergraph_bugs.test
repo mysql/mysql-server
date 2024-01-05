@@ -1228,7 +1228,7 @@ EXECUTE ps;
 DROP TABLE t;
 
 --echo #
---echo # Bug #113492: Hypergraph: Too low row estimate for index lookup
+--echo # Bug #36135001: Hypergraph: Too low row estimate for index lookup
 --echo #
 
 CREATE TABLE t1(
@@ -1260,6 +1260,11 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
   WHERE x1.b=x2.d AND x2.b=x3.d AND (x1.c < 5 OR x3.c=7) ORDER BY x3.d;
+
+# Check that we handle two identical conditions correctly.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 LEFT JOIN t1 x2
+  ON x1.a <=> x2.a AND  x1.a <=> x2.a;
 
 DROP TABLE t1;
 

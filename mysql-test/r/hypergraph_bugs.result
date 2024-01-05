@@ -1499,7 +1499,7 @@ abc	0.031008131802082062
 abc abc	0.062016263604164124
 DROP TABLE t;
 #
-# Bug #113492: Hypergraph: Too low row estimate for index lookup
+# Bug #36135001: Hypergraph: Too low row estimate for index lookup
 #
 CREATE TABLE t1(
 a INT,
@@ -1541,6 +1541,14 @@ EXPLAIN
                 -> Table scan on x2  (rows=20)
     -> Filter: ((x1.c < 5) or (x3.c = 7))  (rows=2)
         -> Index lookup on x3 using k1 (d=x2.b)  (rows=2)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 LEFT JOIN t1 x2
+ON x1.a <=> x2.a AND  x1.a <=> x2.a;
+EXPLAIN
+-> Left hash join (x1.a <=> x2.a), (x1.a <=> x2.a)  (rows=20)
+    -> Table scan on x1  (rows=20)
+    -> Hash
+        -> Table scan on x2  (rows=20)
 
 DROP TABLE t1;
 #

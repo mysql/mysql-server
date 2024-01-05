@@ -243,11 +243,12 @@ struct RelationalExpression {
     assert(type == TABLE);
     assert(table->map() && cond->used_tables() != 0);
     // Don't add duplicates.
-    assert(std::none_of(
-        m_pushable_conditions.cbegin(), m_pushable_conditions.cend(),
-        [&](const Item *other) { return ItemsAreEqual(cond, other, true); }));
-
-    m_pushable_conditions.push_back(cond);
+    if (std::none_of(m_pushable_conditions.cbegin(),
+                     m_pushable_conditions.cend(), [&](const Item *other) {
+                       return ItemsAreEqual(cond, other, true);
+                     })) {
+      m_pushable_conditions.push_back(cond);
+    }
   }
 
  private:
