@@ -10448,7 +10448,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getNdbErrorLine(JNIEnv *env,
   TRACE(
       "jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getNdbErrorLine(JNIEnv "
       "*, jobject)");
-#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
   return gcall_mfr<ttrait_c_m_n_n_NdbOperation_ct, ttrait_int,
                    &NdbOperation::getNdbErrorLine>(env, obj);
 #else
@@ -14400,7 +14400,7 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1name(JNIEnv *env,
  * Method:    set_service_uri
  * Signature:
  */
-JNIEXPORT void JNICALL
+JNIEXPORT jint JNICALL
 Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1service_1uri(
     JNIEnv *env, jobject obj, jstring p0, jstring p1, jint p2, jstring p3) {
   TRACE(
@@ -14408,13 +14408,15 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1service_1uri(
       "Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1service_"
       "1uri(JNIEnv *, jobject, jstring, jstring, jint, jstring)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-  gcall_mfv<ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_char_cp_jutf8null,
-            ttrait_char_cp_jutf8null, ttrait_int, ttrait_char_cp_jutf8null,
-            &Ndb_cluster_connection::set_service_uri>(env, obj, p0, p1, p2, p3);
+  return gcall_mfr<ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_int,
+            ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, ttrait_int,
+            ttrait_char_cp_jutf8null, &Ndb_cluster_connection::set_service_uri>(
+      env, obj, p0, p1, p2, p3);
 #else
-  gcall_fv<ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_char_cp_jutf8null,
-           ttrait_char_cp_jutf8null, ttrait_int, ttrait_char_cp_jutf8null,
-           &NdbApiWrapper::Ndb_cluster_connection__set_service_uri>(
+  return gcall_fr<ttrait_int, ttrait_c_m_n_n_Ndb_cluster_connection_r,
+            ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, ttrait_int,
+            ttrait_char_cp_jutf8null,
+            &NdbApiWrapper::Ndb_cluster_connection__set_service_uri>(
       env, NULL, obj, p0, p1, p2, p3);
 #endif  // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
@@ -14507,7 +14509,7 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_lock_1ndb_1objects(
       "Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_lock_1ndb_"
       "1objects(JNIEnv *, jobject)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-  gcall_mfv<ttrait_c_m_n_n_Ndb_cluster_connection_t,
+  gcall_mfv<ttrait_c_m_n_n_Ndb_cluster_connection_ct,
             &Ndb_cluster_connection::lock_ndb_objects>(env, obj);
 #else
   gcall_fv<ttrait_c_m_n_n_Ndb_cluster_connection_r,
@@ -14529,7 +14531,7 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_unlock_1ndb_1objects(
       "Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_unlock_1ndb_"
       "1objects(JNIEnv *, jobject)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-  gcall_mfv<ttrait_c_m_n_n_Ndb_cluster_connection_t,
+  gcall_mfv<ttrait_c_m_n_n_Ndb_cluster_connection_ct,
             &Ndb_cluster_connection::unlock_ndb_objects>(env, obj);
 #else
   gcall_fv<ttrait_c_m_n_n_Ndb_cluster_connection_r,
@@ -14578,7 +14580,7 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1recv_1thread_1activa
       "1thread_1activation_1threshold(JNIEnv *, jobject)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
   return gcall_mfr<
-      ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_int,
+      ttrait_c_m_n_n_Ndb_cluster_connection_ct, ttrait_int,
       &Ndb_cluster_connection::get_recv_thread_activation_threshold>(env, obj);
 #else
   return gcall_fr<

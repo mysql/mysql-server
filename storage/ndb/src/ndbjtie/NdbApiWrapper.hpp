@@ -2589,10 +2589,10 @@ struct NdbApiWrapper {
     obj.set_name(p0);
   }
 
-  static void Ndb_cluster_connection__set_service_uri(
+  static int Ndb_cluster_connection__set_service_uri(
       Ndb_cluster_connection &obj, const char *p0, const char *p1, int p2,
       const char *p3) {
-    obj.set_service_uri(p0, p1, p2, p3);
+    return obj.set_service_uri(p0, p1, p2, p3);
   }
 
   static int Ndb_cluster_connection__set_timeout(Ndb_cluster_connection &obj,
