@@ -1008,9 +1008,31 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     /* This is the critical memcpy operation, which copies data
     from internal mtr's buffer to the shared log buffer. */
     std::memcpy(ptr, str, len);
-    // std::cout << "redo log" << std::endl;
+    /**
+     *  @StateReplicate: 
+     *  当一个事务需要写 log 时，首先需要获取 remote_addr，即需要向状态层的哪个位置写log，
+     *  然后通过 RDMA 操作将数据写入到该地址中。
+     *  
+     *  在此过程中，需要考虑数据结构共享访问的正确性，
+     *  即，当多个事务都要读/写数据时，如何处理冲突，如何保证正确性
+     */
 
-    // get latch for redo_log_remote_buf
+    // Allocate memory for these redo logs in the remote State Node
+    if(trx->mysql_thd != nullptr) {
+      THD* thd = trx->mysql_thd;
+      node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
+      RCQP* qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
+      MetaManager* meta_mgr = MetaManager::get_instance();
+
+      // todo: 怎么判断需要给 redo log 分配多少空间？
+      // Redo Log Buffer is already exists in local Node, so I call it redo_log_remote_buf 
+      char* redo_log_remote_buf = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+
+
+    }
+    // Get latch for redo_log_remote_buf
+
+    // Write redo logs into State Node and release latch
 
     ut_a(len <= str_len);
 
