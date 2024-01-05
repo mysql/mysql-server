@@ -735,7 +735,7 @@ sub main {
   if ($secondary_engine_support) {
     secondary_engine_offload_count_report_init();
     # Create virtual environment
-    create_virtual_env($bindir);
+    find_ml_driver($bindir);
     reserve_secondary_ports();
   }
 
@@ -928,11 +928,6 @@ sub main {
   # Cleanup the build thread id files
   remove_redundant_thread_id_file_locations();
   clean_unique_id_dir();
-
-  # Cleanup the secondary engine environment
-  if ($secondary_engine_support) {
-    clean_virtual_env();
-  }
 
   print_total_times($opt_parallel) if $opt_report_times;
 
