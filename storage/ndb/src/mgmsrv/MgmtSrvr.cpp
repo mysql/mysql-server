@@ -872,6 +872,8 @@ MgmtSrvr::~MgmtSrvr() {
     delete m_config_manager;
     m_config_manager = 0;
   }
+  /* Stop async log thread */
+  g_eventLogger->stopAsync();
 
   this->close();  // close trp_client before stopping TransporterFacade
 
