@@ -2091,6 +2091,7 @@ static void log_writer_wait_on_consumers(log_t &log, lsn_t next_write_lsn) {
     for them already */
     ut_ad(name == "MEB");
     log_writer_mutex_exit(log);
+    log_sync_point("log_writer_waits_for_consumer");
     if (attempt++ % ATTEMPTS_BETWEEN_WARNINGS == 0) {
       ib::log_warn(ER_IB_MSG_LOG_WRITER_WAIT_ON_CONSUMER, name.c_str(),
                    ulonglong{oldest_needed_lsn});

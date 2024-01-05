@@ -2416,8 +2416,7 @@ long long innodb_redo_log_consumer_advance(
     [[maybe_unused]] UDF_INIT *initid, UDF_ARGS *args,
     [[maybe_unused]] unsigned char *null_value,
     [[maybe_unused]] unsigned char *error) {
-  if (current_thd == nullptr ||
-      verify_privilege(current_thd, backup_admin_privilege)) {
+  if (current_thd == nullptr) {
     return 1;
   }
   return static_cast<long long>(meb::redo_log_consumer_advance(
