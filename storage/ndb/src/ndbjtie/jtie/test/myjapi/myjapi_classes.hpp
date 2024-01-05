@@ -59,7 +59,7 @@ JTIE_DEFINE_JINT_ENUM_TYPE_MAPPING(E::EE, E_EE)
 // API JNI function stubs
 // ---------------------------------------------------------------------------
 
-#define JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION 1
+// #define JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION 1
 
 // The API stub functions in this file have mangled names that adhere
 // to the JVM specification.  It is not necessary to include the
@@ -770,7 +770,7 @@ JNIEXPORT void JNICALL Java_myjapi_CI_00024C0_check(JNIEnv *env, jobject obj,
                                                     jlong p0) {
   TRACE("Java_myjapi_CI_00024C0_check(JNIEnv *, jobject, jlong)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-  gcall_mfv<ttrait_myjapi_CI_C0_ct, ttrait_int64, &C0::check>(env, obj);
+  gcall_mfv<ttrait_myjapi_CI_C0_ct, ttrait_int64, &C0::check>(env, obj, p0);
 #else
   gcall_fv<ttrait_myjapi_CI_C0_cr, ttrait_int64, &MyApiWrapper::C0__check>(
       env, NULL, obj, p0);
