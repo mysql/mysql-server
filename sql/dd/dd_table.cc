@@ -3157,4 +3157,54 @@ bool get_implicit_tablespace_options(THD *thd, const Table *table,
 
   return false;
 }
+
+bool check_non_standard_key_exists_in_fk(THD *thd, const Table *table) {
+  for (const dd::Foreign_key *fk : table->foreign_keys()) {
+    const dd::Table *parent_table_def = nullptr;
+    const dd::cache::Dictionary_client::Auto_releaser releaser(
+        thd->dd_client());
+    if (thd->dd_client()->acquire(fk->referenced_table_schema_name(),
+                                  fk->referenced_table_name(),
+                                  &parent_table_def))
+      return true;
+    if (parent_table_def == nullptr) return true;
+
+    bool found_standard_key = false;
+    uint fk_element_count = fk->elements().size();
+    for (const dd::Index *idx : parent_table_def->indexes()) {
+      if ((idx->type() == dd::Index::IT_PRIMARY ||
+           idx->type() == dd::Index::IT_UNIQUE)) {
+        uint num_idx_elements = 0;
+        for (const dd::Index_element *idx_el : idx->elements()) {
+          if (!idx_el->is_hidden()) num_idx_elements++;
+        }
+        if (num_idx_elements != fk_element_count) continue;
+
+        uint num_matched_cols = 0;
+        auto fk_element_iter = fk->elements().begin();
+        for (const dd::Index_element *idx_el : idx->elements()) {
+          if (idx_el->is_hidden()) continue;
+          if (my_strcasecmp(
+                  system_charset_info, idx_el->column().name().c_str(),
+                  (*fk_element_iter)->referenced_column_name().c_str()) == 0)
+            num_matched_cols++;
+          if (++fk_element_iter == fk->elements().end()) break;
+        }
+
+        if (num_matched_cols == num_idx_elements) {
+          found_standard_key = true;
+          break;
+        }
+      }
+    }
+    if (!found_standard_key) {
+      deprecated_use_fk_on_non_standard_key_last_timestamp = my_micro_time();
+      deprecated_use_fk_on_non_standard_key_count++;
+      LogErr(WARNING_LEVEL, ER_WARN_LOG_DEPRECATED_NON_STANDARD_KEY,
+             fk->name().c_str(), fk->referenced_table_schema_name().c_str(),
+             fk->referenced_table_name().c_str());
+    }
+  }
+  return false;
+}
 }  // namespace dd

@@ -277,3 +277,12 @@ Show create table child;
 
 --echo # Cleanup
 drop table child, parent;
+
+#Added Test code coverage for WL#15699 to cover NDB alter drop key
+CREATE TABLE t1(a INT, UNIQUE KEY a(a), KEY b(a)) ENGINE=NDBCLUSTER;
+ALTER TABLE t1 ADD CONSTRAINT c FOREIGN KEY(a) REFERENCES t1(a);
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1 DROP KEY a, DROP KEY b;
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1 DROP KEY a;
+DROP TABLE t1;

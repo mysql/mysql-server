@@ -12689,6 +12689,9 @@ ER_INVALID_FILE_FORMAT
 ER_LOG_SANITIZATION
   eng "Relay log sanitization: %s"
 
+ER_WARN_LOG_DEPRECATED_NON_STANDARD_KEY
+  eng "Foreign key '%.64s' on table '%.64s'.'%.64s' refers to non-unique key or partial key. This is deprecated and will be removed in a future release."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

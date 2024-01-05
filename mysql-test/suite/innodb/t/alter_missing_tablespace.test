@@ -351,6 +351,7 @@ ALTER TABLE t4 DISCARD TABLESPACE;
 --echo #
 --echo # Add some foreign key constraints
 --echo #
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
                   CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES t1(c2),
 		  CONSTRAINT t1c3 FOREIGN KEY (c3) REFERENCES t1p(c2));
@@ -369,6 +370,7 @@ CREATE TABLE t5c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
 CREATE TABLE t6c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
                   CONSTRAINT t6c2 FOREIGN KEY (c2) REFERENCES t6(c2),
 		  CONSTRAINT t6c3 FOREIGN KEY (c3) REFERENCES t6p(c2));
+SET restrict_fk_on_non_standard_key=ON;
 
 --echo #
 --echo # Remove t2, try to discard t3 & t4 already discarded
@@ -396,6 +398,7 @@ ALTER TABLE t4c DROP FOREIGN KEY t4c2, ALGORITHM=COPY;
 ALTER TABLE t5c DROP FOREIGN KEY t5c2, ALGORITHM=INPLACE;
 ALTER TABLE t6c DROP FOREIGN KEY t6c2, ALGORITHM=COPY;
 
+SET restrict_fk_on_non_standard_key=ON;
 --echo #
 --echo # Cleanup
 --echo #

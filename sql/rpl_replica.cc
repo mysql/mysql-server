@@ -6041,6 +6041,8 @@ static void *handle_slave_worker(void *arg) {
     thd->variables.sql_generate_invisible_primary_key = true;
   }
 
+  thd->variables.restrict_fk_on_non_standard_key = false;
+
   thd_manager->add_thd(thd);
   thd_added = true;
 
@@ -7072,6 +7074,8 @@ extern "C" void *handle_slave_sql(void *arg) {
             rli->get_require_table_primary_key_check()) {
       thd->variables.sql_generate_invisible_primary_key = true;
     }
+
+    thd->variables.restrict_fk_on_non_standard_key = false;
 
     rli->transaction_parser.reset();
 

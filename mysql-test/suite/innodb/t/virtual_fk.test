@@ -23,6 +23,7 @@ SELECT * FROM t2;
 DROP TABLE t2, t1;
 
 --echo # UPDATE SET NULL
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1(fld1 INT NOT NULL, fld2 INT NOT NULL PRIMARY KEY,
                 KEY(fld1));
 CREATE TABLE t2(fld1 INT, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
@@ -74,6 +75,7 @@ SELECT fld2 FROM t2;
 --sorted_result
 SELECT * FROM t2;
 DROP TABLE t2, t1;
+SET restrict_fk_on_non_standard_key=ON;
 
 --echo # VIRTUAL INDEX CONTAINS FK CONSTRAINT COLUMN
 CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
@@ -269,7 +271,7 @@ DROP TABLE t2, t1;
 
 --echo # Cascading UPDATEs and DELETEs for the multiple
 --echo # fk dependent TABLEs
-
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
                 KEY(fld1), KEY(fld2, fld1),
@@ -347,6 +349,7 @@ CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT NOT NULL,
 		fld3 INT AS (fld2) VIRTUAL, KEY(fld3, fld1),
 		FOREIGN KEY(fld1) REFERENCES t2(fld1)
 		ON DELETE CASCADE);
+SET restrict_fk_on_non_standard_key=ON;
 INSERT INTO t1 VALUES(1), (2);
 INSERT INTO t2 VALUES(1, 1, DEFAULT), (2, 2, default);
 INSERT INTO t3 VALUES(1, 1, DEFAULT), (2, 2, default);

@@ -1,0 +1,88 @@
+--source include/have_case_sensitive_file_system.inc
+--source include/not_valgrind.inc
+
+###############################################################################
+#
+#  WL#15699 : Restrict creation of foreign keys using non unique keys and 
+#  partial columns of primary/unique index key 
+#
+###############################################################################
+#  To create the file std_data/data82_non_std_fk.zip
+#   Start 8.2 server and create below tables with fk on non standard keys
+#       
+#   create table referenced1(id1 int, id2 int, id3 int, key(id1)) engine=innodb;
+#   create table referencing1(idd1 int, idd2 int, idd3 int, foreign key(idd1)
+#     references referenced1(id1));
+#
+#   create table referenced3(id1 int, id2 int, id3 int, 
+#     primary key(id1, id2, id3)) engine=innodb;
+#   create table referencing3(idd1 int, idd2 int, idd3 int, constraint fkk3 
+#     foreign key(idd1, idd2) references referenced3(id1,id2));
+#
+#   zip -r data82_non_std_fk.zip db/
+#
+###############################################################################
+
+--echo
+--echo # Copy the 8.2 data zip file to working directory.
+--copy_file $MYSQLTEST_VARDIR/std_data/data82_non_std_fk.zip $MYSQL_TMP_DIR/data82_non_std_fk.zip
+
+--echo
+--echo # Check that the zip file exists in the working directory.
+--file_exists $MYSQL_TMP_DIR/data82_non_std_fk.zip
+
+--echo
+--echo # Unzip 8.2 data directory.
+--exec unzip -qo $MYSQL_TMP_DIR/data82_non_std_fk.zip -d $MYSQL_TMP_DIR/data82_non_std_fk
+
+--echo
+--echo # Set data directory to the 8.2 data directory.
+--let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data82_non_std_fk/db
+
+--echo
+--echo # Set log directory.
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/data82_non_std_fk.log
+
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo # Restart server to trigger upgrade.
+--exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $wait_counter= 10000
+--source include/wait_until_connected_again.inc
+
+--echo
+--echo # Check for errors in the error log.
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= \[ERROR\]
+--source include/search_pattern.inc
+
+--echo
+--echo # Should show a deprecation warning in the error log when upgrading
+--echo # from 8.2
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= Foreign key 'referencing1_ibfk_1' on table 'test'.'referenced1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Deprecated 'foreign key referring to a non-unique or partial key' used 2 times, last time used 'during upgrade'.
+--source include/search_pattern.inc
+
+--echo
+--echo # Stop the server.
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+
+--echo
+--echo # Cleanup.
+--remove_file $MYSQL_TMP_DIR/data82_non_std_fk.zip
+--force-rmdir $MYSQL_TMP_DIR/data82_non_std_fk
+
+--echo
+--echo # Restart the server with default options.
+--let $restart_parameters=
+--source include/start_mysqld.inc

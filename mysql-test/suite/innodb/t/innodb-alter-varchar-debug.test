@@ -169,6 +169,7 @@ DROP TABLE t1;
 --echo # Bug#15863023 - case6 enlarge varchar other
 --echo # alter operations with fk on parent
 SET DEBUG_SYNC = 'RESET';
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) charset latin1, KEY(b)) ENGINE=Innodb;
 CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) charset latin1, CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
@@ -176,6 +177,7 @@ INSERT IGNORE INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1,t2 WHERE t1.a = t2.a2 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
+SET restrict_fk_on_non_standard_key=OFF;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t2 CHANGE b2 b2 varchar(255) charset latin1, DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
@@ -193,6 +195,7 @@ SET DEBUG_SYNC='now SIGNAL s2';
 
 connection con1;
 reap;
+SET restrict_fk_on_non_standard_key=ON;
 SET foreign_key_checks = 1;
 SHOW CREATE TABLE t1;
 disconnect con1;
@@ -206,6 +209,7 @@ DELETE FROM t1 WHERE b = repeat('y',255);
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 DROP TABLE t2,t1;
 
+SET restrict_fk_on_non_standard_key=ON;
 SET DEBUG_SYNC = 'RESET';
 
 --source include/wait_until_count_sessions.inc

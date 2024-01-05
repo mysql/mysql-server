@@ -79,11 +79,19 @@ c1	c22	c33	c44	c55
 DROP TABLE t1;
 DROP TABLE tpart;
 # Scenario 5 : Try to rename a column which is referenced in other table
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT,  INDEX(c2));
 CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT,
 CONSTRAINT t1c1 FOREIGN KEY (c2) REFERENCES t1(c2));
+Warnings:
+Warning	6124	Foreign key 't1c1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE t1 CHANGE c2 c22 INT, algorithm=INSTANT;
 ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 DROP TABLE t1c;
 DROP TABLE t1;
 # Scenario 6: Try to change the column name in a table with discarded tablespace

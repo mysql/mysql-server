@@ -177,6 +177,7 @@ DROP TABLE t1;
 # Table with Foreign Key referencing a NON Unique Key
 
 --connection master
+SET restrict_fk_on_non_standard_key=OFF;
 
 CREATE TABLE t1 (c1 BINARY(1) PRIMARY KEY, c2 BINARY(1), KEY(c2));
 CREATE TABLE t2 (x1 BINARY(1) PRIMARY KEY, x2 BINARY(1), FOREIGN KEY (x2) REFERENCES t1(c2));
@@ -196,6 +197,7 @@ DROP TABLE t2;
 DROP TABLE t1;
 --source include/rpl_sync.inc
 
+SET restrict_fk_on_non_standard_key=ON;
 # Table with multi column primary key and a foreign key to the multi column primary key
 
 --connection master

@@ -1,3 +1,6 @@
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
 INSERT INTO parent VALUES(1,2),(2,3);
 CREATE INDEX tb ON parent(b);
@@ -12,6 +15,8 @@ SET foreign_key_checks = 0;
 ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
 REFERENCES parent(b) ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	6
@@ -44,14 +49,23 @@ SHOW ERRORS;
 Level	Code	Message
 Error	1822	Failed to add the foreign key constraint. Missing index for constraint 'fk_20' in the referenced table 'parent'
 CREATE INDEX idx1 on parent(a, b);
+Warnings:
+Warning	6124	Foreign key 'fk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 'fk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE child ADD CONSTRAINT fk_10 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_10' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE child ADD CONSTRAINT fk_2 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE, ADD INDEX idx1(a1,a2),
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE child ADD CONSTRAINT fk_3 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE;
+Warnings:
+Warning	6124	Foreign key 'fk_3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	6
@@ -94,6 +108,8 @@ SET DEBUG = '+d,innodb_test_open_ref_fail';
 ALTER TABLE child ADD CONSTRAINT fk_4 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_4' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SET DEBUG = '-d,innodb_test_open_ref_fail';
 SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
@@ -212,6 +228,9 @@ ON DELETE SET NULL ON UPDATE CASCADE,
 ADD CONSTRAINT fk_6 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_5' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 'fk_6' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	6
@@ -248,6 +267,8 @@ SET foreign_key_checks = 0;
 ALTER TABLE child DROP INDEX tb, ADD CONSTRAINT fk_4 FOREIGN KEY (a2)
 REFERENCES parent(b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_4' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -282,6 +303,8 @@ ALTER TABLE child CHANGE a2 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 DROP TABLE child;
 DROP TABLE parent;
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
@@ -319,6 +342,8 @@ ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	6
@@ -353,6 +378,8 @@ ALTER TABLE child ADD PRIMARY KEY idx (a1),
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	6
@@ -387,6 +414,8 @@ ALTER TABLE child CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	6
@@ -432,6 +461,8 @@ ALTER TABLE child
 ADD CONSTRAINT fk_a FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_a' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE child
 ADD CONSTRAINT fk_b FOREIGN KEY (a1) REFERENCES parent(a),
 ALGORITHM = INPLACE;
@@ -485,6 +516,8 @@ ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1_new) REFERENCES parent(b),
 ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2_new) REFERENCES parent(a),
 ADD CONSTRAINT fk_new_3 FOREIGN KEY (a3) REFERENCES parent(a),
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_new_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -540,6 +573,8 @@ ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1) REFERENCES parent(b),
 ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2) REFERENCES parent(a),
 ADD CONSTRAINT fk_new_3 FOREIGN KEY (a3) REFERENCES parent(a),
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_new_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -577,13 +612,19 @@ SET foreign_key_checks = 0;
 ALTER TABLE Child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
 REFERENCES Parent(b) ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+Warnings:
+Warning	6124	Foreign key 'fk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 DROP TABLE Child;
 DROP TABLE Parent;
 CREATE TABLE `t2`(a int,c int,d int) ENGINE=INNODB;
 CREATE TABLE `t3`(a int,c int,d int) ENGINE=INNODB;
 CREATE INDEX idx ON t3(a);
 ALTER TABLE `t2` ADD CONSTRAINT `fw` FOREIGN KEY (`c`) REFERENCES t3 (a);
+Warnings:
+Warning	6124	Foreign key 'fw' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE `t2` ADD CONSTRAINT `e` foreign key (`d`) REFERENCES t3(a);
+Warnings:
+Warning	6124	Foreign key 'e' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE `t3` ADD CONSTRAINT `e` foreign key (`c`) REFERENCES `t2`(`c`) ON UPDATE SET NULL;
 ERROR HY000: Duplicate foreign key constraint name 'e'
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
@@ -596,6 +637,9 @@ test/e	d	a	1
 test/fw	c	a	1
 DROP TABLE t2;
 DROP TABLE t3;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 # Bug #17449901	 TABLE DISAPPEARS WHEN ALTERING
 # WITH FOREIGN KEY CHECKS OFF
 create table t1(f1 int,primary key(f1))engine=innodb;

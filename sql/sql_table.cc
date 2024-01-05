@@ -208,6 +208,12 @@ using std::min;
 using std::string;
 using std::to_string;
 
+/** Count number of times foreign key is created on non standard index keys. */
+std::atomic_ulong deprecated_use_fk_on_non_standard_key_count = 0;
+
+/** Last time fk is created on non standard index key, as usec since epoch. */
+std::atomic_ullong deprecated_use_fk_on_non_standard_key_last_timestamp = 0;
+
 /** Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used). */
 static constexpr const int KEY_DEFAULT_PACK_LENGTH{8};
 /* Max number of enumeration values */
@@ -438,10 +444,12 @@ static const dd::Index *find_fk_supporting_key(handlerton *hton,
                                                const dd::Table *table_def,
                                                const dd::Foreign_key *fk);
 
-static const dd::Index *find_fk_parent_key(handlerton *hton,
-                                           const dd::Index *supporting_key,
-                                           const dd::Table *parent_table_def,
-                                           const dd::Foreign_key *fk);
+namespace {
+const dd::Index *find_fk_parent_key(THD *thd, handlerton *hton,
+                                    const dd::Index *supporting_key,
+                                    const dd::Table *parent_table_def,
+                                    const dd::Foreign_key *fk);
+}  // namespace
 static int copy_data_between_tables(
     THD *thd, PSI_stage_progress *psi, TABLE *from, TABLE *to,
     List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
@@ -5528,6 +5536,7 @@ static bool fk_key_is_full_prefix_match(Alter_info *alter_info,
         index to maintain previous behavior for engines that require
         the two indexes to be different.
 
+  @param          thd             Thread handle.
   @param          hton            Handlerton for table's storage engine.
   @param          alter_info      Alter_info object describing parent table.
   @param          key_info_buffer Array describing keys in parent table.
@@ -5544,8 +5553,8 @@ static bool fk_key_is_full_prefix_match(Alter_info *alter_info,
   @retval Operation result. False if success.
 */
 static bool prepare_self_ref_fk_parent_key(
-    handlerton *hton, Alter_info *alter_info, const KEY *key_info_buffer,
-    const uint key_count, const KEY *supporting_key,
+    THD *thd, handlerton *hton, Alter_info *alter_info,
+    const KEY *key_info_buffer, const uint key_count, const KEY *supporting_key,
     const dd::Table *old_fk_table, FOREIGN_KEY *fk) {
   auto fk_columns_lambda = [fk](uint i) { return fk->fk_key_part[i].str; };
   for (const KEY *key = key_info_buffer; key < key_info_buffer + key_count;
@@ -5676,7 +5685,7 @@ static bool prepare_self_ref_fk_parent_key(
       const dd::Index *old_sk =
           find_fk_supporting_key(hton, old_fk_table, *old_fk);
       const dd::Index *old_pk =
-          find_fk_parent_key(hton, old_sk, old_fk_table, *old_fk);
+          find_fk_parent_key(thd, hton, old_sk, old_fk_table, *old_fk);
 
       if (old_sk != nullptr && old_pk != nullptr) {
         if (my_strcasecmp(system_charset_info, supporting_key->name,
@@ -5706,7 +5715,7 @@ static bool prepare_self_ref_fk_parent_key(
       }
     } else {
       const dd::Index *old_pk =
-          find_fk_parent_key(hton, nullptr, old_fk_table, *old_fk);
+          find_fk_parent_key(thd, hton, nullptr, old_fk_table, *old_fk);
       if (old_pk) dropped_key = old_pk->name().c_str();
     }
 
@@ -5970,6 +5979,47 @@ static const char *generate_fk_name(const char *table_name, handlerton *hton,
   return sql_strdup(name);
 }
 
+namespace {
+/**
+  Check if candidate parent/supporting key contains exactly the same
+  columns as the foreign key in same order.
+
+  @tparam F               Function class which returns foreign key's
+                          referenced or referencing (depending on whether
+                          we check candidate parent or supporting key)
+                          column name by its index.
+  @param  fk_col_count    Number of columns in the foreign key.
+  @param  fk_columns      Object of F type bound to the specific foreign key
+                          for which parent/supporting key check is carried
+                          out.
+  @param  idx             dd::Index object describing candidate parent/
+                          supporting key.
+
+  @sa fk_is_key_exact_match(uint, F, KEY)
+
+  @retval True  - Key is proper parent/supporting key for the foreign key.
+  @retval False - Key can't be parent/supporting key for the foreign key.
+*/
+template <class F>
+bool fk_is_key_exact_match_order(uint fk_col_count, const F &fk_columns,
+                                 const dd::Index *idx) {
+  uint index_element_count = 0;
+  for (const dd::Index_element *idx_el : idx->elements()) {
+    if (!idx_el->is_hidden()) index_element_count++;
+  }
+  if (fk_col_count != index_element_count) return false;
+
+  uint matched_columns = 0;
+  for (const dd::Index_element *idx_el : idx->elements()) {
+    if (idx_el->is_hidden()) continue;
+    if (my_strcasecmp(system_charset_info, idx_el->column().name().c_str(),
+                      fk_columns(matched_columns)) == 0)
+      matched_columns++;
+  }
+  return (matched_columns == fk_col_count);
+}
+}  // namespace
+
 /**
   Check if candidate parent/supporting key contains exactly the same
   columns as the foreign key, possibly, in different order. Also check
@@ -6143,11 +6193,13 @@ static bool fk_key_is_full_prefix_match(uint fk_col_count, const F &fk_columns,
   return (match_count == fk_col_count);
 }
 
+namespace {
 /**
   Find parent key which matches the foreign key. Prefer unique key if possible.
 
   @tparam F                 Function class which returns foreign key's column
                             name by its index.
+  @param  thd               Thread handle.
   @param  hton              Handlerton for tables' storage engine. Used to
                             figure out what kind of parent keys are supported
                             by the storage engine..
@@ -6155,6 +6207,7 @@ static bool fk_key_is_full_prefix_match(uint fk_col_count, const F &fk_columns,
                             supporting keys as candidate parent keys for
                             self referencing FKs.
   @param  parent_table_def  dd::Table object describing the parent table.
+  @param  fk_name           Foreign key name.
   @param  fk_col_count      Number of columns in the foreign key.
   @param  fk_columns        Object of F type bound to the specific foreign key
                             for which parent key check is carried out.
@@ -6163,11 +6216,11 @@ static bool fk_key_is_full_prefix_match(uint fk_col_count, const F &fk_columns,
   @retval nullptr     - if no parent key were found.
 */
 template <class F>
-static const dd::Index *find_fk_parent_key(handlerton *hton,
-                                           const dd::Index *supporting_key,
-                                           const dd::Table *parent_table_def,
-                                           uint fk_col_count,
-                                           const F &fk_columns) {
+const dd::Index *find_fk_parent_key(THD *thd, handlerton *hton,
+                                    const dd::Index *supporting_key,
+                                    const dd::Table *parent_table_def,
+                                    const char *fk_name, uint fk_col_count,
+                                    const F &fk_columns) {
   bool use_hidden = false;
 
   if (hton->foreign_keys_flags & HTON_FKS_WITH_EXTENDED_PARENT_KEYS) {
@@ -6237,10 +6290,25 @@ static const dd::Index *find_fk_parent_key(handlerton *hton,
         So if there is suitable unique parent key we will always find
         it before any non-unique key.
       */
-
-      if (fk_key_is_full_prefix_match(fk_col_count, fk_columns, idx,
-                                      use_hidden))
+      if ((idx->type() == dd::Index::IT_PRIMARY ||
+           idx->type() == dd::Index::IT_UNIQUE) &&
+          fk_is_key_exact_match_order(fk_col_count, fk_columns, idx))
         return idx;
+      if (!thd->variables.restrict_fk_on_non_standard_key) {
+        if (fk_key_is_full_prefix_match(fk_col_count, fk_columns, idx,
+                                        use_hidden)) {
+          if (!thd->slave_thread) {
+            deprecated_use_fk_on_non_standard_key_last_timestamp =
+                my_micro_time();
+            deprecated_use_fk_on_non_standard_key_count++;
+            push_warning_printf(
+                thd, Sql_condition::SL_WARNING,
+                ER_WARN_DEPRECATED_NON_STANDARD_KEY,
+                ER_THD(thd, ER_WARN_DEPRECATED_NON_STANDARD_KEY), fk_name);
+          }
+          return idx;
+        }
+      }
     } else {
       /*
         Default case. Engine only supports unique parent keys which
@@ -6255,6 +6323,7 @@ static const dd::Index *find_fk_parent_key(handlerton *hton,
   }
   return nullptr;
 }
+}  // namespace
 
 /**
   Find supporting key for the foreign key.
@@ -6339,6 +6408,7 @@ static const dd::Index *find_fk_supporting_key(handlerton *hton,
   return best_match_idx;
 }
 
+namespace {
 /*
   Check if parent key for foreign key exists, set foreign key's unique
   constraint name accordingly. Emit error if no parent key found.
@@ -6349,9 +6419,10 @@ static const dd::Index *find_fk_supporting_key(handlerton *hton,
   @note CREATE TABLE and ALTER TABLE code use this function for
         non-self-referencing foreign keys.
 
-  @sa prepare_fk_parent_key(handlerton, dd::Table, dd::Table, dd::Table,
+  @sa prepare_fk_parent_key(thd, handlerton, dd::Table, dd::Table, dd::Table,
                             dd::Foreign_key)
 
+  @param  thd               Thread handle object of connection.
   @param  hton              Handlerton for tables' storage engine.
   @param  parent_table_def  dd::Table object describing parent table.
   @param  fk[in,out]        FOREIGN_KEY object describing the FK, its
@@ -6360,17 +6431,17 @@ static const dd::Index *find_fk_supporting_key(handlerton *hton,
 
   @retval Operation result. False if success.
 */
-static bool prepare_fk_parent_key(handlerton *hton,
-                                  const dd::Table *parent_table_def,
-                                  FOREIGN_KEY *fk) {
+bool prepare_fk_parent_key(THD *thd, handlerton *hton,
+                           const dd::Table *parent_table_def, FOREIGN_KEY *fk) {
   auto fk_columns_lambda = [fk](uint i) { return fk->fk_key_part[i].str; };
 
   /*
     Here, it is safe to pass nullptr as supporting key, since this
     function is not called for self referencing foreign keys.
   */
-  const dd::Index *parent_key = find_fk_parent_key(
-      hton, nullptr, parent_table_def, fk->key_parts, fk_columns_lambda);
+  const dd::Index *parent_key =
+      find_fk_parent_key(thd, hton, nullptr, parent_table_def, fk->name,
+                         fk->key_parts, fk_columns_lambda);
 
   if (parent_key != nullptr) {
     /*
@@ -6385,8 +6456,10 @@ static bool prepare_fk_parent_key(handlerton *hton,
     }
     return false;
   }
-
-  my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk->name, fk->ref_table.str);
+  if (thd->variables.restrict_fk_on_non_standard_key)
+    my_error(ER_FK_NO_UNIQUE_INDEX_PARENT, MYF(0), fk->name, fk->ref_table.str);
+  else
+    my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk->name, fk->ref_table.str);
   return true;
 }
 
@@ -6403,18 +6476,21 @@ static bool prepare_fk_parent_key(handlerton *hton,
   @retval non-nullptr - pointer to dd::Index object describing the parent key.
   @retval nullptr     - if no parent key were found.
 */
-static const dd::Index *find_fk_parent_key(handlerton *hton,
-                                           const dd::Index *supporting_key,
-                                           const dd::Table *parent_table_def,
-                                           const dd::Foreign_key *fk) {
+const dd::Index *find_fk_parent_key(THD *thd, handlerton *hton,
+                                    const dd::Index *supporting_key,
+                                    const dd::Table *parent_table_def,
+                                    const dd::Foreign_key *fk) {
   auto fk_columns_lambda = [fk](uint i) {
     return fk->elements()[i]->referenced_column_name().c_str();
   };
-  return find_fk_parent_key(hton, supporting_key, parent_table_def,
-                            fk->elements().size(), fk_columns_lambda);
+  return find_fk_parent_key(thd, hton, supporting_key, parent_table_def,
+                            fk->name().c_str(), fk->elements().size(),
+                            fk_columns_lambda);
 }
+}  // namespace
 
-bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
+bool prepare_fk_parent_key(THD *thd, handlerton *hton,
+                           const dd::Table *parent_table_def,
                            const dd::Table *old_parent_table_def,
                            const dd::Table *old_child_table_def,
                            bool is_self_referencing_fk, dd::Foreign_key *fk) {
@@ -6438,7 +6514,7 @@ bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
   }
 
   const dd::Index *parent_key =
-      find_fk_parent_key(hton, supporting_key, parent_table_def, fk);
+      find_fk_parent_key(thd, hton, supporting_key, parent_table_def, fk);
 
   if (parent_key == nullptr) {
     // No matching parent key in new table definition.
@@ -6483,7 +6559,7 @@ bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
         engines for tables with foreign keys.
       */
       const dd::Index *old_pk =
-          find_fk_parent_key(hton, nullptr, old_parent_table_def, *old_fk);
+          find_fk_parent_key(thd, hton, nullptr, old_parent_table_def, *old_fk);
       my_error(ER_DROP_INDEX_FK, MYF(0),
                old_pk ? old_pk->name().c_str() : "<unknown key name>");
     }
@@ -6839,7 +6915,7 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
         fk_info->fk_key_part[i].length = std::strlen(field->field_name);
       }
 
-      if (prepare_self_ref_fk_parent_key(create_info->db_type, alter_info,
+      if (prepare_self_ref_fk_parent_key(thd, create_info->db_type, alter_info,
                                          key_info_buffer, key_count,
                                          supporting_key, nullptr, fk_info))
         return true;
@@ -6940,7 +7016,7 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
           fk_info->fk_key_part[i].length = (*ref_column)->name().length();
         }
 
-        if (prepare_fk_parent_key(create_info->db_type, parent_table_def,
+        if (prepare_fk_parent_key(thd, create_info->db_type, parent_table_def,
                                   fk_info))
           return true;
       }
@@ -7029,8 +7105,8 @@ static bool prepare_preexisting_self_ref_foreign_key(
     Check that foreign key still has matching parent key and adjust
     DD.UNIQUE_CONSTRAINT_NAME accordingly.
   */
-  if (prepare_self_ref_fk_parent_key(create_info->db_type, alter_info, key_info,
-                                     key_count, supporting_key,
+  if (prepare_self_ref_fk_parent_key(thd, create_info->db_type, alter_info,
+                                     key_info, key_count, supporting_key,
                                      existing_fks_table, fk))
     return true;
 
@@ -9668,8 +9744,9 @@ static bool adjust_fk_child_after_parent_def_change(
                            fk->referenced_table_name().c_str(),
                            child_table_name));
 
-      if (prepare_fk_parent_key(hton, parent_table_def, old_parent_table_def,
-                                old_child_table_def, false, fk))
+      if (prepare_fk_parent_key(thd, hton, parent_table_def,
+                                old_parent_table_def, old_child_table_def,
+                                false, fk))
         return true;
     }
   }
@@ -15644,7 +15721,8 @@ bool adjust_adopted_self_ref_fk_for_simple_rename_table(
           return true;
       }
 
-      if (prepare_fk_parent_key(hton, table_def, nullptr, nullptr, true, fk))
+      if (prepare_fk_parent_key(thd, hton, table_def, nullptr, nullptr, true,
+                                fk))
         return true;
 
       has_adopted_fk = true;

@@ -1,9 +1,14 @@
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 SET DEBUG_SYNC='RESET';
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 CREATE TABLE t2 (
 c2 INT PRIMARY KEY,
 CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
 ENGINE = InnoDB;
+Warnings:
+Warning	6124	Foreign key 't2c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 DROP INDEX c2 ON t1;
 ERROR HY000: Cannot drop index 'c2': needed in a foreign key constraint
 DROP TABLE t2;
@@ -11,22 +16,37 @@ SET DEBUG_SYNC = 'innodb_after_inplace_alter_table SIGNAL drop WAIT_FOR fk';
 DROP INDEX c2 ON t1;
 # Establish session con1 (user=root)
 # Session con1
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 SET DEBUG_SYNC = 'now WAIT_FOR drop';
 CREATE TABLE t2 (
 c2 INT PRIMARY KEY,
 CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
 ENGINE = InnoDB;
 # Establish session con2 (user=root)
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 # After WL#6049 CREATE TABLE t2 must be blocked while trying
 # to acquire exclusive metadata lock on t1.
 SET DEBUG_SYNC = 'now SIGNAL fk';
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 # Switching to connection con1.
 # So no chance for CREATE TABLE t2 to sneak before DROP INDEX
 # is committed in and succeed.
 /* reap */ CREATE TABLE t2 ...
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't2c2' in the referenced table 't1'
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 # Session default
 /* reap */ DROP INDEX c2 ON t1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t2 (
 c2 INT PRIMARY KEY,
 CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
@@ -34,3 +54,6 @@ ENGINE = InnoDB;
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't2c2' in the referenced table 't1'
 SET DEBUG_SYNC='RESET';
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.

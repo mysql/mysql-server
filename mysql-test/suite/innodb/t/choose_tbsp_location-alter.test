@@ -24,6 +24,7 @@ SET GLOBAL innodb_file_per_table=ON;
 
 SET NAMES utf8mb3;
 
+SET restrict_fk_on_non_standard_key=OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t1 (
  c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT,
@@ -578,7 +579,7 @@ CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_INDEXES i
 INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 
 -- source suite/innodb/include/innodb_dict.inc
-
+SET restrict_fk_on_non_standard_key=ON;
 --echo #
 --echo # Cleanup
 --echo #

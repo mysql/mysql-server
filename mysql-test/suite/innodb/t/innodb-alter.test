@@ -4,6 +4,7 @@ call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
 
 SET NAMES utf8mb3;
 
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (
  c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT,
  INDEX(c2))
@@ -404,6 +405,7 @@ ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/t' ORDER BY sc.pos, sc.NAME;
 
 DROP TABLE t;
+SET restrict_fk_on_non_standard_key=ON;
 
 --disable_query_log
 call mtr.add_suppression("deleting orphaned .ibd file");

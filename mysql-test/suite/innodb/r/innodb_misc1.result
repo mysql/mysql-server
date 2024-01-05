@@ -413,6 +413,9 @@ t2	CREATE TABLE `t2` (
   KEY `t2_ibfk_0` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2,t1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (
 field1 varchar(8) NOT NULL DEFAULT '',
 field2 varchar(8) NOT NULL DEFAULT '',
@@ -423,6 +426,8 @@ field1 varchar(8) NOT NULL DEFAULT '' PRIMARY KEY,
 FOREIGN KEY (field1) REFERENCES t1 (field1)
 ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('old', 'somevalu');
 INSERT INTO t1 VALUES ('other', 'anyvalue');
 INSERT INTO t2 VALUES ('old');
@@ -431,6 +436,9 @@ UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
 ERROR 23000: Foreign key constraint for table 't1', record 'other-somevalu' would lead to a duplicate entry in table 't2', key 'PRIMARY'
 DROP TABLE t2;
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 create table t1 (
 c1 bigint not null,
 c2 bigint not null,
@@ -691,12 +699,17 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (id int PRIMARY KEY, f int NOT NULL, INDEX(f)) ENGINE=InnoDB;
 CREATE TABLE t2 (id int PRIMARY KEY, f INT NOT NULL,
 CONSTRAINT t2_t1 FOREIGN KEY (id) REFERENCES t1 (id)
 ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB;
 ALTER TABLE t2 ADD FOREIGN KEY (f) REFERENCES t1 (f) ON
 DELETE CASCADE ON UPDATE CASCADE;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -713,10 +726,15 @@ CREATE TABLE t2 (a INT, INDEX(a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 ERROR HY000: Column 'a' cannot be NOT NULL: needed in a foreign key constraint 't2_ibfk_1' SET NULL
 DELETE FROM t1;
 DROP TABLE t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8mb3_unicode_ci PRIMARY KEY)
 ENGINE=InnoDB;
 Warnings:

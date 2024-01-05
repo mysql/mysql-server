@@ -3,6 +3,9 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A new Doc ID must be supplied while updating FTS indexed columns.");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (
 id1 INT ,
 a1 VARCHAR(200) ,
@@ -20,6 +23,10 @@ FULLTEXT KEY (b2,a2)
 ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 INSERT INTO t1 (id1,a1,b1) VALUES
 (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
 (2,'How To Use MySQL Well','After you went through a ...'),
@@ -173,11 +180,19 @@ commit;
 select * from t2 where match(s2) against ('Lollipops');
 s1	s2
 DROP TABLE t2 , t1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 create table t1 (s1 bigint unsigned not null, s2 varchar(200),
 primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (FTS_DOC_ID BIGINT UNSIGNED NOT NULL, s2 varchar(200),
 foreign key (FTS_DOC_ID) references t1 (s1)
 on update cascade) ENGINE = InnoDB;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 create fulltext index idx on t2(s2);
 show create table t2;
 Table	Create Table
@@ -241,6 +256,9 @@ SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
 id2	a2	b2
 DROP TABLE t2 , t1;
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* FTS Doc ID must be larger than 3 for table `test`.`t2`");
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (
 id1 INT ,
 a1 VARCHAR(200) ,
@@ -258,6 +276,10 @@ FULLTEXT KEY (b2,a2)
 ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 INSERT INTO t1 (id1,a1,b1) VALUES
 (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
 (2,'How To Use MySQL Well','After you went through a ...'),
@@ -841,6 +863,9 @@ SELECT * FROM t1;
 FTS_DOC_ID	no_fts_field	fts_field
 2	anychange	newchange
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1(ID INT PRIMARY KEY,
 no_fts_field VARCHAR(10),
 fts_field VARCHAR(10),
@@ -852,6 +877,11 @@ FULLTEXT INDEX f(fts_field),
 INDEX k2(fts_field),
 FOREIGN KEY(fts_field) REFERENCES
 t1(fts_field) ON UPDATE CASCADE) ENGINE=INNODB;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
 INSERT INTO t2 VALUES (1, 'AAA', 'BBB');
 update t1 set fts_field='newchange' where id =1;

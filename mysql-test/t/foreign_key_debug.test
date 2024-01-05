@@ -648,6 +648,7 @@ SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_n
   WHERE referenced_table_schema LIKE 'test';
 DROP TABLE child, parent;
 
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE parent (i INT, j INT,
                      d INT GENERATED ALWAYS AS (i) VIRTUAL,
                      e INT GENERATED ALWAYS AS (j) VIRTUAL,
@@ -677,6 +678,7 @@ SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_n
   FROM mysql.foreign_keys
   WHERE referenced_table_schema LIKE 'test';
 DROP TABLE child, parent;
+SET restrict_fk_on_non_standard_key=ON;
 
 CREATE TABLE self (i INT, j INT, i2 INT, j2 INT, PRIMARY KEY (i), UNIQUE u(i,j),
                    FOREIGN KEY (i2, j2) REFERENCES self (i, j));

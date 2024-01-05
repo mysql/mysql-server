@@ -2671,7 +2671,7 @@ DROP TABLE t1, t2;
 --echo #
 --echo # WL#10761 : ALTER TABLE RENAME COLUMN
 --echo #
-
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1(a INT, b VARCHAR(30), c FLOAT);
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(1,'abcd',1.234);
@@ -2828,6 +2828,7 @@ ALTER TABLE t1 CHANGE b `nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 
+SET restrict_fk_on_non_standard_key=ON;
 # Cleanup
 DROP VIEW v1;
 DROP TABLE t3,t1,t2;

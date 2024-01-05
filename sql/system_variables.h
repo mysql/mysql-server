@@ -504,6 +504,12 @@ struct System_variables {
 #ifndef NDEBUG
   char *debug_set_operations_secondary_overflow_at;
 #endif
+
+  /**
+    Restrict foreign keys on non-unique or partial keys.
+    @sa Sys_restrict_fk_on_non_standard_key
+  */
+  bool restrict_fk_on_non_standard_key;
 };
 
 static_assert(std::is_trivially_copyable<System_variables>::value);

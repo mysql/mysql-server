@@ -288,6 +288,9 @@ DROP TABLE t1;
 # Bug#15863023 - case6 enlarge varchar other
 # alter operations with fk on parent
 SET DEBUG_SYNC = 'RESET';
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) charset latin1, KEY(b)) ENGINE=Innodb;
 CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) charset latin1, CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
@@ -301,6 +304,9 @@ a	LEFT(b,10)	LENGTH(b) = 254
 1	aaaaaaaaaa	1
 2	bbbbbbbbbb	1
 3	cccccccccc	1
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 ALTER TABLE t2 CHANGE b2 b2 varchar(255) charset latin1, DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding foreign keys needs foreign_key_checks=OFF. Try ALGORITHM=COPY.
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
@@ -331,6 +337,9 @@ a	LEFT(b,10)	LENGTH(b) = 254
 3	cccccccccc	1
 4	dddddddddd	1
 SET DEBUG_SYNC='now SIGNAL s2';
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 SET foreign_key_checks = 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -366,4 +375,7 @@ a	LEFT(b,10)	LENGTH(b) = 254
 4	dddddddddd	1
 5	kkkkkkkkkk	0
 DROP TABLE t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 SET DEBUG_SYNC = 'RESET';

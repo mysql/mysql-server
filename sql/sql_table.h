@@ -391,6 +391,7 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
 
   @sa prepare_fk_parent_key(THD, handlerton, FOREIGN_KEY)
 
+  @param  thd                   Thread handle.
   @param  hton                  Handlerton for tables' storage engine.
   @param  parent_table_def      Object describing new version of parent table.
   @param  old_child_table_def   Object describing old version of child table.
@@ -407,7 +408,7 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
 
   @retval Operation result. False if success.
 */
-[[nodiscard]] bool prepare_fk_parent_key(handlerton *hton,
+[[nodiscard]] bool prepare_fk_parent_key(THD *thd, handlerton *hton,
                                          const dd::Table *parent_table_def,
                                          const dd::Table *old_parent_table_def,
                                          const dd::Table *old_child_table_def,
@@ -644,4 +645,8 @@ bool lock_check_constraint_names_for_rename(THD *thd, const char *db,
 bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
                                           const char *table_name,
                                           Alter_info *alter_info);
+
+extern std::atomic_ulong deprecated_use_fk_on_non_standard_key_count;
+extern std::atomic_ullong deprecated_use_fk_on_non_standard_key_last_timestamp;
+
 #endif /* SQL_TABLE_INCLUDED */

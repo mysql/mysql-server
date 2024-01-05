@@ -584,7 +584,7 @@ DROP TABLE t2,t1;
 # Test that cascading updates leading to duplicate keys give the correct
 # error message (bug #9680)
 #
-
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (
   field1 varchar(8) NOT NULL DEFAULT '',
   field2 varchar(8) NOT NULL DEFAULT '',
@@ -609,6 +609,7 @@ UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
 DROP TABLE t2;
 DROP TABLE t1;
 
+SET restrict_fk_on_non_standard_key=ON;
 #
 # Bug#18477 - MySQL/InnoDB Ignoring Foreign Keys in ALTER TABLE
 #
@@ -961,7 +962,7 @@ DROP TABLE t1;
 #
 # Bug #24741 (existing cascade clauses disappear when adding foreign keys)
 #
-
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (id int PRIMARY KEY, f int NOT NULL, INDEX(f)) ENGINE=InnoDB;
 
 CREATE TABLE t2 (id int PRIMARY KEY, f INT NOT NULL,
@@ -989,6 +990,7 @@ ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 DELETE FROM t1;
 DROP TABLE t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
 
 #
 # Bug #26835: table corruption after delete+insert
