@@ -41,8 +41,6 @@ class Certification_handler : public Event_handler {
 
   Certifier_interface *get_certifier();
 
-  int set_certification_info(std::map<std::string, std::string> *cert_info);
-
  private:
   Certifier *cert_module;
 
