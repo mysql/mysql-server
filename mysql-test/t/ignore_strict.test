@@ -65,6 +65,7 @@ DROP TABLE t1;
 
 #ER_ROW_IS_REFERENCED_2
 #ER_NO_REFERENCED_ROW_2
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (b INT, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE = InnoDB;
 CREATE TABLE t3 (c INT PRIMARY KEY, FOREIGN KEY(c) REFERENCES t2(b)) ENGINE = InnoDB;
@@ -87,6 +88,7 @@ UPDATE IGNORE t2 SET b=b+5;
 SELECT * FROM t2;
 
 DROP TABLE t3,t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
 
 #ER_BAD_NULL_ERROR
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
@@ -211,6 +213,7 @@ UPDATE IGNORE t1,t2 SET t2.b=NULL;
 DROP TABLE t1, t2;
 #ER_ROW_IS_REFERENCED_2
 #ER_NO_REFERENCED_ROW_2
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (b INT, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE = InnoDB;
 CREATE TABLE t3 (c INT PRIMARY KEY, FOREIGN KEY(c) REFERENCES t2(b)) ENGINE = InnoDB;
@@ -233,6 +236,7 @@ UPDATE IGNORE t2 SET b=b+5;
 SELECT * FROM t2;
 
 DROP TABLE t3,t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
 
 #ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 CREATE TABLE t1 (a int) ENGINE = InnoDB PARTITION BY HASH (a) PARTITIONS 2;
@@ -515,6 +519,7 @@ DROP TABLE t1,t2;
 --echo # This case checks foreign key relationships.
 #ER_DUP_ENTRY
 #ER_NO_REFERENCED_ROW_2
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (b INT, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE = InnoDB;
 CREATE TABLE t3 (c INT PRIMARY KEY, FOREIGN KEY(c) REFERENCES t2(b)) ENGINE = InnoDB;
@@ -537,6 +542,7 @@ UPDATE IGNORE t2 SET b=b+5;
 SELECT * FROM t2;
 
 DROP TABLE t3,t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
 
 --echo # This case checks that the number of warnings returned
 --echo # after multiupdate is correct.

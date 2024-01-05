@@ -10,6 +10,7 @@ set names utf8;
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A new Doc ID must be supplied while updating FTS indexed columns.");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
 
+SET restrict_fk_on_non_standard_key=OFF;
 # Create FTS table
 CREATE TABLE t1 (
         id1 INT ,
@@ -25,6 +26,7 @@ CREATE TABLE t2 (
         FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
         FULLTEXT KEY (b2,a2)
         ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+SET restrict_fk_on_non_standard_key=ON;
 
 # Insert rows
 INSERT INTO t1 (id1,a1,b1) VALUES
@@ -143,11 +145,13 @@ select * from t2 where match(s2) against ('Lollipops');
 DROP TABLE t2 , t1;
 
 # When Doc ID is involved
+SET restrict_fk_on_non_standard_key=OFF;
 create table t1 (s1 bigint unsigned not null, s2 varchar(200),
 		 primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (FTS_DOC_ID BIGINT UNSIGNED NOT NULL, s2 varchar(200),
 		 foreign key (FTS_DOC_ID) references t1 (s1)
 		 on update cascade) ENGINE = InnoDB;
+SET restrict_fk_on_non_standard_key=ON;
 
 create fulltext index idx on t2(s2);
 
@@ -223,6 +227,7 @@ DROP TABLE t2 , t1;
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* FTS Doc ID must be larger than 3 for table `test`.`t2`");
 
 # Create FTS table
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (
         id1 INT ,
         a1 VARCHAR(200) ,
@@ -237,6 +242,7 @@ CREATE TABLE t2 (
         FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
         FULLTEXT KEY (b2,a2)
         ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+SET restrict_fk_on_non_standard_key=ON;
 
 # Insert rows
 INSERT INTO t1 (id1,a1,b1) VALUES
@@ -763,7 +769,7 @@ UPDATE t1 SET no_fts_field='anychange' where FTS_DOC_ID = 2;
 SELECT * FROM t1;
 
 DROP TABLE t1;
-
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1(ID INT PRIMARY KEY,
 		no_fts_field VARCHAR(10),
 		fts_field VARCHAR(10),
@@ -776,6 +782,7 @@ CREATE TABLE t2(ID INT PRIMARY KEY,
 		INDEX k2(fts_field),
 		FOREIGN KEY(fts_field) REFERENCES
 		t1(fts_field) ON UPDATE CASCADE) ENGINE=INNODB;
+SET restrict_fk_on_non_standard_key=ON;
 
 INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
 

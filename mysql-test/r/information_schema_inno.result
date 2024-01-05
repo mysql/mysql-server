@@ -1,10 +1,15 @@
 DROP TABLE IF EXISTS t1,t2,t3;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id, id),
 FOREIGN KEY (t1_id) REFERENCES t1(id)  ON DELETE CASCADE,
 FOREIGN KEY (t1_id) REFERENCES t1(id)  ON UPDATE CASCADE) ENGINE=INNODB;
 CREATE TABLE t3 (id INT PRIMARY KEY, t2_id INT, INDEX par_ind (t2_id),
 FOREIGN KEY (id, t2_id) REFERENCES t2(t1_id, id)  ON DELETE CASCADE) ENGINE=INNODB;
+Warnings:
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test" order by TABLE_SCHEMA, TABLE_NAME, CONSTRAINT_NAME;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
@@ -35,10 +40,14 @@ CREATE TABLE t3(b1 INT, b2 INT, INDEX t3_indx (b1, b2),
 CONSTRAINT A2
 FOREIGN KEY (b1, b2) REFERENCES t2(b1, b2)
 ON UPDATE SET NULL ON DELETE RESTRICT) ENGINE=INNODB;
+Warnings:
+Warning	6124	Foreign key 'A2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 CREATE TABLE t4(b1 INT, b2 INT, UNIQUE KEY t4_ukey (b1, b2),
 CONSTRAINT A3
 FOREIGN KEY (b1, b2) REFERENCES t3(b1, b2)
 ON UPDATE NO ACTION ON DELETE SET NULL) ENGINE=INNODB;
+Warnings:
+Warning	6124	Foreign key 'A3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 CREATE TABLE t5(b1 INT, b2 INT, INDEX (b1, b2),
 CONSTRAINT A4
 FOREIGN KEY (b1, b2) REFERENCES t4(b1, b2)
@@ -57,6 +66,9 @@ test	t3	FOREIGN KEY	A2	test	NULL	NONE	SET NULL	RESTRICT	t2
 test	t4	FOREIGN KEY	A3	test	NULL	NONE	NO ACTION	SET NULL	t3
 test	t5	FOREIGN KEY	A4	test	t4_ukey	NONE	RESTRICT	CASCADE	t4
 drop tables t5, t4, t3, t2, t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 create database `db-1`;
 use `db-1`;
 create table `t-2` (

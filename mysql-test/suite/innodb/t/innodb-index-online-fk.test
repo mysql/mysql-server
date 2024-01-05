@@ -1,5 +1,6 @@
 --source include/have_debug.inc
 
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
 INSERT INTO parent VALUES(1,2),(2,3);
 
@@ -489,6 +490,7 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 DROP TABLE t2;
 
 DROP TABLE t3;
+SET restrict_fk_on_non_standard_key=ON;
 
 --echo # Bug #17449901	 TABLE DISAPPEARS WHEN ALTERING
 --echo # WITH FOREIGN KEY CHECKS OFF

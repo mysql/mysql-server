@@ -3290,6 +3290,9 @@ DROP TABLE t1, t2;
 #
 # WL#10761 : ALTER TABLE RENAME COLUMN
 #
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1(a INT, b VARCHAR(30), c FLOAT);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3427,6 +3430,8 @@ d	bb
 abcd	5
 CREATE TABLE t3(a int, b int, KEY(b)) ENGINE=InnoDB;
 ALTER TABLE t3 ADD CONSTRAINT FOREIGN KEY(b) REFERENCES t1(bb);
+Warnings:
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -3436,6 +3441,9 @@ t3	CREATE TABLE `t3` (
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`bb`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME COLUMN bb TO b;
+Warnings:
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3573,6 +3581,9 @@ t1	CREATE TABLE `t1` (
 SELECT * FROM t1;
 d	b
 abcd	5
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 DROP VIEW v1;
 DROP TABLE t3,t1,t2;
 SET SESSION information_schema_stats_expiry=default;

@@ -19,10 +19,15 @@ fld1	fld2
 2	2
 DROP TABLE t2, t1;
 # UPDATE SET NULL
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1(fld1 INT NOT NULL, fld2 INT NOT NULL PRIMARY KEY,
 KEY(fld1));
 CREATE TABLE t2(fld1 INT, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
 FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE SET NULL);
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(1, 2);
 INSERT INTO t2 VALUES(1, DEFAULT);
 UPDATE t1 SET fld1= 2;
@@ -59,6 +64,8 @@ DROP TABLE t2, t1;
 CREATE TABLE t1(fld1 INT NOT NULL, fld2 INT NOT NULL PRIMARY KEY, KEY(fld1));
 CREATE TABLE t2(fld1 INT, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
 FOREIGN KEY(fld1) REFERENCES t1(fld1) ON DELETE SET NULL);
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(1, 1);
 INSERT INTO t1 VALUES(2, 2);
 INSERT INTO t2 VALUES(1, DEFAULT);
@@ -76,6 +83,9 @@ fld1	fld2
 2	2
 NULL	NULL
 DROP TABLE t2, t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 # VIRTUAL INDEX CONTAINS FK CONSTRAINT COLUMN
 CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT, fld3 INT AS (fld2) VIRTUAL,
@@ -277,6 +287,9 @@ x	x	t2	x	index	x	vk	x	x	x	x	x
 DROP TABLE t2, t1;
 # Cascading UPDATEs and DELETEs for the multiple
 # fk dependent TABLEs
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
 KEY(fld1), KEY(fld2, fld1),
@@ -284,6 +297,8 @@ FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
 CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
 KEY(fld2, fld1),
 FOREIGN KEY(fld1) REFERENCES t2(fld1) ON UPDATE CASCADE);
+Warnings:
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(1), (2);
 INSERT INTO t2(fld1) VALUES(1), (2);
 INSERT INTO t3(fld1) VALUES(1), (2);
@@ -310,6 +325,8 @@ FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
 CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT NOT NULL,
 fld3 INT AS (fld2) VIRTUAL, KEY(fld3, fld1),
 FOREIGN KEY(fld1) REFERENCES t2(fld1) ON UPDATE CASCADE);
+Warnings:
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(1), (2);
 INSERT INTO t2 VALUES(1, 1, DEFAULT), (2, 2, default);
 INSERT INTO t3 VALUES(1, 1, DEFAULT), (2, 2, default);
@@ -336,6 +353,8 @@ FOREIGN KEY(fld1) REFERENCES t1(fld1) ON DELETE CASCADE);
 CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
 KEY(fld2, fld1), FOREIGN KEY(fld1) REFERENCES t2(fld1)
 ON DELETE CASCADE);
+Warnings:
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(1), (2);
 INSERT INTO t2(fld1) VALUES(1), (2);
 INSERT INTO t3(fld1) VALUES(1), (2);
@@ -363,6 +382,11 @@ CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT NOT NULL,
 fld3 INT AS (fld2) VIRTUAL, KEY(fld3, fld1),
 FOREIGN KEY(fld1) REFERENCES t2(fld1)
 ON DELETE CASCADE);
+Warnings:
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(1), (2);
 INSERT INTO t2 VALUES(1, 1, DEFAULT), (2, 2, default);
 INSERT INTO t3 VALUES(1, 1, DEFAULT), (2, 2, default);

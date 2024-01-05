@@ -1492,6 +1492,7 @@ DROP TABLE t1, t2;
 
 if ($test_foreign_keys)
 {
+  SET restrict_fk_on_non_standard_key=OFF;
   CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b)) engine=innodb;
   --error ER_WRONG_FK_DEF
   CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
@@ -1518,6 +1519,7 @@ if ($test_foreign_keys)
   SHOW CREATE TABLE t2;
   DROP TABLE t2;
   DROP TABLE t1;
+  SET restrict_fk_on_non_standard_key=ON;
 }
 
 #

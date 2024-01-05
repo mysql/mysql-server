@@ -1,3 +1,6 @@
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (
 a	varchar(40),
 KEY	a(a)
@@ -8,6 +11,11 @@ KEY	a(a),
 FULLTEXT KEY (a),
 CONSTRAINT fk FOREIGN KEY (a) REFERENCES t1 (a) ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+Warnings:
+Warning	6124	Foreign key 'fk' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('mysql');
 INSERT INTO t1_fk VALUES('mysql');
 INSERT INTO t1_fk VALUES('mysql');

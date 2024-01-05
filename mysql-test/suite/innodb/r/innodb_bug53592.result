@@ -32,6 +32,9 @@ check table bug53592;
 Table	Op	Msg_type	Msg_text
 test.bug53592	check	status	OK
 drop table bug53592;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE bug53592_1(
 col1 int, col2 int,
 PRIMARY KEY  (col1, col2)
@@ -41,6 +44,11 @@ col int PRIMARY KEY,
 FOREIGN KEY (col) REFERENCES bug53592_1 (col1)
 ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+Warnings:
+Warning	6124	Foreign key 'bug53592_2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 INSERT INTO bug53592_1 VALUES (1, 2);
 INSERT INTO bug53592_1 VALUES (3, 4);
 INSERT INTO bug53592_2 VALUES (1);

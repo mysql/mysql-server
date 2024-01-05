@@ -369,3 +369,10 @@ child	CREATE TABLE `child` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleanup
 drop table child, parent;
+CREATE TABLE t1(a INT, UNIQUE KEY a(a), KEY b(a)) ENGINE=NDBCLUSTER;
+ALTER TABLE t1 ADD CONSTRAINT c FOREIGN KEY(a) REFERENCES t1(a);
+ALTER TABLE t1 DROP KEY a, DROP KEY b;
+ERROR HY000: Cannot drop index 'a': needed in a foreign key constraint
+ALTER TABLE t1 DROP KEY a;
+ERROR HY000: Cannot drop index 'a': needed in a foreign key constraint
+DROP TABLE t1;

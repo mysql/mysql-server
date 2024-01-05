@@ -127,8 +127,13 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t2;
 DROP TABLE t1;
 include/rpl_sync.inc
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (c1 BINARY(1) PRIMARY KEY, c2 BINARY(1), KEY(c2));
 CREATE TABLE t2 (x1 BINARY(1) PRIMARY KEY, x2 BINARY(1), FOREIGN KEY (x2) REFERENCES t1(c2));
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,1);
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_foreign_key_on_referenced_non_unique_key_parent_generated_insert';
@@ -143,6 +148,9 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t2;
 DROP TABLE t1;
 include/rpl_sync.inc
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 CREATE TABLE t1(a BINARY(1), b BINARY(1), c BINARY(1), PRIMARY KEY (a,b,c));
 CREATE TABLE t2(d BINARY(1), e BINARY(1), f BINARY(1), PRIMARY KEY (d,e,f), CONSTRAINT foreign_key_t2_t1 FOREIGN KEY (d,e,f) REFERENCES t1(a,b,c));
 INSERT INTO t1 VALUES (1,2,3);

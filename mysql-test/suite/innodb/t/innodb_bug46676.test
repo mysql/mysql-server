@@ -4,8 +4,10 @@
 
 
 SET foreign_key_checks=0;
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (id int, foreign key (id) references t2(id)) ENGINE=INNODB;
 CREATE TABLE t2 (id int, foreign key (id) references t1(id)) ENGINE=INNODB;
+SET restrict_fk_on_non_standard_key=ON;
 SET foreign_key_checks=1;
 
 # Server crashes

@@ -6,12 +6,13 @@
 # Start the server with innodb-fast-shutdown=2,so that
 # during next invocation of server it enters crash
 # recovery mode
-
+SET restrict_fk_on_non_standard_key=OFF;
 create database MYDB;
 USE MYDB;
 CREATE TABLE mytable (id int primary key) ENGINE=innodb;
 CREATE TABLE FOO (id int,constraint FOREIGN KEY (id) REFERENCES mytable(id) ON DELETE CASCADE) ENGINE=innodb;
 CREATE TABLE mytable_ref (id int,constraint FOREIGN KEY (id) REFERENCES FOO(id) ON DELETE CASCADE) ENGINE=innodb;
+SET restrict_fk_on_non_standard_key=ON;
 
 INSERT INTO mytable VALUES (10),(20),(30),(40);
 INSERT INTO FOO VALUES (20),(10);

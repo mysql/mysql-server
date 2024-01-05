@@ -4,6 +4,7 @@
 --source include/count_sessions.inc
 
 SET NAMES utf8mb3;
+SET restrict_fk_on_non_standard_key=OFF;
 
 CREATE TABLE ① (
  c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2))
@@ -27,6 +28,7 @@ SET DEBUG = '-d,ib_rename_column_error';
 
 SHOW CREATE TABLE t1ć;
 
+SET restrict_fk_on_non_standard_key=ON;
 DROP TABLE t1ć, ①;
 
 --echo #

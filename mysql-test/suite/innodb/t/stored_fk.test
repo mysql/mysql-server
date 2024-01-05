@@ -49,6 +49,7 @@ SET foreign_key_checks=0;
 DROP TABLE IF EXISTS s,t;
 --enable_warnings
 
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE s (a INT, b INT GENERATED ALWAYS AS (0) STORED,  c INT,
 		d INT GENERATED ALWAYS AS (0) VIRTUAL, e INT) ENGINE=innodb;
 
@@ -100,5 +101,6 @@ ALTER  TABLE t ADD PRIMARY KEY(a);
 ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES t(a) ON UPDATE SET null;
 
 DROP TABLE s,t;
+SET restrict_fk_on_non_standard_key=ON;
 
 SET @@foreign_key_checks = @foreign_key_checks_saved;

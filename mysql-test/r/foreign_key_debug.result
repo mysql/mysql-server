@@ -627,17 +627,25 @@ WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
 child_ibfk_1	u3	test	parent
 DROP TABLE child, parent;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE parent (i INT, j INT,
 d INT GENERATED ALWAYS AS (i) VIRTUAL,
 e INT GENERATED ALWAYS AS (j) VIRTUAL,
 PRIMARY KEY (i), UNIQUE u(i,d), UNIQUE u1(i,j,e));
 CREATE TABLE child (i INT, j INT, FOREIGN KEY (i, j) REFERENCES parent (i, j));
+Warnings:
+Warning	6124	Foreign key 'child_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
 child_ibfk_1	u1	test	parent
 ALTER TABLE parent RENAME KEY u1 TO u2;
+Warnings:
+Warning	6124	Foreign key 'child_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 'child_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
@@ -651,14 +659,17 @@ SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_n
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
-child_ibfk_1	u1	test	parent
+child_ibfk_1	u	test	parent
 ALTER TABLE parent RENAME KEY u1 TO u2;
 SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
-child_ibfk_1	u2	test	parent
+child_ibfk_1	u	test	parent
 DROP TABLE child, parent;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 CREATE TABLE self (i INT, j INT, i2 INT, j2 INT, PRIMARY KEY (i), UNIQUE u(i,j),
 FOREIGN KEY (i2, j2) REFERENCES self (i, j));
 SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name

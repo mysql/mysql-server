@@ -73,9 +73,14 @@ a
 3
 3
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (b INT, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE = InnoDB;
 CREATE TABLE t3 (c INT PRIMARY KEY, FOREIGN KEY(c) REFERENCES t2(b)) ENGINE = InnoDB;
+Warnings:
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1), (2), (5);
 INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1), (2);
@@ -105,6 +110,9 @@ SELECT * FROM t2;
 b
 1
 DROP TABLE t3,t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1),(NULL),(2);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -271,9 +279,14 @@ UPDATE t1,t2 SET t2.b=NULL;
 ERROR 23000: Column 'b' cannot be null
 UPDATE IGNORE t1,t2 SET t2.b=NULL;
 DROP TABLE t1, t2;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (b INT, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE = InnoDB;
 CREATE TABLE t3 (c INT PRIMARY KEY, FOREIGN KEY(c) REFERENCES t2(b)) ENGINE = InnoDB;
+Warnings:
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1), (2), (5);
 INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1), (2);
@@ -303,6 +316,9 @@ SELECT * FROM t2;
 b
 1
 DROP TABLE t3,t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a int) ENGINE = InnoDB PARTITION BY HASH (a) PARTITIONS 2;
 INSERT INTO t1 VALUES (0), (1), (2), (3);
 CREATE VIEW v1 AS SELECT a FROM t1 PARTITION (p0);
@@ -689,9 +705,14 @@ DROP TABLE t1,t2;
 #
 
 # This case checks foreign key relationships.
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (b INT, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE = InnoDB;
 CREATE TABLE t3 (c INT PRIMARY KEY, FOREIGN KEY(c) REFERENCES t2(b)) ENGINE = InnoDB;
+Warnings:
+Warning	6124	Foreign key 't3_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1), (2), (5);
 INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1), (2);
@@ -721,6 +742,9 @@ SELECT * FROM t2;
 b
 1
 DROP TABLE t3,t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 # This case checks that the number of warnings returned
 # after multiupdate is correct.
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = InnoDB;

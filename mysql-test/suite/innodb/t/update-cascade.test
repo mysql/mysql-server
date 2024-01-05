@@ -58,10 +58,11 @@ set debug_sync = reset;
 --echo # cascade happens in secondary index. For secondary index testing,
 --echo # blobs are not needed.
 --echo #
-
+SET restrict_fk_on_non_standard_key=OFF;
 create table t1 (f1 int primary key, f2 int, key k1(f2)) engine=innodb;
 create table t2 (f1 int primary key, f2 int,
    foreign key (f2) references t1(f2) on update cascade) engine=innodb;
+SET restrict_fk_on_non_standard_key=ON;
 
 show create table t1;
 show create table t2;
@@ -175,6 +176,7 @@ set debug_sync = reset;
 --echo # retry must happen on t2.  The update cascade is happening via
 --echo # secondary index (hence blobs are not needed).
 --echo #
+SET restrict_fk_on_non_standard_key=OFF;
 
 create table t1 (f1 int primary key, f2 int, key k1(f2)) engine=innodb;
 create table t2 (f1 int primary key, f2 int,
@@ -238,6 +240,7 @@ commit;
 drop table t3, t2, t1;
 
 set debug_sync = reset;
+SET restrict_fk_on_non_standard_key=ON;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

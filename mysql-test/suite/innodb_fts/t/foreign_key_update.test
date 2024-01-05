@@ -1,6 +1,7 @@
 #
 # BUG#21111301 INNODB FTS: ERROR DUPLICATE ENTRY IN FTS_DOC_ID_INDEX ON UPDATE CASCADE
 #
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (
 	a	varchar(40),
 	KEY	a(a)
@@ -12,6 +13,7 @@ CREATE TABLE t1_fk (
 	FULLTEXT KEY (a),
 	CONSTRAINT fk FOREIGN KEY (a) REFERENCES t1 (a) ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+SET restrict_fk_on_non_standard_key=ON;
 
 INSERT INTO t1 VALUES('mysql');
 
