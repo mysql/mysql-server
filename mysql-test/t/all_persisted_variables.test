@@ -170,12 +170,16 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $total_persistent_vars
 --source include/assert.inc
 
+# The fix for the Bug #35529604 declares the character_set_server variable as PERSIST_AS_READONLY. Because of this, the said variable is
+# persisted as "mysql_static_variables" and during the start up of the server, the source is not updated properly. So, for the assert
+# conditions below, the count is reduced by 1 because the character_set_server variable has VARIABLE_SOURCE=COMPILED.
+# There is a bug filed (Bug #36221843) to migrate all the options from my_long_options[] to Sys_vars. Fixing this bug would fix this.
 --let $assert_text= Expect $total_persistent_vars persisted variables shown as PERSISTED in variables_info table.
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $total_persistent_vars
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $total_persistent_vars-1
 --source include/assert.inc
 
  --let $assert_text= Expect $total_persistent_vars persisted variables with matching peristed and global values.
- --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $total_persistent_vars
+ --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $total_persistent_vars-1
 --source include/assert.inc
 
 --echo
