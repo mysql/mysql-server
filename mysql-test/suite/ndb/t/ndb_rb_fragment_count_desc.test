@@ -43,7 +43,6 @@ show create table t5;
 --let $ndb_describe_table= t4
 --source suite/ndb/include/ndb_describe_table.inc
 --let $ndb_describe_table= t5
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 drop table t1, t2, t3, t4, t5;

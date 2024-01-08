@@ -11,9 +11,6 @@ Unable to resolve any of the address in connect string: nodeid=0,no_such_host:11
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Disconnected
-
-NDBT_ProgramExit: 1 - Failed
-
 Testing ndb_config
 Testing ndb_delete_all
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
@@ -25,31 +22,19 @@ Unable to resolve any of the address in connect string: nodeid=0,no_such_host:11
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to connect to management server.
-
-NDBT_ProgramExit: 1 - Failed
-
 Testing ndb_drop_index
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
-
-NDBT_ProgramExit: 1 - Failed
-
 Testing ndb_drop_table
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to connect to management server.
-
-NDBT_ProgramExit: 1 - Failed
-
 Testing ndb_index_stat
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
-
-NDBT_ProgramExit: 1 - Failed
-
 Testing ndb_restore
 CREATE TABLE t1 (col1 int)engine=ndb;
 drop table t1;
@@ -59,17 +44,11 @@ Unable to resolve any of the address in connect string: nodeid=0,no_such_host:11
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to connect to management server.
-
-NDBT_ProgramExit: 1 - Failed
-
 Testing ndb_select_count
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to connect to management server.
-
-NDBT_ProgramExit: 1 - Failed
-
 Testing ndb_show_tables
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186

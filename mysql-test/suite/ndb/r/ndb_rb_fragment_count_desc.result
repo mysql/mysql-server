@@ -197,9 +197,6 @@ a Bigint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 drop table t1, t2, t3, t4, t5;
 set @@global.ndb_read_backup = @save_ndb_read_backup;
 set @save_ndb_fully_replicated = @@global.ndb_fully_replicated;

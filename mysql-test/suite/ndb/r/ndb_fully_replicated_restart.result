@@ -119,9 +119,6 @@ TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
 HashMap: DEFAULT-HASHMAP-3840-1
 
-
-NDBT_ProgramExit: 0 - OK
-
 insert into t1 values
 (0, "row 0", 0, REPEAT("qubit#0",500)),
 (1, "row 1", 1, REPEAT("qubit#1",500)),

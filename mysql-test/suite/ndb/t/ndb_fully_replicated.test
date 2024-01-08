@@ -31,7 +31,6 @@ CREATE TABLE t1 (
 ) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
 show create table t1;
 --let $ndb_describe_table= t1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 insert into t1 values
@@ -77,7 +76,6 @@ alter table t1 algorithm=copy, add partition partitions 1;
 alter table t1 algorithm=inplace, add column c int column_format dynamic;
 show create table t1;
 --let $ndb_describe_table= t1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 --error ER_ILLEGAL_HA_CREATE_OPTION
@@ -86,18 +84,15 @@ alter table t1 algorithm=copy, comment='NDB_TABLE=';
 alter table t1 algorithm=copy, comment='NDB_TABLE=READ_BACKUP=1';
 show create table t1;
 --let $ndb_describe_table= t1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 alter table t1 algorithm=copy, comment='NDB_TABLE=FULLY_REPLICATED=1';
 show create table t1;
 --let $ndb_describe_table= t1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 alter table t1 algorithm=copy, comment='comment text';
 --let $ndb_describe_table= t1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 show create table t1;
 

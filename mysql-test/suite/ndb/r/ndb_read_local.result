@@ -751,9 +751,6 @@ NDB$DATA Longvarchar(2000;binary) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a, NDB$PART) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 select id into @t1_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t1';
 select id into @t1ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t1_id and type = 3;
 select id into @t2_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t2';
@@ -1463,9 +1460,6 @@ NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
 NDB$DATA Longvarchar(2000;binary) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a, NDB$PART) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 select id into @t1_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t1';
 select id into @t1ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t1_id and type = 3;

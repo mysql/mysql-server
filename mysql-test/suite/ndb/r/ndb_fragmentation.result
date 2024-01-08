@@ -159,9 +159,6 @@ NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(y) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 CREATE TABLE t02 (x int primary key, y int, unique key (y)) engine=ndb
 partition by list(x) (
 partition p0 values in (0),
@@ -311,9 +308,6 @@ NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(y) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 ALTER TABLE t02 ALGORITHM=INPLACE, ADD PARTITION (partition p4 values in (4));
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
 show warnings;
@@ -354,9 +348,6 @@ x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x) - UniqueHashIndex
 PRIMARY(x) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 ALTER TABLE t03 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
 show warnings;
@@ -430,9 +421,6 @@ NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 CREATE TABLE t05 (x int primary key, y blob) engine=ndb;
 -- t05 --
 Version: Any
@@ -493,9 +481,6 @@ NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
 NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 ALTER TABLE t05 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
@@ -653,9 +638,6 @@ NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(y) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 CREATE TABLE t07 (x int primary key, y int, unique key (y)) engine=ndb;
 -- t07 --
 Version: Any
@@ -799,9 +781,6 @@ y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(y) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 ALTER TABLE t07 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
@@ -990,9 +969,6 @@ NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 set global ndb_fully_replicated=0;
 CREATE TABLE t12 (x int primary key, y blob, z int, unique key (z)) engine=ndb partition by key(x) partitions 4;
 -- t12 --
@@ -1169,9 +1145,6 @@ NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
 NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 set global ndb_fully_replicated=0;
 CREATE TABLE t11 (x int primary key, y blob, z int, unique key (z)) engine=ndb;
@@ -1350,9 +1323,6 @@ NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 Nodegroup 2 created
 set global ndb_fully_replicated=0;
 CREATE TABLE t08 (x int primary key, y int) engine=ndb
@@ -1505,9 +1475,6 @@ NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(y) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 CREATE TABLE t09 (x int primary key, y int, unique key (y)) engine=ndb
 partition by list(x) (
 partition p0 values in (0),
@@ -1657,9 +1624,6 @@ NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(y) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 set global ndb_fully_replicated=1;
 alter table t03 algorithm=inplace, reorganize partition;
 -- t03 --
@@ -1690,9 +1654,6 @@ x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x) - UniqueHashIndex
 PRIMARY(x) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t04 algorithm=inplace, reorganize partition;
 -- t04 --
 Version: Any
@@ -1753,9 +1714,6 @@ NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
 NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 alter table t05 algorithm=inplace, reorganize partition;
 -- t05 --
@@ -1818,9 +1776,6 @@ NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t06 algorithm=inplace, reorganize partition;
 -- t06 --
 Version: Any
@@ -1853,9 +1808,6 @@ PRIMARY KEY(x) - UniqueHashIndex
 PRIMARY(x) - OrderedIndex
 y(y) - OrderedIndex
 y$unique(y) - UniqueHashIndex
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t07 algorithm=inplace, reorganize partition;
 -- t07 --
 Version: Any
@@ -1888,9 +1840,6 @@ PRIMARY KEY(x) - UniqueHashIndex
 PRIMARY(x) - OrderedIndex
 y(y) - OrderedIndex
 y$unique(y) - UniqueHashIndex
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t10 algorithm=inplace, reorganize partition;
 -- t10 --
 Version: Any
@@ -1955,9 +1904,6 @@ NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t11 algorithm=inplace, reorganize partition;
 -- t11 --
 Version: Any
@@ -2021,9 +1967,6 @@ NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
 NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 set global ndb_fully_replicated = 0;
 alter table t12 algorithm=inplace, add partition partitions 4;
@@ -2207,9 +2150,6 @@ NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
 NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 drop tables t01,t02,t03,t04,t05,t06,t07,t08,t09,t10,t11,t12;
 set global new = @old_new;

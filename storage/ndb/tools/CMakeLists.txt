@@ -102,25 +102,25 @@ NDB_ADD_EXECUTABLE(ndb_waiter
   )
 NDB_ADD_EXECUTABLE(ndb_drop_table
   drop_tab.cpp
-  NDBTEST ${LINK_NDBCLIENT}
+  ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
   )
 NDB_ADD_EXECUTABLE(ndb_delete_all
   delete_all.cpp
-  NDBTEST ${LINK_NDBCLIENT}
+  ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
   )
 NDB_ADD_EXECUTABLE(ndb_desc
   desc.cpp
-  NDBTEST ${LINK_NDBCLIENT}
+  ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
   )
 NDB_ADD_EXECUTABLE(ndb_drop_index
   drop_index.cpp
-  NDBTEST ${LINK_NDBCLIENT}
+  ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
   )
@@ -191,7 +191,7 @@ NDB_ADD_EXECUTABLE(ndb_index_stat
   )
 NDB_ADD_EXECUTABLE(ndbinfo_select_all
   ndbinfo_select_all.cpp
-  NDBTEST ${LINK_NDBCLIENT}
+  ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
   )

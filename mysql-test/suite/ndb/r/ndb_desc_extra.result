@@ -36,9 +36,6 @@ PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 -- AutoIncrement info
 AutoIncrement: 1
-
-NDBT_ProgramExit: 0 - OK
-
 insert into test.t1 (b) values (888);
 select * from test.t1 order by a;
 a	b
@@ -79,9 +76,6 @@ PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 -- AutoIncrement info
 AutoIncrement: 2
-
-NDBT_ProgramExit: 0 - OK
-
 insert into test.t1 (a,b) values (12345, 888);
 select * from test.t1 order by a;
 a	b
@@ -123,9 +117,6 @@ PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 -- AutoIncrement info
 AutoIncrement: 12346
-
-NDBT_ProgramExit: 0 - OK
-
 insert into test.t1 (b) values (888);
 select * from test.t1 order by a;
 a	b
@@ -168,9 +159,6 @@ PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 -- AutoIncrement info
 AutoIncrement: 12347
-
-NDBT_ProgramExit: 0 - OK
-
 drop table test.t1;
 create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
 Re-created table with auto-inc, initial value
@@ -209,9 +197,6 @@ PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 -- AutoIncrement info
 AutoIncrement: 1
-
-NDBT_ProgramExit: 0 - OK
-
 drop table test.t1;
 create table test.t1 (a int primary key, b int) engine=ndb;
 Re-created table with no auto-inc key
@@ -248,9 +233,6 @@ b Int NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 Table with no auto-inc
 drop table test.t1;
 drop table test.t2;
@@ -293,9 +275,6 @@ PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 -- AutoIncrement info
 AutoIncrement: 1
-
-NDBT_ProgramExit: 0 - OK
-
 insert into test.t3 (b) values (1);
 select * from test.t3 order by a;
 a	b
@@ -336,9 +315,6 @@ PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 -- AutoIncrement info
 AutoIncrement: 9
-
-NDBT_ProgramExit: 0 - OK
-
 insert into test.t3 (b) values (1), (1), (1), (1), (1), (1), (1);
 select * from test.t3 order by a;
 a	b
@@ -386,9 +362,6 @@ PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 -- AutoIncrement info
 AutoIncrement: 9
-
-NDBT_ProgramExit: 0 - OK
-
 insert into test.t3 (b) values (1);
 select * from test.t3 order by a;
 a	b
@@ -437,7 +410,4 @@ PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 -- AutoIncrement info
 AutoIncrement: 17
-
-NDBT_ProgramExit: 0 - OK
-
 drop table test.t3;

@@ -24,10 +24,11 @@
 #include <ndb_opts.h>
 
 #include <ndb_rand.h>
-#include <NDBT.hpp>
 #include <NdbApi.hpp>
 #include <NdbIndexStatImpl.hpp>
 #include <NdbOut.hpp>
+#include "NDBT_Output.hpp"
+#include "NdbToolsProgramExitCodes.hpp"
 
 // stats options
 static const char *_dbname = 0;
@@ -583,7 +584,7 @@ int main(int argc, char **argv) {
   opts.set_usage_funcs(short_usage_sub, usage_extra);
   ret = opts.handle_options();
   if (ret != 0 || checkopts(argc, argv) != 0) {
-    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   }
   setOutputLevel(_verbose ? 2 : 0);
 
@@ -593,7 +594,7 @@ int main(int argc, char **argv) {
 
   ret = doall();
   if (ret == -1) {
-    exit(NDBT_ProgramExit(NDBT_FAILED));
+    return NdbToolsProgramExitCode::FAILED;
   }
-  exit(NDBT_ProgramExit(NDBT_OK));
+  return NdbToolsProgramExitCode::OK;
 }

@@ -164,20 +164,6 @@ if($ndb_describe_blobs)
   WHERE blobs.table_id = @describe_table_id;
 }
 
-# Formatting for perfect compatibility with old result files:
-if ($ndb_describe_print_exit)
-{
-  dec $ndb_describe_print_exit;
-  while($ndb_describe_print_exit)
-  {
-    echo;
-    dec $ndb_describe_print_exit;
-  }
-  echo NDBT_ProgramExit: 0 - OK;
-  echo;
-}
-
-
 # Reset argument variable in order to detect missing assignment
 let $ndb_describe_table=;
 let $ndb_describe_db=;

@@ -24,10 +24,11 @@
 #include <ndb_global.h>
 #include <ndb_limits.h>
 #include <ndb_opts.h>
-#include <NDBT.hpp>
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
 #include <ndb_lib_move_data.hpp>
+#include "NDBT_Output.hpp"
+#include "NdbToolsProgramExitCodes.hpp"
 #include "util/cstrbuf.h"
 
 static const char *opt_dbname = "TEST_DB";
@@ -300,13 +301,13 @@ int main(int argc, char **argv) {
   opts.set_usage_funcs(short_usage_sub, usage_extra);
   ret = opts.handle_options();
   if (ret != 0 || checkopts(argc, argv) != 0) {
-    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   }
   setOutputLevel(opt_verbose ? 2 : 0);
 
   ret = doall();
   if (ret == -1) {
-    exit(NDBT_ProgramExit(NDBT_FAILED));
+    return NdbToolsProgramExitCode::FAILED;
   }
-  exit(NDBT_ProgramExit(NDBT_OK));
+  return NdbToolsProgramExitCode::OK;
 }

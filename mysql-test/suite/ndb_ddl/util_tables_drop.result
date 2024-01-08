@@ -10,9 +10,6 @@ t1	CREATE TABLE `t1` (
 RESET MASTER;
 # Drop mysql.ndb_schema from NDB
 Dropping table ndb_schema...OK
-
-NDBT_ProgramExit: 0 - OK
-
 # mysqld1: Wait until ready again...
 # mysqld2: Wait until ready again...
 # mysqld3: Wait until ready again...
@@ -43,9 +40,6 @@ t1	CREATE TABLE `t1` (
 RESET MASTER;
 # Drop mysql.ndb_apply_status from NDB
 Dropping table ndb_apply_status...OK
-
-NDBT_ProgramExit: 0 - OK
-
 # mysqld1: Wait until ready again...
 # mysqld2: Wait until ready again...
 # mysqld3: Wait until ready again...
@@ -78,9 +72,6 @@ t1	CREATE TABLE `t1` (
 RESET MASTER;
 # Drop mysql.ndb_schema_result from NDB
 Dropping table ndb_schema_result...OK
-
-NDBT_ProgramExit: 0 - OK
-
 # mysqld1: Wait until ready again...
 # mysqld2: Wait until ready again...
 # mysqld3: Wait until ready again...

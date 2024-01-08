@@ -25,8 +25,10 @@
 #include <NdbSleep.h>
 #include <ndb_global.h>
 #include <ndb_opts.h>
-#include <NDBT.hpp>
 #include <NdbApi.hpp>
+#include "NdbToolsLogging.hpp"
+#include "NdbToolsProgramExitCodes.hpp"
+#include "util/NdbOut.hpp"
 #include "util/require.h"
 
 #include "my_alloc.h"
@@ -97,23 +99,23 @@ int main(int argc, char **argv) {
 #ifndef NDEBUG
   opt_debug = "d:t:O,/tmp/ndb_desc.trace";
 #endif
-  if (opts.handle_options()) return NDBT_ProgramExit(NDBT_WRONGARGS);
+  if (opts.handle_options()) return NdbToolsProgramExitCode::WRONG_ARGS;
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_desc");
   if (con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0) {
     ndbout << "Unable to connect to management server." << endl;
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
   if (con.wait_until_ready(30, 0) < 0) {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
 
   Ndb MyNdb(&con, _dbname);
   if (MyNdb.init() != 0) {
     NDB_ERR(MyNdb.getNdbError());
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
 
   for (int i = 0; i < argc; i++) {
@@ -135,7 +137,7 @@ int main(int argc, char **argv) {
       ndbout << "No such object: " << argv[i] << endl << endl;
   }
 
-  return NDBT_ProgramExit(NDBT_OK);
+  return NdbToolsProgramExitCode::OK;
 }
 
 void desc_AutoGrowSpecification(
@@ -306,7 +308,7 @@ int desc_table(Ndb *myndb, char const *name) {
       const NdbDictionary::Column *column = pTab->getColumn(i);
       if ((column->getType() == NdbDictionary::Column::Blob) ||
           (column->getType() == NdbDictionary::Column::Text)) {
-        NDBT_Table *blobTable = (NDBT_Table *)column->getBlobTable();
+        const NdbDictionary::Table *blobTable = column->getBlobTable();
 
         if (blobTable) /* blob table present */
         {

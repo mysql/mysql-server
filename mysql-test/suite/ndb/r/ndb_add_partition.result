@@ -162,9 +162,6 @@ NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 CREATE TABLE t2 (a int unsigned not null,
 b int unsigned not null,
 c int unsigned not null,
@@ -323,9 +320,6 @@ NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 CREATE TABLE t3 (a int unsigned not null,
 b int unsigned not null,
 c int unsigned not null,
@@ -478,9 +472,6 @@ b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 CREATE TABLE t4 (a int unsigned not null,
 b int unsigned not null,
@@ -896,9 +887,6 @@ NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t2 algorithm=inplace, reorganize partition;
 -- t2 --
 Version: Any
@@ -1047,9 +1035,6 @@ b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 Cannot use inplace reorganize partition on t3 as it has explicit MAX_ROWS set
 alter table t3 algorithm=inplace, reorganize partition;
@@ -1203,9 +1188,6 @@ b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 alter table t4 algorithm=inplace, reorganize partition;
 alter table t5 algorithm=inplace partition by key() partitions 6;
@@ -1370,9 +1352,6 @@ NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t2 algorithm=inplace, add partition partitions 4;
 -- t2 --
 Version: Any
@@ -1522,9 +1501,6 @@ NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t3 algorithm=inplace, max_rows=100000000;
 -- t3 --
 Version: Any
@@ -1671,9 +1647,6 @@ b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 alter table t4 algorithm=inplace, max_rows=100000000;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: setting MAX_ROWS on table without MAX_ROWS. Try ALGORITHM=COPY.
@@ -2037,9 +2010,6 @@ NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t2 algorithm=inplace, add partition partitions 1;
 -- t2 --
 Version: Any
@@ -2189,9 +2159,6 @@ NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
 
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t3 algorithm=inplace, max_rows=150000000;
 -- t3 --
 Version: Any
@@ -2338,9 +2305,6 @@ b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(b) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 partitions added to t1 (expect 3)
 t1_added
@@ -2741,9 +2705,6 @@ c Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(c) - UniqueHashIndex
-
-
-NDBT_ProgramExit: 0 - OK
 
 drop table t1,t2,t3,t5;
 Bug 33523991 Ndb online reorg : Scan count verification

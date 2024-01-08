@@ -147,7 +147,4 @@ a Bigint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 drop table t1, t2, t3, t4, t5;
