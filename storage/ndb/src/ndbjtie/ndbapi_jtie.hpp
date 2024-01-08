@@ -2224,19 +2224,11 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_listObjects(
       "jint "
       "Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_listObjects("
       "JNIEnv *, jobject, jobject, jint)");
-#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
   return gcall_mfr<ttrait_c_m_n_n_NdbDictionary_Dictionary_ct, ttrait_int,
                    ttrait_c_m_n_n_NdbDictionary_DictionaryConst_List_r,
                    ttrait_c_m_n_n_NdbDictionary_Object_Type_iv /*_enum_*/,
                    &NdbDictionary::Dictionary::listObjects>(
       env, obj, p0, p1);  // call of overloaded const/non-const method
-#else
-  return gcall_fr<ttrait_int, ttrait_c_m_n_n_NdbDictionary_Dictionary_cr,
-                  ttrait_c_m_n_n_NdbDictionary_DictionaryConst_List_r,
-                  ttrait_c_m_n_n_NdbDictionary_Object_Type_iv /*_enum_*/,
-                  &NdbApiWrapper::NdbDictionary__Dictionary__listObjects__0>(
-      env, NULL, obj, p0, p1);
-#endif  // NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
 }
 
 /*
@@ -2307,19 +2299,11 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_listIndexes(
       "jint "
       "Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_listIndexes("
       "JNIEnv *, jobject, jobject, jstring)");
-#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
   return gcall_mfr<ttrait_c_m_n_n_NdbDictionary_Dictionary_ct, ttrait_int,
                    ttrait_c_m_n_n_NdbDictionary_DictionaryConst_List_r,
                    ttrait_char_cp_jutf8null,
                    &NdbDictionary::Dictionary::listIndexes>(
       env, obj, p0, p1);  // call of overloaded const/non-const method
-#else
-  return gcall_fr<ttrait_int, ttrait_c_m_n_n_NdbDictionary_Dictionary_cr,
-                  ttrait_c_m_n_n_NdbDictionary_DictionaryConst_List_r,
-                  ttrait_char_cp_jutf8null,
-                  &NdbApiWrapper::NdbDictionary__Dictionary__listIndexes__0>(
-      env, NULL, obj, p0, p1);
-#endif  // NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
 }
 
 /*
@@ -2334,17 +2318,10 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_listEvents(
       "jint "
       "Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_listEvents("
       "JNIEnv *, jobject, jobject)");
-#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
   return gcall_mfr<ttrait_c_m_n_n_NdbDictionary_Dictionary_ct, ttrait_int,
                    ttrait_c_m_n_n_NdbDictionary_DictionaryConst_List_r,
                    &NdbDictionary::Dictionary::listEvents>(
       env, obj, p0);  // call of overloaded const/non-const method
-#else
-  return gcall_fr<ttrait_int, ttrait_c_m_n_n_NdbDictionary_Dictionary_cr,
-                  ttrait_c_m_n_n_NdbDictionary_DictionaryConst_List_r,
-                  &NdbApiWrapper::NdbDictionary__Dictionary__listEvents__0>(
-      env, NULL, obj, p0);
-#endif  // NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
 }
 
 /*

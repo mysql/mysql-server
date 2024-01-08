@@ -906,9 +906,6 @@ class NdbOperation {
    *
    * @return method number where the error occurred.
    */
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-  int getNdbErrorLine();
-#endif
   int getNdbErrorLine() const;
 
   /**
@@ -1593,12 +1590,6 @@ inline int NdbOperation::checkMagicNumber(bool b) {
 }
 
 inline void NdbOperation::setStartIndicator() { theStartIndicator = 1; }
-
-inline int NdbOperation::getNdbErrorLine() {
-  // delegate to overloaded const function for same semantics
-  const NdbOperation *const cthis = this;
-  return cthis->NdbOperation::getNdbErrorLine();
-}
 
 inline int NdbOperation::getNdbErrorLine() const { return theErrorLine; }
 
