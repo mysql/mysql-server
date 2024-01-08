@@ -7,6 +7,3 @@ count(*)
 2
  Configuration error: Not Authorized: TLS Required: Executing: ndb_mgm_alloc_nodeid
 Unable to connect to management server.
-
-NDBT_ProgramExit: 1 - Failed
-

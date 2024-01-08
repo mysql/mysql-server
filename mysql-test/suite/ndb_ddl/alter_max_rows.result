@@ -50,9 +50,6 @@ PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 b(b) - OrderedIndex
 a(a, b, c) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 ALTER TABLE t3
 algorithm=inplace,
 reorganize partition;

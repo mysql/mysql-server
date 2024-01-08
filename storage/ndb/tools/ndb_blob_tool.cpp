@@ -27,9 +27,11 @@
 #include "util/require.h"
 
 #include <NdbSleep.h>
-#include <NDBT.hpp>
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
+#include "NDBT_Output.hpp"
+#include "NdbToolsProgramExitCodes.hpp"
+#include "util/OutputStream.hpp"
 
 static const char *opt_dbname = 0;
 static bool opt_check_orphans = false;
@@ -953,12 +955,12 @@ int main(int argc, char **argv) {
   opts.set_usage_funcs(short_usage_sub, usage);
   int ret = opts.handle_options();
   if (ret != 0 || checkopts(argc, argv) != 0)
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
 
   setOutputLevel(opt_verbose ? 2 : 0);
 
   ret = doall();
   freeall();
-  if (ret == -1) return NDBT_ProgramExit(NDBT_FAILED);
-  return NDBT_ProgramExit(NDBT_OK);
+  if (ret == -1) return NdbToolsProgramExitCode::FAILED;
+  return NdbToolsProgramExitCode::OK;
 }

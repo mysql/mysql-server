@@ -608,9 +608,6 @@ AS stats_metadata_present FROM ndbinfo.index_stats;
 stats_metadata_present
 YES
 21-or-27 records in table ndb_index_stat_sample
-
-NDBT_ProgramExit: 0 - OK
-
 ALTER TABLE t1 COMMENT="NDB_TABLE=READ_BACKUP=0";
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -623,9 +620,6 @@ COUNT(index_id)
 2
 2
 21-or-27 records in table ndb_index_stat_sample
-
-NDBT_ProgramExit: 0 - OK
-
 EXPLAIN is the same both pre- and post-ALTER
 DROP TABLE t1;
 SELECT CASE COUNT(*) > 0
@@ -634,9 +628,6 @@ AS stats_metadata_present FROM ndbinfo.index_stats;
 stats_metadata_present
 YES
 0 records in table ndb_index_stat_sample
-
-NDBT_ProgramExit: 0 - OK
-
 call mtr.add_suppression("Failed to acquire global schema lock");
 call mtr.add_suppression("Failed to release global schema lock");
 set @is_enable = @is_enable_default;

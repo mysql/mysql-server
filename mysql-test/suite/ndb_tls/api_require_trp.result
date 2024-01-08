@@ -2,6 +2,3 @@ SELECT 1;
 1
 1
 Unable to connect to management server.
-
-NDBT_ProgramExit: 1 - Failed
-

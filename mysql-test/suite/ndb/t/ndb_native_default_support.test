@@ -163,12 +163,10 @@ SET GLOBAL ndb_metadata_check = false;
 
 --let $ndb_describe_table= t1
 --let $ndb_describe_db= mysqltest
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 --let $ndb_describe_table= bit1
 --let $ndb_describe_db= mysqltest
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
@@ -216,11 +214,9 @@ DROP DATABASE mysqltest;
 
 # Show that restored tables have no native defaults
 --let $ndb_describe_table= t1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 --let $ndb_describe_table= bit1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 USE test;
@@ -273,7 +269,6 @@ SELECT * FROM t2 ORDER BY i;
 ALTER TABLE t2 MODIFY COLUMN j INT DEFAULT 666;
 
 --let $ndb_describe_table= t2
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 INSERT INTO t2 VALUES();
@@ -297,7 +292,6 @@ CREATE TABLE t1 (
   c char not null
 )ENGINE=NDB PARTITION BY KEY() PARTITIONS 8;
 --let $ndb_describe_table=t1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 
@@ -319,7 +313,6 @@ CREATE TABLE t1 (a int primary key,
                  engine = ndb
                  partition by key() partitions 8;
 --let $ndb_describe_table=t1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 DROP TABLE t1;
@@ -339,7 +332,6 @@ SHOW CREATE TABLE t1;
 --enable_warnings
 
 --let $ndb_describe_table=t1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 DROP TABLE t1;
@@ -358,7 +350,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 --replace_column 2 CURRENT_TIMESTAMP
@@ -374,7 +365,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 --replace_column 2 CURRENT_TIMESTAMP
@@ -390,7 +380,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 --replace_column 2 CURRENT_TIMESTAMP
@@ -407,7 +396,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a,c) VALUES (1,1);
 SELECT * from variant;
@@ -425,7 +413,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 SELECT * from variant;
@@ -440,7 +427,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 SELECT * from variant;
@@ -456,7 +442,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 --replace_column 3 CURRENT_TIMESTAMP
@@ -473,7 +458,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 SELECT * from variant;
@@ -492,7 +476,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 --replace_column 3 CURRENT_TIMESTAMP
@@ -508,7 +491,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 SELECT * from variant;
@@ -523,7 +505,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 SELECT * from variant;
@@ -538,7 +519,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 SELECT * from variant;
@@ -553,7 +533,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 --replace_column 2 CURRENT_TIMESTAMP
@@ -570,7 +549,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a,c) VALUES (1,1);
 SELECT * from variant;
@@ -588,7 +566,6 @@ CREATE TABLE variant (a int primary key,
 SHOW CREATE TABLE variant;
 --enable_warnings
 --let $ndb_describe_table= variant
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 INSERT INTO variant (a) VALUES (1);
 --replace_column 2 CURRENT_TIMESTAMP
@@ -647,7 +624,6 @@ SHOW CREATE TABLE t1;
 --enable_warnings
 
 --let $ndb_describe_table= t1
---let $ndb_describe_print_exit= 2
 --source suite/ndb/include/ndb_describe_table.inc
 
 --exec $NDB_RESTORE -b 1 -n 1 -r --promote-attributes --exclude-missing-columns $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT

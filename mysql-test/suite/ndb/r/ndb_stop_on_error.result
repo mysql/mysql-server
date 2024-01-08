@@ -214,8 +214,5 @@ pk	attr1	attr2	attr3
 98	98	98	"98"
 99	99	99	"99"
 100 rows returned
-
-NDBT_ProgramExit: 0 - OK
-
 DROP TABLE t1;
 DROP DATABASE mysqltest;

@@ -16,9 +16,6 @@ set GLOBAL debug="-d,ndb_schema_dist_client_not_ready";
 # mysql.ndb_schema_result table
 nodeid	schema_op_id	participant_nodeid	result	message
 0 rows returned
-
-NDBT_ProgramExit: 0 - OK
-
 # Cleanup
 DROP TABLE t1;
 #
@@ -70,9 +67,6 @@ set GLOBAL debug="-d,ndb_skip_participant_ack";
 # mysql.ndb_schema_result table
 nodeid	schema_op_id	participant_nodeid	result	message
 0 rows returned
-
-NDBT_ProgramExit: 0 - OK
-
 # Verify table exists
 show create table t1;
 Table	Create Table

@@ -59,9 +59,6 @@ PRIMARY(a) - OrderedIndex
 a(a, b) - OrderedIndex
 a$unique(a, b) - UniqueHashIndex
 b(b, a) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 insert into t1 values
 ('1',1), ('2',2), ('3',3), ('4',4),
 ('5',5), ('6',6), ('7',7), ('8',8);
@@ -149,9 +146,6 @@ PRIMARY(a) - OrderedIndex
 a(a, b) - OrderedIndex
 a$unique(a, b) - UniqueHashIndex
 b(b, a) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t1 algorithm=copy, comment='NDB_TABLE=';
 ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Syntax error in COMMENT modifier'
 alter table t1 algorithm=copy, comment='NDB_TABLE=READ_BACKUP=1';
@@ -198,9 +192,6 @@ PRIMARY(a) - OrderedIndex
 a(a, b) - OrderedIndex
 a$unique(a, b) - UniqueHashIndex
 b(b, a) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t1 algorithm=copy, comment='NDB_TABLE=FULLY_REPLICATED=1';
 show create table t1;
 Table	Create Table
@@ -245,9 +236,6 @@ PRIMARY(a) - OrderedIndex
 a(a, b) - OrderedIndex
 a$unique(a, b) - UniqueHashIndex
 b(b, a) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 alter table t1 algorithm=copy, comment='comment text';
 -- t1 --
 Version: Any
@@ -282,9 +270,6 @@ PRIMARY(a) - OrderedIndex
 a(a, b) - OrderedIndex
 a$unique(a, b) - UniqueHashIndex
 b(b, a) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -23,10 +23,10 @@
 #include <ndb_global.h>
 #include <ndb_limits.h>
 #include <ndb_rand.h>
-#include <NDBT.hpp>
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
 #include <ndb_lib_move_data.hpp>
+#include "NdbToolsProgramExitCodes.hpp"
 #include "mysql/strings/m_ctype.h"
 #include "portlib/NdbTick.h"
 #include "util/require.h"

@@ -815,9 +815,6 @@ d Bigint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a, b, c, d) - UniqueHashIndex
 PRIMARY(a, b, c, d) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
 drop table t1;
 create table t1 (a bigint primary key, b bigint storage disk) engine ndb
 comment="NDB_TABLE=NOLOGGING=1";

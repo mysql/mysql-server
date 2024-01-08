@@ -25,9 +25,11 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
-#include <NDBT.hpp>
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
+#include "NdbToolsLogging.hpp"
+#include "NdbToolsProgramExitCodes.hpp"
+#include "util/NdbOut.hpp"
 
 #include "my_alloc.h"
 #include "portlib/ssl_applink.h"
@@ -54,27 +56,27 @@ static struct my_option my_long_options[] = {
 int main(int argc, char **argv) {
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
-  if (opts.handle_options()) return NDBT_ProgramExit(NDBT_WRONGARGS);
+  if (opts.handle_options()) return NdbToolsProgramExitCode::WRONG_ARGS;
   if (argc < 1) {
     opts.usage();
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_drop_index");
   con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if (con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0) {
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
   if (con.wait_until_ready(30, 3) < 0) {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
 
   Ndb MyNdb(&con, _dbname);
   if (MyNdb.init() != 0) {
     NDB_ERR(MyNdb.getNdbError());
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
 
   int res = 0;
@@ -90,8 +92,8 @@ int main(int argc, char **argv) {
   }
 
   if (res != 0) {
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
 
-  return NDBT_ProgramExit(NDBT_OK);
+  return NdbToolsProgramExitCode::OK;
 }

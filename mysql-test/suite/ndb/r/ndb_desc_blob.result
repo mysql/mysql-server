@@ -34,9 +34,6 @@ PRIMARY(a) - OrderedIndex
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
 
 
-
-NDBT_ProgramExit: 0 - OK
-
 "ndb_desc -pb with all types of blob and text columns"
 CREATE TABLE test.t2 (a int primary key, b tinyblob, c mediumblob,
 d blob, e longblob,f tinytext, g text, h mediumtext, i longtext)
@@ -285,9 +282,6 @@ PRIMARY KEY(a, NDB$PART) - UniqueHashIndex
 -- Per partition info for NDB$BLOB_XX_8 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
 
-
-
-NDBT_ProgramExit: 0 - OK
 
 DROP TABLE test.t1;
 DROP TABLE test.t2;

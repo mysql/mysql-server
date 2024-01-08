@@ -30,8 +30,11 @@
 #include <NdbOut.hpp>
 
 #include <NdbSleep.h>
-#include <NDBT.hpp>
 #include <NdbApi.hpp>
+#include "NDBT_ResultRow.hpp"  // NDBT_ResultRow
+#include "NDBT_Table.hpp"      // NDBT_Table::discoverTableFromDb
+#include "NdbToolsLogging.hpp"
+#include "NdbToolsProgramExitCodes.hpp"
 
 #include "my_alloc.h"
 #include "portlib/ssl_applink.h"
@@ -113,19 +116,19 @@ int main(int argc, char **argv) {
 #ifndef NDEBUG
   opt_debug = "d:t:O,/tmp/ndb_select_all.trace";
 #endif
-  if (opts.handle_options()) return NDBT_ProgramExit(NDBT_WRONGARGS);
+  if (opts.handle_options()) return NdbToolsProgramExitCode::WRONG_ARGS;
   if (argc == 0) {
     ndbout
         << "Missing table name. Please see the below usage for correct command."
         << endl;
     opts.usage();
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   }
   if (argc > (!_order ? 1 : 2)) {
     ndbout << "Error. TOO MANY ARGUMENTS GIVEN." << endl;
     ndbout << "Please see the below usage for correct command." << endl;
     opts.usage();
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   }
 
   _tabname = argv[0];
@@ -134,17 +137,17 @@ int main(int argc, char **argv) {
   con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if (con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0) {
     ndbout << "Unable to connect to management server." << endl;
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
   if (con.wait_until_ready(30, 0) < 0) {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
 
   Ndb MyNdb(&con, _dbname);
   if (MyNdb.init() != 0) {
     NDB_ERR(MyNdb.getNdbError());
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
 
   // Check if table exists in db
@@ -154,7 +157,7 @@ int main(int argc, char **argv) {
 
   if (pTab == NULL) {
     ndbout << " Table " << _tabname << " does not exist!" << endl;
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   }
 
   if (_order) {
@@ -162,26 +165,26 @@ int main(int argc, char **argv) {
       pIdx = MyNdb.getDictionary()->getIndex(argv[1], _tabname);
       if (pIdx == 0) {
         ndbout << " Index " << argv[1] << " does not exists" << endl;
-        return NDBT_ProgramExit(NDBT_WRONGARGS);
+        return NdbToolsProgramExitCode::WRONG_ARGS;
       }
     } else {
       ndbout << " Order flag given without an index" << endl;
-      return NDBT_ProgramExit(NDBT_WRONGARGS);
+      return NdbToolsProgramExitCode::WRONG_ARGS;
     }
   }
 
   if (_descending && !_order) {
     ndbout << " Descending flag given without order flag" << endl;
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   }
 
   if (scanReadRecords(&MyNdb, pTab, pIdx, _parallelism, _lock, _header,
                       _useHexFormat, (char)*_delimiter, _order,
                       _descending) != 0) {
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
 
-  return NDBT_ProgramExit(NDBT_OK);
+  return NdbToolsProgramExitCode::OK;
 }
 
 int scanReadRecords(Ndb *pNdb, const NdbDictionary::Table *pTab,

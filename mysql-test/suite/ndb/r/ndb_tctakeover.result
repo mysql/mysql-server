@@ -23,9 +23,6 @@ Warning	1296	Got error 4350 'Transaction already aborted' from NDB
 Error	1180	Got error 125 - 'Transaction has been rolled back' during COMMIT
 ROWID	x	y
 0 rows returned
-
-NDBT_ProgramExit: 0 - OK
-
 select * from t;
 x	y
 drop table t;
