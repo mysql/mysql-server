@@ -1,0 +1,111 @@
+################################################################################
+# This test verifies :
+# A table that has max allowed multi-byte chars in its column name, could be
+# imported.
+# A table name with multi-byte chars could also be imported. It does not verify
+# the max multi-byte chars in the table name because when it translates to
+# tablespace file name, its absolute path becomes subject to the MAX_PATH limit
+# that may not be same different operating systems. Thus test may not remain
+# stable.
+################################################################################
+
+let  MYSQLD_DATADIR =`SELECT @@datadir`;
+
+--echo #
+--echo # Test#1 column with 64 multi-byte chars
+--echo #
+CREATE TABLE `foo` (
+  `id` int,
+   ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` text
+);
+
+INSERT INTO foo(`id`, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试`) VALUES(1, "Dragon");
+
+CREATE TABLE t1 LIKE foo;
+FLUSH TABLE foo FOR EXPORT;
+
+--copy_file $MYSQLD_DATADIR/test/foo.ibd $MYSQL_TMP_DIR/tmp_foo.ibd
+--copy_file $MYSQLD_DATADIR/test/foo.cfg $MYSQL_TMP_DIR/tmp_foo.cfg
+
+UNLOCK TABLES;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--move_file $MYSQL_TMP_DIR/tmp_foo.ibd $MYSQLD_DATADIR/test/t1.ibd
+--move_file $MYSQL_TMP_DIR/tmp_foo.cfg $MYSQLD_DATADIR/test/t1.cfg
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+# Verify record is imported
+SELECT id, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` FROM `t1`;
+
+--echo # Cleanup
+DROP TABLE foo;
+DROP TABLE t1;
+
+--echo #
+--echo # Test#2 table name with 15 multi-byte chars and column name with 64
+--echo # multi-byte chars
+--echo #
+CREATE TABLE `测测试测试测试测试测试测试测试` (
+  `id` int,
+   ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` text
+);
+
+INSERT INTO `测测试测试测试测试测试测试测试`(`id`, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试`) VALUES(1, "Dragon");
+
+CREATE TABLE t1 AS SELECT `id`, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` FROM `测测试测试测试测试测试测试测试`;
+
+FLUSH TABLE `测测试测试测试测试测试测试测试` FOR EXPORT;
+
+--copy_file $MYSQLD_DATADIR/test/@6d4b@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5.ibd $MYSQL_TMP_DIR/tmp_foo.ibd
+--copy_file $MYSQLD_DATADIR/test/@6d4b@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5.cfg $MYSQL_TMP_DIR/tmp_foo.cfg
+
+UNLOCK TABLES;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--move_file $MYSQL_TMP_DIR/tmp_foo.ibd $MYSQLD_DATADIR/test/t1.ibd
+--move_file $MYSQL_TMP_DIR/tmp_foo.cfg $MYSQLD_DATADIR/test/t1.cfg
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+# Verify record is imported
+SELECT id, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` FROM `t1`;
+
+--echo # Cleanup
+DROP TABLE `测测试测试测试测试测试测试测试`;
+DROP TABLE t1;
+
+--echo #
+--echo # Test#3 actual table and import tables both have name with 15 multi-byte
+--echo #  chars and column name with 64 multi-byte chars
+--echo #
+CREATE TABLE `测测试测试测试测试测试测试测试` (
+  `id` int,
+   ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` text
+);
+
+INSERT INTO `测测试测试测试测试测试测试测试`(`id`, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试`) VALUES(1, "Dragon");
+
+CREATE TABLE `试测试测试测测试测试测试测试测` LIKE `测测试测试测试测试测试测试测试`;
+FLUSH TABLE `测测试测试测试测试测试测试测试` FOR EXPORT;
+
+--copy_file $MYSQLD_DATADIR/test/@6d4b@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5.ibd $MYSQL_TMP_DIR/tmp_foo.ibd
+--copy_file $MYSQLD_DATADIR/test/@6d4b@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5.cfg $MYSQL_TMP_DIR/tmp_foo.cfg
+
+UNLOCK TABLES;
+
+ALTER TABLE `试测试测试测测试测试测试测试测` DISCARD TABLESPACE;
+
+--move_file $MYSQL_TMP_DIR/tmp_foo.ibd $MYSQLD_DATADIR/test/@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b.ibd
+--move_file $MYSQL_TMP_DIR/tmp_foo.cfg $MYSQLD_DATADIR/test/@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b@8bd5@6d4b.cfg
+
+ALTER TABLE `试测试测试测测试测试测试测试测` IMPORT TABLESPACE;
+
+# Verify record is imported
+SELECT id, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` FROM `试测试测试测测试测试测试测试测`;
+
+--echo # Cleanup
+DROP TABLE `测测试测试测试测试测试测试测试`;
+DROP TABLE `试测试测试测测试测试测试测试测`;

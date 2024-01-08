@@ -3740,8 +3740,7 @@ dict_col_t structure, along with the column name.
 
     ulint len = mach_read_from_4(ptr);
 
-    /* FIXME: What is the maximum column name length? */
-    if (len == 0 || len > 128) {
+    if (len == 0 || len > NAME_CHAR_LEN * system_charset_info->mbmaxlen) {
       std::ostringstream msg;
       msg << "Column name length " << len << ", is invalid";
 

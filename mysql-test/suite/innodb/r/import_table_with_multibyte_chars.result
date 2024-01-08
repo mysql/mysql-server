@@ -1,0 +1,59 @@
+#
+# Test#1 column with 64 multi-byte chars
+#
+CREATE TABLE `foo` (
+`id` int,
+` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` text
+);
+INSERT INTO foo(`id`, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试`) VALUES(1, "Dragon");
+CREATE TABLE t1 LIKE foo;
+FLUSH TABLE foo FOR EXPORT;
+UNLOCK TABLES;
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT id, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` FROM `t1`;
+id	 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试
+1	Dragon
+# Cleanup
+DROP TABLE foo;
+DROP TABLE t1;
+#
+# Test#2 table name with 15 multi-byte chars and column name with 64
+# multi-byte chars
+#
+CREATE TABLE `测测试测试测试测试测试测试测试` (
+`id` int,
+` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` text
+);
+INSERT INTO `测测试测试测试测试测试测试测试`(`id`, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试`) VALUES(1, "Dragon");
+CREATE TABLE t1 AS SELECT `id`, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` FROM `测测试测试测试测试测试测试测试`;
+FLUSH TABLE `测测试测试测试测试测试测试测试` FOR EXPORT;
+UNLOCK TABLES;
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT id, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` FROM `t1`;
+id	 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试
+1	Dragon
+# Cleanup
+DROP TABLE `测测试测试测试测试测试测试测试`;
+DROP TABLE t1;
+#
+# Test#3 actual table and import tables both have name with 15 multi-byte
+#  chars and column name with 64 multi-byte chars
+#
+CREATE TABLE `测测试测试测试测试测试测试测试` (
+`id` int,
+` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` text
+);
+INSERT INTO `测测试测试测试测试测试测试测试`(`id`, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试`) VALUES(1, "Dragon");
+CREATE TABLE `试测试测试测测试测试测试测试测` LIKE `测测试测试测试测试测试测试测试`;
+FLUSH TABLE `测测试测试测试测试测试测试测试` FOR EXPORT;
+UNLOCK TABLES;
+ALTER TABLE `试测试测试测测试测试测试测试测` DISCARD TABLESPACE;
+ALTER TABLE `试测试测试测测试测试测试测试测` IMPORT TABLESPACE;
+SELECT id, ` 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试` FROM `试测试测试测测试测试测试测试测`;
+id	 测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试
+1	Dragon
+# Cleanup
+DROP TABLE `测测试测试测试测试测试测试测试`;
+DROP TABLE `试测试测试测测试测试测试测试测`;
