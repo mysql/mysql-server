@@ -1017,6 +1017,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
      *  即，当多个事务都要读/写数据时，如何处理冲突，如何保证正确性
      */
 
+    // TODO: 将下面新写的逻辑抽象出一个函数，准备等全部写完跑通后再进行
+
     // Allocate memory for these redo logs in the remote State Node
     if(trx->mysql_thd != nullptr) {
       THD* thd = trx->mysql_thd;
@@ -1027,6 +1029,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       // todo: 怎么判断需要给 redo log 分配多少空间？
       // Redo Log Buffer is already exists in local Node, so I call it redo_log_remote_buf 
       char* redo_log_remote_buf = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+
 
 
     }
