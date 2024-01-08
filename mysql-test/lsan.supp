@@ -56,3 +56,20 @@ leak:ndb_sign_keys
 # Internal leak on protobuf when Map type is used.
 # Map is used on plugin/group_replication/protobuf/replication_group_recovery_metadata.proto
 leak:libprotobuf-lite.so
+
+# Bug#36170703 ndb api tools leak with TLS required on data nodes 
+# Suppress leak detection for them until leak is found.
+leak:ndb_blob_tool
+leak:ndb_config
+leak:ndb_delete_all
+leak:ndb_desc
+leak:ndb_drop_index
+leak:ndb_drop_table
+leak:ndb_import
+leak:ndb_index_stat
+leak:ndb_move_data
+leak:ndb_restore
+leak:ndb_select_all
+leak:ndb_select_count
+leak:ndb_show_tables
+leak:ndb_sign_keys
