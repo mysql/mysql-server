@@ -40,6 +40,7 @@
 #include <utility>
 
 #include "decimal.h"
+#include "field_types.h"
 #include "mf_wcomp.h"  // wild_one, wild_many
 #include "my_alloc.h"
 #include "my_bitmap.h"
@@ -3620,10 +3621,16 @@ bool Item_func_if::resolve_type_inner(THD *thd) {
 }
 
 TYPELIB *Item_func_if::get_typelib() const {
+  if (data_type() != MYSQL_TYPE_ENUM && data_type() != MYSQL_TYPE_SET) {
+    return nullptr;
+  }
   assert((args[1]->data_type() == MYSQL_TYPE_NULL) ^
          (args[2]->data_type() == MYSQL_TYPE_NULL));
-  return args[1]->data_type() != MYSQL_TYPE_NULL ? args[1]->get_typelib()
-                                                 : args[2]->get_typelib();
+  TYPELIB *typelib = args[1]->data_type() != MYSQL_TYPE_NULL
+                         ? args[1]->get_typelib()
+                         : args[2]->get_typelib();
+  assert(typelib != nullptr);
+  return typelib;
 }
 
 double Item_func_if::val_real() {
@@ -4221,6 +4228,9 @@ bool Item_func_case::resolve_type_inner(THD *thd) {
 }
 
 TYPELIB *Item_func_case::get_typelib() const {
+  if (data_type() != MYSQL_TYPE_ENUM && data_type() != MYSQL_TYPE_SET) {
+    return nullptr;
+  }
   TYPELIB *typelib = nullptr;
   for (uint i = 0; i < ncases; i += 2) {
     if (typelib == nullptr) {
@@ -4379,6 +4389,9 @@ bool Item_func_coalesce::resolve_type_inner(THD *thd) {
 }
 
 TYPELIB *Item_func_coalesce::get_typelib() const {
+  if (data_type() != MYSQL_TYPE_ENUM && data_type() != MYSQL_TYPE_SET) {
+    return nullptr;
+  }
   TYPELIB *typelib = nullptr;
   for (uint i = 0; i < arg_count; i++) {
     if (typelib == nullptr) {
