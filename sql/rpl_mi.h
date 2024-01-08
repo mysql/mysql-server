@@ -88,6 +88,11 @@ class Master_info : public Rpl_info {
   friend class Rpl_info_factory;
 
  public:
+  /// In case we start replication from the first binary log file and
+  /// source log name is empty, we use first_source_log_name instead of
+  /// 'master_log_name' in the error log
+  static constexpr auto first_source_log_name = "<First log>";
+
   /**
     Host name or ip address stored in the master.info.
   */

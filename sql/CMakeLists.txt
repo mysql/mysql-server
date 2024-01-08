@@ -1108,6 +1108,7 @@ SET (RPL_REPLICA_SRCS
   rpl_reporting.cc
   rpl_rli.cc
   rpl_rli_pdb.cc
+  rpl_relay_log_sanitizer.cc
   rpl_replica.cc
   rpl_replica_commit_order_manager.cc
   rpl_replica_until_options.cc

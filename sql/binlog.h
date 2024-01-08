@@ -845,6 +845,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  private:
   bool after_write_to_relay_log(Master_info *mi);
+
+ public:
   /**
    * Truncte log file and clear LOG_EVENT_BINLOG_IN_USE_F when update is set.
    * @param[in] log_name name of the log file to be trunacted
@@ -858,7 +860,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
   bool truncate_update_log_file(const char *log_name, my_off_t valid_pos,
                                 my_off_t binlog_size, bool update);
 
- public:
   void make_log_name(char *buf, const char *log_ident);
   bool is_active(const char *log_file_name) const;
 
