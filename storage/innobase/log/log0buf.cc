@@ -1008,6 +1008,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     /* This is the critical memcpy operation, which copies data
     from internal mtr's buffer to the shared log buffer. */
     std::memcpy(ptr, str, len);
+
     /**
      *  @StateReplicate: 
      *  当一个事务需要写 log 时，首先需要获取 remote_addr，即需要向状态层的哪个位置写log，
@@ -1026,8 +1027,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       RCQP* qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
       MetaManager* meta_mgr = MetaManager::get_instance();
 
-      // todo: 怎么判断需要给 redo log 分配多少空间？
-      // log 数量极大，占用空间多，需要及时清理，远端数据管理是一个挑战
+      // TODO: 怎么判断需要给 redo log 分配多少空间？
+      // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
 
       // Redo Log Buffer is already exists in local Node, so I call it redo_log_remote_buf 
       char* redo_log_remote_buf = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
