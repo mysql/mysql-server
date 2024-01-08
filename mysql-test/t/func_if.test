@@ -311,3 +311,11 @@ INSERT INTO t1 VALUES(2001);
 SELECT AVG(NULLIF(y, 10)) FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36151537: Assertion `m_typelib != nullptr' failed
+--echo #
+
+CREATE TABLE t (x ENUM('l', 'm', 'n'));
+SELECT NULLIF(COALESCE(x, NULL), 0) FROM t EXCEPT SELECT 1;
+DROP TABLE t;

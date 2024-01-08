@@ -3737,6 +3737,10 @@ bool Item_func_nullif::resolve_type_inner(THD *thd) {
   return false;
 }
 
+TYPELIB *Item_func_nullif::get_typelib() const {
+  return args[0]->get_typelib();
+}
+
 /**
   @note
   Note that we have to evaluate the first argument twice as the compare

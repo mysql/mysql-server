@@ -1567,6 +1567,7 @@ class Item_func_nullif final : public Item_bool_func2 {
   }
   bool resolve_type(THD *thd) override;
   bool resolve_type_inner(THD *thd) override;
+  TYPELIB *get_typelib() const override;
   const char *func_name() const override { return "nullif"; }
   enum Functype functype() const override { return NULLIF_FUNC; }
 
