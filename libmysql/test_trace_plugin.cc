@@ -189,7 +189,7 @@ class Logger {
 
 Logger::Logger(MYSQL *conn) : end(buffer) {
   connection_id = mysql_thread_id(conn);
-};
+}
 
 size_t Logger::header() {
   size_t len = 0;
@@ -1005,12 +1005,11 @@ int check_event_WAIT_FOR_FIELD_DEF(MYSQL *conn, struct st_trace_data *data,
       */
       const bool new_client =
           (conn->server_capabilities & CLIENT_DEPRECATE_EOF);
-      const bool metadata_eof = (data->last_cmd != COM_FIELD_LIST &&
-                                 data->col_count == 1 && new_client);
+      const bool metadata_eof = (data->col_count == 1 && new_client);
       bool eof_packet =
           (EOF_PACKET(args.pkt) && args.pkt_len < MAX_PACKET_LENGTH);
       if (!eof_packet && !metadata_eof) {
-        if (data->last_cmd != COM_FIELD_LIST) data->col_count--;
+        data->col_count--;
         LOG(("Received next field definition"));
         return 0;
       }
@@ -1025,7 +1024,6 @@ int check_event_WAIT_FOR_FIELD_DEF(MYSQL *conn, struct st_trace_data *data,
       */
       switch (data->last_cmd) {
         case COM_STMT_PREPARE:
-        case COM_FIELD_LIST:
           NEXT_STAGE(READY_FOR_COMMAND);
           break;
         default:
