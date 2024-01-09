@@ -12658,6 +12658,11 @@ ER_WARN_LANGUAGE_COMPONENT_RESOURCE_LIMIT
 ER_AUTO_INCREMENT_NOT_SUPPORTED_FOR_FLOAT_DOUBLE
   eng "AUTO_INCREMENT is not supported with DOUBLE/FLOAT field. Please consider fixing (Schema:%s, Table:%s, Column:%s)."
 
+ER_SERVER_DOWNGRADE_SYS_SCHEMA
+  eng "Downgrading the sys schema."
+
+ER_SERVER_DOWNGRADE_HELP_TABLE_STATUS
+  eng "Downgrade of help tables %s."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

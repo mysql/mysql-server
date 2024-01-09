@@ -503,7 +503,10 @@ bool fix_sys_schema(THD *thd) {
     return false;
 
   const char **query_ptr;
-  LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA);
+  LogErr(INFORMATION_LEVEL,
+         dd::bootstrap::DD_bootstrap_ctx::instance().is_server_patch_downgrade()
+             ? ER_SERVER_DOWNGRADE_SYS_SCHEMA
+             : ER_SERVER_UPGRADE_SYS_SCHEMA);
   for (query_ptr = &mysql_sys_schema[0]; *query_ptr != nullptr; query_ptr++)
     if (ignore_error_and_execute(thd, *query_ptr)) return true;
   thd->mem_root->Clear();
@@ -546,18 +549,35 @@ bool fix_mysql_tables(THD *thd) {
 }
 
 bool upgrade_help_tables(THD *thd) {
+  // know if it's upgrade or downgrade
+  bool is_downgrade =
+      dd::bootstrap::DD_bootstrap_ctx::instance().is_server_patch_downgrade();
+
   if (dd::execute_query(thd, "USE mysql")) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR);
     return true;
   }
-  LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_HELP_TABLE_STATUS, "started");
+
+  LogErr(INFORMATION_LEVEL,
+         is_downgrade ? ER_SERVER_DOWNGRADE_HELP_TABLE_STATUS
+                      : ER_SERVER_UPGRADE_HELP_TABLE_STATUS,
+         "started");
+
   for (const char **query_ptr = &fill_help_tables[0]; *query_ptr != nullptr;
        query_ptr++)
     if (dd::execute_query(thd, *query_ptr)) {
-      LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_HELP_TABLE_STATUS, "failed");
+      LogErr(ERROR_LEVEL,
+             is_downgrade ? ER_SERVER_DOWNGRADE_HELP_TABLE_STATUS
+                          : ER_SERVER_UPGRADE_HELP_TABLE_STATUS,
+             "failed");
       return true;
     }
-  LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_HELP_TABLE_STATUS, "completed");
+
+  LogErr(INFORMATION_LEVEL,
+         is_downgrade ? ER_SERVER_DOWNGRADE_HELP_TABLE_STATUS
+                      : ER_SERVER_UPGRADE_HELP_TABLE_STATUS,
+         "completed");
+
   return false;
 }
 
