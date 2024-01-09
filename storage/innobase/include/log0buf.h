@@ -100,7 +100,13 @@ waiting for the link.
 @return handle that represents the reservation */
 Log_handle log_buffer_reserve(log_t &log, size_t len);
 
-// 在状态层给 redo log 分配空间，以供接下来的写操作
+/**
+ * @StateReplicate 在状态层给 redo log 分配空间，以供接下来的写操作
+ * 
+ * @param log 
+ * @param len 
+ * @return Log_handle 
+ */
 Log_handle log_remote_buf_reverse(log_t &log, size_t len);
 
 /** Writes data to the log buffer. The space in the redo log has to be
