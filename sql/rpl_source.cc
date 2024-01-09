@@ -219,7 +219,7 @@ void unregister_replica(THD *thd, bool only_mine, bool need_lock_slave_list) {
 }
 
 /**
-  Execute a SHOW REPLICAS / SHOW SLAVE HOSTS statement.
+  Execute a SHOW REPLICAS statement.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
