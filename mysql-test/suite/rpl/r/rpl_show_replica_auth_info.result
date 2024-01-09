@@ -21,11 +21,9 @@ include/assert_error_log.inc [server: 1, pattern: NONE]
 SHOW REPLICAS;
 Server_Id	Host	User	Password	Port	Source_Id	Replica_UUID
 2	127.0.0.1	USER	PASS	REPLICA_PORT	1	REPLICA_UUID
-SHOW SLAVE HOSTS;
-Server_id	Host	User	Password	Port	Master_id	Slave_UUID
+SHOW REPLICAS;
+Server_Id	Host	User	Password	Port	Source_Id	Replica_UUID
 2	127.0.0.1	USER	PASS	REPLICA_PORT	1	REPLICA_UUID
-Warnings:
-Warning	1287	'SHOW SLAVE HOSTS' is deprecated and will be removed in a future release. Please use SHOW REPLICAS instead
 ==== R3: show-slave-auth-info ====
 include/assert_error_log.inc [server: 1, pattern: NONE]
 [connection slave]
@@ -40,11 +38,9 @@ include/assert_error_log.inc [server: 1, pattern: The syntax 'show-slave-auth-in
 SHOW REPLICAS;
 Server_Id	Host	User	Password	Port	Source_Id	Replica_UUID
 2	127.0.0.1	USER	PASS	REPLICA_PORT	1	REPLICA_UUID
-SHOW SLAVE HOSTS;
-Server_id	Host	User	Password	Port	Master_id	Slave_UUID
+SHOW REPLICAS;
+Server_Id	Host	User	Password	Port	Source_Id	Replica_UUID
 2	127.0.0.1	USER	PASS	REPLICA_PORT	1	REPLICA_UUID
-Warnings:
-Warning	1287	'SHOW SLAVE HOSTS' is deprecated and will be removed in a future release. Please use SHOW REPLICAS instead
 ==== R1: no command-line options ====
 [connection slave]
 include/stop_slave.inc
@@ -58,10 +54,8 @@ include/assert_error_log.inc [server: 1, pattern: NONE]
 SHOW REPLICAS;
 Server_Id	Host	Port	Source_Id	Replica_UUID
 2	127.0.0.1	REPLICA_PORT	1	REPLICA_UUID
-SHOW SLAVE HOSTS;
-Server_id	Host	Port	Master_id	Slave_UUID
+SHOW REPLICAS;
+Server_Id	Host	Port	Source_Id	Replica_UUID
 2	127.0.0.1	REPLICA_PORT	1	REPLICA_UUID
-Warnings:
-Warning	1287	'SHOW SLAVE HOSTS' is deprecated and will be removed in a future release. Please use SHOW REPLICAS instead
 ==== Clean up ====
 include/rpl_end.inc

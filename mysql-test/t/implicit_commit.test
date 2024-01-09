@@ -725,7 +725,7 @@ source include/implicit_commit_helper.inc;
 --echo #
 
 let $statement=
-  show slave hosts;
+  SHOW REPLICAS;
 source include/implicit_commit_helper.inc;
 
 --echo #

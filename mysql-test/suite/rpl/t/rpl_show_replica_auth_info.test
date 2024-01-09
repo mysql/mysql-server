@@ -8,17 +8,17 @@
 #     --show-slave-auth-info:
 #     R1.1. Server should not write deprecation warning to the error log.
 #     R1.2. SHOW REPLICAS should not include USER and PASSWORD columns.
-#     R1.3. SHOW SLAVE HOSTS should not include USER and PASSWORD columns.
+#     R1.3. SHOW REPLICAS should not include USER and PASSWORD columns.
 #
 # R2. When source server is started with --show-replica-auth-info:
 #     R2.1. Server should not write deprecation warning to the error log.
 #     R2.2. SHOW REPLICAS should include USER and PASSWORD columns.
-#     R2.3. SHOW SLAVE HOSTS should include USER and PASSWORD columns.
+#     R2.3. SHOW REPLICAS should include USER and PASSWORD columns.
 #
 # R3. When source server is started with --show-slave-auth-info:
 #     R3.1. Server should write deprecation warning to the error log.
 #     R3.2. SHOW REPLICAS should include USER and PASSWORD columns.
-#     R3.3. SHOW SLAVE HOSTS should include USER and PASSWORD columns.
+#     R3.3. SHOW REPLICAS should include USER and PASSWORD columns.
 
 # Test is binlog_format-agnostic
 --source include/have_binlog_format_row.inc
@@ -57,7 +57,7 @@ END_OF_PROCEDURE
 --replace_result $server_2_uuid REPLICA_UUID $SLAVE_MYPORT REPLICA_PORT
 SHOW REPLICAS;
 --replace_result $server_2_uuid REPLICA_UUID $SLAVE_MYPORT REPLICA_PORT
-SHOW SLAVE HOSTS;
+SHOW REPLICAS;
 
 --echo ==== R3: show-slave-auth-info ====
 
@@ -77,7 +77,7 @@ SHOW SLAVE HOSTS;
 --replace_result $server_2_uuid REPLICA_UUID $SLAVE_MYPORT REPLICA_PORT
 SHOW REPLICAS;
 --replace_result $server_2_uuid REPLICA_UUID $SLAVE_MYPORT REPLICA_PORT
-SHOW SLAVE HOSTS;
+SHOW REPLICAS;
 
 --echo ==== R1: no command-line options ====
 
@@ -92,7 +92,7 @@ SHOW SLAVE HOSTS;
 --replace_result $server_2_uuid REPLICA_UUID $SLAVE_MYPORT REPLICA_PORT
 SHOW REPLICAS;
 --replace_result $server_2_uuid REPLICA_UUID $SLAVE_MYPORT REPLICA_PORT
-SHOW SLAVE HOSTS;
+SHOW REPLICAS;
 
 --echo ==== Clean up ====
 

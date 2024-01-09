@@ -3,7 +3,7 @@
 #
 # Master and slave exchange their UUID each other when connecting. Master's
 # UUID is set into the result of 'SHOW REPLICA STATUS' and stored into
-# master.info file. Slave's UUID appears in the result of 'SHOW SLAVE HOSTS'.
+# master.info file. Slave's UUID appears in the result of 'SHOW REPLICAS'.
 # Slave and master cannot have the same UUID, except
 # --replicate-same-server-id is set.
 #
@@ -47,15 +47,15 @@ connection master;
 --echo
 --echo # Case 1:
 --echo # Master's UUID appears in the result of 'SHOW REPLICA STATUS'.
---echo # Slave's UUID appears in the result of 'SHOW SLAVE HOSTS'.
+--echo # Slave's UUID appears in the result of 'SHOW REPLICAS'.
 --echo -----------------------------------------------------------------------------
 
 --let $assert_cond= "[master:SELECT @@SERVER_UUID AS a, a, 1]" = "[slave:SHOW REPLICA STATUS, Source_UUID, 1]"
 --let $assert_text= "Slave's SHOW SLAVE HOST should contain the correct value for master's server_uuid
 --source include/assert.inc
 
---let $assert_cond= "[master:SHOW SLAVE HOSTS, Slave_UUID, 1]" = "[slave:SHOW VARIABLES LIKE "SERVER_UUID", Value, 1]"
---let $assert_text= Master's SHOW SLAVE HOSTS should contain the correct value for slave's server_uuid
+--let $assert_cond= "[master:SHOW REPLICAS, Replica_UUID, 1]" = "[slave:SHOW VARIABLES LIKE "SERVER_UUID", Value, 1]"
+--let $assert_text= Master's SHOW REPLICAS should contain the correct value for slave's server_uuid
 --source include/assert.inc
 
 connection slave;

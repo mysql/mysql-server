@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server2]
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
-include/assert.inc [Assert that show slave hosts is empty..]
+include/assert.inc [Assert that show replicas is empty..]
 SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 [connection server1]
 SET @restore_replica_net_timeout=@@global.replica_net_timeout;

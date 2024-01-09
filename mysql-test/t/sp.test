@@ -2752,7 +2752,7 @@ end|
 show binlog events|
 show storage engines|
 show binary log status|
-show slave hosts|
+SHOW REPLICAS|
 SHOW REPLICA STATUS|
 --enable_testcase
 
@@ -9172,7 +9172,7 @@ end|
 show binlog events|
 show storage engines|
 show binary log status|
-show slave hosts|
+SHOW REPLICAS|
 SHOW REPLICA STATUS|
 --enable_testcase
 

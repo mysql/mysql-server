@@ -653,7 +653,7 @@ show table status;
 show open tables;
 show plugins;
 show columns in t1;
-show slave hosts;
+SHOW REPLICAS;
 show keys in t1;
 show storage engines;
 show privileges;

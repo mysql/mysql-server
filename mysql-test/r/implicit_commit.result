@@ -698,7 +698,7 @@ NO
 # SQLCOM_SHOW_SLAVE_HOSTS
 #
 INSERT INTO db1.trans (a) VALUES (1);
-show slave hosts;
+SHOW REPLICAS;
 CALL db1.test_if_commit();
 IMPLICIT COMMIT
 NO

@@ -17,7 +17,9 @@ insert into t1 values (NULL),(NULL),(NULL);
 --source include/sync_slave_sql_with_master.inc
 select * from t1;
 connection master;
---source include/show_slave_hosts.inc
+--replace_result $SLAVE_MYPORT REPLICA_PORT
+--replace_regex /[0-9, a-f]{8}-[0-9, a-f]{4}-[0-9, a-f]{4}-[0-9, a-f]{4}-[0-9, a-f]{12}/REPLICA_UUID/
+SHOW REPLICAS;
 drop table t1;
 --source include/sync_slave_sql_with_master.inc
 STOP REPLICA;

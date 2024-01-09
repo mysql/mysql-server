@@ -15,10 +15,10 @@ include/sync_slave_sql_with_master.inc
 
 # Case 1:
 # Master's UUID appears in the result of 'SHOW REPLICA STATUS'.
-# Slave's UUID appears in the result of 'SHOW SLAVE HOSTS'.
+# Slave's UUID appears in the result of 'SHOW REPLICAS'.
 -----------------------------------------------------------------------------
 include/assert.inc ["Slave's SHOW SLAVE HOST should contain the correct value for master's server_uuid]
-include/assert.inc [Master's SHOW SLAVE HOSTS should contain the correct value for slave's server_uuid]
+include/assert.inc [Master's SHOW REPLICAS should contain the correct value for slave's server_uuid]
 
 # Case 2: 
 # After executing 'STOP REPLICA [IO_THREAD|SQL_THREAD]' successfully, Master's UUID

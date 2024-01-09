@@ -12,11 +12,9 @@ n
 2000
 2001
 2002
-SHOW SLAVE HOSTS;
-Server_id	Host	Port	Master_id	Slave_UUID
-2	127.0.0.1	SLAVE_PORT	1	SLAVE_UUID
-Warnings:
-Warning	1287	'SHOW SLAVE HOSTS' is deprecated and will be removed in a future release. Please use SHOW REPLICAS instead
+SHOW REPLICAS;
+Server_Id	Host	Port	Source_Id	Replica_UUID
+2	127.0.0.1	REPLICA_PORT	1	REPLICA_UUID
 drop table t1;
 include/sync_slave_sql_with_master.inc
 STOP REPLICA;
