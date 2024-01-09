@@ -891,7 +891,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
@@ -967,7 +966,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
@@ -1465,6 +1463,9 @@ fi
 %endif # with_router
 
 %changelog
+* Tue Jan 09 2024 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.4.0-1
+- Removed openssl_udf plugin
+
 * Tue Jan 02 2024 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.4.0-1
 - Removed references to WITH_AUTHENTICATION_FIDO
 
