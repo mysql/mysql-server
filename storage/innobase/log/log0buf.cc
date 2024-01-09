@@ -920,7 +920,12 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
  */
 Log_handle log_buffer_reserve(log_t &log, size_t len) {
   Log_handle handle;
+  /* sn_t start_sn = log.sn.fetch_add(len); */ 
+  const sn_t start_sn = 0;
   const sn_t end_sn = start_sn + len;
+  /* Translate sn to lsn (which includes also headers in redo blocks): */
+  handle.start_lsn = log_translate_sn_to_lsn(start_sn);
+  handle.end_lsn = log_translate_sn_to_lsn(end_sn);
   return handle;
 }
 
