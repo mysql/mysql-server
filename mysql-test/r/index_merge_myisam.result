@@ -1350,8 +1350,8 @@ EXPLAIN
 drop table t0,t1;
 # 'Partially' covered fields test
 create table t2 (
-a char(10),
-b char(10),
+a char(10) collate utf8mb4_0900_bin,
+b char(10) collate utf8mb4_0900_bin,
 filler1 char(255),
 filler2 char(255),
 key(a(5)),
@@ -1364,11 +1364,11 @@ select count(a) from t2 where b='BBBBBBBB';
 count(a)
 4
 # BUG#1:
-expla_or_bin select count(a_or_b) from t2 where a_or_b='AAAAAAAA' a_or_bnd a_or_b='AAAAAAAA';
+explain select count(a_or_b) from t2 where a_or_b='AAAAAAAA' and a_or_b='AAAAAAAA';
 EXPLAIN
--> Aggrega_or_bte: count(t2.a_or_b)  (...)
-    -> Filter: ((t2.a_or_b = 'AAAAAAAA') a_or_bnd (t2.a_or_b = 'AAAAAAAA'))  (...)
-        -> Index lookup on t2 using a_or_b (a_or_b='AAAAAAAA')  (...)
+-> Aggregate: count(t2.a_or_b)
+    -> Filter: ((t2.a_or_b = 'AAAAAAAA') and (t2.a_or_b = 'AAAAAAAA'))
+        -> Index lookup on t2 using a_or_b (a_or_b='AAAAAAAA')
 
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 count(a)

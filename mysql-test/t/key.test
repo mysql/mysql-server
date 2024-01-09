@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 # one subtest needs page size > 8k
 SET SQL_WARNINGS=1;
 
@@ -672,3 +674,56 @@ SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a
   WHERE ( SELECT 1 FROM t1 ) IS NULL OR t2.a = 2;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#35169384: Result diff seen with hypergraph off and on
+--echo #               (different number of rows)
+--echo #
+
+CREATE TABLE t (x VARCHAR(1), KEY (x));
+INSERT INTO t VALUES ('a'), ('b'), ('æ'), ('ß'), ('s');
+INSERT INTO t SELECT 'x' FROM t;
+INSERT INTO t SELECT 'x' FROM t;
+ANALYZE TABLE t;
+
+# In the default utf8mb4_0900_ai_ci collation, 'æ' = 'ae' is true, so
+# the result of this query should include 'æ' as well as 'a'.
+--let $q = SELECT * FROM t WHERE x <= 'ae'
+--sorted_result
+--eval $q
+# The plan should not use a range scan on x <= 'a'.
+--skip_if_hypergraph  # Picks table scan instead of covering index scan.
+--replace_regex $elide_metrics
+--eval EXPLAIN FORMAT=TREE $q
+
+# Similarly, 'r' < 's' < 'ß' = 'ss', so the result of this query
+# should include both 's' and 'ß'.
+--let $q = SELECT * FROM t WHERE x BETWEEN 'r' AND 'ss'
+--sorted_result
+--eval $q
+# The plan should not use a range scan on x <= 's'.
+--skip_if_hypergraph  # Picks table scan instead of covering index range scan.
+--replace_regex $elide_metrics
+--eval EXPLAIN FORMAT=TREE $q
+
+# U+00AD is SOFT HYPHEN, which is ignored in the default collation, so
+# 100 SOFT HYPHEN characters followed by 'a' should match 'a'. Used to
+# return an empty result.
+SET @soft_hyphen = CAST(_utf16 x'00AD' AS CHAR CHARSET utf8mb4);
+--let $q = SELECT * FROM t WHERE x <= CONCAT(REPEAT(@soft_hyphen, 100), 'a')
+--eval $q
+# The plan should not use a range scan on x <= SOFT HYPHEN.
+--skip_if_hypergraph  # Picks table scan instead of covering index scan.
+--replace_regex $elide_metrics
+--eval EXPLAIN FORMAT=TREE $q
+
+# Expected: 'æ', 'ß', 'b'. Used to return an empty result.
+--let $q = SELECT * FROM t WHERE x IN ('ae', 'ss', CONCAT(_utf16 x'00AD', 'b'))
+--sorted_result
+--eval $q
+# The plan should not use a range scan on x = 'a' or x = 's' or x = SOFT HYPHEN.
+--skip_if_hypergraph  # Picks table scan instead of covering index scan.
+--replace_regex $elide_metrics
+--eval EXPLAIN FORMAT=TREE $q
+
+DROP TABLE t;

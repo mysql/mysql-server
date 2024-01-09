@@ -170,7 +170,7 @@ c-1020=w	filler
 c-1021=w	filler
 c-1022=w	filler
 c-1023=w	filler
-create table t4 (a varchar(10), b int, c char(10), filler char(200),
+create table t4 (a varchar(10), b int, c char(12), filler char(200),
 key idx1 (a, b, c)) charset utf8mb4;
 insert into t4 (filler) select concat('NULL-', 15-a) from t2 order by a limit 15;
 insert into t4 (a,b,c,filler) 
@@ -185,7 +185,7 @@ explain
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                       or c='no-such-row2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	range	idx1	idx1	89	NULL	16	100.00	Using where
+1	SIMPLE	t4	NULL	range	idx1	idx1	97	NULL	17	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`filler` AS `filler` from `test`.`t4` where ((`test`.`t4`.`a` is null) and (`test`.`t4`.`b` is null) and ((`test`.`t4`.`c` is null) or (`test`.`t4`.`c` = 'no-such-row1') or (`test`.`t4`.`c` = 'no-such-row2')))
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
@@ -209,7 +209,7 @@ NULL	NULL	NULL	NULL-1
 explain 
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	range	idx1	idx1	89	NULL	32	100.00	Using where
+1	SIMPLE	t4	NULL	range	idx1	idx1	97	NULL	32	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`filler` AS `filler` from `test`.`t4` where (((`test`.`t4`.`a` = 'b-1') or (`test`.`t4`.`a` = 'bb-1')) and (`test`.`t4`.`b` is null) and ((`test`.`t4`.`c` = 'c-1') or (`test`.`t4`.`c` = 'cc-2')))
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');

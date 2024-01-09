@@ -180,12 +180,12 @@ while($t <= 4)
 CREATE TABLE t1 (
   id VARCHAR(100) NOT NULL,
   PRIMARY KEY (id(1) ASC)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB COLLATE utf8mb4_0900_bin;
 
 CREATE TABLE t2 (
   id VARCHAR(100) NOT NULL,
   PRIMARY KEY (id(1) DESC)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB COLLATE utf8mb4_0900_bin;
 
 SET @conditions = CONCAT(
   '<="c" <="d" <"e" <"ee" <="ee" <="ec" <="ef" ',

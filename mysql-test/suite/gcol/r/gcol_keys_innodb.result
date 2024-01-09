@@ -1602,7 +1602,7 @@ gc1 VARCHAR(14) GENERATED ALWAYS AS (concat(vc, vc)) VIRTUAL NOT NULL,
 gc2 VARCHAR(14) GENERATED ALWAYS AS (concat(gc1, 'x')) VIRTUAL NOT NULL,
 KEY gc2_key (gc2),
 KEY gc2_key_prefix (gc2(5))
-);
+) COLLATE utf8mb4_0900_bin;
 INSERT INTO t1 (i, vc) VALUES
 (7, 'xcek'), (3, 'ceksat'), (3, 'eksate'), (3, 'ksatef'), (6, 's');
 ANALYZE TABLE t1;
@@ -1689,7 +1689,7 @@ DROP TABLE t;
 #
 CREATE TABLE t (vc VARCHAR(100),
 gc VARCHAR(100) GENERATED ALWAYS AS (REVERSE(vc)) STORED,
-KEY (gc(3)));
+KEY (gc(3))) COLLATE utf8mb4_0900_bin;
 INSERT INTO t(vc) VALUES ('a'), ('abc'), ('abcabc'), ('abcdef');
 ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text

@@ -1121,7 +1121,7 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t (vc VARCHAR(100),
 gc VARCHAR(100) GENERATED ALWAYS AS (REVERSE(vc)) STORED,
-KEY (gc(3)));
+KEY (gc(3))) COLLATE utf8mb4_0900_bin;
 INSERT INTO t(vc) VALUES ('a'), ('abc'), ('abcabc'), ('abcdef');
 ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
@@ -1144,7 +1144,7 @@ vc	gc
 abcabc	cbacba
 EXPLAIN SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	range	gc	gc	403	NULL	3	100.00	Using pushed condition (`test`.`t`.`gc` between 'c' and 'e'); Using MRR
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	range	gc	gc	403	NULL	3	100.00	Using where; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (`test`.`t`.`gc` between 'c' and 'e')
 SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';

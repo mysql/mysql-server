@@ -860,3 +860,52 @@ SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a
 WHERE ( SELECT 1 FROM t1 ) IS NULL OR t2.a = 2;
 a	a
 DROP TABLE t1, t2;
+#
+# Bug#35169384: Result diff seen with hypergraph off and on
+#               (different number of rows)
+#
+CREATE TABLE t (x VARCHAR(1), KEY (x));
+INSERT INTO t VALUES ('a'), ('b'), ('æ'), ('ß'), ('s');
+INSERT INTO t SELECT 'x' FROM t;
+INSERT INTO t SELECT 'x' FROM t;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT * FROM t WHERE x <= 'ae';
+x
+a
+æ
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x <= 'ae';
+EXPLAIN
+-> Filter: (t.x <= 'ae')
+    -> Covering index scan on t using x
+
+SELECT * FROM t WHERE x BETWEEN 'r' AND 'ss';
+x
+s
+ß
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x BETWEEN 'r' AND 'ss';
+EXPLAIN
+-> Filter: (t.x between 'r' and 'ss')
+    -> Covering index range scan on t using x over ('r' <= x)
+
+SET @soft_hyphen = CAST(_utf16 x'00AD' AS CHAR CHARSET utf8mb4);
+SELECT * FROM t WHERE x <= CONCAT(REPEAT(@soft_hyphen, 100), 'a');
+x
+a
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x <= CONCAT(REPEAT(@soft_hyphen, 100), 'a');
+EXPLAIN
+-> Filter: (t.x <= <cache>(concat(repeat((@soft_hyphen),100),'a')))
+    -> Covering index scan on t using x
+
+SELECT * FROM t WHERE x IN ('ae', 'ss', CONCAT(_utf16 x'00AD', 'b'));
+x
+b
+ß
+æ
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x IN ('ae', 'ss', CONCAT(_utf16 x'00AD', 'b'));
+EXPLAIN
+-> Filter: (t.x in ('ae','ss',<cache>(concat('­','b'))))
+    -> Covering index scan on t using x
+
+DROP TABLE t;

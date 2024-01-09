@@ -1128,7 +1128,7 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t (vc VARCHAR(100),
 gc VARCHAR(100) GENERATED ALWAYS AS (REVERSE(vc)) STORED,
-KEY (gc(3)));
+KEY (gc(3))) COLLATE utf8mb4_0900_bin;
 INSERT INTO t(vc) VALUES ('a'), ('abc'), ('abcabc'), ('abcdef');
 ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
