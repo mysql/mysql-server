@@ -38,11 +38,6 @@ SET(CS_LIB_SOURCES
   )
 
 IF (WITH_CS_PROTOBUF)
-  IF(WIN32)
-    # Activate necessary dllexport/dllimport declarations.
-    # ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
-  ENDIF()
-
   FILE(MAKE_DIRECTORY ${CS_LIB_PB_GENERATE_DIR})
   INCLUDE_DIRECTORIES(${CS_LIB_PB_GENERATE_DIR})
 
@@ -51,6 +46,7 @@ IF (WITH_CS_PROTOBUF)
     ${CS_LIB_PB_SPEC_FILES}
     OUTPUT_DIRECTORY ${CS_LIB_PB_GENERATE_DIR}
     ADDITIONAL_COMMENT "- lite version")
+  TARGET_LINK_LIBRARIES(changestreams_pb_static PUBLIC ext::libprotobuf-lite)
 
   SET_TARGET_PROPERTIES(changestreams_pb_static
     PROPERTIES

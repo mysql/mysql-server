@@ -790,7 +790,7 @@ URL: https://abseil.io/\n\
 Version: ${absl_VERSION}\n\
 Libs: -L\${libdir} $<$<NOT:$<BOOL:${ABSL_CC_LIB_IS_INTERFACE}>>:-l${_dll}> ${PC_LINKOPTS}\n\
 Cflags: -I\${includedir}${PC_CFLAGS}\n")
-  INSTALL(FILES "${CMAKE_BINARY_DIR}/lib/pkgconfig/${_dll}.pc"
+  do_not_install(FILES "${CMAKE_BINARY_DIR}/lib/pkgconfig/${_dll}.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
   target_compile_definitions(
@@ -812,11 +812,40 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
     target_compile_features(${_dll} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})
   endif()
 
-  install(TARGETS ${_dll} EXPORT ${PROJECT_NAME}Targets
+  do_not_install(TARGETS ${_dll} EXPORT ${PROJECT_NAME}Targets
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
+
+  SET_TARGET_PROPERTIES(${_dll} PROPERTIES
+    DEBUG_POSTFIX ""
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+    )
+
+  IF(WIN32)
+    ADD_CUSTOM_COMMAND(TARGET ${_dll} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:${_dll}>"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:${_dll}>"
+      )
+    SET_TARGET_PROPERTIES(${_dll} PROPERTIES
+      DEBUG_POSTFIX "-debug")
+    INSTALL_DEBUG_TARGET(${_dll}
+      DESTINATION "${INSTALL_BINDIR}"
+      COMPONENT SharedLibraries
+      )
+  ENDIF()
+  INSTALL_PRIVATE_LIBRARY(${_dll})
+
+  IF(WITH_ROUTER)
+    IF(WIN32)
+      INSTALL(TARGETS ${_dll}
+        DESTINATION "${ROUTER_INSTALL_PLUGINDIR}" COMPONENT Router
+        )
+    ENDIF()
+  ENDIF()
 
   add_library(absl::${_dll} ALIAS ${_dll})
 endfunction()

@@ -207,7 +207,9 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
   SET(MY_PROTOBUF_FLAGS "")
   SET(MY_PUBLIC_PROTOBUF_FLAGS "")
 
-  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  # The flags set below need to cover all "system" versions of protobuf,
+  # in addition to the version we have bundled.
+  IF(MY_COMPILER_IS_GNU_OR_CLANG AND NOT WIN32_CLANG)
     STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-unused-parameter -Wno-undef")
 
     STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-unused-variable -Wno-undef")
@@ -238,29 +240,34 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
 
   IF(MSVC)
     IF(WIN32_CLANG)
-      SET(MY_PROTOBUF_FLAGS "${MY_PROTOBUF_FLAGS} -Wno-sign-compare")
-      SET(MY_PUBLIC_PROTOBUF_FLAGS
-        "${MY_PUBLIC_PROTOBUF_FLAGS} -Wno-sign-compare")
+      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-unused-parameter")
+      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-extra-semi")
     ELSE()
-      # /wd4018 'expression' : signed/unsigned mismatch
-      # /wd4251 'type' : class 'type1' needs to have dll-interface
-      #         to be used by clients of class 'type2'
-      SET(MY_PROTOBUF_FLAGS "${MY_PROTOBUF_FLAGS} /wd4018 /wd4251")
-
       # Silence warnings about: needs to have dll-interface
       STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd4251")
-      # not all control paths return a value
-      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd4715")
-      # <expression> is never evaluated and might have side effects
-      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd6286")
       # __declspec(dllimport): ignored on left of ...  VS16 only
       STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd4091")
+
+      # not all control paths return a value
+      STRING_APPEND(MY_PROTOBUF_FLAGS " /wd4715")
+      # <expression> is never evaluated and might have side effects
+      STRING_APPEND(MY_PROTOBUF_FLAGS " /wd6286")
     ENDIF()
   ENDIF(MSVC)
 
-  ADD_COMPILE_FLAGS(${PROTO_SRCS} COMPILE_FLAGS
-    "${MY_PROTOBUF_FLAGS} ${MY_PUBLIC_PROTOBUF_FLAGS}"
-  )
+  STRING(REPLACE " " ";"
+    private_flags "${MY_PROTOBUF_FLAGS} ${MY_PUBLIC_PROTOBUF_FLAGS}")
+  TARGET_COMPILE_OPTIONS(${TARGET_NAME}
+    PRIVATE ${private_flags}
+    )
+
+  # We must propagate those dll-related flags to users of this library.
+  IF(MSVC AND NOT WIN32_CLANG)
+    STRING(REPLACE " " ";" public_flags "${MY_PUBLIC_PROTOBUF_FLAGS}")
+    TARGET_COMPILE_OPTIONS(${TARGET_NAME}
+      PUBLIC ${public_flags}
+      )
+  ENDIF()
 
   SET(MY_PUBLIC_PROTOBUF_FLAGS ${MY_PUBLIC_PROTOBUF_FLAGS} PARENT_SCOPE)
 ENDFUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY)

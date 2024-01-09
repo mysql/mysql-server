@@ -145,7 +145,7 @@ function(absl_cc_library)
       # Building a DLL, but this target is not part of the DLL
       set(_build_type "dll_dep")
     endif()
-  elseif(BUILD_SHARED_LIBS)
+  elseif(absl_BUILD_SHARED_LIBS)
     set(_build_type "shared")
   else()
     set(_build_type "static")

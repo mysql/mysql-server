@@ -41,4 +41,15 @@ IF(FREEBSD)
 ENDIF()
 
 SET(ABSL_PROPAGATE_CXX_STD ON)
+
+# The Clang build fails for shared protobuf/abseil builds:
+# invalid application of 'alignof' to an incomplete type 'mapped_type'
+# note: due to ..... being dllexported
+IF(MSVC AND NOT WIN32_CLANG)
+  SET(absl_BUILD_SHARED_LIBS ON)
+ENDIF()
+
+MACRO(do_not_install)
+ENDMACRO()
+
 ADD_SUBDIRECTORY(abseil-cpp-20230802.1)

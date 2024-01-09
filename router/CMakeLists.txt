@@ -78,11 +78,6 @@ ENDIF()
 DISABLE_MISSING_PROFILE_WARNING()
 
 IF(WIN32)
-  # Activate necessary dllexport/dllimport declarations.
-  # ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
-ENDIF()
-
-IF(WIN32)
   # 'identifier' : class 'type' needs to have dll-interface to be used
   # by clients of class 'type2'
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")

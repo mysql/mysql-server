@@ -29,11 +29,6 @@ SET(MYSQLX_PLUGIN_NAME "mysqlx")
 
 MSVC_CPPCHECK_DISABLE()
 
-IF(WIN32)
-  # Activate necessary dllexport/dllimport declarations.
-  # ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
-ENDIF()
-
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="mysqlx")
 
 INCLUDE(src/source_files.cmake)
@@ -68,11 +63,9 @@ library for mysqlx plugin.")
 ENDIF()
 
 IF(WITH_MYSQLX_USE_PROTOBUF_FULL)
-  SET(MYSQLX_PROTOBUF_LIB ext::libprotobuf)
   SET(MYSQLX_PROTOCOL_LIB ${MYSQLX_PROTOCOL_FULL_LIB})
   SET(MYSQLX_CLIENT_LIB ${MYSQLX_CLIENT_FULL_LIB})
 ELSE()
-  SET(MYSQLX_PROTOBUF_LIB ext::libprotobuf-lite)
   SET(MYSQLX_PROTOCOL_LIB ${MYSQLX_PROTOCOL_LITE_LIB})
   SET(MYSQLX_CLIENT_LIB ${MYSQLX_CLIENT_LITE_LIB})
 ENDIF()
@@ -97,7 +90,6 @@ IF(WITH_MYSQLX)
     ext::libevent
     ext::icu
     ${MYSQLX_PROTOCOL_LIB}
-    ${MYSQLX_PROTOBUF_LIB}
     extra::rapidjson
     ext::lz4
     ext::zstd
