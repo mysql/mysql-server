@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* MEB should neither write to the log buffer nor maintain
 the log buffer or recent_written / recent_closed buffers. */
+#include "univ.i"
 #ifndef UNIV_HOTBACKUP
 
 /* log.recent_written, log.recent_closed */
@@ -98,6 +99,9 @@ waiting for the link.
 @param[in]	len	number of data bytes to reserve for write
 @return handle that represents the reservation */
 Log_handle log_buffer_reserve(log_t &log, size_t len);
+
+// 在状态层给 redo log 分配空间，以供接下来的写操作
+Log_handle log_remote_buf_reverse(log_t &log, size_t len);
 
 /** Writes data to the log buffer. The space in the redo log has to be
 reserved before calling to this function and lsn pointing to inside the

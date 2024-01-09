@@ -910,6 +910,19 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   return handle;
 }
 
+
+/**
+ * @StateReplicate 在状态层给 redo log 分配空间，以供接下来的写操作
+ * 
+ * @param log 
+ * @param len 
+ * @return Log_handle 
+ */
+Log_handle log_buffer_reserve(log_t &log, size_t len) {
+  Log_handle handle;
+  return handle;
+}
+
 /** @} */
 
 /**************************************************/ /**
