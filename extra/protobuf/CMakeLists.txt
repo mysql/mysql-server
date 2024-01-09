@@ -45,6 +45,12 @@ IF(MSVC AND NOT WIN32_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4805")
   # signed/unsigned mismatch
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4018")
+  # __declspec(dllimport): ignored on left of ...  VS16 only
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4091")
+  # non-dllinterface class .. used as base for dll-interface class .. VS16 only
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4275")
+  # 'identifier' : class 'type' needs to have dll-interface VS16 only
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4251")
 ELSE()
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-sign-compare")
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-function")
@@ -134,7 +140,7 @@ SET(protobuf_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 # Look for: Force running AddDescriptors() at dynamic initialization time.
 # Hangs at src/google/protobuf/compiler/plugin.pb.cc:193
 # cmake/abseil-cpp.cmake assumes abseil is also a .dll
-IF(SOLARIS OR WIN32)
+IF(SOLARIS OR WIN32_CLANG)
   SET(protobuf_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
 ELSE()
   # With static C/C++ libraries, protoc with shared libs will segfault,

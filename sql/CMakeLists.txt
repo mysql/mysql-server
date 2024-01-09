@@ -105,11 +105,6 @@ IF(HAS_MISSING_PROFILE)
   ADD_COMPILE_FLAGS(gen_keyword_list.cc COMPILE_FLAGS ${HAS_MISSING_PROFILE})
 ENDIF()
 
-IF(WIN32)
-  # Activate necessary dllexport/dllimport declarations.
-  # ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
-ENDIF()
-
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/keyword_list.h
   COMMAND gen_keyword_list ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy > ${CMAKE_CURRENT_BINARY_DIR}/keyword_list.h
@@ -1133,6 +1128,9 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(mysqld
   ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server
   )
+# You may want to redirect output for this one,
+# the list of exported symbols is loooong.
+ADD_OBJDUMP_TARGET(show_mysqld "$<TARGET_FILE:mysqld>" DEPENDS mysqld)
 
 # We depend on protobuf because of the mysqlx plugin and replication.
 IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
