@@ -920,6 +920,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
  */
 Log_handle log_buffer_reserve(log_t &log, size_t len) {
   Log_handle handle;
+  const sn_t end_sn = start_sn + len;
   return handle;
 }
 
