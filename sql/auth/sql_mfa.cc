@@ -989,7 +989,7 @@ bool Multi_factor_auth_info::finish_registration(THD *thd, LEX_USER *user_name,
   if (is_passwordless()) {
     /*
       In below case:
-      CREATE USER u1 IDENTIFIED WITH authentication_fido INITIAL
+      CREATE USER u1 IDENTIFIED WITH authentication_webauthn INITIAL
           AUTHENTICATION BY 'pass';
       server for above ddl will interchange 1FA and 2FA so that user,
       for first time is expected to authenticate with an initial
@@ -1002,7 +1002,7 @@ bool Multi_factor_auth_info::finish_registration(THD *thd, LEX_USER *user_name,
       user: u1
       plugin: caching_sha2_password
       user_attributes: {"Multi_factor_authentication": [{"plugin":
-          "authentication_fido", "passwordless": 1,
+          "authentication_webauthn", "passwordless": 1,
       "authentication_string":
           "", "requires_registration": 1}]}
 
@@ -1011,7 +1011,7 @@ bool Multi_factor_auth_info::finish_registration(THD *thd, LEX_USER *user_name,
       mysql.user WHERE user='u1'\G
       *************************** 1. row ***************************
       user: u1
-      plugin: authentication_fido
+      plugin: authentication_webauthn
       authentication_string: <fido credentials>
       user_attributes: NULL
     */

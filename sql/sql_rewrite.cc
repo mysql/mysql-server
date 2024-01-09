@@ -838,18 +838,18 @@ void Rewriter_create_user::append_user_auth_info(LEX_USER *user, bool comma,
       In case of passwordless user, server fiddles with user specified syntax,
       thus we are expected to write the original syntax.
       ex:
-      CREATE USER foo IDENTIFIED WITH authentication_fido INITIAL AUTHENTICATION
-         IDENTIFIED BY 'abc';
-      above sql is converted by server as:
+      CREATE USER foo IDENTIFIED WITH authentication_webauthn INITIAL
+      AUTHENTICATION IDENTIFIED BY 'abc'; above sql is converted by server as:
       CREATE USER foo IDENTIFIED BY 'abc' AND IDENTIFIED WITH
-      authentication_fido;
+      authentication_webauthn;
 
       This block ensures that query is rewritten in logs as:
-      CREATE USER foo IDENTIFIED WITH authentication_fido INITIAL AUTHENTICATION
-         IDENTIFIED WITH <default auth plugin> AS <auth_hash_string>;
+      CREATE USER foo IDENTIFIED WITH authentication_webauthn INITIAL
+      AUTHENTICATION IDENTIFIED WITH <default auth plugin> AS
+      <auth_hash_string>;
     */
     assert(user->mfa_list.size());
-    /* point to 2nd factor which is authentication_fido */
+    /* point to 2nd factor which is authentication_webauthn */
     tmp_mfa = mfa_list++;
     str->append(STRING_WITH_LEN(" IDENTIFIED"));
     append_mfa_plugin_name(tmp_mfa, str);

@@ -4760,9 +4760,9 @@ bool parse_authentication_policy(char *val,
     While parsing ensure that an empty value which means an optional nth factor,
     should be followed with an empty value only.
     Below are some invalid values:
-    'caching_sha2_password,,authentication_fido'
-    ',authentication_fido,authentication_ldap_simple'
-    ',authentication_fido,'
+    'caching_sha2_password,,authentication_webauthn'
+    ',authentication_webauthn,authentication_ldap_simple'
+    ',authentication_webauthn,'
     ',,'
   */
   while (getline(policy_str, token, ',')) {
@@ -4777,7 +4777,7 @@ bool parse_authentication_policy(char *val,
     policy_list.push_back(s);
   }
   /*
-    Values like 'caching_sha2_password,authentication_fido,' or
+    Values like 'caching_sha2_password,authentication_webauthn,' or
     'caching_sha2_password,,' will not capture the last empty value, thus append
     an empty value to the list.
   */

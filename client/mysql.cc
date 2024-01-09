@@ -245,7 +245,6 @@ static char *shared_memory_base_name = nullptr;
 static uint opt_protocol = 0;
 static const CHARSET_INFO *charset_info = &my_charset_latin1;
 
-static char *opt_fido_register_factor = nullptr;
 static char *opt_oci_config_file = nullptr;
 static char *opt_authentication_oci_client_config_profile = nullptr;
 static char *opt_register_factor = nullptr;
@@ -2062,11 +2061,6 @@ static struct my_option my_long_options[] = {
     {"load_data_local_dir", OPT_LOAD_DATA_LOCAL_DIR,
      "Directory path safe for LOAD DATA LOCAL INFILE to read from.",
      &opt_load_data_local_dir, &opt_load_data_local_dir, nullptr, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"fido-register-factor", 0,
-     "Specifies authentication factor, for which registration needs to be "
-     "done.",
-     &opt_fido_register_factor, &opt_fido_register_factor, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"authentication-oci-client-config-profile", 0,
      "Specifies the configuration profile whose configuration options are to "
@@ -4995,25 +4989,9 @@ static int sql_real_connect(char *host, char *database, char *user, char *,
   }
 
   /* do token device registration */
-  if (opt_fido_register_factor || opt_register_factor) {
+  if (opt_register_factor) {
     char errmsg[FN_REFLEN + 1]{0};
-    if (opt_fido_register_factor) {
-      put_info(
-          "--fido-register-factor option is deprecreted, instead use "
-          "--register-factor.",
-          INFO_INFO);
-      if (opt_register_factor) {
-        put_info(
-            "--register-factor is specified. Value of --fido-register-factor "
-            "will be ignored.",
-            INFO_INFO);
-      }
-    }
-
-    if (user_device_registration(&mysql_handle,
-                                 opt_register_factor ? opt_register_factor
-                                                     : opt_fido_register_factor,
-                                 errmsg)) {
+    if (user_device_registration(&mysql_handle, opt_register_factor, errmsg)) {
       put_info(errmsg, INFO_ERROR);
       return 1;
     }

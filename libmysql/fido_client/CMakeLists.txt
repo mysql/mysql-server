@@ -23,8 +23,5 @@
 # Common
 ADD_SUBDIRECTORY(common)
 
-# FIDO authentication client plugin
-ADD_SUBDIRECTORY(authentication_fido)
-
 # FIDO webauthn authentication client plugin
 ADD_SUBDIRECTORY(authentication_webauthn)

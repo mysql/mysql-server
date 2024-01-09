@@ -828,7 +828,6 @@ mkdir debug
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
 %else
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
-           -DWITH_AUTHENTICATION_FIDO=0 \
            -DWITH_AUTHENTICATION_WEBAUTHN=0 \
            -DWITH_AUTHENTICATION_KERBEROS=0 \
            -DWITH_AUTHENTICATION_LDAP=0 \
@@ -882,7 +881,6 @@ mkdir release
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
 %else
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
-           -DWITH_AUTHENTICATION_FIDO=0 \
            -DWITH_AUTHENTICATION_WEBAUTHN=0 \
            -DWITH_AUTHENTICATION_KERBEROS=0 \
            -DWITH_AUTHENTICATION_LDAP=0 \
@@ -1204,7 +1202,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %if 0%{?ssl_default}
 %if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
 %endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
@@ -1297,7 +1294,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %if 0%{?ssl_default}
 %if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
 %endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos.so
@@ -1493,7 +1489,6 @@ fi
 %doc %{?license_files_server}
 %if 0%{?ssl_default}
 %if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.13.0
@@ -1640,7 +1635,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %if 0%{?ssl_default}
 %if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
@@ -1872,6 +1866,9 @@ fi
 %endif # with_router
 
 %changelog
+* Tue Jan 02 2024 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.4.0-1
+- Removed references to WITH_AUTHENTICATION_FIDO
+
 * Fri Nov 17 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.4.0-1
 - mysql_stmt_bind_param C API removed, so increase the libmysqlclient major version to 24.
 

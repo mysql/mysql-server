@@ -9630,7 +9630,7 @@ ER_INVALID_PLUGIN_FOR_REGISTRATION
   eng "This operation is not supported for plugin \"%s\"."
 
 ER_PLUGIN_REQUIRES_REGISTRATION
-  eng "Authentication plugin requires registration. Please refer ALTER USER syntax or set --fido-register-factor command line option to do registration."
+  eng "Authentication plugin requires registration. Please refer ALTER USER syntax or set --register-factor command line option to do registration."
 
 ER_MFA_METHOD_EXISTS
   eng "%d factor authentication method exists. Please do ALTER USER... DROP %d factor before doing this operation OR do ALTER USER... MODIFY %d factor... to modify existing %d factor authentication method."
