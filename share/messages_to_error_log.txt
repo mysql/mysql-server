@@ -12628,6 +12628,9 @@ ER_NOTE_KEYRING_COMPONENT_KEY_READ_ITERATOR_INIT_FAILED
 ER_NOTE_KEYRING_COMPONENT_KEY_READ_ITERATOR_FETCH_FAILED
   eng "Failed to read key from key reader iterator."
 
+ER_BACKGROUND_HISTOGRAM_UPDATE
+  eng "%*s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
@@ -12640,19 +12643,14 @@ ER_NOTE_KEYRING_COMPONENT_KEY_READ_ITERATOR_FETCH_FAILED
 
 
 #
-# End of 8.1+ error messages intended to be written to the server error log.
+# End of 8.1, 8.2, 8.3, 8.4 error messages intended to be written to the server error log.
 #
 
 #
-# Start of 8.2 error messages intended to be written to the server error log.
-# Append 8.0 error log messages to the end of the _previous_ section.
+# Start of 9.0 error messages intended to be written to the server error log.
+# Append 8.x error log messages to the end of the _previous_ section.
 # Messages intended to be sent to _clients_ go in messages_to_clients.txt!
 #
-
-start-error-number 15500
-
-ER_BACKGROUND_HISTOGRAM_UPDATE
-  eng "%*s"
 
 
 ################################################################################
