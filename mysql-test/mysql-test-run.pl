@@ -7348,8 +7348,9 @@ sub start_mysqltest ($) {
 
   my $tail_lines = 20;
   if ($tinfo->{'full_result_diff'}) {
-    # Use 1G as an approximation for infinite output.
-    $tail_lines = 1000000000;
+    # Use 10000 as an approximation for infinite output (same as maximum for
+    # mysqltest --tail-lines).
+    $tail_lines = 10000;
   }
   # Number of lines of result to include in failure report
   mtr_add_arg($args, "--tail-lines=${tail_lines}");
