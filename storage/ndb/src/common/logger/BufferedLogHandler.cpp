@@ -28,9 +28,11 @@
 
 #include <time.h>
 
+namespace {
 struct ThreadData {
   BufferedLogHandler *buf_loghandler;
 };
+}  // namespace
 
 void *async_log_function(void *args) {
   ThreadData *data = (ThreadData *)args;
