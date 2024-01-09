@@ -352,7 +352,6 @@ const SharingAllowedParam show_statements[] = {
     {"SHOW profiles", Allowed::InTransaction},              //
     {"SHOW relaylog", Allowed::OnlyReadOnly},               //
     {"SHOW replicas", Allowed::OnlyReadWrite},              //
-    {"SHOW slave hosts", Allowed::OnlyReadWrite},           //
     {"SHOW replica status", Allowed::OnlyReadOnly},         //
     {"SHOW global status", Allowed::InTransaction},         //
     {"SHOW session status", Allowed::Always},               //
