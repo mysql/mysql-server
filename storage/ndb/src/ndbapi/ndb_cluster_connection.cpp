@@ -610,6 +610,7 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl() {
     NdbMutex_Destroy(ndb_print_state_mutex);
     ndb_print_state_mutex = nullptr;
 #endif
+    g_eventLogger->stopAsync();
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
