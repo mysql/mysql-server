@@ -25,7 +25,7 @@
 #ifndef MYSQL_HARNESS_NET_TS_IMPL_KQUEUE_H_
 #define MYSQL_HARNESS_NET_TS_IMPL_KQUEUE_H_
 
-#include "router_config.h"  // HAVE_KQUEUE
+#include "my_config.h"  // HAVE_KQUEUE
 
 #ifdef HAVE_KQUEUE
 #include <chrono>

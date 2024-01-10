@@ -30,6 +30,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "my_config.h"  // HAVE_EPOLL
+
 #ifdef HAVE_EPOLL
 #include <sys/socket.h>
 

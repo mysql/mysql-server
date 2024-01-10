@@ -46,13 +46,3 @@
 #define MYSQL_ROUTER_RUNTIME_FOLDER "@ROUTER_RUNTIMEDIR@"
 #define MYSQL_ROUTER_LOGGING_FOLDER "@ROUTER_LOGDIR@"
 #define MYSQL_ROUTER_DATA_FOLDER "@ROUTER_DATADIR@"
-
-/* Endianess */
-#cmakedefine WORDS_BIGENDIAN 1
-
-#cmakedefine WITH_UNIT_TESTS
-
-// Platform specific libraries
-#cmakedefine HAVE_PRLIMIT 1
-#cmakedefine HAVE_EPOLL 1
-#cmakedefine HAVE_KQUEUE 1
