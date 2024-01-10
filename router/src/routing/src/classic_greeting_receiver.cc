@@ -53,6 +53,7 @@
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/connection_base.h"
 #include "processor.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "sql/server_component/mysql_command_services_imp.h"
 #include "tracer.h"
 
