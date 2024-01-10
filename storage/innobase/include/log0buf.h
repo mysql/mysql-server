@@ -107,7 +107,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len);
  * @param len 
  * @return Log_handle 
  */
-Log_handle log_remote_buf_reverse(log_t &log, size_t len);
+Log_handle log_remote_buf_reserve(log_t &log, size_t len);
 
 /** Writes data to the log buffer. The space in the redo log has to be
 reserved before calling to this function and lsn pointing to inside the

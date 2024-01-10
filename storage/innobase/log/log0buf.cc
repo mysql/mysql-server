@@ -918,7 +918,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
  * @param len 
  * @return Log_handle 
  */
-Log_handle log_buffer_reserve(log_t &log, size_t len) {
+Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   Log_handle handle;
   /* sn_t start_sn = log.sn.fetch_add(len); */ 
   const sn_t start_sn = 0;
