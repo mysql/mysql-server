@@ -88,7 +88,7 @@ IF(WITH_MYSQLX)
     DEFAULT
     DEPENDENCIES xprotocol_tags
     LINK_LIBRARIES
-    ext::libevent
+    harness_net_ts
     ext::icu
     ${MYSQLX_PROTOCOL_LIB}
     extra::rapidjson

@@ -780,18 +780,18 @@ class basic_socket : public socket_base, private basic_socket_impl<Protocol> {
           get_executor().context().async_wait(
               native_handle(), net::socket_base::wait_write,
               [this, __compl_handler = std::move(__compl_handler)](
-                  std::error_code ec) mutable {
-                if (ec) {
-                  __compl_handler(ec);
+                  std::error_code error_code) mutable {
+                if (error_code) {
+                  __compl_handler(error_code);
                   return;
                 }
 
                 // finish the non-blocking connect
                 net::socket_base::error so_error;
 
-                auto res = get_option(so_error);
-                if (!res) {
-                  __compl_handler(res.error());
+                auto result = get_option(so_error);
+                if (!result) {
+                  __compl_handler(result.error());
                   return;
                 }
 

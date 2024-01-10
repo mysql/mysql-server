@@ -2348,10 +2348,11 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
     ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
 
 # depends on mysql_version.h to exist
-IF(NOT WITHOUT_SERVER)
-  IF(WITH_ROUTER)
-    ADD_SUBDIRECTORY(router)
-  ENDIF()
+IF(NOT WITHOUT_SERVER AND WITH_ROUTER)
+  ADD_SUBDIRECTORY(router)
+ELSE()
+  # Define harness_net_ts target and public include directories.
+  ADD_SUBDIRECTORY(router/src/harness/include)
 ENDIF()
 
 IF(ENABLE_GCOV)
