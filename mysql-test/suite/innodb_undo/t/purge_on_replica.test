@@ -1,0 +1,71 @@
+--source include/have_debug.inc
+# The test requires a debug build, in order to trigger
+# a purge using innodb_purge_run_now=ON .
+
+--source include/master-slave.inc
+
+--echo # 1: Set replica parameters
+connection slave;
+
+set @orig_max_undo_log_size = @@innodb_max_undo_log_size;
+set @orig_truncate_frequency = @@innodb_purge_rseg_truncate_frequency;
+
+# Trigger truncation of undo log files once they occupy more than 10MB
+# which is the minimum value of innodb_max_undo_log_size
+set global innodb_max_undo_log_size=10485760;
+set global innodb_purge_rseg_truncate_frequency=1;
+set global super_read_only=1;
+
+--echo
+--echo # 2: Preparing database
+connection master;
+
+create table t1(id int);
+
+delimiter $$;
+create procedure insert_data()
+begin
+ declare i int;
+ set i=1;
+ while(i<=500000) do
+    insert into t1(id) values(i);
+    set i=i+1;
+ end while;
+end;$$
+delimiter ;$$
+
+begin;
+
+--echo # 3: Inserting data, filling undo logs
+call insert_data();
+
+--echo # 4: commit, trigger undo log truncation
+commit;
+sync_slave_with_master;
+
+connection slave;
+
+--source include/wait_innodb_all_purged.inc
+
+
+# expecting two undo files, and no undo_*_trunc.log files remaining
+
+select tablespace_name, file_name from information_schema.files
+  where file_name like "%undo%";
+select name, row_format, server_version from information_schema.innodb_tablespaces
+  where name like '%undo%';
+
+let $MYSQLD_DATADIR = `select @@datadir`;
+
+--echo # 5: undo files undo_001 and undo_002 are expected to exist,
+--echo #    while files undo_001_trunc.log and undo_002_trunc.log are expected to not exist
+list_files $MYSQLD_DATADIR undo_0*;
+
+set global innodb_max_undo_log_size=@orig_max_undo_log_size;
+set global innodb_purge_rseg_truncate_frequency=@orig_truncate_frequency;
+set global super_read_only = 0;
+set global read_only = 0;
+connection master;
+drop procedure insert_data;
+drop table t1;
+--source include/rpl_end.inc

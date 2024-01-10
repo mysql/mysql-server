@@ -1,0 +1,49 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# 1: Set replica parameters
+set @orig_max_undo_log_size = @@innodb_max_undo_log_size;
+set @orig_truncate_frequency = @@innodb_purge_rseg_truncate_frequency;
+set global innodb_max_undo_log_size=10485760;
+set global innodb_purge_rseg_truncate_frequency=1;
+set global super_read_only=1;
+
+# 2: Preparing database
+create table t1(id int);
+create procedure insert_data()
+begin
+declare i int;
+set i=1;
+while(i<=500000) do
+insert into t1(id) values(i);
+set i=i+1;
+end while;
+end;$$
+begin;
+# 3: Inserting data, filling undo logs
+call insert_data();
+# 4: commit, trigger undo log truncation
+commit;
+select tablespace_name, file_name from information_schema.files
+where file_name like "%undo%";
+TABLESPACE_NAME	FILE_NAME
+innodb_undo_001	./undo_001
+innodb_undo_002	./undo_002
+select name, row_format, server_version from information_schema.innodb_tablespaces
+where name like '%undo%';
+name	row_format	server_version
+innodb_undo_001	Undo	8.4.0
+innodb_undo_002	Undo	8.4.0
+# 5: undo files undo_001 and undo_002 are expected to exist,
+#    while files undo_001_trunc.log and undo_002_trunc.log are expected to not exist
+undo_001
+undo_002
+set global innodb_max_undo_log_size=@orig_max_undo_log_size;
+set global innodb_purge_rseg_truncate_frequency=@orig_truncate_frequency;
+set global super_read_only = 0;
+set global read_only = 0;
+drop procedure insert_data;
+drop table t1;
+include/rpl_end.inc
