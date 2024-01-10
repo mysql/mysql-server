@@ -2,7 +2,7 @@
 # Basic testing of REPLICATE_* filter rules
 #
 --source include/master-slave.inc
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 # Clean all configuration changes after running the test.
 --source include/force_restart.inc
 
@@ -56,7 +56,7 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB= (), REPLICATE_REWRITE_DB=(), REPLICAT
 #
 CREATE USER 'user7057' IDENTIFIED BY 'pass7057';
 --error 1
---exec $MYSQL -uuser7057 -ppass7057 -S$SLAVE_MYSOCK -P$SLAVE_MYPORT -e "CHANGE REPLICATION FILTER REPLICATE_DO_DB= (db1)" 2>&1 
+--exec $MYSQL -uuser7057 -ppass7057 -S$SLAVE_MYSOCK -P$SLAVE_MYPORT -e "CHANGE REPLICATION FILTER REPLICATE_DO_DB= (db1)" 2>&1
 DROP USER 'user7057';
 
 --source include/start_slave_sql.inc

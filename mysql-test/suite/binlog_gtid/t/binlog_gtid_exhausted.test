@@ -14,8 +14,9 @@
 # fatal error case is appropriately handled as per the binlog_error_action
 # value specified by user.
 ###############################################################################
+
 # This test case is binlog_format agnostic
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 

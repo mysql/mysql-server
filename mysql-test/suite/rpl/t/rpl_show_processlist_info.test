@@ -20,7 +20,7 @@
 #
 ################################################################################
 
-# Test is binlog_format-agnostic
+# Test is binlog_format agnostic
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 

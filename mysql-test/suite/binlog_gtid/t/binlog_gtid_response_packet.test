@@ -1,7 +1,7 @@
 #
 # WL#6972: Collect GTIDs to include in the protocol's OK packet
 #
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 # need debug build to be able to set a deterministic server uuid
 --source include/have_debug.inc
@@ -59,4 +59,4 @@ RESET BINARY LOGS AND GTIDS;
 ######################################################
 # Tests for the OK packet data
 ######################################################
---source suite/binlog/include/binlog_gtid_mix_response_packet.inc
+--source suite/binlog/include/binlog_gtid_response_packet.inc

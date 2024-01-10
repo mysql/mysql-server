@@ -15,7 +15,7 @@
 # BUG#19982543 SERIOUS TPS DECLINE IF GTID IS ENABLED IN 5.7
 #
 
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/have_binlog_order_commits.test
 --source include/have_debug.inc
 --source include/have_debug_sync.inc

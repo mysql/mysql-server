@@ -24,7 +24,7 @@
 #
 # Bug#27308751 FILTERED REPLICATION LEAVES GTID HOLES WITH CREATE DATABASE
 #
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 --echo #

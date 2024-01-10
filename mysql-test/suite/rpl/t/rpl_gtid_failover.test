@@ -2,7 +2,7 @@
 #
 # Testing failover scenarios.
 
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 #
 # Set up 3 server replication chain: M1 -> S2 -> S3.
 # Remove S2 and show M1 -> S3 works.

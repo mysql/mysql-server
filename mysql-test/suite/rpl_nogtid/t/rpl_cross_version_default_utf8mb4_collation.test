@@ -19,7 +19,7 @@
 # BUG#27081073 RENAMING A COLUMN BREAKS REPLICATION FROM 5.7 TO 8.0 BECAUSE OF
 #              IMPL. COLLATION
 
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 
 # simulate the following replication chain:
 # 5.7 master -> 8.0 slave -> 8.0 slave

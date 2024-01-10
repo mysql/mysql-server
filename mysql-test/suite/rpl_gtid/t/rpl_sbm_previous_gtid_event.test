@@ -12,7 +12,7 @@
 --source include/have_debug_sync.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 
 # Set sync debug point to calculate sbm exactly after every
 #  previous_gtid_log_event.

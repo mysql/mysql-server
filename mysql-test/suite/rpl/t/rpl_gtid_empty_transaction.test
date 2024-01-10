@@ -19,8 +19,7 @@
 #
 # For case 1, we use a filter (specified in the .cnf file) to filter
 # out table t_ignore, and verify that empty transaction is generated
-# on slave.  Do this both for (1A) base tables and for (1B) temporary
-# tables.
+# on slave.
 #
 # For case 2, we use binlog_format=statement on master and
 # binlog_format='row' on the first slave.  We test two cases of
@@ -56,7 +55,7 @@
 --let $rpl_gtid_utils= 1
 --source include/rpl_init.inc
 --source include/rpl_default_connections.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 --source include/rpl_reset.inc
 
@@ -79,24 +78,7 @@ DROP TABLE t_ignore_wild;
 # Verify that the GTIDs make it to every slave
 --source include/rpl_sync.inc
 
---echo ==== Case 1B: CREATE/ALTER/DROP TEMPORARY filtered out ====
-
-CREATE TEMPORARY TABLE t_ignore(a INT);
-ALTER TABLE t_ignore ADD COLUMN b INT;
-INSERT INTO t_ignore VALUES (1, 2);
-DROP TEMPORARY TABLE t_ignore;
-
-CREATE TEMPORARY TABLE t_ignore_wild(a INT);
-ALTER TABLE t_ignore_wild ADD COLUMN b INT;
-INSERT INTO t_ignore_wild VALUES (1, 2);
-DROP TEMPORARY TABLE t_ignore_wild;
-
-# Verify that 0 GTIDs were generated.
---let $gtid_step_count= 0
---source include/gtid_step_assert.inc
-
-# Verify that the GTIDs make it to every slave.
---source include/rpl_sync.inc
+--echo ==== Case 1B: obsolete, removed ====
 
 --echo ==== Case 1C: database filters on slave applier ====
 
@@ -158,17 +140,12 @@ DROP DATABASE db_binlog_ignore;
 
 --echo ---- Initialize ----
 
---connection slave
-SET @save.binlog_format= @@global.binlog_format;
-
---source include/stop_slave_sql.inc
-SET @@global.binlog_format= 'row';
-source include/start_slave_sql.inc;
-
---echo ---- Test ----
-
+--source include/rpl_connection_master.inc
+SET @save.binlog_format = @@global.binlog_format;
+SET @@session.binlog_format = 'STATEMENT';
 --source include/gtid_step_reset.inc
 
+--echo ---- Test ----
 
 # - Master will log these statements and assign them GTIDs, since
 #   master uses binlog_format=statement.
@@ -183,8 +160,8 @@ CREATE TEMPORARY TABLE t2 (a INT);
 ALTER TABLE t2 ADD COLUMN b INT;
 INSERT INTO t2 VALUES (1, 2);
 
-# assert exactly 0 GTIDs were generated
---let $gtid_step_count= 0
+# assert exactly 3 GTIDs were generated
+--let $gtid_step_count = 3
 --source include/gtid_step_assert.inc
 
 # Verify that the GTID gets replicated everywhere.
@@ -192,10 +169,10 @@ INSERT INTO t2 VALUES (1, 2);
 --source include/rpl_sync.inc
 
 # Verify temp tables on first slave but not on second slave
---let $assert_text= First slave should not have created any temp table
+--let $assert_text= First replica should have created a temp table
 --let $assert_cond= [slave:SHOW GLOBAL STATUS LIKE 'Replica_open_temp_tables'] = 1
 
---let $assert_text= Second slave should not have created any temp table
+--let $assert_text= Second replica should not have created any temp table
 --let $assert_cond= [server_3:SHOW GLOBAL STATUS LIKE 'Replica_open_temp_tables'] = 0
 
 --echo ---- Clean up ----
@@ -203,22 +180,15 @@ INSERT INTO t2 VALUES (1, 2);
 DROP TEMPORARY TABLE t2;
 --source include/rpl_sync.inc
 
---connection slave
---source include/stop_slave_sql.inc
-SET @@global.binlog_format= @save.binlog_format;
---connection master
+# Verify temp table is deleted
+--let $assert_text= First replica should have dropped the temp table
+--let $assert_cond= [slave:SHOW GLOBAL STATUS LIKE 'Replica_open_temp_tables'] = 0
 
 --echo ==== Case 2B: transaction with no effect not logged in row format ====
 
 --echo ---- Initialize ----
 
---connection slave
-SET @save.binlog_format= @@global.binlog_format;
-SET @@global.binlog_format= 'row';
-source include/start_slave_sql.inc;
-
 --connection master
-SET @@session.binlog_format= statement;
 CREATE TABLE t1(id INT) ENGINE = InnoDB;
 --source include/rpl_sync.inc
 --connection server_3
@@ -251,16 +221,10 @@ UPDATE t1 SET id= 1 WHERE id = 0;
 
 DROP TABLE t1;
 --source include/rpl_sync.inc
-
---connection slave
---source include/stop_slave_sql.inc
-SET @@global.binlog_format= @save.binlog_format;
---source include/start_slave_sql.inc
---connection master
+SET @@session.binlog_format = @save.binlog_format;
 
 --echo ==== Case 3: explicit empty transaction on master ====
 
-SET @@SESSION.binlog_format= 'row';
 --source include/gtid_step_reset.inc
 eval SET @@SESSION.GTID_NEXT = '$uuida:1';
 COMMIT;

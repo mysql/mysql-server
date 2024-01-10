@@ -128,7 +128,7 @@
 # WL#14628: Compatibility option to enable old replication terminology
 # in P_S instrumentation
 
-# Test is binlog_format-agnostic.
+# Test is binlog_format agnostic.
 --source include/have_binlog_format_row.inc
 
 # Test uses SET debug and SET debug_sync to ensure source is in the

@@ -36,7 +36,7 @@
 #
 
 # This test case is binary log format agnostic
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/have_binlog_order_commits.test
 --source include/have_debug_sync.inc
 # The amount of transactions that will be part of the commit group

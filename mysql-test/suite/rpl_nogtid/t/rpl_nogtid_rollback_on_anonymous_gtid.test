@@ -23,7 +23,8 @@
 # This test case requires SBR
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/have_binlog_format_statement.inc
+# This test case is specific to binlog_format=row
+--source include/have_binlog_format_row.inc
 # This test case generates a situation that should not happen
 # in normal slave operation (there is no retrieval of the transaction
 # from the begin when MASTER_AUTO_POSITION = 0). Enabling this test
@@ -56,11 +57,11 @@ INSERT INTO t1 VALUES (9);
 COMMIT;
 
 # Make the I/O to stop in the middle of the transaction
-# right after the second QUERY(INSERT)
+# right after the second Write_rows
 --source include/rpl_connection_slave.inc
 --let $rpl_after_received_events_action= stop
---let $rpl_event_count= 3
---let $rpl_count_only_event_type= Query
+--let $rpl_event_count= 2
+--let $rpl_count_only_event_type= Write_rows
 --source include/rpl_receive_event_count.inc
 
 # Make the I/O thread to ask for the full transaction from beginning

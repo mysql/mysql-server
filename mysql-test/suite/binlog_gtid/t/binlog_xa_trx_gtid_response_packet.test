@@ -5,8 +5,8 @@
 # Verify that XA PREPARE statement returns correct gtid set to the OK packet,
 # when session_track_gtids=all_gtids or own_gtid
 ################################################################################
-# Test is binlog_format-agnostic.
---source include/have_binlog_format_mixed.inc
+# Test is binlog_format agnostic.
+--source include/have_binlog_format_row.inc
 
 # need debug build to be able to set a deterministic server uuid
 --source include/have_debug.inc

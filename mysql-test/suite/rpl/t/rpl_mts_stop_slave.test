@@ -13,7 +13,7 @@
 # writes on d2 and generate gaps. Finally, the test case executes "STOP REPLICA"
 # and verify that the SQL thread was properly stopped and left no gaps.
 
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/only_mts_replica_parallel_workers.inc
 --source include/only_mts_replica_parallel_type_database.inc
 --source include/master-slave.inc

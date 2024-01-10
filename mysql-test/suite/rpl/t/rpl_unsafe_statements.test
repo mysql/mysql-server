@@ -21,6 +21,7 @@
 #    Case-4: BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS
 ################################################################################
 
+# This test case is specific to binlog_format=mixed
 --source include/have_binlog_format_mixed.inc
 --source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc

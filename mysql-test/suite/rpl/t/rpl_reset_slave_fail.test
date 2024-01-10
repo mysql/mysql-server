@@ -14,7 +14,7 @@
 # Disable "Warning  1612  Being purged log ./slave-relay-bin.0* was not found"
 # because it is different on Unix and Windows systems.
 
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_master.inc

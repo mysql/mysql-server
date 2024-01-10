@@ -18,6 +18,7 @@
 #    executed.
 # 5) Verify that slave server doesn't fail with 'ER_XAER_RMFAIL' error.
 ###############################################################################
+# This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 

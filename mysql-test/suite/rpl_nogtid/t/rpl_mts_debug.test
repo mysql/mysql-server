@@ -9,8 +9,8 @@
 
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
-# no format specific tests so we run it only in MIXED mode
---source include/have_binlog_format_mixed.inc
+# This test is binary_log format agnostic so row is chosen.
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 --connection master
@@ -69,7 +69,7 @@ SET @@global.debug= @save.debug;
 # Originally reported when opt_replica_checkpoint_group is set to be greater
 # than sizeof(BLOB) * 8 - 1 Workers initialization code fails.
 # VALID_RANGE() for opt_replica_checkpoint_group is fixed in bug12979420.
-# 
+#
 # The current bug test simulates a failure to start by a Worker
 # thread, checks the error, and verifies that all memory is released
 # (valgrind proves, the user can watch top report).
@@ -115,13 +115,13 @@ set @@global.debug= @save.debug;
 --source include/assert.inc
 --source include/start_slave.inc
 #
-# BUG#13681205 : REPLICATION FAILS DURING SLAVE WORKERS INITIALIZATION, 
-#                CRASHES SLAVE 
+# BUG#13681205 : REPLICATION FAILS DURING SLAVE WORKERS INITIALIZATION,
+#                CRASHES SLAVE
 #
 # This test checks that the slave starts correctly, even
 # if we set the maximum of replica_checkpoint_group higher
 # than the maximum (the server adjusts it to the proper
-# value).                    
+# value).
 #
 --connection master
 --source include/rpl_reset.inc
@@ -139,7 +139,7 @@ set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers= 2;
 SET @@global.replica_checkpoint_group=524281;
 
-## TEST #1 
+## TEST #1
 
 # check that slave will start with the replica_checkpoint_group
 # if include/start_slave.inc does not timeout then the slave was able to start correctly

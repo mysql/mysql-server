@@ -5,10 +5,10 @@
 # in the response packet when GTID_MODE=OFF
 #
 --source include/have_log_bin.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 # need debug build to access the special session status var
 --source include/have_debug.inc
 
 # the actual negative test
---source suite/binlog/include/binlog_gtid_mix_response_packet.inc
+--source suite/binlog/include/binlog_gtid_response_packet.inc

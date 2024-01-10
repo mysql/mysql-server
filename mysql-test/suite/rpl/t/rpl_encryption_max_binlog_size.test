@@ -19,7 +19,8 @@
 #
 
 # This test case is binary log format agnostic
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
+
 --source include/master-slave.inc
 
 # this test needs to deterministically create a large enough binlog

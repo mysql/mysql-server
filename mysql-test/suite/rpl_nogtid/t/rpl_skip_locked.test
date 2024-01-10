@@ -1,3 +1,24 @@
+# ==== Purpose ====
+#
+# Verify that INSERT ... SELECT ... SKIP LOCKED is replicated in row format when binlog_format=MIXED.
+#
+# ==== Requirements ====
+#
+# R1. When binlog_format=MIXED, any INSERT ... SELECT ... SKIP LOCKED statement
+#     must be logged in row format.
+#
+# ==== Implementation ====
+#
+# Lock a row in a table on the source.
+# Execute an INSERT ... SELECT ... SKIP LOCKED statement that reads from the table
+# having a locked row.
+# Verify that the replica only applied the rows that were not locked on the source.
+#
+# (If the statement would be replicated in statement format, the replica would
+# insert also the row that was locked on the source, since that row is not locked
+# on the replica).
+
+# This test requires binlog_format=mixed
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 

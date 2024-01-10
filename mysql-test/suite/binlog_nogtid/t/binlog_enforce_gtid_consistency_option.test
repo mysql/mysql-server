@@ -30,7 +30,7 @@
 # - The third value for enforce-gtid-consistency was added in this worklog.
 
 # No point in running combinations.
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 
 # Restarts many times, and very unlikely to ever fail again.
 --source include/big_test.inc

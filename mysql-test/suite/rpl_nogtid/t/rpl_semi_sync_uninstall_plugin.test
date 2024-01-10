@@ -23,7 +23,7 @@
 # Uninstallation was not blocked on old-named plugins before this bugfix.
 
 --source include/have_semisync_plugin.inc
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 --let $status = _status

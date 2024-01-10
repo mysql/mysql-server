@@ -1,7 +1,7 @@
 # Inorder to grep a specific error pattern in error log a fresh error log
 # needs to be generated.
 --source include/force_restart.inc
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/only_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 

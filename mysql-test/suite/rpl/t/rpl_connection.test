@@ -1,8 +1,8 @@
 --source include/master-slave.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 #
-# BUG#13427949: CHANGE MASTER TO USER='' (EMPTY USER) CAUSES ERRORS ON VALGRING 
+# BUG#13427949: CHANGE MASTER TO USER='' (EMPTY USER) CAUSES ERRORS ON VALGRING
 #
 
 --connection slave
@@ -22,4 +22,4 @@ START REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root', SOURCE_PASSWORD= '';
 START REPLICA;
 
---source include/rpl_end.inc 
+--source include/rpl_end.inc

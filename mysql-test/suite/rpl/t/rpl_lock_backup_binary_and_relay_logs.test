@@ -21,7 +21,7 @@
 #
 
 # This test case is binary log format agnostic
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 # BUG#28196680 Suppress warnings thrown when trying to purge logs which

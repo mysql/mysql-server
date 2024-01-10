@@ -9,7 +9,7 @@
 #  not before skipping an event. If so, it will send one to Slave.
 ###############################################################################
 
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/have_debug_sync.inc
 --source include/force_restart.inc
 # Problem is reproduced only with gtid auto position protocol

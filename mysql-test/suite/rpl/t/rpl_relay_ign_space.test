@@ -19,8 +19,8 @@
 # condition are removed the occupied relay log space shrinks back to
 # below the limit.
 
-
---source include/have_binlog_format_statement.inc
+# This test is binary_log format agnostic so row is chosen.
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 CREATE TABLE t1 (c1 TEXT) engine=InnoDB;

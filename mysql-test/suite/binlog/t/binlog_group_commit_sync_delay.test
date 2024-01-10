@@ -2,7 +2,7 @@
 #          binlog_group_commit_sync_delay introduces a
 #          delay in the group commit
 
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 --let $bgcd_saved=`SELECT @@GLOBAL.binlog_group_commit_sync_delay`
 --let $sync_binlog_saved=`SELECT @@GLOBAL.sync_binlog`

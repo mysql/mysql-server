@@ -19,6 +19,7 @@
 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
+# This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 

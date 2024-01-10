@@ -12,7 +12,7 @@
 # 5. Verify that the slave does not hang on sync with the master.
 #
 
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 
 --echo #
 --echo # Step 1: setup replication

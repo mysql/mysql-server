@@ -1,5 +1,5 @@
 
-# Test is binlog_format-agnostic
+# Test is binlog_format agnostic
 --source include/have_binlog_format_row.inc
 
 --source include/not_group_replication_plugin.inc

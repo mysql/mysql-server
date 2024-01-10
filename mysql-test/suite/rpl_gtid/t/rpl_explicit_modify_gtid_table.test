@@ -11,7 +11,7 @@
 
 # Test in this file is binlog format agnostic, thus no need
 # to rerun them for every format.
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 --let $uuida=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 --echo #

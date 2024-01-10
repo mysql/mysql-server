@@ -1,7 +1,7 @@
 #
 # Smaller version of rpl_*mts*_crash_safe test
 #
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/have_replica_parallel_type_database.inc
 --source include/have_debug.inc
 --source include/not_valgrind.inc

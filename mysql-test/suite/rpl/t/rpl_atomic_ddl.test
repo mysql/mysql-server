@@ -37,7 +37,7 @@
 --source include/not_valgrind.inc
 --source include/have_log_bin.inc
 --source include/have_debug.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/have_udf.inc
 --let $rpl_gtid_utils= 1
 --let $rpl_privilege_checks_user_grant_option = 1
@@ -171,7 +171,7 @@ while ($loops)
   --let $post_binlog_check=`SELECT post_binlog_check FROM $master_log_db.$master_log_table WHERE id = $id`
   if ($rpl_atomic_ddl_print_verbose)
   {
-  # 
+  #
   --let gen_current_query = `SELECT REPLACE("$current_query",'.so','_LIB')`
   --let gen_current_query = `SELECT REPLACE("$gen_current_query",'.dll','_LIB')`
   --echo Loop: $id out of $count_ddl_queries; current query: '$gen_current_query'; pre-binlog check: '$pre_binlog_check'; pre-commit check: '$post_binlog_check';

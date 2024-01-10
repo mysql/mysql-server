@@ -1,4 +1,4 @@
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc

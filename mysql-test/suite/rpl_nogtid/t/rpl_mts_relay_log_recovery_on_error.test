@@ -36,7 +36,7 @@
 # local changes on slave. Restart the recovery process it should be
 # successful.
 --source include/force_restart.inc
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/only_mts_replica_parallel_workers.inc
 --source include/only_mts_replica_parallel_type_database.inc
 --source include/master-slave.inc

@@ -6,7 +6,7 @@
 #
 
 --source include/have_log_bin.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;

@@ -16,6 +16,7 @@
 # Execute simple statments on master which does not cause any error on slave.
 # Check that no warning should be generated on slave.
 ###############################################################################
+# This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
 # Inorder to grep a specific error pattern in error log a fresh error log
 # needs to be generated.

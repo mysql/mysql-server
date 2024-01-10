@@ -4,8 +4,8 @@
 #
 --source include/have_debug.inc
 --source include/master-slave.inc
-# format - non-specific test is enough to executed in MIXED mode only.
---source include/have_binlog_format_mixed.inc
+# This test is binary_log format agnostic so row is chosen.
+--source include/have_binlog_format_row.inc
 
 --connection slave
 call mtr.add_suppression("Transaction is tagged with inconsistent logical timestamps");

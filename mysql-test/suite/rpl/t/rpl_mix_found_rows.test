@@ -1,3 +1,4 @@
+# This test case is specific to binlog_format=mixed
 --source include/have_binlog_format_mixed.inc
 # Thread stack overrun in debug mode on sparc
 --source include/not_sparc_debug.inc

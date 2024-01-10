@@ -17,7 +17,7 @@
 # added to check both the behaviours.
 ###############################################################################
 --source include/have_log_bin.inc
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 --source include/have_debug.inc

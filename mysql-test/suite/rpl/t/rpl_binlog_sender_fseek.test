@@ -28,7 +28,7 @@
 # a call to the OS that resulted in an unwanted wait.
 #
 
-# This test case was designed to run with SBR
+# This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc

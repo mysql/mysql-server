@@ -10,7 +10,7 @@
 #               CAN LEAD TO SERVER HALTS
 
 # This test case is binary log format agnostic
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/force_restart.inc
 
 # This is to suppress the warnings generated after extension boundary value is reached.

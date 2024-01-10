@@ -7,7 +7,8 @@
 # test in only statement format.
 ############################################################
 
---source include/have_binlog_format_statement.inc
+# This test is binary_log format agnostic so row is chosen.
+--source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 
 #----------------------------------------------------------#

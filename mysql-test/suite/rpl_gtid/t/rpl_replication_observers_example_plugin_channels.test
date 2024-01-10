@@ -3,7 +3,7 @@
 # verifying the result.
 
 --source include/have_debug.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/have_replication_observers_example_plugin.inc
 
 # Install the replication observers example plugin

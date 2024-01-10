@@ -23,7 +23,7 @@
 # of above admin statements, but not smaller than it in all possible situations.
 ################################################################################
 --source include/have_debug_sync.inc
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 
 --connect(insert_conn, localhost, root)
 --connect(admin_conn, localhost, root)

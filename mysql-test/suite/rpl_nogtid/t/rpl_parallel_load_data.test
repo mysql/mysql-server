@@ -4,6 +4,7 @@
 
 --source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
+# This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc

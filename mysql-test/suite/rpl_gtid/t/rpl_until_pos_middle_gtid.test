@@ -27,7 +27,7 @@
 # Bug #18306199 START SLAVE UNTIL MASTER_LOG_POS=MIDDLE-OF-GTID-EVENT
 #               STOPS BEFORE TRANSACTION
 
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 # Stop the SQL thread

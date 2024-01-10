@@ -17,7 +17,7 @@
 # status command from the same client where FLUSH TABLES WITH READ LOCK was
 # issued. The show replica status command should not be blocked.
 ###############################################################################
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc

@@ -16,7 +16,7 @@
 # Bug#25786490 XA TRANSACTIONS ARE 'UNSAFE' FOR RPL USING SBR
 #
 
-# This test case should only run in mixed mode replication.
+# This test case is specific to binlog_format=mixed
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 

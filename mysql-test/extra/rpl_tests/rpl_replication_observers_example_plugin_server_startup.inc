@@ -25,7 +25,7 @@
 --let $include_filename= rpl_replication_observers_example_plugin_server_startup.inc
 --source include/begin_include_file.inc
 
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/not_group_replication_plugin.inc
 --source include/have_replication_observers_example_plugin.inc
 

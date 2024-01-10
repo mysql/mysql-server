@@ -21,7 +21,7 @@ INSERT INTO t1 VALUES (8);
 INSERT INTO t1 VALUES (9);
 COMMIT;
 [connection slave]
-include/rpl_receive_event_count.inc [stop after 3 Query events]
+include/rpl_receive_event_count.inc [stop after 2 Write_rows events]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='MASTER_FILE', SOURCE_LOG_POS=MASTER_POS;
 include/start_slave_io.inc
 [connection master]

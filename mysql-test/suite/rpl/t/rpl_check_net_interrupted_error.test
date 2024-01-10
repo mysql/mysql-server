@@ -24,7 +24,7 @@
 --source include/have_debug_sync.inc
 # The test is not supposed to have any binlog affairs.
 # Hence it's enough to run only with one binlog format
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 --source include/rpl_connection_slave.inc
 call mtr.add_suppression("Replica I/O .*: Source command COM_REGISTER_REPLICA failed: .*");

@@ -36,7 +36,7 @@
 --let $rpl_privilege_checks_user_grant_option = 1
 --source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 --echo
 --echo Create a replication user to use in change master tests.

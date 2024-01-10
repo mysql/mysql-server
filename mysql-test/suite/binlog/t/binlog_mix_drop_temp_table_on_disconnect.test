@@ -15,9 +15,9 @@
 #
 # Bug#24670909:USING TEMPORARY TABLES ON SLAVES INCREASES GTID SEQUENCE NUMBER
 #
-
 --source include/have_log_bin.inc
---source include/have_binlog_format_mixed_or_row.inc
+# This test case is specific to binlog_format=mixed
+--source include/have_binlog_format_mixed.inc
 
 RESET BINARY LOGS AND GTIDS;
 

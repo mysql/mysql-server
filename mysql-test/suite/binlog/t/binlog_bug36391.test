@@ -15,7 +15,7 @@
 #
 
 --source include/have_log_bin.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 CREATE TABLE t1(id INT);
 let $datadir = `SELECT @@DATADIR`;

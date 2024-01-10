@@ -1,6 +1,7 @@
 # Mixed DDL-DML (CREATE ... SELECT ...) statements can only be
 # replicated properly in statement-based replication.
 # Currently statement based due to bug 12345
+# This test case is specific to binlog_format=statement
 --source include/have_binlog_format_mixed_or_statement.inc
 --source include/not_group_replication_plugin.inc
 

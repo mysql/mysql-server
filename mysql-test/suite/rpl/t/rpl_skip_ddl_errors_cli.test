@@ -1,5 +1,5 @@
 --source include/master-slave.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 --connection slave
 --echo Show the effect of the server command line option replica-skip-errors

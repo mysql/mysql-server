@@ -14,7 +14,7 @@
 #
 # WL#7318 Delayed Replication: GTID based and relative to immediate master commit
 
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 --let $delay= 10

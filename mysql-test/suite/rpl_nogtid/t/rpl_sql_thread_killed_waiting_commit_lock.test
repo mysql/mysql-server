@@ -34,7 +34,7 @@
 # object will be rolled back. Test script ensures that rli's memory contents
 # are in sync with the positions in rli repository.
 
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc

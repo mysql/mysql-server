@@ -9,6 +9,7 @@
 # This test requires statement/mixed mode binary logging.
 # Row-based mode puts weaker serializability requirements
 # so weaker locks are acquired for it.
+# This test case is specific to binlog_format=statement
 --source include/have_binlog_format_mixed_or_statement.inc
 
 # Save the initial number of concurrent sessions.

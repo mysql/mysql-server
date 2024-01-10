@@ -36,12 +36,12 @@
 --echo # replication filters).
 --echo #
 --echo #########################################################################
-# The test doesn't relate to binlog format, so it is just tested on mixed mode.
-#Skip on group replication runs
+
+# Skip on group replication runs
 --source include/not_group_replication_plugin.inc
 
-
---source include/have_binlog_format_mixed.inc
+# This test is binary_log format agnostic so row is chosen.
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 # Clean all configuration changes after running the test.

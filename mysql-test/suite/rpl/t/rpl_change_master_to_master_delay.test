@@ -13,7 +13,7 @@
 #
 
 # This test case is binary log format agnostic
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 CREATE TABLE t1 (c1 int);

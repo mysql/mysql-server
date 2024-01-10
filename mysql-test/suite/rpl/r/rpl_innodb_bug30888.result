@@ -10,7 +10,7 @@ fkid MEDIUMINT, filler VARCHAR(255),
 PRIMARY KEY(id)) ENGINE='innodb';
 CREATE PROCEDURE test.proc_norm()
 BEGIN
-DECLARE ins_count INT DEFAULT 1000; 
+DECLARE ins_count INT DEFAULT 1000;
 DECLARE del_count INT;
 DECLARE cur_user VARCHAR(255);
 DECLARE local_uuid VARCHAR(255);

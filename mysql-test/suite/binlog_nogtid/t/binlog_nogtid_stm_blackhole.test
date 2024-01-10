@@ -1,5 +1,6 @@
 --source include/have_blackhole.inc
 --source include/have_log_bin.inc
+# This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
 
 --echo #

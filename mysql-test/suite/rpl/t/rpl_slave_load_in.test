@@ -13,6 +13,7 @@
 
 # This test does not work with var being a softlink.
 --source include/not_var_link.inc
+# This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 

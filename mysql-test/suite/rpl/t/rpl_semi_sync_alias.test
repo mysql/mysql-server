@@ -37,7 +37,7 @@
 #     9.2. when installing libraries on server start using --plugin-load
 #     9.3. when installing libraries on server start using --init-file
 
-# Test is binlog_format-agnostic
+# Test is binlog_format agnostic
 --source include/have_binlog_format_row.inc
 
 --source include/master-slave.inc

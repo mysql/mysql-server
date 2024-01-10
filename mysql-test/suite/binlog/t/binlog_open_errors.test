@@ -18,22 +18,22 @@
 #
 # 1. Start server so that binary log is created
 # 2. Prepare binary log with header only
-# 3. Check error ER_READ_LOG_EVENT_FAILED is reported 
+# 3. Check error ER_READ_LOG_EVENT_FAILED is reported
 #      "Error in Log_event::read_log_event()"
 # 4. Perpare binary log without Format_desc event
-# 5. Check error ER_BINLOG_CRASH_RECOVERY_MALFORMED_LOG is reported 
+# 5. Check error ER_BINLOG_CRASH_RECOVERY_MALFORMED_LOG is reported
 #      "Found invalid event sequence while recovering from binary log file."
 # 6. Set debug points binlog_crash_between_close_and_open so that server is crashed
 #    after binary log LOG_EVENT_BINLOG_IN_USE_F is set to false
-# 7. Check error ER_BINLOG_CANT_OPEN_CRASHED_BINLOG is reported 
+# 7. Check error ER_BINLOG_CANT_OPEN_CRASHED_BINLOG is reported
 #      "Failed to open the crashed binlog file when source server is recovering it."
 #
 # === References ===
-# 
+#
 # BUG #33658850 Binlog recovery not reporting all error states
 #
 --source include/have_debug.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 RESET BINARY LOGS AND GTIDS;
 

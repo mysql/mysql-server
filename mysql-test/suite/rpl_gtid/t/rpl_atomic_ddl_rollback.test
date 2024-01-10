@@ -11,7 +11,8 @@
 #
 
 # the 5.7 master binlog file was only recorded in statement format
---source include/have_binlog_format_statement.inc
+# This test is binary_log format agnostic so row is chosen.
+--source include/have_binlog_format_row.inc
 --let $rpl_gtid_utils= 1
 --let $rpl_skip_start_slave= 1
 --source include/set_privilege_checks_user_as_system_user.inc

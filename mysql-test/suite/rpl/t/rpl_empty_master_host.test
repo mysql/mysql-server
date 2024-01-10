@@ -1,4 +1,4 @@
-# 
+#
 # BUG
 # ---
 #   BUG#28796: CHANGE MASTER TO MASTER_HOST="" leads to invalid master.info
@@ -17,7 +17,7 @@
 #   working when expected.
 
 --source include/master-slave.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 connection slave;
 STOP REPLICA;
@@ -26,7 +26,7 @@ STOP REPLICA;
 let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
 --echo Source_Host = '$master_host' (expected '127.0.0.1')
 
-# attempt to change to an empty master host should 
+# attempt to change to an empty master host should
 # result in error ER_WRONG_ARGUMENTS: "Incorrect arguments to ..."
 error ER_WRONG_ARGUMENTS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="";

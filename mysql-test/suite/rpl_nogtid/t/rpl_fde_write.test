@@ -1,8 +1,8 @@
 # ==== Purpose ====
 #
-# Tests the statement based replication of tables in a cross version setup
-# where the master is a 5.7 server and slave is a 8.0 server, and verify
-# that there is no crash at the time of FLUSH LOGS on slave side.
+# Tests cross-version replication where the master is a 5.7 server
+# and slave is a 8.0 server, and verify that there is no crash
+# at the time of FLUSH LOGS on slave side.
 #
 # ==== Implementation ====
 #
@@ -17,7 +17,7 @@
 # Bug#29417234:CONTRIBUTION BY FACEBOOK: FIX WRITING FORMAT DESCRIPTION EVENT
 #
 
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 

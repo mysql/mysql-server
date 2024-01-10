@@ -20,7 +20,7 @@
 #     R3.2. SHOW REPLICAS should include USER and PASSWORD columns.
 #     R3.3. SHOW REPLICAS should include USER and PASSWORD columns.
 
-# Test is binlog_format-agnostic
+# Test is debug_binlog_format agnostic
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 

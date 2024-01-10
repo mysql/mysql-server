@@ -5,7 +5,7 @@
 # Outcome: SigCon must abort, SQLThread must commit.
 
 # no need to rerun this test three times
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 --source include/have_debug.inc
 --source include/have_debug_sync.inc

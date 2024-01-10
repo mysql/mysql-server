@@ -25,7 +25,7 @@
 #         finshi_commit()
 # Step 3. Execute a transaction and check if its last_committed is correct.
 ################################################################################
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_row.inc
 --source include/have_debug_sync.inc
 --let $option_name = binlog_order_commits
 --let $option_value = 1
