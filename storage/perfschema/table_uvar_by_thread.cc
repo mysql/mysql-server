@@ -106,7 +106,7 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd) {
     bool null_value;
     String *str_value;
     String str_buffer;
-    const uint decimals = 0;
+    const uint decimals = DECIMAL_NOT_SPECIFIED;
     str_value = sql_uvar->val_str(&null_value, &str_buffer, decimals);
     if (str_value != nullptr) {
       pfs_uvar.m_value.make_row(str_value->ptr(), str_value->length());

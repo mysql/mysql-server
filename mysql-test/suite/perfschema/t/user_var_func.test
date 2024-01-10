@@ -1,4 +1,3 @@
-
 set @v1a="Hello";
 set @v2a="World";
 set @v3a=65;
@@ -93,6 +92,17 @@ drop table t1;
 drop procedure test_user_val;
 #drop TRIGGER test_uvar_trigger;
 
+--echo #
+--echo # Bug#35781732 5.7 vs 8.0 user variables differences output in performance_schema.user_variables_by_thread
+--echo #
 
+SET @bc=123.656;
+SET @cde='123.656';
 
+SELECT @bc,@cde,variable_name,variable_value,CAST(variable_value AS CHAR) val_char,CAST(variable_value AS DEC(9,4)) val_num
+    FROM performance_schema.user_variables_by_thread
+    WHERE (variable_name='bc' OR variable_name='cde')
+    ORDER BY variable_name;
+
+#end of test case
 

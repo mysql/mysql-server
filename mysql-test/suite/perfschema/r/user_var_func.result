@@ -86,3 +86,15 @@ VARIABLE_NAME	VARIABLE_VALUE
 a	40
 drop table t1;
 drop procedure test_user_val;
+#
+# Bug#35781732 5.7 vs 8.0 user variables differences output in performance_schema.user_variables_by_thread
+#
+SET @bc=123.656;
+SET @cde='123.656';
+SELECT @bc,@cde,variable_name,variable_value,CAST(variable_value AS CHAR) val_char,CAST(variable_value AS DEC(9,4)) val_num
+FROM performance_schema.user_variables_by_thread
+WHERE (variable_name='bc' OR variable_name='cde')
+ORDER BY variable_name;
+@bc	@cde	variable_name	variable_value	val_char	val_num
+123.656	123.656	bc	123.656	123.656	123.6560
+123.656	123.656	cde	123.656	123.656	123.6560
