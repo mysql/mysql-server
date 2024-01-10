@@ -41,7 +41,7 @@
 SET(BOOST_PACKAGE_NAME "boost_1_77_0")
 SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.bz2")
 SET(BOOST_DOWNLOAD_URL
-  "https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/${BOOST_TARBALL}"
+  "https://archives.boost.io/release/1.77.0/source/${BOOST_TARBALL}"
   )
 
 SET(OLD_PACKAGE_NAMES
