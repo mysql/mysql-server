@@ -1092,29 +1092,31 @@ TEST_P(ClusterSetAccessToPartitionWithNoQuorum, Spec) {
   RecordProperty("Description", GetParam().test_description);
 
   const std::vector<size_t> gr_nodes_per_cluster{3, 3};
-  create_clusterset(/*view_id*/ 0, target_cluster_id, /*primary_cluster_id*/ 0,
-                    "metadata_clusterset.js", router_options, ".*", false,
-                    false, gr_nodes_per_cluster);
+
+  ClusterSetOptions cs_options;
+  cs_options.target_cluster_id = target_cluster_id;
+  cs_options.tracefile = "metadata_clusterset.js";
+  cs_options.router_options = router_options;
+  cs_options.gr_nodes_number = gr_nodes_per_cluster;
+  create_clusterset(cs_options);
 
   for (size_t i = 1; i <= 2; ++i) {
-    clusterset_data_.clusters[target_cluster_id].gr_nodes[i].member_status =
+    cs_options.topology.clusters[target_cluster_id].gr_nodes[i].member_status =
         "UNREACHABLE";
-    clusterset_data_.clusters[target_cluster_id].nodes[i].process->kill();
+    cs_options.topology.clusters[target_cluster_id].nodes[i].process->kill();
   }
 
   for (size_t i = 1; i <= 2; ++i) {
-    clusterset_data_.clusters[target_cluster_id]
+    cs_options.topology.clusters[target_cluster_id]
         .nodes[i]
         .process->wait_for_exit();
   }
 
   const auto http_port =
-      clusterset_data_.clusters[target_cluster_id].nodes[0].http_port;
-  set_mock_clusterset_metadata(/*view_id*/ 0,
+      cs_options.topology.clusters[target_cluster_id].nodes[0].http_port;
+  set_mock_clusterset_metadata(http_port,
                                /* this_cluster_id*/ target_cluster_id,
-                               /*this_node_id*/ 0,
-                               /*target_cluster_id*/ target_cluster_id,
-                               http_port, clusterset_data_, router_options);
+                               /*this_node_id*/ 0, cs_options);
 
   const auto router_ro_port = port_pool_.get_next_available();
   const auto router_rw_port = port_pool_.get_next_available();
@@ -1129,7 +1131,7 @@ TEST_P(ClusterSetAccessToPartitionWithNoQuorum, Spec) {
       get_rw_split_routing_section(router_rw_split_port);
 
   const auto metadata_server_ports =
-      clusterset_data_.get_md_servers_classic_ports();
+      cs_options.topology.get_md_servers_classic_ports();
 
   const auto sync_point = (GetParam().expect_rw_connection_ok ||
                            GetParam().expect_ro_connection_ok ||
@@ -1153,7 +1155,7 @@ TEST_P(ClusterSetAccessToPartitionWithNoQuorum, Spec) {
   if (GetParam().expect_rw_connection_ok) {
     make_new_connection_ok(
         router_rw_port,
-        clusterset_data_.clusters[target_cluster_id].nodes[0].classic_port);
+        cs_options.topology.clusters[target_cluster_id].nodes[0].classic_port);
   } else {
     verify_new_connection_fails(router_rw_port);
   }
@@ -1161,7 +1163,7 @@ TEST_P(ClusterSetAccessToPartitionWithNoQuorum, Spec) {
   if (GetParam().expect_ro_connection_ok) {
     make_new_connection_ok(
         router_ro_port,
-        clusterset_data_.clusters[target_cluster_id].nodes[0].classic_port);
+        cs_options.topology.clusters[target_cluster_id].nodes[0].classic_port);
 
   } else {
     verify_new_connection_fails(router_ro_port);
@@ -1170,7 +1172,7 @@ TEST_P(ClusterSetAccessToPartitionWithNoQuorum, Spec) {
   if (GetParam().expect_rw_split_connection_ok) {
     make_new_connection_ok(
         router_rw_split_port,
-        clusterset_data_.clusters[target_cluster_id].nodes[0].classic_port);
+        cs_options.topology.clusters[target_cluster_id].nodes[0].classic_port);
 
   } else {
     verify_new_connection_fails(router_rw_split_port);

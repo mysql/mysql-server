@@ -1064,12 +1064,13 @@ TEST_P(StatsUpdatesFrequencyTest, Verify) {
   RecordProperty("Description", GetParam().test_description);
 
   if (GetParam().cluster_type == ClusterType::GR_CS) {
-    create_clusterset(1, /*target_cluster_id*/ 0,
-                      /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                      GetParam().router_options_json);
+    ClusterSetOptions cs_options;
+    cs_options.tracefile = "metadata_clusterset.js";
+    cs_options.router_options = GetParam().router_options_json;
+    create_clusterset(cs_options);
 
-    primary_node_http_port = clusterset_data_.clusters[0].nodes[0].http_port;
-    metadata_server_ports = clusterset_data_.get_md_servers_classic_ports();
+    primary_node_http_port = cs_options.topology.clusters[0].nodes[0].http_port;
+    metadata_server_ports = cs_options.topology.get_md_servers_classic_ports();
   } else {
     const std::string tracefile =
         GetParam().cluster_type == ClusterType::GR_V2

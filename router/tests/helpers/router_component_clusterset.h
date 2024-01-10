@@ -88,7 +88,7 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
     unsigned primary_node_id;
   };
 
-  struct ClusterSetData {
+  struct ClusterSetTopology {
     std::string uuid{"clusterset-uuid"};
     std::vector<ClusterData> clusters;
     unsigned primary_cluster_id;
@@ -134,18 +134,25 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
   constexpr static unsigned kClustersNumber = 3;
   constexpr static unsigned kGRNodesPerClusterNumber = 3;
 
-  void create_clusterset(
-      uint64_t view_id, int target_cluster_id, int primary_cluster_id,
-      const std::string &tracefile, const std::string &router_options = "",
-      const std::string &expected_target_cluster = ".*",
-      bool simulate_cluster_not_found = false,
-      bool use_gr_notifications = false,
-      const std::vector<size_t> &gr_nodes_number = {3, 3, 3},
-      const std::vector<size_t> &read_replicas_number = {},
-      const mysqlrouter::MetadataSchemaVersion &metadata_version =
-          mysqlrouter::MetadataSchemaVersion{2, 2, 0});
+  struct ClusterSetOptions {
+    uint64_t view_id{0};
+    int target_cluster_id{0};
+    int primary_cluster_id{0};
+    std::string tracefile;
+    std::string router_options{""};
+    std::string expected_target_cluster{".*"};
+    bool simulate_cluster_not_found{false};
+    bool use_gr_notifications{false};
+    std::vector<size_t> gr_nodes_number{3, 3, 3};
+    std::vector<size_t> read_replicas_number{};
+    mysqlrouter::MetadataSchemaVersion metadata_version{
+        mysqlrouter::MetadataSchemaVersion{2, 2, 0}};
+    ClusterSetTopology topology;
+  };
 
-  void change_clusterset_primary(ClusterSetData &clusterset_data,
+  void create_clusterset(ClusterSetOptions &cs_options);
+
+  void change_clusterset_primary(ClusterSetTopology &cs_topology,
                                  const unsigned new_primary_id);
 
   void add_json_str_field(JsonValue &json_doc, const std::string &field,
@@ -155,28 +162,17 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
                           const int value);
 
   void add_clusterset_data_field(JsonValue &json_doc, const std::string &field,
-                                 const ClusterSetData &clusterset_data,
+                                 const ClusterSetTopology &cs_topology,
                                  const unsigned this_cluster_id,
                                  const unsigned this_node_id);
 
-  void set_mock_clusterset_metadata(
-      uint64_t view_id, unsigned this_cluster_id, unsigned this_node_id,
-      unsigned target_cluster_id, uint16_t http_port,
-      const ClusterSetData &clusterset_data,
-      const std::string &router_options = "",
-      const std::string &expected_target_cluster = ".*",
-      const mysqlrouter::MetadataSchemaVersion &metadata_version = {2, 1, 0},
-      bool simulate_cluster_not_found = false);
+  void set_mock_clusterset_metadata(uint16_t http_port,
+                                    unsigned this_cluster_id,
+                                    unsigned this_node_id,
+                                    const ClusterSetOptions &cs_options);
 
-  void set_mock_metadata_on_all_cs_nodes(
-      uint64_t view_id, unsigned target_cluster_id,
-      const ClusterSetData &clusterset_data,
-      const std::string &router_options = "",
-      const std::string &expected_target_cluster = ".*",
-      const mysqlrouter::MetadataSchemaVersion &metadata_version = {2, 1, 0},
-      bool simulate_cluster_not_found = false);
+  void set_mock_metadata_on_all_cs_nodes(const ClusterSetOptions &cs_options);
 
-  ClusterSetData clusterset_data_;
   JsonAllocator json_allocator;
 };
 
