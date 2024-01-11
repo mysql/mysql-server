@@ -42,6 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
 #include "fsp0sysspace.h"
+#include "ha_prototypes.h"
 #include "lob0index.h"
 #include "lob0inf.h"
 #include "lob0lob.h"
@@ -1792,16 +1793,12 @@ const byte *trx_undo_update_rec_get_update(
                                 &field_no);
       first_v_col = false;
     } else if (field_no >= dict_index_get_n_fields(index)) {
-      ib::error(ER_IB_MSG_1184)
-          << "Trying to access update undo rec"
-             " field "
-          << field_no << " in index " << index->name << " of table "
-          << index->table->name << " but index has only "
-          << dict_index_get_n_fields(index) << " fields " << BUG_REPORT_MSG
-          << ". Run also CHECK TABLE " << index->table->name
-          << "."
-             " n_fields = "
-          << n_fields << ", i = " << i << ", ptr " << ptr;
+      ib::error(ER_IB_ERR_ACCESSING_OUT_OF_BOUND_FIELD_IN_INDEX,
+                ulonglong{field_no}, index->name(), index->table->name.m_name,
+                ulonglong{dict_index_get_n_fields(index)},
+                innobase_get_err_msg(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT),
+                index->table->name.m_name, ulonglong{n_fields}, ulonglong{i},
+                (void *)ptr);
 
       ut_d(ut_error);
       ut_o(*upd = nullptr);

@@ -24355,9 +24355,6 @@ const char *TROUBLESHOOT_DATADICT_MSG = "Please refer to " REFMAN
                                         "innodb-troubleshooting-datadict.html"
                                         " for how to resolve the issue.";
 
-const char *BUG_REPORT_MSG =
-    "Submit a detailed bug report to http://bugs.mysql.com";
-
 const char *FORCE_RECOVERY_MSG = "Please refer to " REFMAN
                                  "forcing-innodb-recovery.html"
                                  " for information about forcing recovery.";

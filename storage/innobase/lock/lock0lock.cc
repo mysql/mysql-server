@@ -1153,8 +1153,8 @@ void RecLock::prepare() const {
       ib::error(ER_IB_MSG_635)
           << "A record lock wait happens in a dictionary"
              " operation. index "
-          << m_index->name << " of table " << m_index->table->name << ". "
-          << BUG_REPORT_MSG;
+          << m_index->name << " of table " << m_index->table->name << ". ";
+      ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
       ut_d(ut_error);
   }
 
@@ -3621,7 +3621,8 @@ static dberr_t lock_table_enqueue_waiting(ulint mode, dict_table_t *table,
     case TRX_DICT_OP_INDEX:
       ib::error(ER_IB_MSG_642) << "A table lock wait happens in a dictionary"
                                   " operation. Table "
-                               << table->name << ". " << BUG_REPORT_MSG;
+                               << table->name << ".";
+      ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
       ut_d(ut_error);
   }
 

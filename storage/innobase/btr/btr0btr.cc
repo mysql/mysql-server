@@ -1294,7 +1294,7 @@ bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
         << data_size2 << ", page old max ins size " << max_ins_size1
         << " new max ins size " << max_ins_size2;
 
-    ib::error(ER_IB_MSG_31) << BUG_REPORT_MSG;
+    ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
     ut_d(ut_error);
   } else {
     success = true;

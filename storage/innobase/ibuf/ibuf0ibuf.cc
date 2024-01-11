@@ -1527,7 +1527,7 @@ static dtuple_t *ibuf_entry_build(
     ibuf_op_t op,          /*!< in: operation type */
     dict_index_t *index,   /*!< in: non-clustered index */
     const dtuple_t *entry, /*!< in: entry for a non-clustered index */
-    space_id_t space,      /*!< in: space id */
+    space_id_t space_id,   /*!< in: space id */
     page_no_t page_no,     /*!< in: index page number where entry should
                            be inserted */
     ulint counter,         /*!< in: counter value;
@@ -1569,7 +1569,7 @@ static dtuple_t *ibuf_entry_build(
 
   buf = static_cast<byte *>(mem_heap_alloc(heap, 4));
 
-  mach_write_to_4(buf, space);
+  mach_write_to_4(buf, space_id);
 
   dfield_set_data(field, buf, 4);
 
@@ -2650,7 +2650,7 @@ static ulint ibuf_get_volume_buffered(
                             entry for the index page whose number is
                             page_no, latch mode has to be BTR_MODIFY_PREV
                             or BTR_MODIFY_TREE */
-    space_id_t space,       /*!< in: space id */
+    space_id_t space_id,    /*!< in: space id */
     page_no_t page_no,      /*!< in: page number of an index page */
     lint *n_recs,           /*!< in/out: minimum number of records on the
                             page after the buffered changes have been
@@ -2691,7 +2691,7 @@ static ulint ibuf_get_volume_buffered(
     ut_ad(page_align(rec) == page);
 
     if (page_no != ibuf_rec_get_page_no(mtr, rec) ||
-        space != ibuf_rec_get_space(mtr, rec)) {
+        space_id != ibuf_rec_get_space(mtr, rec)) {
       goto count_later;
     }
 
@@ -2738,7 +2738,7 @@ static ulint ibuf_get_volume_buffered(
     }
 
     if (page_no != ibuf_rec_get_page_no(mtr, rec) ||
-        space != ibuf_rec_get_space(mtr, rec)) {
+        space_id != ibuf_rec_get_space(mtr, rec)) {
       goto count_later;
     }
 
@@ -2755,7 +2755,7 @@ count_later:
 
   for (; !page_rec_is_supremum(rec); rec = page_rec_get_next_const(rec)) {
     if (page_no != ibuf_rec_get_page_no(mtr, rec) ||
-        space != ibuf_rec_get_space(mtr, rec)) {
+        space_id != ibuf_rec_get_space(mtr, rec)) {
       return (volume);
     }
 
@@ -2800,7 +2800,7 @@ count_later:
     }
 
     if (page_no != ibuf_rec_get_page_no(mtr, rec) ||
-        space != ibuf_rec_get_space(mtr, rec)) {
+        space_id != ibuf_rec_get_space(mtr, rec)) {
       return (volume);
     }
 
@@ -3473,7 +3473,7 @@ static rec_t *ibuf_insert_to_index_page_low(
                            << block->page.size.physical() << ", bitmap bits "
                            << old_bits;
 
-  ib::error(ER_IB_MSG_610) << BUG_REPORT_MSG;
+  ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
 
   ut_d(ut_error);
   ut_o(return nullptr);
@@ -3538,8 +3538,8 @@ static void ibuf_insert_to_index_page(
     ib::warn(ER_IB_MSG_614)
         << "The table where this index record belongs"
            " is now probably corrupt. Please run CHECK TABLE on"
-           " your tables. "
-        << BUG_REPORT_MSG;
+           " your tables.";
+    ib::warn(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
 
     ut_d(ut_error);
 
@@ -3699,7 +3699,7 @@ static void ibuf_set_del_mark(
         << "page " << block->page.id << " (" << page_get_n_recs(page)
         << " records, index id " << btr_page_get_index_id(page) << ").";
 
-    ib::error(ER_IB_MSG_618) << BUG_REPORT_MSG;
+    ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
     ut_d(ut_error);
   }
 }
@@ -3813,11 +3813,8 @@ static bool ibuf_restore_pos(space_id_t space_id, page_no_t page_no,
     ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
   } else {
     fil_space_release(space);
-    ib::error(ER_IB_MSG_620) << "ibuf cursor restoration fails!."
-                                " ibuf record inserted to page "
-                             << space_id << ":" << page_no;
-
-    ib::error(ER_IB_MSG_621) << BUG_REPORT_MSG;
+    ib::error(ER_IB_MSG_IBUF_CURSOR_RESTORATION_FAILED, space_id, page_no);
+    ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
 
     rec_print_old(stderr, pcur->get_rec());
     rec_print_old(stderr, pcur->m_old_rec);
@@ -3825,10 +3822,8 @@ static bool ibuf_restore_pos(space_id_t space_id, page_no_t page_no,
 
     rec_print_old(stderr, page_rec_get_next(pcur->get_rec()));
 
-    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_622)
-        << "Failed to restore ibuf position.";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_IBUF_FAILED_TO_RESTORE_POSITION);
   }
-
   return false;
 }
 
@@ -4072,8 +4067,7 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
                                   " run CHECK TABLE on your tables to determine"
                                   " if they are corrupt after this.";
 
-      ib::error(ER_IB_MSG_625) << "Please submit a detailed bug"
-                                  " report to http://bugs.mysql.com";
+      ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
       ut_d(ut_error);
     }
   }

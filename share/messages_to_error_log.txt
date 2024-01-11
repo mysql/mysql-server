@@ -5624,7 +5624,7 @@ ER_IB_MSG_29
 ER_IB_MSG_30
   eng "%s"
 
-ER_IB_MSG_31
+OBSOLETE_ER_IB_MSG_31
   eng "%s"
 
 ER_IB_MSG_32
@@ -7361,7 +7361,7 @@ ER_IB_MSG_608
 ER_IB_MSG_609
   eng "%s"
 
-ER_IB_MSG_610
+OBSOLETE_ER_IB_MSG_610
   eng "%s"
 
 ER_IB_MSG_611
@@ -7385,20 +7385,20 @@ ER_IB_MSG_616
 ER_IB_MSG_617
   eng "%s"
 
-ER_IB_MSG_618
+OBSOLETE_ER_IB_MSG_618
   eng "%s"
 
 ER_IB_MSG_619
   eng "%s"
 
-ER_IB_MSG_620
+ER_IB_MSG_IBUF_CURSOR_RESTORATION_FAILED
+  eng "ibuf cursor restoration fails!. ibuf record inserted to page %s:%s"
+
+OBSOLETE_ER_IB_MSG_621
   eng "%s"
 
-ER_IB_MSG_621
-  eng "%s"
-
-ER_IB_MSG_622
-  eng "%s"
+ER_IB_MSG_IBUF_FAILED_TO_RESTORE_POSITION
+  eng "Failed to restore ibuf position."
 
 ER_IB_MSG_623
   eng "%s"
@@ -7406,7 +7406,7 @@ ER_IB_MSG_623
 ER_IB_MSG_624
   eng "%s"
 
-ER_IB_MSG_625
+OBSOLETE_ER_IB_MSG_625
   eng "%s"
 
 ER_IB_MSG_626
@@ -9083,8 +9083,8 @@ ER_IB_MSG_1182
 ER_IB_MSG_1183
   eng "%s"
 
-ER_IB_MSG_1184
-  eng "%s"
+ER_IB_ERR_ACCESSING_OUT_OF_BOUND_FIELD_IN_INDEX
+   eng "Trying to access update undo rec field %llu in index %s of table %s but index has only %llu fields. %s. Run also CHECK TABLE %s. n_fields = %llu, i = %llu, ptr = %p."
 
 ER_IB_MSG_1185
   eng "%s"
@@ -12630,6 +12630,9 @@ ER_NOTE_KEYRING_COMPONENT_KEY_READ_ITERATOR_FETCH_FAILED
 
 ER_BACKGROUND_HISTOGRAM_UPDATE
   eng "%*s"
+
+ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT
+  eng "Submit a detailed bug report to http://bugs.mysql.com"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

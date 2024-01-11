@@ -365,7 +365,6 @@ inline void send_errno_warn(THD *thd, int err, const std::string &context) {
 
 extern const char *TROUBLESHOOTING_MSG;
 extern const char *TROUBLESHOOT_DATADICT_MSG;
-extern const char *BUG_REPORT_MSG;
 extern const char *FORCE_RECOVERY_MSG;
 extern const char *ERROR_CREATING_MSG;
 extern const char *OPERATING_SYSTEM_ERROR_MSG;
