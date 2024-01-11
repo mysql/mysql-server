@@ -355,6 +355,13 @@ static bool ndbcluster_binlog_index_remove_file(THD *thd, const char *filename);
   to remove any rows in its mysql.ndb_binlog_index table which
   references the removed file.
 
+  @note This function can be activated by:
+   - User session calling PURGE BINARY LOGS
+   - MySQL Server startup checking time to purge
+   - rotate+purge triggered by writing to binlog, this means that the
+     ndb binlog thread itself may invoke this function when writing epoch
+     transactions to binlog.
+
   @param thd Thread handle
   @param filename Name of the binlog file which has been removed
 
@@ -382,6 +389,8 @@ static int ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
     return 0;  // Nothing to do, slave thread
   }
 
+  ndb_log_info("Purging binlog file: '%s'", filename);
+
   // Create a separate temporary THD, primarily in order to isolate from any
   // active transactions in the THD passed by caller. NOTE! This should be
   // revisited
@@ -403,6 +412,8 @@ static int ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
 
   /* Relink original THD */
   thd->store_globals();
+
+  if (error == 0) ndb_log_info("Purged binlog file: '%s'", filename);
 
   return error;
 }
@@ -7125,12 +7136,13 @@ void Ndb_binlog_thread::recall_pending_purges(THD *thd) {
   // Iterate list of pending purges and delete corresponding
   // rows from ndb_binlog_index table
   for (const std::string &filename : m_pending_purges) {
-    log_verbose(1, "Purging binlog file: '%s'", filename.c_str());
+    log_info("Purging binlog file: '%s'", filename.c_str());
 
     if (Ndb_binlog_index_table_util::remove_rows_for_file(thd,
                                                           filename.c_str())) {
       log_warning("Failed to purge binlog file: '%s'", filename.c_str());
     }
+    log_info("Purged binlog file: '%s'", filename.c_str());
   }
   // All pending purges performed, clear the list
   m_pending_purges.clear();
