@@ -4253,7 +4253,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
             goto error;
           if (!supported) {
             my_error(ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE, MYF(0),
-                     lex->sp_chistics.language);
+                     lex->sp_chistics.language.str);
             goto error;
           }
           my_service<SERVICE_TYPE(external_program_execution)> sp_service(
