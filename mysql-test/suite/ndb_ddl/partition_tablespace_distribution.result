@@ -22,7 +22,7 @@ PARTITIONS 2 (
 PARTITION p1 VALUES LESS THAN (2) TABLESPACE ts1,
 PARTITION p2 VALUES LESS THAN MAXVALUE TABLESPACE ts2);
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

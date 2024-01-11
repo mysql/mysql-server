@@ -14906,7 +14906,7 @@ static int create_table_set_up_partition_info(partition_info *part_info,
     push_warning_printf(
         current_thd, Sql_condition::SL_WARNING,
         ER_WARN_DEPRECATED_ENGINE_SYNTAX_NO_REPLACEMENT,
-        ER_THD(current_thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+        ER_THD(current_thd, ER_WARN_DEPRECATED_ENGINE_SYNTAX_NO_REPLACEMENT),
         partition_type_description(part_info->part_type), ndbcluster_hton_name);
 
     /*

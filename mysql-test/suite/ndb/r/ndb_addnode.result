@@ -168,7 +168,7 @@ partition p3 values in (3),
 partition p4 values in (4)
 );
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 drop table t7;
 create table t3(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
 create table t4(id int NOT NULL PRIMARY KEY, data char(8))

@@ -255,26 +255,26 @@ ALTER TABLE t1_c
 PARTITION BY RANGE (`capgoaledatta`)
 (PARTITION p0 VALUES LESS THAN MAXVALUE);
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 ALTER TABLE t2_c
 PARTITION BY LIST(`capgotod`)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 ALTER TABLE t3_c
 PARTITION BY HASH (`CapGoaledatta`);
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 ALTER TABLE t5_c
 PARTITION BY HASH (`capfa`)
 PARTITIONS 4;
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 ALTER TABLE t6_c
 PARTITION BY LINEAR HASH (`relatta`)
 PARTITIONS 4;
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;

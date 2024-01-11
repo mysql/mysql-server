@@ -149,18 +149,18 @@ INITIAL_SIZE 12M
 ENGINE NDB;
 CREATE TABLE test.t1 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 VARCHAR(150) NOT NULL, c3 INT NOT NULL, c4 BIT NOT NULL, PRIMARY KEY(pk1,c3))TABLESPACE table_space1 STORAGE DISK ENGINE=NDB PARTITION BY HASH(c3) PARTITIONS 4;
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 CREATE TABLE test.t4 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 VARCHAR(180) NOT NULL, c3 INT NOT NULL, c4 BIT NOT NULL, PRIMARY KEY(pk1,c3))ENGINE=NDB PARTITION BY HASH(c3) PARTITIONS 2;
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 CREATE TABLE test.t2 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 TEXT NOT NULL, c3 INT NOT NULL, c4 BIT NOT NULL, PRIMARY KEY(pk1,c3))TABLESPACE table_space2 STORAGE DISK ENGINE=NDB PARTITION BY KEY(c3) (PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
 CREATE TABLE test.t5 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 TEXT NOT NULL, c3 INT NOT NULL, c4 BIT NOT NULL, PRIMARY KEY(pk1,c3))ENGINE=NDB PARTITION BY KEY(pk1) (PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
 CREATE TABLE test.t3 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 VARCHAR(202) NOT NULL, c3 INT NOT NULL, c4 BIT NOT NULL, PRIMARY KEY(pk1,c3))TABLESPACE table_space2 STORAGE DISK ENGINE=NDB PARTITION BY RANGE (c3) PARTITIONS 3 (PARTITION x1 VALUES LESS THAN (105), PARTITION x2 VALUES LESS THAN (333), PARTITION x3 VALUES LESS THAN (720));
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 CREATE TABLE test.t6 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 VARCHAR(220) NOT NULL, c3 INT NOT NULL, c4 BIT NOT NULL, PRIMARY KEY(pk1,c3))ENGINE=NDB PARTITION BY RANGE (pk1) PARTITIONS 2 (PARTITION x1 VALUES LESS THAN (333), PARTITION x2 VALUES LESS THAN (720));
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -327,7 +327,7 @@ a int primary key
 ) engine=ndb
 partition by hash (a) partitions 5;
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 create table t2 (
 a int primary key,
 foreign key fk1 (a) references t1 (a)
@@ -343,7 +343,7 @@ foreign key fk1 (a) references t1 (a)
 alter table t1
 partition by hash (a) partitions 5;
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 drop table t2, t1;
 create table t1 (
 a int primary key
@@ -354,7 +354,7 @@ foreign key fk1 (a) references t1 (a)
 ) engine=ndb
 partition by hash (a) partitions 5;
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 drop table t2;
 create table t2 (
 a int primary key,
@@ -363,7 +363,7 @@ foreign key fk1 (a) references t1 (a)
 alter table t2
 partition by hash (a) partitions 5;
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 drop table t2, t1;
 # bug#16275684 - case: alter FK parent column
 create table t1 (

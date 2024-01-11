@@ -8,7 +8,7 @@ PRIMARY KEY (ol_w_id, ol_d_id, ol_o_id, ol_number)
 ) ENGINE=NDB
 PARTITION BY HASH (ol_w_id);
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 insert into t1 values (1,0,0,0,0),(1,0,0,1,0),(1,0,0,2,0),(1,1,0,0,0),(1,1,0,1,0);
 insert into t1 values (2,0,0,0,0),(4,0,0,0,0),(4,0,0,1,0);
 insert into t1 values (0,1,1,4,0),(0,1,1,5,0);

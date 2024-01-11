@@ -18,7 +18,7 @@ PARTITION BY RANGE (a)
 PARTITIONS 1
 (PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 #############################################
 # Case1: Checking ALTER TABLE
 # Sending 'ALTER TABLE t1 ADD COLUMN f int;'
@@ -31,7 +31,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'ALTER TABLE t1 ADD COLUMN f int;'
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 #############################################
 # Case2: Checking TRUNCATE TABLE
 # Sending 'TRUNCATE TABLE t1;'
@@ -45,7 +45,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'TRUNCATE TABLE t1'
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 #############################################
 # Case4: Checking CREATE TABLE
 SET DEBUG_SYNC= 'RESET';
@@ -58,7 +58,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'CREATE TABLE'
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 #############################################
 # Case5: Checking CREATE TABLE LIKE
 SET DEBUG_SYNC= 'RESET';
@@ -71,7 +71,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'CREATE TABLE LIKE'
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 #############################################
 # Case6: Checking ALTER TABLE ... PARTITION
 CREATE TABLESPACE ts2
@@ -89,7 +89,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'ALTER TABLE'
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 #############################################
 # Case7: Checking LOCK TABLE t2 WRITE
 SET DEBUG_SYNC= 'RESET';

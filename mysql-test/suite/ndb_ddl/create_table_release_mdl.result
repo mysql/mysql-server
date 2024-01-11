@@ -21,7 +21,7 @@ PARTITION BY RANGE (a)
 PARTITIONS 1
 (PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 # Workaround BUG#30248840 which describes problem with updating
 # tablespace id on participant when altering tablespace where table
 # has RANGE partitions

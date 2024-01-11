@@ -10,7 +10,7 @@ partition p1 values in (1),
 partition p2 values in (2),
 partition p3 values in (3));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 ALTER TABLE t01 ALGORITHM=INPLACE, ADD UNIQUE KEY (y);
 -- t01 --
 Version: Any
@@ -165,7 +165,7 @@ partition p1 values in (1),
 partition p2 values in (2),
 partition p3 values in (3));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 -- t02 --
 Version: Any
 Fragment type: UserDefined
@@ -1360,7 +1360,7 @@ partition p1 values in (1),
 partition p2 values in (2),
 partition p3 values in (3));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 ALTER TABLE t08 ALGORITHM=INPLACE, ADD UNIQUE KEY (y);
 -- t08 --
 Version: Any
@@ -1515,7 +1515,7 @@ partition p1 values in (1),
 partition p2 values in (2),
 partition p3 values in (3));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 -- t09 --
 Version: Any
 Fragment type: UserDefined

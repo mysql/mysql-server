@@ -13,7 +13,7 @@ PARTITION part1 VALUES IN (1),
 PARTITION part2 VALUES IN (2),
 PARTITION part3 VALUES IN (3,4,5));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 INSERT INTO t1 SET f_int1 = -2, f_int2 = 20, f_char1 = '20', f_char2 = '20', f_charbig = '===20===';
 INSERT INTO t1 SET f_int1 = 1, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
 INSERT INTO t1 SET f_int1 = 2, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
@@ -36,7 +36,7 @@ partition by list (a)
 (partition part0 values in (0,1,2),
 partition part1 values in (3,4,5));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 insert into t1 values (0, 0, 0);
 insert into t1 values (0, 1, 1);
 insert into t1 values (0, 2, 2);

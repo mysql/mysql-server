@@ -13,7 +13,7 @@ partition x3 values less than (20) nodegroup 14);
 ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 show warnings;
 Level	Code	Message
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 Warning	1296	Got error 771 'Given NODEGROUP doesn't exist in this cluster' from NDB
 Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 CREATE TABLE t1 (
@@ -28,14 +28,14 @@ partitions 3
 partition x2 values less than (10),
 partition x3 values less than (20));
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 drop table t1;
 CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=NDB
 PARTITION BY LIST(id)
 (PARTITION p0 VALUES IN (2, 4),
 PARTITION p1 VALUES IN (42, 142));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2);
 UPDATE t1 SET id=5 WHERE id=2;
 ERROR HY000: Table has no partition for value 5
@@ -47,7 +47,7 @@ partitions 2
 (partition x123 values in (11, 12),
 partition x234 values in (5, 1));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 insert into t1 values (NULL,1,1);
 Got one of the listed errors
 drop table t1;
@@ -64,7 +64,7 @@ PARTITION p1 VALUES IN (NULL), -- Will not create partition
 PARTITION p2 VALUES IN (2147483647),
 PARTITION p3 VALUES IN (-2147483648));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(0);
 INSERT INTO t1 VALUES(2147483647);
 INSERT INTO t1 VALUES(-2147483648);
@@ -87,7 +87,7 @@ PARTITION p3 VALUES LESS THAN (256),
 PARTITION p4 VALUES LESS THAN (2147483646),
 PARTITION p5 VALUES LESS THAN MAXVALUE);
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(-2147483648);
 INSERT INTO t1 VALUES(0);
 INSERT INTO t1 VALUES(256);

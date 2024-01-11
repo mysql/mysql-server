@@ -11,7 +11,7 @@ partitions 3
 partition x2 values less than (10),
 partition x3 values less than (20));
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 INSERT into t1 values (1, 1, 1);
 INSERT into t1 values (6, 1, 1);
 INSERT into t1 values (10, 1, 1);
@@ -69,7 +69,7 @@ partitions 3
 partition x2 values less than (10),
 partition x3 values less than (20));
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 INSERT into t1 values (1, 1, 1);
 INSERT into t1 values (2, 6, 1);
 INSERT into t1 values (3, 10, 1);
@@ -164,7 +164,7 @@ PARTITION p3 VALUES LESS THAN (1986),
 PARTITION p4 VALUES LESS THAN (2005),
 PARTITION p5 VALUES LESS THAN MAXVALUE);
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0,NULL,NULL,NULL,NULL,NULL,NULL,NULL, '2009-05-15');
 SELECT * FROM t1;
 id	b1	vc	bc	d	f	total	y	t
@@ -199,19 +199,19 @@ PARTITION BY LIST (a1)
 PARTITION p1 VALUES IN (6,7,8,9, 10),
 PARTITION p2 VALUES IN (11, 12, 13, 14, 15));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 ALTER TABLE test.t1 DROP COLUMN a6;
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 ALTER TABLE test.t1 ADD COLUMN a6 VARCHAR(255);
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 SELECT COUNT(*) FROM test.t1;
 COUNT(*)
 15
 ALTER TABLE test.t1 DROP COLUMN a4;
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 SELECT COUNT(*) FROM test.t1;
 COUNT(*)
 15
@@ -228,13 +228,13 @@ TABLESPACE ts1 STORAGE DISK ENGINE=NDB
 PARTITION BY HASH(a1)
 PARTITIONS 4;
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 SELECT COUNT(*) FROM test.t1;
 COUNT(*)
 15
 ALTER TABLE test.t1 DROP COLUMN a4;
 Warnings:
-Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY HASH' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 SELECT COUNT(*) FROM test.t1;
 COUNT(*)
 15
@@ -257,7 +257,7 @@ PARTITION BY LIST(id)
 (PARTITION p0 VALUES IN (2, 4),
 PARTITION p1 VALUES IN (42, 142));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
 SELECT * FROM t1;
 id	b1	vc	bc	d	f	total	y	t
@@ -265,7 +265,7 @@ id	b1	vc	bc	d	f	total	y	t
 ALTER TABLE t1 ADD PARTITION
 (PARTITION p2 VALUES IN (412));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 SELECT * FROM t1;
 id	b1	vc	bc	d	f	total	y	t
 2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
@@ -279,7 +279,7 @@ partitions 2
 (partition x123 values in (1,5,6),
 partition x234 values in (4,7,8));
 Warnings:
-Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY LIST' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 INSERT into t1 VALUES (5,1,1);
 select * from t1;
 a	b	c
@@ -294,7 +294,7 @@ PARTITION BY RANGE(f1)
 ( PARTITION part1 VALUES LESS THAN (2),
 PARTITION part2 VALUES LESS THAN (1000));
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(1, '---1---');
 INSERT INTO t1 VALUES(2, '---2---');
 select * from t1 order by f1;
@@ -317,7 +317,7 @@ partition by range (a)
 (partition part0 values less than (3),
 partition part1 values less than (6));
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 insert into t1 values (0, 0, 0);
 insert into t1 values (0, 1, 1);
 insert into t1 values (0, 2, 2);

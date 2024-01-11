@@ -15,7 +15,7 @@ partitions 3
 partition p2 values less than (3),
 partition p3 values less than (4));
 Warnings:
-Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' for 'ndbcluster' storage engine is deprecated and will be removed in a future release.
 insert into t1 values (1, @x1, 1, @x2, 1);
 insert into t1 values (1, @y1, 2, @y2, 1);
 insert into t1 values (1, @z1, 3, @z2, 1);
