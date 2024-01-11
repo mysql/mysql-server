@@ -131,19 +131,6 @@ MYSQL_ADD_EXECUTABLE(perror
   DEPENDENCIES GenError
   LINK_LIBRARIES mysys
   )
-IF(WITH_LZ4 STREQUAL "bundled")
-  MYSQL_ADD_EXECUTABLE(lz4_decompress
-    lz4_decompress.cc
-    COMPONENT Server
-    LINK_LIBRARIES ext::lz4 mysys
-    )
-ENDIF()
-
-MYSQL_ADD_EXECUTABLE(zlib_decompress
-  zlib_decompress.cc
-  COMPONENT Server
-  LINK_LIBRARIES ext::zlib mysys
-  )
 
 # All targets below belong to COMPONENT Server and depend on InnoDB.
 IF(WITHOUT_SERVER)

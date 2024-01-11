@@ -1791,41 +1791,7 @@ DROP TABLE t1;
 DROP DATABASE test1;
 --remove_file $MYSQLTEST_VARDIR/tmp/test1_db.sql
 
-
---echo #-----------------------------------------------------------------------
---echo # Test case to verify check constraint with mysqlpump
---echo #-----------------------------------------------------------------------
-CREATE DATABASE test2;
-USE test2;
-CREATE TABLE t2 (
-  c1 BIT(7) CHECK(c1 < B'1111100'),
-  c2 BOOLEAN CHECK(c2 > 0),
-  c3 TINYINT CHECK(c3 > 10),
-  c4 SMALLINT CHECK(c4 > 10),
-  c5 MEDIUMINT CHECK(c5 > 10),
-  c6 INT CHECK(c6 > 10) NOT ENFORCED,
-  c7 BIGINT CHECK(c7 > 10) NOT ENFORCED,
-  c8 DECIMAL(6,2) CHECK(c8 > 10.1) NOT ENFORCED,
-  c9 FLOAT(6,2) CHECK(c9 > 10.1) NOT ENFORCED,
-  c10 DOUBLE(6,2) CHECK(c10 > 10.1) NOT ENFORCED);
-SHOW CREATE TABLE t2;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_PUMP --databases test2 > $MYSQLTEST_VARDIR/tmp/test2_db.sql
-DROP DATABASE test2;
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test2_db.sql
-USE test2;
-SHOW CREATE TABLE t2;
---error ER_CHECK_CONSTRAINT_VIOLATED
-INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
-    VALUES(B'1111000',0,10,10,10,5,5,9.1,9.1,9.1);
-INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
-    VALUES(B'1111000',1,11,11,11,5,5,9.1,9.1,9.1);
-SELECT HEX(c1), c2, c3, c4, c5, c6, c7, c8, c9, c10 FROM t2;
-DROP TABLE t2;
-DROP DATABASE test2;
---remove_file $MYSQLTEST_VARDIR/tmp/test2_db.sql
 USE test;
-
 
 --echo #-----------------------------------------------------------------------
 --echo # Test case to verify check constraint with PREPARE statement

@@ -115,21 +115,6 @@ SELECT * FROM init_connect_log;
 SNI_VALUE
 gizmo
 DELETE FROM init_connect_log;
-# Test mysqlpump
-CREATE USER wl14839_2;
-GRANT SELECT ON *.* TO wl14839_2;
-# test FR5: mysqlpump SNI must be empty
-SELECT DISTINCT * FROM init_connect_log;
-SNI_VALUE
-
-DELETE FROM init_connect_log;
-# test FR5: mysqlpump SNI must be gizmo
-SELECT DISTINCT * FROM init_connect_log;
-SNI_VALUE
-gizmo
-DELETE FROM init_connect_log;
-REVOKE SELECT ON *.* FROM wl14839_2;
-DROP USER wl14839_2;
 # cleanup
 REVOKE INSERT,SELECT ON test.init_connect_log FROM wl14839;
 DROP USER wl14839;

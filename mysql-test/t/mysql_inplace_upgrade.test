@@ -36,7 +36,6 @@ DROP DATABASE db1;
 DROP DATABASE db2;
 
 --let $restart_parameters = restart:
---remove_file $MYSQLD_DATADIR/mysql_upgrade_info
 
 --echo ###########################################################################
 --echo # Stop the default mtr server

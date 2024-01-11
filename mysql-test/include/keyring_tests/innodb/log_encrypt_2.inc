@@ -110,16 +110,16 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SELECT * FROM tde_db.t1 LIMIT 10;
 --echo # Mysqldump output
 --exec $MYSQL_DUMP --compact --skip-comments --databases tde_db
---echo # Redirecting mysqlpump output to MYSQL_TMP_DIR/mysqlpump_encrypt.sql
---exec $MYSQL_PUMP --default-parallelism=1 --databases tde_db > $MYSQL_TMP_DIR/mysqlpump_encrypt.sql
+--echo # Redirecting mysqldump output to MYSQL_TMP_DIR/mysqldump_encrypt.sql
+--exec $MYSQL_DUMP --databases tde_db > $MYSQL_TMP_DIR/mysqldump_encrypt.sql
 DROP DATABASE tde_db;
 
 --let SEARCH_FILE=$MYSQL_TMP_DIR/keyring_query_log
 let SEARCH_PATTERN= ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --source include/search_pattern.inc
 
---echo # Loading tables from mysqlpump_encrypt.sql
---exec $MYSQL --skip-comments < $MYSQL_TMP_DIR/mysqlpump_encrypt.sql
+--echo # Loading tables from mysqldump_encrypt.sql
+--exec $MYSQL --skip-comments < $MYSQL_TMP_DIR/mysqldump_encrypt.sql
 SELECT * FROM tde_db.t1 LIMIT 10;
 INSERT INTO tde_db.t1 VALUES(4, null);
 SELECT * FROM tde_db.t1 LIMIT 10;
@@ -131,5 +131,5 @@ DROP DATABASE tde_db;
 
 # Cleanup
 --remove_file $MYSQL_TMP_DIR/keyring_query_log
---remove_file $MYSQL_TMP_DIR/mysqlpump_encrypt.sql
+--remove_file $MYSQL_TMP_DIR/mysqldump_encrypt.sql
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

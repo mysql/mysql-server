@@ -303,7 +303,7 @@ connection default;
 SET @@global.protocol_compression_algorithms=default;
 
 --echo # check --compression-algorithms and --zstd-compression-level on all supported clients
-# check mysqldump/pump client
+# check mysqldump client
 CREATE DATABASE wl12475;
 USE wl12475;
 CREATE TABLE t1(a LONGTEXT);
@@ -311,13 +311,9 @@ INSERT INTO t1 VALUES (REPEAT('1',200));
 INSERT INTO t1 VALUES (REPEAT('2', 1800));
 
 --exec $MYSQL_DUMP --skip-comments --compression-algorithms="zstd" wl12475 t1 > $MYSQLTEST_VARDIR/tmp/wl12475_dump.sql
---exec $MYSQL_PUMP --compression-algorithms="zstd" --zstd-compression-level=5 wl12475 t1 > $MYSQLTEST_VARDIR/tmp/wl12475_pump.sql
 DROP TABLE t1;
 
 --exec $MYSQL wl12475 < $MYSQLTEST_VARDIR/tmp/wl12475_dump.sql
-SELECT COUNT(*) FROM wl12475.t1;
-DROP TABLE wl12475.t1;
---exec $MYSQL wl12475 < $MYSQLTEST_VARDIR/tmp/wl12475_pump.sql
 SELECT COUNT(*) FROM wl12475.t1;
 
 # check mysqladmin client
@@ -351,7 +347,6 @@ SELECT @@global.protocol_compression_algorithms;
 
 #cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/wl12475_dump.sql
---remove_file $MYSQLTEST_VARDIR/tmp/wl12475_pump.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.data
 --let $restart_parameters=restart:
 

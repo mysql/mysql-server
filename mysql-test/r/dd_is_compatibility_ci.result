@@ -284,11 +284,10 @@ DROP TABLE t1;
 # WL#6599. Current method of dumping INFORMATION_SCHEMA does not work
 # for views.
 # OTOH, INFORMATION_SCHEMA DB content dump is only used to reload the
-# data into another tables for analysis purpose. This feature is not the 
-# core responsibility of mysqlpump tool. INFORMATION_SCHEMA DB
+# data into another tables for analysis purpose. INFORMATION_SCHEMA DB
 # content can be dumped using other methods like SELECT INTO OUTFILE ...
 # for such purpose. Hence ignoring INFORMATION_SCHEMA DB dump from
-# mysqldump and mysqlpump tool.
+# mysqldump tool.
 #########################################################
 CREATE DATABASE test1;
 # Following statements should pass as INFORMATION_SCHEMA db is not used.

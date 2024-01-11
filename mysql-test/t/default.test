@@ -185,9 +185,6 @@ CREATE TABLE d(d DATE DEFAULT DATE'2019-10-01');
 --echo # Bug#33322551: hex-blob not respected in DDL during mysqldump
 --echo #
 
-# For this test, keep in mind that we have two similar-but-distinct tools,
-# mysqldump and the newer mysqlpump. Both will be tested here.
-
 --echo
 --echo # Create a table with a binary default that is not valid UTF-8.
 # There's no guarantee such a default is valid in a target character-set
@@ -276,27 +273,7 @@ SELECT "--base,dump--";
 SELECT HEX(f1),HEX(f2),HEX(f3) FROM t1;
 
 --echo
---echo # Now dump the table using mysqlpump.
---exec $MYSQL_PUMP --databases test > $MYSQLTEST_VARDIR/tmp/bindfltpump.sql
-
---echo
---echo # Drop the table,
-DROP TABLE t1;
---echo # then recreate it from the pumped file.
---exec $MYSQL --show-warnings test < $MYSQLTEST_VARDIR/tmp/bindfltpump.sql
-
---echo
---echo # Add another row with the DEFAULT, then retrieve three rows.
---echo # If their hex values are not the same, we broke the DEFAULT
---echo # in mysqlpump (on account of SHOW CREATE TABLE printing the
---echo # DEFAULT clause wrong).
-INSERT INTO t1 VALUES(DEFAULT,DEFAULT,DEFAULT);
-SELECT "--base,dump,pump--";
-SELECT HEX(f1),HEX(f2),HEX(f3) FROM t1;
-
---echo
 --echo # Clean up.
 
 DROP TABLE t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/bindfltdump.sql
---remove_file $MYSQLTEST_VARDIR/tmp/bindfltpump.sql

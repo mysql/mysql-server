@@ -123,9 +123,6 @@ SELECT  (SELECT GROUP_CONCAT('(',a,',',b,')') FROM t1 PARTITION(p0))
 --let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 
---echo # Check for mysql_upgrade_info file in data directory.
---file_exists $MYSQLD_DATADIR1/mysql_upgrade_info
-
 --echo # Cleanup.
 --remove_file $MYSQL_TMP_DIR/data57_partition_prefix_key.zip
 --force-rmdir $MYSQL_TMP_DIR/data57_partition_prefix_key
@@ -204,10 +201,6 @@ SELECT  (SELECT GROUP_CONCAT('(',a,',',b,')') FROM t1 PARTITION(p0))
 --echo # Stop the server.
 --let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
-
---echo
---echo # Check for mysql_upgrade_info file in data directory
---file_exists $MYSQLD_DATADIR1/mysql_upgrade_info
 
 --echo
 --echo # Cleanup.

@@ -215,9 +215,6 @@
 --let SEARCH_PATTERN = \[ERROR\]
 --source include/search_pattern.inc
 
---echo # Check for mysql_upgrade_info file in data directory.
---file_exists $MYSQLD_DATADIR1/mysql_upgrade_info
-
 --echo # Stop server and cleanup.
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/data_57_help_tables.zip

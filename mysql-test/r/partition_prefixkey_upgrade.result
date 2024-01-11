@@ -52,7 +52,6 @@ as `p2_equal`;
 p0_equal	p1_equal	p2_equal
 1	1	1
 # Stop the server.
-# Check for mysql_upgrade_info file in data directory.
 # Cleanup.
 
 # Copy the 8.0.19 data zip file to working directory.
@@ -75,8 +74,6 @@ Pattern "\[ERROR\]" not found
 Pattern "Column 'test\.t1\.a' having prefix key part 'a\(100\)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY\(\) clause is deprecated and will be removed in a future release\." found
 
 # Stop the server.
-
-# Check for mysql_upgrade_info file in data directory
 
 # Cleanup.
 

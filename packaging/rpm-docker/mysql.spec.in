@@ -248,7 +248,7 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
          my_safe_process %{!?cluster:mysqlbinlog} mysqlcheck mysql_client_test \
          mysql_config_editor mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqltest_safe_process mysqlxtest \
-         comp_err perror lz4_decompress zlib_decompress mysql_keyring_encryption_test \
+         comp_err perror mysql_keyring_encryption_test \
          mysql_test_event_tracking; do
     rm -f %{buildroot}%{_bindir}/$f
 done
@@ -426,11 +426,9 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqldump
-%attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysql_config
 %attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
-%attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/mysql_migrate_keyring
 
@@ -567,6 +565,9 @@ rm -r $(readlink var) var
 %changelog
 * Tue Jan 02 2024 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.4.0-1
 - Removed authentication_fido and authentication_fido_client plugins
+
+* Mon Nov 27 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.4.0-1
+- Removed mysqlpump, mysql_upgrade, zlib_decompress and lz4_decompress binaries
 
 * Mon Jul 24 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.2.0-1
 - Added component_test_server_telemetry_metrics test component

@@ -41,7 +41,6 @@ SET(MIGRATE_KEYRING_LIBRARIES
   minchassis
   mysys
   mysqlclient
-  client_base
   OpenSSL::SSL OpenSSL::Crypto
 )
 

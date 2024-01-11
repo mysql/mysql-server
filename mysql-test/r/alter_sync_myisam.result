@@ -26,7 +26,7 @@ SHOW EXTENDED TABLES FROM test_i_s;
 Tables_in_test_i_s
 #sql-xxxxx
 t1
-# Make sure mysqldump/mysqlpump ignores the #sql... tables.
+# Make sure mysqldump ignores the #sql... tables.
 # mysqldump fails to acquire the lock without the fix.
 # Allow ALTER to continue.
 SET DEBUG_SYNC= 'now SIGNAL i_s_select';

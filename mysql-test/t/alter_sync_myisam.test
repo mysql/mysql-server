@@ -42,11 +42,10 @@ SHOW TABLES FROM test_i_s;
 --replace_regex /#sql.*$/#sql-xxxxx/
 SHOW EXTENDED TABLES FROM test_i_s;
 
---echo # Make sure mysqldump/mysqlpump ignores the #sql... tables.
+--echo # Make sure mysqldump ignores the #sql... tables.
 --echo # mysqldump fails to acquire the lock without the fix.
 --let $file = $MYSQLTEST_VARDIR/tmp/bug24571427.sql
 --exec $MYSQL_DUMP --no-tablespaces --databases test_i_s --ignore-table=test_i_s.t1 > $file
---exec $MYSQL_PUMP --databases test_i_s --exclude-tables=t1 > $file
 --remove_file $file
 
 --echo # Allow ALTER to continue.

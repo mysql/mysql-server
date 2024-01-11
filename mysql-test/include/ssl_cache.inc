@@ -146,8 +146,6 @@ exec $MYSQL_SLAP $copts 2>&1;
 --echo # try mysqltest
 --error 1
 exec $MYSQL_TEST $copts 2>&1;
---echo # try mysqlpump
-exec $MYSQL_PUMP $copts test 2>&1;
 
 --echo # FR12.1: make sure --ssl-session-data-continue-on-failed-reuse works
 --let $copts=-u root --protocol=tcp -S $MASTER_MYSOCK -P $MASTER_MYPORT --tls-version=$tls_version --ssl-mode=required --ssl-session-data=$session_file --ssl-session-data-continue-on-failed-reuse
@@ -161,8 +159,6 @@ exec $MYSQL_DUMP $copts test > $out_file 2>&1;
 exec $MYSQL_SHOW $copts test > $out_file 2>&1;
 --echo # try mysqlslap
 exec $MYSQL_SLAP $copts --concurrency=1 --iterations=1 -query="SELECT 1" > $out_file 2>&1;
---echo # try mysqlpump
-exec $MYSQL_PUMP $copts test > $out_file 2>&1;
 
 
 remove_file $session_file;

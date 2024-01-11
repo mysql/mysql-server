@@ -561,21 +561,6 @@ bool upgrade_help_tables(THD *thd) {
   return false;
 }
 
-static void create_upgrade_file() {
-  FILE *out;
-  char upgrade_info_file[FN_REFLEN] = {0};
-  fn_format(upgrade_info_file, "mysql_upgrade_info", mysql_real_data_home_ptr,
-            "", MYF(0));
-
-  if ((out = my_fopen(upgrade_info_file, O_TRUNC | O_WRONLY, MYF(0)))) {
-    /* Write new version to file */
-    fputs(MYSQL_SERVER_VERSION, out);
-    my_fclose(out, MYF(0));
-    return;
-  }
-  LogErr(WARNING_LEVEL, ER_SERVER_UPGRADE_INFO_FILE, upgrade_info_file);
-}
-
 static bool get_shared_tablespace_names(
     THD *thd, std::set<dd::String_type> *shared_spaces) {
   assert(innodb_hton != nullptr && innodb_hton->get_tablespace_type);
@@ -915,7 +900,6 @@ bool upgrade_system_schemas(THD *thd) {
           dd::tables::DD_properties::instance().set(
               thd, "MYSQLD_VERSION_UPGRADED", MYSQL_VERSION_ID);
   }
-  create_upgrade_file();
   bootstrap_error_handler.set_log_error(true);
 
   if (dd::bootstrap::DD_bootstrap_ctx::instance().is_server_patch_downgrade()) {

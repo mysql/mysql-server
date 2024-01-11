@@ -45,21 +45,8 @@ install_validate_password_sql_file () {
     echo $initfile
 }
 
-fix_mysql_upgrade_info () {
-    datadir=$(get_option mysqld datadir "/var/lib/mysql${instance:+-$instance}" $instance)
-    if [ -d  "$datadir" ]  && [ -O "$datadir/mysql_upgrade_info" ]; then
-	chown --reference="$datadir" "$datadir/mysql_upgrade_info"
-	if [ -x /usr/bin/chcon ]; then
-            /usr/bin/chcon --reference="$datadir" "$datadir/mysql_upgrade_info" > /dev/null 2>&1
-	fi
-    fi
-}
-
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
-
-    # mysql_upgrade_info file should be owned by mysql user since MySQL 8.0.16
-    fix_mysql_upgrade_info
 
     # No automatic init wanted
     [ -e /etc/sysconfig/mysql ] && . /etc/sysconfig/mysql

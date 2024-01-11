@@ -162,7 +162,6 @@ SET(TESTS
   pattern_matcher
   prealloced_array
   priority_queue
-  pump_object_filter
   record_buffer
   sql_class_header
   sql_list

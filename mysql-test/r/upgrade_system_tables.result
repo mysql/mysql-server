@@ -65,7 +65,6 @@ include/filter_file.inc
 # restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG
 # Check for errors in the error log.
 Pattern "\[ERROR\]" not found
-# Check for mysql_upgrade_info file in data directory.
 # Stop server and cleanup.
 # Restart the server with default options.
 # restart

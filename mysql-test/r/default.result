@@ -323,26 +323,5 @@ HEX(f1)	HEX(f2)	HEX(f3)
 414243FAFA00	A4A2	D
 414243FAFA00	A4A2	D
 
-# Now dump the table using mysqlpump.
-
-# Drop the table,
-DROP TABLE t1;
-# then recreate it from the pumped file.
-Note (Code 1007): Can't create database 'test'; database exists
-
-# Add another row with the DEFAULT, then retrieve three rows.
-# If their hex values are not the same, we broke the DEFAULT
-# in mysqlpump (on account of SHOW CREATE TABLE printing the
-# DEFAULT clause wrong).
-INSERT INTO t1 VALUES(DEFAULT,DEFAULT,DEFAULT);
-SELECT "--base,dump,pump--";
---base,dump,pump--
---base,dump,pump--
-SELECT HEX(f1),HEX(f2),HEX(f3) FROM t1;
-HEX(f1)	HEX(f2)	HEX(f3)
-414243FAFA00	A4A2	D
-414243FAFA00	A4A2	D
-414243FAFA00	A4A2	D
-
 # Clean up.
 DROP TABLE t1;

@@ -164,10 +164,6 @@
 --let SEARCH_PATTERN= \[ERROR\]
 --source include/search_pattern.inc
 
-# It should have created a file in the MySQL Servers datadir
---let $MYSQLD_DATADIR= `select @@datadir`
---file_exists $MYSQLD_DATADIR/mysql_upgrade_info
-
 --echo ###########################################################################
 --echo # Test upgrade of help tables
 --echo ###########################################################################
@@ -233,10 +229,6 @@ SELECT COUNT(*) != 0 FROM mysql.help_topic;
 --let IGNORE_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Event Scheduler\: \[root@localhost\]\[events\.myevent\] (Unknown column \'c1\' in \'field list\'|Server shutdown in progress)
 --let SEARCH_PATTERN= \[ERROR\]
 --source include/search_pattern.inc
-
-# It should have created a file in the MySQL Servers datadir
---let $MYSQLD_DATADIR= `select @@datadir`
---file_exists $MYSQLD_DATADIR/mysql_upgrade_info
 
 --echo ###########################################################################
 --echo # Bug#29365552: LEFTOVER SYSTEM TABLES AFTER 5.7 => 8.0 IN-PLACE UPGRADE

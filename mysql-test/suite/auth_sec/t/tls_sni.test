@@ -128,22 +128,6 @@ SELECT * FROM init_connect_log;
 DELETE FROM init_connect_log;
 --remove_file $outfile
 
---echo # Test mysqlpump
-CREATE USER wl14839_2;
-GRANT SELECT ON *.* TO wl14839_2;
---echo # test FR5: mysqlpump SNI must be empty
---exec $MYSQL_PUMP --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839_2 --ssl-mode=require test init_connect_log > $outfile 2>&1
-# pump can connect several times. Hence: distinct
-SELECT DISTINCT * FROM init_connect_log;
-DELETE FROM init_connect_log;
---echo # test FR5: mysqlpump SNI must be gizmo
---exec $MYSQL_PUMP --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839_2 --ssl-mode=require --tls-sni-servername="gizmo" test init_connect_log > $outfile 2>&1
-SELECT DISTINCT * FROM init_connect_log;
-DELETE FROM init_connect_log;
-REVOKE SELECT ON *.* FROM wl14839_2;
-DROP USER wl14839_2;
---remove_file $outfile
-
 --echo # cleanup
 REVOKE INSERT,SELECT ON test.init_connect_log FROM wl14839;
 DROP USER wl14839;

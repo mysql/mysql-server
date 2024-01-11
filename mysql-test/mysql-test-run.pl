@@ -2221,7 +2221,7 @@ sub command_line_setup {
     mtr_report("Turning on valgrind for all executables");
     $opt_valgrind        = 1;
     $opt_valgrind_mysqld = 1;
-    # Enable this when mysqlpump and mysqlbinlog are fixed.
+    # Enable this when mysqlbinlog is fixed.
     # $opt_valgrind_clients = 1;
     $opt_valgrind_mysqltest        = 1;
     $opt_valgrind_secondary_engine = 1;
@@ -2978,34 +2978,6 @@ sub mysqlxtest_arguments() {
   return mtr_args2str($exe, @$args);
 }
 
-sub mysql_pump_arguments ($) {
-  my ($group_suffix) = @_;
-  my $exe = mtr_exe_exists("$path_client_bindir/mysqlpump");
-
-  my $args;
-  mtr_init_args(\$args);
-  if ($opt_valgrind_clients) {
-    valgrind_client_arguments($args, \$exe);
-  }
-
-  mtr_add_arg($args, "--defaults-file=%s",         $path_config_file);
-  mtr_add_arg($args, "--defaults-group-suffix=%s", $group_suffix);
-  client_debug_arg($args, "mysqlpump-$group_suffix");
-  return mtr_args2str($exe, @$args);
-}
-
-sub mysqlpump_arguments () {
-  my $exe = mtr_exe_exists("$path_client_bindir/mysqlpump");
-
-  my $args;
-  mtr_init_args(\$args);
-  if ($opt_valgrind_clients) {
-    valgrind_client_arguments($args, \$exe);
-  }
-
-  return mtr_args2str($exe, @$args);
-}
-
 sub mysqlbackup_arguments () {
   my $exe =
     mtr_exe_maybe_exists(vs_config_dirs('runtime_output_directory',
@@ -3324,13 +3296,10 @@ sub environment_setup {
   $ENV{'MYSQL_DUMP'}          = mysqldump_arguments(".1");
   $ENV{'MYSQL_DUMP_SLAVE'}    = mysqldump_arguments(".2");
   $ENV{'MYSQL_IMPORT'}        = client_arguments("mysqlimport");
-  $ENV{'MYSQL_PUMP'}          = mysql_pump_arguments(".1");
-  $ENV{'MYSQLPUMP'}           = mysqlpump_arguments();
   $ENV{'MYSQL_SHOW'}          = client_arguments("mysqlshow");
   $ENV{'MYSQL_SLAP'}          = mysqlslap_arguments();
   $ENV{'MYSQL_SLAVE'}         = client_arguments("mysql", ".2");
   $ENV{'MYSQL_SSL_RSA_SETUP'} = $exe_mysql_ssl_rsa_setup;
-  $ENV{'MYSQL_UPGRADE'}       = client_arguments("mysql_upgrade");
   $ENV{'MYSQLADMIN'}          = native_path($exe_mysqladmin);
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
   $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
@@ -3442,16 +3411,6 @@ sub environment_setup {
   my $exe_mysql_tzinfo_to_sql =
     mtr_exe_exists("$path_client_bindir/mysql_tzinfo_to_sql");
   $ENV{'MYSQL_TZINFO_TO_SQL'} = native_path($exe_mysql_tzinfo_to_sql);
-
-  # lz4_decompress
-  my $exe_lz4_decompress =
-    mtr_exe_maybe_exists("$path_client_bindir/lz4_decompress");
-  $ENV{'LZ4_DECOMPRESS'} = native_path($exe_lz4_decompress);
-
-  # zlib_decompress
-  my $exe_zlib_decompress =
-    mtr_exe_maybe_exists("$path_client_bindir/zlib_decompress");
-  $ENV{'ZLIB_DECOMPRESS'} = native_path($exe_zlib_decompress);
 
   # Create an environment variable to make it possible
   # to detect that the hypergraph optimizer is being used from test cases

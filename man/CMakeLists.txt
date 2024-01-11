@@ -25,7 +25,6 @@ SET(MAN1
   comp_err.1
   ibd2sdi.1
   innochecksum.1
-  lz4_decompress.1
   my_print_defaults.1
   myisam_ftdump.1
   myisamchk.1
@@ -37,7 +36,6 @@ SET(MAN1
   mysql_secure_installation.1
   mysql_ssl_rsa_setup.1
   mysql_tzinfo_to_sql.1
-  mysql_upgrade.1
   mysqladmin.1
   mysqlbinlog.1
   mysqlcheck.1
@@ -45,11 +43,9 @@ SET(MAN1
   mysqldumpslow.1
   mysqlimport.1
   mysqlman.1
-  mysqlpump.1
   mysqlshow.1
   mysqlslap.1
   perror.1
-  zlib_decompress.1
   )
 
 IF(NOT WITH_SYSTEMD)

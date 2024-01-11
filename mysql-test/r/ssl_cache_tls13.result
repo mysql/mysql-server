@@ -67,16 +67,12 @@ ERROR: --ssl-session-data specified but the session was not reused.
 --ssl-session-data specified but the session was not reused.
 # try mysqltest
 mysqltest: --ssl-session-data specified but the session was not reused.
-# try mysqlpump
-WARNING: mysqlpump is deprecated and will be removed in a future version. Use mysqldump instead.
---ssl-session-data specified but the session was not reused.
 # FR12.1: make sure --ssl-session-data-continue-on-failed-reuse works
 # try mysql
 # try mysqladmin
 # try mysqldump
 # try mysqlshow
 # try mysqlslap
-# try mysqlpump
 SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_status
 WHERE VARIABLE_NAME LIKE 'ssl_session%' ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
