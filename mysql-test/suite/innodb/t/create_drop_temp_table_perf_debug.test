@@ -45,9 +45,7 @@ set session debug="+d,ib_ddl_crash_during_tablespace_alloc";
 create temporary table t1
 	(a int, b int, primary key(a), index(b)) engine = innodb;
 #
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 create temporary table t1
 	(a int, b int, primary key(a), index(b)) engine = innodb;
 insert into t1 values (10, 11);

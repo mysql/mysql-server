@@ -550,7 +550,6 @@ EOF
 
 --echo # 3. Restart the server against DDIR - should succeed.
 --exec echo "restart:" --datadir=$DDIR --lower_case_table_names=1 --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # 4. Import file created on server without lctn
@@ -570,7 +569,6 @@ DROP TABLE t_case;
 
 --echo # 6. Cleanup: Restarting the server against default datadir.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # Delete \$DDIR

@@ -152,7 +152,7 @@ SET SESSION debug = "+d,fault_injection_reinit_io_cache_while_flushing_to_file";
 COMMIT;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--source include/wait_until_disconnected.inc
 --source include/wait_until_connected_again.inc
 
 # Restart so that binary log is enabled again and we can do the below test
@@ -170,7 +170,7 @@ select * from t2;
 # Cleanup
 --disconnect con1
 --connection default
---enable_reconnect
+connect;
 DROP TABLE t1, t2, t3;
 RESET BINARY LOGS AND GTIDS;
 

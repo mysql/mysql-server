@@ -90,9 +90,7 @@ START TRANSACTION;
 --source include/rpl_connection.inc
 
 --error CR_SERVER_LOST
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo
 --echo # 6. Execute "START TRANSACTION" on server2.
@@ -133,9 +131,7 @@ SELECT * FROM test.t1;
 --source include/rpl_connection.inc
 
 --error CR_SERVER_LOST
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo
 --echo # 10. Execute "BEGIN WORK" on server1.
@@ -175,9 +171,7 @@ BEGIN WORK;
 --source include/rpl_connection.inc
 
 --error CR_SERVER_LOST
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo
 --echo # 14. Execute "BEGIN WORK" on server2.
@@ -218,9 +212,7 @@ SELECT * FROM test.t1;
 --source include/rpl_connection.inc
 
 --error CR_SERVER_LOST
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo
 --echo # 18. Cleanup.

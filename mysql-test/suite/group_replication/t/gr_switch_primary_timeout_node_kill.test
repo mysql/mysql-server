@@ -131,9 +131,7 @@ INSERT INTO t1 VALUES(1);
 --source include/rpl_connection.inc
 
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo
 --echo # 9. Assert primary changed.
@@ -169,9 +167,7 @@ DROP TABLE t1;
 --error CR_SERVER_LOST
 --reap
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SET @@GLOBAL.read_only= 0;
 SET @@SESSION.sql_log_bin= 0;

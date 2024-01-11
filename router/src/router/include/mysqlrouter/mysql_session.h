@@ -207,7 +207,6 @@ class ROUTER_LIB_EXPORT MySQLSession {
   // TCP/UnixSocket/...
   using Protocol = IntegerOption<MYSQL_OPT_PROTOCOL>;
   using ReadTimeout = IntegerOption<MYSQL_OPT_READ_TIMEOUT>;
-  using Reconnect = BooleanOption<MYSQL_OPT_RECONNECT>;
   using RetryCount = IntegerOption<MYSQL_OPT_RETRY_COUNT>;
   using SslCa = ConstCharOption<MYSQL_OPT_SSL_CA>;
   using SslCaPath = ConstCharOption<MYSQL_OPT_SSL_CAPATH>;

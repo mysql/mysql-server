@@ -13,7 +13,7 @@ while ($mysql_errno)
   # while being shutdown, thus 1040 is an "allowed" error
   # See BUG#36228
   --error 0,1040,1053,2002,2003,2006,2013,2016,2017
-  show status;
+  connect;
 
   dec $counter;
   if (!$counter)

@@ -5055,7 +5055,6 @@ static int sql_real_connect(char *host, char *database, char *user, char *,
   charset_info = mysql_handle.charset;
 
   connected = true;
-  mysql_handle.reconnect = debug_info_flag;  // We want to know if this happens
 #ifdef HAVE_READLINE
   build_completion_hash(opt_rehash, true);
 #endif

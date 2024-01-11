@@ -58,11 +58,9 @@ eval SET SESSION debug=CONCAT('$prefix', "crash_commit_after_prepare");
 COMMIT;
 
 -- source include/wait_until_disconnected.inc
--- enable_reconnect
 -- echo # Restart the master server
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
--- disable_reconnect
 
 -- echo # Test the transaction with a log event injected a wrong crc value
 -- echo # will be trimmed from the crashed binlog file

@@ -65,11 +65,9 @@ WHILE($rows)
 --error 2013
 COMMIT;
 
---enable_reconnect
 --echo # Restart the crashed member
 --exec echo "restart:--group_replication_local_address=$_group_replication_local_address_server1 --group_replication_group_seeds=$_group_replication_group_seeds_server1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --let $rpl_server_number= 1
 --source include/rpl_reconnect.inc
 
@@ -151,11 +149,9 @@ WHILE($rows)
 COMMIT;
 
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --echo # Restart the crashed member
 --exec echo "restart:--group_replication_local_address=$_group_replication_local_address_server1 --group_replication_group_seeds=$_group_replication_group_seeds_server1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --let $rpl_server_number= 1
 --source include/rpl_reconnect.inc
 
@@ -233,11 +229,9 @@ WHILE($rows)
 COMMIT;
 
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --echo # Restart the crashed member
 --exec echo "restart:--group_replication_local_address=$_group_replication_local_address_server1 --group_replication_group_seeds=$_group_replication_group_seeds_server1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --let $rpl_server_number= 1
 --source include/rpl_reconnect.inc
 

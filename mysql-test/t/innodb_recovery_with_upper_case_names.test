@@ -32,7 +32,6 @@ INSERT INTO mytable_ref VALUES (50);
 
 --echo # Restart the server. This will go into crash recovery mode
 --exec echo "restart: --innodb-fast-shutdown=0 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 USE MYDB;

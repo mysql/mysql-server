@@ -75,13 +75,11 @@ START REPLICA;
 
 --echo # Wait for server to stop
 --source include/expect_crash.inc
---enable_reconnect
 --source include/wait_until_disconnected.inc
 
 --echo # Restart the server.
 --let $rpl_server_number= 2
 --source include/rpl_start_server.inc
---disable_reconnect
 # Debug point disappeared on restart
 
 --let $assert_text= Make sure there is only table 't0' in schema 'test'.

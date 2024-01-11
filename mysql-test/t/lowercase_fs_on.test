@@ -19,7 +19,6 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 --source include/wait_until_disconnected.inc
 
 #Start the server with --lower_case_table_names=0 in Windows.
---enable_reconnect
 --error 1
 --exec $MYSQLD_CMD --console --lower_case_table_names=0 > $SEARCH_FILE  2>&1
 

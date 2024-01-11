@@ -2751,7 +2751,6 @@
   --shutdown_server 10
   --source include/wait_until_disconnected.inc
   # Do something while server is down
-  --enable_reconnect
   --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
   --source include/wait_until_connected_again.inc
   @endverbatim
@@ -5946,6 +5945,8 @@
 
       Open a connection to the server and make the connection the
       current connection.
+      It can also be used to re-connect a connection that was disconnected
+      by the server.
 
       The arguments to <b>connect</b> are:
 
@@ -6067,6 +6068,17 @@
       for the first five arguments and the <b><em>options</em></b>
       argument. For omitted port or socket options, @ref
       PAGE_MYSQLTEST "mysqltest" uses the default port or socket.
+
+      If you omit all arguments to connect or omit connection name or hostname,
+      it will try to reconnect the current connection using the current options.
+
+      @verbatim
+  connect; -- reconnects the current connection
+  connect(conn1); --reconnects conn1
+  connect(conn1,,root); --reconnects conn1 and ignores root
+  connect(,localhost); --reconnects the current connection, ignores localhost.
+  connect(,,,); --reconnects the current connection
+      @endverbatim
 
       @verbatim
   connect (conn1,localhost,root,,);
@@ -6377,19 +6389,6 @@
       @verbatim
   --disable_query_log
   --enable_query_log
-      @endverbatim
-    </li>
-
-    <li>
-      <tt>disable_reconnect</tt>, <tt>enable_reconnect</tt>
-
-      Disable or enable automatic reconnect for dropped connections.
-      (The default depends on the client library version.) This
-      command only applies to the current connection.
-
-      @verbatim
-  --disable_reconnect
-  --enable_reconnect
       @endverbatim
     </li>
 

@@ -19,7 +19,6 @@ disconnect shm_con;
 
 # Restart server
 --exec echo "restart" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # Restarting server above will fail when Bug #22646779 is not fixed

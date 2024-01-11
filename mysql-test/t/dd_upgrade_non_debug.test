@@ -46,7 +46,6 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 
 --echo # Start the DB server. Server will create and populate Dictionary tables.
 --exec echo "restart: --loose-skip-log-bin --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 6000
 --source include/wait_until_connected_again.inc
 

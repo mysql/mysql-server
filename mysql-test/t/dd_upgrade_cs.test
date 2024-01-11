@@ -485,7 +485,6 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/data80028_invalid_opt_hints/error.log;
 --let $shutdown_server_timeout= 300
 --let $wait_counter= 10000
 --exec echo "restart: --datadir=$DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 CALL max_exec_time_10pov10();

@@ -10,8 +10,6 @@
 --echo # Open con2 and set a timeout.
 connect(con2,localhost,root,,);
 
---echo --enable_reconnect;
---enable_reconnect
 SET @is_old_connection = 1;
 SELECT @is_old_connection;
 
@@ -27,8 +25,8 @@ let $wait_condition=
 
 --echo # Check that con2 has been reconnected.
 connection con2;
+connect;
 SELECT "Unix domain socket will hit wait_timeout with reconnect, still succeed as reconnect is enabled.";
 SELECT @is_old_connection;
 connection default;
---disable_reconnect
 disconnect con2;

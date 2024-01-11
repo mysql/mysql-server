@@ -82,7 +82,6 @@ SET DEBUG = '+d,innodb_page_corruption_retries';
 SELECT * FROM t1;
 
 # Disconnect all connections to release all locks on t1.ibd file.
---disable_reconnect
 --source include/wait_until_disconnected.inc
 
 --echo # Restore the original t1.ibd

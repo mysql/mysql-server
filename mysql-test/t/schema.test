@@ -413,7 +413,6 @@ CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 
 # Restart the server.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # ALTER TABLE for InnoDB fails differently depending on platform.
@@ -447,7 +446,6 @@ CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 
 # Restart the server.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # SHOW CREATE TABLE for InnoDB succeeds except on Windows.
@@ -484,7 +482,6 @@ CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 
 # Restart the server.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # DROP TABLE for InnoDB succeeds.

@@ -139,7 +139,6 @@ if (!$NO_EXT_PATH) {
 # Additional wait for 30 minutes for valgrid run
 --let add_wait_counter= 18000
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo

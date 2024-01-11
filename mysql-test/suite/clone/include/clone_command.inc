@@ -145,9 +145,7 @@ if($remote_clone) {
   if ($clone_remote_replace) {
     if (!$clone_err) {
       --source include/wait_until_disconnected.inc
-      --enable_reconnect
       --source include/wait_until_connected_again.inc
-      --disable_reconnect
       if (!$clone_recovery_error) {
         --disable_query_log
         use test;

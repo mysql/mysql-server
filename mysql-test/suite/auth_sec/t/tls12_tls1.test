@@ -36,7 +36,6 @@ let $MYSQL_PORT= `SELECT @@port`;
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1,TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
 
 --exec echo "restart:--tls-version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo #T4: Setting TLS version1.2 in the server and from client giving TLSv1.1, connection should fail
@@ -45,7 +44,6 @@ let $MYSQL_PORT= `SELECT @@port`;
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart:--tls-version=TLSv1.2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --error 1
@@ -58,6 +56,5 @@ let $MYSQL_PORT= `SELECT @@port`;
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 

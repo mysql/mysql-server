@@ -903,9 +903,7 @@ DROP SCHEMA bar;
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
 --exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 CREATE TABLE not_encrypted1 (col1 INT) ENCRYPTION='n';
 CREATE TABLE not_encrypted2 (col1 INT) ENCRYPTION='N';

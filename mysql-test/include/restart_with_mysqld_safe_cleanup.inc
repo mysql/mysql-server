@@ -21,7 +21,6 @@
 
 # Restart mysqld of MTR
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --let $rpl_server_number= $_server_id

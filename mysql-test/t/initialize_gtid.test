@@ -50,7 +50,6 @@ EOF
 
 --echo # Restart the server against DDIR
 --exec echo "restart:--datadir=$DDIR $init_args" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # Connect as root
@@ -76,5 +75,4 @@ remove_file $BOOTSTRAP_SQL;
 
 --echo # Restarting the server after cleaning it up
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc

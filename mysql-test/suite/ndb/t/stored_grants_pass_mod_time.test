@@ -29,7 +29,6 @@ let $mt1=`SELECT password_last_changed from mysql.user WHERE User = "t331"`;
 
 # Restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
---enable_reconnect
 --shutdown_server
 --source include/wait_until_connected_again.inc
 

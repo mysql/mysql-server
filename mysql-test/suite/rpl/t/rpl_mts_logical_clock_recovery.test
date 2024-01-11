@@ -89,7 +89,6 @@ START REPLICA;
 -- source include/wait_until_disconnected.inc
 -- let $rpl_server_number= 2
 -- source include/rpl_start_server.inc
--- enable_reconnect
 -- echo # Reconnecting to the slave server
 -- source include/wait_until_connected_again.inc
 -- connection slave

@@ -68,11 +68,9 @@ SHUTDOWN;
 --echo # 5. Cleanup
 
 # Restart server1
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --let $rpl_server_number= 1
 --source include/rpl_reconnect.inc

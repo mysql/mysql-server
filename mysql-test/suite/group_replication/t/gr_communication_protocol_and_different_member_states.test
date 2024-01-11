@@ -114,13 +114,11 @@ SET DEBUG_SYNC= 'RESET';
 # the group.
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 # Wait for the member state be unreachable.
 --let $rpl_connection_name= server_1
@@ -151,13 +149,11 @@ SELECT group_replication_get_communication_protocol();
 
 --let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 # Wait for the member state be unreachable.
 --let $rpl_connection_name= server_1

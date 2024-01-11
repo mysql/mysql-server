@@ -431,7 +431,6 @@ enum mysql_option {
   MYSQL_OPT_WRITE_TIMEOUT,
   MYSQL_OPT_USE_RESULT,
   MYSQL_REPORT_DATA_TRUNCATION,
-  MYSQL_OPT_RECONNECT,
   MYSQL_PLUGIN_DIR,
   MYSQL_DEFAULT_AUTH,
   MYSQL_OPT_BIND,
@@ -550,7 +549,6 @@ typedef struct MYSQL {
   enum mysql_status status;
   enum enum_resultset_metadata resultset_metadata;
   bool free_me;
-  bool reconnect;
   char scramble[20 + 1];
   LIST *stmts;
   const struct MYSQL_METHODS *methods;

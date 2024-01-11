@@ -52,6 +52,5 @@ let SEARCH_FILE= $error_log;
 --remove_file $SEARCH_FILE
 
 --echo # Cleanup
---enable_reconnect
 --exec echo "restart" > $restart_file
 --source include/wait_until_connected_again.inc

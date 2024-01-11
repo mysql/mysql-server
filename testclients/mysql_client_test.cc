@@ -4507,7 +4507,6 @@ static void test_stmt_close() {
     myerror("connection failed");
     exit(1);
   }
-  lmysql->reconnect = true;
   if (!opt_silent) fprintf(stdout, "OK");
 
   /* set AUTOCOMMIT to ON*/
@@ -5176,8 +5175,6 @@ DROP TABLE IF EXISTS test_multi_tab";
     fprintf(stdout, "\n connection failed(%s)", mysql_error(mysql_local));
     exit(1);
   }
-  mysql_local->reconnect = true;
-
   rc = mysql_query(mysql_local, query);
   myquery(rc);
 
@@ -5286,7 +5283,6 @@ static void test_prepare_multi_statements() {
     fprintf(stderr, "\n connection failed(%s)", mysql_error(mysql_local));
     exit(1);
   }
-  mysql_local->reconnect = true;
   my_stpcpy(query, "select 1; select 'another value'");
   stmt = mysql_simple_prepare(mysql_local, query);
   check_stmt_r(stmt);
@@ -7298,7 +7294,6 @@ static void test_prepare_grant() {
       mysql_close(lmysql);
       exit(1);
     }
-    lmysql->reconnect = true;
     if (!opt_silent) fprintf(stdout, "OK");
 
     mysql = lmysql;
@@ -14590,72 +14585,6 @@ static void test_bug15510() {
   myquery(rc);
 }
 
-/* Test MYSQL_OPT_RECONNECT, Bug#15719 */
-
-static void test_opt_reconnect() {
-  MYSQL *lmysql;
-  bool my_true = true;
-
-  myheader("test_opt_reconnect");
-
-  if (!(lmysql = mysql_client_init(nullptr))) {
-    myerror("mysql_client_init() failed");
-    exit(1);
-  }
-
-  if (!opt_silent)
-    fprintf(stdout, "reconnect before mysql_options: %d\n", lmysql->reconnect);
-  DIE_UNLESS(lmysql->reconnect == 0);
-
-  if (mysql_options(lmysql, MYSQL_OPT_RECONNECT, &my_true)) {
-    myerror("mysql_options failed: unknown option MYSQL_OPT_RECONNECT\n");
-    DIE_UNLESS(0);
-  }
-
-  /* reconnect should be 1 */
-  if (!opt_silent)
-    fprintf(stdout, "reconnect after mysql_options: %d\n", lmysql->reconnect);
-  DIE_UNLESS(lmysql->reconnect == 1);
-
-  if (!(mysql_real_connect(lmysql, opt_host, opt_user, opt_password, current_db,
-                           opt_port, opt_unix_socket, 0))) {
-    myerror("connection failed");
-    DIE_UNLESS(0);
-  }
-
-  /* reconnect should still be 1 */
-  if (!opt_silent)
-    fprintf(stdout, "reconnect after mysql_real_connect: %d\n",
-            lmysql->reconnect);
-  DIE_UNLESS(lmysql->reconnect == 1);
-
-  mysql_close(lmysql);
-
-  if (!(lmysql = mysql_client_init(nullptr))) {
-    myerror("mysql_client_init() failed");
-    DIE_UNLESS(0);
-  }
-
-  if (!opt_silent)
-    fprintf(stdout, "reconnect before mysql_real_connect: %d\n",
-            lmysql->reconnect);
-  DIE_UNLESS(lmysql->reconnect == 0);
-
-  if (!(mysql_real_connect(lmysql, opt_host, opt_user, opt_password, current_db,
-                           opt_port, opt_unix_socket, 0))) {
-    myerror("connection failed");
-    DIE_UNLESS(0);
-  }
-
-  /* reconnect should still be 0 */
-  if (!opt_silent)
-    fprintf(stdout, "reconnect after mysql_real_connect: %d\n",
-            lmysql->reconnect);
-  DIE_UNLESS(lmysql->reconnect == 0);
-
-  mysql_close(lmysql);
-}
-
 static void test_bug12744() {
   MYSQL_STMT *prep_stmt = nullptr;
   MYSQL *lmysql;
@@ -17393,9 +17322,9 @@ static void test_bug43560() {
   /*
     Set up a separate connection for this test to avoid messing up the
     general MYSQL object used in other subtests. Use TCP protocol to avoid
-    problems with the buffer semantics of AF_UNIX, and turn off auto reconnect.
+    problems with the buffer semantics of AF_UNIX.
   */
-  conn = client_connect(0, MYSQL_PROTOCOL_TCP, false);
+  conn = client_connect(0, MYSQL_PROTOCOL_TCP);
 
   rc = mysql_query(conn, "DROP TABLE IF EXISTS t1");
   myquery(rc);
@@ -18340,10 +18269,6 @@ static void test_wl5924() {
 
   mysql_free_result(res);
 
-  l_mysql->reconnect = true;
-  rc = mysql_reconnect(l_mysql);
-  myquery2(l_mysql, rc);
-
   mysql_close(l_mysql);
 }
 
@@ -18443,49 +18368,6 @@ static void test_wl6587() {
   /* cleanup */
   rc = mysql_query(mysql, "DROP USER wl6587_cli@localhost");
   myquery(rc);
-}
-
-/*
-  Bug #17309863 AUTO RECONNECT DOES NOT WORK WITH 5.6 LIBMYSQLCLIENT
-*/
-static void test_bug17309863() {
-  MYSQL *lmysql;
-  unsigned long thread_id;
-  char query[MAX_TEST_QUERY_LENGTH];
-  int rc;
-
-  myheader("test_bug17309863");
-
-  if (!opt_silent) fprintf(stdout, "\n Establishing a test connection ...");
-  if (!(lmysql = mysql_client_init(nullptr))) {
-    myerror("mysql_client_init() failed");
-    exit(1);
-  }
-  lmysql->reconnect = true;
-  if (!(mysql_real_connect(lmysql, opt_host, opt_user, opt_password, current_db,
-                           opt_port, opt_unix_socket, 0))) {
-    myerror("connection failed");
-    exit(1);
-  }
-  if (!opt_silent) fprintf(stdout, "OK");
-
-  thread_id = mysql_thread_id(lmysql);
-  sprintf(query, "KILL %lu", thread_id);
-
-  /*
-    Running the "KILL <thread_id>" query in a separate connection.
-  */
-  if (thread_query(query)) exit(1);
-
-  /*
-    The above KILL statement should have closed our connection. But reconnect
-    flag allows to detect this before sending query and re-establish it without
-    returning an error.
-  */
-  rc = mysql_query(lmysql, "SELECT 'bug17309863'");
-  myquery(rc);
-
-  mysql_close(lmysql);
 }
 
 static void test_wl5928() {
@@ -18650,7 +18532,6 @@ static void test_wl6791() {
                                    MYSQL_OPT_SSL_MODE},
                     bool_opts[] = {MYSQL_OPT_COMPRESS,
                                    MYSQL_REPORT_DATA_TRUNCATION,
-                                   MYSQL_OPT_RECONNECT,
                                    MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                                    MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                                    MYSQL_OPT_OPTIONAL_RESULTSET_METADATA},
@@ -18875,47 +18756,6 @@ static void test_wl5768() {
 
   rc = mysql_query(mysql, "DROP TABLE IF EXISTS ps_t1");
   myquery(rc);
-}
-
-/**
-   BUG#17512527: LIST HANDLING INCORRECT IN MYSQL_PRUNE_STMT_LIST()
-*/
-static void test_bug17512527() {
-  MYSQL *conn1, *conn2;
-  MYSQL_STMT *stmt1, *stmt2;
-  const char *stmt1_txt = "SELECT NOW();";
-  const char *stmt2_txt = "SELECT 1;";
-  unsigned long thread_id;
-  char query[MAX_TEST_QUERY_LENGTH];
-  int rc;
-
-  conn1 = client_connect(0, MYSQL_PROTOCOL_DEFAULT, true);
-  conn2 = client_connect(0, MYSQL_PROTOCOL_DEFAULT, false);
-
-  stmt1 = mysql_stmt_init(conn1);
-  check_stmt(stmt1);
-  rc = mysql_stmt_prepare(stmt1, stmt1_txt, strlen(stmt1_txt));
-  check_execute(stmt1, rc);
-
-  thread_id = mysql_thread_id(conn1);
-  sprintf(query, "KILL %lu", thread_id);
-  if (thread_query(query)) exit(1);
-
-  /*
-    After the connection is killed, the connection is
-    re-established due to the reconnect flag.
-  */
-  stmt2 = mysql_stmt_init(conn1);
-  check_stmt(stmt2);
-
-  rc = mysql_stmt_prepare(stmt2, stmt2_txt, strlen(stmt2_txt));
-  check_execute(stmt1, rc);
-
-  mysql_stmt_close(stmt2);
-  mysql_stmt_close(stmt1);
-
-  mysql_close(conn1);
-  mysql_close(conn2);
 }
 
 /**
@@ -19656,7 +19496,6 @@ static void test_mysql_binlog() {
   MYSQL *mysql1, *mysql2;
   MYSQL_RPL rpl1, rpl2;
   const char *binlog_name = "mysql-binlog.000001";
-  bool reconnect = true;
 
   myheader("test_mysql_binlog");
 
@@ -19704,7 +19543,6 @@ static void test_mysql_binlog() {
   if (!opt_silent) fprintf(stdout, "binlog_close without being connected\n");
   mysql_binlog_close(mysql1, &rpl1);
 
-  mysql_options(mysql1, MYSQL_OPT_RECONNECT, &reconnect);
   mysql1 = mysql_real_connect(mysql1, opt_host, opt_user, opt_password,
                               current_db, opt_port, opt_unix_socket, 0);
   if (!mysql1) {
@@ -21430,8 +21268,6 @@ static void test_wl13510_multi_statements() {
       fprintf(stdout, "\n connection failed(%s)", mysql_error(mysql_local));
       exit(1);
     }
-    mysql_local->reconnect = true;
-
     /* run query in asynchronous way */
     status = mysql_real_query_nonblocking(mysql_local, stmt_text,
                                           (ulong)strlen(stmt_text));
@@ -22619,80 +22455,6 @@ static void test_wl13075() {
   }
 }
 
-static void finish_with_error(MYSQL *con) {
-  fprintf(stderr, "[%i] %s\n", mysql_errno(con), mysql_error(con));
-  mysql_close(con);
-  exit(1);
-}
-
-static bool send_query(MYSQL *mysql_con, const char *query) {
-  printf("Sending query: %s\n", query);
-
-  int res = mysql_query(mysql_con, query);
-  if (res != 0) {
-    fprintf(stderr, "mysql_query error: %i\n", res);
-    return false;
-  }
-  MYSQL_RES *result = mysql_store_result(mysql_con);
-  if (result == nullptr) {
-    printf("No result-set\n");
-  } else {
-    MYSQL_ROW row = mysql_fetch_row(result);
-    printf("Result: %s\n", row[0]);
-    mysql_free_result(result);
-  }
-  printf("\n");
-  return true;
-}
-
-static void test_bug34007830() {
-  myheader("test_bug34007830");
-  MYSQL *lmysql;
-  bool reconnect = 1;
-
-  lmysql = mysql_client_init(nullptr);
-  DIE_UNLESS(lmysql);
-
-  /* enable auto-reconnect */
-  if (mysql_options(lmysql, MYSQL_OPT_RECONNECT, &reconnect)) {
-    fprintf(stderr, "mysql_options failed.");
-  }
-
-  if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password, current_db,
-                          opt_port, opt_unix_socket, 0)) {
-    fprintf(stderr, "Failed to connect to the database\n");
-    DIE_UNLESS(0);
-  }
-  /* set session wait_timeout */
-  if (!send_query(lmysql, "SET SESSION wait_timeout=5")) {
-    finish_with_error(lmysql);
-  }
-
-  /* send query #1 */
-  if (!send_query(lmysql, "SELECT 1")) {
-    finish_with_error(lmysql);
-  }
-
-  /* wait until connection times-out */
-  printf("Waiting for 10s\n");
-  sleep(10);
-#ifdef _WIN32
-  // On Windows, it (empirically) takes up to 2 minutes for a socket to
-  // gracefully close after closesocket is called - so we wait longer.
-  printf("Waiting for a further 120s on Windows\n");
-  sleep(120);
-#endif  // _WIN32
-
-  /* send query #2 */
-  if (!send_query(lmysql, "SELECT 2")) {
-    finish_with_error(lmysql);
-  }
-
-  printf("Test successfully completed\n");
-
-  mysql_close(lmysql);
-}
-
 static void test_bug33535746() {
   DBUG_TRACE;
   myheader("test_bug33535746");
@@ -23551,7 +23313,6 @@ static struct my_tests_st my_tests[] = {
     {"test_bug13488", test_bug13488},
     {"test_bug13524", test_bug13524},
     {"test_bug14845", test_bug14845},
-    {"test_opt_reconnect", test_opt_reconnect},
     {"test_bug15510", test_bug15510},
     {"test_bug12744", test_bug12744},
     {"test_bug16143", test_bug16143},
@@ -23616,8 +23377,6 @@ static struct my_tests_st my_tests[] = {
     {"test_wl6797", test_wl6797},
     {"test_wl6791", test_wl6791},
     {"test_wl5768", test_wl5768},
-    {"test_bug17309863", test_bug17309863},
-    {"test_bug17512527", test_bug17512527},
     {"test_wl8016", test_wl8016},
     {"test_bug20645725", test_bug20645725},
     {"test_bug19894382", test_bug19894382},
@@ -23655,7 +23414,6 @@ static struct my_tests_st my_tests[] = {
     {"test_bug33164347", test_bug33164347},
     {"test_bug32915973", test_bug32915973},
     {"test_wl13075", test_wl13075},
-    {"test_bug34007830", test_bug34007830},
     {"test_bug33535746", test_bug33535746},
     {"test_server_telemetry_traces", test_server_telemetry_traces},
     {"test_wl13128", test_wl13128},

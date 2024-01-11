@@ -49,7 +49,6 @@ INSERT INTO table1 values (1),(2);
 connect(server1_1,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_1);
 --echo [connection M1]
 --connection server1_1
---enable_reconnect
 
 # Set sync point such that M1 waits during rollback
 SET @@GLOBAL.DEBUG='d,transaction_write_set_savepoint_block_before_rollback';

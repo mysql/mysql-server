@@ -38,7 +38,6 @@ CREATE TABLE t2 (c1 INT) ENGINE=MYISAM;
 
 --echo # Restart the server disabling the myisam storage engine using variable 'disabled_storage_engines'
 --exec echo "restart: --disabled_storage_engines=myisam,example" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SELECT @@disabled_storage_engines;
@@ -182,7 +181,6 @@ SET sql_mode= DEFAULT;
 
 --echo # Restart the server disabling archive engine via '--skip-archive or --archive=off'
 --exec echo "restart: --archive=off" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SET @old_default_engine= @@default_storage_engine;

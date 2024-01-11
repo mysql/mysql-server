@@ -162,11 +162,9 @@ while ($loops)
   START REPLICA SQL_THREAD;
 
   # Server wait for stop and restart
-  --enable_reconnect
   --source include/wait_until_disconnected.inc
   --let $rpl_server_number= 2
   --source include/rpl_start_server.inc
-  --disable_reconnect
 
   --source include/rpl_connection_slave.inc
   # Proof of the commit recovery is one committed gtid

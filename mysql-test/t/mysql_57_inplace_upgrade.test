@@ -60,7 +60,6 @@
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
 --exec echo "restart: --datadir=$MYSQLD_DATADIR1 --upgrade=MINIMAL  --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $wait_counter= 10000
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --let $shutdown_server_timeout = 300
@@ -156,7 +155,6 @@
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
 --exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $wait_counter= 10000
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # There should be no errors
@@ -220,7 +218,6 @@ SELECT COUNT(*) != 0 FROM mysql.help_topic;
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
 --exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $wait_counter= 10000
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # There should be no errors
@@ -262,7 +259,6 @@ SELECT COUNT(*) != 0 FROM mysql.help_topic;
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
 --exec echo "restart: --table-open-cache=256 --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $wait_counter= 10000
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo ###########################################################################

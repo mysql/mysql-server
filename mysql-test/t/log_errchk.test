@@ -33,7 +33,6 @@ call mtr.add_suppression("Could not use");
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 
 --source include/wait_until_disconnected.inc
---enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart: --general-log-file=$gen_log_file --slow-query-log-file=$slow_query_log_file" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc

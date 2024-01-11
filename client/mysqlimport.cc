@@ -484,7 +484,6 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *) {
     if (mysql) mysql_close(mysql);
     return nullptr;
   }
-  mysql->reconnect = false;
   if (verbose) fprintf(stdout, "Selecting database %s\n", database);
   if (mysql_select_db(mysql, database)) {
     ignore_errors = false;

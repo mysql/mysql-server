@@ -39,8 +39,6 @@ connect(server1_disconnect,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_
 --let $rpl_connection_name= server1_disconnect
 --source include/rpl_connection.inc
 
---enable_reconnect
-
 --let $connection_id= `SELECT CONNECTION_ID()`
 
 --echo

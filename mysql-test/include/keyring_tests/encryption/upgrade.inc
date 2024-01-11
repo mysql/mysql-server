@@ -66,7 +66,6 @@ let $BUGDATA_57025_DATADIR = $MYSQL_TMP_DIR/data_57025;
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_57025.log;
 --replace_regex /$PLUGIN_DIR_OPT/PLUGIN_DIR_OPT/
 --exec echo "restart: $PLUGIN_DIR_OPT --datadir=$BUGDATA_57025_DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
@@ -122,7 +121,6 @@ let $BUGDATA_80012_DATADIR = $MYSQL_TMP_DIR/data_80012;
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80012.log;
 --replace_regex /$PLUGIN_DIR_OPT/PLUGIN_DIR_OPT/
 --exec echo "restart: $PLUGIN_DIR_OPT --datadir=$BUGDATA_80012_DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
@@ -178,7 +176,6 @@ let $BUGDATA_80013_DATADIR = $MYSQL_TMP_DIR/data_80013;
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80013.log;
 --replace_regex /$PLUGIN_DIR_OPT/PLUGIN_DIR_OPT/
 --exec echo "restart: $PLUGIN_DIR_OPT --datadir=$BUGDATA_80013_DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 

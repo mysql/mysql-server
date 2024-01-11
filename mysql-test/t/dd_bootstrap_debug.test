@@ -142,7 +142,6 @@ EOF
 
 --echo # 4.3 Restart the server against DDIR.
 --exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # 4.4 Connect as root.
@@ -217,7 +216,6 @@ EOF
 
 --echo # 6.3 Restart the server against DDIR with an init-file.
 --exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG --init-file=$BOOTSTRAP_SQL" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # 6.4 An init file error does not make the server exit, so we need to stop the server.
@@ -263,7 +261,6 @@ EOF
 
 --echo # 7.3 Restart the server against DDIR.
 --exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG --sql-require-primary-key=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # 7.4 Connect as root.
@@ -294,7 +291,6 @@ remove_file $MYSQLD_LOG;
 
 --echo # 8.1 Restart the server without initialize against the normal datadir
 --exec echo "restart: --no-console --log-error=$MYSQLD_LOG --sql-require-primary-key=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # 8.2 Connect as root.
@@ -319,5 +315,4 @@ remove_file $MYSQLD_LOG;
 --echo #
 --echo # Cleanup: Restarting the server against default datadir.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc

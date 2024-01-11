@@ -56,7 +56,6 @@ CREATE USER 'user1'@'%' REQUIRE SSL;
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart:--ssl-ca=$MYSQL_TEST_DIR/std_data/bug27491518/root_intermediate_ca1.crt --ssl-key=$MYSQL_TEST_DIR/std_data/bug27491518/server.key --ssl-cert=$MYSQL_TEST_DIR/std_data/bug27491518/server_to_root.cachain " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --replace_regex $ALLOWED_CIPHERS_REGEX
@@ -69,7 +68,6 @@ CREATE USER 'user1'@'%' REQUIRE SSL;
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart:--ssl-ca=$MYSQL_TEST_DIR/std_data/bug27491518/unrelated_root.crt --ssl-key=$MYSQL_TEST_DIR/std_data/bug27491518/server.key --ssl-cert=$MYSQL_TEST_DIR/std_data/bug27491518/server_to_root.cachain " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --replace_regex /SSL connection error: error:.*:SSL routines:.*:certificate verify failed/SSL connection error: error:ERRCODE:SSL routines:ERRMSG:certificate verify failed/

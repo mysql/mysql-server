@@ -60,9 +60,7 @@ set session debug="+d,ib_trx_crash_during_xa_prepare_step";
 --error 2013
 xa prepare 'tx2';
 #
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 #
 select * from t2;
 drop table t2;
@@ -110,10 +108,8 @@ set session debug="+d,crash_commit_before";
 --error 2013
 commit;
 #
---enable_reconnect
 --source include/start_mysqld.inc
 --source include/wait_until_connected_again.inc
---disable_reconnect
 #
 select count(*) from t2;
 drop table t2;

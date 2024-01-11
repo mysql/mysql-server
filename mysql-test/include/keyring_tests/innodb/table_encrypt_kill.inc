@@ -167,9 +167,7 @@ let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --exec echo "$restart_parameters" > $_expect_file_name
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --disconnect con1
 --disconnect con2
@@ -226,9 +224,7 @@ let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --exec echo "$restart_parameters" > $_expect_file_name
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 
 --disconnect con1
@@ -283,9 +279,7 @@ let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --exec echo "$restart_parameters" > $_expect_file_name
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 
 --disconnect con1

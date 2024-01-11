@@ -85,7 +85,6 @@
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG1 MYSQLD_LOG1
 --exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG1" > $restart_file1
 --let $wait_counter= 10000
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --let SEARCH_FILE= $MYSQLD_LOG1
@@ -101,7 +100,6 @@
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR2 MYSQLD_DATADIR2 $MYSQLD_LOG2 MYSQLD_LOG2
 --exec echo "restart: --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG2" > $restart_file2
 --let $wait_counter= 10000
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --let SEARCH_FILE= $MYSQLD_LOG2
@@ -154,7 +152,6 @@ DROP LOGFILE GROUP lg1
 
 --exec echo "restart" > $restart_file1
 --let $wait_counter= 10000
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --connection server2
@@ -164,7 +161,6 @@ DROP LOGFILE GROUP lg1
 
 --exec echo "restart" > $restart_file2
 --let $wait_counter= 10000
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --force-rmdir $MYSQLD_DATADIR1

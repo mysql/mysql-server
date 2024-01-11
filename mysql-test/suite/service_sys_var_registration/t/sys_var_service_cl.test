@@ -40,7 +40,6 @@ EOF
 --exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/sys_reg.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 --echo # restart mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SELECT @@test_component.str_sys_var;
@@ -59,7 +58,6 @@ EOF
 --exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/sys_reg_2.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 --echo # restart mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SELECT @@test_component.str_sys_var;
@@ -78,7 +76,6 @@ EOF
 --exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/sys_reg_3.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 --echo # restart mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SELECT @@test_component.str_sys_var;

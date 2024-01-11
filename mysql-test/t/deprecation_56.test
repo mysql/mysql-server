@@ -52,14 +52,8 @@ eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
 
 --exec echo "restart:--plugin-validate-password-length=8" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
-# Turn on reconnect
---enable_reconnect
-
 # Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
-
-# Turn off reconnect again
---disable_reconnect
 
 UNINSTALL PLUGIN validate_password;
 

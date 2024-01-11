@@ -89,17 +89,13 @@ LOCK TABLE t1 WRITE;
 --source include/rpl_connection.inc
 --let $rpl_server_number= 3
 --source include/rpl_reconnect.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --let $rpl_connection_name= server4
 --source include/rpl_connection.inc
 --let $rpl_server_number= 4
 --source include/rpl_reconnect.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc

@@ -43,7 +43,6 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # default values
@@ -55,7 +54,6 @@ SET PERSIST max_connections=33;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -79,7 +77,6 @@ SET PERSIST table_encryption_privilege_check= true;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -105,7 +102,6 @@ SET PERSIST table_encryption_privilege_check= false;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -135,7 +131,6 @@ SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -163,7 +158,6 @@ RESET PERSIST table_encryption_privilege_check;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -191,7 +185,6 @@ RESET PERSIST max_connections;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -217,7 +210,6 @@ SET PERSIST session_track_system_variables='autocommit';
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--max_connections=55 --skip-networking --server-id=12 --session_track_system_variables="*"" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart must be 88,9, autocommit
@@ -276,7 +268,6 @@ SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # values must be read from persited config file
@@ -293,7 +284,6 @@ SET PERSIST flush_time=2;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--persisted-globals-load=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # should have default values
@@ -314,7 +304,6 @@ RESET PERSIST replica_net_timeout;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--persisted_globals_load=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # should have default values
@@ -336,7 +325,6 @@ call mtr.add_suppression("\\[Warning\\] option 'persisted_globals_load': boolean
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--persisted-globals-load=NULL" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --let $file=$MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -352,7 +340,6 @@ SELECT @@global.persisted_globals_load;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo #
@@ -371,7 +358,6 @@ SELECT @@global.general_log, @@global.autocommit,
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SELECT @@global.general_log, @@global.autocommit,

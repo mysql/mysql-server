@@ -57,7 +57,6 @@ SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
 --chmod 0666 $INDEX
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo Test case2
@@ -69,7 +68,6 @@ SET GLOBAL binlog_error_action= ABORT_SERVER;
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo Test case3
@@ -81,7 +79,6 @@ SET GLOBAL binlog_error_action= ABORT_SERVER;
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo Test case4
@@ -91,7 +88,6 @@ SET GLOBAL binlog_error_action= ABORT_SERVER;
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo Test case5
@@ -188,7 +184,6 @@ SET SESSION debug='+d,error_unique_log_filename';
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 FLUSH LOGS;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 DROP TABLE t1;
 
@@ -221,7 +216,6 @@ SET GLOBAL binlog_error_action = ABORT_SERVER;
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 INSERT INTO t1 VALUES (1);
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # Check that error present in error log
@@ -291,7 +285,6 @@ SET GLOBAL binlog_error_action = ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # Cleanup
@@ -333,7 +326,6 @@ SET GLOBAL binlog_error_action = ABORT_SERVER;
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 INSERT INTO t1 VALUES (1);
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # Check that transaction is not committed
@@ -512,7 +504,6 @@ DROP table t1, t2;
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 FLUSH LOGS;
 --exec echo "$restart_parameters" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 SET @@GLOBAL.binlog_encryption=OFF;
 RESET BINARY LOGS AND GTIDS;
@@ -538,7 +529,6 @@ UNINSTALL PLUGIN keyring_file;
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 FLUSH LOGS;
 --exec echo "$restart_parameters" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 SET @@GLOBAL.binlog_encryption=OFF;
 RESET BINARY LOGS AND GTIDS;

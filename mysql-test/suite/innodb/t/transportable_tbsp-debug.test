@@ -34,9 +34,7 @@ INSERT INTO test_wl5522.t1 VALUES(1),(2),(3);
 --error 2013
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SET SESSION debug="-d,ib_discard_before_commit_crash";
 DROP TABLE test_wl5522.t1;
@@ -58,9 +56,7 @@ INSERT INTO test_wl5522.t1 VALUES(1),(2),(3);
 --error 2013
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SET SESSION debug="-d,ib_discard_after_commit_crash";
 DROP TABLE test_wl5522.t1;
@@ -117,9 +113,7 @@ require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SET SESSION debug="-d,ib_import_before_commit_crash";
 #### Before commit crash
@@ -150,10 +144,8 @@ ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
 --echo # Restart and reconnect to the server
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SET SESSION debug="-d,ib_import_before_checkpoint_crash";
 #### Before checkpoint crash

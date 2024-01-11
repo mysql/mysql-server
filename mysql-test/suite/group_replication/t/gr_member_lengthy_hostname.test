@@ -42,7 +42,6 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---enable_reconnect
 
 --source include/start_and_bootstrap_group_replication.inc
 

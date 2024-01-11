@@ -48,7 +48,6 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server 
 --source include/wait_until_disconnected.inc
 -- exec echo "restart:--table_definition_cache=2000  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
 -- source include/wait_until_connected_again.inc
 
 SELECT @@GLOBAL.table_definition_cache;

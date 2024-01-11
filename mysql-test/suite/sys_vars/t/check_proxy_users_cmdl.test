@@ -17,7 +17,6 @@ SELECT @@global.check_proxy_users;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart:--check-proxy-users=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 SELECT @@global.check_proxy_users;
@@ -26,7 +25,6 @@ SELECT @@global.check_proxy_users;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart:--check-proxy-users=TRUE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 SELECT @@global.check_proxy_users;
@@ -36,7 +34,6 @@ CALL mtr.add_suppression("option 'check_proxy_users': boolean value '-1' was not
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart:--check-proxy-users=-1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 SELECT @@global.check_proxy_users;
@@ -45,7 +42,6 @@ CALL mtr.add_suppression("option 'check_proxy_users': boolean value '43698' was 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart:--check-proxy-users=43698" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 SELECT @@global.check_proxy_users;
@@ -54,7 +50,6 @@ CALL mtr.add_suppression("option 'check_proxy_users': boolean value 'TEST' was n
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart:--check-proxy-users=TEST" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 SELECT @@global.check_proxy_users;
@@ -64,7 +59,6 @@ CALL mtr.add_suppression("option 'check_proxy_users': boolean value ''test'' was
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart:--check-proxy-users='test'" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 SELECT @@global.check_proxy_users;
@@ -74,7 +68,6 @@ CALL mtr.add_suppression("option 'check_proxy_users': boolean value '' was not r
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart:--check-proxy-users=" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 SELECT @@global.check_proxy_users;

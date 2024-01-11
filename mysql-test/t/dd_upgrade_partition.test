@@ -79,7 +79,6 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_partition;
 
 --echo # Start the server. Without fix, there is a segmentation fault in this step.
 --exec echo "restart: --loose-skip-log-bin --skip-log-replica-updates --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 6000
 --source include/wait_until_connected_again.inc
 

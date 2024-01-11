@@ -101,7 +101,6 @@ SET SESSION long_query_time=  0;
 --echo # "long query" connection (killee)
 connect (con1, localhost, root,,);
 --connection con1
---disable_reconnect
 TRUNCATE mysql.slow_log;
 --let $id= `SELECT CONNECTION_ID()`
 
@@ -142,7 +141,6 @@ SELECT "Connx" AS kill_type,
 
 connect (con1, localhost, root,,);
 --connection con1
---disable_reconnect
 TRUNCATE mysql.slow_log;
 --let $id= `SELECT CONNECTION_ID()`
 

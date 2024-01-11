@@ -39,7 +39,6 @@ INSERT INTO t VALUES(10);
 --error ER_ERROR_DURING_FLUSH_LOGS, ER_BINLOG_LOGGING_IMPOSSIBLE
 FLUSH LOGS;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 SET GLOBAL debug = '-d,simulate_flush_commit_error';
 

@@ -96,7 +96,6 @@ set session debug='d,ib_blob_update_rollback';
 rollback;
 
 # Wait for the server to come back up, and reconnect.
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 select f1, right(f2, 20), right(f3, 20) from t2;

@@ -50,9 +50,7 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
 --exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring/keyring" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --error ER_UDF_EXISTS
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
@@ -166,9 +164,7 @@ SELECT * FROM t12;
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
 --exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring/keyring" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';

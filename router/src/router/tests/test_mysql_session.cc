@@ -158,7 +158,6 @@ using MysqlSessionOptionTypes =
                      MySQLSession::NetBufferLength,  //
                      MySQLSession::Protocol,         //
                      MySQLSession::ReadTimeout,      //
-                     MySQLSession::Reconnect,        //
                      MySQLSession::RetryCount,       //
                      MySQLSession::SslCa,            //
                      MySQLSession::SslCaPath,        //

@@ -3,7 +3,6 @@
 # Test UNIX domain sockets timeout with reconnect.
 #
 # Open con2 and set a timeout.
---enable_reconnect;
 SET @is_old_connection = 1;
 SELECT @is_old_connection;
 @is_old_connection

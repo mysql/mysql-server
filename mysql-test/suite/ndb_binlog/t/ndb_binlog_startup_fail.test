@@ -75,9 +75,7 @@ restart
 EOF
 
 --echo # Wait for mysqld2 to reconnect and insert data to check it's alive
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 insert into t1 values (10);
 drop table t1;
@@ -117,9 +115,7 @@ restart
 EOF
 
 --echo # Wait for mysqld2 to reconnect and insert data to check it's alive
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --source include/ndb_not_readonly.inc
 insert into t1 values (10);

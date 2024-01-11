@@ -23,9 +23,7 @@ if ($KEYRING_UDF_DIR != $KEYRING_PLUGIN_DIR)
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
 --exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring/keyring" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo # Check what happens when we have not yet loaded keyring_udf
 --source include/keyring_udf_missing_plugin.inc
@@ -50,9 +48,7 @@ drop function keyring_key_store;
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
 --exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring/keyring" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --replace_regex /\.dll/.so/
 eval create function keyring_key_fetch returns string soname '$KEYRING_UDF';

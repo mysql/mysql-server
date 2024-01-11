@@ -108,7 +108,6 @@ RESTART;
 
 # Wait for it to restart after the command
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # Wait for it to restart after cloning

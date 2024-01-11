@@ -76,7 +76,6 @@ let $MYSQLD_DATADIR3 = $MYSQL_TMP_DIR/data_57022;
 
 --echo # Start the DB server to do upgrade.
 --exec echo "restart: --datadir=$MYSQLD_DATADIR3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 3000
 --source include/wait_until_connected_again.inc
 

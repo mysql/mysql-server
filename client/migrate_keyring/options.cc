@@ -340,7 +340,6 @@ Mysql_connection::Mysql_connection(bool connect) : ok_(false), mysql(nullptr) {
   if (!mysql_real_connect(mysql, Options::s_hostname, Options::s_username,
                           Options::s_password, NullS, Options::s_port,
                           Options::s_socket, CLIENT_REMEMBER_OPTIONS)) {
-    mysql->reconnect = true;
     log_error << "Failed to connect to server. Received error: "
               << mysql_error(mysql) << std::endl;
     return;

@@ -79,7 +79,6 @@ let SEARCH_PATTERN= Aborting;
 
 --echo # Now start server normally without ssl support, with MEM and require-secure-transport=on
 --exec echo "restart:--loose-enable-named-pipe --loose-shared-memory=1 --shared_memory_base_name=server_inst_sh_mem --require-secure-transport=on --skip-ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # Connection type testing for TCP/IP protocol, secure transport required, should fail
@@ -95,12 +94,12 @@ disconnect memory_con2;
 --enable_query_log
 
 connection default;
+--source include/wait_until_connected_again.inc
 --echo # Rebooting to start without ssl support and require-secure-transport=off, disabled SHM
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--loose-enable-named-pipe --loose-shared-memory=0 --require-secure-transport=off --skip-ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # Change the dynamic variable from OFF to ON. it should throw error
@@ -123,7 +122,6 @@ connection default;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--loose-enable-named-pipe --loose-shared-memory=0 --require-secure-transport=off" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # Change the dynamic variable from OFF to ON. it should not throw error

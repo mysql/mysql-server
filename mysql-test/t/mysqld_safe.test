@@ -58,18 +58,14 @@ EOF
 --exec sh $MYSQLD_SAFE --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR/./ --ledir=$mysqld_path --mysqld=$mysqld_bin --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB  --secure-file-priv="" --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
 
 # mysqld_safe takes some time to start mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --shutdown_server
 
 # d) With relative path to ledir
 --exec sh $MYSQLD_SAFE --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR --ledir=$mysqld_path/./ --mysqld=$mysqld_bin --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB  --secure-file-priv="" --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
 
 # mysqld_safe takes some time to start mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --shutdown_server
 
 # e) With relative path to datadir
@@ -77,9 +73,7 @@ EOF
 --exec sh $MYSQLD_SAFE --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR --ledir=$mysqld_path --mysqld=$mysqld_bin --datadir=$MYSQLTEST_VARDIR/datatest1/./ --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB  --secure-file-priv="" --loose-skip-log-bin --core-file --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
 
  # mysqld_safe takes some time to start mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --shutdown_server
 
 # f) Defaults file normal working
@@ -91,9 +85,7 @@ EOF
 --exec sh $MYSQLD_SAFE --defaults-file=$MYSQLTEST_VARDIR/tmp/defaultsfile.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR --ledir=$mysqld_path --mysqld=$mysqld_bin --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB  --secure-file-priv="" --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
 
 # mysqld_safe takes some time to start mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 connection default;
 --exec $MYSQL -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root -e "select @@binlog_format" 2>&1
@@ -106,9 +98,7 @@ connection default;
 # --exec sh $MYSQLD_SAFE --defaults-extra-file=$MYSQLTEST_VARDIR/tmp/defaultsfile.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR --ledir=$mysqld_path --mysqld=$mysqld_bin --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB  --secure-file-priv="" --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
 
 #  mysqld_safe takes some time to start mysqld
-# --enable_reconnect
 # --source include/wait_until_connected_again.inc
-# --disable_reconnect
 
 #connection default;
 #--exec $MYSQL -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root -e "select @@binlog_format" 2>&1
@@ -146,9 +136,7 @@ connection default;
 # 3) Run the mysqld_safe script with exec.
 --exec sh $MYSQLD_SAFE --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR --ledir=$mysqld_path --mysqld=$mysqld_bin --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB  --secure-file-priv="" --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
 # mysqld_safe takes some time to start mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 # 4) Reconnect to mysqld again
 connection default;
@@ -160,9 +148,7 @@ connection default;
 --exec sh $MYSQL_TEST_DIR/t/mysqld_safe.sh $MYSQL_PIDFILE 2>&1
 
 # mysqld_safe takes some time to restart mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 # 7) Execute some SQL
 --exec $MYSQL -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root -e "SHOW DATABASES" 2>&1
@@ -175,7 +161,6 @@ connection default;
 
 # 9) Restart mysqld of mtr
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # 10) Clean-up

@@ -3,7 +3,6 @@ SET @@global.wait_timeout= 2;
 disconnect default;
 connection wait_con;
 connection default;
---disable_reconnect;
 SELECT 1;
 1
 1
@@ -11,14 +10,12 @@ connection wait_con;
 connection default;
 SELECT 2;
 Got one of the listed errors
---enable_reconnect;
 SELECT 3;
 3
 3
 disconnection default;
 connection wait_con;
 connection con1;
---disable_reconnect;
 SELECT 1;
 1
 1
@@ -26,7 +23,6 @@ connection wait_con;
 connection con1;
 SELECT 2;
 Got one of the listed errors
---enable_reconnect;
 SELECT 3;
 3
 3

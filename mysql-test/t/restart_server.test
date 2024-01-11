@@ -50,9 +50,7 @@ EOF
 # 3) Run the mysqld_safe script with exec.
 --exec sh $MYSQLD_SAFE --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR --ledir=$mysqld_path --mysqld=$mysqld_bin --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB  --secure-file-priv="" --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
 # mysqld_safe takes some time to start mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 # 4) Reconnect to mysqld again
 connection default;
@@ -61,7 +59,6 @@ connection default;
 --exec $MYSQL -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root -e "RESTART" 2>&1
 --source include/wait_until_disconnected.inc
 # mysqld_safe takes some time to restart mysqld
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --echo # Executing a sql command after RESTART.
 SELECT 1;
@@ -73,7 +70,6 @@ GRANT SHUTDOWN ON *.* TO u1@localhost;
 --connect(con1,localhost,u1,'',,)
 RESTART;
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --connect(root_con,localhost,root,'',,)
 REVOKE SHUTDOWN ON *.* FROM u1@localhost;
@@ -84,7 +80,6 @@ disconnect con1;
 RESTART;
 --connection root_con
 DROP USER u1@localhost;
---disable_reconnect
 
 # 7) Shutdown mysqld with mysqladmin
 --exec $MYSQLADMIN -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root shutdown 2>&1
@@ -94,5 +89,4 @@ DROP USER u1@localhost;
 
 # 8) Restart mysqld of mtr
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc

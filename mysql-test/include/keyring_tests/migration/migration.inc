@@ -36,7 +36,6 @@
 
 --echo # Restart server with keyring_file plugin
 --exec echo "restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQLTEST_VARDIR/plugin_keyring_file_data"> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 

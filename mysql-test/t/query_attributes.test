@@ -90,7 +90,7 @@ query_attributes 'a' 'b c';
 resetconnection;
 SELECT mysql_query_attribute_string('a');
 EOF
-exec $MYSQL < $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+exec $MYSQL < $MYSQLTEST_VARDIR/tmp/wl12542.sql 2>&1;
 remove_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
 
 --echo # Should return null

@@ -152,9 +152,6 @@ let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --echo # Restart server.
 --exec echo "restart:--log-raw=ON " > $expect_file
 
-# Turn on reconnect
---enable_reconnect
-
 # Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
 

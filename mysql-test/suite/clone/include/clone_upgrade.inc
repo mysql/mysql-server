@@ -22,6 +22,5 @@ let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysqld_upgrade.log;
 # Additional wait for 30 minutes for valgrid run
 --let add_wait_counter= 18000
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
 

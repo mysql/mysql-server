@@ -19,7 +19,6 @@ EOF
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--ssl-cipher=DHE-RSA-CHACHA20-POLY1305" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 let $wait_condition=SELECT 1 FROM performance_schema.global_status WHERE variable_name='mysqlx_port' AND variable_value!='';
@@ -37,6 +36,5 @@ exec $MYSQLXTEST
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --source ../include/xplugin_cleanup.inc

@@ -116,9 +116,7 @@ if ($connection_is_killed)
   --error CR_SERVER_LOST
   --reap
 
-  --enable_reconnect
   --source include/wait_until_connected_again.inc
-  --disable_reconnect
 }
 if (!$connection_is_killed)
 {

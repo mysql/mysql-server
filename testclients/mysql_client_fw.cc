@@ -323,11 +323,10 @@ opt_port and opt_unix_socket.
 
 @param flag           client_flag passed on to mysql_real_connect
 @param protocol       MYSQL_PROTOCOL_* to use for this connection
-@param auto_reconnect set to 1 for auto reconnect
 
 @return pointer to initialized and connected MYSQL object
 */
-static MYSQL *client_connect(ulong flag, uint protocol, bool auto_reconnect) {
+static MYSQL *client_connect(ulong flag, uint protocol) {
   MYSQL *mysql;
   int rc;
   static char query[MAX_TEST_QUERY_LENGTH];
@@ -360,8 +359,6 @@ static MYSQL *client_connect(ulong flag, uint protocol, bool auto_reconnect) {
     fprintf(stdout, "\n Check the connection options using --help or -?\n");
     exit(1);
   }
-  mysql->reconnect = auto_reconnect;
-
   if (!opt_silent) fprintf(stdout, "OK");
 
   /* set AUTOCOMMIT to ON*/
@@ -1039,7 +1036,6 @@ static bool thread_query(const char *query) {
     error = true;
     goto end;
   }
-  l_mysql->reconnect = true;
   if (mysql_query(l_mysql, query)) {
     fprintf(stderr, "Query failed (%s)\n", mysql_error(l_mysql));
     error = true;
@@ -1244,8 +1240,8 @@ int main(int argc, char **argv) {
   if (mysql_server_init(0, nullptr, nullptr))
     DIE("Can't initialize MySQL server");
 
-  /* connect to server with no flags, default protocol, auto reconnect true */
-  mysql = client_connect(0, MYSQL_PROTOCOL_DEFAULT, true);
+  /* connect to server with no flags, default protocol */
+  mysql = client_connect(0, MYSQL_PROTOCOL_DEFAULT);
 
   total_time = 0;
   for (iter_count = 1; iter_count <= opt_count; iter_count++) {

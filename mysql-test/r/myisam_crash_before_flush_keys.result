@@ -18,7 +18,6 @@ SET SESSION debug="d,crash_before_flush_keys";
 FLUSH TABLE t1;
 ERROR HY000: Lost connection to MySQL server during query
 # Write file to make mysql-test-run.pl start the server 
-# Turn on reconnect
 # Call script that will poll the server waiting for
 # it to be back online again
 CHECK TABLE t1;

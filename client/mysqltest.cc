@@ -502,8 +502,6 @@ enum enum_commands {
   Q_CHARACTER_SET,
   Q_DISABLE_PS_PROTOCOL,
   Q_ENABLE_PS_PROTOCOL,
-  Q_DISABLE_RECONNECT,
-  Q_ENABLE_RECONNECT,
   Q_IF,
   Q_DISABLE_TESTCASE,
   Q_ENABLE_TESTCASE,
@@ -565,10 +563,9 @@ const char *command_names[] = {
     "horizontal_results", "query_vertical", "query_horizontal", "sorted_result",
     "partially_sorted_result", "lowercase_result", "skip_if_hypergraph",
     "start_timer", "end_timer", "character_set", "disable_ps_protocol",
-    "enable_ps_protocol", "disable_reconnect", "enable_reconnect", "if",
-    "disable_testcase", "enable_testcase", "replace_regex",
-    "replace_numeric_round", "remove_file", "file_exists", "write_file",
-    "copy_file", "perl", "die", "assert",
+    "enable_ps_protocol", "if", "disable_testcase", "enable_testcase",
+    "replace_regex", "replace_numeric_round", "remove_file", "file_exists",
+    "write_file", "copy_file", "perl", "die", "assert",
 
     /* Don't execute any more commands, compare result */
     "exit", "skip", "chmod", "append_file", "cat_file", "diff_files",
@@ -4839,7 +4836,8 @@ static void do_change_user(struct st_command *command) {
   if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str)) {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
-    mysql->reconnect = true;
+    if (cur_con->stmt) mysql_stmt_close(cur_con->stmt);
+    cur_con->stmt = nullptr;
     mysql_reconnect(&cur_con->mysql);
   }
 
@@ -5808,7 +5806,8 @@ static void do_shutdown_server(struct st_command *command) {
   // Get the servers pid_file name and use it to read pid
   if (query_get_string(mysql, "SHOW VARIABLES LIKE 'pid_file'", 1,
                        &ds_file_name))
-    die("Failed to get pid_file from server");
+    die("Failed to get pid_file from server %d: %s", mysql_errno(mysql),
+        mysql_error(mysql));
 
   // Read the pid from the file
   int fd;
@@ -6321,13 +6320,6 @@ static char *get_string(char **to_ptr, const char **from_ptr,
   return start;
 }
 
-static void set_reconnect(MYSQL *mysql, int val) {
-  bool reconnect = val;
-  DBUG_TRACE;
-  DBUG_PRINT("info", ("val: %d", val));
-  mysql_options(mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
-}
-
 /**
   Change the current connection to the given st_connection, and update
   $mysql_get_server_version and $CURRENT_CONNECTION accordingly.
@@ -6650,6 +6642,8 @@ static void do_connect(struct st_command *command) {
   bool con_pipe = false, con_shm = false, con_cleartext_enable = false;
   struct st_connection *con_slot;
   const uint save_opt_ssl_mode = opt_ssl_mode;
+  bool con_socket = false, con_tcp = false;
+  unsigned int factor = 0;
 
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
@@ -6666,9 +6660,9 @@ static void do_connect(struct st_command *command) {
   static DYNAMIC_STRING ds_password2;
   static DYNAMIC_STRING ds_password3;
   const struct command_arg connect_args[] = {
-      {"connection name", ARG_STRING, true, &ds_connection_name,
+      {"connection name", ARG_STRING, false, &ds_connection_name,
        "Name of the connection"},
-      {"host", ARG_STRING, true, &ds_host, "Host to connect to"},
+      {"host", ARG_STRING, false, &ds_host, "Host to connect to"},
       {"user", ARG_STRING, false, &ds_user, "User to connect as"},
       {"passsword", ARG_STRING, false, &ds_password1,
        "Password used when connecting"},
@@ -6698,6 +6692,33 @@ static void do_connect(struct st_command *command) {
   check_command_args(command, command->first_argument, connect_args,
                      sizeof(connect_args) / sizeof(struct command_arg), ',');
 
+  if (ds_connection_name.length == 0 || ds_host.length == 0) {
+    if (ds_connection_name.length == 0)
+      con_slot = cur_con;
+    else {
+      if (nullptr ==
+          (con_slot = find_connection_by_name(ds_connection_name.str)))
+        die("Connection %s doesn't exist for reconnect",
+            ds_connection_name.str);
+    }
+
+    if (cur_con->stmt) mysql_stmt_close(cur_con->stmt);
+    cur_con->stmt = nullptr;
+    if (mysql_reconnect(&con_slot->mysql)) {
+      var_set_errno(mysql_errno(&con_slot->mysql));
+      handle_error(command, mysql_errno(&con_slot->mysql),
+                   mysql_error(&con_slot->mysql),
+                   mysql_sqlstate(&con_slot->mysql), &ds_res);
+    } else {
+      var_set_errno(0);
+      handle_no_error(command);
+      revert_properties();
+      if (ds_connection_name.length) set_current_connection(con_slot);
+      assert(con_slot != next_con);
+    }
+    goto free_options;
+  }
+
   /* Port */
   if (ds_port.length) {
     con_port = atoi(ds_port.str);
@@ -6726,7 +6747,6 @@ static void do_connect(struct st_command *command) {
 
   /* Options */
   con_options = ds_options.str;
-  bool con_socket = false, con_tcp = false;
   while (*con_options) {
     /* Step past any spaces in beginning of option */
     while (*con_options && my_isspace(charset_info, *con_options))
@@ -6867,7 +6887,6 @@ static void do_connect(struct st_command *command) {
     mysql_options(&con_slot->mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char *)&con_cleartext_enable);
 
-  unsigned int factor = 0;
   if (ds_password1.length) {
     factor = 1;
     mysql_options4(&con_slot->mysql, MYSQL_OPT_USER_PASSWORD, &factor,
@@ -6909,6 +6928,7 @@ static void do_connect(struct st_command *command) {
       next_con++; /* if we used the next_con slot, advance the pointer */
   }
 
+free_options:
   dynstr_free(&ds_connection_name);
   dynstr_free(&ds_host);
   dynstr_free(&ds_user);
@@ -8895,12 +8915,6 @@ end:
   // to the server into the mysqltest builtin variable $mysql_errno. This
   // variable then can be used from the test case itself.
   var_set_errno(mysql_stmt_errno(stmt));
-
-  // Close the statement if no reconnect, need new prepare.
-  if (mysql->reconnect) {
-    mysql_stmt_close(stmt);
-    cur_con->stmt = nullptr;
-  }
 }
 
 /*
@@ -10142,15 +10156,6 @@ int main(int argc, char **argv) {
           break;
         case Q_ENABLE_PS_PROTOCOL:
           set_property(command, P_PS, ps_protocol);
-          break;
-        case Q_DISABLE_RECONNECT:
-          set_reconnect(&cur_con->mysql, 0);
-          break;
-        case Q_ENABLE_RECONNECT:
-          set_reconnect(&cur_con->mysql, 1);
-          enable_async_client = false;
-          /* Close any open statements - no reconnect, need new prepare */
-          close_statements();
           break;
         case Q_ENABLE_ASYNC_CLIENT:
           set_property(command, P_ASYNC, true);

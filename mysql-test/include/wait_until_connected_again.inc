@@ -40,9 +40,9 @@ while ($mysql_errno)
   # Strangely enough, the server might return "Too many connections"
   # while being shutdown, thus 1040 is an "allowed" error
   # See BUG#36228
-  --error 0,1040,1053,2002,2003,2006,2013,1045,ER_SECURE_TRANSPORT_REQUIRED,2016,2017,ER_CLIENT_INTERACTION_TIMEOUT
-  show session status;
-  if ($mysql_errno == 1045){
+  --error 0,ER_CON_COUNT_ERROR,ER_SERVER_SHUTDOWN,2002,2003,2006,2013,ER_ACCESS_DENIED_ERROR,ER_SECURE_TRANSPORT_REQUIRED,2016,2017,ER_CLIENT_INTERACTION_TIMEOUT
+  connect;
+  if ($mysql_errname == ER_ACCESS_DENIED_ERROR){
     --let mysql_errno=0
   }
   if ($mysql_errname == ER_SECURE_TRANSPORT_REQUIRED){

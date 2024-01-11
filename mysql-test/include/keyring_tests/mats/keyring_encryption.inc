@@ -24,7 +24,6 @@
 
 --echo # Restart server
 --exec echo "restart: --plugin-dir=$COMPONENT_DIR"> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 

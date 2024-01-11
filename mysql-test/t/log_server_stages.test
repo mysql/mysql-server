@@ -59,7 +59,6 @@ source $passwd_file;
 --echo # Restart the server against DDIR, and connect
 
 --exec echo "restart:--datadir=$DDIR --log-error=$MYSQL_TMP_DIR/server.log" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root
@@ -150,7 +149,6 @@ remove_file $MYSQLD_LOG;
 remove_file $PASSWD_FILE;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # ---------------------------------------------------

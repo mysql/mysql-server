@@ -94,9 +94,7 @@ SELECT c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 -- send_shutdown
 --source include/wait_until_disconnected.inc
 --exec echo "restart: $PLUGIN_DIR_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SELECT c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 

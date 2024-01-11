@@ -41,11 +41,9 @@ FLUSH LOGS;
 SET DEBUG_SYNC= 'now SIGNAL notified_thread_complete';
 
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --echo # Restart the master server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo #
 --echo # Veriry that we can get correct gtid sets after server restarts

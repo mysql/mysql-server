@@ -324,9 +324,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart: --log-error=$server_log --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CADIR_LOCATION/server-cert.pem --ssl-key=$CADIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --echo # Restart completed.
 
 --exec $MYSQLADMIN --no-defaults --host=127.0.0.1 -P $MASTER_MYPORT --user=unknown_mysql_user ping --ssl-mode=REQUIRED > $mysqladmin_log 2>&1

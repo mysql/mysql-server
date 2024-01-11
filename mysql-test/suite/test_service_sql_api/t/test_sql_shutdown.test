@@ -50,7 +50,6 @@ cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
 --echo # Restart
 --echo ##########################################
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
 

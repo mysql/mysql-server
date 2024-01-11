@@ -62,9 +62,7 @@ DROP DATABASE db21958734;
 --exec $MYSQLD --datadir=../data  --basedir=. --lc-messages-dir=$MYSQLTEST_VARDIR/../../share/english --character-set-server=filename >$MYSQLTEST_VARDIR/log/mysqld_out_err.log 2>&1
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo #
 --echo # Bug#29110613: UNICODE STRING INCORRECTLY MARKED AS INVALID

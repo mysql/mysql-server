@@ -464,9 +464,7 @@ set session debug="+d,row_mysql_crash_if_error";
 --error 2013
 update t1 set a=point(5,5), b=point(5,5), c=5 where i < 3;
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 insert into t1 values(5, point(5,5), point(5,5), 5);
 

@@ -181,7 +181,6 @@ while (-e $filetodelete) {
 }
 EOF
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Cannot set mandatory_roles: AuthId .* has 'SYSTEM_USER' privilege.
@@ -208,7 +207,6 @@ while (-e $filetodelete) {
 }
 EOF
 --exec echo "restart:--mandatory_roles='r2'" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Cannot set mandatory_roles: AuthId .* has 'SYSTEM_USER' privilege.
@@ -246,7 +244,6 @@ while (-e $filetodelete) {
 EOF
 
 --exec echo  "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/temp_my.cnf"  --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR  --lc-messages-dir=$MYSQL_MESSAGESDIR  --innodb_dedicated_server=OFF --skip-mysqlx  > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Cannot set mandatory_roles: AuthId .* has 'SYSTEM_USER' privilege.
@@ -259,9 +256,6 @@ DROP ROLE r1, r2;
 
 # Restart Server as usual
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
 remove_file $MYSQLTEST_VARDIR/tmp/temp_my.cnf;
 # Reset the connections

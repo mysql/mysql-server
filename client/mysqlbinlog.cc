@@ -2394,7 +2394,6 @@ static Exit_status safe_connect() {
   if (ssl_client_check_post_connect_ssl_setup(
           mysql_handle, [](const char *err) { error("%s", err); }))
     return ERROR_STOP;
-  mysql_handle->reconnect = true;
   return OK_CONTINUE;
 }
 

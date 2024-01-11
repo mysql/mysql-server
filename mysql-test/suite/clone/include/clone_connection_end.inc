@@ -28,9 +28,7 @@ if (!$clone_connections) {
 # A. Drop the connections
 --connection clone_conn_1
 # In case server is restarted, we need to reconnect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 # Get Server ID
 --let $SERVER_ID= `SELECT @@server_id`
@@ -70,9 +68,7 @@ if ($inst_monitor) {
   # 2. Restart mysqld having $SERVER_ID
   --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.$SERVER_ID.expect
   --source include/wait_until_disconnected.inc
-  --enable_reconnect
   --source include/wait_until_connected_again.inc
-  --disable_reconnect
 }
 
 # Now disconnect the skipped connection

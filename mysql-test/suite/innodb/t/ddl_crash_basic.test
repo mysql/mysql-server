@@ -30,7 +30,6 @@ eval set session debug = '+d, ddl_log_crash_after_free_tree_log_2';
 --eval CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b))
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 
@@ -50,7 +49,6 @@ set session debug = '+d, ddl_log_before_post_ddl';
 --eval CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b))
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 
@@ -68,7 +66,6 @@ set session debug = '+d, ddl_log_crash_before_drop_log_1';
 --eval drop table t1
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 
@@ -87,7 +84,6 @@ set session debug = '+d, ddl_log_before_post_ddl';
 --eval drop table t1
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 
@@ -108,7 +104,6 @@ set session debug = '+d, ddl_log_crash_before_rename_space_log_1';
 --eval rename table t1 to t2
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 
@@ -130,7 +125,6 @@ set session debug = '+d, ddl_log_crash_after_rename_space_log_1';
 --eval rename table t1 to t2
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 
@@ -152,7 +146,6 @@ set session debug = '+d, ddl_log_before_post_ddl';
 --eval rename table t1 to t2
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 

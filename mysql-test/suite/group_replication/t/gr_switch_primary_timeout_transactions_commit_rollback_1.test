@@ -72,9 +72,7 @@ INSERT INTO t1 values(1);
 --error CR_SERVER_LOST
 SELECT * FROM test.t1;
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --error ER_OPTION_PREVENTS_STATEMENT, ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
 INSERT INTO t1 values(1);
@@ -133,9 +131,7 @@ INSERT INTO t1 values(1);
 --error CR_SERVER_LOST
 INSERT INTO t1 values(2);
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --error ER_OPTION_PREVENTS_STATEMENT, ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
 INSERT INTO t1 values(1);

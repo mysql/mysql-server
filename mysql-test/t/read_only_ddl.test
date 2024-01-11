@@ -18,9 +18,7 @@ create user nonsuper@localhost;
 grant CREATE, SELECT, DROP on *.* to nonsuper@localhost;
 enable_connect_log;
 connect (con_nonsuper, localhost, nonsuper,, test);
-enable_reconnect;
 connect (con_super, localhost, root,, test);
-enable_reconnect;
 
 --echo # -----------------------------------------------------------------------
 --echo # Set read-only.
@@ -44,6 +42,7 @@ select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_on
 --echo # A non-super user cannot create or alter tables with read_only = 1.
 --echo #
 connection con_nonsuper;
+source include/wait_until_connected_again.inc;
 --error ER_OPTION_PREVENTS_STATEMENT
 create table t_create (a int);
 --error ER_OPTION_PREVENTS_STATEMENT
@@ -53,6 +52,7 @@ alter table t_alter comment = 'new comment';
 --echo # A super user can create or alter tables with read_only = 1.
 --echo #
 connection con_super;
+source include/wait_until_connected_again.inc;
 create table t_create (a int);
 drop table t_create;
 alter table t_alter comment = 'new comment';
@@ -83,6 +83,7 @@ select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_on
 --echo # A non-super user cannot create or alter tables with super_read_only = 1.
 --echo #
 connection con_nonsuper;
+source include/wait_until_connected_again.inc;
 --error ER_OPTION_PREVENTS_STATEMENT
 create table t_create (a int);
 --error ER_OPTION_PREVENTS_STATEMENT
@@ -92,6 +93,7 @@ alter table t_alter comment = 'new comment';
 --echo # A super user cannot create or alter tables with super_read_only = 1.
 --echo #
 connection con_super;
+source include/wait_until_connected_again.inc;
 --error ER_OPTION_PREVENTS_STATEMENT
 create table t_create (a int);
 --error ER_OPTION_PREVENTS_STATEMENT
@@ -123,6 +125,7 @@ select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_on
 --echo # A non-super user cannot create or alter tables with transaction_read_only = 1.
 --echo #
 connection con_nonsuper;
+source include/wait_until_connected_again.inc;
 --error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
 create table t_create (a int);
 --error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
@@ -132,6 +135,7 @@ alter table t_alter comment = 'new comment';
 --echo # A super user cannot create or alter tables with transaction_read_only = 1.
 --echo #
 connection con_super;
+source include/wait_until_connected_again.inc;
 --error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
 create table t_create (a int);
 --error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
@@ -162,6 +166,7 @@ select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_on
 --echo # A non-super user cannot create or alter tables with innodb_read_only = 1.
 --echo #
 connection con_nonsuper;
+source include/wait_until_connected_again.inc;
 --error ER_READ_ONLY_MODE
 create table t_create (a int);
 --error ER_READ_ONLY_MODE
@@ -171,6 +176,7 @@ alter table t_alter comment = 'new comment';
 --echo # A super user cannot create or alter tables with innodb_read_only = 1.
 --echo #
 connection con_super;
+source include/wait_until_connected_again.inc;
 --error ER_READ_ONLY_MODE
 create table t_create (a int);
 --error ER_READ_ONLY_MODE
@@ -375,7 +381,6 @@ force-rmdir $MYSQL_TMP_DIR/data_$VERSION;
 connection default;
 disconnect con_nonsuper;
 disconnect con_super;
-enable_reconnect;
 let $restart_parameters = "restart:";
 source include/start_mysqld.inc;
 source include/wait_until_connected_again.inc;

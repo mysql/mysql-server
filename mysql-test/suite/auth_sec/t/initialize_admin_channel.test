@@ -163,7 +163,6 @@ remove_file $MYSQLD_LOG;
 --echo #
 
 --exec echo "restart: --log-error=$MYSQLD_LOG --datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root
@@ -209,7 +208,6 @@ remove_file $MYSQLD_LOG;
 --echo #
 
 --exec echo "restart:--log-error=$MYSQLD_LOG --datadir=$DDIR --admin-address=127.0.0.1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root
@@ -269,7 +267,6 @@ remove_file $MYSQLD_LOG;
 --echo #
 
 --exec echo "restart:--log-error=$MYSQLD_LOG --datadir=$DDIR --admin-address=127.0.0.1 --skip-ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root
@@ -315,7 +312,6 @@ remove_file $MYSQLD_LOG;
 --echo #
 
 --exec echo "restart:--log-error=$MYSQLD_LOG --datadir=$DDIR --admin-address=127.0.0.1 --admin-ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root
@@ -366,5 +362,4 @@ remove_file $BOOTSTRAP_SQL;
 --echo #
 --echo # Restarting the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc

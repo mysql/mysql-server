@@ -154,16 +154,11 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
   if (plugin->trace_event) {
     /*
       Temporarily disable tracing while executing plugin's method
-      by setting trace data pointer to NULL. Also, set reconnect
-      flag to 0 in case plugin executes any queries.
+      by setting trace data pointer to NULL.
     */
-    const bool saved_reconnect_flag = m->reconnect;
-
     TRACE_DATA(m) = nullptr;
-    m->reconnect = false;
     quit_tracing = plugin->trace_event(plugin, GET_DATA(trace_info), m,
                                        GET_STAGE(trace_info), ev, args);
-    m->reconnect = saved_reconnect_flag;
     TRACE_DATA(m) = trace_info;
   }
 

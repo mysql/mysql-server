@@ -153,9 +153,7 @@ SET SESSION debug="+d,crash_after_index_create";
 --error 2013
 CREATE INDEX idx_title ON t1(title);
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SELECT COUNT(*) FROM t1;
 
@@ -207,9 +205,7 @@ SET SESSION debug="+d,crash_after_index_create";
 --error 2013
 ALTER TABLE t1 DROP COLUMN c;
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 CHECK TABLE t1;
 

@@ -9,7 +9,6 @@ SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
 SELECT * FROM `t1/a\b#2`;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---disable_reconnect
 # CR_SERVER_LOST
 --error 2013
 --eval $crash_statement
@@ -17,7 +16,6 @@ SELECT * FROM `t1/a\b#2`;
 --replace_regex /sql.*\./sql-tmp./ /#p#/#P#/ /#sp#/#SP#/ /#tmp#/#TMP#/
 --list_files $DATADIR/test
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 --echo # State after crash recovery

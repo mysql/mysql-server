@@ -58,9 +58,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 
 --source include/wait_until_disconnected.inc
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc

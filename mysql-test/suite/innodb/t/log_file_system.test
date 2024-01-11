@@ -22,7 +22,6 @@ EOF
 --source include/shutdown_mysqld.inc
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DATADIR --init-file=$BOOTSTRAP_SQL > $MYSQLTEST_VARDIR/bootstrap.log 2>&1
 --exec echo "restart: --datadir=$DATADIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 let OLD_IBDATA= `select @@innodb_data_file_path`;
@@ -84,7 +83,6 @@ let $old_mysqld=$MYSQLD_CMD --datadir=$DATADIR --console > $SEARCH_FILE 2>&1;
 --echo # Fault 1: Extra file in innodb_data_file_path
 
 --exec echo "restart: --datadir=$DATADIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 SHOW TABLES;
 --source include/shutdown_mysqld.inc
@@ -111,9 +109,7 @@ EOF
 --echo # Start with new data file path
 
 --exec echo "restart: --datadir=$DATADIR --defaults-file=$NEW_CNF" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 INSERT INTO t1 VALUES (1);
 
@@ -123,7 +119,6 @@ INSERT INTO t1 VALUES (1);
 --echo # Fault 2: Missing file in innodb_data_file_path
 
 --exec echo "restart: --datadir=$DATADIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 SHOW TABLES;
 --source include/shutdown_mysqld.inc
@@ -145,7 +140,6 @@ let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] unknown option '--innodb-nonex
 --remove_file $NEW_CNF
 
 --exec echo "restart: --datadir=$DATADIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # No log should be generated while persistent tablespaces are idle
@@ -173,7 +167,6 @@ WHERE name='log_write_requests';
 --source include/shutdown_mysqld.inc
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DATADIR --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
 --exec echo "restart: --datadir=$DATADIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SELECT @@innodb_data_file_path;

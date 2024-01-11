@@ -8,7 +8,6 @@
 #   point  - syncing point
 #   replace - a string that will be used by replace_regex to mask instabilities
 
---disable_reconnect
 --disable_query_log
 --enable_result_log
 

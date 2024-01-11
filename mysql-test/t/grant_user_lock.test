@@ -389,9 +389,6 @@ DROP USER u1;
 --echo # Restart server.
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
-# Turn on reconnect
---enable_reconnect
-
 # Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
 

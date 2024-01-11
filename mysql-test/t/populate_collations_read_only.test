@@ -11,9 +11,7 @@
 
 --echo # 1.2 Restart the server with --read-only and wait for reconnect.
 --exec echo "restart:--read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo # 2. Server restart with --innodb-read-only:
 
@@ -24,9 +22,7 @@
 
 --echo # 2.2 Restart the server with --innodb-read-only and wait for reconnect.
 --exec echo "restart:--innodb-read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo # 2.3 Search for the expected warning in the log file.
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -47,6 +43,4 @@
 
 --echo # 3.2 Restart the server with no additional options.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect

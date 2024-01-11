@@ -25,9 +25,6 @@ if ($expect_crash_on_start == 1) {
 }
 
 if ($expect_crash_on_start != 1) {
-  # Turn on reconnect
-  --enable_reconnect
-
   # Call script that will poll the server waiting for it to be back online again
   # Allow for slow machines like Sparc
   --let $wait_counter= 6000
@@ -52,7 +49,4 @@ if ($expect_crash_on_start != 1) {
   {
     --source include/xplugin_wait_for_interfaces.inc
   }
-
-  # Turn off reconnect again
-  --disable_reconnect
 }

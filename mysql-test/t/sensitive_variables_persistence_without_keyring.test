@@ -46,7 +46,6 @@ SET PERSIST_ONLY test_component.sensitive_ro_string_1 = 'haha';
 
 --echo # Restart server without keyiring and with persist_sensitive_variables_in_plaintext=TRUE
 --exec echo "restart: --persist_sensitive_variables_in_plaintext=TRUE"> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
@@ -71,7 +70,6 @@ SET PERSIST_ONLY test_component.sensitive_ro_string_1 = 'haha';
 
 --echo # Restart server without keyiring and with persist_sensitive_variables_in_plaintext=TRUE
 --exec echo "restart: --persist_sensitive_variables_in_plaintext=TRUE"> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 

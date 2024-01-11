@@ -33,12 +33,10 @@
 --echo # Start our own server. Log to LOG_FILE1.
 --exec_in_background $MYSQLD_CMD --port $MASTER_MYPORT --log-error=$LOG_FILE1 --log-timestamps=UTC --log-error-verbosity=1
 
---enable_reconnect
 --echo #
 --echo # Connect to our own server.
 --let $wait_counter=3000
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo #
 --echo # Log a header.
@@ -62,12 +60,10 @@ SET @@session.debug='d,crash_now';
 --replace_result $LOG_FILE1 LOG_FILE1
 --source include/start_mysqld.inc
 
---enable_reconnect
 --echo #
 --echo # Connect to our own server.
 --let $wait_counter=3000
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo #
 --echo # Check error-log file for stacktrace.

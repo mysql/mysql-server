@@ -22,7 +22,6 @@ EOF
 
 --echo # 2 Restart the server against DDIR
 --exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 
@@ -221,7 +220,6 @@ DROP TABLE `ttt`;
 --echo #
 --echo # Cleanup: Restarting the server against default datadir.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --remove_file $MYSQL_TMP_DIR/lowercase_view.log

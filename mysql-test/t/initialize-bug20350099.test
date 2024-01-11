@@ -54,7 +54,6 @@ source $passwd_file;
 
 --echo # Restart the server against DDIR
 --exec echo "restart:--datadir=$DDIR $VALIDATE_PASSWORD_OPT $VALIDATE_PASSWORD_LOAD --validate_password_policy=STRONG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root
@@ -109,7 +108,6 @@ remove_file $MYSQLD_LOG;
 --echo #
 --echo # Restarting the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # End of 5.7 tests

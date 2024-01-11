@@ -34,7 +34,6 @@ CREATE TABLE tp1 (c1 int) PARTITION BY KEY (c1) PARTITIONS 1;
 # Restart server along with myisam storage engine  disabled and check alter
 # table on existing myisam table t1 created above is allowed.
 --exec echo "restart: --disabled_storage_engines=innodb,myisam,heap,example" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --source include/xplugin_wait_for_interfaces.inc
 
@@ -140,7 +139,6 @@ SET default_tmp_storage_engine=default;
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart: --skip-grant-tables --disabled_storage_engines=innodb,myisam,heap,example" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 CREATE TABLE t1(a int) ENGINE=MYISAM;
 DROP TABLE t1;

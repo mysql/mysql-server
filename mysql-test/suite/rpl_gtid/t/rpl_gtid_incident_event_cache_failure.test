@@ -86,7 +86,6 @@ SHOW BINARY LOGS;
 
 # Restart the master server so that binary log is enabled again and we can do
 # the below test.
---enable_reconnect
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
 
@@ -113,10 +112,8 @@ eval INSERT INTO t1 (c1, data)
 
 --echo # Restart the master server
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --let $rpl_server_number= 1
 --source include/rpl_reconnect.inc

@@ -77,9 +77,7 @@ SELECT COUNT(*) FROM tab2;
 --echo # Restart the DB server with default innodb_checksum_algorithm=InnoDB (Default)
 --echo # no need to pass to the server.
 --exec echo "restart:  --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo # Load the with repeat function
 SET @col_1 = repeat('A', 5);
@@ -118,9 +116,7 @@ SELECT COUNT(*) FROM tab2 where col_7=1000;
 
 --echo # Restart the DB server with default innodb_checksum_algorithm=CRC32
 --exec echo "restart: --innodb_checksum_algorithm=crc32 --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 # Check the server startup option of the checksum
 SHOW variables like '%innodb_checksum_algorithm%';

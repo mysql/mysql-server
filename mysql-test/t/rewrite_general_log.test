@@ -185,7 +185,6 @@ SELECT command_type, argument FROM mysql.general_log WHERE argument LIKE "DROP T
 
 --echo # restart the server.
 --exec echo "restart: --log-raw" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --replace_result $MYSQLTEST_VARDIR ...
@@ -210,7 +209,6 @@ DROP USER plaintext_test;
 
 --echo # restart the server.
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # Password must be seen in cleartext with --log-raw option. In case of ps-protocol mode the query returns 9 rows

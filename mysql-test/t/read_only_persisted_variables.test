@@ -55,7 +55,6 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 CALL mtr.add_suppression("You need to use --log-bin to make --log-replica-updates work.");
@@ -71,7 +70,6 @@ SET PERSIST_ONLY binlog_gtid_simple_recovery=0;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -93,7 +91,6 @@ SELECT VARIABLE_NAME FROM performance_schema.variables_info
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -110,7 +107,6 @@ SET PERSIST_ONLY ft_query_expansion_limit=200, innodb_api_enable_mdl=0;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -129,7 +125,6 @@ SET PERSIST_ONLY log_replica_updates= 1;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -158,7 +153,6 @@ SELECT @@global.transaction_isolation;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -173,7 +167,6 @@ SELECT VARIABLE_NAME FROM performance_schema.variables_info
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--persisted-globals-load=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # should have values different from persistent config file
@@ -193,7 +186,6 @@ SET @@persist_only.relay_log_space_limit=4096;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--persisted-globals-load=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # should return 0 rows.
@@ -205,7 +197,6 @@ SELECT VARIABLE_NAME FROM performance_schema.variables_info
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SELECT @@global.relay_log_space_limit, @@global.replica_type_conversions;
@@ -288,7 +279,6 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # test non persistent read only variables

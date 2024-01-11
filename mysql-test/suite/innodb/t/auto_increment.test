@@ -2370,7 +2370,6 @@ SET SESSION debug= "+d, crash_create_after_autoinc_persisted_update";
 
 ALTER TABLE `t1` MODIFY `id` INT NOT NULL AUTO_INCREMENT;
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SHOW CREATE TABLE `t1`;

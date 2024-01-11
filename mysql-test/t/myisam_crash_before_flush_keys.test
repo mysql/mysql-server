@@ -36,9 +36,6 @@ FLUSH TABLE t1;
 --echo # Write file to make mysql-test-run.pl start the server 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---echo # Turn on reconnect
---enable_reconnect
-
 --echo # Call script that will poll the server waiting for
 --echo # it to be back online again
 --source include/wait_until_connected_again.inc

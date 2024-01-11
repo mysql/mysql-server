@@ -229,9 +229,7 @@ SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
 ALTER TABLE t1 AUTO_INCREMENT = 21;
 
 --echo # Restart mysqld after the crash and reconnect.
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SHOW CREATE TABLE t1;
 
@@ -294,9 +292,7 @@ SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
 ALTER TABLE t1 AUTO_INCREMENT = 21;
 
 --echo # Restart mysqld after the crash and reconnect.
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SHOW CREATE TABLE t1;
 

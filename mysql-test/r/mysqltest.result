@@ -584,10 +584,10 @@ LONG_STRING
 dog
 mysqltest: At line 1: Invalid integer argument "10!"
 mysqltest: At line 1: Invalid integer argument "a"
-mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
-mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
-mysqltest: At line 1: Missing required argument 'host' to command 'connect'
-mysqltest: At line 1: Missing required argument 'host' to command 'connect'
+mysqltest: The test didn't produce any output
+mysqltest: The test didn't produce any output
+mysqltest: At line 1: Connection con2 doesn't exist for reconnect
+mysqltest: At line 1: Connection con2 doesn't exist for reconnect
 mysqltest: At line 1: Query 'connect  con2,localhost,root,,illegal_db' failed.
 ERROR 1049 (42000): Unknown database 'illegal_db'
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'

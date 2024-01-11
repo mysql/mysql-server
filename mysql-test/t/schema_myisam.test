@@ -63,7 +63,6 @@ CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY);
 
 # Restart the server.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # ALTER TABLE for MyISAM fails.
@@ -97,7 +96,6 @@ CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY);
 
 # Restart the server.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # SHOW CREATE TABLE for MyISAM fails.
@@ -131,7 +129,6 @@ CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY);
 
 # Restart the server.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 # DROP TABLE for MyISAM fails.

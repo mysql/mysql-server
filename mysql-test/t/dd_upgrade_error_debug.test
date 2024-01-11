@@ -38,7 +38,6 @@ let $BUGDATA_80011_DATADIR = $MYSQL_TMP_DIR/bugdata_80011;
 --echo ########################################################################
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80011_1.log;
 --exec echo "restart: --datadir=$BUGDATA_80011_DATADIR --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 --source include/mysql_upgrade_cleanup.inc
@@ -110,7 +109,6 @@ WHERE mysql.tables.name = 'users' AND
 --echo ########################################################################
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80011_2.log
 --exec echo "restart: --datadir=$BUGDATA_80011_DATADIR --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 --source include/mysql_upgrade_cleanup.inc

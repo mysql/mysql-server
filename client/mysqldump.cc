@@ -1762,11 +1762,6 @@ static int connect_to_db(char *host, char *user) {
     /* Don't switch charsets for 4.1 and earlier.  (bug#34192). */
     server_supports_switching_charsets = false;
   }
-  /*
-    As we're going to set SQL_MODE, it would be lost on reconnect, so we
-    cannot reconnect.
-  */
-  mysql->reconnect = false;
   snprintf(buff, sizeof(buff), "/*!40100 SET @@SQL_MODE='%s' */",
            ansi_mode ? "ANSI" : "");
   if (mysql_query_with_error_report(mysql, nullptr, buff)) return 1;

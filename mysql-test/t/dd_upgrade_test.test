@@ -209,7 +209,6 @@ let ENV_MYSQLD_LOG= $MYSQLD_LOG;
 # Add '--read-only' option in the scope of fix of Bug#26636238, to avoid creation of another bulky test.
 --echo # Start the DB server. Server will create and populate Dictionary tables.
 --exec echo "restart: --loose-skip-log-bin --read-only --skip-log-replica-updates --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
@@ -713,7 +712,6 @@ let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_2.log;
 --copy_file $MYSQLTEST_VARDIR/std_data/t_set.frm $MYSQL_TMP_DIR/data57/test/t_set.frm
 # Test with --explicit-defaults-for-timestamp=0
 --exec echo "restart: --loose-skip-log-bin --explicit-defaults-for-timestamp=0 --skip-log-replica-updates --skip-replica-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 6000
 --source include/wait_until_connected_again.inc
 
@@ -760,7 +758,6 @@ let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug/data;
 
 --echo # Start the DB server
 --exec echo "restart: --default_time_zone="+01:00" --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 6000
 --source include/wait_until_connected_again.inc
 
@@ -838,7 +835,6 @@ let $MYSQLD_DATADIR3 = $MYSQL_TMP_DIR/data_57022;
 
 --echo # Start the DB server to do upgrade. Without the bugfix, the server will fail.
 --exec echo "restart: --table_open_cache=1 --datadir=$MYSQLD_DATADIR3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --let $wait_counter= 3000
 --source include/wait_until_connected_again.inc
 

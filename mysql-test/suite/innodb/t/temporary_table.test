@@ -170,7 +170,6 @@ let SEARCH_PATTERN = innodb_temporary and innodb_system file names seem to be th
 --source ./include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo "restarting server in normal mode"
---enable_reconnect
 let $restart_parameters = restart;
 --source include/start_mysqld.inc
 #

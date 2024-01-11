@@ -53,13 +53,11 @@
 
 # We do kill the servers, using shutdown_server 0, and then MTR will
 # follow the expect file and restart the server
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 # reset the group_replication_id var
 --let $group_replication_member_id= $member2_uuid

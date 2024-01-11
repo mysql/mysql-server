@@ -55,9 +55,7 @@ commit;
 --list_files $MYSQL_TMP_DIR/mysqld.1/
 
 --echo # Reconnect.
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo # Check that temporary table files are gone after restart,
 --echo # including symlinks.

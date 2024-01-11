@@ -137,9 +137,7 @@ INSERT INTO t1 VALUES(9, "jjjjj");
 --source include/kill_mysqld.inc
 --exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_log1 $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/my_key_undo1 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_undo_log_encrypt=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 DELETE FROM t1;

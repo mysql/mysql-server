@@ -494,7 +494,6 @@ static int dbConnect(char *host, char *user) {
     DBerror(&mysql_connection, "when trying to connect");
     return 1;
   }
-  mysql_connection.reconnect = true;
   return 0;
 } /* dbConnect */
 

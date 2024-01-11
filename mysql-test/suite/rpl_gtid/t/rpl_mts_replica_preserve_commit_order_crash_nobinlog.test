@@ -263,9 +263,7 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_commit_order_leader_before_ha_flush_logs_1
 
 --let $restart_parameters=restart:--skip-replica-start --skip-log-bin --log-replica-updates=0
 --exec echo "$restart_parameters" > $_expect_file_name
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc

@@ -165,11 +165,9 @@ if ($donor_ip_port == $server3_ip_port) {
   --connection server3
 }
 
---enable_reconnect
 --echo # Restart the crashed member
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.$server_to_kill.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --let $rpl_server_number= $server_to_kill
 --source include/rpl_reconnect.inc
 

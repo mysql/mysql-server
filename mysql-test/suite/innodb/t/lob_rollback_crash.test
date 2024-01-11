@@ -4,8 +4,6 @@
 # Valgrind can hang or return spurious messages on DBUG_SUICIDE
 --source include/not_valgrind.inc
 
---disable_reconnect
-
 CREATE TABLE t(j1 JSON) engine=innodb;
 
 show create table t;

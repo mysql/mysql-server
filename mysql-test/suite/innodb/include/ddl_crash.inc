@@ -15,7 +15,6 @@ if ($get_create_template)
 let $did_crash= 0;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---disable_reconnect
 
 --error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 --eval $crash_statement
@@ -32,7 +31,6 @@ if ($mysql_errno == 2013)
 {
   let $did_crash= 1;
   --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-  --enable_reconnect
   let $WAIT_COUNT=6000;
   --source include/wait_time_until_connected_again.inc
   let $check= query_get_value(CHECK TABLE $final_table_name, Msg_text, 1);

@@ -150,7 +150,6 @@ FLUSH BINARY LOGS;
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo #
@@ -179,7 +178,7 @@ SET DEBUG = "d,gtid_executed_readonly,simulate_max_binlog_size";
 FLUSH BINARY LOGS;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--source include/wait_until_disconnected.inc
 --source include/wait_until_connected_again.inc
 
 # 4) Assert that binary log didn't rotate.

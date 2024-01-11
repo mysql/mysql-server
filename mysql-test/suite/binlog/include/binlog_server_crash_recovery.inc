@@ -35,8 +35,6 @@
 --eval $statement
 
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --echo # Restart the master server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect

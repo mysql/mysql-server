@@ -32,7 +32,7 @@ SET debug = "+d,simulate_ostream_write_failure";
 INSERT INTO t1 VALUES(1);
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--source include/wait_until_disconnected.inc
 --source include/wait_until_connected_again.inc
 
 --error 1

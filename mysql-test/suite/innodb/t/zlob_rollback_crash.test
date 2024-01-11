@@ -6,8 +6,6 @@
 
 set global innodb_compression_level = 0;
 
---disable_reconnect
-
 CREATE TABLE t(j1 JSON) row_format=compressed;
 
 set @data_1 = repeat('abcdefghijklmnopqrstuvwxyz1234', 6006);

@@ -3,7 +3,6 @@
 #
 --source include/have_debug.inc
 --source include/have_innodb_16k.inc
---disable_reconnect
 
 # Valgrind can hang or return spurious messages on DBUG_SUICIDE
 --source include/not_valgrind.inc

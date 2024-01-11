@@ -52,11 +52,9 @@ eval SET SESSION debug=CONCAT(IF(LENGTH('$old_debug') > 0, "$old_debug:", ""), "
 INSERT INTO t2 (a) VALUES (REPEAT('a',16384));
 
 -- source include/wait_until_disconnected.inc
--- enable_reconnect
 -- echo # Restart the master server
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
--- disable_reconnect
 
 -- echo # Test the halfly binlogged non-transaction statement will be trimmed
 -- echo # from the crashed binlog file

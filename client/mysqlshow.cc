@@ -193,8 +193,6 @@ int main(int argc, char **argv) {
     my_end(my_end_arg);
     exit(1);
   }
-  mysql.reconnect = true;
-
   switch (argc) {
     case 0:
       error = list_dbs(&mysql, wild);

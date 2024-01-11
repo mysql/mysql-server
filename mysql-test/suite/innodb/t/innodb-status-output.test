@@ -27,9 +27,7 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/innodb-status-output.err;
 
 # Test that the output appears.
 --exec echo "restart: --no-console --log-error=$SEARCH_FILE">$_expect_file_name
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 BEGIN;
 SELECT * FROM t FOR UPDATE;
@@ -48,9 +46,7 @@ let SEARCH_PATTERN= SELECT SLEEP.*\nTABLE LOCK.*\nRECORD LOCKS space id;
 --remove_file $SEARCH_FILE
 
 --exec echo "restart: --no-console --log-error=$SEARCH_FILE --log-error-verbosity=3 ">$_expect_file_name
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 BEGIN;
 SELECT * FROM t FOR UPDATE;
@@ -72,9 +68,7 @@ let SEARCH_PATTERN= .*(a chance to die gracefully|Shutting down|Normal shutdown)
 --remove_file $SEARCH_FILE
 
 --exec echo "restart: --no-console --log-error=$SEARCH_FILE">$_expect_file_name
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 BEGIN;
 SELECT * FROM t FOR UPDATE;

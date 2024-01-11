@@ -7,9 +7,7 @@
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
 --exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 
 --echo # 1. Check that KEYRING_FILE plugin is installed properly

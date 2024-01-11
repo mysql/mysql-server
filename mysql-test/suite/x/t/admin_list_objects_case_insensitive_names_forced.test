@@ -29,7 +29,6 @@ EOF
 
 --echo # Restart the server against DDIR.
 --exec echo "restart:" --datadir=$DDIR --lower_case_table_names=$expect_case_sensitive_variant --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --source include/xplugin_preamble.inc
 
@@ -56,5 +55,4 @@ EOF
 
 --echo # Restart server without --lower-case-table-names.
 --exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc

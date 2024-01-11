@@ -10,7 +10,6 @@ if (!$restart_parameters)
 --exec echo "$restart_parameters" > $_expect_file_name
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
 ## Script xplugin_wait_for_interfaces.inc
 #
@@ -31,4 +30,3 @@ if ($_xplugin_active)
 {
   --source include/xplugin_wait_for_interfaces.inc
 }
---disable_reconnect

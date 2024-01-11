@@ -212,9 +212,7 @@ EOF
 EOF
 
 --echo # Wait for daemon server to start
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo # Execute a query to see that it is running OK
 SHOW DATABASES;
@@ -240,6 +238,5 @@ SHOW DATABASES;
 --echo # Restart mysqld of mtr
 --echo #
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --source include/xplugin_wait_for_interfaces.inc

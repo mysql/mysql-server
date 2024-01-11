@@ -2981,13 +2981,6 @@ int ha_federated::real_connect() {
   /* Just throw away the result, no rows anyways but need to keep in sync */
   mysql_free_result(mysql_store_result(mysql));
 
-  /*
-    Since we do not support transactions at this version, we can let the client
-    API silently reconnect. For future versions, we will need more logic to
-    deal with transactions
-  */
-
-  mysql->reconnect = true;
   return 0;
 }
 

@@ -56,9 +56,7 @@ INSERT INTO tde_db.t1 VALUES(3, "ddddd");
 --exec echo "restart: $PLUGIN_DIR_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 SET SESSION DEBUG="-d,ib_encryption_rotate_crash";
 let SEARCH_PATTERN = ib_encryption_rotate_crash;
 --source include/search_pattern.inc
@@ -89,9 +87,7 @@ INSERT INTO tde_db.t2 VALUES(1, "bbbbb");
 SET SESSION DEBUG="+d,ib_encryption_rotate_crash";
 --error 2013
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 SET SESSION DEBUG="-d,ib_encryption_rotate_crash";
 let SEARCH_PATTERN = ib_encryption_rotate_crash;
 --source include/search_pattern.inc
@@ -131,9 +127,7 @@ SET SESSION DEBUG="+d,ib_crash_during_create_for_encryption";
 --echo # Execute the statement that causes the crash
 --error 2013
 CREATE TABLE tde_db.t2(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 SET SESSION DEBUG="-d,ib_crash_during_create_for_encryption";
 
 --echo # Show encrypted tables.
@@ -167,9 +161,7 @@ SET SESSION DEBUG="+d,ib_crash_during_decrypt_page";
 --echo # Execute the statement that causes the crash
 --error 2013
 eval ALTER TABLE tde_db.t1 IMPORT TABLESPACE;
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 SET SESSION DEBUG="-d,ib_crash_during_decrypt_page";
 
 --error ER_TABLESPACE_DISCARDED
@@ -179,9 +171,7 @@ SELECT * FROM tde_db.t1 ORDER BY c1 ;
 DROP TABLE tde_db.t1;
 
 --exec echo "restart: $PLUGIN_DIR_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --remove_files_wildcard $MYSQLD_DATADIR/tde_db/ t1.*
 DROP DATABASE tde_db;
@@ -202,9 +192,7 @@ CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
 SET SESSION DEBUG="+d, keyring_generate_fail";
 --error 2013
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 SET SESSION debug="-d, keyring_generate_fail";
 SELECT COUNT(*) FROM tde_db.test_tbl;
 

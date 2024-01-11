@@ -217,7 +217,7 @@ SET @@session.sql_mode= @sql_mode_saved;
 -- sql_mode
 -- ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 -- statement_id
--- 60
+-- 59
 
 # Switch off the session system variables tracker (using empty string).
 SET @@session.session_track_system_variables='';

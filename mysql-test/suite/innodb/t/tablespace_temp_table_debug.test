@@ -79,9 +79,7 @@ set session debug="+d,ib_ddl_crash_during_create2";
 --error 2013
 create temporary table t1
 	(a int, b int, primary key(a), index(b)) engine = innodb;
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --echo # files in MYSQL_DATA_DIR
 --list_files $MYSQL_DATA_DIR/ ibtmp*
 create temporary table t1
@@ -128,10 +126,8 @@ select count(*) from t2;
 --error 2013
 call populate_t1_t2();
 #
---enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
 --source include/wait_until_connected_again.inc
---disable_reconnect
 #
 use test;
 show tables;
@@ -163,10 +159,8 @@ set session debug="+d,crash_commit_after";
 --error 2013
 insert into t2 values (2, 'a', 'b');
 #
---enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
 --source include/wait_until_connected_again.inc
---disable_reconnect
 use test;
 show tables;
 select * from t2;

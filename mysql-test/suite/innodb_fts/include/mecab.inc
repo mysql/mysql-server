@@ -86,9 +86,7 @@ EOF
 
 -- source include/shutdown_mysqld.inc
 -- exec echo "restart: --loose_mecab_rc_file=$mecabrc $MECAB_OPT --innodb_ft_min_token_size=2" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
 -- source include/wait_until_connected_again.inc
--- disable_reconnect
 
 -- disable_query_log
 

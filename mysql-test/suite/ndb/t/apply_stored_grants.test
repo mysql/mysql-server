@@ -7,7 +7,6 @@
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
 connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
 connection mysqld2;
-enable_reconnect;
 --shutdown_server
 # Wait until server is gone.
 --source include/wait_until_disconnected.inc

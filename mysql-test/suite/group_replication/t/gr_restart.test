@@ -111,7 +111,6 @@ INSERT INTO t1 VALUES (2);
 #Needed as we are not using rpl_restart_server.inc
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---enable_reconnect
 
 # Wait until group has only 1 member, that is, server2 death is detected by
 # the group.

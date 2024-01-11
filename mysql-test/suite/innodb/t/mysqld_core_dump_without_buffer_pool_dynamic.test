@@ -27,7 +27,6 @@
 --echo # Restart server with --log-error
 --let LOG_FILE = $MYSQLTEST_VARDIR/log/core_dump.err
 --exec echo "restart:--log-error=$LOG_FILE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SELECT @@global.innodb_buffer_pool_in_core_file;

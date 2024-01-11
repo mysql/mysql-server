@@ -704,7 +704,6 @@ EOF
 
 --echo # Restart server with init-file option
 --exec echo "restart:--init-file=$MYSQLTEST_VARDIR/tmp/set_password.sql" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --connect(con1, localhost, bug22205360, abc)
@@ -722,7 +721,6 @@ EOF
 
 --echo # Restart server with init-file option
 --exec echo "restart:--init-file=$MYSQLTEST_VARDIR/tmp/alter_password.sql" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --connect(con2, localhost, bug22205360, def)

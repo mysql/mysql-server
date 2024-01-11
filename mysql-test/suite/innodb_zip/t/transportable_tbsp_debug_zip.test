@@ -83,9 +83,7 @@ require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 #### After commit crash
 
@@ -114,10 +112,8 @@ ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
 --echo # Restart and reconnect to the server
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 #### After checkpoint crash
 

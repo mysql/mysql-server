@@ -98,9 +98,7 @@ let error_pattern= Could not write public key file: ;
 --echo # 4. Restart the server and cleanup
 
 --exec echo "restart" > $restart_file
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --error 0,1
 --remove_file $restart_file

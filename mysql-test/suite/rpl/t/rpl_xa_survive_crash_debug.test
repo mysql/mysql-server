@@ -48,11 +48,9 @@ XA ROLLBACK 'xid_partly_rolled_back';
 #
 # Server restart
 #
---enable_reconnect
 --source include/wait_until_disconnected.inc
 --let $rpl_server_number= 1
 --source include/rpl_start_server.inc
---disable_reconnect
 
 --source include/rpl_connection_master.inc
 

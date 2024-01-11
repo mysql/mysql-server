@@ -27,7 +27,6 @@ SET PERSIST validate_password_length= 13;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # after restart
@@ -48,11 +47,7 @@ CALL mtr.add_suppression("currently unknown variable 'validate_password_*");
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
-
-# Turn off reconnect again
---disable_reconnect
 
 --echo # Search for warnings in error log.
 --let $log_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -67,7 +62,6 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --source include/xplugin_wait_for_interfaces.inc
 

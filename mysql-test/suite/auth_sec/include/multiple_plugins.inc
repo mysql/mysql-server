@@ -9,9 +9,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--default-authentication-plugin=$server_default_authentication_plugin" > $restart_file
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 
 --echo # Create users

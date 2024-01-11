@@ -35,7 +35,6 @@ SET DEBUG='+d,ib_create_table_fail_disk_full';
 --error 2013
 SELECT * FROM t1;
 
---disable_reconnect
 --source include/wait_until_disconnected.inc
 
 --let $restart_parameters=restart:

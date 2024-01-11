@@ -89,9 +89,5 @@ EOF
 --echo # Make server restart
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---enable_reconnect
-
 --echo # Wait for server to be back online
 --source include/wait_until_connected_again.inc
-
---disable_reconnect

@@ -184,8 +184,6 @@ struct mysql_async_connect {
 
   /* context needed to establish asynchronous authentication */
   struct mysql_async_auth *auth_context;
-  /* state for running init_commands */
-  bool saved_reconnect;
   char **current_init_command;
 
   ssl_exchange_state ssl_state;

@@ -74,13 +74,11 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 #
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc

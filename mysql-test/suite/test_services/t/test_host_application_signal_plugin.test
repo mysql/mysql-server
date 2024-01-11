@@ -28,7 +28,6 @@ SELECT test_shutdown_signal_udf(2);
 
 --echo # restart the server.
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # start the sql client and test the shutdown UDF with 0
@@ -42,7 +41,6 @@ let SEARCH_PATTERN=Received SHUTDOWN from user .internal signal component servic
 
 --echo # restart the server
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # start the sql client and test the shutdown UDF with 1
@@ -56,7 +54,6 @@ let SEARCH_PATTERN=Received SHUTDOWN from user .internal signal component servic
 
 --echo # restart server.
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # Stop DB server which was created by MTR default
@@ -72,7 +69,6 @@ let SEARCH_PATTERN=Received SHUTDOWN from user .internal signal component servic
 
 --echo # restart server.
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 UNINSTALL PLUGIN test_services_host_application_signal;

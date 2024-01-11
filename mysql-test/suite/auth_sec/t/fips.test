@@ -48,7 +48,6 @@ let $MYSQL_PORT= `SELECT @@port`;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--ssl-fips-mode=OFF" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --echo Server fips mode:
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
@@ -60,7 +59,6 @@ let $MYSQL_PORT= `SELECT @@port`;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--ssl-fips-mode=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --echo Server fips mode:
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
@@ -72,7 +70,6 @@ let $MYSQL_PORT= `SELECT @@port`;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--ssl-fips-mode=ON --skip-ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --echo Server fips mode:
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
@@ -84,7 +81,6 @@ let $MYSQL_PORT= `SELECT @@port`;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--ssl-fips-mode=STRICT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --echo Server fips mode:
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
@@ -97,7 +93,6 @@ let $MYSQL_PORT= `SELECT @@port`;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo ##Test: MySQL client, Set fips mode: Default

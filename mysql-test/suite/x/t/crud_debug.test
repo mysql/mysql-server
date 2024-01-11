@@ -87,7 +87,6 @@ EOF
 #--cat_file $MYSQL_TMP_DIR/mysqlx-out.xpl
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 --remove_file $MYSQL_TMP_DIR/mysqlx-out.xpl
---enable_reconnect
 --source include/wait_until_connected_again.inc
 # No rows
 SELECT * FROM xplugintest.table2;
@@ -196,7 +195,6 @@ EOF
 --error 1
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out.xpl 2>&1
 #--cat_file $MYSQL_TMP_DIR/mysqlx-out.xpl
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 USE xplugintest;

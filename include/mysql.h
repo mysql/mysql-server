@@ -180,7 +180,6 @@ enum mysql_option {
   MYSQL_OPT_WRITE_TIMEOUT,
   MYSQL_OPT_USE_RESULT,
   MYSQL_REPORT_DATA_TRUNCATION,
-  MYSQL_OPT_RECONNECT,
   MYSQL_PLUGIN_DIR,
   MYSQL_DEFAULT_AUTH,
   MYSQL_OPT_BIND,
@@ -317,8 +316,7 @@ typedef struct MYSQL {
   struct st_mysql_options options;
   enum mysql_status status;
   enum enum_resultset_metadata resultset_metadata;
-  bool free_me;   /* If free in mysql_close */
-  bool reconnect; /* set to 1 if automatic reconnect */
+  bool free_me; /* If free in mysql_close */
 
   /* session-wide random string */
   char scramble[SCRAMBLE_LENGTH + 1];

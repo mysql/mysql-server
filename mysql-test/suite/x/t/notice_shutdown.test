@@ -236,9 +236,7 @@ EOF
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest2_file 2>&1
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest3_file 2>&1
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 ## Cleanup
 DROP TABLE test.some_table;

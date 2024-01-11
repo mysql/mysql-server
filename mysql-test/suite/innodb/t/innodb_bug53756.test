@@ -154,14 +154,8 @@ COMMIT;
 --echo #
 --echo # Restart server.
 #
-# Turn on reconnect
---enable_reconnect
-#
 # Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
-#
-# Turn off reconnect again
---disable_reconnect
 --echo
 
 --echo #

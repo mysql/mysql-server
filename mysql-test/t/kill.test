@@ -25,7 +25,6 @@ connect (con2, localhost, root,,);
 
 # Save id of con1
 connection con1;
---disable_reconnect
 let $ID= `SELECT @id := CONNECTION_ID()`;
 connection con2;
 let $ignore= `SELECT @id := $ID`;
@@ -52,7 +51,7 @@ connection con1;
 --error 1053,2006,2013
 SELECT 1;
 
---enable_reconnect
+connect;
 # this should work, and we should have a new connection_id()
 SELECT 1;
 let $ignore= `SELECT @id := $ID`;
@@ -71,7 +70,6 @@ let $ID= `SELECT @id := CONNECTION_ID()`;
 connection con2;
 let $ignore= `SELECT @id := $ID`;
 connection con1;
-disable_reconnect;
 # Signal when this connection is terminating.
 SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
 # See if we can kill the sync point itself.
@@ -90,7 +88,7 @@ SET DEBUG_SYNC = 'RESET';
 connection con1;
 --error 1053,2006,2013
 SELECT 1;
-enable_reconnect;
+connect;
 SELECT 1;
 let $ignore= `SELECT @id := $ID`;
 SELECT @id != CONNECTION_ID();
@@ -141,6 +139,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
 connection con1;
 --error 1317,1053,2006,2013
 reap;
+connect;
 SELECT 1;
 
 connection default;
@@ -240,7 +239,6 @@ SET DEBUG_SYNC = 'RESET';
 --connection con1
 let $ID= `SELECT @id := CONNECTION_ID()`;
 SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
---disable_reconnect
 --error ER_QUERY_INTERRUPTED
 KILL @id;
 
@@ -251,7 +249,7 @@ connection con1;
 --echo # depending on the timing of close of the connection socket
 --error 1053,2006,2013
 SELECT 1;
---enable_reconnect
+connect;
 SELECT 1;
 let $ignore= `SELECT @id := $ID`;
 SELECT @id != CONNECTION_ID();

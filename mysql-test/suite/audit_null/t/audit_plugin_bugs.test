@@ -52,9 +52,7 @@ let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Abort message custom;
 
 --echo # Startup the server
 --exec echo "restart" > $restart_file
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo #
 --echo # Bug #22136709: INFINITE RECURSION BY CALLING MY_MESSAGE FROM

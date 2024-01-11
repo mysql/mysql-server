@@ -592,7 +592,6 @@ static bool sql_connect(MYSQL *mysql, uint wait) {
               mysql, [](const char *err) { fprintf(stderr, "%s\n", err); }))
         return true;
 
-      mysql->reconnect = true;
       if (info) {
         fputs("\n", stderr);
         (void)fflush(stderr);
@@ -1126,21 +1125,13 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         break;
 
       case ADMIN_PING:
-        mysql->reconnect = false; /* We want to know of reconnects */
         if (!mysql_ping(mysql)) {
           if (option_silent < 2) puts("mysqld is alive");
         } else {
-          if (mysql_errno(mysql) == CR_SERVER_GONE_ERROR) {
-            mysql->reconnect = true;
-            if (!mysql_ping(mysql))
-              puts("connection was down, but mysqld is now alive");
-          } else {
-            my_printf_error(0, "mysqld doesn't answer to ping, error: '%s'",
-                            error_flags, mysql_error(mysql));
-            return -1;
-          }
+          my_printf_error(0, "mysqld doesn't answer to ping, error: '%s'",
+                          error_flags, mysql_error(mysql));
+          return -1;
         }
-        mysql->reconnect = true; /* Automatic reconnect is default */
         break;
       default:
         my_printf_error(0, "Unknown command: '%-.60s'", error_flags, argv[0]);

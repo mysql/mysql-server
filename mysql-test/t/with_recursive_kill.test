@@ -6,7 +6,6 @@ connect (con2, localhost, root,,);
 
 # Save id of con1
 connection con1;
---disable_reconnect
 let $ID= `SELECT @id := CONNECTION_ID()`;
 connection con2;
 let $ignore= `SELECT @id := $ID`;

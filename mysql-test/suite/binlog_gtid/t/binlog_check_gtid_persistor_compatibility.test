@@ -44,10 +44,8 @@ CREATE TABLE t (a INT);
 --error 2013
 FLUSH LOGS;
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo
 --echo # 3. Verify that GTIDs were persisted correctly

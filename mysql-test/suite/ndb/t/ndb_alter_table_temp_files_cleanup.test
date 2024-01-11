@@ -39,7 +39,6 @@ SET debug='+d,ndb_simulate_crash_during_alter_table_rename1';
 --error 2013,2003
 ALTER TABLE t1 ALGORITHM=COPY;
 --echo # mysqld will restart after crash and remove the temporary named table during connecting to the cluster
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
 --source include/wait_until_connected_again.inc
 

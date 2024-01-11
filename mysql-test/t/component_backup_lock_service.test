@@ -29,7 +29,6 @@ INSTALL COMPONENT 'file://component_test_backup_lock_service';
 
 --echo # restart the server.
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --error ER_COMPONENTS_CANT_LOAD

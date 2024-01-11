@@ -60,7 +60,6 @@ let SEARCH_PATTERN=Wrote log record for ibuf update in place operation;
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 CHECK TABLE t1;

@@ -40,7 +40,6 @@ COMMIT;
 --echo
 --echo # On connection default
 --connection default
---enable_reconnect
 --source include/wait_until_connected_again.inc
 --echo # Value 2 is expected as server crash on high prio txn (crash_commit_after point)
 SELECT * FROM t1;

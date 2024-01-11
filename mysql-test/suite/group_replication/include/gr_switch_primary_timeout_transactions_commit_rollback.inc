@@ -71,9 +71,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.trans_delegate_before_commit_before_before_ca
 --error CR_SERVER_LOST
 --reap
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SET DEBUG_SYNC= 'RESET';
 
@@ -129,9 +127,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.trans_delegate_before_commit_before_before_ca
 --error CR_SERVER_LOST
 --reap
 
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 SET DEBUG_SYNC= 'RESET';
 

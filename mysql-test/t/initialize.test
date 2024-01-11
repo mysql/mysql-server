@@ -53,7 +53,6 @@ source $passwd_file;
 
 --echo # Restart the server against DDIR
 --exec echo "restart:--datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root
@@ -133,7 +132,6 @@ EOF
 
 --echo # Restart the server against DDIR
 --exec echo "restart:--datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root
@@ -294,7 +292,6 @@ EOF
 
 --echo # Restart the server against the 4k DDIR to make sure it can be started
 --exec echo "restart:--innodb_page_size=4k --datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SELECT * FROM information_schema.schemata;
@@ -315,6 +312,5 @@ SELECT * FROM information_schema.schemata;
 --echo #
 --echo # Restarting the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 

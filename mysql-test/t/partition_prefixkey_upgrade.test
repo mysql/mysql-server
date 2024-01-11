@@ -68,7 +68,6 @@
 --echo # Restart server to trigger upgrade.
 --exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $wait_counter= 10000
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo # Check for errors in the error log.
@@ -181,7 +180,6 @@ SELECT  (SELECT GROUP_CONCAT('(',a,',',b,')') FROM t1 PARTITION(p0))
 --echo # Restart server to trigger upgrade.
 --exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $wait_counter= 10000
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo

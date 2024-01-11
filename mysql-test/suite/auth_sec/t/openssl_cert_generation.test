@@ -38,9 +38,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
 --exec echo "restart:--log-error=$server_log --auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0 --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --echo # Restart completed.
 
 
@@ -73,9 +71,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --remove_file $server_log 10
 
 --exec echo "restart: --log-error=$server_log --auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0 --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --echo # Restart completed.
 
 --echo # Search for : Skipping generation of SSL certificates as --auto_generate_certs is set to OFF.
@@ -132,9 +128,7 @@ disconnect test_root_2;
 --remove_file $server_log 10
 
 --exec echo "restart:--log-error=$server_log --auto_generate_certs --skip-sha256_password_auto_generate_rsa_keys --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --echo # Restart completed.
 
 --echo # Search for : Auto generated SSL certificates are placed in data directory.
@@ -177,9 +171,7 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 --remove_file $server_log 10
 
 --exec echo "restart: --log-error=$server_log  --skip-ssl --skip-auto_generate_certs --sha256_password_auto_generate_rsa_keys --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --echo # Restart completed.
 
 --echo # Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
@@ -220,9 +212,7 @@ let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_
 --remove_file $server_log 10
 
 --exec echo "restart:--log-error=$server_log --auto_generate_certs=1 --sha256_password_auto_generate_rsa_keys=1 --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --echo # Restart completed.
 
 --echo # Generation of SSL ceritificates/key files and
@@ -288,9 +278,7 @@ disconnect test_root_4;
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
 --exec echo "restart:--log-error=$server_log --auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --echo # Restart completed.
 
 --echo # Search for : Auto generated SSL certificates are placed in data directory.
@@ -361,9 +349,7 @@ disconnect test_root_6;
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
 --exec echo "restart:--log-error=$server_log  --skip-ssl --auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --echo # Restart completed.
 
 --echo # Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
@@ -438,9 +424,7 @@ disconnect test_root_7;
 --remove_file $server_log 10
 
 --exec echo "restart:--log-error=$server_log --auto_generate_certs=ON --skip-sha256_password_auto_generate_rsa_keys --tls-version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --echo # Restart completed.
 
 --echo # Search for : Auto generated SSL certificates are placed in data directory.

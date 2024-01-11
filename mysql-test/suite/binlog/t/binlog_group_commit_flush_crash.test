@@ -23,11 +23,9 @@ INSERT INTO t1 VALUES(1);
 COMMIT;
 --source include/wait_until_disconnected.inc
 
---enable_reconnect
 --echo # Restart the master server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo #
 --echo # Verify that a transaction can not be recovered during server
@@ -48,11 +46,9 @@ INSERT INTO t1 VALUES(2);
 COMMIT;
 --source include/wait_until_disconnected.inc
 
---enable_reconnect
 --echo # Restart the master server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo #
 --echo # Verify that a transaction can be recovered during server

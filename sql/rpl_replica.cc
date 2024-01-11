@@ -8550,7 +8550,6 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
 
     thd->set_active_vio(mysql->net.vio);
   }
-  mysql->reconnect = true;
   DBUG_PRINT("exit", ("replica_was_killed: %d", replica_was_killed));
   return replica_was_killed;
 }
