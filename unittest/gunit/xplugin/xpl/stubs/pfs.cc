@@ -31,12 +31,18 @@
 #include "my_inttypes.h"
 #include "mysql/components/services/bits/psi_cond_bits.h"
 #include "mysql/components/services/bits/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_metric_bits.h"
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/bits/psi_rwlock_bits.h"
 #include "mysql/components/services/bits/psi_socket_bits.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/components/services/bits/psi_thread_bits.h"
+
+#ifdef HAVE_PSI_METRICS_INTERFACE
+void pfs_register_meters_v1(PSI_meter_info_v1 *, size_t) {}
+void pfs_unregister_meters_v1(PSI_meter_info_v1 *, size_t) {}
+#endif  // HAVE_PSI_METRICS_INTERFACE
 
 #ifndef WITH_LOCK_ORDER
 

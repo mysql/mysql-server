@@ -28,7 +28,8 @@
 #include <memory>
 
 #include "my_config.h"  // NOLINT(build/include_subdir)
-                        // NOLINT(build/include_subdir)
+
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
 #include "mysql/service_plugin_registry.h"
 #include "violite.h"  // NOLINT(build/include_subdir)
 
@@ -133,6 +134,8 @@ void conditional_sync_point(std::string) {}
 
 uint opt_debug_sync_timeout;
 void debug_sync(THD *, char const *, size_t) {}
+
+sigset_t mysqld_signal_mask;
 
 #ifdef HAVE_SETNS
 bool set_network_namespace(const std::string &) { return false; }
