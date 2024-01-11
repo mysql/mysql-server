@@ -7490,14 +7490,9 @@ int heartbeat_queue_event(bool is_valid, Master_info *&mi,
                           std::string binlog_name, uint64_t position,
                           unsigned long &inc_pos, bool &do_flush_mi) {
   if (!is_valid) {
-    char errbuf[1024];
-    char llbuf[22];
-    sprintf(errbuf,
-            "inconsistent heartbeat event content; the event's data: "
-            "log_file_name %-.512s log_pos %s",
-            binlog_name.c_str(), llstr(position, llbuf));
     mi->report(ERROR_LEVEL, ER_REPLICA_HEARTBEAT_FAILURE,
-               ER_THD(current_thd, ER_REPLICA_HEARTBEAT_FAILURE), errbuf);
+               ER_THD(current_thd, ER_REPLICA_HEARTBEAT_FAILURE),
+               "heartbeat event content seems corrupted");
     return 1;
   }
   {
@@ -7518,9 +7513,10 @@ int heartbeat_queue_event(bool is_valid, Master_info *&mi,
       any history with the master (and thereafter mi->get_master_log_pos() is
       NULL).
 
-      TODO: handling `when' for SHOW REPLICA STATUS' snds behind
+      TODO: handling `when' for SHOW REPLICA STATUS' ends behind
     */
-    if (mi_log_filename.compare(binlog_name) != 0) {
+    if (mi_log_filename.compare(binlog_name) != 0 ||
+        DBUG_EVALUATE_IF("simulate_heartbeart_bogus_data_error", true, false)) {
       std::ostringstream oss;
       oss << "Replication heartbeat event contained the filename '"
           << binlog_name << "' which is different from '" << mi_log_filename
@@ -7912,7 +7908,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       std::string mi_log_filename{mi->get_master_log_name() != nullptr
                                       ? mi->get_master_log_name()
                                       : ""};
-      if (heartbeat_queue_event(hb.is_valid(), mi, mi_log_filename,
+      if (heartbeat_queue_event(hb.is_valid(), mi, hb.get_log_ident(),
                                 hb.header()->log_pos, inc_pos, do_flush_mi))
         goto err;
       else
@@ -7930,7 +7926,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       std::string mi_log_filename{mi->get_master_log_name() != nullptr
                                       ? mi->get_master_log_name()
                                       : ""};
-      if (heartbeat_queue_event(hb.is_valid(), mi, mi_log_filename,
+      if (heartbeat_queue_event(hb.is_valid(), mi, hb_log_filename,
                                 hb_log_position, inc_pos, do_flush_mi))
         goto err;
       else

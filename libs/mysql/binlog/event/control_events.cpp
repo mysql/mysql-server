@@ -810,7 +810,13 @@ Heartbeat_event::Heartbeat_event(const char *buf,
     READER_THROW("Invalid Heartbeat information");
 
   ident_len = READER_CALL(available_to_read);
+  if (ident_len == 0) READER_THROW("Event is smaller than expected");
+
   if (ident_len > FN_REFLEN - 1) ident_len = FN_REFLEN - 1;
+
+  READER_TRY_SET(log_ident, strndup<const char *>, ident_len);
+  if (log_ident == 0)
+    READER_THROW("Invalid binary log file name in Heartbeat event");
 
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;

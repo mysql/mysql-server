@@ -1758,6 +1758,10 @@ class Heartbeat_event : public Binary_log_event {
   // Return the length of file name
   unsigned int get_ident_len() { return ident_len; }
 
+  ~Heartbeat_event() {
+    if (log_ident) bapi_free(const_cast<char *>(log_ident));
+  }
+
  protected:
   const char *log_ident;
   unsigned int ident_len; /** filename length */

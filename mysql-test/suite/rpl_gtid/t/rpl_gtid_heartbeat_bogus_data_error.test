@@ -1,0 +1,77 @@
+# ==== Purpose ====
+#
+# Verify that the error message for ER_REPLICA_HEARTBEAT_FAILURE on the
+# replica doesn't contains bogus data.
+#
+# ==== Requirements ====
+#
+# This test will check when receiving unexpected data in a valid
+# Heartbeat Event, the server is printing correct source log filename.
+#
+# ==== Design ====
+#
+# The test case will generate three transactions on the source and will
+# force the replica to request the source to skip one of the transactions.
+#
+# The source will send a heartbeat event after skipping the transaction the
+# replica informed to have.
+#
+# Finally, the test will inspect the replica error log for the proper error
+# message.
+#
+# ==== Reference =====
+#
+# Bug#29913928: ER_SLAVE_HEARTBEAT_FAILURE PRINTS BOGUS DATA IN SERVER ERROR LOG
+#
+
+--source include/have_debug.inc
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--let $debug_point= use_old_heartbeat_version
+--source include/add_debug_point.inc
+
+--source include/master-slave.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
+INSERT INTO t1 (c2) VALUES ('MySQL');
+SET GTID_NEXT=AUTOMATIC;
+--source include/save_master_pos.inc
+DROP TABLE t1;
+
+--source include/rpl_connection_slave.inc
+
+# Suppression of error messages
+CALL mtr.add_suppression("Unexpected source's heartbeat data");
+CALL mtr.add_suppression("could not queue event from source");
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+
+--let $debug_point= simulate_heartbeart_bogus_data_error
+--source include/add_debug_point.inc
+START REPLICA IO_THREAD;
+
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+--source include/remove_debug_point.inc
+
+--let $assert_text= Found error message with correct filename
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= contained the filename .* which is different from '$_saved_file'
+--let $assert_only_after= CHANGE REPLICATION SOURCE TO FOR CHANNEL
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--let $debug_point= use_old_heartbeat_version
+--source include/remove_debug_point.inc
+
+--source include/rpl_end.inc
+

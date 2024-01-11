@@ -1,0 +1,29 @@
+# Adding debug point 'use_old_heartbeat_version' to @@GLOBAL.debug
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
+INSERT INTO t1 (c2) VALUES ('MySQL');
+SET GTID_NEXT=AUTOMATIC;
+include/save_master_pos.inc
+DROP TABLE t1;
+[connection slave]
+CALL mtr.add_suppression("Unexpected source's heartbeat data");
+CALL mtr.add_suppression("could not queue event from source");
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+# Adding debug point 'simulate_heartbeart_bogus_data_error' to @@GLOBAL.debug
+START REPLICA IO_THREAD;
+include/wait_for_slave_io_error.inc [errno=13122]
+Last_IO_Error = 'Relay log write failure: could not queue event from source'
+# Removing debug point 'simulate_heartbeart_bogus_data_error' from @@GLOBAL.debug
+include/assert_grep.inc [Found error message with correct filename]
+include/start_slave.inc
+[connection master]
+# Removing debug point 'use_old_heartbeat_version' from @@GLOBAL.debug
+include/rpl_end.inc
