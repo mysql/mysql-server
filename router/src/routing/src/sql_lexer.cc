@@ -1357,6 +1357,8 @@ std::string_view SqlLexer::iterator::get_token_text(TokenId token_id) const {
     return {"\0", 1};
   } else if (token_id == 0) {  // YYEOF
     return {};
+  } else if (token_id == ABORT_SYM) {
+    return raw_token;
   } else if (token_id < 256) {  // 0-255 are plain ASCII characters
     return raw_token;
   } else if (token_id == IDENT) {
