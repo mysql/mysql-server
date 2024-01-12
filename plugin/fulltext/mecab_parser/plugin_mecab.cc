@@ -158,7 +158,7 @@ static int mecab_parser_plugin_init(void *) {
 }
 
 /** MeCab parser plugin deinit
-@retval	0 */
+@retval	0 always*/
 static int mecab_parser_plugin_deinit(void *) {
   delete mecab_tagger;
   mecab_tagger = NULL;
