@@ -4925,9 +4925,6 @@ static void do_perl(struct st_command *command) {
     }
     error = pclose(res_file);
 
-    /* Remove the temporary file, but keep it if perl failed */
-    if (!error) my_delete(temp_file_path, MYF(0));
-
     /* Check for error code that indicates perl could not be started */
     const int exstat = WEXITSTATUS(error);
 #ifdef _WIN32
@@ -4938,6 +4935,12 @@ static void do_perl(struct st_command *command) {
 #endif
     else
       handle_command_error(command, exstat);
+
+    /*
+      Perl script has ended with expected exit status.
+      Now remove the temporary script file.
+    */
+    my_delete(temp_file_path, MYF(0));
   }
   dynstr_free(&ds_delimiter);
 }
