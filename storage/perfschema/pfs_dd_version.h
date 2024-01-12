@@ -231,8 +231,29 @@
 
    - WL#15199: PERFORMANCE_SCHEMA, OTEL METRICS INTERFACE
       New tables setup_meters, setup_metrics added to performance_schema
+
+  80300:
+
+   - WL#15294: Extending GTID with tags to identify group of transactions
+      Modified performance schema tables:
+      - replication_connection_status:
+        - LAST_QUEUED_TRANSACTION 57->90 bytes
+        - QUEUEING_TRANSACTION 57->90 bytes
+      - replication_applier_status_by_coordinator:
+        - LAST_PROCESSED_TRANSACTION 57->90 bytes
+        - PROCESSING_TRANSACTION  57->90 bytes
+      - replication_applier_status_by_worker
+        - APPLYING_TRANSACTION 57->90 bytes
+        - LAST_APPLIED_TRANSACTION 57->90 bytes
+      - events_transactions_current:
+        - GTID 64->90 bytes
+      - events_transactions_history:
+        - GTID 64->90 bytes
+      - events_transactions_history_long:
+        - GTID 64->90 bytes
+
 */
 
-static const uint PFS_DD_VERSION = 80200;
+static const uint PFS_DD_VERSION = 80300;
 
 #endif /* PFS_DD_VERSION_H */
