@@ -36,6 +36,7 @@
 #include <UtilTransactions.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include "../src/kernel/ndbd.hpp"
+#include "NdbMgmd.hpp"
 #include "util/require.h"
 
 #define CHK(b, e)                                                         \
@@ -5275,9 +5276,9 @@ int runSlowGCPCompleteAck(NDBT_Context *ctx, NDBT_Step *step) {
   return result;
 }
 
-#include "NdbMgmd.hpp"
 int runGetLogEventParsable(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_INFO, 0};
@@ -5383,6 +5384,7 @@ int runGetLogEventParsable(NDBT_Context *ctx, NDBT_Step *step) {
 int runGetLogEventPretty(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_INFO, 0};

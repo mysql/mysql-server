@@ -3748,6 +3748,7 @@ int runCheckLCPStats(NDBT_Context *ctx, NDBT_Step *step) {
     ;
 
   NdbMgmd mgmd;
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   CHECK3(mgmd.connect());
   CHECK3(mgmd.subscribe_to_events());
   Uint32 no_of_replicas =

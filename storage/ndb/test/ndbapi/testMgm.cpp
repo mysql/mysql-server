@@ -86,6 +86,7 @@ int runTestApiSession(NDBT_Context *ctx, NDBT_Step *step) {
 
 int runTestApiConnectTimeout(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
 
   g_info << "Check connect works with timeout 3000" << endl;
   if (!mgmd.set_timeout(3000)) return NDBT_FAILED;
@@ -741,6 +742,7 @@ int runTestMgmApiReadErrorRestart(NDBT_Context *ctx, NDBT_Step *step) {
 int runSetConfig(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int loops = ctx->getNumLoops();
@@ -776,6 +778,7 @@ int runSetConfigUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
 int runGetConfig(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int loops = ctx->getNumLoops();
@@ -887,6 +890,7 @@ static bool check_get_config_wrong_type(NdbMgmd &mgmd) {
  */
 int runGetConfigFromNode(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   if (!check_get_config_wrong_type(mgmd) ||
@@ -932,6 +936,7 @@ int runTestStatus(NDBT_Context *ctx, NDBT_Step *step) {
   struct ndb_mgm_cluster_state *state;
   int iterations = ctx->getNumLoops();
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int result = NDBT_OK;
@@ -1245,6 +1250,7 @@ static bool check_get_nodeid_wrong_nodetype(NdbMgmd &mgmd) {
 int runTestGetNodeId(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int result = NDBT_FAILED;
@@ -1321,6 +1327,7 @@ static bool check_transporter_connect(NdbMgmd &mgmd, const char *hello) {
 int runTestTransporterConnect(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int result = NDBT_FAILED;
@@ -1365,6 +1372,7 @@ int runCheckConfig(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
   // Connect to any mgmd and get the config
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   Properties args1;
@@ -1386,6 +1394,7 @@ int runCheckConfig(NDBT_Context *ctx, NDBT_Step *step) {
   // they all have the same config
   for (unsigned i = 0; i < mgmds.size(); i++) {
     NdbMgmd mgmd2;
+    mgmd2.use_tls(opt_tls_search_path, opt_mgm_tls);
     g_info << "Connecting to " << mgmds[i].c_str() << endl;
     if (!mgmd2.connect(mgmds[i].c_str())) return NDBT_FAILED;
 
@@ -1498,6 +1507,7 @@ static bool check_reload_config_invalid_config_filename(NdbMgmd &mgmd,
 int runTestReloadConfig(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   Properties variables;
@@ -1663,6 +1673,7 @@ static bool check_set_config_any_node(NDBT_Context *ctx, NDBT_Step *step,
   // they all have the same config
   for (unsigned i = 0; i < mgmds.size(); i++) {
     NdbMgmd mgmd2;
+    mgmd2.use_tls(opt_tls_search_path, opt_mgm_tls);
     g_info << "Connecting to " << mgmds[i].c_str() << endl;
     if (!mgmd2.connect(mgmds[i].c_str())) return false;
 
@@ -1722,6 +1733,7 @@ static bool check_set_config_fail_wrong_primary(NdbMgmd &mgmd) {
 int runTestSetConfig(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int result = NDBT_FAILED;
@@ -1744,6 +1756,7 @@ int runTestSetConfig(NDBT_Context *ctx, NDBT_Step *step) {
 int runTestSetConfigParallel(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int result = NDBT_OK;
@@ -1993,6 +2006,7 @@ static bool check_connection_parameter(NdbMgmd &mgmd) {
 int runTestConnectionParameter(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int result = NDBT_FAILED;
@@ -2164,6 +2178,7 @@ static bool check_set_ports_mgmapi(NdbMgmd &mgmd) {
     ndbout_c("Not connected");
     NdbMgmd no_con;
     no_con.verbose(false);
+    no_con.use_tls(opt_tls_search_path, opt_mgm_tls);
     if (no_con.connect("no_such_host:12345", 0, 1)) {
       // Connect should not succeed!
       return false;
@@ -2381,6 +2396,7 @@ static bool check_set_ports(NdbMgmd &mgmd) {
 int runTestSetPorts(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int result = NDBT_FAILED;
@@ -2406,6 +2422,7 @@ static bool check_restart_connected(NdbMgmd &mgmd) {
 int runTestRestartMgmd(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int result = NDBT_FAILED;
@@ -2449,6 +2466,7 @@ static bool get_logfilter(NdbMgmd &mgmd, enum ndb_mgm_event_severity severity,
 int runTestSetLogFilter(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   for (int i = 0; i < (int)NDB_MGM_EVENT_SEVERITY_ALL; i++) {
@@ -2503,6 +2521,7 @@ int runTestSetLogFilter(NDBT_Context *ctx, NDBT_Step *step) {
 int runTestBug40922(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_BACKUP, 1,
@@ -2597,6 +2616,7 @@ int runTestBug16723708(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   int result = NDBT_FAILED;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_BACKUP,
@@ -2668,6 +2688,7 @@ int runTestBug16723708(NDBT_Context *ctx, NDBT_Step *step) {
 static int runTestGetVersion(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   char verStr[64];
@@ -2737,6 +2758,7 @@ static int runTestGetVersionUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
 int runTestDumpEvents(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   // Test with unsupported logevent_type
@@ -2828,6 +2850,7 @@ int runTestDumpEvents(NDBT_Context *ctx, NDBT_Step *step) {
 int runTestStatusAfterStop(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   ndb_mgm_node_type node_types[2] = {NDB_MGM_NODE_TYPE_NDB,
@@ -2897,6 +2920,7 @@ int sort_ng(const void *_e0, const void *_e1) {
 int runBug12928429(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) {
     return NDBT_FAILED;
   }
@@ -3051,6 +3075,7 @@ int runBug12928429(NDBT_Context *ctx, NDBT_Step *step) {
 int runTestNdbApiConfig(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   struct test_parameter {
@@ -3165,6 +3190,7 @@ static int runTestCreateLogEvent(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
   int loops = ctx->getNumLoops();
 
+  mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0};

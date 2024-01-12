@@ -31,6 +31,7 @@
 #include <HugoTransactions.hpp>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
+#include <NdbMgmd.hpp>
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
 #include <UtilTransactions.hpp>
@@ -4798,8 +4799,6 @@ int runTestUnlockScan(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-#include <NdbMgmd.hpp>
-
 class NodeIdReservations {
   bool m_ids[MAX_NODES];
   NdbMutex m_mutex;
@@ -4867,6 +4866,7 @@ int runNdbClusterConnectInit(NDBT_Context *ctx, NDBT_Step *step) {
   {
     NdbMgmd mgmd;
 
+    mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
     if (!mgmd.connect()) return NDBT_FAILED;
 
     ndb_mgm_node_type node_types[2] = {NDB_MGM_NODE_TYPE_API,

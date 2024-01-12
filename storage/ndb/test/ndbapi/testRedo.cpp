@@ -1166,6 +1166,7 @@ static int resizeRedoLog(NDBT_Context *ctx, NDBT_Step *step) {
 
   do {
     NdbMgmd mgmd;
+    mgmd.use_tls(opt_tls_search_path, opt_mgm_tls);
     if (!mgmd.connect()) {
       g_err << "Failed to connect to ndb_mgmd." << endl;
       break;

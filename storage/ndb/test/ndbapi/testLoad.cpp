@@ -31,7 +31,6 @@
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <NdbConfig.hpp>
-#include <NdbMgmd.hpp>
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
 #include <RefConvert.hpp>

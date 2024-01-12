@@ -28,7 +28,6 @@
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <NdbBackup.hpp>
-#include <NdbMgmd.hpp>
 #include <NdbRestarter.hpp>
 #include <UtilTransactions.hpp>
 #include <Vector.hpp>

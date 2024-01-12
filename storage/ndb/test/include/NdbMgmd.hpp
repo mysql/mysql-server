@@ -33,6 +33,7 @@
 
 #include <BaseString.hpp>
 #include <Properties.hpp>
+#include "NDBT_Output.hpp"
 
 #include <OutputStream.hpp>
 #include <SocketInputStream2.hpp>
@@ -51,6 +52,8 @@ class NdbMgmd {
   bool m_verbose;
   unsigned int m_timeout;
   unsigned int m_version;
+  const char *m_tls_path;
+  unsigned long long m_tls_level;
   NdbSocket m_event_socket;
 
   void error(const char *msg, ...) ATTRIBUTE_FORMAT(printf, 2, 3) {
@@ -77,7 +80,9 @@ class NdbMgmd {
         m_nodeid(0),
         m_verbose(true),
         m_timeout(0),
-        m_version(NDB_VERSION) {
+        m_version(NDB_VERSION),
+        m_tls_path(nullptr),
+        m_tls_level(0) {
     const char *connect_string = getenv("NDB_CONNECTSTRING");
     if (connect_string) m_connect_str.assign(connect_string);
   }
@@ -110,6 +115,11 @@ class NdbMgmd {
     m_connect_str.assign(connect_str);
   }
 
+  void use_tls(const char *path, unsigned long long level) {
+    m_tls_path = path;
+    m_tls_level = level;
+  }
+
   bool set_timeout(unsigned int timeout) {
     m_timeout = timeout;
     if (m_handle && ndb_mgm_set_timeout(m_handle, timeout) != 0) {
@@ -131,10 +141,6 @@ class NdbMgmd {
                int retry_delay_in_seconds = 5, bool use_tls = true) {
     require(m_handle == NULL);
 
-    TlsKeyManager tlsKeyManager;
-    extern const char *opt_tls_search_path;
-    extern unsigned long long opt_mgm_tls;
-
     m_handle = ndb_mgm_create_handle();
     if (!m_handle) {
       error("connect: ndb_mgm_create_handle failed");
@@ -154,11 +160,12 @@ class NdbMgmd {
     }
 
     int connect_status = -1;
-    if (use_tls) {
-      tlsKeyManager.init_mgm_client(opt_tls_search_path);
+    if (m_tls_path) {
+      TlsKeyManager tlsKeyManager;
+      tlsKeyManager.init_mgm_client(m_tls_path);
       ndb_mgm_set_ssl_ctx(m_handle, tlsKeyManager.ctx());
       connect_status = ndb_mgm_connect_tls(
-          m_handle, num_retries, retry_delay_in_seconds, 0, opt_mgm_tls);
+          m_handle, num_retries, retry_delay_in_seconds, 0, m_tls_level);
     } else {
       connect_status =
           ndb_mgm_connect(m_handle, num_retries, retry_delay_in_seconds, 0);
