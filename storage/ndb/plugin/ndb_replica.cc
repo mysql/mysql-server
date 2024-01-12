@@ -306,6 +306,8 @@ std::unique_ptr<Ndb_replica> ndb_replica;
 static int replica_applier_start(Binlog_relay_IO_param *param) {
   DBUG_TRACE;
 
+  ndb_log_info("Handling START REPLICA");
+
   // Only allow default channel (ie. name = "") to be started
   const std::string channel_name(param->channel_name);
   if (channel_name != "") {
@@ -337,6 +339,9 @@ static int replica_applier_start(Binlog_relay_IO_param *param) {
  */
 static int replica_applier_stop(Binlog_relay_IO_param *param, bool) {
   DBUG_TRACE;
+
+  ndb_log_info("Handling STOP REPLICA");
+
   if (!ndb_replica->stop_channel(param->channel_name)) {
     ndb_log_error("Replica: Failed to remove channel '%s'",
                   param->channel_name);
@@ -354,6 +359,8 @@ static int replica_applier_stop(Binlog_relay_IO_param *param, bool) {
  */
 static int replica_reset(Binlog_relay_IO_param *param) {
   DBUG_TRACE;
+
+  ndb_log_info("Handling RESET REPLICA");
 
   if (!ndb_replica->reset_channel(param->channel_name)) {
     ndb_log_error("Replica: Failed to reset channel '%s'", param->channel_name);
