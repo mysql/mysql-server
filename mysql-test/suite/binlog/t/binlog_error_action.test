@@ -55,6 +55,7 @@ SET GLOBAL binlog_error_action= ABORT_SERVER;
 --replace_regex /\.[\\\/]binlog/binlog/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
+--source include/wait_until_disconnected.inc
 --chmod 0666 $INDEX
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
@@ -67,6 +68,7 @@ SET GLOBAL binlog_error_action= ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
+--source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
@@ -78,6 +80,7 @@ SET GLOBAL binlog_error_action= ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
+--source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
@@ -87,6 +90,7 @@ SET GLOBAL binlog_error_action= ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
+--source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
@@ -183,6 +187,7 @@ SET SESSION debug='+d,error_unique_log_filename';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 FLUSH LOGS;
+--source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 DROP TABLE t1;
@@ -215,6 +220,7 @@ SET GLOBAL binlog_error_action = ABORT_SERVER;
 # ER_BINLOG_LOGGING_IMPOSSIBLE when binlog_error_action= 'ABORT_SERVER'.
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 INSERT INTO t1 VALUES (1);
+--source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
@@ -283,6 +289,7 @@ SET GLOBAL binlog_error_action = ABORT_SERVER;
 # ER_BINLOG_LOGGING_IMPOSSIBLE when binlog_error_action= 'ABORT_SERVER'.
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 INSERT INTO t1 VALUES (1);
+--source include/wait_until_disconnected.inc
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
@@ -325,6 +332,7 @@ SET GLOBAL binlog_error_action = ABORT_SERVER;
 # ER_BINLOG_LOGGING_IMPOSSIBLE when binlog_error_action= 'ABORT_SERVER'.
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 INSERT INTO t1 VALUES (1);
+--source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
@@ -503,6 +511,7 @@ DROP table t1, t2;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 FLUSH LOGS;
+--source include/wait_until_disconnected.inc
 --exec echo "$restart_parameters" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 SET @@GLOBAL.binlog_encryption=OFF;
@@ -528,6 +537,7 @@ UNINSTALL PLUGIN keyring_file;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 FLUSH LOGS;
+--source include/wait_until_disconnected.inc
 --exec echo "$restart_parameters" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 SET @@GLOBAL.binlog_encryption=OFF;
