@@ -937,6 +937,9 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   }  
   */
 
+  // 状态层buffer暂不需扩容，每个mtr分配一定空间即可
+  /* log_wait_for_space_in_log_buf(log, start_sn); */
+
   const sn_t start_sn = log_translate_lsn_to_sn(handle.start_lsn);
 
   const sn_t end_sn = log_translate_lsn_to_sn(handle.end_lsn);
