@@ -5147,6 +5147,7 @@ class handler {
     table_share = share;
   }
   const TABLE_SHARE *get_table_share() const { return table_share; }
+  const TABLE *get_table() const { return table; }
 
   /* Estimates calculation */
 

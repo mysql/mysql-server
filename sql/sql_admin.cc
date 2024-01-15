@@ -1785,6 +1785,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command_inner(
   });
 
   if (open_table_and_lock_histograms(thd, table, results)) return true;
+  DEBUG_SYNC(thd, "histogram_update_mdl_acquired");
 
   // UPDATE/DROP histograms. Commit on success. Rollback on error.
   switch (get_histogram_command()) {

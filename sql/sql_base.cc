@@ -830,6 +830,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
   */
   share->increment_ref_count();      // Mark in use
   share->m_open_in_progress = true;  // Mark being opened
+  DEBUG_SYNC(thd, "table_share_open_in_progress");
 
   /*
     Temporarily release LOCK_open before opening the table definition,
@@ -891,8 +892,8 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
       /*
         Read any existing histogram statistics from the data dictionary and
         store a copy of them in the TABLE_SHARE. We only perform this step for
-        non-temporary tables, since temporary tables have share->m_histograms
-        set to nullptr.
+        non-temporary and primary engine tables. When these conditions are not
+        met m_histograms is nullptr.
 
         We need to do this outside the protection of LOCK_open, since the data
         dictionary might have to open tables in order to read histogram data

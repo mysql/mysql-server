@@ -100,7 +100,7 @@ object, because the appropriate protection should already be in place. For
 example, for the insert() in sql_base.cc:get_table_share() we do not use mutex
 protection since we are in the process of constructing the TABLE_SHARE.
 
--- insert() in sql_admin.cc:update_share_histograms(): protected by LOCK_open.
+-- insert() in histogram.cc:update_share_histograms(): protected by LOCK_open.
 
 -- acquire() in table.cc:open_table_from_share(): protected by LOCK_open.
 

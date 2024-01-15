@@ -1,0 +1,18 @@
+#
+# Bug#36186180 Updating histograms on offloaded tables can deadlock
+#
+CREATE TABLE t1(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1), (2), (3);
+ALTER TABLE t1 SECONDARY_LOAD;
+connect  con1,localhost,root;
+SET DEBUG_SYNC="histogram_update_mdl_acquired SIGNAL histogram_update_ongoing WAIT_FOR secondary_engine_share_open_in_progress";
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x;
+connection default;
+SET DEBUG_SYNC="now WAIT_FOR histogram_update_ongoing";
+SET DEBUG_SYNC="table_share_open_in_progress SIGNAL secondary_engine_share_open_in_progress";
+SELECT * FROM t1;
+x
+connection con1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+DROP TABLE t1;

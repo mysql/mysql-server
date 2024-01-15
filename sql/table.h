@@ -2469,6 +2469,12 @@ struct TABLE {
   /**
     Find the histogram for the given field index.
 
+    @note If this is called on a TABLE object that belongs to a secondary
+    engine, it will take a round-trip through the handler in order to obtain the
+    histogram from the TABLE object associated with the primary engine. This is
+    done to avoid storing histograms on both the primary and secondary
+    TABLE_SHARE.
+
     @param field_index The index of the field we want to find a histogram for.
 
     @retval nullptr if no histogram is found.

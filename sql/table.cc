@@ -7850,8 +7850,11 @@ void TABLE::disable_logical_diffs_for_current_row(const Field *field) const {
 }
 
 const histograms::Histogram *TABLE::find_histogram(uint field_index) const {
-  if (histograms == nullptr) return nullptr;
-  return histograms->find_histogram(field_index);
+  const handler *primary = get_primary_handler();
+  if (primary == nullptr) return nullptr;
+  const TABLE *table = primary->get_table();
+  if (table == nullptr || table->histograms == nullptr) return nullptr;
+  return table->histograms->find_histogram(field_index);
 }
 
 //////////////////////////////////////////////////////////////////////////

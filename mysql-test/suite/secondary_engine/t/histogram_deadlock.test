@@ -1,0 +1,34 @@
+--source include/have_debug_sync.inc
+--disable_query_log
+eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
+--enable_query_log
+
+--echo #
+--echo # Bug#36186180 Updating histograms on offloaded tables can deadlock
+--echo #
+
+CREATE TABLE t1(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1), (2), (3);
+ALTER TABLE t1 SECONDARY_LOAD;
+
+--enable_connect_log
+--connect (con1,localhost,root)
+SET DEBUG_SYNC="histogram_update_mdl_acquired SIGNAL histogram_update_ongoing WAIT_FOR secondary_engine_share_open_in_progress";
+--send ANALYZE TABLE t1 UPDATE HISTOGRAM ON x
+
+--connection default
+SET DEBUG_SYNC="now WAIT_FOR histogram_update_ongoing";
+SET DEBUG_SYNC="table_share_open_in_progress SIGNAL secondary_engine_share_open_in_progress";
+# Without the fix this query will deadlock because it gets stuck waiting for UPDATE HISTOGRAM
+# to release histogram MDL while opening the secondary share, and at the same time the histogram update
+# is stuck waiting for the secondary share to be opened.
+SELECT * FROM t1;
+
+--connection con1
+--reap;
+
+DROP TABLE t1;
+
+--disable_query_log
+UNINSTALL PLUGIN mock;
+--enable_query_log

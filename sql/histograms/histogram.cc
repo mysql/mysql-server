@@ -1486,53 +1486,15 @@ bool update_share_histograms(THD *thd, Table_ref *table) {
       MDL_key::TABLE, table->db, table->table_name, MDL_SHARED_READ));
   assert(table->table != nullptr);
 
-  // If the table has a shadow copy in a secondary engine we must retrieve the
-  // TABLE_SHARE for the secondary engine as well.
   TABLE_SHARE *share = table->table->s;
-  TABLE_SHARE *secondary_share = nullptr;
-  if (share->has_secondary_engine()) {
-    mysql_mutex_lock(&LOCK_open);
-    std::string secondary_key =
-        create_table_def_key_secondary(table->db, table->table_name);
-    secondary_share = get_table_share(
-        thd, table->db, table->table_name, secondary_key.c_str(),
-        secondary_key.length(), /*open_view=*/false, /*open_secondary=*/true);
-    mysql_mutex_unlock(&LOCK_open);
-  }
-  if (share->has_secondary_engine() && secondary_share == nullptr) return true;
-
-  auto share_guard = create_scope_guard([secondary_share]() {
-    if (secondary_share != nullptr) {
-      mysql_mutex_lock(&LOCK_open);
-      release_table_share(secondary_share);
-      mysql_mutex_unlock(&LOCK_open);
-    }
-  });
-
-  // Create Table_histograms objects for the primary and secondary share (if it
-  // exists) together with scope guards to clean up in case of failure.
   Table_histograms *table_histograms =
       Table_histograms::create(key_memory_table_share);
   if (table_histograms == nullptr) return true;
   auto table_histograms_guard =
       create_scope_guard([table_histograms]() { table_histograms->destroy(); });
 
-  Table_histograms *table_histograms_secondary = nullptr;
-  if (secondary_share != nullptr) {
-    table_histograms_secondary =
-        Table_histograms::create(key_memory_table_share);
-    if (table_histograms_secondary == nullptr) return true;
-  }
-
-  auto table_histograms_secondary_guard =
-      create_scope_guard([table_histograms_secondary]() {
-        if (table_histograms_secondary != nullptr) {
-          table_histograms_secondary->destroy();
-        }
-      });
-
   // Retrieve histograms from the data dictionary and add them to the
-  // TABLE_SHARE.
+  // set of table_histograms that is to be inserted into the TABLE_SHARE.
   for (size_t i = 0; i < share->fields; ++i) {
     const Field *field = share->field[i];
     if (field->is_hidden_by_system()) continue;
@@ -1543,44 +1505,20 @@ bool update_share_histograms(THD *thd, Table_ref *table) {
       return true;
     }
 
-    if (histogram != nullptr) {
-      if (table_histograms->insert_histogram(field->field_index(), histogram)) {
-        return true;
-      }
-      if (table_histograms_secondary &&
-          table_histograms_secondary->insert_histogram(field->field_index(),
-                                                       histogram)) {
-        return true;
-      }
+    if (histogram != nullptr &&
+        table_histograms->insert_histogram(field->field_index(), histogram)) {
+      return true;
     }
   }
 
-  // Disable the scope guard that would release the secondary share and attempt
-  // to insert the new histogram snapshots and release the secondary share if it
-  // was acquired. Since acquiring/releasing shares and modifying the collection
-  // of histograms on the share is protected by LOCK_open we attempt to reduce
-  // the number of lock/unlock pairs by grouping these operations together.
-  share_guard.commit();
-
-  bool error = false;
   mysql_mutex_lock(&LOCK_open);
-  if (share->m_histograms->insert(table_histograms)) {
-    error = true;
-  } else {
+  const bool error = share->m_histograms->insert(table_histograms);
+  mysql_mutex_unlock(&LOCK_open);
+  if (!error) {
     // If the insertion succeeded ownership responsibility was passed on, so we
     // can disable the scope guard that would free the Table_histograms object.
     table_histograms_guard.commit();
   }
-
-  if (secondary_share != nullptr) {
-    if (secondary_share->m_histograms->insert(table_histograms_secondary)) {
-      error = true;
-    } else {
-      table_histograms_secondary_guard.commit();
-    }
-    release_table_share(secondary_share);
-  }
-  mysql_mutex_unlock(&LOCK_open);
   return error;
 }
 

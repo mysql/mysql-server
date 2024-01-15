@@ -274,7 +274,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
   // Setup other fields =====================================================
 
-  if (share->tmp_table == NO_TMP_TABLE) {
+  if (share->tmp_table == NO_TMP_TABLE && share->is_primary_engine()) {
     share->m_histograms = new (&share->mem_root) Table_histograms_collection();
     if (share->m_histograms == nullptr) return true;  // OOM.
   }

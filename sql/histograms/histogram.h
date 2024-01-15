@@ -805,8 +805,7 @@ bool auto_update_table_histograms(THD *thd, Table_ref *table);
 /**
   Retrieve an updated snapshot of the histograms on a table directly from the
   dictionary (in an inefficient manner, querying all columns) and inserts this
-  snapshot in the Table_histograms_collection on the TABLE_SHARE. If the table
-  has a secondary engine we also insert a new snapshot on the secondary share.
+  snapshot in the Table_histograms_collection on the TABLE_SHARE.
 
   @param thd The current thread.
   @param table The table to retrieve updated histograms for.
@@ -814,11 +813,8 @@ bool auto_update_table_histograms(THD *thd, Table_ref *table);
   @note This function assumes that the table is opened and generally depends on
   the surrounding context. It also locks/unlocks LOCK_OPEN.
 
-  @return False on success. Returns true if an error occurred in which case it
-  can have happened that none of the shares were updated, or that only one of
-  the shares (primary and secondary) were updated, even though we intended to
-  update both. In other words if this function returns true we do not know to
-  what extent the share(s) reflect the dictionary state.
+  @return False on success. Returns true if an error occurred in which case the
+  TABLE_SHARE will not have been updated.
 */
 bool update_share_histograms(THD *thd, Table_ref *table);
 
