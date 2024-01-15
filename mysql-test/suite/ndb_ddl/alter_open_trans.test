@@ -62,6 +62,7 @@ connection mysqld1;
 --error ER_TABLE_DEF_CHANGED
 select * from t1;
 show warnings;
+--error ER_TABLE_DEF_CHANGED
 select * from t1;
 drop table t1;
 

@@ -25,7 +25,9 @@ SET autocommit = 0;
 SELECT * FROM t1;
 
 # Without fix below select was resulting in DEADLOCK error. With fix select
-# should succeed.
+# should succeed and return erorr indicating that table definition is outdated
+# and can't be discovered.
+--error ER_TABLE_DEF_CHANGED
 SELECT * FROM t2;
 ROLLBACK;
 SET autocommit = 1;
@@ -43,6 +45,7 @@ drop table t2;
 
 SET autocommit = 0;
 SELECT * FROM t1;
+--error ER_TABLE_DEF_CHANGED
 SELECT * FROM t2;
 
 connect(con2, localhost, root);

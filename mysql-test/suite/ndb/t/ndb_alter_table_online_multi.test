@@ -43,6 +43,8 @@ connection server2;
 --error ER_TABLE_DEF_CHANGED
 update t1 set b = 0 where a = 2;
 show warnings;
+# Cancel the effects of this transaction, need to start over,
+rollback;
 
 connection server1;
 SELECT * FROM t1 ORDER BY a;
