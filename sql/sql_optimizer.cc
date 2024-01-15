@@ -6570,6 +6570,7 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       */
       return item_field->field->part_of_key.is_set(keyno) &&
              item_field->field->type() != MYSQL_TYPE_GEOMETRY &&
+             item_field->field->type() != MYSQL_TYPE_VECTOR &&
              item_field->field->type() != MYSQL_TYPE_BLOB;
     }
     case Item::REF_ITEM:
@@ -11422,8 +11423,8 @@ static uint32 get_key_length_tmp_table(Item *item) {
 
   // references KEY_PART_INFO::init_from_field()
   const enum_field_types type = item->data_type();
-  if (type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_VARCHAR ||
-      type == MYSQL_TYPE_GEOMETRY)
+  if (type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_VECTOR ||
+      type == MYSQL_TYPE_VARCHAR || type == MYSQL_TYPE_GEOMETRY)
     len += HA_KEY_BLOB_LENGTH;
 
   return len;

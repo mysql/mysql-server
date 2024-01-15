@@ -576,6 +576,13 @@ type_conversion_status Item::save_str_value_in_field(Field *field,
 }
 
 /**
+  Returns a string for a mysql field type.
+  @param type the type of the field.
+*/
+
+const char *fieldtype2str(enum enum_field_types type);
+
+/**
   Aggregates data types from array of items into current item
 
   @param name   name of function that performs type aggregation
@@ -620,7 +627,14 @@ bool Item::aggregate_type(const char *name, Item **items, uint count) {
     // Do not aggregate items with NULL type
     if (items[itemno]->data_type() == MYSQL_TYPE_NULL) continue;
     assert(items[itemno]->result_type() != ROW_RESULT);
-    new_type = Field::field_type_merge(new_type, real_data_type(items[itemno]));
+    auto left_type = new_type;
+    auto right_type = real_data_type(items[itemno]);
+    new_type = Field::field_type_merge(left_type, right_type);
+    if (new_type == MYSQL_TYPE_INVALID) {
+      my_error(ER_INCOMPATIBLE_TYPE_AGG, MYF(0), fieldtype2str(left_type),
+               fieldtype2str(right_type));
+      return true;
+    }
     mixed_signs |= (new_unsigned != items[itemno]->unsigned_flag);
     new_length = max<uint32>(new_length, items[itemno]->max_length);
   }
@@ -729,6 +743,7 @@ bool Item::aggregate_type(const char *name, Item **items, uint count) {
       set_data_type_json();
       break;
 
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_TINY_BLOB:
@@ -1264,6 +1279,21 @@ bool Item_field::check_function_as_value_generator(uchar *checker_args) {
   // the nullptr check.
   if (field == nullptr) {
     return false;
+  }
+
+  if (field->real_type() == MYSQL_TYPE_VECTOR) {
+    /* Vector typed column cannot be used in generated column expression */
+    if (func_args->source == VGS_DEFAULT_EXPRESSION) {
+      my_error(ER_INCORRECT_TYPE, MYF(0), field->field_name,
+               "DEFAULT EXPRESSION"); /* LCOV_EXCL_LINE */
+    } else if (func_args->source == VGS_CHECK_CONSTRAINT) {
+      my_error(ER_INCORRECT_TYPE, MYF(0), field->field_name,
+               "CHECK CONSTRAINT");
+    } else {
+      my_error(ER_INCORRECT_TYPE, MYF(0), field->field_name,
+               "GENERATED COLUMN");
+    }
+    return true;
   }
 
   const int fld_idx = func_args->col_index;
@@ -1864,7 +1894,8 @@ bool Item::is_blob_field() const {
   assert(fixed);
 
   const enum_field_types type = data_type();
-  return (type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_GEOMETRY ||
+  return (type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_VECTOR ||
+          type == MYSQL_TYPE_GEOMETRY ||
           // Char length, not the byte one, should be taken into account
           max_length / collation.collation->mbmaxlen >
               CONVERT_IF_BIGGER_TO_BLOB);
@@ -3940,6 +3971,10 @@ bool Item_param::propagate_type(THD *, const Type_properties &type) {
       break;
     case MYSQL_TYPE_JSON:
       set_data_type_json();
+      break;
+    case MYSQL_TYPE_VECTOR:
+      set_data_type_vector(
+          Field_vector::dimension_bytes(Field_vector::max_dimensions));
       break;
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
@@ -6717,6 +6752,10 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_VARCHAR:
       return make_string_field(table);
+    case MYSQL_TYPE_VECTOR:
+      field = new (*THR_MALLOC) Field_vector(
+          max_length, m_nullable, item_name.ptr(), collation.collation);
+      break;
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
@@ -7571,6 +7610,7 @@ bool Item::send(Protocol *protocol, String *buffer) {
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_VAR_STRING:
@@ -7679,6 +7719,7 @@ bool Item::evaluate(THD *thd, String *buffer) {
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_VAR_STRING:
@@ -8007,6 +8048,9 @@ bool Item::aggregate_string_properties(enum_field_types type, const char *name,
       set_data_type(type);
       decimals = DECIMAL_NOT_SPECIFIED;
       fix_char_length(char_width);
+      break;
+    case MYSQL_TYPE_VECTOR:
+      set_data_type_vector(char_width);
       break;
 
     default:
@@ -9311,6 +9355,7 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference) {
       are internally stored are BLOB only. Same applies to geometry type.
     */
     if ((def_field->type() == MYSQL_TYPE_BLOB ||
+         def_field->type() == MYSQL_TYPE_VECTOR ||
          def_field->type() == MYSQL_TYPE_GEOMETRY)) {
       try {
         thd->lex->insert_values_map(field_arg, def_field);
@@ -9370,7 +9415,7 @@ void Item_insert_value::bind_fields() {
   m_rowbuffer_saved = field->table->insert_values;
 
   Item_field *field_arg = down_cast<Item_field *>(arg->real_item());
-  if ((field->type() == MYSQL_TYPE_BLOB ||
+  if ((field->type() == MYSQL_TYPE_BLOB || field->type() == MYSQL_TYPE_VECTOR ||
        field->type() == MYSQL_TYPE_GEOMETRY)) {
     current_thd->lex->insert_values_map(field_arg, field);
   }
@@ -10692,6 +10737,7 @@ uint32 Item_aggregate_type::display_length(Item *item) {
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_GEOMETRY:

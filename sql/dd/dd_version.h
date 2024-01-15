@@ -217,10 +217,15 @@
   - WL#15786: Automatically updated histograms
     > Adds a boolean "auto-update" property to the histogram JSON object in
       the mysql.column_statistics table.
+
+  90000:
+  ----------------------------------------------------------------------------
+  Changes:
+  - WL#16081: Native Vector Embeddings Support In MySQL And HeatWave
  */
 namespace dd {
 
-static const uint DD_VERSION = 80300;
+static const uint DD_VERSION = 90000;
 static_assert(DD_VERSION <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
 

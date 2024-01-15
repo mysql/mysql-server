@@ -144,7 +144,8 @@ int get_quote_char_for_identifier(const THD *thd, const char *name,
                                   size_t length);
 
 void show_sql_type(enum_field_types type, bool is_array, uint metadata,
-                   String *str, const CHARSET_INFO *field_cs = nullptr);
+                   String *str, const CHARSET_INFO *field_cs = nullptr,
+                   unsigned int vector_dimensionality = 0);
 
 bool do_fill_information_schema_table(THD *thd, Table_ref *table_list,
                                       Item *condition);

@@ -189,6 +189,7 @@ unsigned int max_display_length_for_field(enum_field_types sql_type,
        */
       return uint_max(metadata * 8);
 
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_JSON:
@@ -347,6 +348,7 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_JSON: {
       /*

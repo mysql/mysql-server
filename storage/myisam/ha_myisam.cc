@@ -309,6 +309,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
         keydef[i].seg[j].null_pos = 0;
       }
       if (field->type() == MYSQL_TYPE_BLOB ||
+          field->type() == MYSQL_TYPE_VECTOR ||
           field->type() == MYSQL_TYPE_GEOMETRY) {
         keydef[i].seg[j].flag |= HA_BLOB_PART;
         /* save number of bytes used to pack length */

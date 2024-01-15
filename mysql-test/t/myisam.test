@@ -1832,3 +1832,11 @@ DELETE FROM t1 WHERE col1= '5cm' AND col1_dummy= '5cm';
 SELECT count(*) FROM t1 WHERE col1= '5cm';
 DROP TABLE t1;
 SET sql_mode = default;
+
+CREATE TABLE ta (pk INT, embedding VECTOR(4), PRIMARY KEY (pk)) ENGINE=MyISAM;
+INSERT INTO ta VALUES
+(0, TO_VECTOR("[1,2,3,4]")),
+(1, TO_VECTOR("[4,5,6,7]"));
+--sorted_result
+SELECT FROM_VECTOR(embedding) FROM ta;
+DROP TABLE ta;

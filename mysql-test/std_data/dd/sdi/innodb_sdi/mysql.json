@@ -5279,12 +5279,12 @@
                 "comment": "",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
-                "options": "interval_count=31;",
+                "options": "interval_count=32;",
                 "se_private_data": "table_id=X",
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON')",
+                "column_type_utf8": "enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON','MYSQL_TYPE_VECTOR')",
                 "elements": [
                     {
                         "name": "TVlTUUxfVFlQRV9ERUNJTUFM", "decoded-name": "MYSQL_TYPE_DECIMAL",
@@ -5409,6 +5409,10 @@
                     {
                         "name": "TVlTUUxfVFlQRV9KU09O", "decoded-name": "MYSQL_TYPE_JSON",
                         "index": 31
+                    },
+                    {
+                        "name": "TVlTUUxfVFlQRV9WRUNUT1I=", "decoded-name": "MYSQL_TYPE_VECTOR",
+                        "index": 32
                     }
                 ],
                 "collation_id": X,
@@ -13214,12 +13218,12 @@
                 "comment": "",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
-                "options": "interval_count=31;",
+                "options": "interval_count=32;",
                 "se_private_data": "table_id=X",
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON')",
+                "column_type_utf8": "enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON','MYSQL_TYPE_VECTOR')",
                 "elements": [
                     {
                         "name": "TVlTUUxfVFlQRV9ERUNJTUFM", "decoded-name": "MYSQL_TYPE_DECIMAL",
@@ -13344,6 +13348,10 @@
                     {
                         "name": "TVlTUUxfVFlQRV9KU09O", "decoded-name": "MYSQL_TYPE_JSON",
                         "index": 31
+                    },
+                    {
+                        "name": "TVlTUUxfVFlQRV9WRUNUT1I=", "decoded-name": "MYSQL_TYPE_VECTOR",
+                        "index": 32
                     }
                 ],
                 "collation_id": X,
@@ -14760,12 +14768,12 @@
                 "comment": "",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
-                "options": "interval_count=31;",
+                "options": "interval_count=32;",
                 "se_private_data": "table_id=X",
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON')",
+                "column_type_utf8": "enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON','MYSQL_TYPE_VECTOR')",
                 "elements": [
                     {
                         "name": "TVlTUUxfVFlQRV9ERUNJTUFM", "decoded-name": "MYSQL_TYPE_DECIMAL",
@@ -14890,6 +14898,10 @@
                     {
                         "name": "TVlTUUxfVFlQRV9KU09O", "decoded-name": "MYSQL_TYPE_JSON",
                         "index": 31
+                    },
+                    {
+                        "name": "TVlTUUxfVFlQRV9WRUNUT1I=", "decoded-name": "MYSQL_TYPE_VECTOR",
+                        "index": 32
                     }
                 ],
                 "collation_id": X,

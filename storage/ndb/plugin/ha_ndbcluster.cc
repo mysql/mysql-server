@@ -1357,6 +1357,7 @@ static bool field_type_forces_var_part(enum_field_types type) {
       return true;
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_JSON:
@@ -1702,7 +1703,7 @@ static bool type_supports_default_value(enum_field_types mysql_type) {
       (mysql_type != MYSQL_TYPE_BLOB && mysql_type != MYSQL_TYPE_TINY_BLOB &&
        mysql_type != MYSQL_TYPE_MEDIUM_BLOB &&
        mysql_type != MYSQL_TYPE_LONG_BLOB && mysql_type != MYSQL_TYPE_JSON &&
-       mysql_type != MYSQL_TYPE_GEOMETRY);
+       mysql_type != MYSQL_TYPE_GEOMETRY && mysql_type != MYSQL_TYPE_VECTOR);
 
   return ret;
 }
@@ -8371,6 +8372,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       break;
     // mysql_type_blob:
     case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_BLOB:
       if (field->is_flag_set(BINARY_FLAG) && cs == &my_charset_bin)
         col.setType(NDBCOL::Blob);
@@ -8710,6 +8712,7 @@ static void create_ndb_fk_fake_column(NDBCOL &col,
     // Blob types
     case dd::enum_column_types::TINY_BLOB:
     case dd::enum_column_types::BLOB:
+    case dd::enum_column_types::VECTOR:
     case dd::enum_column_types::MEDIUM_BLOB:
     case dd::enum_column_types::LONG_BLOB:
     case dd::enum_column_types::GEOMETRY:
@@ -9909,6 +9912,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
     switch (field->real_type()) {
       case MYSQL_TYPE_GEOMETRY:
       case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_VECTOR:
       case MYSQL_TYPE_MEDIUM_BLOB:
       case MYSQL_TYPE_LONG_BLOB:
       case MYSQL_TYPE_JSON: {
@@ -10294,6 +10298,7 @@ int ha_ndbcluster::create_index_in_NDB(THD *thd, const char *name,
           key_store_length += HA_KEY_NULL_LENGTH;
         }
         if (field->type() == MYSQL_TYPE_BLOB ||
+            field->type() == MYSQL_TYPE_VECTOR ||
             field->real_type() == MYSQL_TYPE_VARCHAR ||
             field->type() == MYSQL_TYPE_GEOMETRY) {
           key_store_length += HA_KEY_BLOB_LENGTH;

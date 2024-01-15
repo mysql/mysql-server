@@ -8287,6 +8287,30 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
   }
 #endif
 
+  const size_t temp_val_max_width = (1 << 14);
+  char temp_val[temp_val_max_width];
+  DYNAMIC_STRING ds_temp = {.str = nullptr, .length = 0, .max_length = 0};
+  if (field->type == MYSQL_TYPE_VECTOR && !is_null) {
+    /* Do a binary to hex conversion for vector type */
+    size_t orig_len = len;
+    len = 2 + orig_len * 2;
+    char *destination = temp_val;
+    if (len > temp_val_max_width) {
+      init_dynamic_string(&ds_temp, "", len + 1);
+      destination = ds_temp.str;
+    }
+    const char *ptr = val;
+    const char *end = ptr + orig_len;
+    val = destination;
+    int written = sprintf(destination, "0x");
+    destination += written;
+    for (; ptr < end; ptr++, destination += written) {
+      written = sprintf(
+          destination, "%02X",
+          *(static_cast<const uchar *>(static_cast<const void *>(ptr))));
+    }
+  }
+
   if (!display_result_vertically) {
     if (col_idx) dynstr_append_mem(ds, "\t", 1);
     replace_dynstr_append_mem(ds, val, len);
@@ -8295,6 +8319,10 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
     dynstr_append_mem(ds, "\t", 1);
     replace_dynstr_append_mem(ds, val, len);
     dynstr_append_mem(ds, "\n", 1);
+  }
+
+  if (ds_temp.str != nullptr) {
+    dynstr_free(&ds_temp);
   }
 }
 

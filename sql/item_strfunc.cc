@@ -122,8 +122,9 @@
 #include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/val_int_compare.h"  // Integer_value
-#include "sql_string.h"           // needs_conversion
+#include "sql/val_int_compare.h"    // Integer_value
+#include "sql/vector_conversion.h"  // from_string_to_vector
+#include "sql_string.h"             // needs_conversion
 #include "string_with_len.h"
 #include "strxmov.h"
 #include "template_utils.h"
@@ -707,6 +708,7 @@ String *Item_func_aes_decrypt::val_str(String *str) {
 
 bool Item_func_aes_decrypt::resolve_type(THD *thd) {
   if (Item_str_func::resolve_type(thd)) return true;
+  if (reject_vector_args()) return true;
   set_data_type_string(args[0]->max_char_length());
   set_nullable(true);
   return false;
@@ -731,6 +733,7 @@ const ulonglong Item_func_random_bytes::MAX_RANDOM_BYTES_BUFFER = 1024ULL;
 
 bool Item_func_random_bytes::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
+  if (reject_vector_args()) return true;
   set_data_type_string(MAX_RANDOM_BYTES_BUFFER, &my_charset_bin);
   return false;
 }
@@ -803,6 +806,7 @@ String *Item_func_to_base64::val_str_ascii(String *str) {
 
 bool Item_func_from_base64::resolve_type(THD *thd) {
   if (Item_str_func::resolve_type(thd)) return true;
+  if (reject_vector_args()) return true;
   if (args[0]->max_length > (uint)base64_decode_max_arg_length()) {
     set_data_type_string(ulonglong(base64_decode_max_arg_length()));
   } else {
@@ -1008,6 +1012,7 @@ bool parse(THD *thd, Item *statement_expr, String *statement_string) {
 
 bool Item_func_statement_digest::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
+  if (reject_vector_args()) return true;
   set_data_type_string(DIGEST_HASH_TO_STRING_LENGTH, default_charset());
   m_token_buffer = static_cast<uchar *>(thd->alloc(get_max_digest_length()));
   if (m_token_buffer == nullptr) return true;
@@ -1053,6 +1058,7 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
 
 bool Item_func_statement_digest_text::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
+  if (reject_vector_args()) return true;
   set_data_type_string(MAX_BLOB_WIDTH, args[0]->collation);
   m_token_buffer = static_cast<uchar *>(thd->alloc(get_max_digest_length()));
   if (m_token_buffer == nullptr) return true;
@@ -1117,6 +1123,7 @@ String *Item_func_concat::val_str(String *str) {
 
 bool Item_func_concat::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
+  if (reject_vector_args()) return true;
 
   ulonglong char_length = 0;
 
@@ -1174,6 +1181,7 @@ String *Item_func_concat_ws::val_str(String *str) {
 
 bool Item_func_concat_ws::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
+  if (reject_vector_args()) return true;
 
   ulonglong char_length;
 
@@ -1237,6 +1245,7 @@ String *Item_func_reverse::val_str(String *str) {
 
 bool Item_func_reverse::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
+  if (reject_vector_args()) return true;
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   assert(collation.collation != nullptr);
   set_data_type_string(args[0]->max_char_length());
@@ -1311,6 +1320,7 @@ String *Item_func_replace::val_str(String *str) {
 
 bool Item_func_replace::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 3)) return true;
+  if (reject_vector_args()) return true;
 
   // We let the first argument (only) determine the character set of the result.
   // REPLACE(str, from_str, to_str)
@@ -1386,6 +1396,7 @@ bool Item_func_insert::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
   if (param_type_is_default(thd, 1, 3, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_default(thd, 3, 4)) return true;
+  if (reject_vector_args()) return true;
 
   // Character set of result is based on first argument
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
@@ -1433,6 +1444,7 @@ String *Item_str_conv::val_str(String *str) {
 bool Item_func_lower::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+  if (reject_vector_args()) return true;
 
   assert(collation.collation != nullptr);
   multiply = collation.collation->casedn_multiply;
@@ -1444,6 +1456,7 @@ bool Item_func_lower::resolve_type(THD *thd) {
 bool Item_func_upper::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+  if (reject_vector_args()) return true;
 
   assert(collation.collation != nullptr);
   multiply = collation.collation->caseup_multiply;
@@ -1503,6 +1516,7 @@ bool Item_func_left::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+  if (reject_vector_args()) return true;
   assert(collation.collation != nullptr);
   left_right_max_length(thd);
   return false;
@@ -1534,6 +1548,7 @@ bool Item_func_right::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+  if (reject_vector_args()) return true;
 
   assert(collation.collation != nullptr);
   left_right_max_length(thd);
@@ -1590,6 +1605,7 @@ String *Item_func_substr::val_str(String *str) {
 bool Item_func_substr::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
   if (param_type_is_default(thd, 1, 3, MYSQL_TYPE_LONGLONG)) return true;
+  if (reject_vector_args()) return true;
 
   uint32 max_char_length = args[0]->max_char_length();
 
@@ -1630,6 +1646,7 @@ end:
 bool Item_func_substr_index::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 2)) return true;
   if (param_type_is_default(thd, 2, 3, MYSQL_TYPE_LONGLONG)) return true;
+  if (reject_vector_args()) return true;
   // We let the first argument (only) determine the character set of the result.
   // SUBSTRING_INDEX(str, delim, count)
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
@@ -1849,6 +1866,7 @@ String *Item_func_trim::val_str(String *str) {
 
 bool Item_func_trim::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
+  if (reject_vector_args()) return true;
   // The parser swaps arguments, so args[0] is FROM str.
   // We let the first argument (only) determine the character set of the
   // result.
@@ -2041,6 +2059,7 @@ bool Item_func_current_user::do_itemize(Parse_context *pc, Item **res) {
 
 bool Item_func_soundex::resolve_type(THD *thd) {
   if (Item_str_func::resolve_type(thd)) return true;
+  if (reject_vector_args()) return true;
   uint32 char_length = args[0]->max_char_length();
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   assert(collation.collation != nullptr);
@@ -2204,6 +2223,7 @@ bool Item_func_format::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_NEWDECIMAL)) return true;
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_default(thd, 2, 3)) return true;
+  if (reject_vector_args()) return true;
 
   decimals = FORMAT_MAX_DECIMALS;
   const uint32 char_length = args[0]->max_char_length();
@@ -2215,7 +2235,7 @@ bool Item_func_format::resolve_type(THD *thd) {
     locale = args[2]->basic_const_item() ? get_locale(args[2]) : nullptr;
   else
     locale = &my_locale_en_US; /* Two arguments */
-  return reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args();
 }
 
 /**
@@ -2331,6 +2351,7 @@ void Item_func_format::print(const THD *thd, String *str,
 bool Item_func_elt::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_default(thd, 1, -1)) return true;
+  if (reject_vector_args()) return true;
   uint32 char_length = 0;
   decimals = 0;
 
@@ -2398,6 +2419,7 @@ bool Item_func_make_set::fix_fields(THD *thd, Item **ref) {
 bool Item_func_make_set::resolve_type(THD *thd) {
   if (args[0]->propagate_type(thd, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_default(thd, 1, -1)) return true;
+  if (reject_vector_args()) return true;
   uint32 char_length = arg_count - 2; /* Separators */
 
   if (agg_arg_charsets_for_string_result(collation, args + 1, arg_count - 1))
@@ -2511,6 +2533,7 @@ inline String *alloc_buffer(String *res, String *str, String *tmp_value,
 bool Item_func_repeat::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+  if (reject_vector_args()) return true;
 
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   assert(collation.collation != nullptr);
@@ -2587,6 +2610,7 @@ String *Item_func_repeat::val_str(String *str) {
 
 bool Item_func_space::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
+  if (reject_vector_args()) return true;
 
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   if (args[0]->const_item() && args[0]->may_eval_const_item(thd)) {
@@ -2647,6 +2671,7 @@ String *Item_func_space::val_str(String *str) {
 bool Item_func_rpad::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_default(thd, 0, -1)) return true;
+  if (reject_vector_args()) return true;
 
   // Character set of result is based on first argument.
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
@@ -2745,6 +2770,7 @@ String *Item_func_rpad::val_str(String *str) {
 bool Item_func_lpad::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_default(thd, 0, -1)) return true;
+  if (reject_vector_args()) return true;
 
   // Character set of result is based on first argument.
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
@@ -2772,6 +2798,7 @@ end:
 bool Item_func_uuid_to_bin::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (Item_str_func::resolve_type(thd)) return true;
+  if (reject_vector_args()) return true;
   set_data_type_string(uint32(mysql::gtid::Uuid::BYTE_LENGTH), &my_charset_bin);
   set_nullable(true);
   return false;
@@ -2812,6 +2839,7 @@ String *Item_func_uuid_to_bin::val_str(String *str) {
 bool Item_func_bin_to_uuid::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (Item_str_func::resolve_type(thd)) return true;
+  if (reject_vector_args()) return true;
   set_data_type_string(uint32(mysql::gtid::Uuid::TEXT_LENGTH),
                        default_charset());
   set_nullable(true);
@@ -2947,9 +2975,10 @@ String *Item_func_lpad::val_str(String *str) {
 
 bool Item_func_conv::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG)) return true;
+  if (reject_vector_args()) return true;
   set_data_type_string(CONV_MAX_LENGTH, default_charset());
   set_nullable(true);
-  return reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args();
 }
 
 String *Item_func_conv::val_str(String *str) {
@@ -3057,6 +3086,7 @@ String *Item_func_set_collation::val_str(String *str) {
 }
 
 bool Item_func_set_collation::resolve_type(THD *thd) {
+  if (reject_vector_args()) return true;
   CHARSET_INFO *set_collation;
   String tmp;
   assert(args[1]->basic_const_item());
@@ -3164,6 +3194,7 @@ void Item_func_weight_string::print(const THD *thd, String *str,
 
 bool Item_func_weight_string::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
+  if (reject_vector_args()) return true;
   const CHARSET_INFO *cs = args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
   flags = my_strxfrm_flag_normalize(flags);
@@ -3339,6 +3370,7 @@ String *Item_func_hex::val_str_ascii(String *str) {
 
 bool Item_func_unhex::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
+  if (reject_vector_args()) return true;
   // The length of the result is half the length of the input string, rounded
   // up. Perform the calculation with 64-bit precision to not overflow the
   // intermediate result if args[0]->max_length == UINT_MAX.
@@ -3553,6 +3585,11 @@ bool Item_charset_conversion::resolve_type(THD *thd) {
     return true;
   }
 
+  if (m_cast_cs != &my_charset_bin) {
+    // For a cast target other than binary, reject it for VECTOR arguments.
+    if (reject_vector_args()) return true;
+  }
+
   if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
     if (args[0]->propagate_type(thd,
                                 Type_properties(MYSQL_TYPE_VARCHAR, m_cast_cs)))
@@ -3737,6 +3774,7 @@ String *Item_func_export_set::val_str(String *str) {
 }
 
 bool Item_func_export_set::resolve_type(THD *thd) {
+  if (reject_vector_args()) return true;
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_default(thd, 1, 4)) return true;
   if (param_type_is_default(thd, 4, 5, MYSQL_TYPE_LONGLONG)) return true;
@@ -3756,6 +3794,7 @@ bool Item_func_export_set::resolve_type(THD *thd) {
 }
 
 bool Item_func_quote::resolve_type(THD *thd) {
+  if (reject_vector_args()) return true;
   if (param_type_is_default(thd, 0, -1)) return true;
   /*
     Since QUOTE may add escapes to potentially all the characters in its
@@ -4069,6 +4108,96 @@ String *Item_func_compress::val_str(String *str) {
   return &buffer;
 }
 
+bool Item_func_to_vector::resolve_type(THD *thd) {
+  if (Item_str_func::resolve_type(thd)) {
+    return true;
+  }
+  if (args[0]->result_type() != STRING_RESULT ||
+      args[0]->data_type() == MYSQL_TYPE_JSON) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
+  if (reject_geometry_args()) return true;
+  set_data_type_vector(static_cast<ulonglong>(
+      Field_vector::dimension_bytes(Field_vector::max_dimensions)));
+  return false;
+}
+
+String *Item_func_to_vector::val_str(String *str) {
+  assert(fixed);
+  null_value = false;
+  String *res = args[0]->val_str(str);
+  if (res == nullptr || res->ptr() == nullptr) {
+    return error_str();
+  }
+
+  uint32 output_dims = Field_vector::max_dimensions;
+  auto dimension_bytes = Field_vector::dimension_bytes(output_dims);
+  if (buffer.mem_realloc(dimension_bytes)) return error_str();
+
+  bool err = from_string_to_vector(res->ptr(), res->length(), buffer.ptr(),
+                                   &output_dims);
+  if (err) {
+    if (output_dims == Field_vector::max_dimensions) {
+      res->replace(32, 5, "... \0", 5);
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), res->ptr(), func_name());
+    } else {
+      my_error(ER_TO_VECTOR_CONVERSION, MYF(0), res->length(), res->ptr());
+    }
+    return error_str();
+  }
+
+  buffer.length(Field_vector::dimension_bytes(output_dims));
+  return &buffer;
+}
+
+bool Item_func_from_vector::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_VECTOR)) {
+    return true;
+  }
+  bool valid_type = (args[0]->data_type() == MYSQL_TYPE_VECTOR) ||
+                    (args[0]->result_type() == STRING_RESULT &&
+                     args[0]->collation.collation == &my_charset_bin);
+  if (!valid_type) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
+  set_data_type_string(Item_func_from_vector::max_output_bytes);
+  return false;
+}
+
+String *Item_func_from_vector::val_str(String *str) {
+  assert(fixed);
+  null_value = false;
+  String *res = args[0]->val_str(str);
+  if (res == nullptr || res->ptr() == nullptr) {
+    return error_str();
+  }
+
+  uint32 input_dims = get_dimensions(res->length(), Field_vector::precision);
+  if (input_dims == UINT32_MAX) {
+    my_error(ER_TO_VECTOR_CONVERSION, MYF(0), res->length(), res->ptr());
+    return error_str();
+  }
+  uint32 out_length = input_dims * Item_func_from_vector::per_value_chars;
+  if (input_dims == 0 || out_length > Item_func_from_vector::max_output_bytes) {
+    res->replace(32, 5, "... \0", 5);
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), res->ptr(), func_name());
+    return error_str();
+  }
+  if (buffer.mem_realloc(out_length)) return error_str();
+  if (from_vector_to_string(res->ptr(), input_dims, buffer.ptr(),
+                            &out_length)) {
+    /* LCOV_EXCL_START */
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), res->ptr(), func_name());
+    return error_str();
+    /* LCOV_EXCL_STOP */
+  }
+
+  buffer.length(out_length);
+  return &buffer;
+}
+
 String *Item_func_uncompress::val_str(String *str) {
   assert(fixed);
   String *res = args[0]->val_str(str);
@@ -4157,6 +4286,7 @@ static void set_clock_seq_str() {
 }
 
 bool Item_func_uuid::resolve_type(THD *) {
+  if (reject_vector_args()) return true;
   collation.set(system_charset_info, DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   set_data_type_string(uint32(UUID_LENGTH));
   return false;

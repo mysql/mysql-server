@@ -41,3 +41,11 @@ SELECT MATCH (a) AGAINST ('abc') AS score FROM t;
 # But this index scan failed. Should succeed now.
 SELECT 1 FROM t WHERE MATCH (a) AGAINST ('abc');
 DROP TABLE t;
+
+CREATE TABLE ta (pk INT, embedding VECTOR(4), PRIMARY KEY (pk)) ENGINE=BLACKHOLE;
+INSERT INTO ta VALUES
+(0, TO_VECTOR("[1,2,3,4]")),
+(1, TO_VECTOR("[4,5,6,7]"));
+--sorted_result
+SELECT FROM_VECTOR(embedding) FROM ta;
+DROP TABLE ta;

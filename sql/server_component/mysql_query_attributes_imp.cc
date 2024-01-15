@@ -351,7 +351,8 @@ static String *query_parameter_val_str(const PS_PARAM *param,
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB: {
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR: {
       str = new String[1];
       uint dummy_errors;
       if (str->copy(reinterpret_cast<const char *>(param->value), param->length,

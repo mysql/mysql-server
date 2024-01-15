@@ -9452,6 +9452,8 @@ const char *fieldtype2str(enum enum_field_types type) {
       return "BIT";
     case MYSQL_TYPE_BLOB:
       return "BLOB";
+    case MYSQL_TYPE_VECTOR:
+      return "VECTOR";
     case MYSQL_TYPE_BOOL:
       return "BOOLEAN";
     case MYSQL_TYPE_DATE:

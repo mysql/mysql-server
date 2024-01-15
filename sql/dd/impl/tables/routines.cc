@@ -81,7 +81,7 @@ Routines::Routines() {
                          "    'MYSQL_TYPE_LONG_BLOB', 'MYSQL_TYPE_BLOB',\n"
                          "    'MYSQL_TYPE_VAR_STRING',\n"
                          "    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',\n"
-                         "    'MYSQL_TYPE_JSON'\n"
+                         "    'MYSQL_TYPE_JSON', 'MYSQL_TYPE_VECTOR'\n"
                          "  ) DEFAULT NULL");
   m_target_def.add_field(FIELD_RESULT_DATA_TYPE_UTF8,
                          "FIELD_RESULT_DATA_TYPE_UTF8",

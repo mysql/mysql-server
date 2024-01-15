@@ -67,7 +67,7 @@ void Sql_data_result::get_next_field(bool *value) {
 void Sql_data_result::get_next_field(std::string *value) {
   validate_field_index({MYSQL_TYPE_VARCHAR, MYSQL_TYPE_STRING,
                         MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB,
-                        MYSQL_TYPE_LONG_BLOB});
+                        MYSQL_TYPE_VECTOR, MYSQL_TYPE_LONG_BLOB});
 
   Field_value *field_value = get_value();
 

@@ -81,7 +81,8 @@ enum class enum_column_types {
   VAR_STRING,
   STRING,
   GEOMETRY,
-  JSON
+  JSON,
+  VECTOR
 };
 
 class Column : virtual public Entity_object {

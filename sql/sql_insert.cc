@@ -399,6 +399,7 @@ static bool mysql_prepare_blob_values(THD *thd,
     Field *lhs_field = field->field;
 
     if (lhs_field->type() == MYSQL_TYPE_BLOB ||
+        lhs_field->type() == MYSQL_TYPE_VECTOR ||
         lhs_field->type() == MYSQL_TYPE_GEOMETRY)
       blob_update_field_set.insert_unique(down_cast<Field_blob *>(lhs_field));
   }

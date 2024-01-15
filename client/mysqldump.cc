@@ -4084,6 +4084,7 @@ static void dump_table(char *table, char *db) {
                                         field->type == MYSQL_TYPE_VAR_STRING ||
                                         field->type == MYSQL_TYPE_VARCHAR ||
                                         field->type == MYSQL_TYPE_BLOB ||
+                                        field->type == MYSQL_TYPE_VECTOR ||
                                         field->type == MYSQL_TYPE_LONG_BLOB ||
                                         field->type == MYSQL_TYPE_MEDIUM_BLOB ||
                                         field->type == MYSQL_TYPE_TINY_BLOB ||

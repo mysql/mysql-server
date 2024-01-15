@@ -12975,5 +12975,14 @@ id	x
 5	6
 DROP VIEW v;
 DROP TABLE archive_table, innodb_table;
+CREATE TABLE ta (pk INT, embedding VECTOR(4)) ENGINE=ARCHIVE;
+INSERT INTO ta VALUES
+(0, TO_VECTOR("[1,2,3,4]")),
+(1, TO_VECTOR("[4,5,6,7]"));
+SELECT FROM_VECTOR(embedding) FROM ta;
+FROM_VECTOR(embedding)
+[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+[4.00000e+00,5.00000e+00,6.00000e+00,7.00000e+00]
+DROP TABLE ta;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

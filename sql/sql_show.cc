@@ -4564,6 +4564,7 @@ static TABLE *create_schema_table(THD *thd, Table_ref *table_list) {
       case MYSQL_TYPE_MEDIUM_BLOB:
       case MYSQL_TYPE_LONG_BLOB:
       case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_VECTOR:
         if (!(item = new Item_blob(fields_info->field_name,
                                    fields_info->field_length))) {
           return nullptr;
@@ -5482,11 +5483,13 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
   @param str      String to print to
   @param field_cs field's charset. When given [var]char length is printed in
                   characters, otherwise - in bytes
+  @param vector_dimensionality The dimensionality of a vector field
 
 */
 
 void show_sql_type(enum_field_types type, bool is_array, uint metadata,
-                   String *str, const CHARSET_INFO *field_cs) {
+                   String *str, const CHARSET_INFO *field_cs,
+                   unsigned int vector_dimensionality) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
 
@@ -5617,6 +5620,14 @@ void show_sql_type(enum_field_types type, bool is_array, uint metadata,
       else
         str->set_ascii(STRING_WITH_LEN("longtext"));
       break;
+
+    case MYSQL_TYPE_VECTOR: {
+      const CHARSET_INFO *cs = str->charset();
+      size_t length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
+                                         "vector(%u)", vector_dimensionality);
+      str->length(length);
+      break;
+    }
 
     case MYSQL_TYPE_BLOB:
       /*

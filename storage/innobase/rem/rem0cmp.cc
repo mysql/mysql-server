@@ -84,6 +84,7 @@ static inline int innobase_mysql_cmp(ulint prtype, const byte *a,
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_VARCHAR:
       break;

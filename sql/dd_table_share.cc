@@ -178,6 +178,9 @@ enum_field_types dd_get_old_field_type(dd::enum_column_types type) {
     case dd::enum_column_types::LONG_BLOB:
       return MYSQL_TYPE_LONG_BLOB;
 
+    case dd::enum_column_types::VECTOR:
+      return MYSQL_TYPE_VECTOR;
+
     case dd::enum_column_types::BLOB:
       return MYSQL_TYPE_BLOB;
 

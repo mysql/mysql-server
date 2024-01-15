@@ -1,0 +1,238 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+**********************************************************
+*****  Basic replication functionality with VECTOR *******
+**********************************************************
+*****  Table Create Section ****
+CREATE TABLE t1 (c1 int not null auto_increment,
+data LONGBLOB, v1 VECTOR(4), PRIMARY KEY(c1)) ENGINE=#;
+
+**** Data Insert Section t1 *****
+
+INSERT INTO t1 VALUES (NULL, NULL, TO_VECTOR("[1,2,3,4]"));
+INSERT INTO t1 VALUES (NULL, repeat('a',1*1024), TO_VECTOR("[1.1,2.1,3.1,4.1]"));
+INSERT INTO t1 VALUES (NULL, repeat('b',16*1024), TO_VECTOR("[1.2,2.2,3.2,4.2]"));
+
+**** Data Insert Validation Source Section t1 ****
+
+SELECT LENGTH(data), FROM_VECTOR(v1) FROM t1 WHERE c1 = 1;
+LENGTH(data)	FROM_VECTOR(v1)
+NULL	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+SELECT LENGTH(data), FROM_VECTOR(v1) FROM t1 WHERE c1 = 2;
+LENGTH(data)	FROM_VECTOR(v1)
+1024	[1.10000e+00,2.10000e+00,3.10000e+00,4.10000e+00]
+SELECT LENGTH(data), FROM_VECTOR(v1) FROM t1 WHERE c1 = 3;
+LENGTH(data)	FROM_VECTOR(v1)
+16384	[1.20000e+00,2.20000e+00,3.20000e+00,4.20000e+00]
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:t1,slave:t1]
+**** Data Update Section t1 ****
+
+[connection master]
+UPDATE t1 set data=repeat('a',18*1024), v1=TO_VECTOR("[0,0,0,0]") where c1 = 1;
+UPDATE t1 set data=repeat('c',17*1024), v1=TO_VECTOR("[7.1,7.2,7.3,7.4]") where c1 = 2;
+
+**** Data Update Validation Source Section t1 ****
+
+SELECT LENGTH(data), FROM_VECTOR(v1) FROM t1 WHERE c1 = 1;
+LENGTH(data)	FROM_VECTOR(v1)
+18432	[0.00000e+00,0.00000e+00,0.00000e+00,0.00000e+00]
+SELECT LENGTH(data), FROM_VECTOR(v1) FROM t1 WHERE c1 = 2;
+LENGTH(data)	FROM_VECTOR(v1)
+17408	[7.10000e+00,7.20000e+00,7.30000e+00,7.40000e+00]
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:t1,slave:t1]
+[connection master]
+
+**** End Test Section t1 ****
+
+DROP TABLE t1;
+*****  Table with max width columns (16383) *****
+[connection master]
+FLUSH LOGS;
+include/rpl/save_binlog_file_position.inc
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:a,slave:a]
+[connection master]
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:a,slave:a]
+[connection master]
+include/assert_grep.inc [Check the vector columns are available]
+include/assert_grep.inc [Check the vector columns are available]
+#
+# BUG#36267410
+# R1. Test that UPDATE statement with column assignment fails, if size is large
+# R2. Test that UPDATE statement with column assignment does not cause any binlog corruption (memcpy-ability between VECTOR types not possible)
+#
+FROM_VECTOR(a2)	FROM_VECTOR(a3)
+[1.00000e+00,2.00000e+00]	[1.00000e+00]
+ERROR 22001: Data too long for column 'a3' at row 1
+FROM_VECTOR(a2)	FROM_VECTOR(a3)
+[1.00000e+00]	[1.00000e+00]
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:a,slave:a]
+[connection master]
+**********************************************************
+*****  Tables with differing types (VECTOR <-> BLOB) *****
+**********************************************************
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+[connection master]
+pk	FROM_VECTOR(v1)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13146]
+[connection master]
+[connection slave]
+include/rpl/reset.inc
+**********************************************************
+*****  Tables with differing types (VECTOR <-> TEXT) *****
+**********************************************************
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+[connection master]
+pk	FROM_VECTOR(v1)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13146]
+[connection master]
+[connection slave]
+include/rpl/reset.inc
+**********************************************************
+*****  Tables with differing types (TEXT <-> VECTOR) *****
+**********************************************************
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+[connection master]
+pk	v1
+1	[1,2,3,4]
+2	[5,6,7,8]
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13146]
+[connection master]
+[connection slave]
+include/rpl/reset.inc
+**********************************************************
+*****  Tables with differing types (BLOB <-> VECTOR) *****
+**********************************************************
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+[connection master]
+pk	v1
+1	[1,2,3,4]
+2	[5,6,7,8]
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13146]
+[connection master]
+[connection slave]
+include/rpl/reset.inc
+*************************************************************
+*****  Tables with differing types (VARCHAR <-> VECTOR) *****
+*************************************************************
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+[connection master]
+pk	v1
+1	[1,2,3,4]
+2	[5,6,7,8]
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13146]
+[connection master]
+[connection slave]
+include/rpl/reset.inc
+**********************************************************
+*****  Tables with differing types (VECTOR <-> VARCHAR) **
+**********************************************************
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+[connection master]
+pk	FROM_VECTOR(v1)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13146]
+[connection master]
+[connection slave]
+include/rpl/reset.inc
+**************************************************************************
+*****  Tables with differing sized columns (VECTOR(4) <-> VECTOR(2)) *****
+**************************************************************************
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+Table	Create Table
+b	CREATE TABLE `b` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `v1` vector(4) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+b	CREATE TABLE `b` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `v1` vector(2) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection master]
+Table	Create Table
+b	CREATE TABLE `b` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `v1` vector(4) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+pk	FROM_VECTOR(v1)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13146]
+[connection master]
+[connection slave]
+include/rpl/reset.inc
+******************************************************************************************
+*****  Tables with differing sized columns (VECTOR(4) <-> VECTOR(2)) - ALL_NON_LOSSY *****
+******************************************************************************************
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+Table	Create Table
+b	CREATE TABLE `b` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `v1` vector(4) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+b	CREATE TABLE `b` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `v1` vector(2) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection master]
+Table	Create Table
+b	CREATE TABLE `b` (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `v1` vector(4) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+pk	FROM_VECTOR(v1)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13146]
+[connection master]
+[connection slave]
+include/rpl/reset.inc
+include/assert_grep.inc [Check the vector columns are available]
+include/assert_grep.inc [Check the vector columns are available]
+include/assert_grep.inc [Check the vector columns are available]
+include/assert_grep.inc [Check the vector columns are available]
+include/rpl/deinit.inc

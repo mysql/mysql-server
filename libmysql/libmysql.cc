@@ -2751,6 +2751,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
     default: {
@@ -3360,10 +3361,10 @@ static bool is_binary_compatible(enum enum_field_types type1,
       range2[] = {MYSQL_TYPE_INT24, MYSQL_TYPE_LONG, MYSQL_TYPE_NULL},
       range3[] = {MYSQL_TYPE_DATETIME, MYSQL_TYPE_TIMESTAMP, MYSQL_TYPE_NULL},
       range4[] = {
-          MYSQL_TYPE_ENUM,        MYSQL_TYPE_SET,       MYSQL_TYPE_TINY_BLOB,
-          MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB,
-          MYSQL_TYPE_VAR_STRING,  MYSQL_TYPE_STRING,    MYSQL_TYPE_GEOMETRY,
-          MYSQL_TYPE_DECIMAL,     MYSQL_TYPE_NULL};
+          MYSQL_TYPE_ENUM,        MYSQL_TYPE_SET,        MYSQL_TYPE_TINY_BLOB,
+          MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB,  MYSQL_TYPE_BLOB,
+          MYSQL_TYPE_VECTOR,      MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_STRING,
+          MYSQL_TYPE_GEOMETRY,    MYSQL_TYPE_DECIMAL,    MYSQL_TYPE_NULL};
   static const enum enum_field_types *range_list[] = {range1, range2, range3,
                                                       range4},
                                      **range_list_end =
@@ -3464,6 +3465,7 @@ static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field) {
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_BIT:
       assert(param->buffer_length != 0);
       param->fetch_result = fetch_result_bin;
@@ -3543,6 +3545,7 @@ static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field) {
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_BIT:

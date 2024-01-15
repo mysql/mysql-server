@@ -225,6 +225,7 @@ inline bool time_cross_check(enum_field_types type1, enum_field_types type2) {
    @param[in] is_array Whether the source field is a typed array
    @param[in] rli      Relay log info (for error reporting)
    @param[in] mflags   Flags from the table map event
+   @param[in] vector_dimensionality Dimensionality of vector column
    @param[out] order_var Order between source field and target field
 
    @return @c true if conversion is possible according to the current
@@ -234,6 +235,7 @@ inline bool time_cross_check(enum_field_types type1, enum_field_types type2) {
 static bool can_convert_field_to(Field *field, enum_field_types source_type,
                                  uint metadata, bool is_array,
                                  Relay_log_info *rli, uint16 mflags,
+                                 unsigned int vector_dimensionality,
                                  int *order_var) {
   DBUG_TRACE;
 #ifndef NDEBUG
@@ -267,6 +269,11 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
       return true;
     }
 
+    if (field->real_type() == MYSQL_TYPE_VECTOR &&
+        down_cast<Field_vector *>(field)->get_max_dimensions() !=
+            vector_dimensionality) {
+      return false;
+    }
     DBUG_PRINT("debug",
                ("Base types are identical, doing field size comparison"));
     if (field->compatible_field_size(metadata, rli, mflags, order_var))
@@ -415,6 +422,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
       }
       break;
 
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_JSON:
     case MYSQL_TYPE_TIMESTAMP:
@@ -532,13 +540,23 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
       min<ulong>(fields->filtered_size(), filtered_size(replica_has_gipk));
   TABLE *tmp_table = nullptr;
 
+  auto vector_dimensionality_it = m_vector_dimensionality.begin();
+
   for (auto it = fields->begin(); it.filtered_pos() < cols_to_check; ++it) {
     Field *const field = *it;
     size_t col = it.translated_pos();
     size_t absolute_col_pos = it.absolute_pos();
     int order;
+
+    unsigned int vector_dimensionality = 0;
+    if (type(col) == MYSQL_TYPE_VECTOR &&
+        vector_dimensionality_it != m_vector_dimensionality.end()) {
+      vector_dimensionality = *vector_dimensionality_it++;
+    }
+
     if (can_convert_field_to(field, type(col), field_metadata(col),
-                             is_array(col), rli, m_flags, &order)) {
+                             is_array(col), rli, m_flags, vector_dimensionality,
+                             &order)) {
       DBUG_PRINT("debug", ("Checking column %lu -"
                            " field '%s' can be converted - order: %d",
                            static_cast<long unsigned int>(col),
@@ -580,8 +598,8 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
       enum loglevel report_level = INFORMATION_LEVEL;
       String source_type(source_buf, sizeof(source_buf), &my_charset_latin1);
       String target_type(target_buf, sizeof(target_buf), &my_charset_latin1);
-      show_sql_type(type(col), is_array(col), field_metadata(col),
-                    &source_type);
+      show_sql_type(type(col), is_array(col), field_metadata(col), &source_type,
+                    nullptr, vector_dimensionality);
       field->sql_type(target_type);
       if (!ignored_error_code(ER_SERVER_REPLICA_CONVERSION_FAILED)) {
         report_level = ERROR_LEVEL;
@@ -874,6 +892,7 @@ std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
   switch (binlog_type) {
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_DOUBLE:
@@ -929,7 +948,8 @@ std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
 PSI_memory_key key_memory_table_def_memory;
 
 table_def::table_def(unsigned char *types, ulong size, uchar *field_metadata,
-                     int metadata_size, uchar *null_bitmap, uint16 flags)
+                     int metadata_size, uchar *null_bitmap, uint16 flags,
+                     const std::vector<unsigned int> &vector_dimensionality)
     : m_size(size),
       m_type(nullptr),
       m_field_metadata_size(metadata_size),
@@ -940,7 +960,8 @@ table_def::table_def(unsigned char *types, ulong size, uchar *field_metadata,
       m_json_column_count(-1),
       m_is_array(nullptr),
       m_is_gipk_set(false),
-      m_is_gipk_on_table(false) {
+      m_is_gipk_on_table(false),
+      m_vector_dimensionality(vector_dimensionality) {
   m_memory = (uchar *)my_multi_malloc(
       key_memory_table_def_memory, MYF(MY_WME), &m_type, size,
       &m_field_metadata, size * sizeof(uint), &m_is_array, size * sizeof(bool),
@@ -1226,6 +1247,7 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
       */
       switch (f->type()) {
         case MYSQL_TYPE_BLOB:
+        case MYSQL_TYPE_VECTOR:
         case MYSQL_TYPE_VARCHAR:
         case MYSQL_TYPE_GEOMETRY:
         case MYSQL_TYPE_JSON:

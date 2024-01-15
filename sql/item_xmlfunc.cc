@@ -184,6 +184,7 @@ class Item_nodeset_func : public Item_str_func {
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
   bool resolve_type(THD *) override {
+    if (reject_vector_args()) return true;
     set_data_type_string(uint32{MAX_BLOB_WIDTH});
     // To avoid premature evaluation, mark all nodeset functions as non-const.
     used_tables_cache = RAND_TABLE_BIT;
@@ -419,6 +420,7 @@ class Item_func_xpath_position : public Item_int_func {
   explicit Item_func_xpath_position(Item *a) : Item_int_func(a) {}
   const char *func_name() const override { return "xpath_position"; }
   bool resolve_type(THD *) override {
+    if (reject_vector_args()) return true;
     set_data_type_string(10U);
     return false;
   }
@@ -436,6 +438,7 @@ class Item_func_xpath_count : public Item_int_func {
   explicit Item_func_xpath_count(Item *a) : Item_int_func(a) {}
   const char *func_name() const override { return "xpath_count"; }
   bool resolve_type(THD *) override {
+    if (reject_vector_args()) return true;
     set_data_type_string(10U);
     return false;
   }
@@ -2281,6 +2284,7 @@ static int my_xpath_parse(MY_XPATH *xpath, const char *str,
 }
 
 bool Item_xml_str_func::resolve_type(THD *thd) {
+  if (reject_vector_args()) return true;
   if (param_type_is_default(thd, 0, -1)) return true;
 
   if (agg_arg_charsets_for_comparison(collation, args, arg_count)) return true;

@@ -569,6 +569,7 @@ inline void Handler::opened_table_validate() {
 inline bool Handler::is_field_type_fixed_size(const Field &mysql_field) const {
   switch (mysql_field.type()) {
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_JSON:
     case MYSQL_TYPE_LONG_BLOB:

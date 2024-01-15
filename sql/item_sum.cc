@@ -491,8 +491,14 @@ bool Item_sum::resolve_type(THD *thd) {
 
   // None except these 4 types are allowed for geometry arguments.
   if (!(t == COUNT_FUNC || t == COUNT_DISTINCT_FUNC || t == SUM_BIT_FUNC ||
-        t == GEOMETRY_AGGREGATE_FUNC))
-    return reject_geometry_args(arg_count, args, this);
+        t == GEOMETRY_AGGREGATE_FUNC)) {
+    if (reject_geometry_args()) return true;
+  }
+
+  if (t != COUNT_FUNC && t != COUNT_DISTINCT_FUNC) {
+    if (reject_vector_args()) return true;
+  }
+
   return false;
 }
 
@@ -1487,6 +1493,8 @@ bool Item_sum_bit::fix_fields(THD *thd, Item **ref) {
 }
 
 bool Item_sum_bit::resolve_type(THD *thd) {
+  if (reject_vector_args()) return true;
+
   // Assume varbinary; if integer is provided then re-prepare.
   if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
     if (args[0]->propagate_type(
@@ -1539,7 +1547,7 @@ bool Item_sum_bit::resolve_type(THD *thd) {
   decimals = 0;
   unsigned_flag = true;
 
-  return reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args();
 }
 
 void Item_sum_bit::remove_bits(const String *s1, ulonglong b1) {
@@ -1901,7 +1909,8 @@ void Item_sum_sum::no_rows_in_result() { clear(); }
 bool Item_sum_sum::resolve_type(THD *thd) {
   DBUG_TRACE;
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DOUBLE)) return true;
-  if (reject_geometry_args(arg_count, args, this)) return true;
+  if (reject_vector_args()) return true;
+  if (reject_geometry_args()) return true;
 
   set_nullable(true);
   null_value = true;
@@ -2650,8 +2659,8 @@ bool Item_sum_variance::resolve_type(THD *thd) {
   */
   set_data_type_double();
   hybrid_type = REAL_RESULT;
-
-  if (reject_geometry_args(arg_count, args, this)) return true;
+  if (reject_vector_args()) return true;
+  if (reject_geometry_args()) return true;
   DBUG_PRINT("info", ("Type: REAL_RESULT (%d, %d)", max_length, (int)decimals));
   return false;
 }
@@ -5148,6 +5157,7 @@ bool Item_first_last_value::resolve_type(THD *thd) {
   set_nullable(true);  // if empty frame, notwithstanding nullability of arg
   null_value = true;
   if (param_type_is_default(thd, 0, 1)) return true;
+  if (reject_vector_args()) return true;
   set_data_type_from_item(args[0]);
   m_hybrid_type = args[0]->result_type();
 
@@ -5301,6 +5311,7 @@ String *Item_first_last_value::val_str(String *str) {
 
 bool Item_nth_value::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
+  if (reject_vector_args()) return true;
   if (args[1]->propagate_type(thd, MYSQL_TYPE_LONGLONG, true)) return true;
 
   set_nullable(true);
@@ -5533,6 +5544,7 @@ bool Item_lead_lag::resolve_type(THD *thd) {
     arg_count--;
   }
 
+  if (reject_vector_args()) return true;
   if (param_type_uses_non_param(thd)) return true;
 
   if (aggregate_type(func_name(), args, arg_count)) return true;

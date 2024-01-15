@@ -1,0 +1,486 @@
+# ==== Purpose ====
+#
+# Basic test for replication of the VECTOR datatype: replication should work,
+# different definitions on source and replica should result in errors, and
+# mysqlbinlog should print metadata and data properly.
+#
+# ==== Requirements ====
+#
+# R1. Replication of VECTOR should work.
+#
+# R2. Replication of VECTOR should work when the size is 65532 bytes (max supported size).
+#
+# R3. Replication from a column that is VECTOR on the source and any other data
+#     type on the replica, should fail.
+#
+# R4. Replication from a column that is any other data type on the source and
+#     VECTOR on the replica, should fail.
+#
+# R5. Replication from VECTOR(N) to VECTOR(M) should fail when N!=M.
+#
+# R6. mysqlbinlog --print-table-metadata should output VECTOR(N) for VECTOR
+#     columns (where N is the correct dimensionality)
+#
+# R7. mysqlbinlog -v -v should decode VECTOR values to human-readable floats.
+#
+# ==== Implementation ====
+#
+# - Setup replication, create a table with a VECTOR column, insert/update/delete,
+#   and verify that it works.
+#
+# - Replicate a vector of size X and verify that it works.
+#
+# - For each of the BLOB, TEXT, and VARCHAR types, create a table with a column
+#   of type on the source and alter the column to VECTOR on the replica. Also
+#   create a table with a VECTOR column on the source and alter it to the given
+#   type on the replica. Insert a value in each table and verify that replication
+#   fails.
+#
+# - Create a table with a column of type VECTOR(4) on source, alter it to
+#   VECTOR(2) on the replica, and verify that it fails.
+#
+# - Run mysqlbinlog --print-table-metadata and verify that the output is as
+#   expected.
+#
+# - Run mysqlbinlog -v -v and verify that the output is as expected.
+#
+# ==== References ====
+#
+# WL#16081 - Native Vector Embeddings Support In HeatWave
+
+-- source include/have_binlog_format_row.inc
+-- source include/rpl/init_source_replica.inc
+let $engine_type=InnoDB;
+
+--echo **********************************************************
+--echo *****  Basic replication functionality with VECTOR *******
+--echo **********************************************************
+
+# Start test section
+--echo *****  Table Create Section ****
+--replace_result $engine_type #
+eval CREATE TABLE t1 (c1 int not null auto_increment,
+data LONGBLOB, v1 VECTOR(4), PRIMARY KEY(c1)) ENGINE=$engine_type;
+
+--echo
+--echo **** Data Insert Section t1 *****
+--echo
+INSERT INTO t1 VALUES (NULL, NULL, TO_VECTOR("[1,2,3,4]"));
+INSERT INTO t1 VALUES (NULL, repeat('a',1*1024), TO_VECTOR("[1.1,2.1,3.1,4.1]"));
+INSERT INTO t1 VALUES (NULL, repeat('b',16*1024), TO_VECTOR("[1.2,2.2,3.2,4.2]"));
+--echo
+
+--echo **** Data Insert Validation Source Section t1 ****
+--echo
+SELECT LENGTH(data), FROM_VECTOR(v1) FROM t1 WHERE c1 = 1;
+SELECT LENGTH(data), FROM_VECTOR(v1) FROM t1 WHERE c1 = 2;
+SELECT LENGTH(data), FROM_VECTOR(v1) FROM t1 WHERE c1 = 3;
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables=master:t1,slave:t1
+--source include/diff_tables.inc
+
+--echo **** Data Update Section t1 ****
+--echo
+--source include/rpl/connection_source.inc
+UPDATE t1 set data=repeat('a',18*1024), v1=TO_VECTOR("[0,0,0,0]") where c1 = 1;
+UPDATE t1 set data=repeat('c',17*1024), v1=TO_VECTOR("[7.1,7.2,7.3,7.4]") where c1 = 2;
+--echo
+
+--echo **** Data Update Validation Source Section t1 ****
+--echo
+SELECT LENGTH(data), FROM_VECTOR(v1) FROM t1 WHERE c1 = 1;
+SELECT LENGTH(data), FROM_VECTOR(v1) FROM t1 WHERE c1 = 2;
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables=master:t1,slave:t1
+--source include/diff_tables.inc
+
+--source include/rpl/connection_source.inc
+--echo
+--echo **** End Test Section t1 ****
+--echo
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/rpl_row_vector_source.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/rpl_row_vector_replica.sql
+
+diff_files $MYSQLTEST_VARDIR/tmp/rpl_row_vector_source.sql $MYSQLTEST_VARDIR/tmp/rpl_row_vector_replica.sql;
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_row_vector_source.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_row_vector_replica.sql
+
+DROP TABLE t1;
+
+--echo *****  Table with max width columns (16383) *****
+
+--source include/rpl/connection_source.inc
+FLUSH LOGS;
+--source include/rpl/save_binlog_file_position.inc
+--disable_query_log
+CREATE TABLE a (pk INT, embedding VECTOR(16383), PRIMARY KEY (pk));
+INSERT INTO a VALUES (0, TO_VECTOR(CONCAT("[", REPEAT("1.0,", 16382), "1.0]")));
+INSERT INTO a VALUES (1, TO_VECTOR(CONCAT("[", REPEAT("2.0,", 16382), "2.0]")));
+INSERT INTO a VALUES (2, TO_VECTOR(CONCAT("[", REPEAT("3.0,", 16382), "3.0]")));
+UPDATE a SET embedding = TO_VECTOR("[1]") WHERE pk = 1;
+DELETE FROM a WHERE pk = 0;
+--disable_result_log
+--sorted_result
+SELECT pk, FROM_VECTOR(embedding) FROM a;
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables=master:a,slave:a
+--source include/diff_tables.inc
+
+--source include/rpl/connection_source.inc
+UPDATE a SET embedding = TO_VECTOR("[0.0]");
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables=master:a,slave:a
+--source include/diff_tables.inc
+
+--enable_result_log
+--source include/rpl/connection_source.inc
+
+--exec $MYSQL_BINLOG -v -v $binlog_fullpath > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector2.output
+
+--let $assert_text=Check the vector columns are available
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector2.output
+--let $assert_select=Corrupted replication event was detected
+--let $assert_count=0
+--source include/assert_grep.inc
+
+--let $assert_text=Check the vector columns are available
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector2.output
+--let $assert_select=VECTOR\(16383\)
+--let $assert_count=11
+--source include/assert_grep.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector2.output
+
+DROP TABLE a;
+
+--echo #
+--echo # BUG#36267410
+--echo # R1. Test that UPDATE statement with column assignment fails, if size is large
+--echo # R2. Test that UPDATE statement with column assignment does not cause any binlog corruption (memcpy-ability between VECTOR types not possible)
+--echo #
+
+CREATE TABLE a (a1 INT, a2 VECTOR(2), a3 VECTOR(1), a4 VARCHAR(1), PRIMARY KEY(a1));
+INSERT INTO a VALUES (1, TO_VECTOR("[1,2]"), TO_VECTOR("[1]"), "a");
+--sorted_result
+SELECT FROM_VECTOR(a2), FROM_VECTOR(a3) FROM a;
+--error ER_DATA_TOO_LONG
+UPDATE a SET a3 = a2;
+UPDATE a SET a2 = a3;
+--sorted_result
+SELECT FROM_VECTOR(a2), FROM_VECTOR(a3) FROM a;
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables=master:a,slave:a
+--source include/diff_tables.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE a;
+
+--echo **********************************************************
+--echo *****  Tables with differing types (VECTOR <-> BLOB) *****
+--echo **********************************************************
+
+--source include/rpl/connection_source.inc
+CREATE TABLE b (
+    pk int not null auto_increment,
+    v1 VECTOR(16),
+    PRIMARY KEY(pk));
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE b MODIFY COLUMN v1 BLOB;
+
+--source include/rpl/connection_source.inc
+INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4]")), (TO_VECTOR("[5,6,7,8]"));
+--sorted_result
+SELECT pk, FROM_VECTOR(v1) FROM b;
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression(".Column 1 of table 'test.B' cannot be converted from type 'vector.16.' to type 'blob'");
+CALL mtr.add_suppression(".The replica coordinator and worker threads are stopped.");
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
+--source include/rpl/wait_for_applier_error.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE b;
+--source include/rpl/connection_replica.inc
+DROP TABLE b;
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo **********************************************************
+--echo *****  Tables with differing types (VECTOR <-> TEXT) *****
+--echo **********************************************************
+
+--source include/rpl/connection_source.inc
+CREATE TABLE b (
+    pk int not null auto_increment,
+    v1 VECTOR(16),
+    PRIMARY KEY(pk));
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE b MODIFY COLUMN v1 TEXT;
+
+--source include/rpl/connection_source.inc
+INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4]")), (TO_VECTOR("[5,6,7,8]"));
+--sorted_result
+SELECT pk, FROM_VECTOR(v1) FROM b;
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression(".Column 1 of table 'test.B' cannot be converted from type 'vector.16.' to type 'text'");
+CALL mtr.add_suppression(".The replica coordinator and worker threads are stopped.");
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
+--source include/rpl/wait_for_applier_error.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE b;
+--source include/rpl/connection_replica.inc
+DROP TABLE b;
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo **********************************************************
+--echo *****  Tables with differing types (TEXT <-> VECTOR) *****
+--echo **********************************************************
+
+--source include/rpl/connection_source.inc
+CREATE TABLE b (
+    pk int not null auto_increment,
+    v1 TEXT,
+    PRIMARY KEY(pk));
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE b MODIFY COLUMN v1 VECTOR(16);
+
+--source include/rpl/connection_source.inc
+INSERT INTO b(v1) VALUES ("[1,2,3,4]"), ("[5,6,7,8]");
+--sorted_result
+SELECT pk, v1 FROM b;
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression(".Column 1 of table 'test.B' cannot be converted from type 'blob' to type 'vector.16.'");
+CALL mtr.add_suppression(".The replica coordinator and worker threads are stopped.");
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
+--source include/rpl/wait_for_applier_error.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE b;
+--source include/rpl/connection_replica.inc
+DROP TABLE b;
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo **********************************************************
+--echo *****  Tables with differing types (BLOB <-> VECTOR) *****
+--echo **********************************************************
+
+--source include/rpl/connection_source.inc
+CREATE TABLE b (
+    pk int not null auto_increment,
+    v1 BLOB,
+    PRIMARY KEY(pk));
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE b MODIFY COLUMN v1 VECTOR(16);
+
+--source include/rpl/connection_source.inc
+INSERT INTO b(v1) VALUES ("[1,2,3,4]"), ("[5,6,7,8]");
+--sorted_result
+SELECT pk, v1 FROM b;
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression(".Column 1 of table 'test.B' cannot be converted from type 'blob' to type 'vector.16.'");
+CALL mtr.add_suppression(".The replica coordinator and worker threads are stopped.");
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
+--source include/rpl/wait_for_applier_error.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE b;
+--source include/rpl/connection_replica.inc
+DROP TABLE b;
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo *************************************************************
+--echo *****  Tables with differing types (VARCHAR <-> VECTOR) *****
+--echo *************************************************************
+
+--source include/rpl/connection_source.inc
+CREATE TABLE b (
+    pk int not null auto_increment,
+    v1 VARCHAR(30),
+    PRIMARY KEY(pk));
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE b MODIFY COLUMN v1 VECTOR(16);
+
+--source include/rpl/connection_source.inc
+INSERT INTO b(v1) VALUES ("[1,2,3,4]"), ("[5,6,7,8]");
+--sorted_result
+SELECT pk, v1 FROM b;
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression(".Column 1 of table 'test.B' cannot be converted from type 'varchar.120.bytes..' to type 'vector.16.'");
+CALL mtr.add_suppression(".The replica coordinator and worker threads are stopped.");
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
+--source include/rpl/wait_for_applier_error.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE b;
+--source include/rpl/connection_replica.inc
+DROP TABLE b;
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+
+--echo **********************************************************
+--echo *****  Tables with differing types (VECTOR <-> VARCHAR) **
+--echo **********************************************************
+
+--source include/rpl/connection_source.inc
+CREATE TABLE b (
+    pk int not null auto_increment,
+    v1 VECTOR(16),
+    PRIMARY KEY(pk));
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE b MODIFY COLUMN v1 VARCHAR(128);
+
+--source include/rpl/connection_source.inc
+INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4]")), (TO_VECTOR("[5,6,7,8]"));
+--sorted_result
+SELECT pk, FROM_VECTOR(v1) FROM b;
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression(".Column 1 of table 'test.B' cannot be converted from type 'vector.16.' to type 'varchar.512.bytes. utf8mb4.'");
+CALL mtr.add_suppression(".The replica coordinator and worker threads are stopped.");
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
+--source include/rpl/wait_for_applier_error.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE b;
+--source include/rpl/connection_replica.inc
+DROP TABLE b;
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo **************************************************************************
+--echo *****  Tables with differing sized columns (VECTOR(4) <-> VECTOR(2)) *****
+--echo **************************************************************************
+
+--source include/rpl/connection_source.inc
+CREATE TABLE b (
+    pk int not null auto_increment,
+    v1 VECTOR(4),
+    PRIMARY KEY(pk));
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+show create table b;
+
+SET @saved_replica_type_conversions = @@GLOBAL.replica_type_conversions;
+SET GLOBAL replica_type_conversions='ALL_LOSSY';
+
+ALTER TABLE b MODIFY COLUMN v1 VECTOR(2);
+show create table b;
+
+--source include/rpl/connection_source.inc
+show create table b;
+INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4]")), (TO_VECTOR("[5,6,7,8]"));
+--sorted_result
+SELECT pk, FROM_VECTOR(v1) FROM b;
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression(".Column 1 of table 'test.B' cannot be converted from type 'vector.4.' to type 'vector.2.'");
+CALL mtr.add_suppression(".The replica coordinator and worker threads are stopped.");
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
+--source include/rpl/wait_for_applier_error.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE b;
+--source include/rpl/connection_replica.inc
+DROP TABLE b;
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo ******************************************************************************************
+--echo *****  Tables with differing sized columns (VECTOR(4) <-> VECTOR(2)) - ALL_NON_LOSSY *****
+--echo ******************************************************************************************
+
+--source include/rpl/connection_source.inc
+CREATE TABLE b (
+    pk int not null auto_increment,
+    v1 VECTOR(4),
+    PRIMARY KEY(pk));
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+
+SET GLOBAL replica_type_conversions='ALL_NON_LOSSY';
+
+show create table b;
+
+ALTER TABLE b MODIFY COLUMN v1 VECTOR(2);
+show create table b;
+
+--source include/rpl/connection_source.inc
+show create table b;
+INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4]")), (TO_VECTOR("[5,6,7,8]"));
+--sorted_result
+SELECT pk, FROM_VECTOR(v1) FROM b;
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression(".Column 1 of table 'test.B' cannot be converted from type 'vector.4.' to type 'vector.2.'");
+CALL mtr.add_suppression(".The replica coordinator and worker threads are stopped.");
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
+--source include/rpl/wait_for_applier_error.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE b;
+--source include/rpl/connection_replica.inc
+DROP TABLE b;
+
+SET GLOBAL replica_type_conversions = @saved_replica_type_conversions;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--exec $MYSQL_BINLOG -v -v $MYSQL_TEST_DIR/std_data/rpl_vector_binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector.output
+
+--let $assert_text=Check the vector columns are available
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector.output
+--let $assert_select=1\.00000e\+00,2\.00000e\+00,3\.00000e\+00,4\.00000e\+00
+--let $assert_count=1
+--source include/assert_grep.inc
+
+--let $assert_text=Check the vector columns are available
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector.output
+--let $assert_select=1\.10000e\+00,2\.10000e\+00,3\.10000e\+00,4\.10000e\+00
+--let $assert_count=1
+--source include/assert_grep.inc
+
+--let $assert_text=Check the vector columns are available
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector.output
+--let $assert_select=1\.20000e\+00,2\.20000e\+00,3\.20000e\+00,4\.20000e\+00
+--let $assert_count=1
+--source include/assert_grep.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector.output
+
+--exec $MYSQL_BINLOG --print-table-metadata $MYSQL_TEST_DIR/std_data/rpl_vector_binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector.output
+--let $assert_text=Check the vector columns are available
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector.output
+--let $assert_select=VECTOR\(4\)
+--let $assert_count=4
+--source include/assert_grep.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector.output
+
+--source include/rpl/deinit.inc

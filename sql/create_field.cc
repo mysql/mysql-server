@@ -391,6 +391,18 @@ bool Create_field::init(
       break;
     case MYSQL_TYPE_STRING:
       break;
+    case MYSQL_TYPE_VECTOR: {
+      auto max_dimension_bytes =
+          Field_vector::dimension_bytes(Field_vector::max_dimensions);
+      if (m_max_display_width_in_codepoints > max_dimension_bytes) {
+        my_error(ER_EXCEEDS_VECTOR_MAX_DIMENSIONS, MYF(0),
+                 m_max_display_width_in_codepoints,
+                 m_max_display_width_in_codepoints / Field_vector::precision,
+                 max_dimension_bytes, Field_vector::max_dimensions, fld_name);
+        break;
+      }
+      [[fallthrough]];
+    }
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
@@ -779,6 +791,10 @@ size_t Create_field::key_length() const {
       }
       return pack_length() + (max_display_width_in_bytes() & 7 ? 1 : 0);
     }
+    /* LCOV_EXCL_START */
+    case MYSQL_TYPE_VECTOR:
+      assert(false);  // Key on VECTOR type column is not supported.
+    /* LCOV_EXCL_STOP */
     default: {
       return pack_length(is_array);
     }

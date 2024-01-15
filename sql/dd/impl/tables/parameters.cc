@@ -79,7 +79,7 @@ Parameters::Parameters() {
                          "    'MYSQL_TYPE_LONG_BLOB', 'MYSQL_TYPE_BLOB',\n"
                          "    'MYSQL_TYPE_VAR_STRING',\n"
                          "    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',\n"
-                         "    'MYSQL_TYPE_JSON'\n"
+                         "    'MYSQL_TYPE_JSON', 'MYSQL_TYPE_VECTOR'\n"
                          "  ) NOT NULL");
   m_target_def.add_field(FIELD_DATA_TYPE_UTF8, "FIELD_DATA_TYPE_UTF8",
                          "data_type_utf8 MEDIUMTEXT NOT NULL");

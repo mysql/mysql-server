@@ -254,6 +254,25 @@ static void parse_geometry_type(std::vector<unsigned int> &vec,
 }
 
 /**
+   Parses VECTOR_DIMENSIONALITY field.
+
+   @param[out] vec        stores vector columns's dimensionality extracted from
+   field.
+   @param[in]  reader_obj the Event_reader object containing the serialized
+                          field.
+   @param[in]  length     length of the field
+ */
+static void parse_vector_dimensionality(std::vector<unsigned int> &vec,
+                                        Event_reader &reader_obj,
+                                        unsigned int length) {
+  const char *field = reader_obj.ptr();
+  while (reader_obj.ptr() < field + length) {
+    vec.push_back(reader_obj.net_field_length_ll());
+    if (reader_obj.has_error()) return;
+  }
+}
+
+/**
    Parses SIMPLE_PRIMARY_KEY field.
 
    @param[out] vec        stores primary key's column information extracted from
@@ -372,6 +391,9 @@ Table_map_event::Optional_metadata_fields::Optional_metadata_fields(
         break;
       case COLUMN_VISIBILITY:
         parse_column_visibility(&m_column_visibility, reader_obj, len);
+        break;
+      case VECTOR_DIMENSIONALITY:
+        parse_vector_dimensionality(m_vector_dimensionality, reader_obj, len);
         break;
       default:
         BAPI_ASSERT(0);

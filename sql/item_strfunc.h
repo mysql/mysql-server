@@ -765,6 +765,7 @@ class Item_func_char final : public Item_str_func {
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG)) return true;
+    if (reject_vector_args()) return true;
     set_data_type_string(arg_count * 4U);
     return false;
   }
@@ -853,6 +854,7 @@ class Item_func_is_uuid final : public Item_bool_func {
   longlong val_int() override;
   const char *func_name() const override { return "is_uuid"; }
   bool resolve_type(THD *thd) override {
+    if (reject_vector_args()) return true;
     bool res = super::resolve_type(thd);
     set_nullable(true);
     return res;
@@ -909,6 +911,7 @@ class Item_func_like_range : public Item_str_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+    if (reject_vector_args()) return true;
     set_data_type_string(uint32{MAX_BLOB_WIDTH}, args[0]->collation);
     return false;
   }
@@ -1032,6 +1035,7 @@ class Item_load_file final : public Item_str_func {
   }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
+    if (reject_vector_args()) return true;
     collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
     set_data_type_blob(MYSQL_TYPE_LONG_BLOB, MAX_BLOB_WIDTH);
     set_nullable(true);
@@ -1203,6 +1207,7 @@ class Item_func_uncompressed_length final : public Item_int_func {
   const char *func_name() const override { return "uncompressed_length"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
+    if (reject_vector_args()) return true;
     max_length = 10;
     return false;
   }
@@ -1219,12 +1224,38 @@ class Item_func_compress final : public Item_str_func {
   String *val_str(String *str) override;
 };
 
+class Item_func_to_vector final : public Item_str_func {
+  String buffer;
+
+ public:
+  Item_func_to_vector(const POS &pos, Item *a) : Item_str_func(pos, a) {}
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "to_vector"; }
+  String *val_str(String *str) override;
+};
+
+class Item_func_from_vector final : public Item_str_func {
+  static const uint32 per_value_chars = 16;
+  static const uint32 max_output_bytes =
+      (Field_vector::max_dimensions * Item_func_from_vector::per_value_chars);
+  String buffer;
+
+ public:
+  Item_func_from_vector(const POS &pos, Item *a) : Item_str_func(pos, a) {
+    collation.set(&my_charset_utf8mb4_0900_bin);
+  }
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "from_vector"; }
+  String *val_str(String *str) override;
+};
+
 class Item_func_uncompress final : public Item_str_func {
   String buffer;
 
  public:
   Item_func_uncompress(const POS &pos, Item *a) : Item_str_func(pos, a) {}
   bool resolve_type(THD *thd) override {
+    if (reject_vector_args()) return true;
     if (Item_str_func::resolve_type(thd)) return true;
     set_nullable(true);
     set_data_type_string(uint32{MAX_BLOB_WIDTH});

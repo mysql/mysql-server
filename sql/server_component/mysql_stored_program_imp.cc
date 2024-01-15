@@ -237,6 +237,9 @@ static int get_field_metadata_internal(Create_field &field, bool input,
       case MYSQL_TYPE_GEOMETRY:
         *reinterpret_cast<uint64_t *>(value) = MYSQL_SP_ARG_TYPE_GEOMETRY;
         break;
+      case MYSQL_TYPE_VECTOR:
+        *reinterpret_cast<uint64_t *>(value) = MYSQL_SP_ARG_TYPE_VECTOR;
+        break;
       default:
         return MYSQL_FAILURE;
     }

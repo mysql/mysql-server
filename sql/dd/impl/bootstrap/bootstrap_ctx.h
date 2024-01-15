@@ -66,6 +66,7 @@ static constexpr uint DD_VERSION_80022 = 80022;
 static constexpr uint DD_VERSION_80023 = 80023;
 static constexpr uint DD_VERSION_80200 = 80200;
 static constexpr uint DD_VERSION_80300 = 80300;
+static constexpr uint DD_VERSION_80400 = 80400;
 
 /*
   Set of supported DD version labels. A supported DD version is a version
@@ -78,7 +79,7 @@ static constexpr uint DD_VERSION_80300 = 80300;
 static std::set<uint> supported_dd_versions = {
     DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013, DD_VERSION_80014,
     DD_VERSION_80015, DD_VERSION_80016, DD_VERSION_80017, DD_VERSION_80021,
-    DD_VERSION_80022, DD_VERSION_80023, DD_VERSION_80200};
+    DD_VERSION_80022, DD_VERSION_80023, DD_VERSION_80200, DD_VERSION_80300};
 
 // Individual server version labels that we can refer to.
 static constexpr uint SERVER_VERSION_50700 = 50700;

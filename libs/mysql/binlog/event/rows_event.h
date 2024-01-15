@@ -567,8 +567,9 @@ class Table_map_event : public Binary_log_event {
                                      columns, optimized to minimize
                                      space when many columns have the
                                      same charset. */
-    COLUMN_VISIBILITY             /* Flag to indicate column visibility
+    COLUMN_VISIBILITY,            /* Flag to indicate column visibility
                                      attribute. */
+    VECTOR_DIMENSIONALITY         /* Vector column dimensionality */
   };
 
   /**
@@ -605,6 +606,7 @@ class Table_map_event : public Binary_log_event {
     std::vector<str_vector> m_enum_str_value;
     std::vector<str_vector> m_set_str_value;
     std::vector<unsigned int> m_geometry_type;
+    std::vector<unsigned int> m_vector_dimensionality;
     /*
       The uint_pair means <column index, prefix length>.  Prefix length is 0 if
       whole column value is used.

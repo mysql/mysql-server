@@ -601,6 +601,12 @@ Copy_field::Copy_func *Copy_field::get_copy_func() {
         !compatible_db_low_byte_first) {
       return do_copy_blob;
     }
+    if (m_from_field->real_type() == MYSQL_TYPE_VECTOR ||
+        m_to_field->real_type() == MYSQL_TYPE_VECTOR) {
+      /* Use do_copy_blob if an involved field is VECTOR, since
+       * we need to check for explicit field length */
+      return do_copy_blob;
+    }
   } else {
     if (m_to_field->real_type() == MYSQL_TYPE_BIT ||
         m_from_field->real_type() == MYSQL_TYPE_BIT)
@@ -716,7 +722,8 @@ bool fields_are_memcpyable(const Field *to, const Field *from) {
   }
   if (to_type == MYSQL_TYPE_JSON || to_real_type == MYSQL_TYPE_GEOMETRY ||
       to_real_type == MYSQL_TYPE_VARCHAR || to_real_type == MYSQL_TYPE_ENUM ||
-      to_real_type == MYSQL_TYPE_SET || to_real_type == MYSQL_TYPE_BIT) {
+      to_real_type == MYSQL_TYPE_SET || to_real_type == MYSQL_TYPE_BIT ||
+      to_real_type == MYSQL_TYPE_VECTOR) {
     return false;
   }
   if (from->is_array()) {

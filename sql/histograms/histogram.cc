@@ -179,6 +179,7 @@ static Value_map_type field_type_to_value_map_type(
     case MYSQL_TYPE_JSON:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_INVALID:
     default:
       return Value_map_type::INVALID;

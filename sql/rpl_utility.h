@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "field_types.h"  // enum_field_types
 #include "my_dbug.h"
@@ -264,9 +265,11 @@ class table_def {
     @param metadata_size Size of the field_metadata array
     @param null_bitmap The bitmap of fields that can be null
     @param flags Table flags
+    @param vector_dimensionality Vector dimensionality array
    */
   table_def(unsigned char *types, ulong size, uchar *field_metadata,
-            int metadata_size, uchar *null_bitmap, uint16 flags);
+            int metadata_size, uchar *null_bitmap, uint16 flags,
+            const std::vector<unsigned int> &vector_dimensionality);
 
   ~table_def();
 
@@ -306,6 +309,17 @@ class table_def {
       m_json_column_count = c;
     }
     return m_json_column_count;
+  }
+
+  /// Return the number of VECTOR columns
+  static uint vector_column_count(const unsigned char *types, ulong size) {
+    uint count = 0;
+    for (ulong i = 0; i < size; i++) {
+      if (static_cast<enum_field_types>(types[i]) == MYSQL_TYPE_VECTOR) {
+        count++;
+      }
+    }
+    return count;
   }
 
   /*
@@ -399,6 +413,16 @@ class table_def {
     data from the master to a specific column.
   */
   uint32 calc_field_size(uint col, const uchar *master_data) const;
+
+  std::vector<unsigned int>::const_iterator get_vector_dimensionality_begin()
+      const {
+    return m_vector_dimensionality.begin();
+  }
+
+  std::vector<unsigned int>::const_iterator get_vector_dimensionality_end()
+      const {
+    return m_vector_dimensionality.end();
+  }
 
 #ifdef MYSQL_SERVER
   /**
@@ -502,6 +526,7 @@ class table_def {
   bool *m_is_array;
   bool m_is_gipk_set;
   bool m_is_gipk_on_table;
+  std::vector<unsigned int> m_vector_dimensionality;
 };
 
 #ifdef MYSQL_SERVER

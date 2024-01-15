@@ -139,6 +139,7 @@ static inline bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_VARCHAR:
       break;

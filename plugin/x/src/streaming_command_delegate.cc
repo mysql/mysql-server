@@ -223,6 +223,7 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
 
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_VARCHAR:

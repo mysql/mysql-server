@@ -3269,6 +3269,7 @@ bool Protocol_classic::store_string(const char *from, size_t length,
          field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
          field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
          field_types[field_pos] == MYSQL_TYPE_JSON ||
+         field_types[field_pos] == MYSQL_TYPE_VECTOR ||
          (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
           field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;

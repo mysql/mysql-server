@@ -2492,8 +2492,17 @@ class Table_map_log_event : public mysql::binlog::event::Table_map_event,
 #ifndef MYSQL_SERVER
   table_def *create_table_def() {
     assert(m_colcnt > 0);
+    uint vector_column_count =
+        table_def::vector_column_count(m_coltype, m_colcnt);
+    std::vector<unsigned int> vector_dimensionality;
+    if (vector_column_count > 0) {
+      const Optional_metadata_fields fields(m_optional_metadata,
+                                            m_optional_metadata_len);
+      vector_dimensionality = fields.m_vector_dimensionality;
+    }
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
-                         m_field_metadata_size, m_null_bits, m_flags);
+                         m_field_metadata_size, m_null_bits, m_flags,
+                         vector_dimensionality);
   }
   static bool rewrite_db_in_buffer(
       char **buf, ulong *event_len,
@@ -2633,6 +2642,7 @@ class Table_map_log_event : public mysql::binlog::event::Table_map_event,
   bool init_geometry_type_field();
   bool init_primary_key_field();
   bool init_column_visibility_field();
+  bool init_vector_dimensionality_field();
 #endif
 
 #ifndef MYSQL_SERVER

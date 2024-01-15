@@ -363,6 +363,9 @@ bool Index_impl::is_candidate_key() const {
     if (idx_elem_obj->column().type() == enum_column_types::GEOMETRY)
       return false;
 
+    if (idx_elem_obj->column().type() == enum_column_types::VECTOR)
+      return false;
+
     /*
       Probably we should adjust is_prefix() to take these two scenarios
       into account. But this also means that we probably need avoid

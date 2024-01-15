@@ -58,7 +58,8 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"  // Sql_condition
 #include "sql/table.h"
-#include "sql_string.h"  // String
+#include "sql/vector_conversion.h"  // get_dimensions
+#include "sql_string.h"             // String
 #include "template_utils.h"
 
 class Create_field;
@@ -149,6 +150,7 @@ Field (abstract)
 |  |     +--Field_geom
 |  |     +--Field_json
 |  |        +--Field_typed_array
+|  |     +--Field_vector
 |  |
 |  +--Field_null
 |  +--Field_enum
@@ -3755,7 +3757,7 @@ class Field_blob : public Field_longstr {
   */
   uint32 pack_length_no_ptr() const { return (uint32)(packlength); }
   uint row_pack_length() const final { return pack_length_no_ptr(); }
-  uint32 max_data_length() const final {
+  uint32 max_data_length() const override {
     return (uint32)(((ulonglong)1 << (packlength * 8)) - 1);
   }
   size_t get_field_buffer_size() { return value.alloced_length(); }
@@ -3928,6 +3930,64 @@ class Field_blob : public Field_longstr {
 
  private:
   int do_save_field_metadata(uchar *first_byte) const override;
+};
+
+class Field_vector : public Field_blob {
+ public:
+  static const uint32 max_dimensions = 16383;
+  static const uint32 precision = sizeof(float);
+  static uint32 dimension_bytes(uint32 dimensions) {
+    return precision * dimensions;
+  }
+  uint32 get_max_dimensions() const {
+    return get_dimensions(field_length, precision);
+  }
+
+  Field_vector(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
+               uchar null_bit_arg, uchar auto_flags_arg,
+               const char *field_name_arg, TABLE_SHARE *share,
+               uint blob_pack_length, const CHARSET_INFO *cs)
+      : Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
+                   field_name_arg, share, blob_pack_length, cs) {
+    set_field_length(len_arg);
+    assert(packlength == 4);
+  }
+
+  Field_vector(uint32 len_arg, bool is_nullable_arg, const char *field_name_arg,
+               const CHARSET_INFO *cs)
+      : Field_blob(len_arg, is_nullable_arg, field_name_arg, cs, false) {
+    set_field_length(len_arg);
+    assert(packlength == 4);
+  }
+
+  Field_vector(const Field_vector &field) : Field_blob(field) {
+    assert(packlength == 4);
+  }
+
+  void sql_type(String &res) const override {
+    const CHARSET_INFO *cs = res.charset();
+    size_t length =
+        cs->cset->snprintf(cs, res.ptr(), res.alloced_length(), "%s(%u)",
+                           "vector", get_max_dimensions());
+    res.length(length);
+  }
+  Field_vector *clone(MEM_ROOT *mem_root) const override {
+    assert(type() == MYSQL_TYPE_VECTOR);
+    return new (mem_root) Field_vector(*this);
+  }
+  uint32 max_data_length() const override { return field_length; }
+  uint32 char_length() const override { return field_length; }
+  enum_field_types type() const final { return MYSQL_TYPE_VECTOR; }
+  enum_field_types real_type() const final { return MYSQL_TYPE_VECTOR; }
+  void make_send_field(Send_field *field) const override;
+  using Field_blob::store;
+  type_conversion_status store(double nr) final;
+  type_conversion_status store(longlong nr, bool unsigned_val) final;
+  type_conversion_status store_decimal(const my_decimal *) final;
+  type_conversion_status store(const char *from, size_t length,
+                               const CHARSET_INFO *cs) final;
+  uint is_equal(const Create_field *new_field) const override;
+  String *val_str(String *, String *) const override;
 };
 
 class Field_geom final : public Field_blob {

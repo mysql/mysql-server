@@ -958,7 +958,8 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                 type != MYSQL_TYPE_TINY_BLOB &&
                 type != MYSQL_TYPE_MEDIUM_BLOB &&
                 type != MYSQL_TYPE_LONG_BLOB && type != MYSQL_TYPE_BLOB &&
-                type != MYSQL_TYPE_JSON && type != MYSQL_TYPE_GEOMETRY) {
+                type != MYSQL_TYPE_JSON && type != MYSQL_TYPE_GEOMETRY &&
+                type != MYSQL_TYPE_VECTOR) {
               // Found a Field_item of a supported type
 
               assert(item->used_tables() != 0);

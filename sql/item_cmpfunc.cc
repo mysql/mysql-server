@@ -771,9 +771,16 @@ bool Item_bool_func2::resolve_type(THD *thd) {
     the GEOMETRY byte string rather than doing a geometric equality comparison.
   */
   const Functype func_type = functype();
+
+  uint nvector_args = num_vector_args();
+  if (func_type == EQ_FUNC && nvector_args != 0 && nvector_args != arg_count) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
+
   if ((func_type == LT_FUNC || func_type == LE_FUNC || func_type == GE_FUNC ||
        func_type == GT_FUNC || func_type == FT_FUNC) &&
-      reject_geometry_args(arg_count, args, this))
+      (reject_geometry_args() || reject_vector_args()))
     return true;
 
   // Make a special case of compare with fields to get nicer DATE comparisons
@@ -813,7 +820,8 @@ bool Item_func_like::resolve_type(THD *thd) {
     }
   }
 
-  if (reject_geometry_args(arg_count, args, this)) return true;
+  if (reject_geometry_args()) return true;
+  if (reject_vector_args()) return true;
 
   // LIKE is always carried out as a string operation
   args[0]->cmp_context = STRING_RESULT;
@@ -2575,6 +2583,11 @@ longlong Item_func_eq::val_int() {
 
 bool Item_func_equal::resolve_type(THD *thd) {
   if (Item_bool_func2::resolve_type(thd)) return true;
+  uint nvector_args = num_vector_args();
+  if (nvector_args != 0 && nvector_args != arg_count) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
   set_nullable(false);
   null_value = false;
   return false;
@@ -3139,7 +3152,8 @@ bool Item_func_between::resolve_type(THD *thd) {
     See comments for the code block doing similar checks in
     Item_bool_func2::resolve_type().
   */
-  if (reject_geometry_args(arg_count, args, this)) return true;
+  if (reject_geometry_args()) return true;
+  if (reject_vector_args()) return true;
 
   /*
     JSON values will be compared as strings, and not with the JSON

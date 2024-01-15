@@ -690,6 +690,21 @@ class PT_char_type : public PT_type {
   const CHARSET_INFO *get_charset() const override { return charset; }
 };
 
+class PT_vector_type : public PT_type {
+  char vector_length_buffer[33]{};
+
+ public:
+  PT_vector_type(const POS &pos, const char *length)
+      : PT_type(pos, MYSQL_TYPE_VECTOR) {
+    const char *length_arg = length == nullptr ? "2048" : length;
+    uint vector_length = atoi(length_arg) * sizeof(float);
+    sprintf(vector_length_buffer, "%u", vector_length);
+  }
+
+  const char *get_length() const override { return vector_length_buffer; }
+  const CHARSET_INFO *get_charset() const override { return &my_charset_bin; }
+};
+
 enum class Blob_type {
   TINY = MYSQL_TYPE_TINY_BLOB,
   MEDIUM = MYSQL_TYPE_MEDIUM_BLOB,
