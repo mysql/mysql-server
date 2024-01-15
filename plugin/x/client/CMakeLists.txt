@@ -49,8 +49,12 @@ MYSQLX_APPEND_COMPILE_DEFINITIONS(mysqlxclient
 
 ADD_LIBRARY(mysqlxclient_lite STATIC ${CLIENT_SRC})
 ADD_DEPENDENCIES(mysqlxclient_lite GenError)
+ADD_DEPENDENCIES(mysqlxclient_lite ${MYSQLX_PROTOCOL_LITE_LIB})
 TARGET_LINK_LIBRARIES(mysqlxclient_lite PUBLIC ext::lz4 ext::zstd ext::zlib)
-TARGET_LINK_LIBRARIES(mysqlxclient_lite PUBLIC ${MYSQLX_PROTOCOL_LITE_LIB})
+# Do not link in libmysqlxmessages_lite.a here, we may get ODR violations
+# in targets linking with both these static libraries.
+# TARGET_LINK_LIBRARIES(mysqlxclient_lite PUBLIC ${MYSQLX_PROTOCOL_LITE_LIB})
+TARGET_LINK_LIBRARIES(mysqlxclient_lite PUBLIC ext::libprotobuf-lite)
 TARGET_INCLUDE_DIRECTORIES(mysqlxclient_lite SYSTEM PUBLIC
   ${MYSQLX_PROJECT_DIR}/client/)
 TARGET_INCLUDE_DIRECTORIES(mysqlxclient_lite PRIVATE
