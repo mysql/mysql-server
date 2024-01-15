@@ -937,8 +937,9 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   }  
   */
 
-  // 状态层buffer暂不需扩容，每个mtr分配一定空间即可
-  /* log_wait_for_space_in_log_buf(log, start_sn); */
+  // 状态层buffer暂不需扩容，每条log分配一定空间即可
+  // TODO: 是按照mtr分配空间，还是按照单条log？？
+  // 进入 log_wait_for_space_in_log_buf 的逻辑
 
   const sn_t start_sn = log_translate_lsn_to_sn(handle.start_lsn);
   const sn_t end_sn = log_translate_lsn_to_sn(handle.end_lsn);
