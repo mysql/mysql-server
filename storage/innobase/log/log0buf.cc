@@ -931,7 +931,7 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   handle.start_lsn = log_translate_sn_to_lsn(start_sn);
   handle.end_lsn = log_translate_sn_to_lsn(end_sn);
 
-  /* 不判断，直接进逻辑
+  /* 不判断，直接进入 log_wait_for_space_in_log_buf 的逻辑
   if (unlikely(end_sn > log.buf_limit_sn.load())) {
     log_wait_for_space_after_reserving(log, handle);
   }  
@@ -939,23 +939,29 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
 
   // 状态层buffer暂不需扩容，每条log分配一定空间即可
   // TODO: 是按照mtr分配空间，还是按照单条log？？
-  // 进入 log_wait_for_space_in_log_buf 的逻辑
 
   const sn_t start_sn = log_translate_lsn_to_sn(handle.start_lsn);
   const sn_t end_sn = log_translate_lsn_to_sn(handle.end_lsn);
   const sn_t len_sn = end_sn - start_sn;
-  // 接下来是参考 log_wait_for_space_in_log_buf 的逻辑
-/* 
+
+  log_wait_for_space_in_remote_log_buf(log, start_sn);
+  log_wait_for_space_in_remote_log_buf(log, end_sn);
+  return handle;
+}
 
 
-
-static void log_wait_for_space_in_log_buf(log_t &log, sn_t end_sn) {
+/*
+@param[in,out]  log             redo log
+@param[in]      handle          handle for the reservation 
+*/
+// 参考 log_wait_for_space_in_log_buf 的辅助函数
+static void log_wait_for_space_in_remote_log_buf(log_t &log, sn_t end_sn) {
   lsn_t lsn;
   Wait_stats wait_stats;
 
   const sn_t write_sn = log_translate_lsn_to_sn(log.write_lsn.load());
 
-  log_sync_point("log_wait_for_space_in_buf_middle");
+  // log_sync_point("log_wait_for_space_in_buf_middle");
 
   const sn_t buf_size_sn = log.buf_size_sn.load();
 
@@ -963,20 +969,18 @@ static void log_wait_for_space_in_log_buf(log_t &log, sn_t end_sn) {
     return;
   }
 
-  srv_stats.log_waits.inc();
+  /* We preserve this counter for backward compatibility with 5.7. */
+  // srv_stats.log_waits.inc();
 
   lsn = log_translate_sn_to_lsn(end_sn + OS_FILE_LOG_BLOCK_SIZE - buf_size_sn);
 
+  // TODO: log_write_up_to 的逻辑还需要修改，不能直接使用
   wait_stats = log_write_up_to(log, lsn, false);
 
-  MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_BUFFER_SPACE_, wait_stats);
+  // MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_BUFFER_SPACE_, wait_stats);
 
-  ut_a(end_sn + OS_FILE_LOG_BLOCK_SIZE <=
-       log_translate_lsn_to_sn(log.write_lsn.load()) + buf_size_sn);
-}
-*/
-
-  return handle;
+  // ut_a(end_sn + OS_FILE_LOG_BLOCK_SIZE <=
+      // log_translate_lsn_to_sn(log.write_lsn.load()) + buf_size_sn);
 }
 
 /** @} */
