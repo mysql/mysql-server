@@ -674,6 +674,14 @@ class thread_local_pool {
       unsigned cnt = 1;
       free--;
 
+      /**
+       * Reduce contention on global_pool locks:
+       * Releases usually called from a thread doing send. It is likely to soon
+       * send and release more buffers. -> Release to 66% of max_free now, such
+       * that we do not hit max_free immediately in next release.
+       * NOTE: Need to be >= THR_SEND_BUFFER_PRE_ALLOC as well -> it is.
+       */
+      maxfree = (m_max_free * 2) / 3;
       while (free > maxfree) {
         cnt++;
         free--;
