@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include <NdbDictionary.hpp>
 #include <ndb_rand.h>
 #include "../../src/ndbapi/ndb_cluster_connection_impl.hpp"
+#include "NdbRestarter.hpp"
 
 class NDBT_Step;
 class NDBT_TestCase;
@@ -261,6 +262,7 @@ protected:
   virtual int runSteps(NDBT_Context* ctx) = 0;
   virtual int runVerifier(NDBT_Context* ctx) = 0;
   virtual int runFinal(NDBT_Context* ctx) = 0;
+  virtual int runCheckNoErrorInserted(NDBT_Context *ctx) = 0;
   virtual void addTable(const char* aTableName, bool isVerify=true) = 0;
 
   void startTimer(NDBT_Context*);
@@ -274,6 +276,7 @@ protected:
   NdbTimer timer;
   bool isVerifyTables;
   NDBT_DriverType m_driverType;
+  NdbRestarter _restarter;
 };
 
 static const int FAILED_TO_CREATE = 1000;
@@ -323,6 +326,7 @@ public:
   int runSteps(NDBT_Context* ctx);
   int runVerifier(NDBT_Context* ctx);
   int runFinal(NDBT_Context* ctx);
+  int runCheckNoErrorInserted(NDBT_Context *ctx) override;
   void print();
   void printHTML();
 

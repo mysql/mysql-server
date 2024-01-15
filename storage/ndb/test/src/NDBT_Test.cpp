@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -699,7 +699,14 @@ int NDBT_TestCase::execute(NDBT_Context* ctx)
   printTimer(ctx);
 
   // Always run finalizer to clean up db
-  runFinal(ctx); 
+  runFinal(ctx);  // TODO: check the runFinal ret value too?
+
+  if (res == NDBT_OK && !runCheckNoErrorInserted(ctx)) {
+    ndbout << "runCheckNoErrorInserted failed, error injections found after"
+              " running the test case."
+           << endl;
+    res = NDBT_FAILED;
+  }
 
   if (res == NDBT_OK) {
     ndbout << "- " << _name << " PASSED ["
@@ -796,6 +803,22 @@ int NDBT_TestCaseImpl1::runFinal(NDBT_Context* ctx){
   return res;
 }
 
+int NDBT_TestCaseImpl1::runCheckNoErrorInserted(NDBT_Context *ctx) {
+  /**
+   * Check if cluster is ready, if not it is not possible to
+   * perform the Error Insert verification
+   */
+  if (_restarter.waitClusterStarted(2) != 0) {
+    ndbout << "All nodes was not started, ignoring EI verification" << endl;
+    return 1;
+  }
+  if (_restarter.insertErrorInAllNodes(1) == 0) {
+    int ret = _restarter.waitClusterStarted(2);
+    return (ret == 0);
+  }
+  ndbout << "Failed to inject error 1, ignoring EI verification" << endl;
+  return 1;
+}
 
 void NDBT_TestCaseImpl1::saveTestResult(const char* test_name,
 					int result){
