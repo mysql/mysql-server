@@ -975,6 +975,7 @@ static void log_wait_for_space_in_remote_log_buf(log_t &log, sn_t end_sn) {
   lsn = log_translate_sn_to_lsn(end_sn + OS_FILE_LOG_BLOCK_SIZE - buf_size_sn);
 
   // TODO: log_write_up_to 的逻辑还需要修改，不能直接使用
+  // Location: storage/innobase/log/log0write.cc
   wait_stats = log_write_up_to(log, lsn, false);
 
   // MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_BUFFER_SPACE_, wait_stats);
