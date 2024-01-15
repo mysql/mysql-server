@@ -1067,7 +1067,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       RCQP* qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
       MetaManager* meta_mgr = MetaManager::get_instance();
 
-      // TODO: 怎么判断需要给 redo log 分配多少空间？
+      // TODO: 怎么判断需要给 redo log 分配多少空间？分配空间能不能集成在写log buffer操作的函数中？
       // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
 
       // Redo Log Buffer is already exists in local Node, so I call it redo_log_remote_buf 
