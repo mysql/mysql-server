@@ -921,8 +921,8 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
  */
 Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   Log_handle handle;
-  // 这里需要有 log_buffer_s_lock_enter_reserve -> log_buffer_s_lock_wait 中的逻辑
-  // 即需要加锁，先实现功能后再考虑多事务并发的问题
+  // TODO: 这里需要有 log_buffer_s_lock_enter_reserve -> log_buffer_s_lock_wait 中的逻辑
+  // 即需要加锁，准备先实现功能后，再考虑多事务并发的问题
 
   const sn_t start_sn = log.sn.fetch_add(len);
 
@@ -931,7 +931,7 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   handle.start_lsn = log_translate_sn_to_lsn(start_sn);
   handle.end_lsn = log_translate_sn_to_lsn(end_sn);
 
-  /*
+  /* 不判断，直接进逻辑
   if (unlikely(end_sn > log.buf_limit_sn.load())) {
     log_wait_for_space_after_reserving(log, handle);
   }  
@@ -941,11 +941,39 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   /* log_wait_for_space_in_log_buf(log, start_sn); */
 
   const sn_t start_sn = log_translate_lsn_to_sn(handle.start_lsn);
-
   const sn_t end_sn = log_translate_lsn_to_sn(handle.end_lsn);
-
   const sn_t len_sn = end_sn - start_sn;
+  // 接下来是参考 log_wait_for_space_in_log_buf 的逻辑
+/* 
 
+
+
+static void log_wait_for_space_in_log_buf(log_t &log, sn_t end_sn) {
+  lsn_t lsn;
+  Wait_stats wait_stats;
+
+  const sn_t write_sn = log_translate_lsn_to_sn(log.write_lsn.load());
+
+  log_sync_point("log_wait_for_space_in_buf_middle");
+
+  const sn_t buf_size_sn = log.buf_size_sn.load();
+
+  if (end_sn + OS_FILE_LOG_BLOCK_SIZE <= write_sn + buf_size_sn) {
+    return;
+  }
+
+  srv_stats.log_waits.inc();
+
+  lsn = log_translate_sn_to_lsn(end_sn + OS_FILE_LOG_BLOCK_SIZE - buf_size_sn);
+
+  wait_stats = log_write_up_to(log, lsn, false);
+
+  MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_BUFFER_SPACE_, wait_stats);
+
+  ut_a(end_sn + OS_FILE_LOG_BLOCK_SIZE <=
+       log_translate_lsn_to_sn(log.write_lsn.load()) + buf_size_sn);
+}
+*/
 
   return handle;
 }
