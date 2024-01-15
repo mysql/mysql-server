@@ -911,6 +911,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
 }
 
 
+
 /**
  * @StateReplicate 在状态层给 redo log 分配空间，以供接下来的写操作
  * 
@@ -920,12 +921,29 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
  */
 Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   Log_handle handle;
-  /* sn_t start_sn = log.sn.fetch_add(len); */ 
-  const sn_t start_sn = 0;
+  // 这里需要有 log_buffer_s_lock_enter_reserve -> log_buffer_s_lock_wait 中的逻辑
+  // 即需要加锁，先实现功能后再考虑多事务并发的问题
+
+  const sn_t start_sn = log.sn.fetch_add(len);
+
   const sn_t end_sn = start_sn + len;
   /* Translate sn to lsn (which includes also headers in redo blocks): */
   handle.start_lsn = log_translate_sn_to_lsn(start_sn);
   handle.end_lsn = log_translate_sn_to_lsn(end_sn);
+
+  /*
+  if (unlikely(end_sn > log.buf_limit_sn.load())) {
+    log_wait_for_space_after_reserving(log, handle);
+  }  
+  */
+
+  const sn_t start_sn = log_translate_lsn_to_sn(handle.start_lsn);
+
+  const sn_t end_sn = log_translate_lsn_to_sn(handle.end_lsn);
+
+  const sn_t len_sn = end_sn - start_sn;
+
+
   return handle;
 }
 
