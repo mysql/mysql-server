@@ -504,8 +504,6 @@ The following options may be given as the first argument:
  Migrate from keyring plugin to keyring component.
  --keyring-migration-user=name 
  User to login to server.
- -L, --language=name Client error messages in given language. May be given as
- a full path. Deprecated. Use --lc-messages-dir instead.
  --large-pages       Enable support for large pages
  --lc-messages=name  Set the language used for the error messages.
  --lc-messages-dir=name 

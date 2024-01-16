@@ -233,25 +233,12 @@ bool MY_LOCALE_ERRMSGS::read_texts() {
     error_messages += errmsg_section_size[i];
 
   convert_dirname(lang_path, language, NullS);
-  (void)my_load_path(lang_path, lang_path, lc_messages_dir);
+  (void)my_load_path(lang_path, lang_path, lc_messages_dir /* prefix */);
   if ((file = mysql_file_open(key_file_ERRMSG,
                               fn_format(name, ERRMSG_FILE, lang_path, "", 4),
                               O_RDONLY, MYF(0))) < 0) {
-    /*
-      Trying pre-5.5 semantics of the --language parameter.
-      It included the language-specific part, e.g.:
-
-      --language=/path/to/english/
-    */
-    if ((file = mysql_file_open(
-             key_file_ERRMSG,
-             fn_format(name, ERRMSG_FILE, lc_messages_dir, "", 4), O_RDONLY,
-             MYF(0))) < 0) {
-      LogErr(ERROR_LEVEL, ER_ERRMSG_CANT_FIND_FILE, name);
-      goto open_err;
-    }
-
-    LogErr(WARNING_LEVEL, ER_ERRMSG_LOADING_55_STYLE, lc_messages_dir);
+    LogErr(ERROR_LEVEL, ER_ERRMSG_CANT_FIND_FILE, name);
+    goto open_err;
   }
 
   // Read the header from the file

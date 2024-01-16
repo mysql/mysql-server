@@ -1074,7 +1074,7 @@ ER_DD_CREATED_FOR_UPGRADE
 ER_ERRMSG_CANT_FIND_FILE
   eng "Can't find error-message file '%s'. Check error-message file location and 'lc-messages-dir' configuration directive."
 
-ER_ERRMSG_LOADING_55_STYLE
+OBSOLETE_ER_ERRMSG_LOADING_55_STYLE
   eng "Using pre 5.5 semantics to load error messages from %s. If this is not intended, refer to the documentation for valid usage of --lc-messages-dir and --language parameters."
 
 ER_ERRMSG_MISSING_IN_FILE

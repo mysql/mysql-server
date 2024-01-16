@@ -10799,11 +10799,6 @@ struct my_option my_long_options[] = {
      &opt_super_large_pages, &opt_super_large_pages, nullptr, GET_BOOL, OPT_ARG,
      0, 0, 1, nullptr, 1, nullptr},
 #endif
-    {"language", 'L',
-     "Client error messages in given language. May be given as a full path. "
-     "Deprecated. Use --lc-messages-dir instead.",
-     &lc_messages_dir_ptr, &lc_messages_dir_ptr, nullptr, GET_STR, REQUIRED_ARG,
-     0, 0, 0, nullptr, 0, nullptr},
     {"lc-messages", 0, "Set the language used for the error messages.",
      &lc_messages, &lc_messages, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
@@ -12206,9 +12201,6 @@ bool mysqld_get_one_option(int optid,
                "Enabling symbolic using --symbolic-links/-s (or equivalent)");
       }
       break;
-    case 'L':
-      push_deprecated_warn(nullptr, "--language/-l", "'--lc-messages-dir'");
-      [[fallthrough]];
     case OPT_LC_MESSAGES_DIRECTORY:
       strmake(lc_messages_dir, argument, sizeof(lc_messages_dir) - 1);
       lc_messages_dir_ptr = lc_messages_dir;

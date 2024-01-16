@@ -150,7 +150,7 @@ class Sql_condition {
   /**
     Set the condition message test.
     @param message_text  Message text, expressed in the character set derived
-                         from the server --language option
+                         from the server --lc-messages option
   */
   void set_message_text(const char *message_text);
 
@@ -194,7 +194,7 @@ class Sql_condition {
   /** SQL CURSOR_NAME condition item. */
   String m_cursor_name;
 
-  /** Message text, expressed in the character set implied by --language. */
+  /** Message text, expressed in the character set implied by --lc-messages. */
   String m_message_text;
 
   /** MySQL extension, MYSQL_ERRNO condition item. */

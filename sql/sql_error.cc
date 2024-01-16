@@ -108,7 +108,7 @@ using std::min;
   In both cases, the message is retrieved from ER(ER_XXX), which in turn
   is read from the resource file errmsg.sys at server startup.
   The strings stored in the errmsg.sys file are expressed in the character set
-  that corresponds to the server --language start option
+  that corresponds to the server --lc-messages start option
   (see error_message_charset_info).
 
   When executing:
