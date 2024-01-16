@@ -7525,7 +7525,9 @@ int heartbeat_queue_event(bool is_valid, Master_info *&mi,
                  ER_THD(current_thd, ER_REPLICA_HEARTBEAT_FAILURE),
                  oss.str().c_str());
       return 1;
-    } else if (mi->get_master_log_pos() > position) {
+    } else if (mi->get_master_log_pos() > position ||
+               DBUG_EVALUATE_IF("fail_heartbeat_event_lock_leak_testing", 1,
+                                0)) {
       std::ostringstream oss;
       oss << "Replication heartbeat event contained the position " << position
           << " which is smaller than the position " << mi->get_master_log_pos()

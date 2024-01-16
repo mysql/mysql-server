@@ -1,0 +1,70 @@
+# ==== Purpose ====
+#
+# This test verifies that the replica server doesn't timeout after
+# receiving the heartbeat error.
+#
+#  ==== Requirements ====
+#
+#  The replica server should throw expected heartbeat error and
+#  not timeout.
+#
+#  ==== Implementation ====
+#
+#  1) Create a table on source.
+#  2) Sync replica and stop replica server.
+#  3) Execute a few transactions on source.
+#  4) Set the debug point on replica to induce the heartbeat
+#     failure.
+#  5) Start replica and observer the error.
+#  6) Reset and start replica.
+#  7) Check if source and replica are in sync
+#  8) Clean-up
+#
+# ==== References ====
+# Bug#36188908: Missing test case for Bug#35431274
+# Bug#35431274: Lock leak in heartbeat_queue_event()
+# 
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--source include/have_debug.inc
+
+CREATE TABLE t(s INT);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t VALUES(10);
+INSERT INTO t VALUES(12);
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Unexpected source's heartbeat data");
+CALL mtr.add_suppression("Relay log write failure");
+
+--let $debug_point= fail_heartbeat_event_lock_leak_testing
+--source include/add_debug_point.inc
+
+START REPLICA IO_THREAD;
+
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+
+--let $debug_point= fail_heartbeat_event_lock_leak_testing
+--source include/remove_debug_point.inc
+
+RESET REPLICA;
+START REPLICA;
+
+--source include/rpl_connection_master.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:t, slave:t
+--source include/diff_tables.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+
+--source include/rpl_end.inc

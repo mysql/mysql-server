@@ -1,0 +1,27 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t(s INT);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+[connection master]
+INSERT INTO t VALUES(10);
+INSERT INTO t VALUES(12);
+[connection slave]
+CALL mtr.add_suppression("Unexpected source's heartbeat data");
+CALL mtr.add_suppression("Relay log write failure");
+# Adding debug point 'fail_heartbeat_event_lock_leak_testing' to @@GLOBAL.debug
+START REPLICA IO_THREAD;
+include/wait_for_slave_io_error.inc [errno=13122]
+Last_IO_Error = 'Relay log write failure: could not queue event from source'
+# Removing debug point 'fail_heartbeat_event_lock_leak_testing' from @@GLOBAL.debug
+RESET REPLICA;
+START REPLICA;
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t, slave:t]
+[connection master]
+DROP TABLE t;
+include/rpl_end.inc
