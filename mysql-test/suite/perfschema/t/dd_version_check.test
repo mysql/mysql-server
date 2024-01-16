@@ -13,8 +13,14 @@ drop procedure if exists test.pfs_check_proc;
 
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT SUBSTRING_INDEX(SUBSTRING(properties, LOCATE('PS_VERSION', properties), 30), ';', 1)
+  into @actual_dd_version_tag
   FROM mysql.dd_properties;
 SET SESSION debug= '-d,skip_dd_table_access_check';
+
+SELECT @actual_dd_version_tag as "DATA DICTIONARY TAG";
+
+SELECT SUBSTRING(@actual_dd_version_tag, 12) into @actual_dd_version;
+SELECT @actual_dd_version as "DATA DICTIONARY VERSION";
 
 SET @old_group_concat_max_len = @@group_concat_max_len;
 
@@ -22,7 +28,11 @@ SET @old_group_concat_max_len = @@group_concat_max_len;
 SET group_concat_max_len = 200000;
 
 create table test.pfs_published_schema
-  (version varchar(20), signature varchar(64), primary key (version));
+  (version varchar(20) not null,
+   pfs_dd_version integer not null,
+   signature varchar(64) not null,
+   primary key (version),
+   unique key(pfs_dd_version));
 
 #
 # MAINTAINER:
@@ -35,11 +45,12 @@ create table test.pfs_published_schema
 # database structure is detected, acting as a fail safe.
 #
 # If a change was intended, then:
-# - (a) Go in storage/perfschema/pfs_dd_version.h
+# - (a) Go in storage/perfschema/pfs_dd_version.h,
+# find the declaration of variable PFS_DD_VERSION,
 # and create a new version number for this release
 # - (b) Add a row in table test.pfs_published_schema
-# for the new schema published, using the signature
-# of the new schema.
+# for the new schema published, using the new PFS_DD_VERSION
+# and the signature of the new schema.
 #
 # (a) will ensure that upgrades from old releases
 # will notice the schema change, and upgrade
@@ -62,75 +73,85 @@ create table test.pfs_published_schema
 # Keeping track of all signatures published in GA ...
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.17",
+ values("MySQL 8.0.17", 80017,
         "b77ece4deaa3c4676d817ed98c3cc33f5b1a08a001bf610a7d02fb52a42b613d");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.172",
+ values("MySQL 8.0.172", 800172,
         "4b2535cee3a558d09b93caaa1fe9021da9e758ffcacd0922bea81ae9799175dc");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.18",
+ values("MySQL 8.0.18", 80018,
         "1d6747d842bb2483c860cd7b28e886bdc6111ff61fd6b4d07e367aa7b3e9d9bf");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.19",
+ values("MySQL 8.0.19", 80019,
         "f58dba20c4234c34cedfcacd3b9a295dcac77a09b79d5f41d5f740878f272d4d");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.20",
+ values("MySQL 8.0.20", 80020,
         "a9aa0ab4a94ca91622145d735e60bbb03577616970351032d3194d8bfd7a69c7");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.21",
+ values("MySQL 8.0.21", 80021,
         "112972e1f7d2b3a351a14979ecc3b419efc81e79dc029078a3a94955be218e5a");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.22",
+ values("MySQL 8.0.22", 80022,
         "b9000c4a106a8351d2274028965f19d7902c3ccb9faa9407603c9258812f77fe");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.23",
+ values("MySQL 8.0.23", 80023,
         "903e1e93e60651094708033160338ba66b6e59a733111e773cac126adc932488");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.24",
+ values("MySQL 8.0.24", 80024,
         "2db5b001fae56232df1c5fab4be6bbf10d47873a6ad55f36ad9d9be20632e973");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.27",
+ values("MySQL 8.0.27", 80027,
         "b229e37b78fcb1a522fb01991615e092888071981515ceca629030d7c9ae66c4");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.28",
+ values("MySQL 8.0.28", 80028,
         "9984eaa4462410f61339028551966d92815f4287dac45358ca326b5c55333ddf");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.29",
+ values("MySQL 8.0.29", 80029,
         "94c77e0c2a4f4e6616648a8ec30aebc10eee06889338a06473434fd39dc80b3a");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.30",
+ values("MySQL 8.0.30", 80030,
         "977641d414b2df02e404d2ca3b9fbdf6d0af30f196f7de729a67d5b6183c17a8");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.31",
+ values("MySQL 8.0.31", 80031,
         "572cf94b0e4b955d16ae57de514a8d93ef746f7c97e74c16b6666687bff51c6d");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.32",
+ values("MySQL 8.0.32", 80032,
         "f1f4333cbce3fb0e8840ecacd6d0d417abfdf7dcbf61b01180c73a837ec0753b");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.33",
+ values("MySQL 8.0.33", 80033,
         "00421db55e31bdc58161e2051c78e6b2040250db74f63afe3e473441d43769b4");
 
 insert into test.pfs_published_schema
- values("MySQL 8.2.0",
+ values("MySQL 8.2.0", 80200,
         "283b7ecc142b0463234dab5ec178f3562dd3fa3c7daa5e3abc67e2a2609226c3");
 
+# MySQL 8.3.0 was incorrectly published with PFS_DD_VERSION 80200,
+# which is a bug.
+# The tooling now detects this, to prevent similar bugs:
+#
+# --error ER_DUP_ENTRY
+# insert into test.pfs_published_schema
+#  values("MySQL 8.3.0", 80200,
+#         "This should have been caught in 8.3.0");
+
+# Correct entry
 insert into test.pfs_published_schema
- values("MySQL 8.3.0",
+ values("MySQL 8.3.0", 80300,
         "afbf2a0d7acbbfb83e77e4e3fcf78af9d5d83131c5f275c19017b5d1be6e0d88");
 
 create table test.pfs_check_table
@@ -141,12 +162,13 @@ create table test.pfs_check_table
 
 delimiter $$;
 
-create procedure test.pfs_check_proc()
+create procedure test.pfs_check_proc(actual_dd_version integer)
 begin
   declare whole_schema longtext;
   declare max_length int;
   declare found_signature varchar(64);
   declare found_version varchar(20);
+  declare found_dd_version int;
 
   insert into test.pfs_check_table(t)
     select concat(CATALOG_NAME, "-",
@@ -230,7 +252,9 @@ begin
 
   select SHA2(whole_schema, 256) into found_signature;
 
-  select version into found_version from test.pfs_published_schema
+  select version, pfs_dd_version
+         into found_version, found_dd_version
+    from test.pfs_published_schema
     where signature = found_signature;
 
   if found_version is null
@@ -245,6 +269,10 @@ begin
         Make sure, by using now(), that this will not happen.
         See the comments in the MAINTAINER section of this test.
       */
+
+      select "YOU MUST READ THE MAINTAINER NOTES IN THIS TEST."
+        as MAINTAINER_ACTION_NEEDED, NOW() as "NOW";
+
       select concat("Unknown signature ",
                     found_signature,
                     ", fix PFS_DD_VERSION now (",
@@ -255,8 +283,34 @@ begin
     end;
   end if;
 
+  if (actual_dd_version != found_dd_version)
+  then
+    begin
+      declare full_msg text;
+
+      /*
+        Booby trap: actually verify that the PFS_DD_VERSION
+        declared in table test.pfs_published_schema corresponds to reality,
+        that is, that is corresponds to the PS_VERSION
+        contained in the data dictionary on disk.
+      */
+
+      select "YOU MUST READ THE MAINTAINER NOTES IN THIS TEST."
+        as MAINTAINER_ACTION_NEEDED, NOW() as "NOW";
+
+      select concat("Incoherent PFS_DD_VERSION ",
+                    found_dd_version,
+                    ", fix PFS_DD_VERSION now (",
+                    now(),
+                    ")") into full_msg;
+
+      signal sqlstate "50000" set message_text = full_msg;
+    end;
+  end if;
+
   select concat("The tables in the performance_schema were last changed in ",
-                found_version) as "CHECK STATUS";
+                found_version, ", with a PFS_DD_VERSION = ",
+                found_dd_version) as "CHECK STATUS";
 
 end
 $$
@@ -265,7 +319,7 @@ delimiter ;$$
 
 --echo "Checking the performance schema database structure ..."
 
-call test.pfs_check_proc();
+call test.pfs_check_proc(@actual_dd_version);
 
 # Debug
 # select count(*) from test.pfs_check_table;
