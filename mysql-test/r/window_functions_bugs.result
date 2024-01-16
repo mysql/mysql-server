@@ -2251,4 +2251,25 @@ t1 tb
 ON (ta.vkey=a1))  AS a2
 FROM t1 AS outer_t;
 ERROR 42S22: Reference 'a2' not supported (forward reference in item list)
+# Bug#35855294 Inconsistent results of SELECT statement with
+#              EXISTS clause - part III: row subquery with outer
+#              reference
+#
+# row subqueries cannot be evaluated before window functions
+SELECT ROW(AVG(vkey) OVER (PARTITION BY vkey), 59) =
+(SELECT ta.vkey, 59
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.c5) LIMIT 1)
+FROM t1 AS outer_t;
+ROW(AVG(vkey) OVER (PARTITION BY vkey), 59) =
+(SELECT ta.vkey, 59
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.c5) LIMIT 1)
+0
+1
+NULL
 DROP TABLE t1;

@@ -1531,4 +1531,17 @@ SELECT AVG(vkey) OVER (PARTITION BY vkey) IN
                 ON (ta.vkey=a1))  AS a2
 FROM t1 AS outer_t;
 
+--echo # Bug#35855294 Inconsistent results of SELECT statement with
+--echo #              EXISTS clause - part III: row subquery with outer
+--echo #              reference
+--echo #
+--echo # row subqueries cannot be evaluated before window functions
+SELECT ROW(AVG(vkey) OVER (PARTITION BY vkey), 59) =
+    (SELECT ta.vkey, 59
+     FROM t1 ta
+          JOIN
+          t1 tb
+          ON (ta.vkey=outer_t.c5) LIMIT 1)
+FROM t1 AS outer_t;
+
 DROP TABLE t1;

@@ -523,6 +523,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   // QUALIFY clause to the field list and replace them with references.
   if (m_qualify_cond != nullptr &&
       (m_qualify_cond->has_aggregation() || m_qualify_cond->has_wf())) {
+    LEX::Splitting_window_expression s(thd->lex, m_qualify_cond->has_wf());
     if (m_qualify_cond->split_sum_func2(thd, base_ref_items, &fields,
                                         &m_qualify_cond, true)) {
       return true;
@@ -4552,6 +4553,7 @@ bool Query_block::setup_order_final(THD *thd) {
     if (is_grouped_aggregate) continue;
 
     if (item->has_aggregation() || item->has_wf()) {
+      LEX::Splitting_window_expression s(thd->lex, item->has_wf());
       if (item->split_sum_func(thd, base_ref_items, &fields)) {
         return true; /* purecov: inspected */
       }
@@ -6579,6 +6581,7 @@ bool Query_block::replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
        !(new_item->type() == Item::SUM_FUNC_ITEM &&
          !new_item->m_is_window_function)) ||  // (1)
       new_item->has_wf()) {                    // (2)
+    LEX::Splitting_window_expression s(thd->lex, new_item->has_wf());
     if (new_item->split_sum_func(thd, base_ref_items, &fields)) {
       return true;
     }

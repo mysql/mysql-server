@@ -2278,12 +2278,22 @@ class Item_aggregate_ref : public Item_ref {
   }
 };
 
-static bool subquery_split(Item *item, bool *outer_refs_wf) {
+static bool subquery_split(THD *thd, Item *item, bool *outer_refs_wf) {
   assert(item->type() == Item::SUBQUERY_ITEM);
   Item_subselect *subq = down_cast<Item_subselect *>(item);
   switch (subq->subquery_type()) {
     case Item_subselect::SCALAR_SUBQUERY:
-      return subq->is_single_column_scalar_subquery();
+      // A single column scalar subquery can always be evaluated early
+      if (subq->is_single_column_scalar_subquery()) return true;
+      // Row subquery: its result can't be put into a single column so must be
+      // evaluated late in conjunction with windowing
+      if (subq->contains_outer_references()) {
+        // If a correlated row subquery is part of an expression containing
+        // a window function which can potentially use frame buffering, we need
+        // to handle items for any outer references during windowing
+        *outer_refs_wf = thd->lex->splitting_window_expression();
+      }
+      break;
     case Item_subselect::EXISTS_SUBQUERY:
       // Can safely always be evaluated before any window function; it has empty
       // left_expr.
@@ -2309,7 +2319,7 @@ static bool subquery_split(Item *item, bool *outer_refs_wf) {
         return true;
       }
       *outer_refs_wf =
-          iis->left_expr->has_wf() && iis->used_tables() & ~PSEUDO_TABLE_BITS;
+          iis->left_expr->has_wf() && iis->contains_outer_references();
       break;
     }
     default:
@@ -2463,12 +2473,12 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     if (split_sum_func(thd, ref_item_array, fields)) {
       return true;
     }
-  } else if (!const_for_execution() &&                    // (1)
-             (type() != REF_ITEM ||                       // (2)
-              down_cast<Item_ref *>(this)->ref_type() ==  //
-                  Item_ref::VIEW_REF) &&                  //
-             (type() != SUBQUERY_ITEM ||                  //
-              subquery_split(this, &outer_refs_wf))) {    // (3)
+  } else if (!const_for_execution() &&                       // (1)
+             (type() != REF_ITEM ||                          // (2)
+              down_cast<Item_ref *>(this)->ref_type() ==     //
+                  Item_ref::VIEW_REF) &&                     //
+             (type() != SUBQUERY_ITEM ||                     //
+              subquery_split(thd, this, &outer_refs_wf))) {  // (3)
     /*
       (1) Replace non-constant item with a reference so that we can easily
       calculate it (in case of aggregate functions, grouping functions or
@@ -2550,11 +2560,13 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       return true;
     }
   } else if (outer_refs_wf) {
-    // Make sure outer referenced fields are added to tmp table fields, so
-    // we can replace such fields with corresponding in windowing tmp table
-    // in presence of windowing frame buffers. If no frame buffering, this is
-    // redundant, could be omitted.
-    Item_in_subselect *iis = down_cast<Item_in_subselect *>(this);
+    // Make sure outer referenced fields are added to tmp table fields, so we
+    // can replace such fields with corresponding outer fields in windowing tmp
+    // table in presence of windowing frame buffers. If no frame buffering,
+    // this is redundant, and could be omitted: TODO.
+    // See also possibly_outerize_replacement called (indirectly via
+    // ReplaceMaterializedItems) from CreateFramebufferTable.
+    auto *iis = down_cast<Item_subselect *>(this);
     Mem_root_array<Item_field *> outer_flds(thd->mem_root);
     if (iis->walk(&Item::collect_outer_field_processor,
                   enum_walk::SUBQUERY_PREFIX,
