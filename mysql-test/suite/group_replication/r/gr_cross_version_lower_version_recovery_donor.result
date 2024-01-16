@@ -51,7 +51,11 @@ include/stop_group_replication.inc
 [connection server2]
 SET @allow_local_lower_version_join_save= @@GLOBAL.group_replication_allow_local_lower_version_join;
 SET GLOBAL group_replication_allow_local_lower_version_join= 1;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/assert.inc [The super_read_only mode should be 0 on server2.]
 [connection server3]
 include/assert.inc [The super_read_only mode should be 0 on server3.]
@@ -76,4 +80,6 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET @@GLOBAL.group_replication_allow_local_lower_version_join= @allow_local_lower_version_join_save;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

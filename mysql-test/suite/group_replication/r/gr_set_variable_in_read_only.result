@@ -26,10 +26,14 @@ Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 
 # 6. Cleanup.
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 [connection server2]
 SET @@GLOBAL.binlog_checksum= @binlog_checksum_save;
 include/group_replication_end.inc

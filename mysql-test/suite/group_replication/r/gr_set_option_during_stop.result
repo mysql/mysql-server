@@ -168,6 +168,8 @@ ORDER BY gb.VARIABLE_NAME;
 SET SESSION sql_log_bin = 1;
 SET @value= @@GLOBAL.group_replication_allow_local_lower_version_join;
 SET @@GLOBAL.group_replication_allow_local_lower_version_join= @value;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 SET @value= @@GLOBAL.group_replication_bootstrap_group;
 SET @@GLOBAL.group_replication_bootstrap_group= @value;
 SET @value= @@GLOBAL.group_replication_communication_stack;

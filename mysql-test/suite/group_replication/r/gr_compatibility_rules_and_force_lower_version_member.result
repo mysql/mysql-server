@@ -28,6 +28,8 @@ SET @debug2_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error_higher';
 SET GLOBAL group_replication_group_name= "6db14550-03bb-11e5-b939-0800200c9a13";
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 #
@@ -40,7 +42,11 @@ SET @@GLOBAL.DEBUG= @debug2_save;
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
 include/rpl_reconnect.inc
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2);
 include/rpl_sync.inc
 #
@@ -62,4 +68,6 @@ SET @@GLOBAL.DEBUG= @debug_save;
 include/stop_group_replication.inc
 include/start_group_replication.inc
 SET GLOBAL group_replication_allow_local_lower_version_join= OFF;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

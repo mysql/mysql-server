@@ -23,6 +23,8 @@ WHERE VARIABLE_NAME LIKE '%group_replication%'
 
 SET PERSIST group_replication_advertise_recovery_endpoints = @@GLOBAL.group_replication_advertise_recovery_endpoints;
 SET PERSIST group_replication_allow_local_lower_version_join = @@GLOBAL.group_replication_allow_local_lower_version_join;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 SET PERSIST group_replication_auto_increment_increment = @@GLOBAL.group_replication_auto_increment_increment;
 SET PERSIST group_replication_autorejoin_tries = @@GLOBAL.group_replication_autorejoin_tries;
 SET PERSIST group_replication_bootstrap_group = @@GLOBAL.group_replication_bootstrap_group;

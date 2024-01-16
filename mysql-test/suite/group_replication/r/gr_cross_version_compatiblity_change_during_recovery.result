@@ -43,6 +43,8 @@ SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
 SET DEBUG_SYNC = "now SIGNAL signal.continue";
 [connection server_3]
 SET @@GLOBAL.group_replication_allow_local_lower_version_join=1;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 [connection server3]
 
 # 5. Verify M3 is ONLINE and writable since its new lowest version.
@@ -55,6 +57,8 @@ include/assert.inc [The super_read_only mode should be 1 on server2.]
 
 [connection server3]
 SET @@GLOBAL.group_replication_allow_local_lower_version_join= 0;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 DROP TABLE t1;
 include/rpl_sync.inc
 [connection server2]

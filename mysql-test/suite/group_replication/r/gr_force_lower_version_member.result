@@ -29,7 +29,11 @@ ERROR 42000: Variable 'group_replication_allow_local_lower_version_join' can't b
 SET GLOBAL group_replication_allow_local_lower_version_join= 1.2;
 ERROR 42000: Incorrect argument type to variable 'group_replication_allow_local_lower_version_join'
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2);
 include/rpl_sync.inc
 #
@@ -51,4 +55,6 @@ SET @@GLOBAL.DEBUG= @debug_save;
 include/stop_group_replication.inc
 include/start_group_replication.inc
 SET GLOBAL group_replication_allow_local_lower_version_join= OFF;
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

@@ -222,6 +222,10 @@ static void check_deprecated_variables() {
     push_deprecated_warn_no_replacement(thd,
                                         "group_replication_view_change_uuid");
   }
+  if (ov.allow_local_lower_version_join_var) {
+    push_deprecated_warn_no_replacement(
+        thd, "group_replication_allow_local_lower_version_join");
+  }
 }
 
 /*
@@ -3900,6 +3904,23 @@ static int check_enforce_update_everywhere_checks(
   return 0;
 }
 
+static int check_allow_local_lower_version_join(MYSQL_THD thd, SYS_VAR *,
+                                                void *save,
+                                                struct st_mysql_value *value) {
+  DBUG_TRACE;
+  bool allow_local_lower_version_join_val;
+
+  push_deprecated_warn_no_replacement(
+      thd, "group_replication_allow_local_lower_version_join");
+
+  if (!get_bool_value_using_type_lib(value, allow_local_lower_version_join_val))
+    return 1;
+
+  *(bool *)save = allow_local_lower_version_join_val;
+
+  return 0;
+}
+
 static int check_communication_debug_options(MYSQL_THD thd, SYS_VAR *,
                                              void *save,
                                              struct st_mysql_value *value) {
@@ -4656,9 +4677,9 @@ static MYSQL_SYSVAR_BOOL(allow_local_lower_version_join,        /* name */
                              PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
                          "Allow this server to join the group even if it has a "
                          "lower plugin version than the group",
-                         nullptr, /* check func. */
-                         nullptr, /* update func*/
-                         0        /* default */
+                         check_allow_local_lower_version_join, /* check func. */
+                         nullptr,                              /* update func*/
+                         0                                     /* default */
 );
 
 static MYSQL_SYSVAR_ULONG(
