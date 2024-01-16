@@ -614,11 +614,7 @@ NdbBackup::NF(NdbRestarter& _restarter, int *NFDuringBackup_codes, const int sz,
 
     int val2[] = { 24, 2424 };
     CHECK(_restarter.dumpStateAllNodes(val2, 2) == 0,
-	  "failed to check backup resources RestartOnErrorInsert");
-    
-    CHECK(_restarter.insertErrorInNode(nodeId, 10099) == 0,
-	  "failed to set error insert");
-
+          "failed to check backup resources RestartOnErrorInsert");
     NdbSleep_SecSleep(1);
   }
 
@@ -716,9 +712,6 @@ NdbBackup::Fail(NdbRestarter& _restarter, int *Fail_codes, const int sz, bool on
     
     CHECK(_restarter.waitClusterStarted() == 0,
 	  "waitClusterStarted failed");
-
-    CHECK(_restarter.insertErrorInNode(nodeId, 10099) == 0,
-	  "failed to set error insert");
 
     NdbSleep_SecSleep(5);
     
