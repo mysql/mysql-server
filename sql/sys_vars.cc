@@ -1738,6 +1738,7 @@ static bool check_not_null(sys_var *, THD *, set_var *var) {
   empty and return true. This method also logs warning if the
   storage engine set is a disabled storage engine specified in
   disabled_storage_engines.
+  In addition, it checks if the requested storage engine can be used as default.
 
   @param self    pointer to system variable object.
   @param thd     Connection handle.
@@ -1771,6 +1772,9 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var) {
       if (ha_is_storage_engine_disabled(hton))
         LogErr(WARNING_LEVEL, ER_DISABLED_STORAGE_ENGINE_AS_DEFAULT,
                self->name.str, se_name.str);
+      if ((hton->flags & HTON_NO_DEFAULT_ENGINE_SUPPORT) != 0U) {
+        my_error(ER_ENGINE_CANNOT_BE_DEFAULT, MYF(0), se_name.str);
+      }
       plugin_unlock(nullptr, plugin);
     }
   }

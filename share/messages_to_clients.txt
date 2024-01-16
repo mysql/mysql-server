@@ -10326,6 +10326,8 @@ ER_LH_TOO_LARGE_VALUE_ERR
 
 ER_LH_TOO_LARGE_ROW_ERR
    eng "File %.*s: %s"
+ER_ENGINE_CANNOT_BE_DEFAULT
+  eng "Engine %s cannot be set as default_storage_engine."
 
 ER_TABLESAMPLE_PERCENTAGE 2202H
   eng "Tablesample percentage should range between 0 and 100."

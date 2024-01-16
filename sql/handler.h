@@ -3077,6 +3077,10 @@ constexpr const decltype(handlerton::flags) HTON_SUPPORTS_BULK_LOAD{1 << 22};
 inline constexpr const decltype(handlerton::flags) HTON_SUPPORTS_DISTANCE_SCAN{
     1 << 23};
 
+/* Whether the engine supports being specified as a default storage engine */
+inline constexpr const decltype(
+    handlerton::flags) HTON_NO_DEFAULT_ENGINE_SUPPORT{1 << 24};
+
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
 
