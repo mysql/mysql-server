@@ -293,8 +293,6 @@ SET @@persist_only.skip_networking= "";
 ERROR HY000: Variable 'skip_networking' is a non persistent read only variable
 SET @@persist_only.socket= "";
 ERROR HY000: Variable 'socket' is a non persistent read only variable
-SET @@persist_only.default_authentication_plugin= "";
-ERROR HY000: Variable 'default_authentication_plugin' is a non persistent read only variable
 SET @@persist_only.core_file= "";
 ERROR HY000: Variable 'core_file' is a non persistent read only variable
 SET @@persist_only.innodb_read_only= "";

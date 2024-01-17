@@ -35,8 +35,6 @@ SET PERSIST_ONLY character_sets_dir = DEFAULT;
 ERROR HY000: Variable 'character_sets_dir' is a non persistent read only variable
 SET PERSIST_ONLY datadir = DEFAULT;
 ERROR HY000: Variable 'datadir' is a non persistent read only variable
-SET PERSIST_ONLY default_authentication_plugin = DEFAULT;
-ERROR HY000: Variable 'default_authentication_plugin' is a non persistent read only variable
 SET PERSIST_ONLY ft_stopword_file = DEFAULT;
 ERROR HY000: Variable 'ft_stopword_file' is a non persistent read only variable
 SET PERSIST_ONLY init_file = DEFAULT;

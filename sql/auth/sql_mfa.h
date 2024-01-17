@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "sql-common/json_dom.h"  // Json_array
+#include "sql/auth/authentication_policy.h"
 #include "sql/auth/user_table.h"
 #include "sql/mem_root_allocator.h"
 #include "sql/sql_class.h"
@@ -57,12 +58,16 @@ class I_multi_factor_auth {
   /**
     Helper method to validate Multi factor authentication methods.
   */
-  virtual bool validate_plugins_in_auth_chain(THD *thd) = 0;
+  virtual bool validate_plugins_in_auth_chain(
+      THD *thd, const authentication_policy::Factors &policy_factors) = 0;
   /**
     Helper method to validate Multi factor authentication methods are
     correct compared to authentication policy.
   */
-  virtual bool validate_against_authentication_policy(THD *) { return false; }
+  virtual bool validate_against_authentication_policy(
+      THD *, const authentication_policy::Factors &) {
+    return false;
+  }
   /**
     method to add/delete Multi factor authentication methods in user_attributes
     column.
@@ -123,8 +128,10 @@ class Multi_factor_auth_list : public I_multi_factor_auth {
   size_t get_mfa_list_size();
   bool is_alter_allowed(THD *, LEX_USER *) override;
   void alter_mfa(I_multi_factor_auth *) override;
-  bool validate_plugins_in_auth_chain(THD *thd) override;
-  bool validate_against_authentication_policy(THD *thd) override;
+  bool validate_plugins_in_auth_chain(
+      THD *thd, const authentication_policy::Factors &policy_factors) override;
+  bool validate_against_authentication_policy(
+      THD *thd, const authentication_policy::Factors &policy_factors) override;
   bool update_user_attributes() override;
   void add_factor(I_multi_factor_auth *m) override;
   bool serialize(Json_array &mfa_arr) override;
@@ -160,7 +167,8 @@ class Multi_factor_auth_info : public I_multi_factor_auth {
   Multi_factor_auth_info(MEM_ROOT *mem_root, LEX_MFA *m);
   ~Multi_factor_auth_info() override {}
   /* validate Multi factor authentication plugins during ACL DDL */
-  bool validate_plugins_in_auth_chain(THD *thd) override;
+  bool validate_plugins_in_auth_chain(
+      THD *thd, const authentication_policy::Factors &policy_factors) override;
   /* update user attributes */
   bool update_user_attributes() override;
   /* construct json object out of user attributes column */

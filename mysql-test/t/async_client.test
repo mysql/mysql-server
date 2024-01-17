@@ -105,7 +105,7 @@ disconnect caching_con5;
 --disable_async_client
 --echo # case3: authenticate user with sha256_password
 CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
---let $restart_parameters=restart: --default-authentication-plugin=sha256_password
+--let $restart_parameters=restart: --authentication-policy=*:sha256_password
 --source include/restart_mysqld.inc
 --enable_async_client
 
@@ -130,7 +130,7 @@ disconnect sha256_con2;
 
 --disable_async_client
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---let $restart_parameters=restart: --default-authentication-plugin=sha256_password --tls-version= --loose-sha256_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-sha256_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+--let $restart_parameters=restart: --authentication-policy=*:sha256_password --tls-version= --loose-sha256_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-sha256_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem
 --source include/restart_mysqld.inc
 --enable_async_client
 
@@ -142,7 +142,7 @@ connect(sha256_con3,localhost,sha256,auth_string,,,,,sha256_password);
 --disable_async_client
 --echo # case4: authenticate user with mysql_native_password
 CREATE USER native_user@localhost IDENTIFIED WITH 'mysql_native_password' BY 'native';
---let $restart_parameters=restart: --default-authentication-plugin=mysql_native_password
+--let $restart_parameters=restart: --authentication-policy=*:mysql_native_password
 --source include/restart_mysqld.inc
 --enable_async_client
 

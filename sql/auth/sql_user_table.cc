@@ -745,13 +745,17 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
               log_warning = true;
             }
           }
-          if (log_warning)
+          if (log_warning) {
+            std::string default_authentication_plugin;
+            authentication_policy::get_first_factor_default_plugin(
+                default_authentication_plugin);
             LogErr(WARNING_LEVEL,
                    (command == SQLCOM_CREATE_USER)
                        ? ER_SQL_USER_TABLE_CREATE_WARNING
                        : ER_SQL_USER_TABLE_ALTER_WARNING,
-                   default_auth_plugin_name.str, warn_user.c_ptr_safe());
-
+                   default_authentication_plugin.c_str(),
+                   warn_user.c_ptr_safe());
+          }
           warn_user.mem_free();
         }
       }

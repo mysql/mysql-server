@@ -244,8 +244,8 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
   already in the initial handshake using an optimistic guess of the
   authentication method to be used.
 
-  Server uses its default authentication method @ref default_auth_plugin to
-  produce initial authentication data payload and sends it to the client inside
+  Server uses its default authentication method defined by @ref authentication_policy
+  to produce initial authentication data payload and sends it to the client inside
   @ref page_protocol_connection_phase_packets_protocol_handshake, together with
   the name of the method used.
 
@@ -1159,12 +1159,12 @@ inline const char *client_plugin_name(plugin_ref ref) {
 LEX_CSTRING validate_password_plugin_name = {
     STRING_WITH_LEN("validate_password")};
 
-LEX_CSTRING default_auth_plugin_name;
-
 const LEX_CSTRING Cached_authentication_plugins::cached_plugins_names[(
     uint)PLUGIN_LAST] = {{STRING_WITH_LEN("caching_sha2_password")},
                          {STRING_WITH_LEN("mysql_native_password")},
                          {STRING_WITH_LEN("sha256_password")}};
+
+LEX_CSTRING default_auth_plugin_name{STRING_WITH_LEN("caching_sha2_password")};
 
 /**
   Use known pointers for cached plugins to improve comparison time
@@ -1542,47 +1542,6 @@ bool Rsa_authentication_keys::read_rsa_keys() {
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name) {
   Cached_authentication_plugins::optimize_plugin_compare_by_pointer(
       plugin_name);
-}
-
-/**
- Initialize default authentication plugin based on command line options or
- configuration file settings.
-
- @param plugin_name Name of the plugin
- @param plugin_name_length Length of the string
-*/
-
-int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length) {
-  default_auth_plugin_name.str = plugin_name;
-  default_auth_plugin_name.length = plugin_name_length;
-
-  optimize_plugin_compare_by_pointer(&default_auth_plugin_name);
-
-  if (!Cached_authentication_plugins::compare_plugin(
-          PLUGIN_SHA256_PASSWORD, default_auth_plugin_name) &&
-      !Cached_authentication_plugins::compare_plugin(
-          PLUGIN_MYSQL_NATIVE_PASSWORD, default_auth_plugin_name) &&
-      !Cached_authentication_plugins::compare_plugin(
-          PLUGIN_CACHING_SHA2_PASSWORD, default_auth_plugin_name))
-    return 1;
-
-  if (!Cached_authentication_plugins::compare_plugin(
-          PLUGIN_CACHING_SHA2_PASSWORD, default_auth_plugin_name))
-    LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_WITH_REPLACEMENT,
-           "default_authentication_plugin", "authentication_policy");
-  return 0;
-}
-/**
-  Return the default authentication plugin name
-
-  @retval
-    A string containing the default authentication plugin name
-*/
-std::string get_default_autnetication_plugin_name() {
-  if (default_auth_plugin_name.length > 0)
-    return default_auth_plugin_name.str;
-  else
-    return "";
 }
 
 bool auth_plugin_is_built_in(const char *plugin_name) {
@@ -2404,12 +2363,12 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
           af->get_auth_str_len();
       mpvio->auth_info.multi_factor_auth_info[f].is_registration_required =
           af->get_requires_registration();
-      DBUG_PRINT(
-          "info",
-          ("exit: user=%s, auth_string=%s, plugin=%s, authentication factor=%d",
-           mpvio->auth_info.user_name,
-           mpvio->auth_info.multi_factor_auth_info[f].auth_string,
-           af->get_plugin_str(), f));
+      DBUG_PRINT("info",
+                 ("exit: user=%s, auth_string=%s, plugin=%s, authentication "
+                  "factor=%d",
+                  mpvio->auth_info.user_name,
+                  mpvio->auth_info.multi_factor_auth_info[f].auth_string,
+                  af->get_plugin_str(), f));
       f++;
     }
   }
@@ -3262,8 +3221,8 @@ skip_to_ssl:
     }
   } else if (!compression->compression_optional) {
     /*
-      if server is configured to only allow connections with compression enabled
-      then check if client has enabled compression else report error
+      if server is configured to only allow connections with compression
+      enabled then check if client has enabled compression else report error
     */
     my_error(
         ER_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
@@ -4009,7 +3968,6 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   */
   thd->reset_db(NULL_CSTR);
 
-  auth_plugin_name = default_auth_plugin_name;
   /* acl_authenticate() takes the data from net->read_pos */
   thd->get_protocol_classic()->get_net()->read_pos =
       thd->get_protocol_classic()->get_raw_packet();
@@ -4593,7 +4551,7 @@ static int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref) {
  Save the scramble in mpvio for future re-use.
  It is useful when we need to pass the scramble to another plugin.
  Especially in case when old 5.1 client with no CLIENT_PLUGIN_AUTH capability
- tries to connect to server with default-authentication-plugin set to
+ tries to connect to server with default 1FA set to
  sha256_password
 
 */

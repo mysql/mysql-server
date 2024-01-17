@@ -164,8 +164,6 @@ typedef enum {
   PLUGIN_LAST
 } cached_plugins_enum;
 
-extern LEX_CSTRING default_auth_plugin_name;
-
 class Cached_authentication_plugins {
  public:
   static const LEX_CSTRING cached_plugins_names[(uint)PLUGIN_LAST];

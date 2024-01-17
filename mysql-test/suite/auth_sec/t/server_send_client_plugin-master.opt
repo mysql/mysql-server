@@ -1,1 +1,2 @@
---default_authentication_plugin=mysql_native_password
+$PLUGIN_AUTH_OPT
+$PLUGIN_AUTH_LOAD

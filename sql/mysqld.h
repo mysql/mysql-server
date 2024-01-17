@@ -262,7 +262,6 @@ extern const char *timestamp_type_names[];
 extern char *opt_general_logname, *opt_slow_logname, *opt_bin_logname,
     *opt_relay_logname;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
-extern char *default_auth_plugin;
 extern uint default_password_lifetime;
 extern bool password_require_current;
 /*
@@ -344,7 +343,6 @@ enum enum_binlog_error_action {
 };
 extern const char *binlog_error_action_list[];
 extern char *opt_authentication_policy;
-extern std::vector<std::string> authentication_policy_list;
 
 extern ulong stored_program_cache_size;
 extern ulong back_log;
@@ -713,8 +711,8 @@ extern mysql_mutex_t LOCK_tls_ctx_options;
 extern mysql_mutex_t LOCK_admin_tls_ctx_options;
 extern mysql_mutex_t LOCK_rotate_binlog_master_key;
 extern mysql_mutex_t LOCK_partial_revokes;
-extern mysql_mutex_t LOCK_authentication_policy;
 extern mysql_mutex_t LOCK_global_conn_mem_limit;
+extern mysql_mutex_t LOCK_authentication_policy;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
@@ -799,10 +797,6 @@ void set_mysqld_partial_revokes(bool value);
 
 bool check_and_update_partial_revokes_sysvar(THD *thd);
 
-bool parse_authentication_policy(char *val,
-                                 std::vector<std::string> &policy_list);
-bool validate_authentication_policy(char *val);
-bool update_authentication_policy();
 #ifdef _WIN32
 
 bool is_windows_service();
