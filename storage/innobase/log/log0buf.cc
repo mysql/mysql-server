@@ -944,8 +944,13 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   const sn_t end_sn = log_translate_lsn_to_sn(handle.end_lsn);
   const sn_t len_sn = end_sn - start_sn;
 
+  // TODO: 这里需要等待可用空间吗？暂时默认State Node具有充足空间，直接分配
   log_wait_for_space_in_remote_log_buf(log, start_sn);
   log_wait_for_space_in_remote_log_buf(log, end_sn);
+
+  // 分配空间
+  
+
   return handle;
 }
 
@@ -976,7 +981,9 @@ static void log_wait_for_space_in_remote_log_buf(log_t &log, sn_t end_sn) {
 
   // TODO: log_write_up_to 的逻辑还需要修改，不能直接使用
   // Location: storage/innobase/log/log0write.cc
+  // Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk);
   wait_stats = log_write_up_to(log, lsn, false);
+
 
   // MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_BUFFER_SPACE_, wait_stats);
 
