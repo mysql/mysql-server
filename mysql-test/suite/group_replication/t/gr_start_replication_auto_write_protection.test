@@ -67,6 +67,7 @@ SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 # renable connection
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
+--source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
