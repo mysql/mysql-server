@@ -918,6 +918,8 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
  * @param log 
  * @param len 
  * @return Log_handle 
+ *
+ * TODO: 不要逐个log/mtr分配空间，而是直接分配一大块空间供使用
  */
 Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   Log_handle handle;
@@ -950,20 +952,20 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
 
   // 分配空间
   // Allocate memory for these redo logs in the remote State Node
-  if(trx->mysql_thd != nullptr) {
-    THD* thd = trx->mysql_thd;
-    node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
-    RCQP* qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
-    MetaManager* meta_mgr = MetaManager::get_instance();
+  // if(trx->mysql_thd != nullptr) {
+  //   THD* thd = trx->mysql_thd;
+  //   node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
+  //   RCQP* qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
+  //   MetaManager* meta_mgr = MetaManager::get_instance();
 
-    // TODO: 怎么判断需要给 redo log 分配多少空间？分配空间能不能集成在写log buffer操作的函数中？
-    // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
+  //   // TODO: 怎么判断需要给 redo log 分配多少空间？分配空间能不能集成在写log buffer操作的函数中？
+  //   // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
 
-    char* redo_log_remote_buf = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+  //   char* redo_log_remote_buf = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
 
 
 
-    }
+  //   }
 
 
   return handle;
