@@ -949,7 +949,7 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   log_wait_for_space_in_remote_log_buf(log, end_sn);
 
   // 分配空间
-  
+
 
   return handle;
 }
@@ -1097,10 +1097,12 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
      *  
      *  在此过程中，需要考虑数据结构共享访问的正确性，
      *  即，当多个事务都要读/写数据时，如何处理冲突，如何保证正确性
+     *
+     *  TODO: 将下面新写的逻辑抽象出一个函数，准备等全部写完跑通后再进行
      */
 
-    // TODO: 将下面新写的逻辑抽象出一个函数，准备等全部写完跑通后再进行
 
+    // 分配空间的函数已经抽到了 Log_handle log_remote_buf_reserve(log_t &log, size_t len)
     // Allocate memory for these redo logs in the remote State Node
     if(trx->mysql_thd != nullptr) {
       THD* thd = trx->mysql_thd;
