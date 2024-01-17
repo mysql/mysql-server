@@ -1,5 +1,0 @@
-This directory contains scripts for manipulating of replication suite (rpl).
-
-NOTE:
-  Fix for BUG#27820099 removed 'mysql-test/suite/rpl/extension/bhs/disabled.def'
-  file.
