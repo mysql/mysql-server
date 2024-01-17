@@ -949,6 +949,21 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   log_wait_for_space_in_remote_log_buf(log, end_sn);
 
   // 分配空间
+  // Allocate memory for these redo logs in the remote State Node
+  if(trx->mysql_thd != nullptr) {
+    THD* thd = trx->mysql_thd;
+    node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
+    RCQP* qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
+    MetaManager* meta_mgr = MetaManager::get_instance();
+
+    // TODO: 怎么判断需要给 redo log 分配多少空间？分配空间能不能集成在写log buffer操作的函数中？
+    // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
+
+    char* redo_log_remote_buf = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+
+
+
+    }
 
 
   return handle;
@@ -1113,13 +1128,12 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       // TODO: 怎么判断需要给 redo log 分配多少空间？分配空间能不能集成在写log buffer操作的函数中？
       // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
 
-      // Redo Log Buffer is already exists in local Node, so I call it redo_log_remote_buf 
-      char* redo_log_remote_buf = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
-
-
+      // Get latch for redo_log_remote_buf
+      // 为锁分配空间，但是目前还没有锁
+      char* redo_log_remote_buf_latch = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+      *(rwlatch_t*)bitmap_latch_buf = REDOLOG_LOCKED; // REDOLOG_LOCKED 还未定义，这里先参考ATT分离写的
 
     }
-    // Get latch for redo_log_remote_buf
 
     // Write redo logs into State Node and release latch
 
