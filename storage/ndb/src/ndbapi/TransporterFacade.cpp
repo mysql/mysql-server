@@ -1405,6 +1405,9 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache)
       m_poll_queue_head(nullptr),
       m_poll_queue_tail(nullptr),
       m_poll_waiters(0),
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+      m_poll_owner_region(nullptr),
+#endif
       m_locked_cnt(0),
       m_locked_clients(),
       m_num_active_clients(0),
@@ -1462,6 +1465,10 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache)
 
 #ifdef API_TRACE
   apiSignalLog = nullptr;
+#endif
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  m_poll_owner_region = NdbMutex_CreateSerializedRegion();
 #endif
 
   theClusterMgr = new ClusterMgr(*this);
@@ -1687,9 +1694,9 @@ void TransporterFacade::for_each(trp_client *sender,
        * We skip sending signal to receive thread. The receive thread
        * have no interest in signals sent as for_each.
        */
-      bool res = clnt->is_locked_for_poll();
-      assert(clnt->check_if_locked() == res);
-      if (res) {
+      const bool client_locked = clnt->is_locked_for_poll();
+      assert(clnt->check_if_locked() == client_locked);
+      if (client_locked) {
         clnt->trp_deliver_signal(aSignal, ptr);
       } else {
         NdbMutex_Lock(clnt->m_mutex);
@@ -1979,6 +1986,9 @@ TransporterFacade::~TransporterFacade() {
   NdbCondition_Destroy(m_wakeup_thread_cond);
 #ifdef API_TRACE
   signalLogger.setOutputStream(nullptr);
+#endif
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  NdbMutex_DestroySerializedRegion(m_poll_owner_region);
 #endif
   DBUG_VOID_RETURN;
 }
@@ -2714,7 +2724,7 @@ bool TransporterFacade::try_become_poll_owner(trp_client *clnt,
     struct timespec wait_end;
     NdbCondition_ComputeAbsTime(&wait_end, wait_time);
 
-    while (true)  //(m_poll_owner != NULL)
+    while (true)  //(m_poll_owner != nullptr)
     {
       unlock_poll_mutex();  // Release while waiting
       dbg("cond_wait(%p)", clnt);
@@ -2784,6 +2794,12 @@ bool TransporterFacade::try_become_poll_owner(trp_client *clnt,
   assert(m_poll_owner == nullptr);
   m_poll_owner = clnt;
   m_poll_owner_tid = my_thread_self();
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  // We 'own' the poll lock even if we do not hold the poll_mutex itself
+  NdbMutex_EnterSerializedRegion(m_poll_owner_region);
+#endif
+
   unlock_poll_mutex();
 
   assert(clnt->m_poll.m_poll_owner == false);
@@ -2983,6 +2999,9 @@ void TransporterFacade::do_poll(trp_client *clnt, Uint32 wait_time,
      * suspended here.
      */
     if (!stay_poll_owner) {
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+      NdbMutex_LeaveSerializedRegion(m_poll_owner_region);
+#endif
       clnt->m_poll.m_poll_owner = false;
       m_poll_owner = nullptr;
       /**
@@ -3061,6 +3080,10 @@ bool TransporterFacade::check_if_locked(const trp_client *clnt,
   return false;
 }
 
+/**
+ * Note that it is a requirement that we check that 'clnt' is not yet
+ * 'is_locked_for_poll()' before we ::lock_client(), else it may deadlock.
+ */
 void TransporterFacade::lock_client(trp_client *clnt) {
   assert(m_locked_cnt <= MAX_LOCKED_CLIENTS);
   assert(check_if_locked(clnt, 0) == false);
@@ -3421,7 +3444,8 @@ Uint32 TransporterFacade::bytes_sent(TrpId trp_id, Uint32 bytes) {
  * a race in ::open_clnt())
  *
  * Also see comments for these methods in TransporterCallback.hpp,
- * and how ::open_clnt() synchronize its set of enabled nodes. */
+ * and how ::open_clnt() synchronize its set of enabled nodes.
+ */
 void TransporterFacade::enable_send_buffer(TrpId trp_id) {
   assert(is_poll_owner_thread());
 

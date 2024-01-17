@@ -110,6 +110,25 @@ int NdbMutex_Unlock(NdbMutex *p_mutex);
  */
 int NdbMutex_Trylock(NdbMutex *p_mutex);
 
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+/**
+ * In some cases the program logic guarantee serialized access to
+ * code region where we may lock mutexes in different order.
+ * In such cases the serialized access protects against deadlocks
+ * which we else would have encountered.
+ * As there are no NdbMutex::m_mutex_state's representing this
+ * lock protection in the DEADLOCK_DETECTOR(DD), it may predict
+ * false positives in such cases.
+ *
+ * The 'SerializedRegion' functions provide a way to represent
+ * these non-NdbMutex locks into the DEADLOCK_DETECTOR.
+ */
+ndb_mutex_state *NdbMutex_CreateSerializedRegion(void);
+void NdbMutex_DestroySerializedRegion(struct ndb_mutex_state *);
+void NdbMutex_EnterSerializedRegion(struct ndb_mutex_state *);
+void NdbMutex_LeaveSerializedRegion(struct ndb_mutex_state *);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

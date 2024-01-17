@@ -153,7 +153,7 @@ static int NdbMutex_InitWithName_local(NdbMutex *pNdbMutex, const char *name,
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
   if (result == 0) {
-    ndb_mutex_created(pNdbMutex);
+    ndb_mutex_created(pNdbMutex->m_mutex_state);
   }
 #endif
   DBUG_RETURN(result);
@@ -165,7 +165,7 @@ int NdbMutex_Deinit(NdbMutex *p_mutex) {
   if (p_mutex == nullptr) return -1;
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
-  ndb_mutex_destoyed(p_mutex);
+  ndb_mutex_destroyed(p_mutex->m_mutex_state);
 #endif
 
 #ifdef NDB_MUTEX_STRUCT
@@ -261,7 +261,7 @@ int NdbMutex_Lock(NdbMutex *p_mutex) {
   assert(result == 0);
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
-  ndb_mutex_locked(p_mutex);
+  ndb_mutex_locked(p_mutex->m_mutex_state);
 #endif
 
   return result;
@@ -271,6 +271,10 @@ int NdbMutex_Unlock(NdbMutex *p_mutex) {
   int result;
 
   if (p_mutex == nullptr) return -1;
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  ndb_mutex_unlocked(p_mutex->m_mutex_state);
+#endif
 
 #ifdef NDB_MUTEX_STAT
   {
@@ -291,10 +295,6 @@ int NdbMutex_Unlock(NdbMutex *p_mutex) {
   result = native_mutex_unlock(p_mutex);
 #endif
   assert(result == 0);
-
-#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
-  ndb_mutex_unlocked(p_mutex);
-#endif
 
   return result;
 }
@@ -328,10 +328,31 @@ int NdbMutex_Trylock(NdbMutex *p_mutex) {
   assert(result == 0 || result == EBUSY);
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
-  if (result == 0) {
-    ndb_mutex_try_locked(p_mutex);
+  if (result == 0) {  // trylock got the lock
+    ndb_mutex_locked(p_mutex->m_mutex_state, /*is_blocking=*/false);
   }
 #endif
 
   return result;
 }
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+ndb_mutex_state *NdbMutex_CreateSerializedRegion(void) {
+  ndb_mutex_state *mutex_state = nullptr;
+  ndb_mutex_created(mutex_state);
+  return mutex_state;
+}
+
+void NdbMutex_DestroySerializedRegion(struct ndb_mutex_state *mutex_state) {
+  ndb_mutex_destroyed(mutex_state);
+}
+
+void NdbMutex_EnterSerializedRegion(struct ndb_mutex_state *mutex_state) {
+  /* Note: Exclude the region 'lock' from deadlock detection */
+  ndb_mutex_locked(mutex_state, /*is_blocking=*/false);
+}
+
+void NdbMutex_LeaveSerializedRegion(struct ndb_mutex_state *mutex_state) {
+  ndb_mutex_unlocked(mutex_state);
+}
+#endif

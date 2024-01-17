@@ -23,307 +23,359 @@
 */
 
 #include <NdbMutex.h>
-#include <NdbThread.h>
+#include <Bitmask.hpp>
 #include <cstring>
+#include <vector>
+
+#include "my_stacktrace.h"
+
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
 
 #include "NdbMutex_DeadlockDetector.h"
 
+/**
+ * ndb_mutex_state and ndb_mutex_thr_state represents the lock-graph
+ * of locks being held and waited for by each thread.
+ */
+
+class nmdd_mask {
+ public:
+  nmdd_mask() : m_data() {}
+
+  unsigned size() const {  // Size in number of bits
+    return m_data.size() * 32;
+  }
+  void set(unsigned no);
+  void clear(unsigned no);
+  bool check(unsigned no) const;
+  bool equal(const nmdd_mask *mask) const;
+  bool overlaps(const nmdd_mask *mask) const;
+  unsigned first_zero_bit() const;
+
+ private:
+  std::vector<Uint32> m_data;
+};
+
+typedef std::vector<ndb_mutex_state *> nmdd_mutex_array;
+typedef std::vector<nmdd_mask> nmdd_mutex_combinations;
+
+/**
+ * mutex_set represent a set of locks being being held.
+ * The locks being held is registered both by its mutex-no in 'mask',
+ * as well with its 'mutex_state' in a list.
+ * - The mask provide a quick way of checking if lock(s) are held.
+ * - The list makes it possible to traverse the full set of locks
+ *   being in effect.
+ */
+struct nmdd_mutex_set {
+  nmdd_mutex_array m_list;
+  nmdd_mask m_mask;
+
+  void add(ndb_mutex_state *);
+  void remove(ndb_mutex_state *);
+};
+
+struct ndb_mutex_state {
+  const unsigned m_no; /* my mutex "id" (for access in masks) */
+
+  /**
+   * The locked_before_combinations contains the different set of locks
+   * we have seen being held before the lock represented by this mutex_state.
+   * This is the structure used to predict possible deadlocks.
+   */
+  nmdd_mutex_combinations m_locked_before_combinations;
+
+  /**
+   * The locked_before / after mutex_sets are required to keep track of
+   * which mutex_states referring to a mutex-no.
+   * Not used for deadlock prediction, needed in order to cleanup and
+   * recycle mutex-no's when NdbMutex's are destructed.
+   */
+  nmdd_mutex_set m_locked_before; /* Mutexes held when locking this mutex */
+  nmdd_mutex_set m_locked_after;  /* Mutexes locked when holding this mutex */
+
+  ndb_mutex_state(unsigned no) : m_no(no) {}
+};
+
+struct ndb_mutex_thr_state {
+  nmdd_mutex_set m_locked; /* Mutexes held by this thread */
+
+  void add_lock(ndb_mutex_state *m, bool is_blocking);
+  void remove(ndb_mutex_state *);
+};
+
 static thread_local ndb_mutex_thr_state *NDB_THREAD_TLS_SELF = nullptr;
 
-static NdbMutex
-    g_mutex_no_mutex;  // We need a mutex to assign numbers to mutexes...
-static nmdd_mask g_mutex_no_mask = {0, 0};
+/* Protects the lock graph structures. */
+static native_mutex_t g_serialize_mutex;
+
+/* Global map of used mutex_no's */
+static nmdd_mask g_mutex_no_mask;
 
 static unsigned alloc_mutex_no();
 static void release_mutex_no(unsigned no);
 
-static NdbMutex *get_element(struct nmdd_mutex_array *, unsigned i);
-static void add_mutex_to_array(struct nmdd_mutex_array *, NdbMutex *);
-static void remove_mutex_from_array(struct nmdd_mutex_array *, NdbMutex *);
-
-static void set_bit(struct nmdd_mask *, unsigned no);
-static void clear_bit(struct nmdd_mask *, unsigned no);
-static bool check_bit(const struct nmdd_mask *, unsigned no);
-
-static void release(struct nmdd_mutex_array *);
-static void release(struct nmdd_mask *);
-
-extern "C" void NdbMutex_DeadlockDetectorInit() {
-  NdbMutex_Init(&g_mutex_no_mutex);
+/* Detected a deadlock, print stack trace and crash */
+static void dump_stack(std::string msg) {
+  my_safe_printf_stderr("Deadlock detected: %s\n", msg.c_str());
+  my_print_stacktrace(nullptr, 0);
+  assert(false);
+  abort();
 }
 
-extern "C" void NdbMutex_DeadlockDetectorEnd() { release(&g_mutex_no_mask); }
-
-extern "C" void ndb_mutex_created(NdbMutex *p) {
-  p->m_mutex_state = (ndb_mutex_state *)malloc(sizeof(ndb_mutex_state));
-  std::memset(p->m_mutex_state, 0, sizeof(ndb_mutex_state));
-
-  /**
-   * Assign mutex no
-   */
-  p->m_mutex_state->m_no = alloc_mutex_no();
+void NdbMutex_DeadlockDetectorInit() {
+  const int result [[maybe_unused]] =
+      native_mutex_init(&g_serialize_mutex, nullptr);
+  assert(result == 0);
 }
 
-extern "C" void ndb_mutex_destoyed(NdbMutex *p) {
-  unsigned no = p->m_mutex_state->m_no;
-
-  /**
-   * In order to be able to reuse mutex_no,
-   *   we need to clear this no from all mutexes that has it in before map...
-   *   this is all mutexes in after map
-   */
-  for (unsigned i = 0; i < p->m_mutex_state->m_locked_after_list.m_used; i++) {
-    NdbMutex *m = get_element(&p->m_mutex_state->m_locked_after_list, i);
-    assert(check_bit(&p->m_mutex_state->m_locked_after_mask,
-                     m->m_mutex_state->m_no));
-
-    /**
-     * And we need to lock it while doing this
-     */
-    NdbMutex_Lock(m);
-    assert(check_bit(&m->m_mutex_state->m_locked_before_mask, no));
-    clear_bit(&m->m_mutex_state->m_locked_before_mask, no);
-    remove_mutex_from_array(&m->m_mutex_state->m_locked_before_list, p);
-    NdbMutex_Unlock(m);
-  }
-
-  /**
-   * And we need to remove ourselves from after list of mutexes in out before
-   * list
-   */
-  for (unsigned i = 0; i < p->m_mutex_state->m_locked_before_list.m_used; i++) {
-    NdbMutex *m = get_element(&p->m_mutex_state->m_locked_before_list, i);
-    NdbMutex_Lock(m);
-    assert(check_bit(&m->m_mutex_state->m_locked_after_mask, no));
-    clear_bit(&m->m_mutex_state->m_locked_after_mask, no);
-    remove_mutex_from_array(&m->m_mutex_state->m_locked_after_list, p);
-    NdbMutex_Unlock(m);
-  }
-
-  release(&p->m_mutex_state->m_locked_before_mask);
-  release(&p->m_mutex_state->m_locked_before_list);
-  release(&p->m_mutex_state->m_locked_after_mask);
-  release(&p->m_mutex_state->m_locked_after_list);
-  release_mutex_no(no);
+void NdbMutex_DeadlockDetectorEnd() {
+  native_mutex_destroy(&g_serialize_mutex);
 }
 
 static ndb_mutex_thr_state *get_thr() { return NDB_THREAD_TLS_SELF; }
 
-#define INC_SIZE 16
-
-static void add_lock_to_thread(ndb_mutex_thr_state *t, NdbMutex *m) {
-  add_mutex_to_array(&t->m_mutexes_locked, m);
+void ndb_mutex_thread_init(struct ndb_mutex_thr_state *&mutex_thr_state) {
+  mutex_thr_state = new (std::nothrow) ndb_mutex_thr_state();
+  NDB_THREAD_TLS_SELF = mutex_thr_state;
 }
 
-static void add_lock_to_mutex_before_list(ndb_mutex_state *m1, NdbMutex *m2) {
-  assert(m1 != m2->m_mutex_state);
-  unsigned no = m2->m_mutex_state->m_no;
-  if (!check_bit(&m1->m_locked_before_mask, no)) {
-    set_bit(&m1->m_locked_before_mask, no);
-    add_mutex_to_array(&m1->m_locked_before_list, m2);
-  }
+void ndb_mutex_thread_exit(struct ndb_mutex_thr_state *&mutex_thr_state) {
+  delete mutex_thr_state;
+  mutex_thr_state = nullptr;
 }
 
-static void add_lock_to_mutex_after_list(ndb_mutex_state *m1, NdbMutex *m2) {
-  assert(m1 != m2->m_mutex_state);
-  unsigned no = m2->m_mutex_state->m_no;
-  if (!check_bit(&m1->m_locked_after_mask, no)) {
-    set_bit(&m1->m_locked_after_mask, no);
-    add_mutex_to_array(&m1->m_locked_after_list, m2);
-  }
+void ndb_mutex_created(ndb_mutex_state *&mutex_state) {
+  /**
+   * Assign mutex no
+   */
+  native_mutex_lock(&g_serialize_mutex);
+  const unsigned no = alloc_mutex_no();
+  native_mutex_unlock(&g_serialize_mutex);
+
+  mutex_state = new (std::nothrow) ndb_mutex_state(no);
 }
 
-extern "C" void ndb_mutex_locked(NdbMutex *p) {
-  ndb_mutex_state *m = p->m_mutex_state;
-  ndb_mutex_thr_state *thr = get_thr();
-  if (thr == 0) {
-    /**
-     * These are threads not started with NdbThread_Create(...)
-     *   e.g mysql-server threads...ignore these for now
-     */
-    return;
-  }
+void ndb_mutex_destroyed(ndb_mutex_state *&mutex_state) {
+  native_mutex_lock(&g_serialize_mutex);
+  const unsigned no = mutex_state->m_no;
 
-  for (unsigned i = 0; i < thr->m_mutexes_locked.m_used; i++) {
-    /**
-     * We want to lock m
-     * Check that none of the mutex we curreny have locked
-     *   have m in their *before* list
-     */
-    NdbMutex *h = get_element(&thr->m_mutexes_locked, i);
-    if (check_bit(&h->m_mutex_state->m_locked_before_mask, m->m_no)) {
-      abort();
+  /**
+   * In order to be able to reuse mutex_no,
+   *   we need to clear this no from all mutex_state's referring to it
+   *   this is all mutexes in after map
+   */
+  for (ndb_mutex_state *&after : mutex_state->m_locked_after.m_list) {
+    after->m_locked_before.remove(mutex_state);
+    for (nmdd_mask &mask : after->m_locked_before_combinations) {
+      mask.clear(no);
     }
-
-    /**
-     * Add h to m's list of before-locks
-     */
-    add_lock_to_mutex_before_list(m, h);
-
-    /**
-     * Add m to h's list of after locks
-     */
-    add_lock_to_mutex_after_list(h->m_mutex_state, p);
+  }
+  /**
+   * And we need to remove ourselves from after list of mutexes in our before
+   * list
+   */
+  for (ndb_mutex_state *&before : mutex_state->m_locked_before.m_list) {
+    before->m_locked_after.remove(mutex_state);
+    for (nmdd_mask &mask : before->m_locked_before_combinations) {
+      mask.clear(no);
+    }
   }
 
-  add_lock_to_thread(thr, p);
+  // Release the mutex 'm_no' for reuse
+  release_mutex_no(no);
+  delete mutex_state;
+  mutex_state = nullptr;
+  native_mutex_unlock(&g_serialize_mutex);
 }
 
-extern "C" void ndb_mutex_unlocked(NdbMutex *m) {
+void ndb_mutex_locked(ndb_mutex_state *mutex_state, bool is_blocking) {
   ndb_mutex_thr_state *thr = get_thr();
-  if (thr == 0) {
+  if (thr == nullptr) {
     /**
      * These are threads not started with NdbThread_Create(...)
      *   e.g mysql-server threads...ignore these for now
      */
     return;
   }
-  unsigned pos = thr->m_mutexes_locked.m_used;
-  assert(pos > 0);
-  assert(get_element(&thr->m_mutexes_locked, pos - 1) == m);
-  thr->m_mutexes_locked.m_used--;
+
+  native_mutex_lock(&g_serialize_mutex);
+
+  /**
+   * Predict possible deadlocks if different lock order is found.
+   */
+  if (is_blocking) {
+    for (ndb_mutex_state *&other : thr->m_locked.m_list) {
+      /**
+       * We want to lock mutex having 'mutex_state', check that against
+       * all 'other' locks already held by this thread.
+       *  1) If any 'other' lock being held has ever seen this lock being
+       *     taken before itself in some cases, it as a *candidate* for
+       *     creating a deadlock -> need further DD-analysis
+       *  2) Check all the lock combinations for this 'other' lock.
+       *     It is a combination possibly creating a deadlock if:
+       *     2a) The before-lock combination involve 'this' lock  -- AND--
+       *     2b) The before-lock combination did not also hold any of the
+       *         other locks currently held by this thread. In such case
+       *         the common before-locks will prevent that the different
+       *         lock combinations can be held at the same time -> no deadlocks.
+       */
+      if (other->m_locked_before.m_mask.check(mutex_state->m_no)) {  // 1)
+        // A candidate for possible deadlock, need further check to conclude
+        for (nmdd_mask &mask : other->m_locked_before_combinations) {  // 2)
+          if (mask.check(mutex_state->m_no) &&                         // 2a)
+              !mask.overlaps(&thr->m_locked.m_mask)) {                 // 2b)
+            dump_stack("Predicted deadlock due to different lock order");
+          }
+        }
+      }
+    }
+  }
+  /**
+   * Register this mutex_state 'lock'.
+   */
+  for (ndb_mutex_state *&other : thr->m_locked.m_list) {
+    /**
+     * We want to lock mutex having 'mutex_state'
+     * Check that none of the other mutexes we curreny have locked
+     *   have this 'mutex_state' in their *before* list
+     */
+    /**
+     * Add other-mutex to this mutex_state's list and mask of before-locks
+     */
+    mutex_state->m_locked_before.add(other);
+    /**
+     * Add this mutex_state to other-mutex's list and mask of after-locks
+     */
+    other->m_locked_after.add(mutex_state);
+  }
+  thr->add_lock(mutex_state, is_blocking);
+  native_mutex_unlock(&g_serialize_mutex);
 }
 
-extern "C" void ndb_mutex_try_locked(NdbMutex *p) {}
-
-extern "C" void ndb_mutex_thread_init(struct ndb_mutex_thr_state *p) {
-  std::memset(p, 0, sizeof(*p));
-  NDB_THREAD_TLS_SELF = p;
-}
-
-extern "C" void ndb_mutex_thread_exit() {
+void ndb_mutex_unlocked(ndb_mutex_state *mutex_state) {
   ndb_mutex_thr_state *thr = get_thr();
-  if (thr == 0) {
+  if (thr == nullptr) {
     /**
      * These are threads not started with NdbThread_Create(...)
      *   e.g mysql-server threads...ignore these for now
      */
     return;
   }
-  release(&thr->m_mutexes_locked);
+  native_mutex_lock(&g_serialize_mutex);
+  thr->remove(mutex_state);
+  native_mutex_unlock(&g_serialize_mutex);
 }
 
 /**
  * util
  */
-static void set_bit(nmdd_mask *mask, unsigned no) {
-  unsigned byte_no = no / 8;
-  unsigned bit_no = no & 7;
-  if (byte_no >= mask->m_len) {
-    unsigned new_len = mask->m_len + INC_SIZE;
-    if (byte_no >= new_len) {
-      new_len = byte_no + 1;
+void nmdd_mask::set(unsigned no) {
+  const unsigned need_len = (no / 32) + 1;
+  const unsigned old_len = m_data.size();
+  if (need_len > old_len) {
+    m_data.reserve(need_len);
+    for (unsigned i = old_len; i < need_len; i++) {
+      m_data.push_back(0);
     }
-    unsigned char *new_arr = (unsigned char *)malloc(new_len);
-    std::memset(new_arr, 0, new_len);
-    if (mask->m_len != 0) {
-      memcpy(new_arr, mask->m_mask, mask->m_len);
-      free(mask->m_mask);
+  }
+  BitmaskImpl::set(m_data.size(), m_data.data(), no);
+}
+
+void nmdd_mask::clear(unsigned no) {
+  if (no >= size()) return;
+  BitmaskImpl::clear(m_data.size(), m_data.data(), no);
+}
+
+bool nmdd_mask::check(unsigned no) const {
+  if (no >= size()) return false;
+  return BitmaskImpl::get(m_data.size(), m_data.data(), no);
+}
+
+bool nmdd_mask::overlaps(const nmdd_mask *mask) const {
+  const unsigned len = std::min(m_data.size(), mask->m_data.size());
+  return BitmaskImpl::overlaps(len, m_data.data(), mask->m_data.data());
+}
+
+bool nmdd_mask::equal(const nmdd_mask *mask) const {
+  const unsigned len = std::min(m_data.size(), mask->m_data.size());
+  return BitmaskImpl::equal(len, m_data.data(), mask->m_data.data()) &&
+         BitmaskImpl::isclear(m_data.size() - len, m_data.data() + len) &&
+         BitmaskImpl::isclear(mask->m_data.size() - len,
+                              mask->m_data.data() + len);
+}
+
+unsigned nmdd_mask::first_zero_bit() const {
+  for (unsigned i = 0; i < m_data.size(); i++) {
+    const Uint32 word = m_data[i];
+    if (word != 0xffffffff) {
+      unsigned bit;
+      for (bit = 0; bit < 32; bit++) {
+        if ((word & (1 << bit)) == 0) break;
+      }
+      assert(bit < 32);
+      return (32 * i) + bit;
     }
-    mask->m_len = new_len;
-    mask->m_mask = new_arr;
   }
-
-  mask->m_mask[byte_no] |= (1 << bit_no);
+  // First zero_bit is after all existing data[]
+  return m_data.size() * 32;
 }
 
-static void clear_bit(nmdd_mask *mask, unsigned no) {
-  unsigned byte_no = no / 8;
-  unsigned bit_no = no & 7;
-  if (byte_no >= mask->m_len) {
-    return;
-  }
-
-  mask->m_mask[byte_no] &= ~(unsigned char)(1 << bit_no);
-}
-
-static bool check_bit(const nmdd_mask *mask, unsigned no) {
-  unsigned byte_no = no / 8;
-  unsigned bit_no = no & 7;
-  if (byte_no >= mask->m_len) {
-    return false;
-  }
-
-  return (mask->m_mask[byte_no] & (1 << bit_no)) != 0;
-}
-
-static void release(nmdd_mask *mask) {
-  if (mask->m_len != 0) {
-    free(mask->m_mask);
+void nmdd_mutex_set::add(ndb_mutex_state *mutex_state) {
+  const unsigned no = mutex_state->m_no;
+  if (!m_mask.check(no)) {
+    m_mask.set(no);
+    m_list.push_back(mutex_state);
   }
 }
 
-static NdbMutex *get_element(nmdd_mutex_array *arr, unsigned i) {
-  assert(i < arr->m_used);
-  return arr->m_array[i];
-}
+void nmdd_mutex_set::remove(ndb_mutex_state *mutex_state) {
+  const unsigned no = mutex_state->m_no;
+  // Set lock as not being held in this mutex_set' any longer
+  assert(m_mask.check(no));
+  m_mask.clear(no);
 
-static void add_mutex_to_array(nmdd_mutex_array *arr, NdbMutex *m) {
-  unsigned pos = arr->m_used;
-  if (arr->m_used == arr->m_array_len) {
-    unsigned new_len = arr->m_array_len + INC_SIZE;
-    NdbMutex **new_arr = (NdbMutex **)malloc(new_len * sizeof(NdbMutex *));
-    if (arr->m_array_len != 0) {
-      memcpy(new_arr, arr->m_array, arr->m_array_len * sizeof(NdbMutex *));
-      free(arr->m_array);
-    }
-    arr->m_array = new_arr;
-    arr->m_array_len = new_len;
-  }
-  for (unsigned i = 0; i < arr->m_used; i++) assert(arr->m_array[i] != m);
-
-  arr->m_array[pos] = m;
-  arr->m_used++;
-}
-
-static void remove_mutex_from_array(nmdd_mutex_array *arr, NdbMutex *m) {
-  for (unsigned i = 0; i < arr->m_used; i++) {
-    unsigned idx = arr->m_used - i - 1;
-    if (arr->m_array[idx] == m) {
-      memmove(arr->m_array + idx, arr->m_array + idx + 1,
-              i * sizeof(NdbMutex *));
-      arr->m_used--;
+  // Find 'mutex_state' in list and erase it
+  for (nmdd_mutex_array::iterator it = m_list.begin(); it != m_list.end();
+       it++) {
+    if (*it == mutex_state) {
+      m_list.erase(it);
       return;
     }
   }
   assert(false);
 }
 
-static void release(nmdd_mutex_array *arr) {
-  if (arr->m_array_len) {
-    free(arr->m_array);
+static void add_mutex_combination(nmdd_mutex_combinations *comb,
+                                  nmdd_mask *locks) {
+  for (nmdd_mask &mask : *comb) {
+    if (mask.equal(locks)) {
+      // Skip if already existing
+      return;
+    }
   }
+  comb->push_back(*locks);
 }
 
-static unsigned ff(unsigned char b) {
-  for (unsigned i = 0; i < 8; i++)
-    if ((b & (1 << i)) == 0) return i;
-  assert(false);
+void ndb_mutex_thr_state::add_lock(ndb_mutex_state *m, bool is_blocking) {
+  if (is_blocking && m_locked.m_list.size() > 0) {
+    // Enlist current locks as a 'blocking' combination
+    add_mutex_combination(&m->m_locked_before_combinations, &m_locked.m_mask);
+  }
+  m_locked.add(m);  // Set lock to be held by this thread
+}
+
+void ndb_mutex_thr_state::remove(ndb_mutex_state *mutex_state) {
+  m_locked.remove(mutex_state);
 }
 
 static unsigned alloc_mutex_no() {
-  Guard g(&g_mutex_no_mutex);
-  unsigned no = 0;
-
-  for (unsigned i = 0; i < g_mutex_no_mask.m_len; i++) {
-    if (g_mutex_no_mask.m_mask[i] != 255) {
-      no = (8 * i) + ff(g_mutex_no_mask.m_mask[i]);
-      goto found;
-    }
-  }
-
-  no = 8 * g_mutex_no_mask.m_len;
-found:
-  set_bit(&g_mutex_no_mask, no);
-  assert(check_bit(&g_mutex_no_mask, no));
+  const unsigned no = g_mutex_no_mask.first_zero_bit();
+  g_mutex_no_mask.set(no);
+  assert(g_mutex_no_mask.check(no));
   return no;
 }
 
-static void release_mutex_no(unsigned no) {
-  Guard g(&g_mutex_no_mutex);
-  assert(check_bit(&g_mutex_no_mask, no));
-  clear_bit(&g_mutex_no_mask, no);
-}
+static void release_mutex_no(unsigned no) { g_mutex_no_mask.clear(no); }
 
 #endif

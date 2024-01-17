@@ -241,6 +241,22 @@ class TransporterFacade : public TransporterCallback,
   trp_client *m_poll_queue_head;  // First in queue
   trp_client *m_poll_queue_tail;  // Last in queue
   Uint32 m_poll_waiters;          // Number of clients in queue
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  /**
+   * The poll owner locks the trp_clients delivered to in the delivery order.
+   * Deadlocks are avoided as there is only a single poll_owner at any time.
+   * However, the poll-owner does not hold the poll_mutex while being the
+   * poll-owner. Thus the DEADLOCK_DETECTOR is not able to detect this
+   * deadlock protection by traversing its internal lock-graphs.
+   *
+   * We need to make the DEADLOCK_DETECTOR aware of the pseudo lock
+   * being held by inserting a 'mutex_state' representing the poll-right
+   * protection when the 'right' is owned.
+   */
+  struct ndb_mutex_state *m_poll_owner_region;
+#endif
+
   /* End poll owner stuff */
 
   // heart beat received from a node (e.g. a signal came)

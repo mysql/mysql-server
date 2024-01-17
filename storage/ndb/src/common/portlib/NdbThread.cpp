@@ -141,7 +141,7 @@ struct NdbThread {
   void *object;
   void *thread_key;
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
-  struct ndb_mutex_thr_state m_mutex_thr_state;
+  struct ndb_mutex_thr_state *m_mutex_thr_state;
 #endif
 };
 
@@ -246,7 +246,7 @@ static void *ndb_thread_wrapper(void *_ss) {
 #endif
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
-      ndb_mutex_thread_init(&ss->m_mutex_thr_state);
+      ndb_mutex_thread_init(ss->m_mutex_thr_state);
 #endif
       NDB_THREAD_TLS_NDB_THREAD = ss;
       NdbMutex_Lock(ndb_thread_mutex);
@@ -296,7 +296,7 @@ struct NdbThread *NdbThread_CreateObject(const char *name) {
   tmpThread->inited = 1;
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
-  ndb_mutex_thread_init(&tmpThread->m_mutex_thr_state);
+  ndb_mutex_thread_init(tmpThread->m_mutex_thr_state);
 #endif
 
   g_main_thread = tmpThread;
@@ -434,7 +434,7 @@ struct NdbThread *NdbThread_CreateLockObject(int tid) {
 #endif
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
-  ndb_mutex_thread_init(&tmpThread->m_mutex_thr_state);
+  ndb_mutex_thread_init(tmpThread->m_mutex_thr_state);
 #endif
 
   DBUG_RETURN(tmpThread);
@@ -443,6 +443,9 @@ struct NdbThread *NdbThread_CreateLockObject(int tid) {
 void NdbThread_Destroy(struct NdbThread **p_thread) {
   DBUG_ENTER("NdbThread_Destroy");
   if (*p_thread != nullptr) {
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+    ndb_mutex_thread_exit((*p_thread)->m_mutex_thr_state);
+#endif
 #ifdef _WIN32
     HANDLE thread_handle = (*p_thread)->thread_handle;
     if (thread_handle) CloseHandle(thread_handle);
@@ -1649,6 +1652,9 @@ void NdbThread_End() {
   }
 
   if (g_main_thread) {
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+    ndb_mutex_thread_exit(g_main_thread->m_mutex_thr_state);
+#endif
     free(g_main_thread);
     g_main_thread = nullptr;
   }
