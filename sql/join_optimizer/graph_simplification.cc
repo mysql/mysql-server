@@ -28,13 +28,12 @@
 #include <algorithm>
 #include <bit>
 #include <cmath>
-#include <new>
+#include <ostream>
 #include <string>
-#include <type_traits>
 #include <utility>
-#include <vector>
 
 #include "my_alloc.h"
+#include "my_base.h"
 #include "sql/handler.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
@@ -58,7 +57,7 @@
 using hypergraph::Hyperedge;
 using hypergraph::Hypergraph;
 using hypergraph::NodeMap;
-using std::fill;
+using std::fill_n;
 using std::has_single_bit;
 using std::max;
 using std::min;
@@ -153,7 +152,8 @@ template <class Func>
 void ConnectComponentsThroughJoins(const JoinHypergraph &graph,
                                    const OnlineCycleFinder &cycles,
                                    Func &&callback_on_join, NodeMap *components,
-                                   int *in_component) {
+                                   int *in_component,
+                                   NodeMap *lateral_dependencies) {
   bool did_anything;
   do {
     did_anything = false;
@@ -170,6 +170,13 @@ void ConnectComponentsThroughJoins(const JoinHypergraph &graph,
       }
       if (Overlaps(e.right, components[left_component])) {
         // This join is already applied.
+        continue;
+      }
+      if (Overlaps(e.right, lateral_dependencies[left_component]) &&
+          !OperatorIsCommutative(*graph.edges[edge_idx].expr)) {
+        // A lateral dependency in "left" requires "right" to be on the left
+        // side, but we're not free to reorder them due to a non-commutative
+        // operator. So we cannot connect the components with this edge.
         continue;
       }
       int right_component = GetComponent(components, in_component, e.right);
@@ -193,7 +200,17 @@ void ConnectComponentsThroughJoins(const JoinHypergraph &graph,
         ++num_changed;
       }
       assert(num_changed > 0);
-      components[left_component] |= components[right_component];
+      const NodeMap combined_nodes =
+          components[left_component] | components[right_component];
+      components[left_component] = combined_nodes;
+
+      // The lateral dependencies of the combined component include all the
+      // lateral dependencies of the original components, except those that were
+      // resolved in this join.
+      lateral_dependencies[left_component] =
+          (lateral_dependencies[left_component] |
+           lateral_dependencies[right_component]) &
+          ~combined_nodes;
 
       if (callback_on_join(left_component, right_component,
                            graph.edges[edge_idx], num_changed)) {
@@ -222,18 +239,21 @@ double GetCardinality(THD *thd, NodeMap tables_to_join,
   NodeMap components[MAX_TABLES];  // Which tables belong to each component.
   int in_component[MAX_TABLES];    // Which component each table belongs to.
   double component_cardinality[MAX_TABLES];
-  fill(&in_component[0], &in_component[graph.nodes.size()], -1);
+  NodeMap lateral_dependencies[MAX_TABLES];
+  fill_n(&in_component[0], graph.nodes.size(), -1);
 
   // Start with each (relevant) table in a separate component.
   int num_components = 0;
   for (int node_idx : BitsSetIn(tables_to_join)) {
-    components[num_components] = NodeMap{1} << node_idx;
+    const JoinHypergraph::Node &node = graph.nodes[node_idx];
+    components[num_components] = TableBitmap(node_idx);
     in_component[node_idx] = num_components;
     // Assume we have to read at least one row from each table, so that we don't
     // end up with zero costs in the rudimentary cost model used by the graph
     // simplification.
     component_cardinality[num_components] =
-        max(ha_rows{1}, graph.nodes[node_idx].table()->file->stats.records);
+        max(ha_rows{1}, node.table()->file->stats.records);
+    lateral_dependencies[num_components] = node.lateral_dependencies();
     ++num_components;
   }
 
@@ -307,7 +327,7 @@ double GetCardinality(THD *thd, NodeMap tables_to_join,
     return active_components == 0b1;
   };
   ConnectComponentsThroughJoins(graph, cycles, std::move(func), components,
-                                in_component);
+                                in_component, lateral_dependencies);
 
   // In rare situations, we could be left in a situation where an edge
   // doesn't contain a joinable set (ie., they are joinable, but only through
@@ -517,11 +537,14 @@ bool GraphIsJoinable(const JoinHypergraph &graph,
                      const OnlineCycleFinder &cycles) {
   NodeMap components[MAX_TABLES];  // Which tables belong to each component.
   int in_component[MAX_TABLES];    // Which component each table belongs to.
+  NodeMap lateral_dependencies[MAX_TABLES];
 
   // Start with each table in a separate component.
   for (size_t node_idx = 0; node_idx < graph.nodes.size(); ++node_idx) {
-    components[node_idx] = NodeMap{1} << node_idx;
+    components[node_idx] = TableBitmap(node_idx);
     in_component[node_idx] = node_idx;
+    lateral_dependencies[node_idx] =
+        graph.nodes[node_idx].lateral_dependencies();
   }
 
   size_t num_in_component0 = 1;
@@ -535,7 +558,7 @@ bool GraphIsJoinable(const JoinHypergraph &graph,
     return false;
   };
   ConnectComponentsThroughJoins(graph, cycles, std::move(func), components,
-                                in_component);
+                                in_component, lateral_dependencies);
   return num_in_component0 == graph.nodes.size();
 }
 

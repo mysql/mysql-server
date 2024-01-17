@@ -24,11 +24,13 @@
 
 #include <assert.h>
 #include <sys/types.h>
+
 #include <algorithm>
 #include <array>
 #include <bit>
 #include <iterator>
 #include <numeric>
+#include <ostream>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -3528,6 +3530,19 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
   return false;
 }
 
+void FindLateralDependencies(JoinHypergraph *graph) {
+  for (JoinHypergraph::Node &node : graph->nodes) {
+    assert(node.lateral_dependencies() == 0);  // Not set yet.
+    const Table_ref *const table_ref = node.table()->pos_in_table_list;
+    if (table_ref->is_derived()) {
+      node.set_lateral_dependencies(GetNodeMapFromTableMap(
+          table_ref->derived_query_expression()->m_lateral_deps &
+              ~PSEUDO_TABLE_BITS,
+          graph->table_num_to_node_num));
+    }
+  }
+}
+
 }  // namespace
 
 const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
@@ -3692,6 +3707,7 @@ bool MakeJoinHypergraph(THD *thd, JoinHypergraph *graph,
             end(graph->table_num_to_node_num), -1);
 #endif
   MakeJoinGraphFromRelationalExpression(thd, root, graph);
+  FindLateralDependencies(graph);
 
   // Now that we have the hypergraph construction done, it no longer hurts
   // to remove impossible conditions.

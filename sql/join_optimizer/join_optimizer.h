@@ -52,8 +52,6 @@
       that preserves ordering on the left side).
  */
 
-#include <string>
-
 class Query_block;
 class THD;
 struct AccessPath;

@@ -64,22 +64,22 @@
     Crossproducts and Non-Inner Joins”.
  */
 
+#include <assert.h>
 #include <stddef.h>
 
+#include <limits>
 #include <vector>
 
 #include "my_compiler.h"
 #include "priority_queue.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/online_cycle_finder.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_array.h"
 
 class THD;
 struct JoinHypergraph;
-struct MEM_ROOT;
-template <class T>
-class Mem_root_allocator;
 
 // Exposed for unit testing.
 class GraphSimplifier {

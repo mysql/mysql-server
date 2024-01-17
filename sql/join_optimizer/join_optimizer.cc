@@ -34,7 +34,9 @@
 #include <bitset>
 #include <cmath>
 #include <initializer_list>
+#include <iterator>
 #include <limits>
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -89,11 +91,13 @@
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
+#include "sql/olap.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_hints.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/partition_info.h"
 #include "sql/query_options.h"
+#include "sql/range_optimizer/group_index_skip_scan_plan.h"
 #include "sql/range_optimizer/index_range_scan_plan.h"
 #include "sql/range_optimizer/index_skip_scan_plan.h"
 #include "sql/range_optimizer/internal.h"
@@ -3046,8 +3050,7 @@ bool CostingReceiver::ProposeTableScan(
           /*invalidators=*/nullptr, m_need_rowid, stable_path);
       // Handle LATERAL.
       materialize_path->parameter_tables =
-          GetNodeMapFromTableMap(tl->derived_query_expression()->m_lateral_deps,
-                                 m_graph->table_num_to_node_num);
+          m_graph->nodes[node_idx].lateral_dependencies();
 
       // If we don't need row IDs, we also don't care about row ID safety.
       // This keeps us from retaining many extra unneeded paths.
@@ -3609,18 +3612,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
  */
 bool LateralDependenciesAreSatisfied(int node_idx, NodeMap tables,
                                      const JoinHypergraph &graph) {
-  const Table_ref *table_ref = graph.nodes[node_idx].table()->pos_in_table_list;
-
-  if (table_ref->is_derived()) {
-    const NodeMap lateral_deps = GetNodeMapFromTableMap(
-        table_ref->derived_query_expression()->m_lateral_deps,
-        graph.table_num_to_node_num);
-    return IsSubset(lateral_deps, tables);
-  }
-
-  // Not a lateral derived table, so there are no lateral dependencies, and
-  // hence all lateral dependencies are satisfied.
-  return true;
+  return IsSubset(graph.nodes[node_idx].lateral_dependencies(), tables);
 }
 
 /**

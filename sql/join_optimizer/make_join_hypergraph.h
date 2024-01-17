@@ -23,9 +23,14 @@
 #ifndef SQL_JOIN_OPTIMIZER_MAKE_JOIN_HYPERGRAPH
 #define SQL_JOIN_OPTIMIZER_MAKE_JOIN_HYPERGRAPH 1
 
+#include <assert.h>
+
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "map_helpers.h"
 #include "my_table_map.h"
@@ -40,7 +45,6 @@
 
 class CompanionSet;
 class Field;
-class Item;
 class JOIN;
 class Query_block;
 class THD;
@@ -144,6 +148,14 @@ struct JoinHypergraph {
       return m_pushable_conditions;
     }
 
+    hypergraph::NodeMap lateral_dependencies() const {
+      return m_lateral_dependencies;
+    }
+
+    void set_lateral_dependencies(hypergraph::NodeMap dependencies) {
+      m_lateral_dependencies = dependencies;
+    }
+
    private:
     TABLE *m_table;
     const CompanionSet *m_companion_set;
@@ -164,6 +176,12 @@ struct JoinHypergraph {
     // a fair amount of duplicated code in determining pushability,
     // which is why regular join pushdown does the computation.)
     Mem_root_array<Item *> m_pushable_conditions;
+
+    // The lateral dependencies of this table. That is, the set of tables that
+    // must be available on the outer side of a nested loop join in which this
+    // table is on the inner side. This map may be set for LATERAL derived
+    // tables and derived tables with outer references.
+    hypergraph::NodeMap m_lateral_dependencies{0};
   };
   Mem_root_array<Node> nodes;
 

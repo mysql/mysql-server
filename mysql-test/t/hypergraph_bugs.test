@@ -1302,3 +1302,32 @@ DROP TABLE t1;
 CREATE TABLE t(x INT, KEY(x));
 SELECT ROW_NUMBER() OVER () FROM t WHERE x = RAND() GROUP BY x;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36099491: Assertion secondary_engine_cost_hook != nullptr
+--echo #               failed with hypergraph_optimizer
+--echo #
+
+CREATE TABLE t (a INT, b VARCHAR(10));
+
+# Make the base tables bigger, so that it looks tempting to join the
+# smaller lateral derived table first in the queries below. The
+# optimizer needs to resist the temptation, because the lateral
+# derived table cannot be joined before the table it depends on.
+INSERT INTO t (a)
+WITH RECURSIVE 150tup(n) AS
+  (SELECT 1 UNION ALL SELECT n + 1 FROM 150tup WHERE n < 150)
+SELECT n FROM 150tup;
+
+ANALYZE TABLE t;
+
+SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ COUNT(*)
+FROM t AS t1 LEFT JOIN t AS t2 ON TRUE
+WHERE t1.a IN (SELECT * FROM (SELECT DISTINCT t2.a) AS t3);
+
+SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ COUNT(*)
+FROM t AS t1 LEFT JOIN t AS t2 ON TRUE,
+     LATERAL (SELECT DISTINCT t2.a FROM t) AS t3
+WHERE t1.a = t3.a;
+
+DROP TABLE t;
