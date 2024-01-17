@@ -10368,6 +10368,8 @@ ER_WARN_SP_STATEMENT_PARTIALLY_EXECUTED
 
 ER_STMT_EXECUTION_NOT_ALLOWED_WITHIN_SP_OR_TRG_OR_UDF
   eng "Executing SQL statement using %s Statement Handle Interface is not allowed within stored function, trigger or loadable function (UDF)."
+ER_LH_JSON_PARSING
+  eng "Column %d of %s : %s"
 
 #
 #  End of 8.1+ error messages (server-to-client).
