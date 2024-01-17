@@ -27,6 +27,7 @@
 
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin_auth.h"
+#include "sql/auth/authentication_policy.h"
 #include "sql/auth/sql_mfa.h"
 #include "sql/derror.h" /* ER_THD */
 #include "sql/mysqld.h"
@@ -307,42 +308,41 @@ void Multi_factor_auth_list::alter_mfa(I_multi_factor_auth *m) {
   This method checks the modified Multi factor authentication interface methods
   based on ALTER USER sql against authentication policy.
 
-  @param thd          connection handle
+  @param [in]  thd              Connection handle
+  @param [in]  policy_factors   Authentication policy factors
 
   @returns status of the validation
     @retval false Success (modified mfa methods match policy)
     @retval true  Failure (authentication policy is vioalted)
 */
-bool Multi_factor_auth_list::validate_against_authentication_policy(THD *thd) {
+bool Multi_factor_auth_list::validate_against_authentication_policy(
+    THD *thd, const authentication_policy::Factors &policy_factors) {
   bool policy_priv_exist =
       thd->security_context()
           ->has_global_grant(STRING_WITH_LEN("AUTHENTICATION_POLICY_ADMIN"))
           .first;
   uint nth_factor = 1;
-  mysql_mutex_lock(&LOCK_authentication_policy);
-  std::vector<std::string> &list = authentication_policy_list;
-  mysql_mutex_unlock(&LOCK_authentication_policy);
   auto acl_it = m_factor.begin();
-  auto policy_list = list.begin();
+  auto factors_it = policy_factors.begin();
   /* skip first factor plugin name in policy list */
-  policy_list++;
-  for (; (acl_it != m_factor.end() && policy_list != list.end());
-       ++policy_list, ++acl_it) {
+  factors_it++;
+  for (; (acl_it != m_factor.end() && factors_it != policy_factors.end());
+       ++factors_it, ++acl_it) {
     Multi_factor_auth_info *acl_factor =
         (*acl_it)->get_multi_factor_auth_info();
     nth_factor = acl_factor->get_nth_factor();
-    /* mfa plugin method is optional so allow */
-    if (policy_list->length() == 0) continue;
-    /* mfa plugin method can be anything so allow */
-    if (policy_list->compare("*") == 0) continue;
+    /* mfa plugin method is not mandatory so allow */
+    if (!factors_it->is_mandatory_specified()) continue;
     /* mfa plugin method does not match against policy */
-    if (policy_list->compare(acl_factor->get_plugin_str())) goto error;
+    if (factors_it->get_mandatory_plugin().compare(
+            acl_factor->get_plugin_str()))
+      goto error;
   }
   nth_factor++;
   /* if more plugin exists in policy check that its optional only */
-  while (policy_list != list.end()) {
-    if (policy_list->length()) goto error;
-    policy_list++;
+  while (factors_it != policy_factors.end()) {
+    if (!factors_it->is_optional()) goto error;
+    factors_it++;
   }
   return false;
 error:
@@ -376,14 +376,16 @@ void Multi_factor_auth_list::sort_mfa() {
   the user_attributes in mysql.user table.
 
   @param [in]  thd              Connection handler
+  @param [in]  policy_factors   Authentication policy factors
 
   @returns status of the validation
     @retval false Success
     @retval true  Failure
 */
-bool Multi_factor_auth_list::validate_plugins_in_auth_chain(THD *thd) {
+bool Multi_factor_auth_list::validate_plugins_in_auth_chain(
+    THD *thd, const authentication_policy::Factors &policy_factors) {
   for (auto m : m_factor) {
-    if (m->validate_plugins_in_auth_chain(thd)) return true;
+    if (m->validate_plugins_in_auth_chain(thd, policy_factors)) return true;
   }
   return false;
 }
@@ -555,19 +557,20 @@ Multi_factor_auth_info::Multi_factor_auth_info(MEM_ROOT *mem_root, LEX_MFA *m)
   ALTER/CREATE USER sql.
 
   @param [in]  thd              Connection handler
+  @param [in]  policy_factors   Authentication policy factors
 
   @returns status of the validation
     @retval false Success
     @retval true  Failure
 */
-bool Multi_factor_auth_info::validate_plugins_in_auth_chain(THD *thd) {
+bool Multi_factor_auth_info::validate_plugins_in_auth_chain(
+    THD *thd, const authentication_policy::Factors &policy_factors) {
   if (is_identified_by() && !is_identified_with()) {
-    /* get plugin name from @@authentication_policy */
-    mysql_mutex_lock(&LOCK_authentication_policy);
-    std::vector<std::string> &list = authentication_policy_list;
-    mysql_mutex_unlock(&LOCK_authentication_policy);
-    auto s = list[get_nth_factor() - 1];
-    set_plugin_str(s.c_str(), s.length());
+    if (policy_factors.size() < get_nth_factor()) return true;
+    auto policy_factor = policy_factors[get_nth_factor() - 1];
+    const std::string &plugin_name(
+        policy_factor.get_mandatory_or_default_plugin());
+    set_plugin_str(plugin_name.c_str(), plugin_name.length());
   }
   plugin_ref plugin = my_plugin_lock_by_name(nullptr, plugin_name(),
                                              MYSQL_AUTHENTICATION_PLUGIN);

@@ -1,5 +1,5 @@
-# Check with caching_sha2_password as --default-authentication-plugin
-# Restart the server with caching_sha2_password as default authnetication plugin
+# Check with caching_sha2_password as default first authentication factor
+# Restart the server with --authentication_policy=*:caching_sha2_password,,
 # Create users
 CREATE USER caching_sha2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'abcd';
 CREATE USER native@localhost IDENTIFIED WITH 'mysql_native_password' BY 'abcd';
@@ -79,8 +79,8 @@ native@localhost
 DROP USER caching_sha2@localhost;
 DROP USER native@localhost;
 DROP USER sha256@localhost;
-# Check with mysql_native_password as --default-authentication-plugin
-# Restart the server with mysql_native_password as default authnetication plugin
+# Check with mysql_native_password as default first authentication factor
+# Restart the server with --authentication_policy=*:mysql_native_password,,
 # Create users
 CREATE USER caching_sha2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'abcd';
 CREATE USER native@localhost IDENTIFIED WITH 'mysql_native_password' BY 'abcd';
@@ -160,8 +160,8 @@ native@localhost
 DROP USER caching_sha2@localhost;
 DROP USER native@localhost;
 DROP USER sha256@localhost;
-# Check with sha256_password as --default-authentication-plugin
-# Restart the server with sha256_password as default authnetication plugin
+# Check with sha256_password as default first authentication factor
+# Restart the server with --authentication_policy=*:sha256_password,,
 # Create users
 CREATE USER caching_sha2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'abcd';
 CREATE USER native@localhost IDENTIFIED WITH 'mysql_native_password' BY 'abcd';

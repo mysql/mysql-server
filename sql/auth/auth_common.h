@@ -707,10 +707,6 @@ extern bool validate_user_plugins;
 /* Function Declarations */
 
 /* sql_authentication */
-
-int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length);
-std::string get_default_autnetication_plugin_name();
-
 void acl_log_connect(const char *user, const char *host, const char *auth_as,
                      const char *db, THD *thd,
                      enum enum_server_command command);

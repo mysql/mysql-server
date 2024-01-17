@@ -2,9 +2,9 @@
 # shut server down
 # Server is down
 #
-# Try --initialize --default-authentication-plugin=sha256_password
+# Try --initialize --authentication-policy=*:sha256_password
 #
-# Run the server with --initialize --default-authentication-plugin=sha256_password
+# Run the server with --initialize --authentication-policy=*:sha256_password
 extract the root password
 password found
 # Restart the server against DDIR

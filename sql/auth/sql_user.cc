@@ -62,6 +62,7 @@
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
+#include "sql/auth/authentication_policy.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h"
@@ -1047,33 +1048,35 @@ bool turn_off_sandbox_mode(THD *thd, LEX_USER *user) {
   Helper method to compare plugin name with authentication_policy for the
   nth factor.
 
-  @param factor    nth factor which needs to be checked.
-  @param plugin    plugin name for nth factor.
-  @param list      authentication_policy value
+  @param plugin         plugin name for nth factor.
+  @param factor_no      nth factor which needs to be checked.
+  @param policy_factors authentication policy factors.
 
   @retval false if plugin matches the policy at nth_factor
   @retval true  if plugin names does not match
 */
-static bool compare_plugin_with_policy(const uint factor,
-                                       const std::string plugin,
-                                       std::vector<std::string> &list) {
+static bool compare_plugin_with_policy(
+    const char *plugin, const uint factor_no,
+    const authentication_policy::Factors &policy_factors) {
   /* if policy does not allow factor factors to be defined report error. */
-  if (list.size() < factor) return true;
+  if (policy_factors.size() < factor_no) return true;
+
+  auto &policy_factor(policy_factors[factor_no - 1]);
   /*
     if plugin name is specified then it must be an exact match against policy
     or should match *.
   */
-  if (plugin.length()) {
-    if (list[factor - 1].length() && list[factor - 1].compare("*") &&
-        my_strcasecmp(system_charset_info, list[factor - 1].c_str(),
-                      plugin.c_str()))
+  if (plugin != nullptr && plugin[0] != 0) {
+    if (!policy_factor.is_optional() && !policy_factor.is_whichever() &&
+        my_strcasecmp(system_charset_info,
+                      policy_factor.get_mandatory_plugin().c_str(), plugin))
       return true;
   } else {
     /*
       if IDENTIFIED BY is specified and plugin length is 0, then policies nth
       factor should contain concrete value.
     */
-    if (list[factor - 1].length() == 0 || list[factor - 1].compare("*") == 0)
+    if (policy_factor.is_optional() || policy_factor.is_whichever())
       return true;
   }
   return false;
@@ -1090,20 +1093,19 @@ static bool compare_plugin_with_policy(const uint factor,
   @param user_name    user on which authentication policy has to be verified
   @param command      sql command to refer to CREATE or ALTER USER
   @param mfa          handler to mfa attributes for given user_name
+  @param policy_factors authentication policy factors
 
   @retval false success allow CREATE/ALTER user
   @retval true  failure CREATE/ALTER user should report error
 */
-static bool check_for_authentication_policy(THD *thd, LEX_USER *user_name,
-                                            enum_sql_command command,
-                                            I_multi_factor_auth *mfa) {
+static bool check_for_authentication_policy(
+    THD *thd, LEX_USER *user_name, enum_sql_command command,
+    I_multi_factor_auth *mfa,
+    const authentication_policy::Factors &policy_factors) {
   bool policy_priv_exist =
       thd->security_context()
           ->has_global_grant(STRING_WITH_LEN("AUTHENTICATION_POLICY_ADMIN"))
           .first;
-  mysql_mutex_lock(&LOCK_authentication_policy);
-  std::vector<std::string> &auth_policy_list = authentication_policy_list;
-  mysql_mutex_unlock(&LOCK_authentication_policy);
   List_iterator<LEX_MFA> mfa_list_it(user_name->mfa_list);
   LEX_MFA *tmp_mfa = nullptr;
   LEX_MFA *second_factor = nullptr;
@@ -1114,16 +1116,15 @@ static bool check_for_authentication_policy(THD *thd, LEX_USER *user_name,
       (mfa ? mfa->get_multi_factor_auth_list() : nullptr);
 
   DBUG_TRACE;
-  assert(!auth_policy_list.empty());
+  assert(!policy_factors.empty());
 
   uint nth_factor = user_name->first_factor_auth_info.nth_factor;
   /* check 1FA method */
   if (user_name->first_factor_auth_info.uses_identified_by_clause ||
       user_name->first_factor_auth_info.uses_identified_with_clause ||
       command == SQLCOM_CREATE_USER) {
-    if (compare_plugin_with_policy(nth_factor,
-                                   user_name->first_factor_auth_info.plugin.str,
-                                   auth_policy_list))
+    if (compare_plugin_with_policy(user_name->first_factor_auth_info.plugin.str,
+                                   nth_factor, policy_factors))
       goto error;
   }
   while ((tmp_mfa = mfa_list_it++)) {
@@ -1135,8 +1136,8 @@ static bool check_for_authentication_policy(THD *thd, LEX_USER *user_name,
     /* ensure plugin method matches against the policy */
     if (tmp_mfa->add_factor || tmp_mfa->modify_factor ||
         command == SQLCOM_CREATE_USER) {
-      if (compare_plugin_with_policy(nth_factor, tmp_mfa->plugin.str,
-                                     auth_policy_list))
+      if (compare_plugin_with_policy(tmp_mfa->plugin.str, nth_factor,
+                                     policy_factors))
         goto error;
     } else if (tmp_mfa->drop_factor) {
       if (nth_factor == 2) {
@@ -1148,20 +1149,20 @@ static bool check_for_authentication_policy(THD *thd, LEX_USER *user_name,
           third_factor_plugin_name = mfa_list->get_mfa_list()[1]
                                          ->get_multi_factor_auth_info()
                                          ->get_plugin_str();
-          if (compare_plugin_with_policy(nth_factor, third_factor_plugin_name,
-                                         auth_policy_list))
+          if (compare_plugin_with_policy(third_factor_plugin_name, nth_factor,
+                                         policy_factors))
             goto error;
-        } else if (auth_policy_list.size() >= nth_factor &&
-                   auth_policy_list[nth_factor - 1].length())
+        } else if (policy_factors.size() >= nth_factor &&
+                   !policy_factors[nth_factor - 1].is_optional())
           goto error;
       } else {
         /*
           3rd factor can be dropped only when authentication policy has an
           empty value in 3rd placeholder or policy list size is 1
         */
-        if ((auth_policy_list.size() == nth_factor &&
-             auth_policy_list[nth_factor - 1].length()) ||
-            auth_policy_list.size() == (nth_factor - 2))
+        if ((policy_factors.size() == nth_factor &&
+             !policy_factors[nth_factor - 1].is_optional()) ||
+            policy_factors.size() == (nth_factor - 2))
           goto error;
       }
     } else if (nth_factor == 2 && mfa_list && mfa_list->is_passwordless()) {
@@ -1172,8 +1173,8 @@ static bool check_for_authentication_policy(THD *thd, LEX_USER *user_name,
       second_factor_plugin_name = mfa_list->get_mfa_list()[0]
                                       ->get_multi_factor_auth_info()
                                       ->get_plugin_str();
-      if (compare_plugin_with_policy(nth_factor - 1, second_factor_plugin_name,
-                                     auth_policy_list)) {
+      if (compare_plugin_with_policy(second_factor_plugin_name, nth_factor - 1,
+                                     policy_factors)) {
         nth_factor = 1;
         goto error;
       }
@@ -1184,13 +1185,13 @@ static bool check_for_authentication_policy(THD *thd, LEX_USER *user_name,
     policy
   */
   if (command == SQLCOM_CREATE_USER) {
-    if (auth_policy_list.size() > nth_factor && !second_factor) {
+    if (policy_factors.size() > nth_factor && !second_factor) {
       nth_factor = 2;
-      if (auth_policy_list[1].length()) goto error;
+      if (!policy_factors[1].is_optional()) goto error;
     }
-    if (auth_policy_list.size() > nth_factor && !third_factor) {
+    if (policy_factors.size() > nth_factor && !third_factor) {
       nth_factor = 3;
-      if (auth_policy_list[2].length()) goto error;
+      if (!policy_factors[2].is_optional()) goto error;
     }
   }
   /*
@@ -1199,17 +1200,17 @@ static bool check_for_authentication_policy(THD *thd, LEX_USER *user_name,
   */
   if (second_factor && third_factor) {
     if (second_factor->drop_factor && third_factor->drop_factor) {
-      if (auth_policy_list.size() == 3) {
-        if (auth_policy_list[1].length()) {
+      if (policy_factors.size() == 3) {
+        if (!policy_factors[1].is_optional()) {
           nth_factor = 2;
           goto error;
-        } else if (auth_policy_list[2].length()) {
+        } else if (!policy_factors[2].is_optional()) {
           nth_factor = 3;
           goto error;
         }
       }
-      if (auth_policy_list.size() == 2) {
-        if (auth_policy_list[1].length()) {
+      if (policy_factors.size() == 2) {
+        if (!policy_factors[1].is_optional()) {
           nth_factor = 2;
           goto error;
         }
@@ -1288,6 +1289,8 @@ bool set_and_validate_user_attributes(
   bool new_password_empty = false;
   char new_password[MAX_FIELD_WIDTH]{0};
   unsigned int new_password_length = 0;
+  authentication_policy::Factors policy_factors;
+  authentication_policy::get_policy_factors(policy_factors);
 
   what_to_set.m_what = NONE_ATTR;
   what_to_set.m_user_attributes = acl_table::USER_ATTRIBUTE_NONE;
@@ -1334,11 +1337,10 @@ bool set_and_validate_user_attributes(
     */
     assert(command == SQLCOM_CREATE_USER || command == SQLCOM_CREATE_ROLE);
 
-    /* use the stored plugin when it's not supplied */
+    /* use the default plugin when it's not supplied */
     if (!Str->first_factor_auth_info.uses_identified_with_clause)
-      Str->first_factor_auth_info.plugin = default_auth_plugin_name;
-    else
-      optimize_plugin_compare_by_pointer(&Str->first_factor_auth_info.plugin);
+      authentication_policy::get_first_factor_default_plugin(
+          thd->mem_root, &Str->first_factor_auth_info.plugin);
 
     /*
       Make sure the hashed credentials are set so the statement is logged
@@ -1434,7 +1436,8 @@ bool set_and_validate_user_attributes(
           so that binlog entry is correct.
         */
         if (!Str->first_factor_auth_info.uses_identified_with_clause)
-          Str->first_factor_auth_info.plugin = default_auth_plugin_name;
+          authentication_policy::get_first_factor_default_plugin(
+              thd->mem_root, &Str->first_factor_auth_info.plugin);
         break;
       }
       case SQLCOM_ALTER_USER: {
@@ -1570,28 +1573,43 @@ bool set_and_validate_user_attributes(
             acl_user->password_reuse_interval;
     }
   } else { /* User does not exist */
+    size_t factor_idx(0);
+    LEX_MFA *lex_mfa(nullptr);
     /*
-      when authentication_policy = 'mysql_native_password,,' and
-      --default-authentication-plugin = 'caching_sha2_password'
-      set default as mysql_native_password.
-      --authentication_policy has precedence over
-      --default-authentication-plugin with 1 exception as below:
-      when authentication_policy = '*,,' and
-      --default-authentication-plugin = 'mysql_native_password'
-      set default as mysql_native_password
-      in case no concrete plugin can be extracted from --authentication_policy
-      for first factor, server picks plugin name from
-      --default-authentication-plugin
+      If 1. factor plugin name is not present in the statement,
+      set the plugin to one defined by authentication_policy
     */
-    if (!Str->first_factor_auth_info.uses_identified_with_clause) {
-      mysql_mutex_lock(&LOCK_authentication_policy);
-      if (authentication_policy_list[0].compare("*") == 0)
-        Str->first_factor_auth_info.plugin = default_auth_plugin_name;
-      else
-        lex_string_strmake(thd->mem_root, &Str->first_factor_auth_info.plugin,
-                           authentication_policy_list[0].c_str(),
-                           authentication_policy_list[0].length());
-      mysql_mutex_unlock(&LOCK_authentication_policy);
+
+    if (Str->first_factor_auth_info.plugin.length <= 0)
+      authentication_policy::get_first_factor_default_plugin(
+          thd->mem_root, &Str->first_factor_auth_info.plugin);
+
+    /*
+      Loop over factors not present in the statement, but defined in the policy.
+
+      If the policy factor defines default plugin
+      add that plugin to the lex factor.
+    */
+
+    for (factor_idx = Str->mfa_list.size() + 1;
+         factor_idx < policy_factors.size(); ++factor_idx) {
+      if (policy_factors[factor_idx].is_optional())
+        break;  // rest of factors must be optional too
+
+      const std::string &plugin_name(
+          policy_factors[factor_idx].get_default_plugin());
+      if (plugin_name.empty()) continue;  // no default plugin defined
+
+      lex_mfa = new (thd->mem_root) LEX_MFA;
+      if (lex_mfa == nullptr) return true;
+
+      lex_string_strmake(thd->mem_root, &lex_mfa->plugin, plugin_name.c_str(),
+                         plugin_name.length());
+      lex_mfa->auth = EMPTY_CSTR;
+      lex_mfa->uses_identified_by_clause = false;
+      lex_mfa->uses_identified_with_clause = true;
+      lex_mfa->nth_factor = factor_idx + 1;
+      Str->mfa_list.push_back(lex_mfa);
     }
 
     if (command == SQLCOM_GRANT) {
@@ -1902,7 +1920,8 @@ bool set_and_validate_user_attributes(
   plugin_unlock(nullptr, plugin);
 
   if (check_for_authentication_policy(thd, Str, command,
-                                      (acl_user ? acl_user->m_mfa : nullptr)))
+                                      (acl_user ? acl_user->m_mfa : nullptr),
+                                      policy_factors))
     return true;
 
   /* initialize MFA */
@@ -1970,13 +1989,13 @@ bool set_and_validate_user_attributes(
     }
     if (mfa) {
       /* validate auth plugins in Multi factor authentication methods */
-      if (mfa->validate_plugins_in_auth_chain(thd)) return true;
+      if (mfa->validate_plugins_in_auth_chain(thd, policy_factors)) return true;
       /*
         Once alter is done check that new mfa methods are inline with
         authentication policy.
       */
       if (command == SQLCOM_ALTER_USER &&
-          mfa->validate_against_authentication_policy(thd))
+          mfa->validate_against_authentication_policy(thd, policy_factors))
         return true;
       /*
         Fill in details related to Multi factor authentication methods into

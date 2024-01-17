@@ -4,9 +4,7 @@
 Checking the password authentication with @default_plugin plugin
 =======================================================================
 
-set @default_plugin= @@global.default_authentication_plugin;
-Warnings:
-Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
+set @default_plugin='caching_sha2_password';
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'abc';
 select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')=@default_plugin;
@@ -136,7 +134,7 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 Starting the server with the default authentication mysql_native_password
 =================================================================================================
 
-# Restart server with default-authentication-plugin=mysql_native_password;
+# Restart server with authentication_policy=*:mysql_native_password,,
 Creating a user with mysql_native_password plugin
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
 Grant all on *.* to 'Tanjotuser1'@'localhost';
@@ -160,7 +158,7 @@ DROP USER 'Tanjotuser3'@'localhost';
 Starting the server with the default authentication sha256_password
 =================================================================================================
 
-# Restart server with default-authentication-plugin=sha256_password;
+# Restart server with authentication_policy=*:sha256_password,,
 Creating a user with mysql_native_password plugin
 CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 set password for 'Tanjotuser2'@'localhost' ='abc';

@@ -191,6 +191,7 @@ ENDFOREACH()
 
 # Add tests (link them with gunit/gmock libraries and the server libraries)
 SET(SERVER_TESTS
+  authentication_policy
   bgc_ticket_manager
   character_set_deprecation
   compare_access_paths

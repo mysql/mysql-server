@@ -59,7 +59,7 @@ DROP USER 'Tanjotuser1'@'localhost';
 Starting the server with the default authentication sha256_password
 =================================================================================================
 
-# Restart server with default-authentication-plugin=sha256_password;
+# Restart server with authentication-policy=*:sha256_password
 
 
 ======================================================================================

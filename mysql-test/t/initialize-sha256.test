@@ -18,11 +18,11 @@ let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
 
 
 --echo #
---echo # Try --initialize --default-authentication-plugin=sha256_password
+--echo # Try --initialize --authentication-policy=*:sha256_password
 --echo #
 
---echo # Run the server with --initialize --default-authentication-plugin=sha256_password
---exec $MYSQLD $extra_args --initialize --default-authentication-plugin=sha256_password --datadir=$DDIR > $MYSQLD_LOG 2>&1
+--echo # Run the server with --initialize --authentication-policy=*:sha256_password
+--exec $MYSQLD $extra_args --initialize --authentication-policy=*:sha256_password --datadir=$DDIR > $MYSQLD_LOG 2>&1
 
 --echo extract the root password
 --perl
@@ -52,7 +52,7 @@ EOF
 source $passwd_file;
 
 --echo # Restart the server against DDIR
---exec echo "restart:--datadir=$DDIR --default-authentication-plugin=sha256_password " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--datadir=$DDIR --authentication-policy=*:sha256_password " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root

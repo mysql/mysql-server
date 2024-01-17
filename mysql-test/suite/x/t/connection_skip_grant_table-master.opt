@@ -1,1 +1,1 @@
---default-authentication-plugin=caching_sha2_password
+--authentication-policy=*:caching_sha2_password

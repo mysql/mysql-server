@@ -1,12 +1,9 @@
-CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'foo';
-CREATE USER u2 IDENTIFIED WITH 'caching_sha2_password' BY 'foo';
-SHOW VARIABLES LIKE 'default_authentication_plugin';
-Variable_name	Value
-default_authentication_plugin	mysql_native_password
+CREATE USER u1 IDENTIFIED WITH 'caching_sha2_password' BY 'foo';
+CREATE USER u2 IDENTIFIED WITH 'cleartext_plugin_server' AS 'foo';
 SELECT user,plugin FROM mysql.user WHERE user='u1' or user='u2';
 user	plugin
-u1	mysql_native_password
-u2	caching_sha2_password
+u1	caching_sha2_password
+u2	cleartext_plugin_server
 SET GLOBAL debug='+d,assert_authentication_roundtrips';
 SELECT @@debug,current_user();
 @@debug	current_user()

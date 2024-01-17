@@ -774,7 +774,8 @@ MySQL clients support the protocol:
 #include <shellapi.h>
 #endif
 #include "sql-common/my_decimal.h"
-#include "sql/auth/auth_common.h"         // grant_init
+#include "sql/auth/auth_common.h"  // grant_init
+#include "sql/auth/authentication_policy.h"
 #include "sql/auth/sql_authentication.h"  // init_rsa_keys
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/auto_thd.h"   // Auto_THD
@@ -1504,13 +1505,6 @@ const char *mysqld_unix_port;
 char *opt_mysql_tmpdir;
 
 char *opt_authentication_policy;
-std::vector<std::string> authentication_policy_list;
-/*
-  keep track of plugin_ref until plugins used in opt_authentication_policy
-  are properly validated and updated. This will ensure that plugin is not
-  unloaded in between check() and update() of authentication_policy variable
-*/
-std::vector<plugin_ref> authentication_policy_plugin_ref;
 
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name = "<left expr>";
@@ -1680,7 +1674,7 @@ static bool opt_myisam_log;
 static ulong opt_specialflag;
 char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
-char *default_auth_plugin;
+
 /**
   Memory for allocating command line arguments, after load_defaults().
 */
@@ -2712,6 +2706,7 @@ static void clean_up(bool print_message) {
   unregister_pfs_metric_sources();
   unregister_server_metric_sources();
 
+  authentication_policy::deinit();
   denit_command_maps();
 
   ha_pre_dd_shutdown();
@@ -4712,127 +4707,6 @@ static void init_com_statement_info() {
 #endif
 
 /**
-  Parse @@authentication_policy variable value.
-
-  @param [in]  val            Buffer holding variable value.
-  @param [out] policy_list    Vector holding the parsed values.
-
-  @retval  false    OK
-  @retval  true     Error
-*/
-bool parse_authentication_policy(char *val,
-                                 std::vector<std::string> &policy_list) {
-  std::string token;
-  const std::string policy_val(val);
-  std::stringstream policy_str(val);
-  bool is_empty = false;
-  /* count comma */
-  size_t comma_cnt = std::count(policy_val.begin(), policy_val.end(), ',');
-  if (comma_cnt >= MAX_AUTH_FACTORS) return true;
-  /*
-    While parsing ensure that an empty value which means an optional nth factor,
-    should be followed with an empty value only.
-    Below are some invalid values:
-    'caching_sha2_password,,authentication_webauthn'
-    ',authentication_webauthn,authentication_ldap_simple'
-    ',authentication_webauthn,'
-    ',,'
-  */
-  while (getline(policy_str, token, ',')) {
-    std::string s(token);
-    /* trim spaces */
-    s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
-    if (s.length() && is_empty) {
-      policy_list.clear();
-      return true;
-    };
-    if (!s.length()) is_empty = true;
-    policy_list.push_back(s);
-  }
-  /*
-    Values like 'caching_sha2_password,authentication_webauthn,' or
-    'caching_sha2_password,,' will not capture the last empty value, thus append
-    an empty value to the list.
-  */
-  if ((comma_cnt == policy_list.size()) &&
-      policy_list.size() < MAX_AUTH_FACTORS)
-    policy_list.push_back("");
-
-  if (policy_list.size() > MAX_AUTH_FACTORS) {
-    policy_list.clear();
-    return true;
-  }
-  return false;
-}
-
-/**
-  Validate @@authentication_policy variable value.
-
-  @param [in]  val    Buffer holding variable value.
-
-  @retval  false    success
-  @retval  true     failure
-*/
-bool validate_authentication_policy(char *val) {
-  std::vector<std::string> list;
-  if (parse_authentication_policy(val, list)) return true;
-  for (auto it = list.begin(); it != list.end(); it++) {
-    /* plugin name in first place holder cannot be empty */
-    if (!it->length()) {
-      if (list.size() == 1 || it == list.begin()) return true;
-    }
-    /* skip special characters like * and <empty> string */
-    if (!it->length()) continue;
-    if (!it->compare("*")) continue;
-    /* validate plugin name */
-    plugin_ref p = my_plugin_lock_by_name(nullptr, to_lex_cstring(it->c_str()),
-                                          MYSQL_AUTHENTICATION_PLUGIN);
-    if (!p) goto error;
-    st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(p)->info;
-    /*
-      ensure 2nd and 3rd factor auth plugins which store password in mysql
-      server are not allowed.
-    */
-    if (it != list.begin() &&
-        auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE) {
-      authentication_policy_plugin_ref.push_back(p);
-      goto error;
-    }
-    /*
-      ensure plugin name in first place holder cannot be auth plugin
-      which requires registration step.
-    */
-    if (it == list.begin() &&
-        auth->authentication_flags & AUTH_FLAG_REQUIRES_REGISTRATION) {
-      authentication_policy_plugin_ref.push_back(p);
-      goto error;
-    }
-    authentication_policy_plugin_ref.push_back(p);
-  }
-  return false;
-error:
-  for (auto p : authentication_policy_plugin_ref) plugin_unlock(nullptr, p);
-  authentication_policy_plugin_ref.clear();
-  return true;
-}
-
-/**
-  Update @@authentication_policy variable value.
-
-  @retval  false    success
-  @retval  true     failure
-*/
-bool update_authentication_policy() {
-  std::vector<std::string> list;
-  if (parse_authentication_policy(opt_authentication_policy, list)) return true;
-  /* update the actual policy list only after validation is successful */
-  authentication_policy_list = list;
-  /* release plugin reference */
-  for (auto p : authentication_policy_plugin_ref) plugin_unlock(nullptr, p);
-  authentication_policy_plugin_ref.clear();
-  return false;
-}
-/**
   Create a replication file name or base for file names.
 
   @param     key Instrumentation key used to track allocations
@@ -6717,12 +6591,6 @@ int init_common_variables() {
   }
   update_parser_max_mem_size();
   update_optimizer_switch();
-
-  if (set_default_auth_plugin(default_auth_plugin,
-                              strlen(default_auth_plugin))) {
-    LogErr(ERROR_LEVEL, ER_AUTH_CANT_SET_DEFAULT_PLUGIN);
-    return 1;
-  }
   set_server_version();
 
 #if defined(HAVE_BUILD_ID_SUPPORT)
@@ -9908,14 +9776,10 @@ int mysqld_main(int argc, char **argv)
   //  Start signal handler thread.
   start_signal_handler();
 #endif
-  if (opt_authentication_policy &&
-      validate_authentication_policy(opt_authentication_policy)) {
+  if (authentication_policy::init(opt_authentication_policy)) {
     /* --authentication_policy is set to invalid value */
     LogErr(ERROR_LEVEL, ER_INVALID_AUTHENTICATION_POLICY);
     return 1;
-  } else {
-    /* update the value */
-    update_authentication_policy();
   }
   /* set all persistent options */
   if (persisted_variables_cache.set_persisted_options(false)) {

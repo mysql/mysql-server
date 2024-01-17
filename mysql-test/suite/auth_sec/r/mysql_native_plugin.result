@@ -62,7 +62,7 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 Checking the password authentication using the mysql_native_password plugin at the client and sha256_password plugin at the server side
 ============================================================================================================================================
 
-# Restart server with default-authentication-plugin=sha256_password;
+# Restart server with authentication-policy=*:sha256_password
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
 select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';

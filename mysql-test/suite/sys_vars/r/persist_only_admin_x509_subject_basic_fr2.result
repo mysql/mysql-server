@@ -11,9 +11,6 @@ SET PERSIST_ONLY basedir = DEFAULT;
 SET PERSIST_ONLY bind_address = DEFAULT;
 SET PERSIST_ONLY character_sets_dir = DEFAULT;
 SET PERSIST_ONLY datadir = DEFAULT;
-SET PERSIST_ONLY default_authentication_plugin = DEFAULT;
-Warnings:
-Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 SET PERSIST_ONLY ft_stopword_file = DEFAULT;
 SET PERSIST_ONLY init_file = DEFAULT;
 SET PERSIST_ONLY keyring_operations = DEFAULT;
