@@ -1123,6 +1123,9 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
 
     // Write redo logs into State Node and release latch
 
+
+    // 状态分离部分截止，下面为原有逻辑
+
     ut_a(len <= str_len);
 
     str_len -= len;
