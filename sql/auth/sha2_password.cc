@@ -744,7 +744,7 @@ static int my_vio_is_secure(MYSQL_PLUGIN_VIO *vio) {
 
   It is useful when we need to pass the scramble to another plugin.
   Especially in case when old 5.1 client with no CLIENT_PLUGIN_AUTH capability
-  tries to connect to server with default-authentication-plugin set to
+  tries to connect to server with default 1FA set to
   caching_sha2_password
 
   @param vio      Virtual Input-Output interface

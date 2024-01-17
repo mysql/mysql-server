@@ -58,6 +58,7 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/my_loglevel.h"
 #include "mysql_com.h"
+#include "sql/auth/authentication_policy.h"
 #include "sql/protocol.h"
 #include "sql/rpl_trx_tracking.h"
 #ifdef HAVE_SYS_TIME_H
@@ -1090,20 +1091,6 @@ static Sys_var_charptr Sys_basedir(
     "usually resolved relative to this",
     READ_ONLY NON_PERSIST GLOBAL_VAR(mysql_home_ptr),
     CMD_LINE(REQUIRED_ARG, 'b'), IN_FS_CHARSET, DEFAULT(nullptr));
-
-/*
-  --authentication_policy will take precedence over this variable
-  except in case where plugin name for first factor is not a concrete
-  value. Please refer authentication_policy variable.
-*/
-static Sys_var_charptr Sys_default_authentication_plugin(
-    "default_authentication_plugin",
-    "The default authentication plugin "
-    "used by the server to hash the password.",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(default_auth_plugin),
-    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT("caching_sha2_password"),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
-    DEPRECATED_VAR("authentication_policy"));
 
 static PolyLock_mutex Plock_default_password_lifetime(
     &LOCK_default_password_lifetime);
@@ -7351,39 +7338,32 @@ static Sys_var_bool Sys_skip_replica_start(
 
 static bool check_authentication_policy(sys_var *, THD *, set_var *var) {
   if (!(var->save_result.string_value.str)) return true;
-  return validate_authentication_policy(var->save_result.string_value.str);
+  return authentication_policy::policy_validate(
+      var->save_result.string_value.str);
 }
 
 static bool fix_authentication_policy(sys_var *, THD *, enum_var_type) {
   DBUG_TRACE;
-  update_authentication_policy();
+  authentication_policy::policy_update(opt_authentication_policy);
   return false;
 }
 /**
   This is a mutex used to protect @@global.authentication_policy variable.
 */
 static PolyLock_mutex PLock_authentication_policy(&LOCK_authentication_policy);
-/*
-  when authentication_policy = 'mysql_native_password,,' and
-  --default-authentication-plugin = 'caching_sha2_password'
-  set default as mysql_native_password.
-  --authentication_policy has precedence over --default-authentication-plugin
-  with 1 exception as below: when authentication_policy = '*,,' and
-  --default-authentication-plugin = 'mysql_native_password'
-  set default as mysql_native_password
-  in case no concrete plugin can be extracted from --authentication_policy
-  for first factor, server picks plugin name from
-  --default-authentication-plugin
-*/
+
 static Sys_var_charptr Sys_authentication_policy(
     "authentication_policy",
     "Defines policies around how user account can be configured with Multi "
     "Factor authentication methods during CREATE/ALTER USER statement. "
     "This variable accepts at-most 3 comma separated list of authentication "
-    "plugin names where each value refers to what authentication plugin should "
-    "be used in place of 1st Factor Authentication (FA), 2FA and 3FA method. "
-    "Value * indicates any plugin is allowed for 1FA, 2FA and 3FA method. "
-    "An empty value means nth FA method is optional.",
+    "factor descriptions. Allowed factor descriptions are: "
+    "(empty) - factor is optional, any authentication method is allowed. "
+    "* - factor is mandatory, any authentication method is allowed. "
+    "<plugin> - <plugin> is mandatory authentication method. "
+    "*:<plugin> - factor is mandatory, <plugin> is default authentication "
+    "method. The first factor cannot be optional and if neither mandatory nor "
+    "default method is specified, caching_sha2_password is assumed as default.",
     GLOBAL_VAR(opt_authentication_policy), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT("*,,"), &PLock_authentication_policy, NOT_IN_BINLOG,
     ON_CHECK(check_authentication_policy),

@@ -18,8 +18,6 @@ SET PERSIST_ONLY character_sets_dir = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY datadir = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
-SET PERSIST_ONLY default_authentication_plugin = DEFAULT;
---error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY ft_stopword_file = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY init_file = DEFAULT;

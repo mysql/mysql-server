@@ -586,7 +586,7 @@ ER_CANT_SET_UP_PERSISTED_VALUES
 ER_CANT_SAVE_GTIDS
   eng "Failed to save the set of Global Transaction Identifiers of the last binary log into the mysql.gtid_executed table while the server was shutting down. The next server restart will make another attempt to save Global Transaction Identifiers into the table."
 
-ER_AUTH_CANT_SET_DEFAULT_PLUGIN
+OBSOLETE_ER_AUTH_CANT_SET_DEFAULT_PLUGIN
   eng "Can't start server: Invalid value for --default-authentication-plugin"
 
 ER_CANT_JOIN_SHUTDOWN_THREAD

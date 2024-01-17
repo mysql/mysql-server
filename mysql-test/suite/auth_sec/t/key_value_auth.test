@@ -32,7 +32,7 @@ call mtr.add_suppression(".*Password salt for user.*");
 # Checking the password authentication with @default_plugin plugin
 # Creating 2 users and encrypting the server side password with the default @default_plugin plugin
 
-set @default_plugin= @@global.default_authentication_plugin;
+set @default_plugin='caching_sha2_password';
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
 
@@ -499,13 +499,13 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 --echo =================================================================================================
 --echo 
 
---echo # Restart server with default-authentication-plugin=mysql_native_password;
+--echo # Restart server with authentication_policy=*:mysql_native_password,,
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 
 --source include/wait_until_disconnected.inc
--- exec echo "restart:--default-authentication-plugin=mysql_native_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- exec echo "restart:--authentication_policy=*:mysql_native_password,,  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
 
 
@@ -544,13 +544,13 @@ DROP USER 'Tanjotuser3'@'localhost';
 --echo =================================================================================================
 --echo 
 
---echo # Restart server with default-authentication-plugin=sha256_password;
+--echo # Restart server with authentication_policy=*:sha256_password,,
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 
 --source include/wait_until_disconnected.inc
--- exec echo "restart:--default-authentication-plugin=sha256_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- exec echo "restart:--authentication_policy=*:sha256_password,,  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
 
 # Creating 3 users with mysql_native_password, mysql_old_password and sha256_password plugins respectively

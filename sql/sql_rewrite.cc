@@ -85,6 +85,8 @@
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // GRANT_ACL
+#include "sql/auth/authentication_policy.h"
+#include "sql/auth/sql_authentication.h"
 #include "sql/handler.h"
 #include "sql/log_event.h"    // append_query_string
 #include "sql/rpl_replica.h"  // REPLICA_SQL, REPLICA_IO
@@ -685,9 +687,10 @@ void Rewriter_user::append_plugin_name(const LEX_USER *user,
                        system_charset_info);
     append_query_string(m_thd, system_charset_info, &from_plugin, str);
   } else {
-    std::string def_plugin_name = get_default_autnetication_plugin_name();
-    String default_plugin(def_plugin_name.c_str(), def_plugin_name.length(),
-                          system_charset_info);
+    std::string default_plugin_name;
+    authentication_policy::get_first_factor_default_plugin(default_plugin_name);
+    String default_plugin(default_plugin_name.c_str(),
+                          default_plugin_name.length(), system_charset_info);
     append_query_string(m_thd, system_charset_info, &default_plugin, str);
   }
 }

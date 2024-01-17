@@ -55,12 +55,15 @@ The following options may be given as the first argument:
  Defines policies around how user account can be
  configured with Multi Factor authentication methods
  during CREATE/ALTER USER statement. This variable accepts
- at-most 3 comma separated list of authentication plugin
- names where each value refers to what authentication
- plugin should be used in place of 1st Factor
- Authentication (FA), 2FA and 3FA method. Value *
- indicates any plugin is allowed for 1FA, 2FA and 3FA
- method. An empty value means nth FA method is optional.
+ at-most 3 comma separated list of authentication factor
+ descriptions. Allowed factor descriptions are: (empty) -
+ factor is optional, any authentication method is allowed.
+ * - factor is mandatory, any authentication method is
+ allowed. <plugin> - <plugin> is mandatory authentication
+ method. *:<plugin> - factor is mandatory, <plugin> is
+ default authentication method. The first factor cannot be
+ optional and if neither mandatory nor default method is
+ specified, caching_sha2_password is assumed as default.
  --auto-increment-increment[=#] 
  Auto-increment columns are incremented by this
  --auto-increment-offset[=#] 
@@ -280,9 +283,6 @@ The following options may be given as the first argument:
  Abort a recursive common table expression if it does more
  than this number of iterations.
  -h, --datadir=name  Path to the database root directory
- --default-authentication-plugin=name 
- The default authentication plugin used by the server to
- hash the password.
  --default-password-lifetime=# 
  The number of days after which the password will expire.
  --default-storage-engine=name 
@@ -1676,7 +1676,6 @@ connection-memory-limit 18446744073709551615
 console FALSE
 create-admin-listener-thread FALSE
 cte-max-recursion-depth 1000
-default-authentication-plugin caching_sha2_password
 default-password-lifetime 0
 default-storage-engine InnoDB
 default-table-encryption FALSE

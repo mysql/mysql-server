@@ -293,13 +293,13 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 --echo ============================================================================================================================================
 --echo 
 
---echo # Restart server with default-authentication-plugin=sha256_password;
+--echo # Restart server with authentication-policy=*:sha256_password
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 
 --source include/wait_until_disconnected.inc
--- exec echo "restart:--default-authentication-plugin=sha256_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- exec echo "restart:--authentication-policy=*:sha256_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
 
 
