@@ -672,14 +672,14 @@ NdbBackup::Fail(NdbRestarter& _restarter, int *Fail_codes, const int sz, bool on
   int nNodes = _restarter.getNumDbNodes();
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
-
-  for(int i = 0; i<sz; i++){
+  
+  int nodeId;
+  for (int i = 0; i < sz; i++) {
     int error = Fail_codes[i];
     unsigned int backupId;
 
     const int masterNodeId = _restarter.getMasterNodeId();
     CHECK(masterNodeId > 0, "getMasterNodeId failed");
-    int nodeId;
 
     nodeId = masterNodeId;
     if (!onMaster) {
@@ -712,6 +712,10 @@ NdbBackup::Fail(NdbRestarter& _restarter, int *Fail_codes, const int sz, bool on
     
     CHECK(_restarter.waitClusterStarted() == 0,
 	  "waitClusterStarted failed");
+
+    // Clear current error inserted (Fail_codes[i])
+    CHECK(_restarter.insertErrorInNode(nodeId, 0) == 0,
+          "failed to set error insert");
 
     NdbSleep_SecSleep(5);
     
