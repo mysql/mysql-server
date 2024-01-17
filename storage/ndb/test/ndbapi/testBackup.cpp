@@ -1241,6 +1241,7 @@ runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  res.insertErrorInAllNodes(0);
   return NDBT_OK;
 }   
 
