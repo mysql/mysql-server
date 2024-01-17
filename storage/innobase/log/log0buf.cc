@@ -919,7 +919,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
  * @param len 
  * @return Log_handle 
  *
- * TODO: 不要逐个log/mtr分配空间，而是直接分配一大块空间供使用
+ * TODO: 不要逐个log/mtr分配空间，而是直接分配一大块空间供使用？这样的话可能得把方法写到mtr0mtr.cc中，而不是log0buf
  */
 Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   Log_handle handle;
