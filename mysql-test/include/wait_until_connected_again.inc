@@ -59,7 +59,7 @@ while ($mysql_errno)
 if ($SECONDARY_ENGINE_TEST) {
   --let $secondary_engine_bootstrap = query_get_value($SECONDARY_ENGINE_BOOTSTRAP_QUERY, Value, 1)
   if ( $secondary_engine_bootstrap == ON ) {
-    --let $counter = 100
+    --let $counter = 300
     --let $secondary_engine_status = OFFLINE
 
     while ($secondary_engine_status == OFFLINE) {
