@@ -258,7 +258,8 @@ bool Protocol_local_v2::has_client_capability(unsigned long capability) {
 }
 
 bool Protocol_local_v2::connection_alive() const {
-  return false; /* purecov: inspected */
+  // Returns true if user connection is bound.
+  return (m_thd->get_net()->vio != nullptr);
 }
 
 void Protocol_local_v2::end_partial_result_set() { /* purecov: inspected */
