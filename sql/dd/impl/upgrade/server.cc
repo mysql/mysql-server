@@ -60,7 +60,7 @@
 #include "sql/sp.h"         // Stored_routine_creation_ctx
 #include "sql/sp_head.h"    // sp_head
 #include "sql/sql_base.h"
-#include "sql/sql_prepare.h"
+#include "sql/statement/ed_connection.h"
 #include "sql/strfunc.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thd_raii.h"

@@ -12634,6 +12634,27 @@ ER_BACKGROUND_HISTOGRAM_UPDATE
 ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT
   eng "Submit a detailed bug report to http://bugs.mysql.com"
 
+ER_LANGUAGE_COMPONENT_INSTALL_ERROR
+  eng "Cannot install the component."
+
+ER_WARN_LANGUAGE_COMPONENT_CANNOT_UNINSTALL
+  eng "Cannot uninstall the language component: %s."
+
+ER_LANGUAGE_COMPONENT_SERVER_ERROR
+  eng "Calling component service: %s."
+
+ER_LANGUAGE_COMPONENT_INTERNAL_ERROR
+  eng "Internal error while %s."
+
+ER_LANGUAGE_COMPONENT_VM_API_FUNCTION_ERROR
+  eng "Internal VM API function failed: %s."
+
+ER_LANGUAGE_COMPONENT_VM_INTERNAL_ERROR
+  eng "Internal VM error while %s."
+
+ER_WARN_LANGUAGE_COMPONENT_RESOURCE_LIMIT
+  eng "The resource limit has been exceeded. Details: %s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

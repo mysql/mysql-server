@@ -2413,8 +2413,80 @@ done:
   return err_status;
 }
 
+bool sp_head::execute_external_routine_core(THD *thd) {
+  bool err_status = false;
+
+  my_service<SERVICE_TYPE(external_program_execution)> service(
+      "external_program_execution", srv_registry);
+
+  if ((err_status = init_external_routine(service))) return err_status;
+
+  Diagnostics_area *caller_da = thd->get_stmt_da();
+  Diagnostics_area sp_da(false);
+  thd->push_diagnostics_area(&sp_da);
+  thd->get_stmt_da()->reset_condition_info(thd);
+
+  err_status = service->execute(m_language_stored_program, nullptr);
+
+  // Transfer error conditions if any to the callers's diagnostics area
+  if (err_status && thd->is_error() && !caller_da->is_error()) {
+    caller_da->set_error_status(thd->get_stmt_da()->mysql_errno(),
+                                thd->get_stmt_da()->message_text(),
+                                thd->get_stmt_da()->returned_sqlstate());
+  }
+
+  /*
+    Copy warnings into the caller DA.
+    If the error is already handled by the external routine then "err_status =
+    false" and error state is set in DA. Warnings are not listed in this case,
+    so warnings are not copied to the caller DA.
+  */
+  if (err_status || !thd->is_error()) {
+    caller_da->copy_sql_conditions_from_da(thd, thd->get_stmt_da());
+  }
+  thd->pop_diagnostics_area();
+
+  return err_status;
+}
+
 bool sp_head::execute_external_routine(THD *thd) {
   bool err_status = false;
+
+  /*
+    Just reporting a stack overrun error
+    (@sa check_stack_overrun()) requires stack memory for error
+    message buffer. Thus, we have to put the below check
+    relatively close to the beginning of the execution stack,
+    where available stack margin is still big. As long as the check
+    has to be fairly high up the call stack, the amount of memory
+    we "book" for has to stay fairly high as well, and hence
+    not very accurate. The number below has been calculated
+    by trial and error, and reflects the amount of memory necessary
+    to execute a single stored procedure instruction, be it either
+    an SQL statement, or, heaviest of all, a CALL, which involves
+    parsing and loading of another stored procedure into the cache
+    (@sa db_load_routine() and Bug#10100).
+
+    TODO: that should be replaced by proper handling of stack overrun error.
+
+    Stack size depends on the platform:
+      - for most platforms (8 * STACK_MIN_SIZE) is enough;
+      - for Solaris SPARC 64 (10 * STACK_MIN_SIZE) is required.
+      - for clang and ASAN/UBSAN we need even more stack space.
+  */
+
+  {
+#if defined(__clang__) && defined(HAVE_ASAN)
+    const int sp_stack_size = 12 * STACK_MIN_SIZE;
+#elif defined(__clang__) && defined(HAVE_UBSAN)
+    const int sp_stack_size = 16 * STACK_MIN_SIZE;
+#else
+    const int sp_stack_size = 8 * STACK_MIN_SIZE;
+#endif
+
+    if (check_stack_overrun(thd, sp_stack_size, (uchar *)&err_status))
+      return true;
+  }
 
   char saved_cur_db_name_buf[NAME_LEN + 1];
   LEX_STRING saved_cur_db_name = {saved_cur_db_name_buf,
@@ -2423,8 +2495,30 @@ bool sp_head::execute_external_routine(THD *thd) {
   if (m_db.length && (err_status = mysql_opt_change_db(
                           thd, to_lex_cstring(m_db), &saved_cur_db_name, false,
                           &cur_db_changed))) {
-    return err_status;
+    return true;
   }
+
+  opt_trace_disable_if_no_security_context_access(thd);
+
+  assert(!(m_flags & IS_INVOKED));
+  m_flags |= IS_INVOKED;
+
+  m_first_instance->m_first_free_instance = m_next_cached_sp;
+  if (m_next_cached_sp) {
+    DBUG_PRINT("info", ("first free for %p ++: %p->%p  level: %lu  flags %x",
+                        m_first_instance, this, m_next_cached_sp,
+                        m_next_cached_sp->m_recursion_level,
+                        m_next_cached_sp->m_flags));
+  }
+  /*
+    Check that if there are not any instances after this one then
+    pointer to the last instance points on this instance or if there are
+    some instances after this one then recursion level of next instance
+    greater then recursion level of current instance on 1
+  */
+  assert((m_next_cached_sp == nullptr &&
+          m_first_instance->m_last_cached_sp == this) ||
+         (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
 
   /*
     Use context used at routine creation time. Context sets client charset,
@@ -2440,12 +2534,16 @@ bool sp_head::execute_external_routine(THD *thd) {
   sql_mode_t saved_sql_mode = thd->variables.sql_mode;
   thd->variables.sql_mode = m_sql_mode;
 
-  my_service<SERVICE_TYPE(external_program_execution)> service(
-      "external_program_execution", srv_registry);
-  if (!(err_status = init_external_routine(service))) {
-    err_status = service->execute(m_language_stored_program, nullptr);
-    if (!err_status && thd->killed) err_status = true;
-  }
+  /*
+    Reset the metadata observer in THD. Remember the value of the observer
+    here, to be able to restore.
+  */
+  thd->push_reprepare_observer(nullptr);
+
+  err_status = execute_external_routine_core(thd);
+
+  // Restore the metadata observer.
+  thd->pop_reprepare_observer();
 
   // Restore sql_mode.
   thd->variables.sql_mode = saved_sql_mode;
@@ -2455,6 +2553,30 @@ bool sp_head::execute_external_routine(THD *thd) {
 
   // Restore context.
   m_creation_ctx->restore_env(thd, saved_creation_ctx);
+
+  m_flags &= ~IS_INVOKED;
+
+  /*
+    Check that we have one of following:
+
+    1) there are not free instances which means that this instance is last
+    in the list of instances (pointer to the last instance point on it and
+    there are not other instances after this one in the list)
+
+    2) There are some free instances which mean that first free instance
+    should go just after this one and recursion level of that free instance
+    should be on 1 more then recursion level of this instance.
+  */
+  assert((m_first_instance->m_first_free_instance == nullptr &&
+          this == m_first_instance->m_last_cached_sp &&
+          m_next_cached_sp == nullptr) ||
+         (m_first_instance->m_first_free_instance != nullptr &&
+          m_first_instance->m_first_free_instance == m_next_cached_sp &&
+          m_first_instance->m_first_free_instance->m_recursion_level ==
+              m_recursion_level + 1));
+  m_first_instance->m_first_free_instance = this;
+
+  if (!err_status && thd->killed) err_status = true;
 
   if (cur_db_changed && thd->killed != THD::KILL_CONNECTION) {
     err_status |= mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
@@ -2567,6 +2689,18 @@ err_with_cleanup:
   if (thd->killed) thd->send_kill_message();
 
   return err_status;
+}
+
+external_program_handle sp_head::get_external_program_handle() {
+  return m_language_stored_program;
+}
+
+bool sp_head::set_external_program_handle(external_program_handle sp) {
+  if (!m_language_stored_program && !sp) return false;  // nothing to do.
+  assert(!m_language_stored_program || !sp);  // One of these should be nullptr.
+  if (m_language_stored_program && sp) return true;  // already set.
+  m_language_stored_program = sp;
+  return false;
 }
 
 bool sp_head::init_external_routine(

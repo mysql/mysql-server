@@ -1,0 +1,178 @@
+INSTALL COMPONENT "file://component_test_execute_prepared_statement";
+CREATE DATABASE mle_db;
+USE mle_db;
+CREATE TABLE my_table (id int NOT NULL AUTO_INCREMENT, col_a VARCHAR(10), col_b VARCHAR(10), col_c INT, col_d DOUBLE, PRIMARY KEY (id));
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "12", 11, 1.1);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_b", "13", 12, 1.2);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_c", "14", 13, 1.3);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_d", "15", 14, 1.4);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "12", 12, 1.2);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_b", "13", 13, 1.3);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_c", "14", 14, 1.4);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "13", 13, 1.3);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_b", "14", 14, 1.4);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_c", "15", 15, 1.5);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "", NULL, 1.4);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "", NULL, 1.5);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "15", 15, NULL);
+SELECT * FROM my_table;
+id	col_a	col_b	col_c	col_d
+1	row_a	12	11	1.1
+2	row_b	13	12	1.2
+3	row_c	14	13	1.3
+4	row_d	15	14	1.4
+5	row_a	12	12	1.2
+6	row_b	13	13	1.3
+7	row_c	14	14	1.4
+8	row_a	13	13	1.3
+9	row_b	14	14	1.4
+10	row_c	15	15	1.5
+11	row_a		NULL	1.4
+12	row_a		NULL	1.5
+13	row_a	15	15	NULL
+SELECT test_execute_prepared_statement("SHOW DATABASES");
+ERROR HY000: Executing SQL statement using Prepared Statement Handle Interface is not allowed within stored function, trigger or loadable function (UDF).
+SET DEBUG='+d,skip_statement_execution_within_UDF_check';
+SELECT test_execute_prepared_statement("SHOW DTBASE;");
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DTBASE' at line 1
+###################################### Binding tests ######################################
+# Bind correct types
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12)
+id	col_a	col_b	col_c	col_d
+2	row_b	13	12	1.200000
+5	row_a	12	12	1.200000
+
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c > ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c > ?", 12)
+id	col_a	col_b	col_c	col_d
+3	row_c	14	13	1.300000
+4	row_d	15	14	1.400000
+6	row_b	13	13	1.300000
+7	row_c	14	14	1.400000
+8	row_a	13	13	1.300000
+9	row_b	14	14	1.400000
+10	row_c	15	15	1.500000
+13	row_a	15	15	
+
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ?", "row_a");
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ?", "row_a")
+id	col_a	col_b	col_c	col_d
+1	row_a	12	11	1.100000
+5	row_a	12	12	1.200000
+8	row_a	13	13	1.300000
+11	row_a			1.400000
+12	row_a			1.500000
+13	row_a	15	15	
+
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_d = ?", 1.3E0);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_d = ?", 1.3E0)
+id	col_a	col_b	col_c	col_d
+3	row_c	14	13	1.300000
+6	row_b	13	13	1.300000
+8	row_a	13	13	1.300000
+
+SET SESSION DEBUG = '+d,second_prepare';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_d = ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_d = ?", 12)
+id	col_a	col_b	col_c	col_d
+2	row_b	13	12	1.200000
+5	row_a	12	12	1.200000
+
+SET SESSION DEBUG = '-d,second_prepare';
+SET SESSION DEBUG = '+d,second_execute_direct';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_d = ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_d = ?", 12)
+Error in getting the error from the DA. This probably means there is an error at the service layer.
+SET SESSION DEBUG = '-d,second_execute_direct';
+# Bind compatible types
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_b = ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_b = ?", 12)
+id	col_a	col_b	col_c	col_d
+1	row_a	12	11	1.100000
+5	row_a	12	12	1.200000
+
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", "12");
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", "12")
+id	col_a	col_b	col_c	col_d
+2	row_b	13	12	1.200000
+5	row_a	12	12	1.200000
+
+# Bind and execute 2nd time
+SET SESSION DEBUG = '+d,second_bind';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_b = ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_b = ?", 12)
+id	col_a	col_b	col_c	col_d
+2	row_b	13	12	1.200000
+6	row_b	13	13	1.300000
+8	row_a	13	13	1.300000
+
+SET SESSION DEBUG = '-d,second_bind';
+# A parameter is not bound
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_b = ?");
+ERROR HY000: Incorrect arguments to Prepared Statement Execute
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?");
+ERROR HY000: Incorrect arguments to Prepared Statement Execute
+# Bind multiple parameters
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11)
+id	col_a	col_b	col_c	col_d
+5	row_a	12	12	1.200000
+8	row_a	13	13	1.300000
+13	row_a	15	15	
+
+SELECT test_execute_prepared_statement("SELECT col_a, ?, col_c FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "col_b", "row_a", 11);
+test_execute_prepared_statement("SELECT col_a, ?, col_c FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "col_b", "row_a", 11)
+col_a	?	col_c
+row_a	col_b	12
+row_a	col_b	13
+row_a	col_b	15
+
+SET SESSION DEBUG = '+d,parameter_set';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11);
+ERROR HY000: Parameter index 2 is out of range
+SET SESSION DEBUG = '-d,parameter_set';
+SET SESSION DEBUG = '+d,parameter_get';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11);
+ERROR HY000: Parameter index 2 is out of range
+SET SESSION DEBUG = '-d,parameter_get';
+###################################### Set/get attribute tests ######################################
+SET SESSION DEBUG = '+d,attribute_set_after_prepare';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12)
+NULL
+SET SESSION DEBUG = '-d,attribute_set_after_prepare';
+SET SESSION DEBUG = '+d,attribute_get_after_prepare';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12)
+id	col_a	col_b	col_c	col_d
+2	row_b	13	12	1.200000
+5	row_a	12	12	1.200000
+
+SET SESSION DEBUG = '-d,attribute_get_after_prepare';
+SET SESSION DEBUG = '+d,attribute_set_after_execute';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12)
+NULL
+SET SESSION DEBUG = '-d,attribute_set_after_execute';
+SET SESSION DEBUG = '+d,attribute_get';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12)
+3
+id	col_a	col_b	col_c	col_d
+2	row_b	13	12	1.200000
+5	row_a	12	12	1.200000
+
+SET SESSION DEBUG = '-d,attribute_get';
+SET SESSION DEBUG = '+d,code_coverage';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12)
+id	col_a	col_b	col_c	col_d
+2	row_b	13	12	1.200000
+5	row_a	12	12	1.200000
+
+SET SESSION DEBUG = '-d,code_coverage';
+DROP TABLE my_table;
+DROP DATABASE mle_db;
+SET DEBUG='-d,skip_statement_execution_within_UDF_check';
+UNINSTALL COMPONENT "file://component_test_execute_prepared_statement";

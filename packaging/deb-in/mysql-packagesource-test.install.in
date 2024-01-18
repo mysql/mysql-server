@@ -43,6 +43,9 @@ usr/lib/mysql/plugin/component_test_string_service_long.so
 usr/lib/mysql/plugin/component_pfs_example.so
 usr/lib/mysql/plugin/component_pfs_example_component_population.so
 usr/lib/mysql/plugin/pfs_example_plugin_employee.so
+usr/lib/mysql/plugin/component_test_execute_prepared_statement.so
+usr/lib/mysql/plugin/component_test_execute_regular_statement.so
+usr/lib/mysql/plugin/component_test_mysql_signal_handler.so
 usr/lib/mysql/plugin/component_test_pfs_notification.so
 usr/lib/mysql/plugin/component_test_pfs_resource_group.so
 usr/lib/mysql/plugin/component_test_udf_registration.so

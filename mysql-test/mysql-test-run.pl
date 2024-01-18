@@ -39,6 +39,7 @@ use warnings;
 
 use lib "lib";
 use lib "../internal/cloud/mysql-test/lib";
+use lib "../internal/mysql-test/lib";
 
 use Cwd;
 use Cwd 'abs_path';
@@ -469,6 +470,14 @@ sub main {
     check_secondary_engine_features(using_extern());
     # Append secondary engine test suite to list of default suites if found.
     add_secondary_engine_suite();
+  }
+
+  $external_language_support =
+    ($external_language_support and find_plugin("component_mle", "plugin_output_directory")) ? 1 : 0;
+
+  if ($external_language_support) {
+    # Append external language test suite to list of default suites if found.
+    add_external_language_suite();
   }
 
   if ($opt_gcov) {
@@ -1874,10 +1883,6 @@ sub command_line_setup {
   } else {
     # Run the mysqld to find out what features are available
     collect_mysqld_features();
-  }
-
-  if($external_language_support){
-    find_external_language_home($bindir);
   }
 
   # Look for language files and charsetsdir, use same share

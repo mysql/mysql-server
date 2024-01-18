@@ -4646,6 +4646,7 @@ class THD : public MDL_context_owner,
   bool m_secondary_engine_forced{false};
 
   void cleanup_after_parse_error();
+
   /**
     Flag that indicates if the user of current session has SYSTEM_USER privilege
   */
@@ -4730,6 +4731,10 @@ class THD : public MDL_context_owner,
 
  private:
   std::unordered_map<unsigned int, void *> external_store_;
+
+ public:
+  /* Indicates if we are inside loadable function */
+  bool in_loadable_function{false};
 
  public:
   Event_tracking_data get_event_tracking_data() {

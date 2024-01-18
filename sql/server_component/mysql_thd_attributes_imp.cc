@@ -134,6 +134,26 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
       } else if (!strcmp(name, "time_zone_name")) {
         *reinterpret_cast<MYSQL_LEX_CSTRING *>(inout_pvalue) =
             t->time_zone()->get_name()->lex_cstring();
+      } else if (!strcmp(name, "da_status")) {
+        *((uint16_t *)inout_pvalue) = [&t](auto status) {
+          switch (status) {
+            case Diagnostics_area::DA_EMPTY:
+              return STATUS_DA_EMPTY;
+            case Diagnostics_area::DA_OK:
+              return STATUS_DA_OK;
+            case Diagnostics_area::DA_EOF:
+              return STATUS_DA_EOF;
+            case Diagnostics_area::DA_ERROR:
+              if (t->is_fatal_error()) {
+                return STATUS_DA_FATAL_ERROR;
+              }
+              return STATUS_DA_ERROR;
+            case Diagnostics_area::DA_DISABLED:
+              return STATUS_DA_DISABLED;
+            default:
+              return STATUS_DA_OK;
+          }
+        }(t->get_stmt_da()->status());
       } else
         return true; /* invalid option */
     }

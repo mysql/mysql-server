@@ -575,7 +575,7 @@ ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:99999' (XXX)
 
 # Test support for dollar quoting
 
-Warning (Code 6001): No Language component available
+Warning (Code 6001): Language component: Not available.
 ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$mle$test$mle$' at line 1
 ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$mle$test$mle' at line 1
 ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$mle$test$ml$' at line 1

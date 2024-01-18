@@ -251,4 +251,13 @@ class mysql_stored_program_return_value_float_imp {
                             (stored_program_runtime_context sp_runtime_context,
                              double value));
 };
+
+class mysql_stored_program_external_program_handle_imp {
+ public:
+  static DEFINE_BOOL_METHOD(get, (stored_program_handle sp,
+                                  external_program_handle *value));
+
+  static DEFINE_BOOL_METHOD(set, (stored_program_handle sp,
+                                  external_program_handle value));
+};
 #endif /* MYSQL_STORED_PROGRAM_IMP_H */

@@ -180,3 +180,9 @@ MYSQL_ADD_COMPONENT(test_event_tracking_consumer
   MODULE_ONLY
   TEST_ONLY
   )
+MYSQL_ADD_COMPONENT(test_mysql_signal_handler
+  test_mysql_signal_handler.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )
+

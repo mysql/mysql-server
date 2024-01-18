@@ -104,6 +104,9 @@ usr/lib/mysql/plugin/debug/component_example_component1.so
 usr/lib/mysql/plugin/debug/component_example_component2.so
 usr/lib/mysql/plugin/debug/component_example_component3.so
 usr/lib/mysql/plugin/debug/component_log_sink_test.so
+usr/lib/mysql/plugin/debug/component_test_execute_prepared_statement.so
+usr/lib/mysql/plugin/debug/component_test_execute_regular_statement.so
+usr/lib/mysql/plugin/debug/component_test_mysql_signal_handler.so
 usr/lib/mysql/plugin/debug/component_test_string_service.so
 usr/lib/mysql/plugin/debug/component_test_string_service_charset.so
 usr/lib/mysql/plugin/debug/component_test_string_service_long.so

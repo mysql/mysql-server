@@ -695,8 +695,6 @@ MySQL clients support the protocol:
 #include "jemalloc_win.h"
 #endif
 #include "keycache.h"  // KEY_CACHE
-#include "mysql/binlog/event/binlog_event.h"
-#include "mysql/binlog/event/control_events.h"
 #include "m_string.h"
 #include "migrate_keyring.h"  // Migrate_keyring
 #include "my_alloc.h"
@@ -709,12 +707,15 @@ MySQL clients support the protocol:
 #include "my_dir.h"
 #include "my_getpwnam.h"
 #include "my_macros.h"
+#include "my_rnd.h"
 #include "my_shm_defaults.h"  // IWYU pragma: keep
 #include "my_stacktrace.h"    // my_set_exception_pointers
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "my_timer.h"  // my_timer_initialize
 #include "myisam.h"
+#include "mysql/binlog/event/binlog_event.h"
+#include "mysql/binlog/event/control_events.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
@@ -755,7 +756,6 @@ MySQL clients support the protocol:
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
-#include "my_rnd.h"
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -770,6 +770,7 @@ MySQL clients support the protocol:
 #include "server_component/log_sink_trad.h"         // log_sink_trad()
 #include "server_component/log_source_backtrace.h"  // log_error_read_backtrace()
 #include "server_component/mysql_server_event_tracking_bridge_imp.h"  // init_srv_event_tracking_handles()
+#include "sql/mysqld_cs.h"
 #ifdef _WIN32
 #include <shellapi.h>
 #endif
@@ -820,10 +821,13 @@ MySQL clients support the protocol:
 #include "sql/regexp/regexp_facade.h"     // regexp::regexp_lib_charset
 #include "sql/replication.h"              // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h"  // init, post_init
+#include "sql/statement/statement.h"
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
 #include "my_openssl_fips.h"  // OPENSSL_ERROR_LENGTH, set_fips_mode
+#include "pfs_metric_provider.h"
+#include "sql/binlog/services/iterator/file_storage.h"
 #include "sql/rpl_async_conn_failover_configuration_propagation.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
@@ -883,22 +887,20 @@ MySQL clients support the protocol:
 #include "sql/xa/transaction_cache.h"  // xa::Transaction_cache
 #include "sql_common.h"                // mysql_client_plugin_init
 #include "sql_string.h"
+#include "storage/myisam/ha_myisam.h"                 // HA_RECOVER_OFF
+#include "storage/perfschema/pfs_buffer_container.h"  // PFS metric counters
+#include "storage/perfschema/pfs_instr_class.h"       // PFS metric counters
+#include "storage/perfschema/pfs_services.h"
+#include "storage/perfschema/telemetry_pfs_metrics.h"  // register_pfs_metric_sources
 #include "string_with_len.h"
+#include "strings/str_alloc.h"
 #include "strmake.h"
 #include "strxmov.h"
 #include "strxnmov.h"
-#include "storage/myisam/ha_myisam.h"  // HA_RECOVER_OFF
-#include "storage/perfschema/pfs_services.h"
-#include "storage/perfschema/pfs_buffer_container.h"  // PFS metric counters
-#include "storage/perfschema/pfs_instr_class.h"       // PFS metric counters
-#include "storage/perfschema/telemetry_pfs_metrics.h"  // register_pfs_metric_sources
-#include "strings/str_alloc.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 #include "typelib.h"
 #include "violite.h"
-#include "pfs_metric_provider.h"
-#include "sql/binlog/services/iterator/file_storage.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
@@ -8278,6 +8280,18 @@ static int init_server_components() {
       unireg_abort(MYSQLD_ABORT_EXIT);
     } else
       LogErr(WARNING_LEVEL, ER_RPL_INFINITY_IGNORED);
+  }
+
+  {
+    /*
+      We have to call a function in sql/statement/statement.cc, or its
+      references won't be visible to server component.
+    */
+#ifndef NDEBUG
+    int dummy =
+#endif
+        dummy_function_to_ensure_we_are_linked_into_the_server();
+    assert(dummy == 1);
   }
 
   {

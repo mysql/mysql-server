@@ -1147,9 +1147,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.24.4.0
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.24.4.0
 %if 0%{?commercial}
-%ifarch x86_64
 %attr(755, root, root) %{_libdir}/mysql/private/libpolyglot.so
-%endif # x86_64
 %endif # commercial
 
 %dir %{_libdir}/mysql/plugin
@@ -1214,9 +1212,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
-%ifarch x86_64
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mle.so
-%endif # x86_64
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_scheduler.so
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_firewall.sql
@@ -1306,9 +1302,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking_functions.so
-%ifarch x86_64
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mle.so
-%endif # x86_64
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_scheduler.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
@@ -1551,6 +1545,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_command_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_execute_prepared_statement.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_execute_regular_statement.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_signal_handler.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_avg_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_int_func.so
@@ -1660,6 +1657,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_command_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_execute_prepared_statement.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_execute_regular_statement.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_signal_handler.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_avg_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_int_func.so

@@ -1,0 +1,67 @@
+/* Copyright (c) 2023, 2024, Oracle and/or its affiliates. */
+
+#include "sql/statement/utils.h"
+
+#include "sql/protocol.h"
+#include "sql/sp.h"
+#include "sql/sp_head.h"
+#include "sql/sp_rcontext.h"
+#include "sql/sql_class.h"
+
+bool set_sp_multi_result_state(THD *thd, LEX *lex) {
+  assert(thd->sp_runtime_ctx != nullptr);
+
+  sp_head *sp = thd->sp_runtime_ctx->sp;
+  if (sp->m_flags & sp_head::MULTI_RESULTS) {
+    assert(thd->server_status & SERVER_MORE_RESULTS_EXISTS);
+    if (thd->server_status & SERVER_MORE_RESULTS_EXISTS) return false;
+  }
+
+  // Set SP flags depending on current statement.
+  sp->m_flags |= sp_get_flags_for_command(lex);
+
+  /*
+    Ideally, SERVER_MORE_RESULTS_EXISTS should be set only when sp_head::
+    MULTI_RESULTS flag is set. However, for SPs parsing statements at
+    execution phase, deciding server state without prior knowledge of
+    all the statements within the stored procedure is not possible.
+    Hence SERVER_MORE_RESULTS_EXISTS is set regardless of sp_head::
+    MULTI_RESULTS flag.
+  */
+  if (!thd->get_protocol()->has_client_capability(CLIENT_MULTI_RESULTS)) {
+    // Client does not support multiple result sets.
+    my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
+    return true;
+  }
+
+  thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
+
+  return false;
+}
+
+void set_query_for_display(THD *thd) {
+  if (thd->rewritten_query().length() > 0) {
+    thd->set_query_for_display(thd->rewritten_query().ptr(),
+                               thd->rewritten_query().length());
+  } else {
+    thd->set_query_for_display(thd->query().str, thd->query().length);
+  }
+}
+
+char *convert_and_store(MEM_ROOT *mem_root, const char *str, size_t length,
+                        const CHARSET_INFO *src_cs,
+                        const CHARSET_INFO *dst_cs) {
+  String convert;
+  uint errors = 0;
+
+  // Conversion happens only if there is no dst_cs, or a different charset or a
+  // non-binary charset
+  // TODO HCS-9585: show warnings when errors != 0
+  if (dst_cs != nullptr && !my_charset_same(src_cs, dst_cs) &&
+      src_cs != &my_charset_bin && dst_cs != &my_charset_bin) {
+    if (convert.copy(str, length, src_cs, dst_cs, &errors)) return nullptr;
+    str = convert.ptr();
+    length = convert.length();
+  }
+  return strmake_root(mem_root, str, length);
+}

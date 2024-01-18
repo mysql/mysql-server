@@ -33,8 +33,8 @@
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"     // DD_bootstrap_ctx
 #include "sql/dd/properties.h"                       // dd::Properties
 #include "sql/sql_base.h"                            // close_thread_tables
-#include "sql/sql_prepare.h"                         // Ed_connection
 #include "sql/stateless_allocator.h"
+#include "sql/statement/ed_connection.h"  // Ed_connection
 #include "sql/strfunc.h"
 #include "sql/transaction.h"  // trans_rollback
 

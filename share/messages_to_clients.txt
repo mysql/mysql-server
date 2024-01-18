@@ -10009,13 +10009,13 @@ ER_LANGUAGE_COMPONENT
   eng "%s"
 
 ER_LANGUAGE_COMPONENT_NOT_AVAILABLE
-  eng "No Language component available"
+  eng "Language component: Not available."
 
 ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE
-  eng "Unsupported external language: %s"
+  eng "Language component: Unsupported language '%s'"
 
 ER_LANGUAGE_COMPONENT_CANNOT_UNINSTALL
-  eng "Cannot uninstall Multilingual Engine - there are sessions still connected. Please disconnect all sessions and try again."
+  eng "Language component: Cannot uninstall due to connected sessions. Please disconnect all sessions and try again."
 
 ER_SP_NO_ALTER_LANGUAGE
   eng "Altering the language of an existing routine is not possible."
@@ -10332,6 +10332,42 @@ ER_TABLESAMPLE_PERCENTAGE 2202H
 
 ER_TABLESAMPLE_ONLY_ON_BASE_TABLES
   eng "Tablesample can be applied only on base tables."
+
+ER_PARAMETER_INDEX_OUT_OF_RANGE
+  eng "Parameter index %llu is out of range"
+
+ER_RESULT_SIZE_LIMIT_EXCEEDED
+  eng "Result size limit exceeded."
+
+ER_LANGUAGE_COMPONENT_INTERNAL
+  eng "Language component: Internal error."
+
+ER_LANGUAGE_COMPONENT_CONCURRENCY_LIMIT
+  eng "Language component: Concurrency limit (%s) has been reached."
+
+ER_LANGUAGE_COMPONENT_RUNTIME
+  eng "%s> %s"
+
+ER_LANGUAGE_COMPONENT_TIMEZONE
+  eng "%s> Time-zone %s is not supported."
+
+ER_LANGUAGE_COMPONENT_KEYWORD
+  eng "%s> The identifier '%s' is a reserved word."
+
+ER_LANGUAGE_COMPONENT_SET_SYSTEM_VARIABLE
+  eng "Language component: System variable '%s' cannot be configured when component is active."
+
+ER_LANGUAGE_COMPONENT_UNSUPPORTED_TYPE
+  eng "%s> %s"
+
+ER_LANGUAGE_COMPONENT_CONVERSION
+  eng "%s> %s"
+
+ER_WARN_SP_STATEMENT_PARTIALLY_EXECUTED
+  eng "Stored program statement is partially completed. Result set might not contain all the rows."
+
+ER_STMT_EXECUTION_NOT_ALLOWED_WITHIN_SP_OR_TRG_OR_UDF
+  eng "Executing SQL statement using %s Statement Handle Interface is not allowed within stored function, trigger or loadable function (UDF)."
 
 #
 #  End of 8.1+ error messages (server-to-client).

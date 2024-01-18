@@ -1,0 +1,115 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+INSTALL COMPONENT "file://component_test_execute_prepared_statement";
+CREATE DATABASE mle_db;
+USE mle_db;
+
+CREATE TABLE my_table (id int NOT NULL AUTO_INCREMENT, col_a VARCHAR(10), col_b VARCHAR(10), col_c INT, col_d DOUBLE, PRIMARY KEY (id));
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "12", 11, 1.1);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_b", "13", 12, 1.2);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_c", "14", 13, 1.3);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_d", "15", 14, 1.4);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "12", 12, 1.2);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_b", "13", 13, 1.3);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_c", "14", 14, 1.4);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "13", 13, 1.3);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_b", "14", 14, 1.4);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_c", "15", 15, 1.5);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "", NULL, 1.4);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "", NULL, 1.5);
+INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ("row_a", "15", 15, NULL);
+SELECT * FROM my_table;
+
+# Executing statements using Prepared Statement Interface within UDF is
+# restircted.
+--error ER_STMT_EXECUTION_NOT_ALLOWED_WITHIN_SP_OR_TRG_OR_UDF
+SELECT test_execute_prepared_statement("SHOW DATABASES");
+
+# Skip check to restrict statement execution within UDF to test the statement
+# execution interface.
+SET DEBUG='+d,skip_statement_execution_within_UDF_check';
+
+--error ER_PARSE_ERROR
+SELECT test_execute_prepared_statement("SHOW DTBASE;");
+
+--echo ###################################### Binding tests ######################################
+
+--echo # Bind correct types
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c > ?", 12);
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ?", "row_a");
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_d = ?", 1.3E0);
+
+SET SESSION DEBUG = '+d,second_prepare';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_d = ?", 12);
+SET SESSION DEBUG = '-d,second_prepare';
+
+SET SESSION DEBUG = '+d,second_execute_direct';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_d = ?", 12);
+SET SESSION DEBUG = '-d,second_execute_direct';
+
+--echo # Bind compatible types
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_b = ?", 12);
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", "12");
+
+--echo # Bind and execute 2nd time
+SET SESSION DEBUG = '+d,second_bind';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_b = ?", 12);
+SET SESSION DEBUG = '-d,second_bind';
+
+--echo # A parameter is not bound
+--error ER_WRONG_ARGUMENTS
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_b = ?");
+--error ER_WRONG_ARGUMENTS
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?");
+
+--echo # Bind multiple parameters
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11);
+SELECT test_execute_prepared_statement("SELECT col_a, ?, col_c FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "col_b", "row_a", 11);
+
+
+SET SESSION DEBUG = '+d,parameter_set';
+--error ER_PARAMETER_INDEX_OUT_OF_RANGE
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11);
+SET SESSION DEBUG = '-d,parameter_set';
+
+SET SESSION DEBUG = '+d,parameter_get';
+--error ER_PARAMETER_INDEX_OUT_OF_RANGE
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11);
+SET SESSION DEBUG = '-d,parameter_get';
+--echo ###################################### Set/get attribute tests ######################################
+
+SET SESSION DEBUG = '+d,attribute_set_after_prepare';
+
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+
+SET SESSION DEBUG = '-d,attribute_set_after_prepare';
+
+SET SESSION DEBUG = '+d,attribute_get_after_prepare';
+
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+
+SET SESSION DEBUG = '-d,attribute_get_after_prepare';
+
+SET SESSION DEBUG = '+d,attribute_set_after_execute';
+
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+
+SET SESSION DEBUG = '-d,attribute_set_after_execute';
+
+SET SESSION DEBUG = '+d,attribute_get';
+
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+
+SET SESSION DEBUG = '-d,attribute_get';
+
+SET SESSION DEBUG = '+d,code_coverage';
+SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
+SET SESSION DEBUG = '-d,code_coverage';
+
+DROP TABLE my_table;
+DROP DATABASE mle_db;
+
+SET DEBUG='-d,skip_statement_execution_within_UDF_check';
+UNINSTALL COMPONENT "file://component_test_execute_prepared_statement";

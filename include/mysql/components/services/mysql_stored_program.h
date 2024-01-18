@@ -32,6 +32,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 DEFINE_SERVICE_HANDLE(stored_program_handle);
 DEFINE_SERVICE_HANDLE(stored_program_runtime_context);
 DEFINE_SERVICE_HANDLE(time_zone_handle);
+DEFINE_SERVICE_HANDLE(external_program_handle);
+
+/**
+  @file
+  Services for reading and storing various stored program properties
+  of the server stored program's object and its contexts.
+*/
 
 BEGIN_SERVICE_DEFINITION(mysql_stored_program_metadata_query)
 
@@ -787,4 +794,94 @@ DECLARE_BOOL_METHOD(set, (stored_program_runtime_context sp_runtime_context,
                           double value));
 
 END_SERVICE_DEFINITION(mysql_stored_program_return_value_float)
+
+/**
+  @ingroup group_components_services_stored_programs
+
+  Service to get and change the stored program's external language handle.
+
+  In general, the server stored program object does handle
+  the lifetime of the external language objects.
+  It initiates the creation, parsing, execution and destruction of such objects.
+  But, in rare cases, the external language component may request the server to
+  change its external language object. Example of such cases are:
+   * The stored program is aborted. The external language object needs to be
+     destroyed and detached from the server object.
+   * The session was reset. Either by explicit user demand, or when incompatible
+     changes happen such as timezone change. All of its objects need to be
+     destroyed and detached.
+   * The limit of external language objects is reached. The oldest objects
+     may be destroyed and detached.
+   * The limit of external language sessions is reached. The oldest sessions
+     may be destroyed, together with their language objects.
+   * The external language object is changed. The new object needs to replace
+     the existing one.
+  @note Both the external language session and external language object
+        services support lazy (re)initialization. The current object may be
+        detached and destroyed. When another request to
+        the same stored program comes, a new object will be created.
+
+  Used approximately as follows:
+
+  @code
+  // Get the current external_program_handle.
+  external_program_handle old_sp = nullptr;
+  if (SERVICE_PLACEHOLDER(mysql_stored_program_external_program_handle)
+                             ->get(stored_program_handle, &old_sp))
+    return 1;
+
+  // Detach and destroy the current external_program_handle.
+  if (SERVICE_PLACEHOLDER(mysql_stored_program_external_program_handle)
+                             ->set(stored_program_handle, nullptr))
+    return 1;
+  if (old_sp) destroy_stored_program(old_sp);
+
+  // Create and attach a new external_program_handle.
+  external_program_handle old_sp = create_stored_program();
+  return SERVICE_PLACEHOLDER(mysql_stored_program_external_program_handle)
+                             ->set(stored_program_handle, nullptr);
+
+  external_program_handle new_sp = create_stored_program();
+  return SERVICE_PLACEHOLDER(mysql_stored_program_external_program_handle)
+                             ->set(stored_program_handle, new_sp);
+
+  @endcode
+*/
+BEGIN_SERVICE_DEFINITION(mysql_stored_program_external_program_handle)
+
+/**
+  Obtain the currently attached Language Component's Stored Program
+  from the server object.
+  @note: Only stored_program_handle belonging to current thread are supported.
+
+  @param [in] sp      stored_program_handle
+  @param [out] value  Language Component's Stored Program.
+
+  @returns Status of operation
+  @retval false Success
+  @retval true  Error
+*/
+
+DECLARE_BOOL_METHOD(get,
+                    (stored_program_handle sp, external_program_handle *value));
+
+/**
+  Attach or detach the Language Component's Stored Program from the server
+  object. In order to detach the current Stored Program from the server
+   - provide nullptr value.
+  @note: Only stored_program_handle belonging to current thread are supported.
+
+  @param [in] sp      stored_program_handle
+  @param [in] value   Language Component's Stored Program.
+                      Use nullptr to detach the current value from the server.
+
+  @returns Status of operation
+  @retval false Success
+  @retval true  Error
+*/
+
+DECLARE_BOOL_METHOD(set,
+                    (stored_program_handle sp, external_program_handle value));
+
+END_SERVICE_DEFINITION(mysql_stored_program_external_program_handle)
 #endif /* MYSQL_STORED_PROGRAM_H */

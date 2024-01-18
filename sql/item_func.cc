@@ -5026,8 +5026,27 @@ void Item_udf_func::print(const THD *thd, String *str,
   str->append(')');
 }
 
+// RAII class to handle THD::in_loadable_function state.
+class THD_in_loadable_function_handler {
+ public:
+  THD_in_loadable_function_handler() {
+    m_thd = current_thd;
+    m_saved_thd_in_loadable_function = m_thd->in_loadable_function;
+    m_thd->in_loadable_function = true;
+  }
+
+  ~THD_in_loadable_function_handler() {
+    m_thd->in_loadable_function = m_saved_thd_in_loadable_function;
+  }
+
+ private:
+  THD *m_thd;
+  bool m_saved_thd_in_loadable_function;
+};
+
 double Item_func_udf_float::val_real() {
   assert(fixed);
+  THD_in_loadable_function_handler thd_in_loadable_function_handler;
   DBUG_PRINT("info", ("result_type: %d  arg_count: %d", args[0]->result_type(),
                       arg_count));
   return udf.val_real(&null_value);
@@ -5043,6 +5062,7 @@ String *Item_func_udf_float::val_str(String *str) {
 
 longlong Item_func_udf_int::val_int() {
   assert(fixed);
+  THD_in_loadable_function_handler thd_in_loadable_function_handler;
   return udf.val_int(&null_value);
 }
 
@@ -5055,7 +5075,7 @@ String *Item_func_udf_int::val_str(String *str) {
 }
 
 longlong Item_func_udf_decimal::val_int() {
-  my_decimal dec_buf, *dec = udf.val_decimal(&null_value, &dec_buf);
+  my_decimal dec_buf, *dec = val_decimal(&dec_buf);
   longlong result;
   if (null_value) return 0;
   my_decimal2int(E_DEC_FATAL_ERROR, dec, unsigned_flag, &result);
@@ -5063,7 +5083,7 @@ longlong Item_func_udf_decimal::val_int() {
 }
 
 double Item_func_udf_decimal::val_real() {
-  my_decimal dec_buf, *dec = udf.val_decimal(&null_value, &dec_buf);
+  my_decimal dec_buf, *dec = val_decimal(&dec_buf);
   double result;
   if (null_value) return 0.0;
   my_decimal2double(E_DEC_FATAL_ERROR, dec, &result);
@@ -5071,11 +5091,12 @@ double Item_func_udf_decimal::val_real() {
 }
 
 my_decimal *Item_func_udf_decimal::val_decimal(my_decimal *dec_buf) {
+  THD_in_loadable_function_handler thd_in_loadable_function_handler;
   return udf.val_decimal(&null_value, dec_buf);
 }
 
 String *Item_func_udf_decimal::val_str(String *str) {
-  my_decimal dec_buf, *dec = udf.val_decimal(&null_value, &dec_buf);
+  my_decimal dec_buf, *dec = val_decimal(&dec_buf);
   if (null_value) return nullptr;
   if (str->length() < DECIMAL_MAX_STR_LENGTH)
     str->length(DECIMAL_MAX_STR_LENGTH);
@@ -5103,6 +5124,7 @@ bool Item_func_udf_str::resolve_type(THD *) {
 
 String *Item_func_udf_str::val_str(String *str) {
   assert(fixed);
+  THD_in_loadable_function_handler thd_in_loadable_function_handler;
   String *res = udf.val_str(str, &str_value);
   null_value = !res;
   return res;

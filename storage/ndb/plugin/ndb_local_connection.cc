@@ -27,7 +27,7 @@
 
 #include "sql/mysqld.h"  // next_query_id()
 #include "sql/sql_class.h"
-#include "sql/sql_prepare.h"
+#include "sql/statement/ed_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
 
 class Ndb_local_connection::Impl {

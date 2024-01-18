@@ -47,6 +47,9 @@ leak:sasl_client_add_plugin
 # The GSS API plugin for SASL has leaks.
 leak:gss_acquire_cred_from
 
+# Memory leak due to JDK's assumption on object lifetime
+leak:java.lang.ProcessImpl*init
+
 # ndb_sign_keys leaks in some error-exit situations
 leak:ndb_sign_keys
 

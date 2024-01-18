@@ -136,7 +136,6 @@ When one supplies long data for a placeholder:
 #include "sql/binlog.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"  // ER_THD
-#include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_func.h"  // user_var_entry
@@ -166,12 +165,12 @@ When one supplies long data for a placeholder:
 #include "sql/sql_handler.h"  // mysql_ha_rm_tables
 #include "sql/sql_insert.h"   // Query_result_create
 #include "sql/sql_lex.h"
-#include "sql/sql_list.h"
 #include "sql/sql_parse.h"  // sql_command_flags
 #include "sql/sql_profile.h"
 #include "sql/sql_query_rewrite.h"
 #include "sql/sql_rewrite.h"  // mysql_rewrite_query
 #include "sql/sql_view.h"     // create_view_precheck
+#include "sql/statement/statement_runnable.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -194,19 +193,6 @@ using std::min;
 namespace {
 
 /**
-  Execute one SQL statement in an isolated context.
-*/
-
-class Execute_sql_statement : public Server_runnable {
- public:
-  Execute_sql_statement(LEX_STRING sql_text);
-  bool execute_server_code(THD *thd) override;
-
- private:
-  LEX_STRING m_sql_text;
-};
-
-/**
   A result class used to send cursor rows using the binary protocol.
 */
 
@@ -225,103 +211,6 @@ class Query_fetch_protocol_binary final : public Query_result_send {
 
 }  // namespace
 
-/**
-  Protocol_local: a helper class to intercept the result
-  of the data written to the network.
-
-  At the start of every result set, start_result_metadata allocates m_rset to
-  prepare for the results. The metadata is stored on m_current_row which will
-  be transferred to m_fields in end_result_metadata. The memory for the
-  metadata is allocated on m_rset_root.
-
-  Then, for every row of the result received, each of the fields is stored in
-  m_current_row. Then the row is moved to m_rset and m_current_row is cleared
-  to receive the next row. The memory for all the results are also stored in
-  m_rset_root.
-
-  Finally, at the end of the result set, a new instance of Ed_result_set is
-  created on m_rset_root and the result set (m_rset and m_fields) is moved into
-  this instance. The ownership of MEM_ROOT m_rset_root is also transferred to
-  this instance. So, at the end we have a fresh MEM_ROOT, cleared m_rset and
-  m_fields to accept the next result set.
-*/
-
-class Protocol_local final : public Protocol {
- public:
-  Protocol_local(THD *thd, Ed_connection *ed_connection);
-  ~Protocol_local() override { m_rset_root.Clear(); }
-
-  int read_packet() override;
-
-  int get_command(COM_DATA *com_data, enum_server_command *cmd) override;
-  ulong get_client_capabilities() override;
-  bool has_client_capability(unsigned long client_capability) override;
-  void end_partial_result_set() override;
-  int shutdown(bool server_shutdown = false) override;
-  bool connection_alive() const override;
-  void start_row() override;
-  bool end_row() override;
-  void abort_row() override {}
-  uint get_rw_status() override;
-  bool get_compression() override;
-
-  char *get_compression_algorithm() override;
-  uint get_compression_level() override;
-
-  bool start_result_metadata(uint num_cols, uint flags,
-                             const CHARSET_INFO *resultcs) override;
-  bool end_result_metadata() override;
-  bool send_field_metadata(Send_field *field,
-                           const CHARSET_INFO *charset) override;
-  bool flush() override { return true; }
-  bool send_parameters(List<Item_param> *, bool) override { return false; }
-  bool store_ps_status(ulong, uint, uint, ulong) override { return false; }
-
- protected:
-  bool store_null() override;
-  bool store_tiny(longlong from, uint32) override;
-  bool store_short(longlong from, uint32) override;
-  bool store_long(longlong from, uint32) override;
-  bool store_longlong(longlong from, bool unsigned_flag, uint32) override;
-  bool store_decimal(const my_decimal *, uint, uint) override;
-  bool store_string(const char *from, size_t length,
-                    const CHARSET_INFO *cs) override;
-  bool store_datetime(const MYSQL_TIME &time, uint precision) override;
-  bool store_date(const MYSQL_TIME &time) override;
-  bool store_time(const MYSQL_TIME &time, uint precision) override;
-  bool store_float(float value, uint32 decimals, uint32 zerofill) override;
-  bool store_double(double value, uint32 decimals, uint32 zerofill) override;
-  bool store_field(const Field *field) override;
-
-  enum enum_protocol_type type() const override { return PROTOCOL_LOCAL; }
-  enum enum_vio_type connection_type() const override { return VIO_TYPE_LOCAL; }
-
-  bool send_ok(uint server_status, uint statement_warn_count,
-               ulonglong affected_rows, ulonglong last_insert_id,
-               const char *message) override;
-
-  bool send_eof(uint server_status, uint statement_warn_count) override;
-  bool send_error(uint sql_errno, const char *err_msg,
-                  const char *sqlstate) override;
-
- private:
-  bool store_string(const char *str, size_t length, const CHARSET_INFO *src_cs,
-                    const CHARSET_INFO *dst_cs);
-
-  bool store_column(const void *data, size_t length);
-  void opt_add_row_to_rset();
-
-  Ed_connection *m_connection;
-  MEM_ROOT m_rset_root;
-  List<Ed_row> *m_rset;
-  size_t m_column_count;
-  Ed_column *m_current_row;
-  Ed_column *m_current_column;
-  Ed_row *m_fields;
-  bool m_send_metadata;
-  THD *m_thd;
-};
-
 /******************************************************************************
   Implementation
 ******************************************************************************/
@@ -336,8 +225,8 @@ class Protocol_local final : public Protocol {
 
   @param thd                thread handle
 */
-static inline void rewrite_query_if_needed(THD *thd) {
-  const bool general =
+void rewrite_query_if_needed(THD *thd) {
+  bool general =
       (opt_general_log && !(opt_general_log_raw || thd->slave_thread));
 
   if ((thd->sp_runtime_ctx == nullptr) &&
@@ -365,7 +254,7 @@ static inline void rewrite_query_if_needed(THD *thd) {
 
   @param thd                thread handle
 */
-static inline void log_execute_line(THD *thd) {
+void log_execute_line(THD *thd) {
   /*
     Do not print anything if this is an SQL prepared statement and
     we're inside a stored procedure (also called Dynamic SQL) --
@@ -533,8 +422,9 @@ static void set_parameter_type(Item_param *param, enum enum_field_types type,
   The function reads a binary valuefrom pos, converts it to the requested type
   and assigns it to the paramameter.
 */
-static bool set_parameter_value(Item_param *param, const uchar **pos,
-                                ulong len) {
+static bool set_parameter_value(
+    Item_param *param, const uchar **pos, ulong len,
+    enum Prepared_statement::enum_param_pack_type pack_type) {
   switch (param->data_type_source()) {
     case MYSQL_TYPE_TINY: {
       assert(len >= 1);
@@ -591,40 +481,50 @@ static bool set_parameter_value(Item_param *param, const uchar **pos,
     }
     case MYSQL_TYPE_TIME: {
       MYSQL_TIME tm;
-      if (len >= 8) {
-        const uchar *to = *pos;
-        tm.neg = (bool)to[0];
-        const uint day = (uint)sint4korr(to + 1);
-        tm.hour = (uint)to[5] + day * 24;
-        tm.minute = (uint)to[6];
-        tm.second = (uint)to[7];
-        tm.second_part = (len > 8) ? (ulong)sint4korr(to + 8) : 0;
-        if (tm.hour > 838) {
-          /* TODO: add warning 'Data truncated' here */
-          tm.hour = 838;
-          tm.minute = 59;
-          tm.second = 59;
-        }
-        tm.day = tm.year = tm.month = 0;
+      if (pack_type == Prepared_statement::enum_param_pack_type::UNPACKED) {
+        assert(len == sizeof(MYSQL_TIME));
+        tm = *(*(const MYSQL_TIME **)pos);
       } else {
-        set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
+        if (len >= 8) {
+          const uchar *to = *pos;
+          tm.neg = (bool)to[0];
+          const uint day = (uint)sint4korr(to + 1);
+          tm.hour = (uint)to[5] + day * 24;
+          tm.minute = (uint)to[6];
+          tm.second = (uint)to[7];
+          tm.second_part = (len > 8) ? (ulong)sint4korr(to + 8) : 0;
+          if (tm.hour > 838) {
+            /* TODO: add warning 'Data truncated' here */
+            tm.hour = 838;
+            tm.minute = 59;
+            tm.second = 59;
+          }
+          tm.day = tm.year = tm.month = 0;
+        } else {
+          set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
+        }
       }
       param->set_time(&tm, MYSQL_TIMESTAMP_TIME);
       break;
     }
     case MYSQL_TYPE_DATE: {
       MYSQL_TIME tm;
-      if (len >= 4) {
-        const uchar *to = *pos;
-        tm.year = (uint)sint2korr(to);
-        tm.month = (uint)to[2];
-        tm.day = (uint)to[3];
-
-        tm.hour = tm.minute = tm.second = 0;
-        tm.second_part = 0;
-        tm.neg = false;
+      if (pack_type == Prepared_statement::enum_param_pack_type::UNPACKED) {
+        assert(len == sizeof(MYSQL_TIME));
+        tm = *(*(const MYSQL_TIME **)pos);
       } else {
-        set_zero_time(&tm, MYSQL_TIMESTAMP_DATE);
+        if (len >= 4) {
+          const uchar *to = *pos;
+          tm.year = (uint)sint2korr(to);
+          tm.month = (uint)to[2];
+          tm.day = (uint)to[3];
+
+          tm.hour = tm.minute = tm.second = 0;
+          tm.second_part = 0;
+          tm.neg = false;
+        } else {
+          set_zero_time(&tm, MYSQL_TIMESTAMP_DATE);
+        }
       }
       param->set_time(&tm, MYSQL_TIMESTAMP_DATE);
       break;
@@ -633,30 +533,35 @@ static bool set_parameter_value(Item_param *param, const uchar **pos,
     case MYSQL_TYPE_TIMESTAMP: {
       MYSQL_TIME tm;
       enum_mysql_timestamp_type type = MYSQL_TIMESTAMP_DATETIME;
-      const uchar *to = *pos;
 
-      assert(len == 0 || len == 4 || len == 7 || len == 11 || len == 13);
-      if (len < 4) {
-        set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
+      if (pack_type == Prepared_statement::enum_param_pack_type::UNPACKED) {
+        assert(len == sizeof(MYSQL_TIME));
+        tm = *(*(const MYSQL_TIME **)pos);
       } else {
-        tm.neg = false;
-        tm.year = (uint)sint2korr(to);
-        tm.month = (uint)to[2];
-        tm.day = (uint)to[3];
-      }
-      if (len >= 7) {
-        tm.hour = (uint)to[4];
-        tm.minute = (uint)to[5];
-        tm.second = (uint)to[6];
-      } else {  // len == 4
-        tm.hour = tm.minute = tm.second = 0;
-      }
-      tm.second_part =
-          (len >= 11) ? static_cast<std::uint64_t>(sint4korr(to + 7)) : 0;
+        assert(len == 0 || len == 4 || len == 7 || len == 11 || len == 13);
+        const uchar *to = *pos;
+        if (len < 4) {
+          set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
+        } else {
+          tm.neg = false;
+          tm.year = (uint)sint2korr(to);
+          tm.month = (uint)to[2];
+          tm.day = (uint)to[3];
+        }
+        if (len >= 7) {
+          tm.hour = (uint)to[4];
+          tm.minute = (uint)to[5];
+          tm.second = (uint)to[6];
+        } else {  // len == 4
+          tm.hour = tm.minute = tm.second = 0;
+        }
+        tm.second_part =
+            (len >= 11) ? static_cast<std::uint64_t>(sint4korr(to + 7)) : 0;
 
-      if (len >= 13) {
-        tm.time_zone_displacement = sint2korr(to + 11) * SECS_PER_MIN;
-        type = MYSQL_TIMESTAMP_DATETIME_TZ;
+        if (len >= 13) {
+          tm.time_zone_displacement = sint2korr(to + 11) * SECS_PER_MIN;
+          type = MYSQL_TIMESTAMP_DATETIME_TZ;
+        }
       }
       param->set_time(&tm, type);
       break;
@@ -710,6 +615,8 @@ inline bool is_param_long_data_type(Item_param *param) {
                        otherwise use the parameters from previous execution.
   @param parameters Array of actual parameter values.
                     Contains parameter types if has_new_types is true.
+  @param pack_type  UNPACKED means that the parameter value buffer points to
+                    MYSQL_TIME*
 
   @returns false if success, true if error
 
@@ -738,9 +645,9 @@ inline bool is_param_long_data_type(Item_param *param) {
     @endverbatim
 */
 
-bool Prepared_statement::insert_parameters(THD *thd, String *query,
-                                           bool has_new_types,
-                                           PS_PARAM *parameters) {
+bool Prepared_statement::insert_parameters(
+    THD *thd, String *query, bool has_new_types, PS_PARAM *parameters,
+    enum enum_param_pack_type pack_type) {
   DBUG_TRACE;
 
   Item_param **end = m_param_array + m_param_count;
@@ -787,8 +694,8 @@ bool Prepared_statement::insert_parameters(THD *thd, String *query,
     } else if (parameters[i].null_bit) {
       param->set_null();
     } else {
-      if (set_parameter_value(param, &parameters[i].value,
-                              parameters[i].length)) {
+      if (set_parameter_value(param, &parameters[i].value, parameters[i].length,
+                              pack_type)) {
         return true;
       }
       // NO_VALUE probably means broken client, no metadata provided.
@@ -1885,7 +1792,7 @@ void mysql_sql_stmt_prepare(THD *thd) {
   @param stmt               prepared statement for which parameters should
                             be reset
 */
-static void reset_stmt_parameters(Prepared_statement *stmt) {
+void reset_stmt_parameters(Prepared_statement *stmt) {
   Item_param **item = stmt->m_param_array;
   Item_param **end = item + stmt->m_param_count;
   for (; item < end; ++item) {
@@ -2254,76 +2161,6 @@ bool ask_to_reprepare(THD *thd) {
   }
   return false;
 }
-
-/*******************************************************************
- * Server_runnable
- *******************************************************************/
-
-Server_runnable::~Server_runnable() = default;
-
-///////////////////////////////////////////////////////////////////////////
-
-namespace {
-
-Execute_sql_statement::Execute_sql_statement(LEX_STRING sql_text)
-    : m_sql_text(sql_text) {}
-
-/**
-  Parse and execute a statement. Does not prepare the query.
-
-  Allows to execute a statement from within another statement.
-  The main property of the implementation is that it does not
-  affect the environment -- i.e. you  can run many
-  executions without having to cleanup/reset THD in between.
-*/
-
-bool Execute_sql_statement::execute_server_code(THD *thd) {
-  sql_digest_state *parent_digest;
-  PSI_statement_locker *parent_locker;
-  bool error;
-
-  if (alloc_query(thd, m_sql_text.str, m_sql_text.length)) return true;
-
-  Parser_state parser_state;
-  if (parser_state.init(thd, thd->query().str, thd->query().length))
-    return true;
-
-  parser_state.m_lip.multi_statements = false;
-  lex_start(thd);
-
-  parent_digest = thd->m_digest;
-  parent_locker = thd->m_statement_psi;
-  thd->m_digest = nullptr;
-  thd->m_statement_psi = nullptr;
-  error = parse_sql(thd, &parser_state, nullptr) || thd->is_error();
-  thd->m_digest = parent_digest;
-  thd->m_statement_psi = parent_locker;
-
-  if (error) goto end;
-
-  thd->lex->set_trg_event_type_for_tables();
-
-  parent_locker = thd->m_statement_psi;
-  thd->m_statement_psi = nullptr;
-
-  /*
-    Rewrite first (if needed); execution might replace passwords
-    with hashes in situ without flagging it, and then we'd make
-    a hash of that hash.
-  */
-  rewrite_query_if_needed(thd);
-  log_execute_line(thd);
-
-  error = mysql_execute_command(thd);
-  thd->m_statement_psi = parent_locker;
-
-end:
-  lex_end(thd->lex);
-
-  return error;
-}
-
-}  // namespace
 
 /***************************************************************************
  Prepared_statement
@@ -2742,27 +2579,21 @@ bool Prepared_statement::prepare(THD *thd, const char *query_str,
   return error;
 }
 
-/**
-  Assign parameter values from the execute packet.
-
-  @param thd             current thread
-  @param expanded_query  a container with the original SQL statement.
-                         '?' placeholders will be replaced with
-                         their values in case of success.
-                         The result is used for logging and replication
-  @param has_new_types   flag used to signal that new types are provided.
-  @param parameters      prepared statement's parsed parameters.
-
-  @returns false if success, true if error
-           (likely a conversion error, out of memory, or malformed packet)
-*/
-
 bool Prepared_statement::set_parameters(THD *thd, String *expanded_query,
                                         bool has_new_types,
                                         PS_PARAM *parameters) {
+  return set_parameters(thd, expanded_query, has_new_types, parameters,
+                        enum_param_pack_type::PACKED);
+}
+
+bool Prepared_statement::set_parameters(THD *thd, String *expanded_query,
+                                        bool has_new_types,
+                                        PS_PARAM *parameters,
+                                        enum enum_param_pack_type pack_type) {
   if (m_param_count == 0) return false;
 
-  if (insert_parameters(thd, expanded_query, has_new_types, parameters)) {
+  if (insert_parameters(thd, expanded_query, has_new_types, parameters,
+                        pack_type)) {
     reset_stmt_parameters(this);
     return true;
   }
@@ -3724,442 +3555,4 @@ void Prepared_statement::deallocate(THD *thd) {
   global_aggregated_stats.get_shard(thd->thread_id()).com_stmt_close++;
   /* Statement map calls delete stmt on erase */
   thd->stmt_map.erase(this);
-}
-
-/***************************************************************************
- * Ed_result_set
- ***************************************************************************/
-/**
-  Initialize an instance of Ed_result_set.
-
-  Instances of the class, as well as all result set rows, are
-  always allocated in the memory root passed over as the third
-  argument. In the constructor, we take over ownership of the
-  memory root. It will be freed when the class is destroyed.
-
-  sic: Ed_result_est is not designed to be allocated on stack.
-*/
-
-Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg, Ed_row *fields,
-                             size_t column_count_arg, MEM_ROOT *mem_root_arg)
-    : m_mem_root(std::move(*mem_root_arg)),
-      m_column_count(column_count_arg),
-      m_rows(rows_arg),
-      m_fields(fields),
-      m_next_rset(nullptr) {}
-
-/***************************************************************************
- * Ed_result_set
- ***************************************************************************/
-
-/**
-  Create a new "execute direct" connection.
-*/
-
-Ed_connection::Ed_connection(THD *thd)
-    : m_diagnostics_area(false),
-      m_thd(thd),
-      m_rsets(nullptr),
-      m_current_rset(nullptr) {}
-
-/**
-  Free all result sets of the previous statement, if any,
-  and reset warnings and errors.
-
-  Called before execution of the next query.
-*/
-
-void Ed_connection::free_old_result() {
-  while (m_rsets) {
-    Ed_result_set *rset = m_rsets->m_next_rset;
-    delete m_rsets;
-    m_rsets = rset;
-  }
-  m_current_rset = m_rsets;
-  m_diagnostics_area.reset_diagnostics_area();
-  m_diagnostics_area.reset_condition_info(m_thd);
-}
-
-/**
-  A simple wrapper that uses a helper class to execute SQL statements.
-*/
-
-bool Ed_connection::execute_direct(LEX_STRING sql_text) {
-  Execute_sql_statement execute_sql_statement(sql_text);
-  DBUG_PRINT("ed_query", ("%s", sql_text.str));
-
-  return execute_direct(&execute_sql_statement);
-}
-
-/**
-  Execute a fragment of server functionality without an effect on
-  thd, and store results in memory.
-
-  Conventions:
-  - the code fragment must finish with OK, EOF or ERROR.
-  - the code fragment doesn't have to close thread tables,
-  free memory, commit statement transaction or do any other
-  cleanup that is normally done in the end of dispatch_command().
-
-  @param server_runnable A code fragment to execute.
-*/
-
-bool Ed_connection::execute_direct(Server_runnable *server_runnable) {
-  DBUG_TRACE;
-
-  free_old_result(); /* Delete all data from previous execution, if any */
-
-  Protocol_local protocol_local(m_thd, this);
-  m_thd->push_protocol(&protocol_local);
-  m_thd->push_diagnostics_area(&m_diagnostics_area);
-
-  Prepared_statement stmt(m_thd);
-  const bool rc = stmt.execute_server_runnable(m_thd, server_runnable);
-  m_thd->send_statement_status();
-
-  m_thd->pop_protocol();
-  m_thd->pop_diagnostics_area();
-  /*
-    Protocol_local makes use of m_current_rset to keep
-    track of the last result set, while adding result sets to the end.
-    Reset it to point to the first result set instead.
-  */
-  m_current_rset = m_rsets;
-
-  /*
-    Reset rewritten (for password obfuscation etc.) query after
-    internal call from NDB etc.  Without this, a rewritten query
-    would get "stuck" in SHOW PROCESSLIST.
-  */
-  m_thd->reset_rewritten_query();
-  m_thd->reset_query_for_display();
-
-  return rc;
-}
-
-/**
-  A helper method that is called only during execution.
-
-  Although Ed_connection doesn't support multi-statements,
-  a statement may generate many result sets. All subsequent
-  result sets are appended to the end.
-
-  @pre This is called only by Protocol_local.
-*/
-
-void Ed_connection::add_result_set(Ed_result_set *ed_result_set) {
-  if (m_rsets) {
-    m_current_rset->m_next_rset = ed_result_set;
-    /* While appending, use m_current_rset as a pointer to the tail. */
-    m_current_rset = ed_result_set;
-  } else
-    m_current_rset = m_rsets = ed_result_set;
-}
-
-/*************************************************************************
- * Protocol_local
- **************************************************************************/
-
-Protocol_local::Protocol_local(THD *thd, Ed_connection *ed_connection)
-    : m_connection(ed_connection),
-      m_rset(nullptr),
-      m_column_count(0),
-      m_current_row(nullptr),
-      m_current_column(nullptr),
-      m_send_metadata(false),
-      m_thd(thd) {}
-
-/**
-  A helper function to add the current row to the current result
-  set. Called in @sa start_row(), when a new row is started,
-  and in send_eof(), when the result set is finished.
-*/
-
-void Protocol_local::opt_add_row_to_rset() {
-  if (m_current_row) {
-    /* Add the old row to the result set */
-    Ed_row *ed_row = new (&m_rset_root) Ed_row(m_current_row, m_column_count);
-    if (ed_row) m_rset->push_back(ed_row, &m_rset_root);
-  }
-}
-
-/**
-  Add a NULL column to the current row.
-*/
-
-bool Protocol_local::store_null() {
-  if (m_current_column == nullptr)
-    return true; /* start_row() failed to allocate memory. */
-
-  memset(m_current_column, 0, sizeof(*m_current_column));
-  ++m_current_column;
-  return false;
-}
-
-/**
-  A helper method to add any column to the current row
-  in its binary form.
-
-  Allocates memory for the data in the result set memory root.
-*/
-
-bool Protocol_local::store_column(const void *data, size_t length) {
-  if (m_current_column == nullptr)
-    return true; /* start_row() failed to allocate memory. */
-
-  m_current_column->str = new (&m_rset_root) char[length + 1];
-  if (!m_current_column->str) return true;
-  memcpy(m_current_column->str, data, length);
-  m_current_column->str[length + 1] = '\0'; /* Safety */
-  m_current_column->length = length;
-  ++m_current_column;
-  return false;
-}
-
-/**
-  Store a string value in a result set column, optionally
-  having converted it to character_set_results.
-*/
-
-bool Protocol_local::store_string(const char *str, size_t length,
-                                  const CHARSET_INFO *src_cs,
-                                  const CHARSET_INFO *dst_cs) {
-  /* Store with conversion */
-  String convert;
-  uint error_unused;
-
-  if (dst_cs && !my_charset_same(src_cs, dst_cs) && src_cs != &my_charset_bin &&
-      dst_cs != &my_charset_bin) {
-    if (convert.copy(str, length, src_cs, dst_cs, &error_unused)) return true;
-    str = convert.ptr();
-    length = convert.length();
-  }
-
-  if (m_current_column == nullptr)
-    return true; /* start_row() failed to allocate memory. */
-
-  m_current_column->str = strmake_root(&m_rset_root, str, length);
-  if (!m_current_column->str) return true;
-  m_current_column->length = length;
-  ++m_current_column;
-  return false;
-}
-
-/** Store a tiny int as is (1 byte) in a result set column. */
-
-bool Protocol_local::store_tiny(longlong value, uint32) {
-  char v = (char)value;
-  return store_column(&v, 1);
-}
-
-/** Store a short as is (2 bytes, host order) in a result set column. */
-
-bool Protocol_local::store_short(longlong value, uint32) {
-  int16 v = (int16)value;
-  return store_column(&v, 2);
-}
-
-/** Store a "long" as is (4 bytes, host order) in a result set column.  */
-
-bool Protocol_local::store_long(longlong value, uint32) {
-  int32 v = (int32)value;
-  return store_column(&v, 4);
-}
-
-/** Store a "longlong" as is (8 bytes, host order) in a result set column. */
-
-bool Protocol_local::store_longlong(longlong value, bool, uint32) {
-  int64 v = (int64)value;
-  return store_column(&v, 8);
-}
-
-/** Store a decimal in string format in a result set column */
-
-bool Protocol_local::store_decimal(const my_decimal *value, uint prec,
-                                   uint dec) {
-  StringBuffer<DECIMAL_MAX_STR_LENGTH> str;
-  const int rc = my_decimal2string(E_DEC_FATAL_ERROR, value, prec, dec, &str);
-
-  if (rc) return true;
-
-  return store_column(str.ptr(), str.length());
-}
-
-/** Convert to cs_results and store a string. */
-
-bool Protocol_local::store_string(const char *str, size_t length,
-                                  const CHARSET_INFO *src_cs) {
-  const CHARSET_INFO *dst_cs;
-
-  dst_cs = m_connection->m_thd->variables.character_set_results;
-  return store_string(str, length, src_cs, dst_cs);
-}
-
-/* Store MYSQL_TIME (in binary format) */
-
-bool Protocol_local::store_datetime(const MYSQL_TIME &time, uint) {
-  return store_column(&time, sizeof(MYSQL_TIME));
-}
-
-/** Store MYSQL_TIME (in binary format) */
-
-bool Protocol_local::store_date(const MYSQL_TIME &time) {
-  return store_column(&time, sizeof(MYSQL_TIME));
-}
-
-/** Store MYSQL_TIME (in binary format) */
-
-bool Protocol_local::store_time(const MYSQL_TIME &time, uint) {
-  return store_column(&time, sizeof(MYSQL_TIME));
-}
-
-/* Store a floating point number, as is. */
-
-bool Protocol_local::store_float(float value, uint32, uint32) {
-  return store_column(&value, sizeof(float));
-}
-
-/* Store a double precision number, as is. */
-
-bool Protocol_local::store_double(double value, uint32, uint32) {
-  return store_column(&value, sizeof(double));
-}
-
-/* Store a Field. */
-
-bool Protocol_local::store_field(const Field *field) {
-  return field->send_to_protocol(this);
-}
-
-/** Called for statements that don't have a result set, at statement end. */
-
-bool Protocol_local::send_ok(uint, uint, ulonglong, ulonglong, const char *) {
-  /*
-    Just make sure nothing is sent to the client, we have grabbed
-    the status information in the connection Diagnostics Area.
-  */
-  m_column_count = 0;
-  return false;
-}
-
-/**
-  Called at the end of a result set. Append a complete
-  result set to the list in Ed_connection.
-
-  Don't send anything to the client, but instead finish
-  building of the result set at hand.
-*/
-
-bool Protocol_local::send_eof(uint, uint) {
-  Ed_result_set *ed_result_set;
-
-  assert(m_rset);
-  m_current_row = nullptr;
-
-  ed_result_set = new (&m_rset_root)
-      Ed_result_set(m_rset, m_fields, m_column_count, &m_rset_root);
-
-  m_rset = nullptr;
-  m_fields = nullptr;
-
-  if (!ed_result_set) return true;
-
-  /*
-    Link the created Ed_result_set instance into the list of connection
-    result sets. Never fails.
-  */
-  m_connection->add_result_set(ed_result_set);
-  m_column_count = 0;
-  return false;
-}
-
-/** Called to send an error to the client at the end of a statement. */
-
-bool Protocol_local::send_error(uint, const char *, const char *) {
-  /*
-    Just make sure that nothing is sent to the client (default
-    implementation).
-  */
-  m_column_count = 0;
-  return false;
-}
-
-int Protocol_local::read_packet() { return 0; }
-
-ulong Protocol_local::get_client_capabilities() { return 0; }
-
-bool Protocol_local::has_client_capability(unsigned long) { return false; }
-
-bool Protocol_local::connection_alive() const { return false; }
-
-void Protocol_local::end_partial_result_set() {}
-
-int Protocol_local::shutdown(bool) { return 0; }
-
-/**
-  Called between two result set rows.
-
-  Prepare structures to fill result set rows.
-  Unfortunately, we can't return an error here. If memory allocation
-  fails, we'll have to return an error later. And so is done
-  in methods such as @sa store_column().
-*/
-void Protocol_local::start_row() {
-  DBUG_TRACE;
-
-  if (m_send_metadata) return;
-  assert(alloc_root_inited(&m_rset_root));
-
-  /* Start a new row. */
-  m_current_row =
-      (Ed_column *)m_rset_root.Alloc(sizeof(Ed_column) * m_column_count);
-  m_current_column = m_current_row;
-}
-
-/**
-  Add the current row to the result set
-*/
-bool Protocol_local::end_row() {
-  DBUG_TRACE;
-  if (m_send_metadata) return false;
-
-  assert(m_rset);
-  opt_add_row_to_rset();
-  m_current_row = nullptr;
-
-  return false;
-}
-
-uint Protocol_local::get_rw_status() { return 0; }
-
-bool Protocol_local::start_result_metadata(uint elements, uint,
-                                           const CHARSET_INFO *) {
-  m_column_count = elements;
-  start_row();
-  m_send_metadata = true;
-  m_rset = new (&m_rset_root) List<Ed_row>;
-  return false;
-}
-
-bool Protocol_local::end_result_metadata() {
-  m_send_metadata = false;
-  m_fields = new (&m_rset_root) Ed_row(m_current_row, m_column_count);
-  m_current_row = nullptr;
-  return false;
-}
-
-bool Protocol_local::send_field_metadata(Send_field *field,
-                                         const CHARSET_INFO *cs) {
-  store_string(field->col_name, strlen(field->col_name), cs);
-  return false;
-}
-
-bool Protocol_local::get_compression() { return false; }
-
-char *Protocol_local::get_compression_algorithm() { return nullptr; }
-
-uint Protocol_local::get_compression_level() { return 0; }
-
-int Protocol_local::get_command(COM_DATA *, enum_server_command *) {
-  return -1;
 }

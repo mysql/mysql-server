@@ -65,4 +65,17 @@ void sp_cache_flush_obsolete(sp_cache **cp, sp_head **sp);
 int64 sp_cache_version();
 void sp_cache_enforce_limit(sp_cache *cp, ulong upper_limit_for_elements);
 
+/**
+ * @brief Check if the sp_cache contains the specified stored program.
+ *
+ * @note If the sp is part of a recursion, check if the first instance is part
+ * of the sp_cache
+ *
+ * @param[in] cp - the sp_cache that is to be checked.
+ * @param[in] sp - the stored program that needs to be part of that cache.
+ * @return true if the element is in the cache.
+ * @return false if not.
+ */
+bool sp_cache_has(sp_cache *cp, sp_head *sp);
+
 #endif /* _SP_CACHE_H_ */

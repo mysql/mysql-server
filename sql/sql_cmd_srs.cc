@@ -40,8 +40,8 @@
 #include "sql/lock.h"             // acquire_shared_global...
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_class.h"        // THD
-#include "sql/sql_prepare.h"      // Ed_connection
 #include "sql/srs_fetcher.h"
+#include "sql/statement/ed_connection.h"  // Ed_connection
 #include "sql/strfunc.h"
 #include "sql/thd_raii.h"  // Disable_autocommit_guard
 #include "sql/transaction.h"

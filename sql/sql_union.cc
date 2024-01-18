@@ -1793,6 +1793,9 @@ bool Query_expression::ExecuteIteratorQuery(THD *thd) {
         return true;
       }
       thd->get_stmt_da()->inc_current_row_for_condition();
+
+      DBUG_EXECUTE_IF("simulate_partial_result_set_scenario",
+                      my_error(ER_UNKNOWN_ERROR, MYF(0)););
     }
 
     // NOTE: join_cleanup must be done before we send EOF, so that we get the

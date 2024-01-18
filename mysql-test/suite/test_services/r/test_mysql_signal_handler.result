@@ -1,0 +1,3 @@
+INSTALL COMPONENT "file://component_test_mysql_signal_handler";
+Pattern "Signal from the test_mysql_signal_handler component" found
+UNINSTALL COMPONENT "file://component_test_mysql_signal_handler";

@@ -79,6 +79,8 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   event_tracking_information.cc
   mysql_stored_program_imp.cc
   mysql_simple_error_log_imp.cc
+  mysql_statement_service_imp.cc
+  mysql_signal_handler_imp.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

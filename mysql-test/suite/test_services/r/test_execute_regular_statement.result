@@ -1,0 +1,124 @@
+INSTALL COMPONENT "file://component_test_execute_regular_statement";
+SELECT test_execute_regular_statement("SHOW DATABASES");
+ERROR HY000: Executing SQL statement using Regular Statement Handle Interface is not allowed within stored function, trigger or loadable function (UDF).
+SET DEBUG='+d,skip_statement_execution_within_UDF_check';
+SELECT test_execute_regular_statement("SHOW DATABASES");
+test_execute_regular_statement("SHOW DATABASES")
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+
+CREATE DATABASE mle_db;
+USE mle_db;
+CREATE TABLE my_table (col_a VARCHAR(10), col_b VARCHAR(10), col_c INT, col_d DOUBLE);
+insert into my_table (col_a, col_b, col_c, col_d) values ("row_1_a", "row_1_b", 11, 1.1);
+insert into my_table (col_a, col_b, col_c, col_d) values ("row_2_a", "row_2_b", 12, 1.2);
+SELECT * FROM mle_db.my_table;
+col_a	col_b	col_c	col_d
+row_1_a	row_1_b	11	1.1
+row_2_a	row_2_b	12	1.2
+SELECT test_execute_regular_statement("SELECT * FROM mle_db.my_table");
+test_execute_regular_statement("SELECT * FROM mle_db.my_table")
+col_a	col_b	col_c	col_d
+row_1_a	row_1_b	11	1.100000
+row_2_a	row_2_b	12	1.200000
+
+SELECT test_execute_regular_statement("INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ('row_3_a', 'row_3_b', 13, 1.3)");
+test_execute_regular_statement("INSERT INTO my_table (col_a, col_b, col_c, col_d) VALUES ('row_3_a', 'row_3_b', 13, 1.3)")
+Number of affected rows: 1
+Last insert id: 0
+SELECT * FROM mle_db.my_table;
+col_a	col_b	col_c	col_d
+row_1_a	row_1_b	11	1.1
+row_2_a	row_2_b	12	1.2
+row_3_a	row_3_b	13	1.3
+SELECT test_execute_regular_statement("SELECT * FROM mle_db.my_table");
+test_execute_regular_statement("SELECT * FROM mle_db.my_table")
+col_a	col_b	col_c	col_d
+row_1_a	row_1_b	11	1.100000
+row_2_a	row_2_b	12	1.200000
+row_3_a	row_3_b	13	1.300000
+
+SELECT DATABASE();
+DATABASE()
+mle_db
+SELECT test_execute_regular_statement("SELECT DATABASE()");
+test_execute_regular_statement("SELECT DATABASE()")
+DATABASE()
+mle_db
+
+SELECT test_execute_regular_statement("CREATE TABLE mle_db.my_table2 (id INT NOT NULL AUTO_INCREMENT, col_b VARCHAR(10), col_c INT, col_d DOUBLE, PRIMARY KEY(id));");
+test_execute_regular_statement("CREATE TABLE mle_db.my_table2 (id INT NOT NULL AUTO_INCREMENT, col_b VARCHAR(10), col_c INT, col_d DOUBLE, PRIMARY KEY(id));")
+Number of affected rows: 0
+Last insert id: 0
+SELECT test_execute_regular_statement("insert into my_table2 (col_b, col_c, col_d) values ('row_1_b', 11, 1.1);");
+test_execute_regular_statement("insert into my_table2 (col_b, col_c, col_d) values ('row_1_b', 11, 1.1);")
+Number of affected rows: 1
+Last insert id: 1
+SELECT test_execute_regular_statement("insert into my_table2 (col_b, col_c, col_d) values ('row_2_b', 12, 1.2);");
+test_execute_regular_statement("insert into my_table2 (col_b, col_c, col_d) values ('row_2_b', 12, 1.2);")
+Number of affected rows: 1
+Last insert id: 2
+SELECT test_execute_regular_statement("insert into my_table2 (col_b, col_c, col_d) values ('row_3_b', 13, 1.3);");
+test_execute_regular_statement("insert into my_table2 (col_b, col_c, col_d) values ('row_3_b', 13, 1.3);")
+Number of affected rows: 1
+Last insert id: 3
+SELECT * FROM mle_db.my_table2;
+id	col_b	col_c	col_d
+1	row_1_b	11	1.1
+2	row_2_b	12	1.2
+3	row_3_b	13	1.3
+CREATE PROCEDURE multiple_queries() 
+BEGIN
+SELECT test_execute_regular_statement("SELECT * FROM mle_db.my_table");
+SELECT test_execute_regular_statement("SELECT * FROM mle_db.my_table2");
+END$$
+CALL multiple_queries();
+test_execute_regular_statement("SELECT * FROM mle_db.my_table")
+col_a	col_b	col_c	col_d
+row_1_a	row_1_b	11	1.100000
+row_2_a	row_2_b	12	1.200000
+row_3_a	row_3_b	13	1.300000
+
+test_execute_regular_statement("SELECT * FROM mle_db.my_table2")
+id	col_b	col_c	col_d
+1	row_1_b	11	1.100000
+2	row_2_b	12	1.200000
+3	row_3_b	13	1.300000
+
+###################################### Set/get attribute tests ######################################
+SET SESSION DEBUG = '+d,attribute_set';
+SELECT test_execute_regular_statement("SELECT * FROM mle_db.my_table WHERE col_c = 12");
+test_execute_regular_statement("SELECT * FROM mle_db.my_table WHERE col_c = 12")
+NULL
+SET SESSION DEBUG = '-d,attribute_set';
+SET SESSION DEBUG = '+d,attribute_get';
+SELECT test_execute_regular_statement("SELECT * FROM mle_db.my_table WHERE col_c = 12");
+test_execute_regular_statement("SELECT * FROM mle_db.my_table WHERE col_c = 12")
+500
+col_a	col_b	col_c	col_d
+row_2_a	row_2_b	12	1.200000
+
+SET SESSION DEBUG = '-d,attribute_get';
+SELECT test_execute_regular_statement("DROP PROCEDURE multiple_queries;");
+test_execute_regular_statement("DROP PROCEDURE multiple_queries;")
+Number of affected rows: 0
+Last insert id: 0
+SELECT test_execute_regular_statement("DROP TABLE my_table;");
+test_execute_regular_statement("DROP TABLE my_table;")
+Number of affected rows: 0
+Last insert id: 0
+SELECT test_execute_regular_statement("DROP TABLE my_table2;");
+test_execute_regular_statement("DROP TABLE my_table2;")
+Number of affected rows: 0
+Last insert id: 0
+SELECT test_execute_regular_statement("DROP DATABASE mle_db;");
+test_execute_regular_statement("DROP DATABASE mle_db;")
+Number of affected rows: 0
+Last insert id: 0
+SET DEBUG='-d,skip_statement_execution_within_UDF_check';
+UNINSTALL COMPONENT "file://component_test_execute_regular_statement";

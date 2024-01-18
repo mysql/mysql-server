@@ -23,7 +23,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -55,7 +55,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION JAVASCRIPT(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE JAVASCRIPT
@@ -64,7 +64,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION JAVASCRIPT//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 JAVASCRIPT	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `JAVASCRIPT`(x INTEGER) RETURNS int
@@ -85,7 +85,7 @@ JAVASCRIPT	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT JAVASCRIPT(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION JAVASCRIPT//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE PYTHON
 AS $$
@@ -93,7 +93,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -114,7 +114,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	PYTHON	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE RUBY
 AS $$
@@ -122,7 +122,7 @@ x-1
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -143,7 +143,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	RUBY	SQL
 x-1
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 # Test lower-case
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE javascript
@@ -152,7 +152,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -173,7 +173,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 # Test mixed-case
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE jAvaScRIpt
@@ -182,7 +182,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -203,7 +203,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 # Any valid identifier can be used for language name
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVA1
@@ -212,7 +212,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -233,7 +233,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVA1	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE $NOLANG
 AS $$
@@ -242,7 +242,7 @@ $$
 //
 Warnings:
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -263,7 +263,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	$NOLANG	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE $$JAVASCRIPT
@@ -281,7 +281,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -302,7 +302,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	123J	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE __
 AS $$
@@ -310,7 +310,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -331,7 +331,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	__	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE "JAVASCRIPT"
@@ -404,7 +404,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -425,7 +425,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 # Multiple languages in one clause is not allowed
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
@@ -446,7 +446,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -466,7 +466,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE	
@@ -476,7 +476,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -496,7 +496,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE	  	 JAVASCRIPT  DETERMINISTIC	
@@ -505,7 +505,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -526,7 +526,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE
@@ -538,7 +538,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -558,7 +558,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 The language will here be interpreted to be BEGIN
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
@@ -599,7 +599,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -621,7 +621,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC NO SQL
 LANGUAGE SQL
@@ -637,7 +637,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -658,7 +658,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC READS SQL DATA
 LANGUAGE JAVASCRIPT
@@ -667,7 +667,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -689,7 +689,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
 MODIFIES SQL DATA
@@ -698,7 +698,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -720,7 +720,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL
 CONTAINS SQL
@@ -744,7 +744,7 @@ return x-1;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -764,7 +764,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 # This is not SQL
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
@@ -794,7 +794,7 @@ DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -820,13 +820,13 @@ WHERE routine_name = "bar" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP PROCEDURE bar//
 CREATE PROCEDURE JAVASCRIPT(a INTEGER) DETERMINISTIC
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure JAVASCRIPT//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 JAVASCRIPT	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `JAVASCRIPT`(a INTEGER)
@@ -843,12 +843,12 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 JAVASCRIPT	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL JAVASCRIPT(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure JAVASCRIPT//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE PYTHON
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -865,12 +865,12 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	PYTHON	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE RUBY
 AS $$ b = a $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -887,13 +887,13 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	RUBY	SQL	 b = a 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 # Test lower-case
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE javascript
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -910,13 +910,13 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 # Test mixed-case
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE jAvaScRIpt
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -933,13 +933,13 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 # Any valid identifier can be used for language name
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVA1
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -956,13 +956,13 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVA1	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE $NOLANG
 AS $$ let b = a; $$ //
 Warnings:
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -979,7 +979,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	$NOLANG	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE $$JAVASCRIPT
 AS $$ let b = a; $$ //
@@ -988,7 +988,7 @@ AS $$ let b = a; $$' at line 1
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE 123j
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1005,12 +1005,12 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	123J	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE __
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1027,7 +1027,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	__	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE "JAVASCRIPT"
 AS $$ let b = a; $$ //
@@ -1064,7 +1064,7 @@ CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1081,7 +1081,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 # Multiple languages in one clause is not allowed
 CREATE PROCEDURE bar(a INTEGER)
@@ -1094,7 +1094,7 @@ LANGUAGE
 JAVASCRIPT
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1110,14 +1110,14 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE	
 JAVASCRIPT
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1133,13 +1133,13 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE	  	 JAVASCRIPT  DETERMINISTIC	
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1156,7 +1156,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE
@@ -1165,7 +1165,7 @@ JAVASCRIPT
 -- Comment
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1181,7 +1181,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 The language will here be interpreted to be BEGIN
 CREATE PROCEDURE bar(a INTEGER)
@@ -1201,7 +1201,7 @@ CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC NO SQL
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1219,7 +1219,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC NO SQL
 LANGUAGE SQL
@@ -1232,7 +1232,7 @@ CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 CONTAINS SQL
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1249,13 +1249,13 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC READS SQL DATA
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1273,13 +1273,13 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 MODIFIES SQL DATA
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1297,7 +1297,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE SQL
 CONTAINS SQL
@@ -1317,7 +1317,7 @@ DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER) NOT DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -1333,7 +1333,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 # This is not SQL
 CREATE PROCEDURE bar(a INTEGER)
@@ -1389,7 +1389,7 @@ AS $$
 return x-1;
 $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -1410,13 +1410,13 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
 return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS 'return x-1;' //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -1433,13 +1433,13 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS "return x-1;" //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -1456,7 +1456,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1464,7 +1464,7 @@ AS '
   return x-1;
 ' //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -1485,7 +1485,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
   return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1494,7 +1494,7 @@ AS
    return x-1;
 " //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -1515,7 +1515,7 @@ foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL
    return x-1;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 Routine body must come after characteristics
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
@@ -1536,7 +1536,7 @@ AS
 '
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1557,7 +1557,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
   return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1567,7 +1567,7 @@ return "$$" + a + "$$";
 $code$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1588,7 +1588,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1598,7 +1598,7 @@ return "$$" + a + "$$";
 $coDE$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1619,7 +1619,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1629,7 +1629,7 @@ return "$$" + a + "$$";
 $CODE$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1650,7 +1650,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1660,7 +1660,7 @@ return "$$" + a + "$$";
 $tag$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1681,7 +1681,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1691,7 +1691,7 @@ return "$$" + a + "$$";
 $TAG$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1712,7 +1712,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1722,7 +1722,7 @@ return "$$" + a + "$$";
 $NULL$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1743,7 +1743,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1753,7 +1753,7 @@ return "$$" + a + "$$";
 $abdc_1234$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1774,7 +1774,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1784,7 +1784,7 @@ return "$$" + a + "$$";
 $_a$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1805,7 +1805,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1815,7 +1815,7 @@ return "$$" + a + "$$";
 $_$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1836,7 +1836,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1846,7 +1846,7 @@ return "$$" + a + "$$";
 $0$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1867,7 +1867,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1877,7 +1877,7 @@ return "$$" + a + "$$";
 $100$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1898,7 +1898,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1908,7 +1908,7 @@ return "$$" + a + "$$";
 $12345678901234$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1929,7 +1929,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1939,7 +1939,7 @@ return "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1960,7 +1960,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1970,7 +1970,7 @@ return "$$" + a + "$$";
 $¡$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -1991,7 +1991,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2001,7 +2001,7 @@ return "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2022,7 +2022,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$$" + a + "$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2033,7 +2033,7 @@ return $x + $y$ + a;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2058,7 +2058,7 @@ const $y$ = 4;
 return $x + $y$ + a;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2070,7 +2070,7 @@ return x$$ + $y$$z + a;
 $code$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2095,7 +2095,7 @@ const $y$$z = 4;
 return x$$ + $y$$z + a;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2298,7 +2298,7 @@ return "∂" + a + "$∂$";
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2319,7 +2319,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "∂" + a + "$∂$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2328,7 +2328,7 @@ return "∂" + a + "$∂$$";
 $code$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2349,7 +2349,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "∂" + a + "$∂$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2358,7 +2358,7 @@ return "∂" + a + "$∂$$∂";
 $code$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2379,7 +2379,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "∂" + a + "$∂$$∂";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2388,7 +2388,7 @@ return "∂" + a + "$∂$";
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2409,7 +2409,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	∂
 return "∂" + a + "$∂$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 Test multi-byte characters in quote tags
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
@@ -2419,7 +2419,7 @@ return "∂" + a + "∂$";
 $∂$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2440,7 +2440,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "∂" + a + "∂$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2449,7 +2449,7 @@ return "∂" + a + "$∂$$";
 $co∂e$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2470,7 +2470,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "∂" + a + "$∂$$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2481,7 +2481,7 @@ $😀$
 Warnings:
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2502,7 +2502,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "?$?" + a + "?$?$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2513,7 +2513,7 @@ $😀😔$
 Warnings:
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2534,7 +2534,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "?$?" + a + "?$?$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2545,7 +2545,7 @@ $x😀$
 Warnings:
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2566,7 +2566,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$x??" + a + "$x??$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2577,7 +2577,7 @@ $😀x$
 Warnings:
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2598,7 +2598,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$?x?$" + a + "$??x$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2609,7 +2609,7 @@ $x😀y$
 Warnings:
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2630,7 +2630,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "$x??y$" + a + "$x?y?$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2641,7 +2641,7 @@ $x😀y😔$
 Warnings:
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2662,7 +2662,7 @@ foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL
 return "??$" + a + "?$?$";
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2696,7 +2696,7 @@ CREATE FUNCTION foo(x INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$ rtrn "$$" + x + "$foo$"; $code$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS varchar(20) CHARSET utf8mb4
@@ -2713,7 +2713,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	 rtrn "$$" + x + "$foo$"; 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2724,7 +2724,7 @@ return $x + $y;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE FUNCTION foo//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
@@ -2749,7 +2749,7 @@ const $y = 1
 return $x + $y;
 
 SELECT foo(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP FUNCTION foo//
 # Multiple occurrences of routine body is not allowed
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
@@ -2785,7 +2785,7 @@ AS $$
 let b = a;
 $$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -2806,13 +2806,13 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = a;
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS 'let b = a;' //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -2829,13 +2829,13 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS "let b = a;" //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -2852,7 +2852,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2860,7 +2860,7 @@ AS '
   let b = a;
 ' //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -2881,7 +2881,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
   let b = a;
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2890,7 +2890,7 @@ AS
    let b = a;
 " //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -2911,7 +2911,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
    let b = a;
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 Routine body must come after characteristics
 CREATE PROCEDURE bar(a INTEGER)
@@ -2932,7 +2932,7 @@ AS
 '
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -2953,7 +2953,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
   let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2963,7 +2963,7 @@ let b = "$$" + a + "$$";
 $code$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -2984,7 +2984,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2994,7 +2994,7 @@ let b = "$$" + a + "$$";
 $coDE$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3015,7 +3015,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3025,7 +3025,7 @@ let b = "$$" + a + "$$";
 $CODE$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3046,7 +3046,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3056,7 +3056,7 @@ let b = "$$" + a + "$$";
 $tag$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3077,7 +3077,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3087,7 +3087,7 @@ let b = "$$" + a + "$$";
 $TAG$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3108,7 +3108,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3118,7 +3118,7 @@ let b = "$$" + a + "$$";
 $NULL$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3139,7 +3139,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3149,7 +3149,7 @@ let b = "$$" + a + "$$";
 $abdc_1234$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3170,7 +3170,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3180,7 +3180,7 @@ let b = "$$" + a + "$$";
 $_a$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3201,7 +3201,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3211,7 +3211,7 @@ let b = "$$" + a + "$$";
 $_$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3232,7 +3232,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3242,7 +3242,7 @@ let b = "$$" + a + "$$";
 $0$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3263,7 +3263,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3273,7 +3273,7 @@ let b = "$$" + a + "$$";
 $100$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3294,7 +3294,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3304,7 +3304,7 @@ let b = "$$" + a + "$$";
 $12345678901234$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3325,7 +3325,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3335,7 +3335,7 @@ let b = "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3356,7 +3356,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3366,7 +3366,7 @@ let b = "$$" + a + "$$";
 $¡$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3387,7 +3387,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3397,7 +3397,7 @@ let b = "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3418,7 +3418,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$$" + a + "$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3429,7 +3429,7 @@ let b = $x + $y$ + a;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3454,7 +3454,7 @@ const $y$ = 4;
 let b = $x + $y$ + a;
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3466,7 +3466,7 @@ let b = x$$ + $y$$z + a;
 $code$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3491,7 +3491,7 @@ const $y$$z = 4;
 let b = x$$ + $y$$z + a;
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3694,7 +3694,7 @@ let b = "∂" + a + "$∂$";
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3715,7 +3715,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "∂" + a + "$∂$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3724,7 +3724,7 @@ let b = "∂" + a + "$∂$$";
 $code$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3745,7 +3745,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "∂" + a + "$∂$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3754,7 +3754,7 @@ let b = "∂" + a + "$∂$$∂";
 $code$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3775,7 +3775,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "∂" + a + "$∂$$∂";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3784,7 +3784,7 @@ let b = "∂" + a + "$∂$";
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3805,7 +3805,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	∂
 let b = "∂" + a + "$∂$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 Test multi-byte characters in quote tags
 CREATE PROCEDURE bar(a INTEGER)
@@ -3815,7 +3815,7 @@ let b = "∂" + a + "∂$";
 $∂$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3836,7 +3836,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "∂" + a + "∂$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3845,7 +3845,7 @@ let b = "∂" + a + "$∂$$";
 $co∂e$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3866,7 +3866,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "∂" + a + "$∂$$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3877,7 +3877,7 @@ $😀$
 Warnings:
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3898,7 +3898,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "?$?" + a + "?$?$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3909,7 +3909,7 @@ $😀😔$
 Warnings:
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3930,7 +3930,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "?$?" + a + "?$?$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3941,7 +3941,7 @@ $x😀$
 Warnings:
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3962,7 +3962,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$x??" + a + "$x??$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -3973,7 +3973,7 @@ $😀x$
 Warnings:
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -3994,7 +3994,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$?x?$" + a + "$??x$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -4005,7 +4005,7 @@ $x😀y$
 Warnings:
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -4026,7 +4026,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "$x??y$" + a + "$x?y?$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -4037,7 +4037,7 @@ $x😀y😔$
 Warnings:
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
 Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
@@ -4058,7 +4058,7 @@ bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL
 let b = "??$" + a + "?$?$";
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -4092,7 +4092,7 @@ CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$ let b := "$$" + x + "$foo$"; $code$ //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
@@ -4109,7 +4109,7 @@ WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
 bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b := "$$" + x + "$foo$"; 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -4120,7 +4120,7 @@ let b = $x + $y;
 $$
 //
 Warnings:
-Warning	6001	No Language component available
+Warning	6001	Language component: Not available.
 SHOW CREATE procedure bar//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
@@ -4145,7 +4145,7 @@ const $y = 1
 let b = $x + $y;
 
 CALL bar(2)//
-ERROR HY000: No Language component available
+ERROR HY000: Language component: Not available.
 DROP procedure bar//
 # Multiple occurrences of routine body is not allowed
 CREATE PROCEDURE bar(a INTEGER)

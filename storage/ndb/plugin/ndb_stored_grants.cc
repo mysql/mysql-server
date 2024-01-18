@@ -34,7 +34,7 @@
 #include "sql/auth/acl_change_notification.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_prepare.h"
+#include "sql/statement/ed_connection.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_mysql_services.h"

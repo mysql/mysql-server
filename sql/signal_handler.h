@@ -23,6 +23,9 @@
 #ifndef SIGNAL_HANDLER_INCLUDED
 #define SIGNAL_HANDLER_INCLUDED
 
+#include <mysql/components/services/mysql_signal_handler.h>
+#include <atomic>
+
 #if defined(_WIN32)
 struct siginfo_t;
 #else
@@ -31,5 +34,7 @@ struct siginfo_t;
 
 using sa_sigaction_handler = void(int, siginfo_t *, void *);
 extern sa_sigaction_handler handle_fatal_signal;
+
+extern std::atomic<my_signal_handler_callback_t> g_fatal_callback;
 
 #endif  // SIGNAL_HANDLER_INCLUDED

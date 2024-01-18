@@ -40,9 +40,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/mysqld.h"
 #include "sql/sql_backup_lock.h"
 #include "sql/sql_class.h"
-#include "sql/sql_prepare.h"
 #include "sql/sql_table.h"
 #include "sql/sql_thd_internal_api.h"
+#include "sql/statement/ed_connection.h"
 #include "sql/strfunc.h"
 
 #include "dict0dd.h"

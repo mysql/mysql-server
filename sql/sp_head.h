@@ -955,11 +955,30 @@ class sp_head {
   /// Flags of LEX::enum_binlog_stmt_unsafe.
   uint32 unsafe_flags;
 
- public:
+ private:
   /**
     language component related state of this sp.
    */
   external_program_handle m_language_stored_program;
+
+ public:
+  /**
+   * @brief Get the external program handle object
+   *
+   * @return external_program_handle
+   */
+  external_program_handle get_external_program_handle();
+
+  /**
+   * @brief Set the external program handle object
+   *
+   * @param sp The new external program handle object.
+   *           Use nullptr to unset the current one.
+   *
+   * @return true on errors
+   * @return false on success
+   */
+  bool set_external_program_handle(external_program_handle sp);
 
   /**
      Initialize and parse an external routine
@@ -1004,6 +1023,15 @@ class sp_head {
     @return Error status.
   */
   bool execute_external_routine(THD *thd);
+
+  /**
+    Core function for executing the external routine.
+
+    @param thd                  Thread context.
+
+    @return Error status.
+  */
+  bool execute_external_routine_core(THD *thd);
 
   /**
     Perform a forward flow analysis in the generated code.

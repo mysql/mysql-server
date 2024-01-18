@@ -191,8 +191,6 @@ bool Sql_cmd_call::execute_inner(THD *thd) {
     return true;
   }
 
-  // bits to be cleared in thd->server_status
-  uint bits_to_be_cleared = 0;
   /*
     Check that the stored procedure doesn't contain Dynamic SQL and doesn't
     return result sets: such stored procedures can't be called from
@@ -209,17 +207,17 @@ bool Sql_cmd_call::execute_inner(THD *thd) {
           proc_name->m_db.str, proc_name->m_name.str, nullptr))
     return true;
 
+  /*
+    If sp_head::MULTI_RESULTS is set, then set SERVER_MORE_RESULTS_EXISTS if
+    not set already and remember that it should be cleared.
+  */
+  uint bits_to_be_cleared = (~thd->server_status & SERVER_MORE_RESULTS_EXISTS);
   if (sp->m_flags & sp_head::MULTI_RESULTS) {
     if (!thd->get_protocol()->has_client_capability(CLIENT_MULTI_RESULTS)) {
       // Client does not support multiple result sets
       my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
       return true;
     }
-    /*
-      If SERVER_MORE_RESULTS_EXISTS is not set,
-      then remember that it should be cleared
-    */
-    bits_to_be_cleared = (~thd->server_status & SERVER_MORE_RESULTS_EXISTS);
     thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
   }
 

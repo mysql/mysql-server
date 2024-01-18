@@ -5028,11 +5028,6 @@ sp_proc_stmt_statement:
             sp_head *sp= lex->sphead;
 
             sp->m_flags|= sp_get_flags_for_command(lex);
-            if (lex->sql_command == SQLCOM_CHANGE_DB)
-            { /* "USE db" doesn't work in a procedure */
-              my_error(ER_SP_BADSTATEMENT, MYF(0), "USE");
-              MYSQL_YYABORT;
-            }
 
             // Mark statement as belonging to a stored procedure:
             if (lex->m_sql_cmd != nullptr)
@@ -14680,6 +14675,10 @@ use:
           USE_SYM ident
           {
             LEX *lex=Lex;
+            if (lex->sphead) {
+              my_error(ER_SP_BADSTATEMENT, MYF(0), "USE");
+              MYSQL_YYABORT;
+            }
             lex->sql_command=SQLCOM_CHANGE_DB;
             lex->query_block->db= $2.str;
           }

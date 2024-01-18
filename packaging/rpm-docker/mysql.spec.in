@@ -276,6 +276,9 @@ for p in \
          component_test_audit_api_message.so \
          component_test_backup_lock_service.so \
          component_test_component_sys_var_service.so \
+         component_test_execute_prepared_statement.so \
+         component_test_execute_regular_statement.so \
+         component_test_mysql_signal_handler.so \
          component_test_host_application_signal.so \
          component_test_mysql_current_thread_reader.so \
          component_test_mysql_runtime_error.so \

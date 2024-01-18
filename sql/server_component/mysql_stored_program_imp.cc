@@ -21,10 +21,13 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql_stored_program_imp.h"
-#include <cstring>                                               // strcmp
+#include <cstring>    // strcmp
+#include "my_time.h"  // check_datetime_range
 #include "mysql/components/services/bits/stored_program_bits.h"  // stored_program_argument_type
 #include "mysql_time.h"
+#include "sql/current_thd.h"
 #include "sql/item_timefunc.h"  // Item_time_literal
+#include "sql/sp_cache.h"       // sp_cache
 #include "sql/sp_head.h"        // sp_head
 #include "sql/sp_pcontext.h"    // sp_runtime_ctx
 #include "sql/sp_rcontext.h"
@@ -65,6 +68,8 @@ DEFINE_BOOL_METHOD(mysql_stored_program_metadata_query_imp::get,
   auto sp = reinterpret_cast<sp_head *>(sp_handle);
   if (strcmp("sp_name", key) == 0)
     *reinterpret_cast<MYSQL_LEX_STRING *>(value) = sp->m_name;
+  else if (strcmp("database_name", key) == 0)
+    *reinterpret_cast<MYSQL_LEX_STRING *>(value) = sp->m_db;
   else if (strcmp("qualified_name", key) == 0)
     *reinterpret_cast<MYSQL_LEX_STRING *>(value) = sp->m_qname;
   else if (strcmp("sp_language", key) == 0)
@@ -240,6 +245,8 @@ static int get_field_metadata_internal(Create_field &field, bool input,
     *reinterpret_cast<size_t *>(value) = field.key_length();
   else if (strcmp("charset", key) == 0)
     *reinterpret_cast<char const **>(value) = field.charset->csname;
+  else if (strcmp("decimals", key) == 0)
+    *reinterpret_cast<uint32_t *>(value) = field.decimals;
   else
     return MYSQL_FAILURE;
   return MYSQL_SUCCESS;
@@ -320,18 +327,14 @@ auto static set_variable(stored_program_runtime_context sp_runtime_context,
   if (index < 0) return MYSQL_FAILURE;
   auto runtime_context = reinterpret_cast<sp_rcontext *>(sp_runtime_context);
   if (runtime_context == nullptr) runtime_context = current_thd->sp_runtime_ctx;
-  if (runtime_context->set_variable(current_thd, index, &item))
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return runtime_context->set_variable(current_thd, index, &item);
 }
 
 auto static set_return_value(stored_program_runtime_context sp_runtime_context,
                              Item *item) -> int {
   auto runtime_context = reinterpret_cast<sp_rcontext *>(sp_runtime_context);
   if (runtime_context == nullptr) runtime_context = current_thd->sp_runtime_ctx;
-  if (runtime_context->set_return_value(current_thd, &item))
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return runtime_context->set_return_value(current_thd, &item);
 }
 
 auto static get_item(stored_program_runtime_context sp_runtime_context,
@@ -559,9 +562,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_year_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint16_t index, uint32_t year)) {
   Item *item = new Item_int(static_cast<long long>(year));
-  if (set_variable(sp_runtime_context, item, index) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_variable(sp_runtime_context, item, index);
 }
 
 /**
@@ -596,10 +597,9 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_time_imp::set,
                          negative,
                          MYSQL_TIMESTAMP_TIME,
                          {}};
+  if (check_datetime_range(time)) return MYSQL_FAILURE;
   auto item = new Item_time_literal(&time, decimals);
-  if (set_variable(sp_runtime_context, item, index) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_variable(sp_runtime_context, item, index);
 }
 
 /**
@@ -653,10 +653,9 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_date_imp::set,
                     uint32_t day)) {
   auto time = MYSQL_TIME{
       year, month, day, {}, {}, {}, {}, {}, MYSQL_TIMESTAMP_DATE, {}};
+  if (check_datetime_range(time)) return MYSQL_FAILURE;
   auto item = new Item_date_literal(&time);
-  if (set_variable(sp_runtime_context, item, index) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_variable(sp_runtime_context, item, index);
 }
 
 /**
@@ -705,11 +704,10 @@ static int runtime_argument_datetime_set(
                          negative,
                          ts_type,
                          static_cast<int>(time_zone_offset)};
+  if (check_datetime_range(time)) return MYSQL_FAILURE;
   auto item =
       new Item_datetime_literal(&time, decimals, current_thd->time_zone());
-  if (set_variable(sp_runtime_context, item, index) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_variable(sp_runtime_context, item, index);
 }
 
 /**
@@ -795,9 +793,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_null_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint16_t index)) {
   auto item = new Item_null{};
-  if (set_variable(sp_runtime_context, item, index) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_variable(sp_runtime_context, item, index);
 }
 
 /**
@@ -829,6 +825,13 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_string_imp::get,
   if (*is_null) return MYSQL_SUCCESS;
   auto temp = String{};
   auto string = item->val_str(&temp);
+  // HCS-8941: fix the bug when service called for non-string types: in case
+  // this string owns the buffer, the buffer will be freed when this function
+  // exits
+  if (string->is_alloced()) {
+    *value = nullptr;
+    return MYSQL_FAILURE;
+  }
   *value = string->c_ptr();
   *length = string->length();
   return MYSQL_SUCCESS;
@@ -852,9 +855,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_string_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint16_t index, char const *string, size_t length)) {
   auto item = new Item_string(string, length, &my_charset_bin);
-  if (set_variable(sp_runtime_context, item, index) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_variable(sp_runtime_context, item, index);
 }
 
 /**
@@ -900,9 +901,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_int_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint16_t index, int64_t value)) {
   Item *item = new Item_int(static_cast<long long>(value));
-  if (set_variable(sp_runtime_context, item, index) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_variable(sp_runtime_context, item, index);
 }
 
 /**
@@ -948,9 +947,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_unsigned_int_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint16_t index, uint64_t value)) {
   Item *item = new Item_int(static_cast<unsigned long long>(value));
-  if (set_variable(sp_runtime_context, item, index) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_variable(sp_runtime_context, item, index);
 }
 
 /**
@@ -996,9 +993,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_float_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint16_t index, double value)) {
   Item *item = new Item_float(value, DECIMAL_NOT_SPECIFIED);
-  if (set_variable(sp_runtime_context, item, index) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_variable(sp_runtime_context, item, index);
 }
 
 /**
@@ -1016,9 +1011,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_year_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint32_t year)) {
   Item *item = new Item_int(static_cast<long long>(year));
-  if (set_return_value(sp_runtime_context, item) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_return_value(sp_runtime_context, item);
 }
 
 /**
@@ -1051,10 +1044,9 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_time_imp::set,
                          negative,
                          MYSQL_TIMESTAMP_TIME,
                          {}};
+  if (check_datetime_range(time)) return MYSQL_FAILURE;
   auto item = new Item_time_literal(&time, decimals);
-  if (set_return_value(sp_runtime_context, item) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_return_value(sp_runtime_context, item);
 }
 
 /**
@@ -1075,10 +1067,9 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_date_imp::set,
                     uint32_t year, uint32_t month, uint32_t day)) {
   auto time = MYSQL_TIME{
       year, month, day, {}, {}, {}, {}, {}, MYSQL_TIMESTAMP_DATE, {}};
+  if (check_datetime_range(time)) return MYSQL_FAILURE;
   auto item = new Item_date_literal(&time);
-  if (set_return_value(sp_runtime_context, item) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_return_value(sp_runtime_context, item);
 }
 
 /**
@@ -1116,21 +1107,20 @@ static int return_value_datetime_set(
   } else {
     ts_type = enum_mysql_timestamp_type::MYSQL_TIMESTAMP_DATETIME;
   }
-  auto time = MYSQL_TIME{static_cast<unsigned int>(year),
-                         static_cast<unsigned int>(month),
-                         static_cast<unsigned int>(day),
-                         static_cast<unsigned int>(hour),
-                         static_cast<unsigned int>(minute),
-                         static_cast<unsigned int>(second),
+  auto time = MYSQL_TIME{year,
+                         month,
+                         day,
+                         hour,
+                         minute,
+                         second,
                          static_cast<unsigned long>(micro),
                          negative,
                          ts_type,
                          time_zone_offset};
+  if (check_datetime_range(time)) return MYSQL_FAILURE;
   auto *item =
       new Item_datetime_literal(&time, decimals, current_thd->time_zone());
-  if (set_return_value(sp_runtime_context, item) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_return_value(sp_runtime_context, item);
 }
 
 /**
@@ -1212,9 +1202,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_timestamp_imp::set,
 DEFINE_BOOL_METHOD(mysql_stored_program_return_value_null_imp::set,
                    (stored_program_runtime_context sp_runtime_context)) {
   auto item = new Item_null{};
-  if (set_return_value(sp_runtime_context, item) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_return_value(sp_runtime_context, item);
 }
 
 /**
@@ -1235,9 +1223,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_string_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     char const *string, size_t length)) {
   auto item = new Item_string(string, length, &my_charset_bin);
-  if (set_return_value(sp_runtime_context, item) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_return_value(sp_runtime_context, item);
 }
 
 /**
@@ -1257,9 +1243,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_int_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     int64_t value)) {
   Item *item = new Item_int(static_cast<long long>(value));
-  if (set_return_value(sp_runtime_context, item) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_return_value(sp_runtime_context, item);
 }
 
 /**
@@ -1279,9 +1263,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_unsigned_int_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint64_t value)) {
   Item *item = new Item_int(static_cast<unsigned long long>(value));
-  if (set_return_value(sp_runtime_context, item) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
-  return MYSQL_SUCCESS;
+  return set_return_value(sp_runtime_context, item);
 }
 
 /**
@@ -1301,7 +1283,43 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_float_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     double value)) {
   Item *item = new Item_float(value, DECIMAL_NOT_SPECIFIED);
-  if (set_return_value(sp_runtime_context, item) == MYSQL_FAILURE)
-    return MYSQL_FAILURE;
+  return set_return_value(sp_runtime_context, item);
+}
+
+/**
+ * @brief Ensure the sp_head is part of the current THD.
+ *
+ * @param sp - sp_head pointer.
+ * @return true if the sp_head is part of the current THD.
+ * @return false if not.
+ */
+static auto is_sp_in_current_thd(sp_head *sp) -> bool {
+  assert(sp);
+  if (!sp) return false;
+
+  if (sp_cache_has(current_thd->sp_func_cache, sp)) return true;
+  if (sp_cache_has(current_thd->sp_proc_cache, sp)) return true;
+
+  assert(false);
+  return false;
+}
+
+DEFINE_BOOL_METHOD(mysql_stored_program_external_program_handle_imp::get,
+                   (stored_program_handle sp_handle,
+                    external_program_handle *value)) {
+  assert(value);
+  if (!value) return MYSQL_FAILURE;
+
+  auto sp = reinterpret_cast<sp_head *>(sp_handle);
+  if (!is_sp_in_current_thd(sp)) return MYSQL_FAILURE;
+  *value = sp->get_external_program_handle();
   return MYSQL_SUCCESS;
+}
+
+DEFINE_BOOL_METHOD(mysql_stored_program_external_program_handle_imp::set,
+                   (stored_program_handle sp_handle,
+                    external_program_handle value)) {
+  auto sp = reinterpret_cast<sp_head *>(sp_handle);
+  if (!is_sp_in_current_thd(sp)) return MYSQL_FAILURE;
+  return sp->set_external_program_handle(value);
 }

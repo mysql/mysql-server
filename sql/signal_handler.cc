@@ -228,6 +228,8 @@ static void print_extra_signal_information(int sig, siginfo_t *info) {
 }
 #endif  // not _WIN32
 
+std::atomic<my_signal_handler_callback_t> g_fatal_callback;
+
 /**
   This function will try to dump relevant debugging information to stderr.
 
@@ -395,6 +397,9 @@ void handle_fatal_signal(int sig, siginfo_t *info [[maybe_unused]],
   if (!s_fatal_info_printed) {
     print_fatal_signal(sig, info);
   }
+
+  if (g_fatal_callback.load() != nullptr)
+    (*g_fatal_callback)(sig, info, ucontext);
 
   if ((test_flags & TEST_CORE_ON_SIGNAL) != 0) {
     my_safe_printf_stderr("%s", "Writing a core file\n");

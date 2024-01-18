@@ -1,0 +1,31 @@
+## need to skip test on asan build --> SIGSEGV is handled by ASAN/UBSAN
+--source include/not_ubsan.inc
+--source include/not_asan.inc
+
+## need to skip test on windows as it uses xargs and kill
+--source include/not_windows.inc
+
+INSTALL COMPONENT "file://component_test_mysql_signal_handler";
+
+--disable_query_log
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+--enable_query_log
+
+--let $_mysql_server_id= `SELECT @@server_id`
+
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_mysql_server_id.expect
+--exec echo "restart" > $_expect_file_name
+
+--let $safe_pid_file= $MYSQLTEST_VARDIR/run/mysqld.$_mysql_server_id.pid
+--file_exists $safe_pid_file
+--exec cat $safe_pid_file | xargs kill -SIGSEGV
+
+--source include/wait_until_disconnected.inc
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN=Signal from the test_mysql_signal_handler component
+--source include/search_pattern.inc
+
+--source include/wait_until_connected_again.inc
+
+UNINSTALL COMPONENT "file://component_test_mysql_signal_handler";

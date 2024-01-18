@@ -129,6 +129,7 @@ BEGIN_SERVICE_DEFINITION(mysql_thd_attributes)
     OK, session is killed, query is killed or timeout
   - time-zone name variable ("time_zone_name" of the returned
     mysql_cstring_with_length type)
+  - Query execution status ("da_status" of the returned uint16 type).
 
   @param      thd           Session THD object.
   @param      name          Name of the attribute to be set.

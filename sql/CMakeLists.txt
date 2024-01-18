@@ -500,6 +500,12 @@ SET(SQL_SHARED_SOURCES
   resourcegroups/platform/thread_attrs_api_common.cc
   resourcegroups/resource_group_mgr.cc
   resourcegroups/resource_group_sql_cmd.cc
+  statement/ed_connection.cc
+  statement/protocol_local.cc
+  statement/protocol_local_v2.cc
+  statement/statement.cc
+  statement/statement_runnable.cc
+  statement/utils.cc
   rpl_group_replication.cc
   rpl_transaction_ctx.cc
   rpl_transaction_write_set_ctx.cc
