@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -115,21 +115,21 @@ a	b
 SELECT * FROM t2;
 a
 2
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
 call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column [012] type mismatch.* Error_code: MY-001535");
 call mtr.add_suppression("Replica SQL.*Column [0-9] of table .test.t[0-9]. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 INSERT INTO t9 VALUES (5);
 INSERT INTO t5 VALUES (5,10,25);
-include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 INSERT INTO t9 VALUES (6);
 INSERT INTO t6 VALUES (6,12,36);
-include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 INSERT INTO t9 VALUES (6);
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 INSERT INTO t7 VALUES (1),(2),(3);
 INSERT INTO t8 VALUES (1),(2),(3);
 SELECT * FROM t7 ORDER BY a;
@@ -184,4 +184,4 @@ a	b	x	y	z
 **** Cleanup ****
 DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
 DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t7,t8,t9;
-include/rpl_end.inc
+include/rpl/deinit.inc

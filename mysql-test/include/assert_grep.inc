@@ -135,7 +135,7 @@ EOF
 --let $_ag_outcome= `SELECT LOAD_FILE('$_AG_OUT')`
 if ($_ag_outcome != 'assert_grep.inc ok')
 {
-  --source include/show_rpl_debug_info.inc
+  --source include/rpl/debug/show_debug_info.inc
   --echo include/assert_grep.inc failed!
   --echo assert_text: '$assert_text'
   --echo assert_file: '$assert_file'

@@ -3,10 +3,10 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/only_mts_replica_parallel_type_logical_clock.inc
---source include/only_replica_preserve_commit_order.inc
---source include/master-slave.inc
+--source include/have_replica_parallel_workers.inc
+--source include/have_replica_parallel_type_logical_clock.inc
+--source include/have_replica_preserve_commit_order.inc
+--source include/rpl/init_source_replica.inc
 
 CALL mtr.add_suppression(".*replica coordinator and worker threads are stopped.*");
 CALL mtr.add_suppression("Could not execute Write_rows event on table test.*");
@@ -23,13 +23,13 @@ CREATE TABLE t_w2 (c1 int PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t_w3 (c1 int PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t_w4 (c1 int PRIMARY KEY) ENGINE = InnoDB;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Conspire to have an error in the second worker.
 INSERT INTO t_w2 VALUES(1);
 # Block all workers to apply INSERT statements
 LOCK TABLES t_w1 WRITE, t_w2 WRITE, t_w3 WRITE, t_w4 WRITE;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 BEGIN;
 INSERT INTO t_w1 VALUES(1);
@@ -53,8 +53,8 @@ COMMIT;
 
 INSERT INTO t_w4 VALUES(1);
 SET GLOBAL debug = @save_debug;
---source include/save_master_pos.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/save_server_position.inc
+--source include/rpl/connection_replica.inc
 
 # Wait until all workers are blocked by LOCK TABLE t1 WRITE. It implies all
 # transactions are registered into the order commit queue.
@@ -64,7 +64,7 @@ let $wait_condition= SELECT count(*) = $number_workers FROM INFORMATION_SCHEMA.P
 
 UNLOCK TABLES;
 --let $slave_sql_errno=1062,3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --let $assert_text='Rows have been inserted to table t_w1'
 --let $assert_cond= ["SELECT COUNT(*) as count FROM t_w1", count, 1] = 5
@@ -84,19 +84,19 @@ UNLOCK TABLES;
 
 DELETE FROM t_w2 WHERE c1 = 1;
 
---source include/start_slave_sql.inc
---source include/sync_slave_sql.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/sync_with_saved.inc
 
 --let $rpl_diff_statement= SELECT * FROM t_w1
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 --let $rpl_diff_statement= SELECT * FROM t_w2
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 --let $rpl_diff_statement= SELECT * FROM t_w3
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 --let $rpl_diff_statement= SELECT * FROM t_w4
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t_w1, t_w2, t_w3, t_w4;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

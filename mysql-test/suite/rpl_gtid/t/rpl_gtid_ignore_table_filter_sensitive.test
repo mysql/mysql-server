@@ -9,5 +9,5 @@
 #in case sensitive filesystem. Using 'lower_case_table_names=0' in case of
 #insensitive filsystem is not allowed.
 -- source include/have_case_sensitive_file_system.inc
---source extra/rpl_tests/rpl_ignore_table_filter_sensitive.inc
+--source common/rpl/ignore_table_filter_sensitive.inc
 

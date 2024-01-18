@@ -15,7 +15,7 @@
 #########################################################################
 
 # Start GR with two servers
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 
@@ -50,7 +50,7 @@ CALL insert_into_t1(0,10);
 SELECT f1();
 
 # Wait for the records to get synced to server2
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo
 --echo Check if server1 and server2 has same data in test.t1
 --let $diff_tables= server1:test.t1, server2:test.t1

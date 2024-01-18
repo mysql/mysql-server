@@ -28,14 +28,14 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
 INSERT INTO t1 VALUES (1);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo # 02. Enable debug point that will block transaction with consistency
 --echo #     BEFORE_AND_AFTER
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -53,7 +53,7 @@ SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
 --echo # 04. Wait for execution reach debug point
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
@@ -61,7 +61,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_wa
 --echo # 05. Execution change of mode to single primary with server2 as primary
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER_UUID
 --eval SELECT group_replication_switch_to_single_primary_mode("$server2_uuid");
@@ -70,7 +70,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_wa
 --echo # 06. Assert server2 is primary on single primary mode
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
@@ -83,7 +83,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo # 08. Reap pending transaction
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
@@ -91,7 +91,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo # 09. Clean up
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= group_replication_wait_on_observer_trans
 --source include/remove_debug_point.inc
@@ -99,7 +99,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 DROP TABLE test.t1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1

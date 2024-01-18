@@ -64,14 +64,14 @@ while ($tc != 3) {
   --let $initial_option = `SELECT IF(@@$option, "ON", "OFF")`
   --eval SET GLOBAL $option = ON
 
-  --source include/rpl_log_file_max_number.inc
+  --source include/rpl/log_file_max_number.inc
   --let $max_log_file_before_flush = $log_file_max_number
 
   # 2) Execute `FLUSH BINARY LOGS` and expect success.
   FLUSH BINARY LOGS;
 
   # 3) Assert that binary log rotated.
-  --source include/rpl_log_file_max_number.inc
+  --source include/rpl/log_file_max_number.inc
   --let $max_log_file_after_flush = $log_file_max_number
   --let $offset = 1
   --expr $expected_max_log_file_after_flush = $max_log_file_before_flush + $offset
@@ -101,7 +101,7 @@ while ($tc != 3) {
 --let $initial_option = `SELECT IF(@@$option, "ON", "OFF")`
 --eval SET GLOBAL $option = ON
 
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_before_flush = $log_file_max_number
 
 # 2) Execute DDL and expect success.
@@ -109,7 +109,7 @@ SET DEBUG = "d,simulate_max_binlog_size";
 DROP PROCEDURE IF EXISTS p1;
 
 # 3) Assert that binary log rotated.
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_after_flush = $log_file_max_number
 --let $offset = 1
 --expr $expected_max_log_file_after_flush = $max_log_file_before_flush + $offset

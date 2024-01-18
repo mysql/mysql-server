@@ -24,10 +24,10 @@ create table t1 (a int primary key) engine=ndb;
 
 --connection server2
 create table t2 (a int primary key) engine=ndb;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --connection server1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # alter table
 --connection server1
@@ -39,7 +39,7 @@ reset binary logs and gtids;
 alter table t2 add column (b int);
 
 --connection server1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # alter database
 --connection server1
@@ -52,7 +52,7 @@ ALTER DATABASE mysqltest CHARACTER SET latin1;
 
 
 --connection server1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 #--connection server2
 drop table mysqltest.t1;
@@ -70,7 +70,7 @@ drop database mysqltest;
 create table t1 (a int primary key) engine=ndb;
 
 --connection server2
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --connection server2
 drop table t2;
@@ -115,7 +115,7 @@ DROP LOGFILE GROUP lg1
 ENGINE =NDB;
 
 --connection server2
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 drop table t1;
 
@@ -136,7 +136,7 @@ create table t2 (a int key) engine=ndb;
 create table t3 (a int key) engine=ndb;
 rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
 --connection server2
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 drop table t1;
 drop table t2;
@@ -163,7 +163,7 @@ insert into t2 values(2);
 # prior to bug fix, data was missing for t2
 --connection server2
 drop table t2;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 ##########################
 # Bug#22135584: BINLOG CONTAINS SCHEMA EVENTS IN INCORRECT ORDER
@@ -224,7 +224,7 @@ enable_query_log;
 
 # Ensure that synchronization dummy reached log
 drop table dummy;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 ##########################
 # Bug#22842538:
@@ -361,14 +361,14 @@ AS SELECT * FROM t1;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM t2;
 --echo # Verify that the CREATE TABLE t2 query is not present in binlog
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --connection server2
 --echo # Table should not exist in participant also
 --error ER_NO_SUCH_TABLE
 SELECT * FROM t2;
 --echo # Verify that the CREATE TABLE t2 query is present in binlog
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #Cleanup
 DROP TABLE t1;

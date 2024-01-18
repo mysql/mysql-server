@@ -24,7 +24,7 @@
 ## configure server 1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $min MESSAGE_CACHE_SIZE_MIN
 --eval SET GLOBAL group_replication_message_cache_size = $min
@@ -38,7 +38,7 @@
 ## configure server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $min MESSAGE_CACHE_SIZE_MIN
 --eval SET GLOBAL group_replication_message_cache_size = $min
@@ -47,7 +47,7 @@
 ## generate some load
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
 
@@ -70,16 +70,16 @@ while ($i > 0) {
 --enable_query_log
 
 ## synchronize servers
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $diff_tables=server1:test.t1,server2:test.t1
 --source include/diff_tables.inc
 
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 ## now assert perfschema readings and cleanup
 
@@ -87,7 +87,7 @@ DROP TABLE t1;
 while ($s > 0) {
 
   --let $rpl_connection_name= server$s
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $count_alloc = `SELECT count_alloc FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/GCS_XCom::xcom_cache'`
   --let $curr_used = `SELECT current_number_of_bytes_used FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/GCS_XCom::xcom_cache'`

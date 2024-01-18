@@ -63,7 +63,7 @@ include/assert.inc ['Table t1 must have 1 entry.']
 ############################################################
 # 8. Clean up.
 [connection server1]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/assert.inc ['Table t1 must not have 1 entry.']
 SET SESSION sql_log_bin= 0;
 DROP TABLE t1;

@@ -117,22 +117,22 @@ drop table stream_marker;
 # Now let's trim the Binlogs on each server
 
 connection mysqld1;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 flush logs;
 connection mysqld2;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 flush logs;
 connection mysqld3;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 flush logs;
 connection mysqld4;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 flush logs;
 connection mysqld5;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 flush logs;
 connection mysqld6;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 flush logs;
 
 # Empty the table
@@ -307,7 +307,7 @@ drop table stream_marker;
 
 # Now let's trim the Binlogs on each server
 connection mysqld1;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 flush logs;
 
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
@@ -417,7 +417,7 @@ drop table stream_marker;
 --enable_query_log
 
 # Wait until the INSERT statement is confirmed to have made it into the current binary log
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 FLUSH LOGS;
 
 UPDATE t1 SET val = val + 1 WHERE charId = '';
@@ -431,7 +431,7 @@ drop table stream_marker;
 
 # Wait until the UPDATE statement is confirmed to have made it into the current binary log
 --let $wait_binlog_file=binlog.000002
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 FLUSH LOGS;
 
 DELETE FROM t1 WHERE charId = '';
@@ -445,7 +445,7 @@ drop table stream_marker;
 
 # Wait until the DELETE statement is confirmed to have made it into the current binary log
 --let $wait_binlog_file=binlog.000003
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 FLUSH LOGS;
 
 # Now let's re-apply the binlog from the UPDATE
@@ -482,7 +482,7 @@ drop table stream_marker;
 
 # Wait until all statements are confirmed to have made it into the current binary log
 --let $wait_binlog_file=binlog.000001
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 FLUSH LOGS;
 
 insert into t1 values (0, "zero"),(1,"one"),(2,"two"),(3,"three"),(4,"four"),(5,"five"),(6,"six"),(7,"seven"),(8,"eight"),(9,"nine");
@@ -504,7 +504,7 @@ drop table stream_marker;
 
 # Wait until all statements are confirmed to have made it into the current binary log
 --let $wait_binlog_file=binlog.000002
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 FLUSH LOGS;
 
 truncate t1;
@@ -520,7 +520,7 @@ drop table stream_marker;
 
 # Wait until all statements are confirmed to have made it into the current binary log
 --let $wait_binlog_file=binlog.000003
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 FLUSH LOGS;
 
 # Now let's re-apply the binlog INSERT,UPDATE,DELETE

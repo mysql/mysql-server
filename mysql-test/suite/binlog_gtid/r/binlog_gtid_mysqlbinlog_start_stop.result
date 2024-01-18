@@ -16,7 +16,7 @@ FLUSH LOGS;
 ==== Local ====
 
 ---- base64-output ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -80,7 +80,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- offset ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -143,7 +143,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -193,7 +193,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- stop-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -244,7 +244,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-position stop-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -281,7 +281,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -344,7 +344,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- stop-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -382,7 +382,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-datetime stop-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -421,7 +421,7 @@ DELIMITER ;
 ==== Local with 2 binlogs on command line ====
 
 ---- base64-output ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -513,7 +513,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- offset ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -604,7 +604,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -682,7 +682,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- stop-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -761,7 +761,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-position stop-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -826,7 +826,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -917,7 +917,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- stop-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -996,7 +996,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-datetime stop-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1076,7 +1076,7 @@ DELIMITER ;
 ==== Remote ====
 
 ---- base64-output ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1140,7 +1140,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- offset ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1203,7 +1203,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1252,7 +1252,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- stop-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1303,7 +1303,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-position stop-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1339,7 +1339,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1402,7 +1402,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- stop-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1440,7 +1440,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-datetime stop-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1479,7 +1479,7 @@ DELIMITER ;
 ==== Remote with 2 binlogs on command line ====
 
 ---- base64-output ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1571,7 +1571,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- offset ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1662,7 +1662,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1739,7 +1739,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- stop-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1818,7 +1818,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-position stop-position ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1882,7 +1882,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1973,7 +1973,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- stop-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -2052,7 +2052,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- start-datetime stop-datetime ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -2130,7 +2130,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 ---- to-last-log ----
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;

@@ -63,12 +63,12 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -78,7 +78,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # First, enable auto-rejoin
 SET GLOBAL group_replication_autorejoin_tries = 3;
@@ -143,7 +143,7 @@ while ($tries <= 3)
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $rpl_server_number = 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo ####
@@ -164,7 +164,7 @@ while ($tries <= 3)
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG = @debug_saved;
 --source include/gr_end_autorejoin_monitoring.inc

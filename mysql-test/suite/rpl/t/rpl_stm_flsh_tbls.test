@@ -6,4 +6,4 @@
 --source include/have_binlog_format_mixed_or_statement.inc
 
 let $rename_event_pos= 933;
--- source extra/rpl_tests/rpl_flsh_tbls.test
+-- source common/rpl/rpl_flsh_tbls.test

@@ -1,5 +1,5 @@
 SET @@GLOBAL.concurrent_insert = 0;
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -42,7 +42,7 @@ double	1.8446744073709552e19
 float	1.84467e19
 real	18446744073709552000.00
 decimal	18446744073709551615.00
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #### [ on slave ]
 SELECT * FROM t1;
 tinyint	127
@@ -95,7 +95,7 @@ double	1.8446744073709552e19
 float	1.84467e19
 real	18446744073709552000.00
 decimal	18446744073709551615.00
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #### [ on slave ]
 SELECT * FROM t1;
 tinyint	127
@@ -136,7 +136,7 @@ double	-9.223372036854776e18
 float	-9.22337e18
 real	-9223372036854776000.00
 decimal	-9223372036854775808.00
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #### [ on slave ]
 SELECT * FROM t1;
 tinyint	-128
@@ -189,7 +189,7 @@ double	-9.223372036854776e18
 float	-9.22337e18
 real	-9223372036854776000.00
 decimal	-9223372036854775808.00
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #### [ on slave ]
 SELECT * FROM t1;
 tinyint	-128
@@ -212,8 +212,8 @@ include/diff_tables.inc [master:t1,slave:t1]
 TRUNCATE t1;
 ## check: contents of both tables master's and slave's
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 ( c INT, PRIMARY KEY (c)) Engine=MyISAM;
 CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW SET @aux = -1 ;
@@ -221,12 +221,12 @@ SET @aux = 10294947273192243200;
 SET @aux1= @aux;
 INSERT INTO t1 VALUES (@aux) , (@aux1);
 ERROR 23000: Duplicate entry '2147483647' for key 't1.PRIMARY'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ## assertion: master and slave tables are in sync
 include/diff_tables.inc [master:t1,slave:t1]
 DROP TRIGGER tr1;
 DROP TABLE t1;
 SET sql_mode = default;
 SET @@GLOBAL.concurrent_insert = SAVED_CONCURRENT_INSERT;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

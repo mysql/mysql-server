@@ -2,7 +2,7 @@
 --source include/not_have_privilege_checks_user.inc
 
 # BUG#33862 completely failed DROP USER statement gets replicated
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #
 # remove all users will be used in the test
@@ -30,7 +30,7 @@ create user 'bar'@'fakehost';
 create user 'foo1'@'fakehost' IDENTIFIED WITH 'mysql_native_password' BY 'foo1',
   'foo2'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111',
   'foo3'@'fakehost';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select Host,User from mysql.user where Host='fakehost';
 --let $diff_tables= master:mysql.user, slave:mysql.user
 source include/diff_tables.inc;
@@ -45,7 +45,7 @@ rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost
 --error ER_CANNOT_USER
 rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'not_exist_user2'@'fakehost' to 'barfoo'@'fakehost';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select Host,User from mysql.user where Host='fakehost';
 
 #
@@ -60,7 +60,7 @@ drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost';
 --error ER_CANNOT_USER
 drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select Host,User from mysql.user where Host='fakehost';
 
 
@@ -71,7 +71,7 @@ select Host,User from mysql.user where Host='fakehost';
 connection master;
 CREATE USER must_change2@localhost IDENTIFIED BY 'aha';
 ALTER USER must_change2@localhost PASSWORD EXPIRE;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select Host,User,password_expired from mysql.user where user='must_change2';
 
 connect(must_change_con_slave,localhost,must_change2,aha,test,$SLAVE_MYPORT,);
@@ -89,7 +89,7 @@ SET PASSWORD = 'aha2';
 connection master;
 disconnect must_change_con_master;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 
 connect(must_change_con_slave,localhost,must_change2,aha2,test,$SLAVE_MYPORT,);
@@ -101,7 +101,7 @@ disconnect must_change_con_slave;
 
 DROP USER must_change2@localhost;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 
 --echo #
@@ -110,7 +110,7 @@ connection master;
 
 connection master;
 CREATE USER 9591_user@localhost IDENTIFIED WITH caching_sha2_password BY 'abcd' REQUIRE NONE;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT Host, User, Plugin FROM mysql.user WHERE user='9591_user';
 
 connect(9591_user_con_slave, localhost, 9591_user, abcd, test, $SLAVE_MYPORT,,SSL);
@@ -128,7 +128,7 @@ disconnect 9591_user_con_master;
 
 DROP USER 9591_user@localhost;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 
 --echo #
@@ -142,7 +142,7 @@ CREATE USER 11544_u1@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT;
 CREATE USER 11544_u2@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT OPTIONAL;
 CREATE USER 11544_u3@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT DEFAULT;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [connection slave]
 SELECT user, Password_require_current FROM mysql.user WHERE user like '11544_u%';
 
@@ -157,6 +157,6 @@ DROP USER 11544_u3@localhost;
 #
 connection master;
 --let $mask_user_password_events=1
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 --let $mask_user_password_events=0
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

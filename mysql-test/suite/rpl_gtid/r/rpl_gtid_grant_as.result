@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -28,29 +28,29 @@ GRANT INSERT, SELECT ON *.* TO u5 AS foo WITH ROLE r1;
 GRANT INSERT, SELECT ON *.* TO u6 AS foo WITH ROLE NONE;
 GRANT INSERT, SELECT ON *.* TO u7;
 [connection master]
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
 DROP USER foo;
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
 [connection slave]
-include/start_slave.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
+include/rpl/start_replica.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
@@ -59,7 +59,7 @@ DROP USER foo;
 SET @@global.partial_revokes = @save_partial_revokes_master;
 [connection slave]
 SET @@global.partial_revokes = @save_partial_revokes_slave;
-include/rpl_reset.inc
+include/rpl/reset.inc
 # Case 2: Without --partial_revokes
 [connection master]
 SET @save_partial_revokes_master = @@global.partial_revokes;
@@ -83,29 +83,29 @@ GRANT INSERT, SELECT ON *.* TO u5 AS foo WITH ROLE r1;
 GRANT INSERT, SELECT ON *.* TO u6 AS foo WITH ROLE NONE;
 GRANT INSERT, SELECT ON *.* TO u7;
 [connection master]
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
 DROP USER foo;
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
 [connection slave]
-include/start_slave.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
+include/rpl/start_replica.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
@@ -114,4 +114,4 @@ DROP USER foo;
 SET @@global.partial_revokes = @save_partial_revokes_master;
 [connection slave]
 SET @@global.partial_revokes = @save_partial_revokes_slave;
-include/rpl_end.inc
+include/rpl/deinit.inc

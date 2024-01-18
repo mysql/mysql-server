@@ -38,7 +38,7 @@
 --echo ############################################################
 --echo # 1. Deploy a 2 members group A in single primary mode.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 --let $group_a= $group_replication_group_name
@@ -54,7 +54,7 @@ if (!$have_xcom_stack){
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= `SELECT @@server_uuid`
 --disable_query_log
 if ($have_xcom_stack){
@@ -72,7 +72,7 @@ if (!$have_xcom_stack){
 --echo ############################################################
 --echo # 2. Deploy a 2 members group B in single primary mode.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server3_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
 --let $group_b= $group_replication_group_name
@@ -87,7 +87,7 @@ if (!$have_xcom_stack){
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 if ($have_xcom_stack){
 --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_3,localhost:$SERVER_GR_PORT_4"
@@ -104,7 +104,7 @@ if (!$have_xcom_stack){
 --echo # 3. Configure replica to manage the asynchronous connection
 --echo #    to groups A and B.
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1 $group_a GROUP_A
 --eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_a', '127.0.0.1', $SERVER_MYPORT_1, '', 90, 70);
@@ -133,12 +133,12 @@ if (!$have_xcom_stack){
 --echo ############################################################
 --echo # 4. Create and start the managed channel.
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
@@ -153,13 +153,13 @@ if (!$have_xcom_stack){
 --echo ############################################################
 --echo # 5. Kill server2, group A will block due no majority.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $server2_uuid
 --source include/gr_wait_for_member_state.inc
@@ -170,7 +170,7 @@ if (!$have_xcom_stack){
 --echo # 6. Since the group A has no majority, the replica will connect
 --echo #    to server3 on group B.
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo Wait until ch1 IO_THREAD is connected to server3
 --let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_connection_status WHERE channel_name="ch1" AND source_uuid="$server3_uuid"
 --source include/wait_condition.inc
@@ -188,7 +188,7 @@ if (!$have_xcom_stack){
 --echo # 7. Assert that group A information did not change, since it
 --echo #    lost the majority.
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover for server1'
 --let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE port=$SERVER_MYPORT_1 AND weight=90 AND managed_name="$group_a" , count, 1] = 1
@@ -203,13 +203,13 @@ if (!$have_xcom_stack){
 --echo ############################################################
 --echo # 8. Clean up.
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
@@ -254,7 +254,7 @@ call mtr.add_suppression("The group .* for the channel .* has been added, and so
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 SET SESSION sql_log_bin = 0;
@@ -263,18 +263,18 @@ call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave th
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --source include/wait_until_connected_again.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

@@ -129,7 +129,7 @@ SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="";
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
 
@@ -174,7 +174,7 @@ SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL";
 # connect a client and try to start the gr and then set the correct values to
 # gr_communications_debug_options and start the gr and validate
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Some debug options in '.*' are not valid.'");
@@ -201,7 +201,7 @@ SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="";
 
 # Connect to server1 and cleanup
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 --eval SET @@GLOBAL.group_replication_communication_debug_options= "$saved_gr_communication_debug_options_server1"

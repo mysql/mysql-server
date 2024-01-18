@@ -31,7 +31,7 @@
 ## 0.1. Store members uuids and set bin logs for required servers.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 set session sql_log_bin=0;
@@ -49,7 +49,7 @@ SET @debug_group_replication_local_address= @@GLOBAL.group_replication_local_add
 ## 1.   Restart server1 with group_name as server1_uuid
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $restart_parameters=restart:--group_replication_group_name=$member1_uuid --group_replication_bootstrap_group=ON --group_replication_local_address=$_group_replication_local_address --group_replication_start_on_boot=1
 --replace_result $member1_uuid MEMBER_UUID $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS
@@ -88,7 +88,7 @@ SET @debug_group_replication_local_address= @@GLOBAL.group_replication_local_add
 ## 2.2. Start server2 to confirm other servers can join group.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_bootstrap_group=OFF;
 --source include/start_group_replication.inc
 
@@ -125,5 +125,5 @@ SET @@GLOBAL.group_replication_local_address= @debug_group_replication_local_add
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc

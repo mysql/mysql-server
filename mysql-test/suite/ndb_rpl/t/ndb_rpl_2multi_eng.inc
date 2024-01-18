@@ -61,7 +61,7 @@ SHOW CREATE TABLE t1;
 --echo --- Perform basic operation on master ---
 --echo --- and ensure replicated correctly ---
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 # Okay lets see how it holds up to table changes
 --echo --- Check that simple Alter statements are replicated correctly --
@@ -82,7 +82,7 @@ SHOW CREATE TABLE t1;
 --echo --- Perform basic operation on master ---
 --echo --- and ensure replicated correctly --- 
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 --echo --- End test 1 Basic testing ---
 --echo --- Do Cleanup --
@@ -131,7 +131,7 @@ SHOW CREATE TABLE t1;
 --echo --- Perform basic operation on master ---
 --echo --- and ensure replicated correctly ---
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 --echo --- Check that simple Alter statements are replicated correctly ---
 
@@ -152,7 +152,7 @@ SHOW CREATE TABLE t1;
 --echo --- and ensure replicated correctly ---
 --enable_query_log
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 --echo --- End test 2 partition RANGE testing ---
 --echo --- Do Cleanup ---
@@ -203,7 +203,7 @@ SHOW CREATE TABLE t1;
 --echo --- Perform basic operation on master ---
 --echo --- and ensure replicated correctly ---
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 --echo --- Check that simple Alter statements are replicated correctly ---
 
@@ -222,7 +222,7 @@ SHOW CREATE TABLE t1;
 --echo --- Perform basic operation on master ---
 --echo --- and ensure replicated correctly ---
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 --echo --- End test 3 partition LIST testing ---
 --echo --- Do Cleanup --
@@ -264,7 +264,7 @@ SHOW CREATE TABLE t1;
 --echo --- Perform basic operation on master ---
 --echo --- and ensure replicated correctly ---
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 --echo --- Check that simple Alter statements are replicated correctly ---
 
@@ -284,7 +284,7 @@ SHOW CREATE TABLE t1;
 --echo --- Perform basic operation on master ---
 --echo --- and ensure replicated correctly ---
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 --echo --- End test 4 partition HASH testing ---
 --echo --- Do Cleanup --
@@ -329,7 +329,7 @@ SHOW CREATE TABLE t1;
 --echo --- Perform basic operation on master ---
 --echo --- and ensure replicated correctly ---
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 # Okay lets see how it holds up to table changes
 --echo --- Check that simple Alter statements are replicated correctly ---
@@ -349,7 +349,7 @@ SHOW CREATE TABLE t1;
 --echo --- Perform basic operation on master ---
 --echo --- and ensure replicated correctly ---
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 --echo --- Check that simple Alter statements are replicated correctly ---
 
@@ -368,7 +368,7 @@ SHOW CREATE TABLE t1;
 --echo --- Perform basic operation on master ---
 --echo --- and ensure replicated correctly ---
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 --echo --- End test 5 key partition testing ---
 --echo --- Do Cleanup ---

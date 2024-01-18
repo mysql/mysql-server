@@ -1,9 +1,9 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/install_semisync.inc
+include/rpl/install_semisync.inc
 [connection master]
 
 # 1. Execute one transaction with specified UUID and
@@ -27,7 +27,7 @@ INSERT INTO t1 VALUES (2);
 
 SET GTID_NEXT= "AUTOMATIC:aa";
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/assert.inc [Assert that semisync is still up and running on the source]
 [connection slave]
@@ -56,5 +56,5 @@ include/assert_grep.inc [Check that the number of generated GTIDs with a tag mat
 # Clean-up
 
 [connection master]
-include/uninstall_semisync.inc
-include/rpl_end.inc
+include/rpl/uninstall_semisync.inc
+include/rpl/deinit.inc

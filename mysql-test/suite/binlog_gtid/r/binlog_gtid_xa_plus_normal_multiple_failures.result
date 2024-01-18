@@ -1,4 +1,4 @@
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 ==== 0. Initialize ====
 include/suppress_messages.inc
 # Connection 1 suppresses message <.*Crash recovery finished in InnoDB engine.*>.
@@ -195,4 +195,4 @@ XA ROLLBACK '15';
 XA ROLLBACK '19';
 XA ROLLBACK '20';
 DROP TABLE t;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc

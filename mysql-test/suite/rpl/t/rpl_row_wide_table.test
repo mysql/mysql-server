@@ -8,7 +8,7 @@
 #            in corrupt binlog 
 ##################################################################
 
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/have_binlog_format_row.inc
 
 --disable_warnings
@@ -322,7 +322,7 @@ f300 int,
 
 insert into t300 set f1= 1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # prove that slave processed the create as well as the insert
@@ -336,4 +336,4 @@ DROP TABLE t300;
 
 # END of Test Case
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

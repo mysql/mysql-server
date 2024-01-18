@@ -30,7 +30,7 @@
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @exit_state_action_saved = @@GLOBAL.group_replication_exit_state_action;
 
 --echo

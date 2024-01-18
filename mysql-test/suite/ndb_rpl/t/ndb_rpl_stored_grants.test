@@ -21,7 +21,7 @@
 
 --source include/have_ndb.inc
 --let $rpl_topology= 1->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --connect(C, 127.0.0.1,root,,test,$MYSQL_C_PORT)
 
@@ -100,7 +100,7 @@ echo;
 echo [Test 1C: Server C binlog events];
 --echo  **   Expect log_replica_updates=0, and no binlog events
 SHOW VARIABLES LIKE 'log_replica_updates';
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 connect(D_root,127.0.0.1,root,,,$MYSQL_D_PORT,);
 connection D_root;
@@ -115,7 +115,7 @@ echo [Test 1D: Server D binlog events];
 # show_binlog_events.inc filters out for each of the 4 rows we
 # are interested in.
 --let $binlog_limit= 6,8
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 
 #
@@ -132,7 +132,7 @@ GRANT NDB_STORED_USER ON *.* to 'ndb_u2'@'localhost';
 GRANT SELECT ON t1 TO 'ndb_u2'@'localhost';
 INSERT INTO t1 VALUES(2,2);
 let $wait_timeout= 1;
---source include/wait_for_ndb_committed_to_binlog.inc
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
 
 connect(A_test_user,127.0.0.1,ndb_u2,pass2,auth_test_db,$MYSQL_A_PORT,);
 connection A_test_user;
@@ -318,4 +318,4 @@ drop user local_user_2@b;
 connection D_root;
 FLUSH BINARY LOGS;   # so that the test can be run with --repeat
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

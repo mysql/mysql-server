@@ -3,7 +3,7 @@
 # This test validates that the changes to AUTOEXTEND_SIZE
 # option are replicated to the secondary nodes successfully
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPAC
 WHERE NAME like '%t1%';
 NAME	FILE_SIZE	AUTOEXTEND_SIZE
 test/t1	4194304	4194304
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME like '%t1%';
 NAME	FILE_SIZE	AUTOEXTEND_SIZE
@@ -35,7 +35,7 @@ SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPAC
 WHERE NAME like '%t1%';
 NAME	FILE_SIZE	AUTOEXTEND_SIZE
 test/t1	4194304	0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME like '%t1%';
 NAME	FILE_SIZE	AUTOEXTEND_SIZE
@@ -44,13 +44,13 @@ DROP TABLE t1;
 # Scenario-3: Test that autoextend_size value for implicit tablespaces
 # is visible on slave nodes
 CREATE TABLESPACE myspace AUTOEXTEND_SIZE 4M;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME like '%myspace%';
 NAME	FILE_SIZE	AUTOEXTEND_SIZE
 myspace	4194304	4194304
 ALTER TABLESPACE myspace AUTOEXTEND_SIZE 0;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME like '%myspace%';
 NAME	FILE_SIZE	AUTOEXTEND_SIZE
@@ -86,7 +86,7 @@ test/tsubpart#p#p1#sp#p1sp2	4194304	4194304
 test/tsubpart#p#p2#sp#p2sp0	4194304	4194304
 test/tsubpart#p#p2#sp#p2sp1	4194304	4194304
 test/tsubpart#p#p2#sp#p2sp2	4194304	4194304
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME like '%tpart%';
 NAME	FILE_SIZE	AUTOEXTEND_SIZE
@@ -121,7 +121,7 @@ SUBPARTITIONS 3 (
 PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN (20),
 PARTITION p2 VALUES LESS THAN maxvalue);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME like '%tpart%';
 NAME	FILE_SIZE	AUTOEXTEND_SIZE
@@ -143,4 +143,4 @@ test/tsubpart#p#p2#sp#p2sp2	4194304	4194304
 DROP TABLE tpart;
 DROP TABLE tsubpart;
 DROP DATABASE test1;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -26,7 +26,7 @@ SELECT @@GLOBAL.group_replication_member_expel_timeout;
 # 3. In a loop, crash server 3 and it will restart
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
 # Restarting server 3
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 #
 # 4. Then check if server 3 is still in the group
 [connection server1]
@@ -54,7 +54,7 @@ include/start_group_replication.inc
 include/assert.inc ['Number of UNREACHEABLES seen must be 0']
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
 # Restarting server 3
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 #
 # 4. Then check if server 3 is still in the group
 [connection server1]
@@ -82,7 +82,7 @@ include/start_group_replication.inc
 include/assert.inc ['Number of UNREACHEABLES seen must be 0']
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
 # Restarting server 3
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 #
 # 4. Then check if server 3 is still in the group
 [connection server1]
@@ -113,7 +113,7 @@ include/assert.inc ['Number of UNREACHEABLES seen must be 0']
 # 9. Crash server 2 and repeat the whole process that was done for
 #    server 3
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server1]
 include/assert.inc ['Number of UNREACHEABLES seen must be 1']
 [connection server3]

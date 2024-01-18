@@ -87,7 +87,7 @@ CREATE TABLE t1(f0 INT NOT NULL PRIMARY KEY);
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server1
 --let $server1_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`

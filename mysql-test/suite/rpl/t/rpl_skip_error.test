@@ -24,7 +24,7 @@
 # BUG#39393: replica-skip-errors does not work when using ROW based replication
 
 --source include/not_group_replication_plugin.inc
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 --echo ==== Test Without sql_mode=strict_trans_tables ====
 
@@ -32,7 +32,7 @@ source include/master-slave.inc;
 create table t1 (n int not null primary key);
 
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 insert into t1 values (1);
 
 --echo [on master]
@@ -42,7 +42,7 @@ insert into t1 values (1);
 # These should work fine
 insert into t1 values (2),(3);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [on slave]
 select * from t1 order by n;
 
@@ -53,14 +53,14 @@ connection master;
 set sql_mode=strict_trans_tables;
 insert into t1 values (7), (8), (9);
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t1 order by n;
-source include/check_slave_is_running.inc;
+source include/rpl/assert_replica_running.inc;
 
 --echo ==== Clean Up ====
 connection master;
 drop table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # End of 4.1 tests
 
 #
@@ -76,16 +76,16 @@ set sql_mode=strict_trans_tables;
 insert into t1 values (1), (2), (3);
 
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t1;
-source include/check_slave_is_running.inc;
+source include/rpl/assert_replica_running.inc;
 
 
 --echo ==== Clean Up ====
 
 connection master;
 drop table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # End of 5.0 tests
 
 #
@@ -119,7 +119,7 @@ DELETE FROM t1 WHERE id = 4;
 SET SQL_LOG_BIN=1;
 UPDATE t1 SET id= id + 3, data = 2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 let $error= query_get_value("SHOW REPLICA STATUS", Last_SQL_Error, 1);
 echo $error;
@@ -133,5 +133,5 @@ connection master;
 
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

@@ -4,7 +4,7 @@
 # on SHOW PROCESS LIST output in some of the tests)
 --source include/have_binlog_format_statement.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT');
 
@@ -30,8 +30,8 @@ call mtr.add_suppression('Unsafe statement binlogged in statement format since B
 
 connection master;
 create table t1 (f1 int);
---source include/sync_slave_sql_with_master.inc
-source include/stop_slave.inc;
+--source include/rpl/sync_to_replica.inc
+source include/rpl/stop_replica.inc;
 connection master;
 let $start= `SELECT UNIX_TIMESTAMP()`;
 insert into t1 values (1);
@@ -41,7 +41,7 @@ sleep 3;
 
 connection slave;
 lock table t1 write;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 # ok, now wait for the SQL thread to start the insert
 let $wait_timeout= 60; # Override default of 30 seconds with 60.
@@ -69,7 +69,7 @@ source include/assert.inc;
 
 unlock tables;
 connection master;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 lock table t1 write;
 connection master;
 let $start= `SELECT UNIX_TIMESTAMP()`;
@@ -108,7 +108,7 @@ source include/assert.inc;
 unlock tables;
 connection master;
 drop table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # BUG#52166 test case 
@@ -134,7 +134,7 @@ drop table t1;
 #     desired query. At that time we inspect the Seconds_Behind_Source
 #     and assert that it is in the desired time window.
 
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 -- connection master
 
 # this will increase the timestamp +3600, so it becomes
@@ -142,7 +142,7 @@ drop table t1;
 --let $debug_point= dec_event_time_by_1_hour
 --source include/add_debug_point.inc
 CREATE TABLE t1 (a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # ok, now wait for the SQL thread to sleep
 let $wait_timeout= 60; # Override default of 30 seconds with 60.
@@ -200,24 +200,24 @@ UNLOCK TABLES;
 -- connection master
 --let $debug_point= dec_event_time_by_1_hour
 --source include/remove_debug_point.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 # Check that Seconds_Behind_Source is greater than or equal to the delay when
 # the slave has not yet applied the event
 
 --let $delay= 10
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY= $delay
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $start= `SELECT UNIX_TIMESTAMP()`
 INSERT INTO t1 VALUES (47);
 --let $stop_exec= `SELECT UNIX_TIMESTAMP()`
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 LOCK TABLE t1 WRITE;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # now wait for the SQL thread to start the insert
 # override default wait_timeout of 30 seconds with 60.
@@ -246,14 +246,14 @@ LOCK TABLE t1 WRITE;
 --source include/assert.inc
 
 UNLOCK TABLES;
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # clean up
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

@@ -5,7 +5,7 @@
 
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --disable_query_log
 --connection master
@@ -90,4 +90,4 @@ drop table `test`.`t1$EX`;
 --sync_slave_with_master
 --enable_query_log
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

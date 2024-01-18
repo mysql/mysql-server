@@ -57,7 +57,7 @@ SET GTID_NEXT='AUTOMATIC';
 #       executing queries
 
 [connection server1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # T1.4. Verify that executed tagged GTIDs exist in the gtid_executed
 
@@ -189,7 +189,7 @@ SET GTID_NEXT='AUTOMATIC';
 #       executing queries
 
 [connection server1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # T1.4. Verify that executed tagged GTIDs exist in the gtid_executed
 
@@ -316,7 +316,7 @@ SET GTID_NEXT='AUTOMATIC';
 #       executing queries
 
 [connection server1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # T1.4. Verify that executed tagged GTIDs exist in the gtid_executed
 
@@ -443,7 +443,7 @@ SET GTID_NEXT='AUTOMATIC';
 #       executing queries
 
 [connection server1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # T1.4. Verify that executed tagged GTIDs exist in the gtid_executed
 

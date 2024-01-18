@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,10 +6,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,k INT,UNIQUE KEY(k)) ENGINE=InnoDB;
 INSERT INTO t(k) VALUES (1), (2), (3);
 INSERT INTO t(k) VALUES (2), (4), (5) ON DUPLICATE KEY UPDATE id=10;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format*");
 SET SESSION sql_log_bin= 1;
 include/diff_tables.inc [master:t,slave:t]
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

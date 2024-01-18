@@ -7,9 +7,9 @@
 # WL#13180 Remove function WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS
 #
 
---source include/master-slave.inc
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 --source include/have_binlog_format_row.inc
 
 --echo
@@ -26,5 +26,5 @@ SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1
 --echo # Clean-up
 --echo #
 
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

@@ -25,7 +25,7 @@ INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 # 3. Start GR on server2, forcing clone.
 SET GLOBAL group_replication_clone_threshold= 1;
 START GROUP_REPLICATION;
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/gr_wait_for_member_state.inc
 include/assert.inc [Clone must be completed]
 include/diff_tables.inc [server1:t1, server2:t1]
@@ -33,10 +33,10 @@ include/diff_tables.inc [server1:t1, server2:t1]
 server-relay-log-group_replication_applier.000001
 server-relay-log-group_replication_applier.000002
 server-relay-log-group_replication_applier.index
-include/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
+include/rpl/deprecated/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-relay-log-group_replication_applier.000001	#	Rotate	#	#	server-relay-log-group_replication_applier.000002;pos=4
-include/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
+include/rpl/deprecated/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-relay-log-group_replication_applier.000002	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
 ############################################################
@@ -78,7 +78,7 @@ server-relay-log-group_replication_applier.000001
 server-relay-log-group_replication_applier.000002
 server-relay-log-group_replication_applier.000003
 server-relay-log-group_replication_applier.index
-include/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
+include/rpl/deprecated/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-relay-log-group_replication_applier.000002	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
 server-relay-log-group_replication_applier.000002	#	Query	#	#	BEGIN
@@ -86,7 +86,7 @@ server-relay-log-group_replication_applier.000002	#	Table_map	#	#	table_id: # (t
 server-relay-log-group_replication_applier.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-relay-log-group_replication_applier.000002	#	Xid	#	#	COMMIT /* XID */
 server-relay-log-group_replication_applier.000002	#	Rotate	#	#	server-relay-log-group_replication_applier.000003;pos=4
-include/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
+include/rpl/deprecated/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-relay-log-group_replication_applier.000003	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
 

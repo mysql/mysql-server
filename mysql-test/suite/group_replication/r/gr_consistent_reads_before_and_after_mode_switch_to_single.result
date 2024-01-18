@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 01. Create table and insert data
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 02. Enable debug point that will block transaction with consistency
 #     BEFORE_AND_AFTER

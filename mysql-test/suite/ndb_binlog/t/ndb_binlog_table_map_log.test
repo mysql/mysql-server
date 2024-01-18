@@ -42,7 +42,7 @@ SET @@GLOBAL.debug= @save_debug;
 --echo # Show data written
 SELECT * FROM test_log_table_maps ORDER BY id;
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Verify server1 Binlog changes
 --echo # Some rows are not logged because no-logging bit was set
@@ -54,7 +54,7 @@ SELECT * FROM test_log_table_maps ORDER BY id;
 --connection server2
 # Make sure we have logged everything up to date
 --save_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Verify server2 Binlog changes
 --echo # Additional rows are not logged because server2 does NOT log replica updates

@@ -5,7 +5,7 @@
 #
 # Outcome: T2 completes and T1 abort.T2 is replicated to slave.
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -35,7 +35,7 @@ COMMIT;
 --echo # Row with value 2 is expected on master.
 SELECT * FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- connection slave
 --echo # Row with value 2 is expected on slave.
 SELECT * FROM t1;
@@ -67,7 +67,7 @@ INSERT INTO t1 VALUES (3); ## This will hit ER_LOCK_DEADLOCK
 INSERT INTO t1 VALUES (4); ## This will succeed.
 COMMIT;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- connection slave
 --echo # Rows 1, 2, 3 & 4 is expected on slave.
 SELECT * FROM t1 ORDER BY c1;
@@ -78,5 +78,5 @@ SELECT * FROM t1 ORDER BY c1;
 -- connection master
 DROP TABLE t1;
 --source include/wait_until_count_sessions.inc
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

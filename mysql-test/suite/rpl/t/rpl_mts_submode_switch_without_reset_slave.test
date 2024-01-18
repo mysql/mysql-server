@@ -5,7 +5,7 @@
 
 --source include/have_debug.inc
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --let $saved_debug=`SELECT @@global.DEBUG`
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 
@@ -14,7 +14,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 # save  MTS submode
 --let $saved_submode= `SELECT @@replica_parallel_type`
 SET @saved_rpco= @@GLOBAL.replica_preserve_commit_order;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL replica_preserve_commit_order=OFF;
 
 #setup 2 connections to master
@@ -36,12 +36,12 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 # DEFAULT  ========> DATABASE
 --connection slave
 SET GLOBAL replica_parallel_type='DATABASE';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let diff_tables= master:db1.t,slave:db1.t
 --source include/diff_tables.inc
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --connection master
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
@@ -53,12 +53,12 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 # DATABASE  ========> LOGICAL_CLOCK
 --connection slave
 SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let diff_tables= master:db1.t,slave:db1.t
 --source include/diff_tables.inc
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --connection master
 SET GLOBAL DEBUG ='-d,set_commit_parent_150';
@@ -70,9 +70,9 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 # LOGICAL_CLOCK  ========> DATABASE
 --connection slave
 SET GLOBAL replica_parallel_type='DATABASE';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let diff_tables= master:db1.t,slave:db1.t
 --source include/diff_tables.inc
 
@@ -80,19 +80,19 @@ SET GLOBAL replica_parallel_type='DATABASE';
 #clean up
 --connection master
 DROP DATABASE db1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --connection slave
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --disable_query_log
 --disable_result_log
 --eval SET GLOBAL replica_parallel_type= '$saved_submode'
 SET GLOBAL replica_preserve_commit_order=@saved_rpco;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
 --eval SET GLOBAL DEBUG='$saved_debug'
 --enable_query_log
 --enable_result_log
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

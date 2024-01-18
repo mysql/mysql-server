@@ -21,7 +21,7 @@
 ################################################################################
 --source include/not_group_replication_plugin.inc
 --source include/have_plugin_auth.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 ################################################################################
 # 1. Prepare the environment
@@ -61,7 +61,7 @@ SET SQL_LOG_BIN=1;
 #
 # Check Property 0
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST', SOURCE_SSL = 1;
 
@@ -80,207 +80,207 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'D
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA IO_THREAD USER= 'regular_user_p' PASSWORD= 'password'
---source include/wait_for_slave_io_to_start.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/stop_receiver.inc
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
---source include/wait_for_slave_io_to_start.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/stop_receiver.inc
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
---source include/wait_for_slave_io_to_start.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/stop_receiver.inc
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password'
---source include/wait_for_slave_io_to_start.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/stop_receiver.inc
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
---source include/wait_for_slave_io_to_start.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/stop_receiver.inc
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
---source include/wait_for_slave_io_to_start.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/stop_receiver.inc
 
 #
 # Check Property 1.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_column 2 ####
 --eval START REPLICA USER= 'regular_user_p' PASSWORD= 'password'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 1.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_column 2 ####
 --eval START REPLICA USER= 'regular_user_wp' PASSWORD= ''
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 1.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_column 2 ####
 --eval START REPLICA USER= 'regular_user_p' PASSWORD= 'password'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 1.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_column 2 ####
 --eval START REPLICA USER= 'regular_user_wp' PASSWORD= ''
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 1.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_column 2 ####
 --eval START REPLICA USER= 'regular_user_wp'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 2.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_column 2 ####
 --eval START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 2.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_column 2 ####
 --eval START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 2.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 2.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 2.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 2.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 2.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 2.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --replace_column 2 ####
 --eval START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 3.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'plug_user_p', SOURCE_PASSWORD= 'proxy_user_p', SOURCE_SSL = 1;
---source include/start_slave.inc
---source include/check_slave_is_running.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 3.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'plug_user_wp', SOURCE_PASSWORD= 'proxy_user_wp';
---source include/start_slave.inc
---source include/check_slave_is_running.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/assert_replica_running.inc
 
 #
 # Check Property 4
@@ -289,18 +289,18 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER= 'plug_user_wp', SOURCE_PASSWORD= 'prox
 --connection slave
 CREATE USER 'ssl_user' IDENTIFIED BY '' REQUIRE SSL;
 GRANT ALL ON *.* TO ssl_user;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_result $SLAVE_MYPORT SLAVE_MYPORT
 connect (con_ssl,127.0.0.1,ssl_user,,test,$SLAVE_MYPORT,,SSL);
 --connection con_ssl
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root', SOURCE_PASSWORD = '' , SOURCE_SSL = 0;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --eval START REPLICA USER= 'root' PASSWORD= ''
---source include/wait_for_slave_to_start.inc
---source include/check_slave_is_running.inc
+--source include/rpl/wait_for_replica_to_start.inc
+--source include/rpl/assert_replica_running.inc
 
 # 
 # Bug#13410464: FOR START REPLICA .. PASSWORD=<PASSWORD>, THE PASSWORD IS LOGGED IN PLAIN TEXT  
@@ -312,88 +312,88 @@ SET GLOBAL log_output= 'TABLE,FILE';
 call mtr.add_suppression(".*Invalid .* username when attempting to connect to the source server.*");
 --disable_warnings
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 TRUNCATE mysql.general_log;
 START REPLICA PASSWORD='secret';
 --let $slave_io_errno=13117
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 TRUNCATE mysql.general_log;
 START REPLICA USER='root' PASSWORD='secret';
 --let $rewritten= `SELECT REPLACE(argument,"= <secret>","= '<secret>'") FROM mysql.general_log WHERE argument LIKE "%PASSWORD = <secret>"`
 # execute it to see if the rewrite generated a (syntatically) valid command
 --let $slave_io_errno= 2061
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 --eval $rewritten
 
 --let $slave_io_errno= 2061
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START REPLICA IO_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --let $rewritten= `SELECT REPLACE(argument,"= <secret>","= '<secret>'") FROM mysql.general_log WHERE argument LIKE "%PASSWORD = <secret>%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
 --let $slave_io_errno= 2061
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
 --let $slave_io_errno= 2061
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START REPLICA IO_THREAD, SQL_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --let $rewritten= `SELECT REPLACE(argument,"= <secret>","= '<secret>'") FROM mysql.general_log WHERE argument LIKE "%PASSWORD = <secret>%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
 --let $slave_io_errno= 2061
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
 --let $slave_io_errno= 2061
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START REPLICA IO_THREAD, SQL_THREAD UNTIL SOURCE_LOG_FILE='dummy-log.000001', SOURCE_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --let $rewritten= `SELECT REPLACE(argument,"= <secret>","= '<secret>'") FROM mysql.general_log WHERE argument LIKE "%PASSWORD = <secret>%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
 --let $slave_io_errno= 2061
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
 --let $slave_io_errno= 2061
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START REPLICA IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE='dummy-log.000001', RELAY_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --let $rewritten= `SELECT REPLACE(argument,"= <secret>","= '<secret>'") FROM mysql.general_log WHERE argument LIKE "%PASSWORD = <secret>%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
 --let $slave_io_errno= 2061
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
 --let $slave_io_errno= 2061
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 
 --enable_warnings
 
 SET GLOBAL log_output= @old_log_output;
 TRUNCATE mysql.general_log;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 ################################################################################
 # 3. Clean the environment
@@ -407,4 +407,4 @@ SET SQL_LOG_BIN=1;
 DROP USER ssl_user;
 disconnect con_ssl;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

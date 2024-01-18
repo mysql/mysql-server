@@ -19,7 +19,7 @@
 --echo ############################################################
 --echo # 1. Bootstrap a group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 
@@ -28,7 +28,7 @@
 --echo # 2. Fake that group size will be 10 when server 2 joins.
 --echo #    Server 2 will be unable to join.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The START GROUP_REPLICATION command failed since the group already has 9 members");
 SET SESSION sql_log_bin= 1;
@@ -52,7 +52,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo # 3. Group will remain with only server 1 (and 8 more fake
 --echo #    members).
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
 

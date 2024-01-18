@@ -7,14 +7,14 @@ Note	####	Storing MySQL user name or password information in the connection meta
 ############################################################
 # 1. Create a table on the group.
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 2. Execute some transactions on both members.
 #    Transactions executed on member 1 will be on member 2
 #    applier channel received_transaction_set, and the dual
 #    for member 2 transactions.
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 3. Assert that both members have holes on its applier

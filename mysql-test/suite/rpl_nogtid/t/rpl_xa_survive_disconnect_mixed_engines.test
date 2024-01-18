@@ -6,22 +6,22 @@
 # a sourced inc-file.
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 --let $command=setup
---source extra/rpl_tests/rpl_xa_mixed_engines.inc
+--source common/rpl/xa_mixed_engines.inc
 
 --echo === COMMIT ===
 --let $command=run
 --let $xa_terminate=XA COMMIT
 --let $xa_prepare_opt=1
---source extra/rpl_tests/rpl_xa_mixed_engines.inc
+--source common/rpl/xa_mixed_engines.inc
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo === COMMIT ONE PHASE ===
 
@@ -29,40 +29,40 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 --let $xa_terminate=XA COMMIT
 --let $one_phase=ONE PHASE
 --let $xa_prepare_opt=
---source extra/rpl_tests/rpl_xa_mixed_engines.inc
+--source common/rpl/xa_mixed_engines.inc
 --let $one_phase=
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo === ROLLBACK with PREPARE ===
 
 --let $command=run
 --let $xa_terminate=xa rollback
 --let $xa_prepare_opt=1
---source extra/rpl_tests/rpl_xa_mixed_engines.inc
+--source common/rpl/xa_mixed_engines.inc
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo === ROLLBACK with no PREPARE ===
 
 --let $command=run
 --let $xa_terminate=xa rollback
 --let $xa_prepare_opt=
---source extra/rpl_tests/rpl_xa_mixed_engines.inc
+--source common/rpl/xa_mixed_engines.inc
 --let $xa_rollback_only=
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables= master:tm, slave:tm
 --source include/diff_tables.inc
 
 # Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $command=cleanup
---source extra/rpl_tests/rpl_xa_mixed_engines.inc
+--source common/rpl/xa_mixed_engines.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

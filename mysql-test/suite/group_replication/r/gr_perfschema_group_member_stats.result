@@ -58,12 +58,12 @@ include/assert.inc [The value of Count_Transactions_rows_validating should be 2 
 include/assert.inc [The value of Transactions_committed_all_members should have server 1 GTIDs before server2 start]
 include/assert.inc [The value of Last_Conflict_free_transaction should be the gtid of the last applied transaction.]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 [ The value of stable_set must be equal to the member GTID executed set ]
 include/assert.inc ['Transactions_committed_all_members must be equal to expected gtid value']
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 include/diff_tables.inc [server1:t1, server2:t1]
 DROP TABLE t1;

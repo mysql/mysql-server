@@ -46,9 +46,9 @@
 --echo
 
 --let $rpl_skip_start_slave=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CREATE USER custom_user;
 GRANT CREATE USER on *.* to custom_user;
 GRANT CREATE on *.* to custom_user;
@@ -56,7 +56,7 @@ GRANT DROP on *.* to custom_user;
 GRANT REPLICATION_APPLIER on *.* to custom_user;
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='custom_user';
 CALL mtr.add_suppression("Replica SQL for channel ''.*");
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo # 2. Execute one untagged and one tagged transaction, the tagged one
@@ -65,15 +65,15 @@ CALL mtr.add_suppression("Replica SQL for channel ''.*");
 
 GRANT SYSTEM_VARIABLES_ADMIN on *.* to custom_user;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Can execute an untagged transaction
 
 SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:1";
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Cannot execute a tagged transaction
 
@@ -82,12 +82,12 @@ INSERT INTO t1 VALUES(1);
 
 SET GTID_NEXT= "AUTOMATIC";
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $slave_param= Last_SQL_Errno
 --let $slave_timeout=10
 --let $slave_param_value= convert_error(ER_SPECIFIC_ACCESS_DENIED)
---source include/wait_for_slave_param.inc
+--source include/rpl/wait_for_replica_status.inc
 
 --echo
 --echo # 3. Try again with more privileges, replication succeeds
@@ -96,7 +96,7 @@ SET GTID_NEXT= "AUTOMATIC";
 
 GRANT TRANSACTION_GTID_TAG on *.* to custom_user;
 
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --let $wait_condition = SELECT count(*) = 1 FROM t1
 --source include/wait_condition.inc
@@ -106,16 +106,16 @@ GRANT TRANSACTION_GTID_TAG on *.* to custom_user;
 --echo #    Replication should succeed. Privileges: TRANSACTION_GTID_TAG
 --echo
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM custom_user;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 SET GTID_NEXT= "AUTOMATIC:bb";
 INSERT INTO t1 VALUES(2);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $wait_condition = SELECT count(*) = 2 FROM t1
 --source include/wait_condition.inc
@@ -124,12 +124,12 @@ INSERT INTO t1 VALUES(2);
 --echo # 5. Cleanup
 --echo
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 DROP USER IF EXISTS custom_user;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

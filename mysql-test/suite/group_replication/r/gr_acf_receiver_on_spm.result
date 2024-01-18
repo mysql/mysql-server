@@ -85,7 +85,7 @@ include/start_group_replication.inc
 
 [connection server2]
 START REPLICA FOR CHANNEL 'ch1';
-include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch1']
+include/rpl/wait_for_applier_error.inc [errno=13117 FOR CHANNEL 'ch1']
 include/assert_grep.inc [Server executed GTID set is logged.]
 include/assert_grep.inc [Server executed GTID set is logged.]
 STOP REPLICA FOR CHANNEL 'ch1';
@@ -146,10 +146,10 @@ The UDF asynchronous_connection_failover_delete_managed() executed successfully.
 # 13. Clean up.
 #
 [connection server1]
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 [connection server2]
-include/stop_slave.inc [FOR CHANNEL 'ch1']
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
+include/rpl/reset_replica.inc
 [connection server4]
 include/stop_group_replication.inc
 [connection server3]

@@ -26,7 +26,7 @@
 --echo # 01. Bootstrap the group on server1.
 --echo #     Stop it making it to block just before leave the group.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
 --source include/start_and_bootstrap_group_replication.inc
@@ -35,7 +35,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_hold_stop_before_leave_the_group';
 --send STOP GROUP_REPLICATION
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State='debug sync point: now' AND Info='STOP GROUP_REPLICATION'
 --source include/wait_condition.inc
 
@@ -46,7 +46,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_hold_stop_before_leave_the_group';
 --echo #     will not be allowed to execute since plugin is stopping,
 --echo #     otherwise there may be a deadlock on the waiting conditions.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.group_replication_consistency= 'BEFORE';
 --error ER_GRP_TRX_CONSISTENCY_BEGIN_NOT_ALLOWED
 SELECT * FROM t1;
@@ -58,7 +58,7 @@ SELECT * FROM t1;
 --echo #     without any precedent AFTER transaction), it will be
 --echo #     allowed to execute since there are nothing to wait for.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 SELECT * FROM t1;
 
@@ -67,12 +67,12 @@ SELECT * FROM t1;
 --echo ############################################################
 --echo # 04. Resume the plugin stop.
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
 SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $group_replication_member_state= OFFLINE
@@ -84,7 +84,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
 --echo ############################################################
 --echo # 05. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.group_replication_consistency= DEFAULT;
 DROP TABLE t1;
 

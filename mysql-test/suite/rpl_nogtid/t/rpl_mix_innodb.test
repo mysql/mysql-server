@@ -4,7 +4,7 @@
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_mixed.inc;
 # gtids disabled because it tests DROP TEMPORARY inside a transaction
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
-source extra/rpl_tests/rpl_innodb.test;
---source include/rpl_end.inc
+source common/rpl/rpl_innodb.test;
+--source include/rpl/deinit.inc

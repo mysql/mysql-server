@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,16 +9,16 @@ drop database if exists DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________
 create database DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 SET @@global.max_allowed_packet=10240;
 SET @@global.net_buffer_length=1024;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 call mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 select @@net_buffer_length, @@max_allowed_packet;
 @@net_buffer_length	@@max_allowed_packet
 1024	10240
 create table `t1` (`f1` LONGTEXT);
 INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2048');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select count(*) from `DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________`.`t1` /* must be 1 */;
 count(*)
 1
@@ -28,24 +28,24 @@ performance_schema.replication_connection_status rcs;
 Replica_SQL_Running	Replica_IO_Running
 ON	ON
 drop database DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @@global.max_allowed_packet=4096 + (floor(64 * 3 * 254 / 1024) + 1) * 1024;
 SET @@global.net_buffer_length=@@global.max_allowed_packet;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 CREATE TABLE `t1` (`f1` LONGTEXT);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
-include/wait_for_slave_io_error.inc [errno=13125]
+include/rpl/wait_for_receiver_error.inc [errno=13125]
 Last_IO_Error = 'Got a packet bigger than 'replica_max_allowed_packet' bytes'
-include/rpl_reset.inc
+include/rpl/reset.inc
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t1 (f1 int PRIMARY KEY, f2 LONGTEXT, f3 LONGTEXT) ENGINE=MyISAM;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), REPEAT('b', @@global.max_allowed_packet));
-include/wait_for_slave_io_error.inc [errno=13125]
+include/rpl/wait_for_receiver_error.inc [errno=13125]
 Last_IO_Error = 'Got a packet bigger than 'replica_max_allowed_packet' bytes'
 STOP REPLICA;
 RESET REPLICA;
@@ -57,7 +57,7 @@ SET @max_allowed_packet_1= @@session.max_allowed_packet;
 SHOW BINLOG EVENTS;
 SET @max_allowed_packet_2= @@session.max_allowed_packet;
 START REPLICA;
-include/wait_for_slave_to_start.inc
+include/rpl/wait_for_replica_to_start.inc
 DROP TABLE t1;
 select @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -65,7 +65,7 @@ select @@global.max_allowed_packet;
 select @@global.net_buffer_length;
 @@global.net_buffer_length
 53248
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select @@global.max_allowed_packet;
 @@global.max_allowed_packet
 2048
@@ -73,10 +73,10 @@ select @@global.net_buffer_length;
 @@global.net_buffer_length
 1024
 CREATE TABLE t1 (a TEXT) ENGINE=MyISAM;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
 # 13125 = ER_SERVER_NET_PACKET_TOO_LARGE
-include/wait_for_slave_io_error.inc [errno=13125]
+include/rpl/wait_for_receiver_error.inc [errno=13125]
 Last_IO_Error = 'Got a packet bigger than 'replica_max_allowed_packet' bytes'
 # Record Read_Source_Log_Pos for the Table_map_log_event
 SET @@global.max_allowed_packet=1048576;
@@ -93,4 +93,4 @@ SET @@global.max_allowed_packet= 2048;
 DROP TABLE t1;
 STOP REPLICA;
 RESET REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc

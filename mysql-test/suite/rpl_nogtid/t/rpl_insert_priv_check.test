@@ -43,19 +43,19 @@ if ($grant_to == '')
 # no privileges on the test database
 --let $RPL_PRIV_DB = test
 --let $rpl_skip_start_slave=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --write_file $MYSQLTEST_VARDIR/tmp/check_privilege.inc PROCEDURE
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   --eval $sql_statment
-  --source include/save_master_pos.inc
+  --source include/rpl/save_server_position.inc
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   # 3) Start replica and expect an error as the user doesn't have the privilege.
   START REPLICA;
   --let $slave_sql_errno= convert_error(ER_TABLEACCESS_DENIED_ERROR)
-  --source include/wait_for_slave_sql_error.inc
+  --source include/rpl/wait_for_applier_error.inc
 
   # 4) Stop replica and grant the privilege.
   STOP REPLICA;
@@ -63,7 +63,7 @@ if ($grant_to == '')
 
   # 5) Start replica again and this time there should not be any error.
   START REPLICA;
-  --source include/sync_slave_sql.inc
+  --source include/rpl/sync_with_saved.inc
 
   # 6) Revoke the privilege granted in step 4)
   --eval REVOKE $privilege ON $priv_context FROM $grant_to
@@ -78,7 +78,7 @@ SET @@session.sql_log_bin = ON;
 
 # 2) On slave create an user 'u1' which will be used as a
 #    PRIVILEGE_CHECKS_USER to apply events in the replication stream.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression(".*command denied to user.");
 CALL mtr.add_suppression(".*the option binlog_row_value_options.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
@@ -121,7 +121,7 @@ while ($context != 0)
       --let $privilege = UPDATE
       --let $sql_statment = UPDATE t SET c = 8 WHERE c = 12
 
-      --source include/rpl_connection_slave.inc
+      --source include/rpl/connection_replica.inc
       # Set the options to generate partial_update_rows_event on slave
       --disable_warnings
       SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
@@ -140,13 +140,13 @@ while ($context != 0)
       if (`SELECT @@SESSION.binlog_row_image = "MINIMAL"`)
       {
         --eval GRANT INSERT(c) ON $priv_context TO $grant_to
-        --source include/rpl_connection_master.inc
+        --source include/rpl/connection_source.inc
         INSERT INTO t VALUES(10, 10);
-        --source include/save_master_pos.inc
-        --source include/rpl_connection_slave.inc
+        --source include/rpl/save_server_position.inc
+        --source include/rpl/connection_replica.inc
         START REPLICA;
         --let $slave_sql_errno= convert_error(ER_TABLEACCESS_DENIED_ERROR)
-        --source include/wait_for_slave_sql_error.inc
+        --source include/rpl/wait_for_applier_error.inc
         STOP REPLICA;
       }
       --let $privilege = INSERT(c, d)
@@ -188,10 +188,10 @@ while ($context != 0)
 
 # 9) Drop the table from master and slave.
 DROP TABLE t;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
 
 # Clean up
 --remove_file $MYSQLTEST_VARDIR/tmp/check_privilege.inc
 --let $rpl_only_running_threads=1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

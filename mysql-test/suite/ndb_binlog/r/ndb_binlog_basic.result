@@ -10,7 +10,7 @@ alter table t1 add (b_x int);
 Warnings:
 Warning	1478	Converted FIXED field 'b_x' to DYNAMIC to enable online ADD COLUMN
 alter table t1 algorithm=inplace, rename column b_x to b;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=ndb
 binlog.000001	#	Query	#	#	BEGIN

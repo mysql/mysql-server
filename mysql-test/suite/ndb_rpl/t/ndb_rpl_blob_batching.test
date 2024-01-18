@@ -2,7 +2,7 @@
 --source include/have_binlog_format_mixed_or_row.inc
 # Configure replication, don't start applier
 --let $rpl_skip_start_slave= 1
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --connection slave
 show variables like 'replica_allow_batching';
@@ -24,7 +24,7 @@ set ndb_blob_read_batch_bytes = @batch_sz;
 set @s_replica_workers:=@@replica_parallel_workers;
 set @@GLOBAL.replica_parallel_workers=1;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 show variables like 'ndb_log_update_as_write';
@@ -476,9 +476,9 @@ set ndb_blob_write_batch_bytes=@s_blob_write_batch;
 set global ndb_blob_read_batch_bytes=@s_blob_read_batch;
 set ndb_blob_read_batch_bytes=@s_blob_read_batch;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 set @@GLOBAL.replica_parallel_workers=@s_replica_workers;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --enable_query_log
 
@@ -488,4 +488,4 @@ drop table tsync;
 drop table tb1;
 drop table tb2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

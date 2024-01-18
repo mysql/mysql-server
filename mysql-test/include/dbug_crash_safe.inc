@@ -4,7 +4,7 @@
 #
 # This should be used only for debugging test cases, when you need the server to
 # fail, without creating a core file. To stop a server as part of a test
-# scenario, use one of rpl_stop_server.inc, rpl_restart_server.inc,
+# scenario, use one of rpl/stop_server.inc, rpl/restart_server.inc,
 # kill_mysqld.inc, restart_mysqld.inc, etc.
 #
 # ==== Implementation ====

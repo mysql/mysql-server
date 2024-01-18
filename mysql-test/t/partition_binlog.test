@@ -39,6 +39,6 @@ ALTER TABLE t1 REPAIR PARTITION p0;
 ALTER TABLE t1 TRUNCATE PARTITION p0;
 ALTER TABLE t1 DROP PARTITION p0;
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 DROP TABLE t1;

@@ -8,14 +8,14 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 ########################################################
 # Setup
 
 --let $db=db_wl7364
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $old_binlog_rows_query_log_events=`SELECT @@binlog_rows_query_log_events`
 
@@ -24,8 +24,8 @@ SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
 --eval use $db
 CREATE TABLE t1 (c1 INT);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 
 # ---------------------------------------------
 # Validate Functional Requirement 1, 2, 3 and 4
@@ -33,7 +33,7 @@ CREATE TABLE t1 (c1 INT);
 
 # Tests with Rows_query_log_event ON
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -41,13 +41,13 @@ UPDATE t1 SET c1= 2;
 DELETE FROM t1 WHERE c1=2;
 COMMIT;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # set debug sync points
 --let $debug_point=dbug.rpl_apply_sync_barrier
 --source include/add_debug_point.inc
 
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 # SIDE NOTE: When using DEBUG_SYNC, information_schema.processlist.state
 # and SHOW PROCESSLIST state shows DEBUG SYNC thread state instead of the
@@ -84,7 +84,7 @@ while($i)
   --let $state_db= $db
   --let $state_command= Query
   --let $state_info= $info
-  --source ../include/rpl_row_stages_validate.inc
+  --source common/rpl/row_stages_validate.inc
 
   # this session signals that applier can proceed to next row
   SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
@@ -94,19 +94,19 @@ while($i)
 
 # Tests with Rows_query_log_event OFF ------------------
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
 TRUNCATE t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 
 # clean up sync points
 --let $debug_point=dbug.rpl_apply_sync_barrier
 --source include/remove_debug_point.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -114,13 +114,13 @@ UPDATE t1 SET c1= 2;
 DELETE FROM t1 WHERE c1=2;
 COMMIT;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # set debug sync points
 --let $debug_point=dbug.rpl_apply_sync_barrier
 --source include/add_debug_point.inc
 
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 # SIDE NOTE: When using DEBUG_SYNC, information_schema.processlist.state
 # and SHOW PROCESSLIST state shows DEBUG SYNC thread state instead of the
@@ -155,7 +155,7 @@ while($i)
   --let $state_db= $db
   --let $state_command= Query
   --let $state_info= $info
-  --source ../include/rpl_row_stages_validate.inc
+  --source common/rpl/row_stages_validate.inc
 
   SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
 
@@ -176,12 +176,12 @@ while($i)
 
 # simulate that on connection X we are replaying output from mysqlbinlog
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 SET SESSION SQL_LOG_BIN=0;
 
 TRUNCATE t1;
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 
 SET SESSION SQL_LOG_BIN=0;
 
@@ -210,52 +210,52 @@ BEGIN;
 --let $state_info= BINLOG %
 --let $state_db= $db
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # applying
 
 SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
 
 --let $state_stage= Applying batch of row changes (write)
---source ../include/rpl_row_stages_validate.inc
+--source common/rpl/row_stages_validate.inc
 
 SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 
 --reap
 
 # UPDATE
 --send BINLOG 'mSKWVhMBAAAAMgAAAGsDAAAAAPAAAAAAAAEACWRiX3dsNzM2NAACdDEAAQMAAWFoKHE=mSKWVh8BAAAALgAAAJkDAAAAAPAAAAAAAAEAAgAB///+AQAAAP4CAAAAuiHqhw=='
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # applying
 SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
 
 --let $state_stage= Applying batch of row changes (update)
---source ../include/rpl_row_stages_validate.inc
+--source common/rpl/row_stages_validate.inc
 
 SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 
 --reap
 
 # DELETE
 --send BINLOG 'mSKWVhMBAAAAMgAAAPwDAAAAAPAAAAAAAAEACWRiX3dsNzM2NAACdDEAAQMAAd+b01A=mSKWViABAAAAKAAAACQEAAAAAPAAAAAAAAEAAgAB//4CAAAAN7fZXg== '
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # applying
 SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
 
 --let $state_stage= Applying batch of row changes (delete)
---source ../include/rpl_row_stages_validate.inc
+--source common/rpl/row_stages_validate.inc
 
 SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 
 --reap
 
@@ -268,7 +268,7 @@ COMMIT;
 
 SET SESSION SQL_LOG_BIN=1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $state_thd_name=
 --let $state_skip_show_processlist=0
@@ -285,7 +285,7 @@ SET SESSION SQL_LOG_BIN=1;
 
 # clean up
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --eval DROP DATABASE $db
 
@@ -295,20 +295,20 @@ SET SESSION SQL_LOG_BIN=1;
 # Validate Functional Requirement 5
 # ---------------------------------
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 use test;
 CREATE TABLE t1 (c1 INT);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 
 --let $debug_point=dbug.rpl_apply_sync_barrier
 --source include/add_debug_point.inc
 
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 USE test;
 BEGIN;
@@ -317,7 +317,7 @@ UPDATE t1 SET c1= 1000;
 DELETE FROM t1 WHERE c1=1000;
 COMMIT;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $j=3
 while($j)
@@ -362,27 +362,27 @@ while($j)
 --let $debug_point=dbug.rpl_apply_sync_barrier
 --source include/remove_debug_point.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
 ## Test with instrumentation disabled
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 use test;
 CREATE TABLE t1 (c1 INT);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 UPDATE performance_schema.setup_instruments SET ENABLED = 'NO' WHERE NAME LIKE 'stage/sql/Applying batch of row changes%';
 
 --let $debug_point=dbug.rpl_apply_sync_barrier
 --source include/add_debug_point.inc
 
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 USE test;
 BEGIN;
@@ -391,7 +391,7 @@ UPDATE t1 SET c1= 1000;
 DELETE FROM t1 WHERE c1=1000;
 COMMIT;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $j=3
 while($j)
@@ -444,16 +444,16 @@ UPDATE performance_schema.setup_instruments SET ENABLED = 'YES' WHERE NAME LIKE 
 # ---------------------------------
 
 # Setup
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CREATE DATABASE db2;
 use db2;
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 
 # set replication filter
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
 
---source include/start_slave_sql.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
 
 SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
 set sql_log_bin=0;
@@ -463,14 +463,14 @@ set sql_log_bin=1;
 
 CREATE TABLE t1 (c1 INT);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 
 # ---------------------------------------------
 # Validate Functional Requirement 1, 2, 3 and 4
 # ---------------------------------------------
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -478,13 +478,13 @@ UPDATE t1 SET c1= 2;
 DELETE FROM t1 WHERE c1=2;
 COMMIT;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # set debug sync points
 --let $debug_point=dbug.rpl_apply_sync_barrier
 --source include/add_debug_point.inc
 
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --let $db=db2
 --let $i=3
@@ -517,7 +517,7 @@ while($i)
   --let $state_db= $db
   --let $state_command= Query
   --let $state_info= $info
-  --source ../include/rpl_row_stages_validate.inc
+  --source common/rpl/row_stages_validate.inc
 
   # this session signals that applier can proceed to next row
   SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
@@ -526,17 +526,17 @@ while($i)
 
 # Clean up
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $debug_point=dbug.rpl_apply_sync_barrier
 --source include/remove_debug_point.inc
 
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 # Remove replication filter
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=();
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 DROP DATABASE db2;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 set sql_log_bin=0;
 DROP DATABASE db1;
 set sql_log_bin=1;
@@ -546,13 +546,13 @@ set sql_log_bin=1;
 
 --let $db=
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 USE test;
 DROP TABLE t1;
 
 --eval SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=$old_binlog_rows_query_log_events
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

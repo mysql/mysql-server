@@ -5,5 +5,5 @@
 --source include/have_binlog_format_mixed.inc
 --source include/have_myisam.inc
 
---source extra/binlog_tests/logical_timestamping.inc
+--source common/binlog/logical_timestamping.inc
 

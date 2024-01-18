@@ -20,7 +20,7 @@
 --echo ############################################################
 --echo # 1. Bootstrap group on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
@@ -107,7 +107,7 @@ DELIMITER ;|
 --echo ############################################################
 --echo # 3. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP PROCEDURE procedure1;
 DROP FUNCTION function1;
 DROP EVENT event1;

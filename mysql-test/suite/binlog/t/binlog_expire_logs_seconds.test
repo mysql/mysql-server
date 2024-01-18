@@ -12,7 +12,7 @@
 #    1. FLUSH LOGS
 #    2. Rotation of logs because of binlog growing bigger than max_binlog_size
 #    3. Server restart
-#    The include file binlog_expire_logs_seconds.inc tests these
+#    The include file common/binlog/expire_logs_seconds.inc tests these
 #    three cases for small and large value of binlog_expire_logs_seconds
 #
 # 3. assert that there is a warning due to using
@@ -41,7 +41,7 @@ SET GLOBAL binlog_expire_logs_seconds= 0;
 
 # This will test the expire period for three scenarios, described in the
 # .inc file.
---source suite/binlog/include/binlog_expire_logs_seconds.inc
+--source common/binlog/expire_logs_seconds.inc
 
 --echo ####
 --echo #### 2: binlog_expire_logs_seconds > 0
@@ -82,11 +82,11 @@ SET GLOBAL binlog_expire_logs_seconds= 3600;
 # This will test the expire period for three scenarios, described in the 
 # .inc file.
 
---source suite/binlog/include/binlog_expire_logs_seconds.inc
+--source common/binlog/expire_logs_seconds.inc
 
 # This will test the expire period for three scenarios, described in the 
 # .inc file.
---source suite/binlog/include/binlog_expire_logs_seconds.inc
+--source common/binlog/expire_logs_seconds.inc
 
 # code coverage for WL#14930 boundary conditions
 # this will make the math output a negative purge

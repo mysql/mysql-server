@@ -15,12 +15,12 @@
 # Crash-safe testing is difficult on other than Linux.
 # TODO: Open it back at XA-commit/rollback crash-safe bug/FR fixing.
 #
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 call mtr.add_suppression("Found 1 prepared XA transactions");
 
@@ -50,9 +50,9 @@ XA ROLLBACK 'xid_partly_rolled_back';
 #
 --source include/wait_until_disconnected.inc
 --let $rpl_server_number= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Due to non-determinism mentioned in the simulation part above
 # the following query is commented out.
@@ -64,7 +64,7 @@ XA ROLLBACK 'xid_partly_rolled_back';
 --let $assert_text = Zero records in t1 is expected at master
 --let $assert_cond = COUNT(*) = 0 FROM t1
 --source include/assert.inc
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 SET @save.sql_log_bin = @@session.sql_log_bin;
 SET @@session.sql_log_bin = 0;
 
@@ -77,13 +77,13 @@ XA ROLLBACK 'xid_partly_rolled_back';
 SET @@session.sql_log_bin = @save.sql_log_bin;
 
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
 # Verify that slave has 'xid_partly_rolled_back' rolled back.
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let $assert_text = Zero records in t1 is expected at slave
 --let $assert_cond = COUNT(*) = 0 FROM t1
 --source include/assert.inc
@@ -91,9 +91,9 @@ SET @@session.sql_log_bin = @save.sql_log_bin;
 #
 # Cleanup
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

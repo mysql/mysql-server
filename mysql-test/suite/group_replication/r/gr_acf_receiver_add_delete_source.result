@@ -43,7 +43,7 @@ The UDF asynchronous_connection_failover_add_source() executed successfully.
 
 # 4. Start replica for channel ch1.
 
-include/start_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1']
 
 # 5. Verify replication_asynchronous_connection_failover on
 #    server1 has two rows (of server4 and server5) and member action
@@ -85,10 +85,10 @@ The UDF asynchronous_connection_failover_delete_source() executed successfully.
 # 10. Clean up.
 
 [connection server1]
-include/stop_slave.inc [FOR CHANNEL 'ch1']
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
+include/rpl/reset_replica.inc
 [connection server2]
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 [connection server3]
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 include/group_replication_end.inc

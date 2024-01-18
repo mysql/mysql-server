@@ -31,7 +31,7 @@
 --echo #    STOP GROUP_REPLICATION command
 --echo #    after the plugin_running_lock is acquired.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.DEBUG='+d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
 
@@ -39,11 +39,11 @@ SET @@GLOBAL.DEBUG='+d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
 --echo ############################################################
 --echo # 2. Asynchronously execute STOP GROUP_REPLICATION command.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --send STOP GROUP_REPLICATION
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.reached_plugin_gr_stop_after_holding_plugin_running_lock";
 SET @@GLOBAL.DEBUG='-d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
 
@@ -53,7 +53,7 @@ SET @@GLOBAL.DEBUG='-d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
 --echo #    change while a STOP GROUP_REPLICATION is ongoing, they
 --echo #    must fail.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # When adding new options, if it can be set while STOP GROUP_REPLICATION is
 # ongoing please add it below with `AND VARIABLE_NAME != 'xxx'`
 SET SESSION sql_log_bin = 0;
@@ -94,7 +94,7 @@ while ( $option_id <= $gr_options_that_cannot_be_change_count )
 --echo # 4. Change Group Replication options that can be
 --echo #    change while a STOP GROUP_REPLICATION is ongoing.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 CREATE TABLE gr_options_that_can_be_change (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) UNIQUE KEY);
 INSERT INTO gr_options_that_can_be_change (name)
@@ -118,7 +118,7 @@ while ( $option_id <= $gr_options_that_can_be_change_count )
 --echo ############################################################
 --echo # 5. Validate that we did test all Group Replication options.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $gr_options= `SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'group_replication_%'`
 
 --let $assert_text= Validate that we did test all Group Replication options
@@ -129,11 +129,11 @@ while ( $option_id <= $gr_options_that_can_be_change_count )
 --echo ############################################################
 --echo # 6. Resume the STOP GROUP_REPLICATION command.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now SIGNAL signal.resume_plugin_gr_stop_after_holding_plugin_running_lock";
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $group_replication_member_state= OFFLINE
@@ -143,7 +143,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.resume_plugin_gr_stop_after_holding_plugin_ru
 --echo ############################################################
 --echo # 7. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.read_only= 0;
 

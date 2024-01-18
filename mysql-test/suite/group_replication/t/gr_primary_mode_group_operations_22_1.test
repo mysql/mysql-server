@@ -31,7 +31,7 @@
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -39,7 +39,7 @@
 --echo # 1. Change to multi primary mode
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_switch_to_multi_primary_mode();
 
@@ -47,7 +47,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 2. Check all variables
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= group_replication_enforce_update_everywhere_checks is ON
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 1
@@ -62,7 +62,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= group_replication_enforce_update_everywhere_checks is ON
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 1
@@ -79,7 +79,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 3. Restart Group Replication on server 2. Check all goes as planned
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
@@ -101,7 +101,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/force_restart.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $allow_rpl_inited=1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -111,7 +111,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $assert_text= group_replication_enforce_update_everywhere_checks is ON
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 1

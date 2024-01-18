@@ -43,7 +43,7 @@ RESET BINARY LOGS AND GTIDS;
 --echo #           as binlog file name
 --echo #
 --echo # 1.1. Save current binlog file name
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $first_binlog_file= $binlog_file
 
 --echo #

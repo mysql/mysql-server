@@ -8,6 +8,6 @@ SET RESOURCE GROUP u1;
 --sorted_result
 SELECT RESOURCE_GROUP_NAME FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;
 DROP RESOURCE GROUP u1 FORCE;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --sorted_result
 SELECT RESOURCE_GROUP_NAME FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;

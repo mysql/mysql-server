@@ -14,7 +14,7 @@ CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
 include/start_group_replication.inc
 [connection server1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server3]
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
@@ -43,11 +43,11 @@ UNLOCK TABLES;
 # restarting
 # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
 Got one of the listed errors
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 # check that there are 2 mebers in the group
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/start_group_replication.inc
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:t1, server_2:t1, server3:t1]
 drop table t1;
 drop procedure dml_operations;

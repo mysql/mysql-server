@@ -1,0 +1,142 @@
+--echo #
+--echo # Test on AFTER_SYNC wait point
+--echo # #######################################################################
+--echo # Case 1: Single statement transaction
+--echo #
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx', Value, 1)
+show status like "rpl_semi_sync_source_yes_tx";
+SET DEBUG_SYNC= "after_call_after_sync_observer SIGNAL after_sync_done WAIT_FOR end";
+--send INSERT INTO t1 VALUES(1);
+
+--source include/rpl/connection_source.inc
+SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
+
+show status like "rpl_semi_sync_source_yes_tx";
+--let $assert_text= rpl_semi_sync_source_yes_tx increased 1
+--disable_warnings
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_yes_tx"
+--enable_warnings
+--source include/assert.inc
+
+--let $assert_text= Table is empty right now.
+--let $assert_cond= COUNT(*) = 0 FROM t1
+--source include/assert.inc
+
+--source include/rpl/sync_to_replica.inc
+
+--let $assert_text= Table has 1 record
+--let $assert_cond= COUNT(*) = 1 FROM t1;
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+SET DEBUG_SYNC= "now SIGNAL end";
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--reap
+
+# Varify that after_commit hook is not executed.
+--let $assert_text= rpl_semi_sync_source_yes_tx increased only 1
+--disable_warnings
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_yes_tx"
+--enable_warnings
+--source include/assert.inc
+
+TRUNCATE t1;
+
+--echo #
+--echo # Test on AFTER_SYNC wait point
+--echo # #######################################################################
+--echo # Case 2: Real transaction
+--echo #
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx', Value, 1)
+
+SET DEBUG_SYNC= "after_call_after_sync_observer SIGNAL after_sync_done WAIT_FOR end";
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+--send COMMIT
+
+--source include/rpl/connection_source.inc
+SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
+
+--let $assert_text= rpl_semi_sync_source_yes_tx increased 1
+--disable_warnings
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_yes_tx"
+--enable_warnings
+--source include/assert.inc
+
+--let $assert_text= Table is empty right now.
+--let $assert_cond= COUNT(*) = 0 FROM t1
+--source include/assert.inc
+
+--source include/rpl/sync_to_replica.inc
+
+--let $assert_text= Table has two records
+--let $assert_cond= COUNT(*) = 2 FROM t1;
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+SET DEBUG_SYNC= "now SIGNAL end";
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--reap
+
+# Varify that after_commit hook is not executed.
+--let $assert_text= rpl_semi_sync_source_yes_tx increased only 1
+--disable_warnings
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_yes_tx"
+--enable_warnings
+--source include/assert.inc
+
+TRUNCATE t1;
+
+--echo #
+--echo # Test on AFTER_COMMIT wait point
+--echo # #######################################################################
+--echo # Verify after_sync hook will not be executed
+--echo #
+--let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx', Value, 1)
+--let $no_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_no_tx', Value, 1)
+
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
+SET DEBUG_SYNC= "before_call_after_commit_observer SIGNAL engine_commit_done
+                 WAIT_FOR end";
+--send INSERT INTO t1 VALUES(1);
+
+--source include/rpl/connection_source.inc
+SET DEBUG_SYNC= "now WAIT_FOR engine_commit_done";
+
+--let $assert_text= Table is empty right now.
+--let $assert_cond= COUNT(*) = 1 FROM t1
+--source include/assert.inc
+
+--let $assert_text= rpl_semi_sync_source_yes_tx was not increased
+--disable_warnings
+--let $assert_cond= VARIABLE_VALUE = $yes_tx FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_yes_tx"
+--enable_warnings
+--source include/assert.inc
+
+--let $assert_text= rpl_semi_sync_source_no_tx was not increased
+--disable_warnings
+--let $assert_cond= VARIABLE_VALUE = $no_tx FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_no_tx"
+--enable_warnings
+--source include/assert.inc
+
+SET DEBUG_SYNC= "now SIGNAL end";
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--reap
+
+SET DEBUG_SYNC= "RESET";
+--source include/rpl/connection_source.inc
+SET DEBUG_SYNC= "RESET";
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
+TRUNCATE t1;
+--source include/rpl/sync_to_replica.inc

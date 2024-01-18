@@ -8,7 +8,7 @@
 -- source include/have_myisam.inc
 
 --let $rpl_topology= 1->2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 -- connection server_1
 -- connection server_2
@@ -26,10 +26,10 @@
 #
 
 -- let $row_img_set=server_1:FULL:N,server_2:FULL:Y,server_3:FULL:Y
--- source include/rpl_row_img_set.inc
+-- source include/rpl/row_img_set.inc
 
--- let $row_img_test_script= extra/rpl_tests/rpl_row_img.test
--- source include/rpl_row_img_general_loop.inc
+-- let $row_img_test_script= common/rpl/rpl_row_img.test
+-- source common/rpl/row_img_general_loop.inc
 
 #
 # BUG#49100
@@ -38,6 +38,6 @@
 -- echo ### Testing with MyISAM storage engine
 
 -- let $engine=MyISAM
--- source extra/rpl_tests/rpl_row_empty_imgs.test
+-- source common/rpl/rpl_row_empty_imgs.test
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

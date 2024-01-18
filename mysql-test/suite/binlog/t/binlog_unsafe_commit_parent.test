@@ -39,53 +39,53 @@ INSERT INTO t1 VALUES(1, ""), (2, ""), (3, ""),(4, "");
 --echo # Verify INSERT after ANALYZE TABLE logs correct last_committed
 --echo #
 --let $admin_statement= ANALYZE TABLE t1;
---source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--source common/binlog/unsafe_commit_parent.inc
 --let $binlog_file= binlog.000001
 --let $logical_timestamps= 3 4
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo #
 --echo # Verify INSERT after OPTIMIZE TABLE logs correct last_committed
 --echo #
 --let $admin_statement= OPTIMIZE TABLE t1;
---source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--source common/binlog/unsafe_commit_parent.inc
 --let $logical_timestamps= 5 6
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo #
 --echo # Verify INSERT after REPAIR TABLE logs correct last_committed
 --echo #
 --let $admin_statement= REPAIR TABLE t1;
---source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--source common/binlog/unsafe_commit_parent.inc
 --let $logical_timestamps= 7 8
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo #
 --echo # Verify INSERT after ALTER TABLE ... REPAIR TABLE logs correct
 --echo # last_committed
 --echo #
 --let $admin_statement= ALTER TABLE t1 REPAIR PARTITION p0;
---source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--source common/binlog/unsafe_commit_parent.inc
 --let $logical_timestamps= 9 10
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo #
 --echo # Verify INSERT after ALTER TABLE ... OPTIMIZE TABLE logs correct
 --echo # last_committed
 --echo #
 --let $admin_statement= ALTER TABLE t1 OPTIMIZE PARTITION p1;
---source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--source common/binlog/unsafe_commit_parent.inc
 --let $logical_timestamps= 11 12
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo #
 --echo # Verify INSERT after ALTER TABLE ... ANALYZE TABLE logs correct
 --echo # last_committed
 --echo #
 --let $admin_statement= ALTER TABLE t1 ANALYZE PARTITION p2;
---source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--source common/binlog/unsafe_commit_parent.inc
 --let $logical_timestamps= 13 14
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo #
 --echo # Verify the statements the following statement in different commit
@@ -93,24 +93,24 @@ INSERT INTO t1 VALUES(1, ""), (2, ""), (3, ""),(4, "");
 --echo #
 INSERT INTO t1(c2) VALUES("use max_comitted as last_committed");
 --let $logical_timestamps= 2 3
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo #
 --echo # Verify binlog rotation doesn't effect the correctness of last_committed
 --echo #
 FLUSH BINARY LOGS;
 --let $admin_statement= REPAIR TABLE t1;
---source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--source common/binlog/unsafe_commit_parent.inc
 --let $binlog_file= binlog.000002
 --let $logical_timestamps= 0 2
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 REPAIR TABLE t1;
 FLUSH BINARY LOGS;
 INSERT INTO t1(c2) VALUES("use 0 as last_committed");
 --let $binlog_file= binlog.000003
 --let $logical_timestamps= 0 1
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo #
 --echo # Verify ALTER TABLE without [OPTIMIZE|REPAIR|ANALYZE] PARTITION and
@@ -119,8 +119,8 @@ INSERT INTO t1(c2) VALUES("use 0 as last_committed");
 CREATE TABLE t2(c1 INT);
 
 --let $admin_statement= ALTER TABLE t2 ADD COLUMN c2 INT;
---source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--source common/binlog/unsafe_commit_parent.inc
 --let $logical_timestamps= 2 4
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 DROP TABLE t1, t2;

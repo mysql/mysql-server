@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,9 +9,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    Create a table with no primary key
 [connection master]
 SET SESSION sql_generate_invisible_primary_key = ON;
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 CREATE TABLE t1(f1 INT, f2 INT);
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 include/assert.inc [The table contains 3 columns]
 include/assert.inc [The table contains a generated invisilble primary key]
 
@@ -26,7 +26,7 @@ CREATE TABLE t1(f1 INT, f2 INT);
 [connection master]
 INSERT INTO t1 VALUES (1, 10);
 INSERT INTO t1 VALUES (5, 50);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 include/assert.inc [The table t1 contains the 2 inserted rows]
 
@@ -36,7 +36,7 @@ include/assert.inc [The table t1 contains the 2 inserted rows]
 [connection master]
 UPDATE t1 SET t1.f2 = 100 WHERE t1.f1=5;
 DELETE FROM t1 WHERE t1.f1=1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The table t1 contains 1 row]
 include/assert.inc [The table t1 was updated]
 
@@ -45,4 +45,4 @@ include/assert.inc [The table t1 was updated]
 [connection master]
 SET SESSION sql_generate_invisible_primary_key = OFF;
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

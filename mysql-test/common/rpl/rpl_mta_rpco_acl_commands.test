@@ -1,0 +1,123 @@
+# ==== Purpose ====
+#
+# Auxiliary file sourced for rpl_mts_spco_acl_commands_binlog
+# and rpl_mts_spco_acl_commands_nobinlog tests to check if
+# ACL commands respect replica-preserve-commit-order.
+#
+# === Requirements ====
+#
+# This test uses std_data/acl.csv which contains ACL commands.
+#
+# This test uses common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+# to check the ordering of commits.
+#
+# === Implementation ====
+#
+# 1. Start replica-preserve-commit-order enabled replica with 8 worker threads.
+#
+# 2. On Source, CREATE TABLE commands and Load ACL commands that needs to be tested.
+#
+# 3. On Source, read each ACL command from the table in a loop.
+#    Execute each of this command along with some transactions that can be applied
+#    in parallel, by setting same commit parent for all the transactions.
+#
+# 4. Source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc to verify
+#    the ordering of commits on replica.
+#
+# 5. Cleanup
+#
+# === References ===
+#
+# WL13574 : Include MDL and ACL locks in MTS deadlock detection infra-structure
+
+--let $rpl_gtid_utils = 1
+--let $rpl_skip_start_slave = 1
+--let $rpl_privilege_checks_user_grant_option = 1
+--source include/rpl/init_source_replica.inc
+
+# Start replica with 8 worker threads
+--let $mts_replica_parallel_workers= 8
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_save_gtid_executed = 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+
+# Set Up
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+
+SET @save_replica_parallel_workers= @@global.replica_parallel_workers;
+SET @save_replica_parallel_type= @@global.replica_parallel_type;
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
+SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
+--eval SET GLOBAL replica_parallel_workers= $mts_replica_parallel_workers
+SET GLOBAL replica_preserve_commit_order= ON;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source1.inc
+CALL mtr.add_suppression(".*Following users were specified in CREATE USER IF NOT EXISTS but they already exist.*");
+CALL mtr.add_suppression(".*Following users were specified in ALTER USER IF EXISTS but they do not exist.*");
+
+# Create tables on source
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+
+# Create table to load commands
+CREATE TABLE commands (a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100));
+
+# Load commands into table
+LOAD DATA INFILE '../../std_data/acl.csv' INTO TABLE commands(b);
+
+--source include/rpl/sync_to_replica.inc
+
+--let $counter = `SELECT COUNT(*) COUNT FROM commands`
+--let $j =1
+
+while($j <= $counter)
+{
+
+--let $mts_spco_command = `SELECT b FROM commands WHERE a='$j'`
+
+--echo
+--echo # Check for $mts_spco_command
+
+--let $mts_spco_skip_init_statement = 1
+--let $mts_spco_start_statement =
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = `SELECT CONCAT ('BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ', '$mts_spco_command')`
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2;
+--let $mts_spco_cleanup_statement = 0
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $j
+}
+
+--echo
+--echo # Cleanup
+--echo
+
+--source include/rpl/connection_source1.inc
+DROP TABLE t1,t2,commands;
+
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+
+SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
+--disable_warnings
+SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc

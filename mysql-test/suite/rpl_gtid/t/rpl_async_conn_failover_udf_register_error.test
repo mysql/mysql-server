@@ -18,7 +18,7 @@
 --source include/have_debug_sync.inc
 
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Checks for ER_UDF_REGISTER_SERVICE_ERROR error for UDF registry
@@ -31,10 +31,10 @@
 
 --let $rpl_server_number= 1
 --let $rpl_server_parameters=--debug=+d,rpl_async_udf_register_service_error
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.user_defined_functions WHERE UDF_NAME ="asynchronous_connection_failover_add_source", count, 1] = 0
@@ -54,10 +54,10 @@
 
 --let $rpl_server_number= 1
 --let $rpl_server_parameters=--debug=+d,rpl_async_udf_register_error
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.user_defined_functions WHERE UDF_NAME ="asynchronous_connection_failover_add_source", count, 1] = 0
@@ -77,10 +77,10 @@
 
 --let $rpl_server_number= 1
 --let $rpl_server_parameters=--debug=+d,rpl_async_udf_unregister_error
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.user_defined_functions WHERE UDF_NAME ="asynchronous_connection_failover_add_source", count, 1] = 1
@@ -88,7 +88,7 @@
 
 --let $rpl_server_number= 1
 --let $rpl_server_parameters=
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 --let $grep_file= $MYSQLTEST_VARDIR/tmp/rpl_async_conn_failover_udf_register_error.1.err
 --let $grep_pattern= Could not uninstall UDF functions. Try to remove them manually if present.
@@ -102,7 +102,7 @@
 
 --let $rpl_server_number= 1
 --let $rpl_server_parameters=
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

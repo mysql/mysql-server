@@ -30,7 +30,7 @@
 --echo # 1. Install clone plugin on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_port= `SELECT @@GLOBAL.PORT`
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
@@ -49,7 +49,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 3. Make a backup of server 2 to restore it at the end
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $BACKUP_DATADIR = $MYSQL_TMP_DIR/data_new
 --let $MYSQLD_2_DATADIR= `SELECT @@datadir`
@@ -103,19 +103,19 @@ SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
 --source include/start_mysqld.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo ############################################################
 --echo # 8. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
@@ -130,7 +130,7 @@ call mtr.add_suppression("Error while starting the group replication applier thr
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 UNINSTALL PLUGIN clone;
 

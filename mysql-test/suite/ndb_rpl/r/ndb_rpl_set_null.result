@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -15,7 +15,7 @@ INSERT INTO t2 VALUES (3, 1, 1);
 INSERT INTO t3 VALUES (1, 1, 1);
 INSERT INTO t4 VALUES (1, 1, 1, 1, 1);
 INSERT INTO t5 VALUES (1, 63);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 UPDATE t1_innodb SET b1 = NULL WHERE b2 = 1;
 UPDATE t1_ndb SET c1 = NULL WHERE c2 = 1;
@@ -23,7 +23,7 @@ UPDATE t2 SET d1 = NULL WHERE d3 = 1;
 UPDATE t3 SET e1 = NULL WHERE a = 1;
 UPDATE t4 SET f1 = NULL, f5 = NULL WHERE f2 = 1;
 UPDATE t5 SET g1 = NULL WHERE a = 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1_ndb;
 c1	c2
 NULL	
@@ -44,32 +44,32 @@ a	g1
 1	NULL
 [connection master]
 DELETE FROM t1_innodb WHERE b2 = 1 LIMIT 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1_innodb;
 b1	b2
 [connection master]
 DELETE FROM t1_ndb WHERE c2 = 1 LIMIT 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1_ndb;
 c1	c2
 [connection master]
 DELETE FROM t2 WHERE d2 = 1 LIMIT 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2;
 d1	d2	d3
 [connection master]
 DELETE FROM t3 WHERE a = 1 LIMIT 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t3;
 a	e1	e2
 [connection master]
 DELETE FROM t4 WHERE f2 = 1 LIMIT 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t4;
 f1	f2	f3	f4	f5
 [connection master]
 DELETE FROM t5 WHERE a = 1 LIMIT 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t5;
 a	g1
 [connection master]
@@ -80,4 +80,4 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLE t5;
 Cleanup
-include/rpl_end.inc
+include/rpl/deinit.inc

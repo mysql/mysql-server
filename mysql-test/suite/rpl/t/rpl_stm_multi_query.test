@@ -5,5 +5,5 @@
 
 -- source include/have_binlog_format_mixed_or_statement.inc
 --let $mask_binlog_commit_events= 1
--- source extra/rpl_tests/rpl_multi_query.test
+-- source common/rpl/rpl_multi_query.test
 --let $mask_binlog_commit_events= 0

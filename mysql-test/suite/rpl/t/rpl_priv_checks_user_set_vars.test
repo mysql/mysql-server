@@ -81,7 +81,7 @@
 --let $rpl_privilege_checks_user= *:'u1'@'localhost'
 --let $rpl_skip_grant_privilege_checks_user_roles = 1
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # TC1. Verify that replication only succeeds with
@@ -93,7 +93,7 @@
 CREATE TABLE t_system (c1 INT);
 INSERT INTO t_system VALUES (1), (2);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression(".*you need .at least one of. the SUPER.* SYSTEM_VARIABLES_ADMIN.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 
@@ -105,7 +105,7 @@ SHOW GRANTS FOR 'u1'@'localhost';
 # 3) Start replica and wait for applier to error out.
 START REPLICA;
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # 4) Stop the slave.
 STOP REPLICA;
@@ -116,8 +116,8 @@ SHOW GRANTS FOR 'u1'@'localhost';
 
 # 6) Start the slave and sync it with master.
 START REPLICA;
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # 7) Ensure that database contents are the same in master and slave.
 --let $diff_tables= master:t_system, slave:t_system
@@ -133,11 +133,11 @@ REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM 'u1'@'localhost';
 --echo #
 
 # 1) Create a table on the master and insert a record.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t_super (c1 INT);
 INSERT INTO t_super VALUES (1), (2);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
 #    `PRIVILEGE_CHECKS_USER` user.
@@ -147,7 +147,7 @@ SHOW GRANTS FOR 'u1'@'localhost';
 # 3) Start replica and wait for applier to error out.
 START REPLICA;
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # 4) Stop the slave.
 STOP REPLICA;
@@ -158,8 +158,8 @@ SHOW GRANTS FOR 'u1'@'localhost';
 
 # 6) Start the slave and sync it with master.
 START REPLICA;
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # 7) Ensure that database contents are the same in master and slave.
 --let $diff_tables= master:t_super, slave:t_super
@@ -175,11 +175,11 @@ REVOKE SUPER ON *.* FROM 'u1'@'localhost';
 --echo #
 
 # 1) Create a table on the master and insert a record.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t_session (c1 INT);
 INSERT INTO t_session VALUES (1), (2);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
 #    `PRIVILEGE_CHECKS_USER` user.
 # -> Already done in previous test-case
@@ -188,7 +188,7 @@ SHOW GRANTS FOR 'u1'@'localhost';
 # 3) Start replica and wait for applier to error out.
 START REPLICA;
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # 4) Stop the slave.
 STOP REPLICA;
@@ -199,8 +199,8 @@ SHOW GRANTS FOR 'u1'@'localhost';
 
 # 6) Start the slave and sync it with master.
 START REPLICA;
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # 7) Ensure that database contents are the same in master and slave.
 --let $diff_tables= master:t_session, slave:t_session
@@ -214,7 +214,7 @@ STOP REPLICA;
 --echo #      `TABLE_ENCRYPTION_ADMIN`
 --echo # --------------------------------------------------------------------
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # 1) Change value for `default_table_encryption` on master and create a new
 #    database.
@@ -222,7 +222,7 @@ STOP REPLICA;
 SET default_table_encryption = 1;
 CREATE DATABASE new_db;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # 2) Ensure that `PRIVILEGE_CHECKS_USER` doesn't have the necessary privileges
 #    to set `default_table_encryption`.
 REVOKE SUPER, SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* FROM 'u1'@'localhost';
@@ -230,7 +230,7 @@ REVOKE SUPER, SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* FROM 'u1'@'l
 # 3) Start replica and wait for applier to error out.
 START REPLICA;
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # 4) Grant `SYSTEM_VARIABLES_ADMIN` and `TABLE_ENCRYPTION_ADMIN` to
 #    `PRIVILEGE_CHECKS_USER` user.
@@ -240,8 +240,8 @@ SHOW GRANTS FOR 'u1'@'localhost';
 
 # 5) Start the slave and sync it with master.
 START REPLICA;
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # 6) Ensure that we can use the database on the slave.
 --let $databases_list = `SHOW DATABASES LIKE 'new_db'`
@@ -250,11 +250,11 @@ START REPLICA;
 --source include/assert.inc
 
 # Clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t_system;
 DROP TABLE t_super;
 DROP TABLE t_session;
 DROP DATABASE new_db;
 --replace_result $opt_default_table_encryption OPT_DEFAULT_TABLE_ENCRYPTION
 --eval SET default_table_encryption = $opt_default_table_encryption
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

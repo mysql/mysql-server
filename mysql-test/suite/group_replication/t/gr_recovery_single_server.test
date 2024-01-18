@@ -29,7 +29,7 @@
 --echo # server1.
 --connection server1
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server2
 SET @@GLOBAL.DEBUG='+d,block_applier_updates';

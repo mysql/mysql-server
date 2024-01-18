@@ -224,7 +224,7 @@
 # WL#11300: Crash-safe XA + binary log
 #
 # Related tests;
-#   see extra/xa_crash_safe_tests/setup.inc
+#   see common/xa_crash_safe/setup.inc
 #
 --source include/have_binlog_format_row.inc
 --source include/big_test.inc
@@ -251,24 +251,24 @@ RESET BINARY LOGS AND GTIDS;
 --let $recovery_scenario = orphan_xid
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 430 and 540: Xid_log_event outside the boundary of a sequence of events representing an active transaction.*
 --source include/wait_for_pattern_in_file.inc
 
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC2. Duplicate XID in Xid_log_event
 # ----------------------------------------------------------------------------
 --let $recovery_scenario = duplicate_xid
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 430 and 703: Xid_log_event holds an invalid XID.*
 --source include/wait_for_pattern_in_file.inc
 
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC3. Orphan `XA PREPARE`
 # ----------------------------------------------------------------------------
@@ -277,13 +277,13 @@ XA START 'x';
 INSERT INTO t1 VALUES (1);
 XA END 'x';
 XA PREPARE 'x';
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 157 and 273: XA_prepare_log_event outside the boundary of a sequence of events representing an active transaction.*
 --source include/wait_for_pattern_in_file.inc
 
 --let $end_scenario_stmt = XA ROLLBACK 'x'
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC4. Duplicate XID in XA_prepare_log_event
 # ----------------------------------------------------------------------------
@@ -297,13 +297,13 @@ XA START 'y';
 INSERT INTO t1 VALUES (2);
 XA END 'y';
 XA PREPARE 'y';
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 539 and 921: XA_prepare_log_event holds an invalid XID.*
 --source include/wait_for_pattern_in_file.inc
 
 --let $end_scenario_stmt = XA ROLLBACK 'x'; XA ROLLBACK 'y'
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC5. Orphan `BEGIN/XA START`
 # ----------------------------------------------------------------------------
@@ -317,13 +317,13 @@ XA START 'x';
 INSERT INTO t1 VALUES (3);
 XA END 'x';
 XA PREPARE 'x';
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 157 and 656: Query_log_event containing `BEGIN/XA START` inside the boundary of a sequence of events representing an active transaction.*
 --source include/wait_for_pattern_in_file.inc
 
 --let $end_scenario_stmt = XA ROLLBACK 'x'
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC6. Orphan `COMMIT`
 # ----------------------------------------------------------------------------
@@ -335,13 +335,13 @@ BEGIN;
 INSERT INTO tmp1 (SELECT c1 FROM t1);
 COMMIT;
 SET @@SESSION.binlog_format = ROW;
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 352 and 514: Query_log_event containing `COMMIT` outside the boundary of a sequence of events representing an active transaction.*
 --source include/wait_for_pattern_in_file.inc
 
 --let $end_scenario_stmt = DROP TABLE tmp1
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC7. Orphan `ROLLBACK`
 # ----------------------------------------------------------------------------
@@ -360,13 +360,13 @@ BEGIN;
 SELECT func1();
 ROLLBACK;
 SET @@SESSION.binlog_format = ROW;
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 510 and 667: Query_log_event containing `ROLLBACK` outside the boundary of a sequence of events representing an active transaction.*
 --source include/wait_for_pattern_in_file.inc
 
 --let $end_scenario_stmt = DROP FUNCTION func1
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC8. DDL in the middle of transaction
 # ----------------------------------------------------------------------------
@@ -375,26 +375,26 @@ INSERT INTO t1 VALUES (1);
 
 CREATE TABLE tmp1 (i INT);
 INSERT INTO tmp1 (SELECT c1 FROM t1);
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 157 and 589: Query_log event containing a DDL inside the boundary of a sequence of events representing an active transaction.*
 --source include/wait_for_pattern_in_file.inc
 
 --let $end_scenario_stmt = DROP TABLE tmp1
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC9. DDL holding a duplicate XID
 # ----------------------------------------------------------------------------
 --let $recovery_scenario = duplicate_xid_ddl
 INSERT INTO t1 VALUES (1);
 CREATE TABLE tmp1 (i INT);
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 430 and 620: Query_log_event containing a DDL holds an invalid XID.*
 --source include/wait_for_pattern_in_file.inc
 
 --let $end_scenario_stmt = DROP TABLE tmp1
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC10. Orphan `XA COMMIT`
 # ----------------------------------------------------------------------------
@@ -406,12 +406,12 @@ INSERT INTO t1 VALUES (2);
 XA END 'x';
 XA PREPARE 'x';
 XA COMMIT 'x' ;
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 430 and 943: Query_log_event containing `XA COMMIT` inside the boundary of a sequence of events representing a transaction not yet in prepared state.*
 --source include/wait_for_pattern_in_file.inc
 
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC11. `XA COMMIT` holding a malformed XID
 # ----------------------------------------------------------------------------
@@ -423,12 +423,12 @@ INSERT INTO t1 VALUES (2);
 XA END 'x';
 XA PREPARE 'x';
 XA COMMIT 'x' ;
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 812 and 980: Query_log_event containing `XA COMMIT` holds an invalid XID.*
 --source include/wait_for_pattern_in_file.inc
 
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC12. `XA COMMIT` holding a duplicate XID
 # ----------------------------------------------------------------------------
@@ -446,12 +446,12 @@ INSERT INTO t1 VALUES (3);
 XA END 'x';
 XA PREPARE 'x';
 XA COMMIT 'x' ;
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 980 and 1148: Query_log_event containing `XA COMMIT` holds an invalid XID.*
 --source include/wait_for_pattern_in_file.inc
 
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC13. Orphan `XA ROLLBACK`
 # ----------------------------------------------------------------------------
@@ -463,12 +463,12 @@ INSERT INTO t1 VALUES (2);
 XA END 'x';
 XA PREPARE 'x';
 XA ROLLBACK 'x' ;
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 430 and 945: Query_log_event containing `XA ROLLBACK` inside the boundary of a sequence of events representing a transaction not yet in prepared state.*
 --source include/wait_for_pattern_in_file.inc
 
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC14. `XA ROLLBACK` holding a malformed XID
 # ----------------------------------------------------------------------------
@@ -480,12 +480,12 @@ INSERT INTO t1 VALUES (2);
 XA END 'x';
 XA PREPARE 'x';
 XA ROLLBACK 'x' ;
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 812 and 982: Query_log_event containing `XA ROLLBACK` holds an invalid XID.*
 --source include/wait_for_pattern_in_file.inc
 
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 # TC15. `XA ROLLBACK` holding a duplicate XID
 # ----------------------------------------------------------------------------
@@ -503,11 +503,11 @@ INSERT INTO t1 VALUES (3);
 XA END 'x';
 XA PREPARE 'x';
 XA ROLLBACK 'x' ;
---source extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
+--source common/binlog/recovery/kill_copy_malformed_restart.inc
 
 --let $grep_pattern = .*between positions 980 and 1150: Query_log_event containing `XA ROLLBACK` holds an invalid XID.*
 --source include/wait_for_pattern_in_file.inc
 
---source extra/binlog_tests/recovery/end_scenario.inc
+--source common/binlog/recovery/end_scenario.inc
 
 DROP TABLE t1;

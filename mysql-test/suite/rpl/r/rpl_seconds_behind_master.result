@@ -1,51 +1,51 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT');
 create table t1 (f1 int);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 insert into t1 values (1);
 lock table t1 write;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [Seconds_Behind_Source must be between 'lower_bound' and 'upper_bound']
 unlock tables;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 lock table t1 write;
 insert into t1 values (2);
 flush logs;
 include/assert.inc [Seconds_Behind_Source must be between 'lower_bound' and 'upper_bound']
 unlock tables;
 drop table t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 # Adding debug point 'dec_event_time_by_1_hour' to @@GLOBAL.debug
 CREATE TABLE t1 (a INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Seconds_Behind_Source must be 0]
 LOCK TABLE t1 WRITE;
 INSERT INTO t1 VALUES (3);
 include/assert.inc [Seconds_Behind_Source must be greater or equal than 'lower_bound']
 UNLOCK TABLES;
 # Removing debug point 'dec_event_time_by_1_hour' from @@GLOBAL.debug
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 10;
 [connection master]
 INSERT INTO t1 VALUES (47);
 [connection slave]
 LOCK TABLE t1 WRITE;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [Seconds_Behind_Source must be between 'lower_bound' and 'upper_bound']
 UNLOCK TABLES;
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

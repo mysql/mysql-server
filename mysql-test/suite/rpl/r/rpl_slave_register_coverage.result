@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,14 +7,14 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Test Case 1: Source_User has no privilege
 #
 CREATE USER rpl_user;
-include/sync_slave_sql_with_master.inc
-include/stop_slave_io.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=13120]
+include/rpl/wait_for_receiver_error.inc [errno=13120]
 CALL mtr.add_suppression(".*Replica I/O thread couldn't register on source.*");
 CALL mtr.add_suppression(".* Source command COM_REGISTER_REPLICA failed.*");
 #
@@ -26,9 +26,9 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SET GLOBAL debug = '+d,simulate_register_replica_killed';
 START REPLICA IO_THREAD;
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 SET GLOBAL debug = '-d,simulate_register_replica_killed';
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
 DROP USER rpl_user;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -11,7 +11,7 @@ CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS
 --echo # Begin : Tests for ALTER USER
 
 CREATE USER userX, userY, userZ;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 SELECT user, authentication_string FROM mysql.user;
 
@@ -22,7 +22,7 @@ ALTER USER userX IDENTIFIED BY 'abcd',
 
 --let $event= !Q(ALTER USER.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --exec $MYSQL -uuserX -pabcd -e "SELECT CURRENT_USER()" 2>&1
 --exec $MYSQL -uuserY -pefgh -e "SELECT CURRENT_USER()" 2>&1
@@ -47,7 +47,7 @@ ALTER USER userW IDENTIFIED BY 'haha',
 --echo # Case 3 : Remove one of the entries from mysql.user but don't flush privileges.
 DELETE FROM mysql.user WHERE user LIKE 'userX';
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --error ER_CANNOT_USER
 ALTER USER userY IDENTIFIED BY '',
@@ -61,7 +61,7 @@ ALTER USER userY IDENTIFIED BY '',
 
 # reload ACL caches
 FLUSH PRIVILEGES;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --exec $MYSQL -uuserY -pefgh -e "SELECT CURRENT_USER()" 2>&1
 --exec $MYSQL -uuserZ -pijkl -e "SELECT CURRENT_USER()" 2>&1
@@ -84,7 +84,7 @@ SELECT user FROM mysql.user;
 
 DROP USER userY, userZ;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for ALTER USER
 
@@ -95,7 +95,7 @@ DROP USER userY, userZ;
 CALL mtr.add_suppression("Following users were specified in ALTER USER IF NOT EXISTS but they do not exist.");
 
 CREATE USER userX, userY;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Must throw warning for userW and userZ
 ALTER USER IF EXISTS userW IDENTIFIED BY 'abcd',
@@ -105,14 +105,14 @@ ALTER USER IF EXISTS userW IDENTIFIED BY 'abcd',
 
 --let $event= !Q(ALTER USER.*userW.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --exec $MYSQL -uuserX -pefgh -e "SELECT CURRENT_USER()" 2>&1
 --exec $MYSQL -uuserY -pijkl -e "SELECT CURRENT_USER()" 2>&1
 
 --echo # Case 2 : Remove one of the user from mysql.user table
 DELETE FROM mysql.user WHERE user LIKE 'userX';
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Must throw warning for userX
 ALTER USER IF EXISTS userX IDENTIFIED BY 'abcd',
@@ -122,7 +122,7 @@ ALTER USER IF EXISTS userX IDENTIFIED BY 'abcd',
 --source ../include/auth_sec_assert_binlog_events.inc
 
 FLUSH PRIVILEGES;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 3 : Current session's password must be expired
 GRANT ALL ON *.* TO userY;
@@ -136,7 +136,7 @@ ALTER USER IF EXISTS userY, userW PASSWORD EXPIRE;
 SELECT user FROM mysql.user;
 
 connection default;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 connection conn_userY;
 --echo # Must throw warning
@@ -149,7 +149,7 @@ SELECT user FROM mysql.user;
 connection default;
 disconnect conn_userY;
 DROP USER userY;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for ALTER USER IF EXISTS
 

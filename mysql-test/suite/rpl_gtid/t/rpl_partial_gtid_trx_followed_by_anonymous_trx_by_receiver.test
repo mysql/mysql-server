@@ -37,19 +37,19 @@
 --source include/not_binlog_transaction_compression_on.inc
 
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Disable slave's auto_positioning
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 --let $use_gtids= 0
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("GTID_LOG_EVENT.* is not expected in an event stream");
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 # Reset the GTID counter for assertion
---source include/gtid_step_reset_on_retrieved.inc
+--source include/rpl/gtid_step_reset_on_retrieved.inc
 # Set slave to stop after Xid event, transforming it in an
 # ignorable unknown event.
 --let $debug_point= stop_io_after_reading_unknown_event
@@ -58,60 +58,60 @@ call mtr.add_suppression("GTID_LOG_EVENT.* is not expected in an event stream");
 --source include/add_debug_point.inc
 
 # Create a table at the master using GTID
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --echo # This should be Source_UUID:1
 CREATE TABLE t1 (c1 INT) ENGINE= InnoDB;
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # Inserting some data
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --echo # This should be Source_UUID:2,
 --echo # but it will not be fully retrieved nor applied on slave
 INSERT INTO t1 VALUES (1);
 
 # Wait the slave IO thread to stop
---source include/rpl_connection_slave.inc
---source include/wait_for_slave_io_to_stop.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/wait_for_receiver_to_stop.inc
 --source include/remove_debug_point.inc
 --let $debug_point= stop_io_after_reading_unknown_event
 --source include/remove_debug_point.inc
 
 # Restart the master without GTIDS
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $rpl_server_number= 1
 --let $rpl_start_with_gtids= 0
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # Insert more data on master
 --echo # This should be ANONYMOUS
 INSERT INTO t1 VALUES (2);
 
 # Restart the master with GTIDS again
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $rpl_server_number= 1
 --let $rpl_start_with_gtids= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 
 # Insert more data on master
 --echo # This should be Source_UUID:3
 INSERT INTO t1 VALUES (3);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Start replica IO thread and sync slave with master
---source include/start_slave_io.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # Assert that only two GTIDs were added to the Retrieved_Gtid_Set
 --let $gtid_step_count= 2
 --let $gtid_step_only_count= 1
---source include/gtid_step_assert_on_retrieved.inc
+--source include/rpl/gtid_step_assert_on_retrieved.inc
 
 # Cleanup
 
 # Restore the slave
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 SET GLOBAL GTID_MODE = ON;
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
@@ -119,11 +119,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 --let $use_gtids= 1
 
 # Cleanup the master
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL GTID_MODE = ON;
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

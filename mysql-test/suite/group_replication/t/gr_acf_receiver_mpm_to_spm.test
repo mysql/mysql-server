@@ -37,12 +37,12 @@
 --echo ############################################################
 --echo # 1. Deploy a group in multi-primary mode on server1 and server2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -51,11 +51,11 @@
 --echo # 2. Configure a failover channel on server1 that replicates
 --echo #    from server3.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server3_uuid= `SELECT @@server_uuid`
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
@@ -63,7 +63,7 @@
 --eval SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', $SERVER_MYPORT_3, '', 50);
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
@@ -95,7 +95,7 @@
 --echo #    to show that it will change to SOURCE_CONNECTION_AUTO_FAILOVER=1
 --echo #    when group mode changes to single-primary mode.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
@@ -124,13 +124,13 @@ SELECT * FROM performance_schema.replication_group_configuration_version WHERE n
 --echo #    The primary must be server1, since when a member has
 --echo #    replication channels running it must be the primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server1_uuid MEMBER1_UUID
 --eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_secondary_member.inc
 
 
@@ -140,7 +140,7 @@ SELECT * FROM performance_schema.replication_group_configuration_version WHERE n
 --echo #    configuration is preserved, and that it did replace the
 --echo #    one on server2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
@@ -174,7 +174,7 @@ SELECT * FROM performance_schema.replication_group_configuration_version WHERE n
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
@@ -208,18 +208,18 @@ SELECT * FROM performance_schema.replication_group_configuration_version WHERE n
 --echo #    server2 is the new primary and does start the failover
 --echo #    channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= `SELECT @@server_uuid`
 --let $group_replication_expected_uuid= $server2_uuid
 --source include/gr_wait_primary_member_uuid.inc
 
 --let $rpl_channel_name= 'ch1'
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 
 --let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
@@ -256,29 +256,29 @@ SELECT * FROM performance_schema.replication_group_configuration_version WHERE n
 --echo ############################################################
 --echo # 8. Clean up.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_channel_name='ch1'
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch1'
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Ensure that all dump threads are stopped.
---source include/stop_dump_threads.inc
+--source include/rpl/stop_dump_threads.inc
 
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1

@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection master]
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 FLUSH BINARY LOGS;
 #
@@ -18,20 +18,20 @@ SET GLOBAL debug = "+d,set_commit_parent_100";
 LOCK TABLE t1 WRITE;
 [connection master]
 INSERT INTO t1(a) VALUES (1);
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
 UNLOCK TABLES;
-include/sync_slave_sql.inc
+include/rpl/sync_with_saved.inc
 SET DEBUG_SYNC = 'RESET';
 [connection slave]
 LOCK TABLE t1 WRITE;
 [connection master]
 INSERT INTO t1(a) VALUES (2);
 INSERT INTO t1(a) VALUES (3);
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
 UNLOCK TABLES;
-include/sync_slave_sql.inc
+include/rpl/sync_with_saved.inc
 SET DEBUG_SYNC = 'RESET';
 [connection slave]
 LOCK TABLE t1 WRITE;
@@ -39,10 +39,10 @@ LOCK TABLE t1 WRITE;
 INSERT INTO t1(a) VALUES (4);
 INSERT INTO t1(a) VALUES (5);
 INSERT INTO t1(a) VALUES (6);
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
 UNLOCK TABLES;
-include/sync_slave_sql.inc
+include/rpl/sync_with_saved.inc
 SET DEBUG_SYNC = 'RESET';
 [connection slave]
 LOCK TABLE t1 WRITE;
@@ -51,10 +51,10 @@ INSERT INTO t1(a) VALUES (7);
 INSERT INTO t1(a) VALUES (8);
 INSERT INTO t1(a) VALUES (9);
 INSERT INTO t1(a) VALUES (10);
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
 UNLOCK TABLES;
-include/sync_slave_sql.inc
+include/rpl/sync_with_saved.inc
 SET DEBUG_SYNC = 'RESET';
 [connection slave]
 LOCK TABLE t1 WRITE;
@@ -64,10 +64,10 @@ INSERT INTO t1(a) VALUES (12);
 INSERT INTO t1(a) VALUES (13);
 INSERT INTO t1(a) VALUES (14);
 INSERT INTO t1(a) VALUES (15);
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
 UNLOCK TABLES;
-include/sync_slave_sql.inc
+include/rpl/sync_with_saved.inc
 SET DEBUG_SYNC = 'RESET';
 [connection slave]
 LOCK TABLE t1 WRITE;
@@ -78,10 +78,10 @@ INSERT INTO t1(a) VALUES (18);
 INSERT INTO t1(a) VALUES (19);
 INSERT INTO t1(a) VALUES (20);
 INSERT INTO t1(a) VALUES (21);
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
 UNLOCK TABLES;
-include/sync_slave_sql.inc
+include/rpl/sync_with_saved.inc
 SET DEBUG_SYNC = 'RESET';
 [connection slave]
 DROP TABLE t1;
@@ -94,12 +94,12 @@ include/assert.inc ['There are 21 rows']
 [connection master]
 SET GLOBAL debug = @save_debug;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Verify that it will generate a warning if slave-preserve-commit is
 # used with DB PARTITIONED MTS together
 #
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 SET GLOBAL replica_parallel_type = 'DATABASE';
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
@@ -108,4 +108,4 @@ ERROR HY000: replica_preserve_commit_order is not supported when replica_paralle
 SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -52,7 +52,7 @@ CREATE TABLE t1(c1 int primary key);
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -63,13 +63,13 @@ CREATE TABLE t1(c1 int primary key);
 --echo #    It is yet not known if a transaction will be binlogged or not.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_observer_trans';
 --send INSERT INTO t1 values(1)
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
 # Debug point group_replication_wait_on_observer_trans is present in begin hook.
@@ -83,13 +83,13 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --echo # 3. Begin change of primary from server2(secondary).
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --send_eval SELECT group_replication_set_as_primary("$server2_uuid", 0);
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Stopped client connections"
 --source include/wait_condition.inc
@@ -99,7 +99,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --echo #    It should fail since it passed begin state but is yet not committing.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_continue";
 
@@ -108,7 +108,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo #    Transaction was not committing so got rolled back.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_RUN_HOOK_ERROR, CR_SERVER_LOST
 --reap
 
@@ -116,12 +116,12 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server2_uuid SERVER2_UUID
 --reap
 
@@ -130,12 +130,12 @@ SET DEBUG_SYNC= 'RESET';
 --echo #    Assert data is not present on M1 and M2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -152,13 +152,13 @@ SET DEBUG_SYNC= 'RESET';
 --echo #    It is yet not known if a transaction will be binlogged or not.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_observer_trans';
 --send INSERT INTO t1 values(1)
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
 # Debug point group_replication_wait_on_observer_trans is present in begin hook.
@@ -172,13 +172,13 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --echo # 8. Begin change of primary from server2(secondary).
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid SERVER1_UUID
 --send_eval SELECT group_replication_set_as_primary("$server1_uuid", 0);
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Stopped client connections"
 --source include/wait_condition.inc
@@ -188,7 +188,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --echo #    It should fail since it passed begin state but is yet not committing.
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_continue";
 
@@ -198,7 +198,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo #    Also reap the change primary operation it should succeed.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_RUN_HOOK_ERROR, CR_SERVER_LOST
 --reap
@@ -207,12 +207,12 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server1_uuid SERVER1_UUID
 --reap
 
@@ -221,12 +221,12 @@ SET DEBUG_SYNC= 'RESET';
 --echo #    Assert data is not present on M1 and M2.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -240,7 +240,7 @@ SET DEBUG_SYNC= 'RESET';
 --echo
 --echo # 12. Cleanup.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

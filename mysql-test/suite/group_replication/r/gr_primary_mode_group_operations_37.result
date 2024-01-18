@@ -29,7 +29,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 
 # 5. Server3 will leave group
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 6. Server3 changed to ERROR state
 [connection server3]

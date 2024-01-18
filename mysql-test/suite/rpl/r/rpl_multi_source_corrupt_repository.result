@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->4,2->4,3->4]
+include/rpl/init.inc [topology=1->4,2->4,3->4]
 [connection server_4]
 CALL mtr.add_suppression("Failed to open the relay log");
 CALL mtr.add_suppression("Could not find target log file mentioned in applier metadata in the index file");
@@ -15,13 +15,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST=
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL '']
+include/rpl/start_replica.inc [FOR CHANNEL '']
 [connection server_1]
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(i int);
 DROP TABLE db1.t1;
 DROP DATABASE db1;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
+include/rpl/sync_to_replica.inc [FOR CHANNEL '']
 [connection server_2]
 RESET BINARY LOGS AND GTIDS;
 [connection server_4]
@@ -29,13 +29,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST=
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'channel_2']
+include/rpl/start_replica.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
 CREATE DATABASE db2;
 CREATE TABLE db2.t2(i int);
 DROP TABLE db2.t2;
 DROP DATABASE db2;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
 RESET BINARY LOGS AND GTIDS;
 [connection server_4]
@@ -43,20 +43,20 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST=
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'channel_3']
+include/rpl/start_replica.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 CREATE DATABASE db3;
 CREATE TABLE db3.t3(i int);
 DROP TABLE db3.t3;
 DROP DATABASE db3;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 ===== Corrupting Channel ''.
 [connection server_4]
 ===== Stop the server 4.
-include/rpl_stop_server.inc [server_number=4]
+include/rpl/stop_server.inc [server_number=4]
 ===== Remove '' channel's relaylog file.
 ===== Start the server 4 with --skip-replica-start=0 option.
-include/rpl_start_server.inc [server_number=4 parameters: --skip-replica-start=0]
+include/rpl/start_server.inc [server_number=4 parameters: --skip-replica-start=0]
 ===== Assert that all channels IO and SQL threads are in expected state.
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
@@ -64,7 +64,7 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== Executing few basic commands without 'FOR CHANNEL' clause.
 ===== STOP REPLICA without 'FOR CHANNEL' clause.
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 === Assert that all channels IO and SQL threads are in OFF state ===
@@ -110,7 +110,7 @@ Last_SQL_Errno = '13124'
 Last_SQL_Error = 'Replica failed to initialize applier metadata structure from the repository'
 Channel_Name = ''
 ===== Executing STOP REPLICA FOR CHANNEL on channel ''.
-include/stop_slave.inc [FOR CHANNEL '']
+include/rpl/stop_replica.inc [FOR CHANNEL '']
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel ''.
@@ -137,8 +137,8 @@ FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
 ===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel 'channel_2'.
-include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL 'channel_2']
-include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_2']
+include/rpl/wait_for_replica_status.inc [Replica_IO_State FOR CHANNEL 'channel_2']
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_2']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -149,9 +149,9 @@ Channel_Name = 'channel_2'
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_2']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_2'.
-include/stop_slave.inc [FOR CHANNEL 'channel_2']
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_2'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
@@ -176,8 +176,8 @@ FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
 ===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel 'channel_3'.
-include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL 'channel_3']
-include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_3']
+include/rpl/wait_for_replica_status.inc [Replica_IO_State FOR CHANNEL 'channel_3']
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_3']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -188,9 +188,9 @@ Channel_Name = 'channel_3'
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_3'.
-include/stop_slave.inc [FOR CHANNEL 'channel_3']
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_3'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
@@ -209,13 +209,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST=
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL '']
+include/rpl/start_replica.inc [FOR CHANNEL '']
 [connection server_1]
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(i int);
 DROP TABLE db1.t1;
 DROP DATABASE db1;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
+include/rpl/sync_to_replica.inc [FOR CHANNEL '']
 [connection server_2]
 RESET BINARY LOGS AND GTIDS;
 [connection server_4]
@@ -223,13 +223,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST=
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'channel_2']
+include/rpl/start_replica.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
 CREATE DATABASE db2;
 CREATE TABLE db2.t2(i int);
 DROP TABLE db2.t2;
 DROP DATABASE db2;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
 RESET BINARY LOGS AND GTIDS;
 [connection server_4]
@@ -237,20 +237,20 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST=
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'channel_3']
+include/rpl/start_replica.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 CREATE DATABASE db3;
 CREATE TABLE db3.t3(i int);
 DROP TABLE db3.t3;
 DROP DATABASE db3;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 ===== Corrupting Channel 'channel_2'.
 [connection server_4]
 ===== Stop the server 4.
-include/rpl_stop_server.inc [server_number=4]
+include/rpl/stop_server.inc [server_number=4]
 ===== Remove 'channel_2' channel's relaylog file.
 ===== Start the server 4 with --skip-replica-start=0 option.
-include/rpl_start_server.inc [server_number=4 parameters: --skip-replica-start=0]
+include/rpl/start_server.inc [server_number=4 parameters: --skip-replica-start=0]
 ===== Assert that all channels IO and SQL threads are in expected state.
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
@@ -258,7 +258,7 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== Executing few basic commands without 'FOR CHANNEL' clause.
 ===== STOP REPLICA without 'FOR CHANNEL' clause.
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
 === Assert that all channels IO and SQL threads are in OFF state ===
@@ -296,8 +296,8 @@ FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
 SHOW RELAYLOG EVENTS FOR CHANNEL '';
 ===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel ''.
-include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL '']
-include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL '']
+include/rpl/wait_for_replica_status.inc [Replica_IO_State FOR CHANNEL '']
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State FOR CHANNEL '']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -308,9 +308,9 @@ Channel_Name = ''
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
+include/rpl/sync_to_replica.inc [FOR CHANNEL '']
 ===== Executing STOP REPLICA FOR CHANNEL on channel ''.
-include/stop_slave.inc [FOR CHANNEL '']
+include/rpl/stop_replica.inc [FOR CHANNEL '']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel ''.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
@@ -343,7 +343,7 @@ Last_SQL_Errno = '13124'
 Last_SQL_Error = 'Replica failed to initialize applier metadata structure from the repository'
 Channel_Name = 'channel_2'
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_2'.
-include/stop_slave.inc [FOR CHANNEL 'channel_2']
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_2']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_2'.
@@ -370,8 +370,8 @@ FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
 ===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel 'channel_3'.
-include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL 'channel_3']
-include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_3']
+include/rpl/wait_for_replica_status.inc [Replica_IO_State FOR CHANNEL 'channel_3']
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_3']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -382,9 +382,9 @@ Channel_Name = 'channel_3'
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_3'.
-include/stop_slave.inc [FOR CHANNEL 'channel_3']
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_3'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
@@ -403,13 +403,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST=
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL '']
+include/rpl/start_replica.inc [FOR CHANNEL '']
 [connection server_1]
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(i int);
 DROP TABLE db1.t1;
 DROP DATABASE db1;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
+include/rpl/sync_to_replica.inc [FOR CHANNEL '']
 [connection server_2]
 RESET BINARY LOGS AND GTIDS;
 [connection server_4]
@@ -417,13 +417,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST=
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'channel_2']
+include/rpl/start_replica.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
 CREATE DATABASE db2;
 CREATE TABLE db2.t2(i int);
 DROP TABLE db2.t2;
 DROP DATABASE db2;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
 RESET BINARY LOGS AND GTIDS;
 [connection server_4]
@@ -431,20 +431,20 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST=
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'channel_3']
+include/rpl/start_replica.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 CREATE DATABASE db3;
 CREATE TABLE db3.t3(i int);
 DROP TABLE db3.t3;
 DROP DATABASE db3;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 ===== Corrupting Channel 'channel_3'.
 [connection server_4]
 ===== Stop the server 4.
-include/rpl_stop_server.inc [server_number=4]
+include/rpl/stop_server.inc [server_number=4]
 ===== Remove 'channel_3' channel's relaylog file.
 ===== Start the server 4 with --skip-replica-start=0 option.
-include/rpl_start_server.inc [server_number=4 parameters: --skip-replica-start=0]
+include/rpl/start_server.inc [server_number=4 parameters: --skip-replica-start=0]
 ===== Assert that all channels IO and SQL threads are in expected state.
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
@@ -452,7 +452,7 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== Executing few basic commands without 'FOR CHANNEL' clause.
 ===== STOP REPLICA without 'FOR CHANNEL' clause.
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
 === Assert that all channels IO and SQL threads are in OFF state ===
@@ -490,8 +490,8 @@ FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
 SHOW RELAYLOG EVENTS FOR CHANNEL '';
 ===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel ''.
-include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL '']
-include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL '']
+include/rpl/wait_for_replica_status.inc [Replica_IO_State FOR CHANNEL '']
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State FOR CHANNEL '']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -502,9 +502,9 @@ Channel_Name = ''
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
+include/rpl/sync_to_replica.inc [FOR CHANNEL '']
 ===== Executing STOP REPLICA FOR CHANNEL on channel ''.
-include/stop_slave.inc [FOR CHANNEL '']
+include/rpl/stop_replica.inc [FOR CHANNEL '']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel ''.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
@@ -529,8 +529,8 @@ FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
 ===== Executing SHOW REPLICA STATUS FOR CHANNEL on channel 'channel_2'.
-include/wait_for_slave_param.inc [Replica_IO_State FOR CHANNEL 'channel_2']
-include/wait_for_slave_param.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_2']
+include/rpl/wait_for_replica_status.inc [Replica_IO_State FOR CHANNEL 'channel_2']
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State FOR CHANNEL 'channel_2']
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -541,9 +541,9 @@ Channel_Name = 'channel_2'
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_2']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_2'.
-include/stop_slave.inc [FOR CHANNEL 'channel_2']
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_2'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
@@ -576,7 +576,7 @@ Last_SQL_Errno = '13124'
 Last_SQL_Error = 'Replica failed to initialize applier metadata structure from the repository'
 Channel_Name = 'channel_3'
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_3'.
-include/stop_slave.inc [FOR CHANNEL 'channel_3']
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_3']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_3'.
@@ -590,4 +590,4 @@ Channel_Name = 'channel_3'
 RESET REPLICA FOR CHANNEL 'channel_3';
 ===== Executing RESET REPLICA ALL FOR CHANNEL on channel 'channel_3'.
 RESET REPLICA ALL FOR CHANNEL 'channel_3';
-include/rpl_end.inc
+include/rpl/deinit.inc

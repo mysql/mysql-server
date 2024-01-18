@@ -37,7 +37,7 @@
 --source include/have_binlog_format_statement.inc
 # One gtid_mode is enough.
 --let $rpl_topology= none
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 CREATE TABLE t1 (a INT);
 

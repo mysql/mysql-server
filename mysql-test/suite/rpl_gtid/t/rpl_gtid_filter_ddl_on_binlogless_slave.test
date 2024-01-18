@@ -23,10 +23,10 @@
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
 
 --let $assert_text= Table "t1" does not exist, because it is filtered out
@@ -34,6 +34,6 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 --source include/assert.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ innodb_redo_log_archive_start('label1')
 0
 CREATE TABLE tab(c1 int , c2 text) ;
 INSERT INTO tab VALUES(1, 'test the wl');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM tab;
 COUNT(*)
@@ -26,7 +26,7 @@ INSERT INTO tab SELECT * FROM tab;
 DO innodb_redo_log_archive_stop();
 # Set Default value on master side 
 SET @@global.innodb_redo_log_archive_dirs = '';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM tab;
 COUNT(*)
@@ -37,4 +37,4 @@ DO innodb_redo_log_archive_stop();
 SET @@global.innodb_redo_log_archive_dirs = '';
 [Connection Master]
 DROP TABLE tab;
-include/rpl_end.inc
+include/rpl/deinit.inc

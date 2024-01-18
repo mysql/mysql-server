@@ -29,7 +29,7 @@
 --echo #    replication_group_members multiple times and stop GR on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 delimiter |;
 CREATE PROCEDURE test.gr_rejoining_offline_member_proc(mx INT)
@@ -55,7 +55,7 @@ SET GLOBAL group_replication_bootstrap_group=1;
 --echo # 4. Query performance_schema.replication_group_members table
 --echo #    multiple times while member is rejoining to test the failure.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_result_log
 --disable_query_log
@@ -68,7 +68,7 @@ call gr_rejoining_offline_member_proc(100);
 --echo # 5. Verify member1 is ONLINE.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $group_replication_member_state= ONLINE

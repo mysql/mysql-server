@@ -19,9 +19,9 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch4_1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch4_1']
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # 2. Check group_replication_unreachable_majority_timeout boundaries
 #
@@ -59,8 +59,8 @@ ERROR HY000: Error on observer while running replication hook 'before_commit'.
 include/assert.inc [The super_read_only mode should be 1.]
 
 # 6. Confirm on server1 Slave IO and SQL threads are not running.
-include/check_slave_param.inc [Replica_IO_Running]
-include/check_slave_param.inc [Replica_SQL_Running]
+include/rpl/assert_replica_status.inc [Replica_IO_Running]
+include/rpl/assert_replica_status.inc [Replica_SQL_Running]
 #
 # 7. Clean up.
 #
@@ -81,9 +81,9 @@ call mtr.add_suppression("The member has failed to gracefully leave the group.")
 call mtr.add_suppression("read failed");
 set session sql_log_bin=1;
 [connection server_2]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 DROP TABLE t1;
 [connection server_3]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 DROP TABLE t1;
 include/group_replication_end.inc

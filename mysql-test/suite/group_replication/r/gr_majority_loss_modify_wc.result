@@ -34,7 +34,7 @@ ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'
 ############################################################
 # Step 5 Unblock the group with the alive member (M1).
 include/assert.inc [group_replication_force_members is correct]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 ############################################################
 # Step 6 Check that write_concurrency value remains same after unblocking group.
@@ -48,5 +48,5 @@ UDF is asynchronous, check log or call group_replication_get_write_concurrency()
 ############################################################
 # Step 8 Clean up.
 [connection server2]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/group_replication_end.inc

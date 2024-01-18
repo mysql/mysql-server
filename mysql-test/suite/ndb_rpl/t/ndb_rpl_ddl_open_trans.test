@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --source suite/ndb/t/ndb_ddl_open_trans.test
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

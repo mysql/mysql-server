@@ -48,7 +48,7 @@ include/start_group_replication.inc
 #
 [connection server1]
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 4.  Check that GTID_EXECUTED on server 1 contains all

@@ -3,18 +3,18 @@ CALL mtr.add_suppression("Unable to create a new binlog file.");
 CALL mtr.add_suppression("Error persisting GTIDs to table");
 CREATE TABLE t0(c0 int);
 SET SESSION TRANSACTION READ ONLY;
-include/rpl_log_file_max_number.inc
+include/rpl/log_file_max_number.inc
 SET GLOBAL BINLOG_CHECKSUM = CRC32;
-include/rpl_log_file_max_number.inc
+include/rpl/log_file_max_number.inc
 include/assert.inc ['SET GLOBAL BINLOG_CHECKSUM = CRC32' rotated the binlog with 'TRANSACTION READ ONLY']
 INSERT INTO t0 VALUES(10);
 ERROR 25006: Cannot execute statement in a READ ONLY transaction.
 SET SESSION TRANSACTION READ WRITE;
 INSERT INTO  t0 VALUES(10);
-include/rpl_log_file_max_number.inc
+include/rpl/log_file_max_number.inc
 SET SESSION TRANSACTION READ ONLY;
 FLUSH BINARY LOGS;
-include/rpl_log_file_max_number.inc
+include/rpl/log_file_max_number.inc
 include/assert.inc ['FLUSH BINARY LOGS' rotated the binlog with 'TRANSACTION READ ONLY']
 SET SESSION TRANSACTION READ WRITE;
 DROP TABLE t0;

@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -10,7 +10,7 @@
 
 CREATE USER userX, userY, userZ;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 SHOW GRANTS FOR userX;
 SHOW GRANTS FOR userY;
@@ -40,7 +40,7 @@ UPDATE mysql.user SET plugin="" WHERE user like 'userW';
 call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 # This would generate a warning in server log
 FLUSH PRIVILEGES;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Attempt to GRANT privileges to userW
 --error ER_CANT_CREATE_USER_WITH_GRANT
@@ -62,13 +62,13 @@ SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
 UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
 FLUSH PRIVILEGES;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 4 : Use unprivileged account to create new user using GRANT
 
 CREATE USER userSUPER;
 GRANT SUPER ON *.* TO userSUPER WITH GRANT OPTION;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 connect(conn_userSUPER, localhost, userSUPER,,,,,);
 
@@ -104,7 +104,7 @@ SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
 
 DROP USER userW, userX, userY, userZ, userSUPER;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for GRANT : Global grants
 
@@ -120,7 +120,7 @@ CREATE USER userX, userY, userZ;
 
 GRANT INSERT ON mysql.* TO userX;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 SHOW GRANTS FOR userX;
 SHOW GRANTS FOR userY;
@@ -150,7 +150,7 @@ UPDATE mysql.user SET plugin="" WHERE user like 'userW';
 call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 # This would generate a warning in server log
 FLUSH PRIVILEGES;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Attempt to GRANT privileges to userW
 --error ER_CANT_CREATE_USER_WITH_GRANT
@@ -178,7 +178,7 @@ FLUSH PRIVILEGES;
 CREATE USER userSELECT;
 GRANT SELECT ON mysql.* TO userSELECT WITH GRANT OPTION;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 connect(conn_userSELECT, localhost, userSELECT,,,,,);
 
@@ -213,7 +213,7 @@ SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
 --let $event= !Q(GRANT SELECT ON.*mysql.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 6 : Wrong set of privileges for DB grant
 --error ER_WRONG_USAGE
@@ -233,7 +233,7 @@ SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
 
 DROP USER userW, userX, userY, userZ, userSELECT;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for GRANT : DB grants
 
@@ -244,7 +244,7 @@ DROP USER userW, userX, userY, userZ, userSELECT;
 CREATE USER userX, userY, userZ;
 CREATE USER proxied;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 SHOW GRANTS FOR userX;
 SHOW GRANTS FOR userY;
@@ -272,7 +272,7 @@ UPDATE mysql.user SET plugin="" WHERE user like 'userW';
 call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 # This would generate a warning in server log
 FLUSH PRIVILEGES;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Attempt to GRANT privileges to userW
 --error ER_CANT_CREATE_USER_WITH_GRANT
@@ -292,7 +292,7 @@ SHOW GRANTS FOR userZ;
 UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
 FLUSH PRIVILEGES;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 4 : Use unprivileged account to create new user using GRANT
 
@@ -301,7 +301,7 @@ connect(conn_userPROXY, localhost, userPROXY,,,,,);
 
 --connection default
 GRANT PROXY ON proxied TO userPROXY WITH GRANT OPTION;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --connection conn_userPROXY
 --error ER_CANT_CREATE_USER_WITH_GRANT
@@ -330,11 +330,11 @@ SHOW GRANTS FOR userZ;
 
 --let $event= !Q(GRANT PROXY ON.*proxied.*TO.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 DROP USER proxied, userW, userX, userY, userZ, userPROXY;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for GRANT : Proxy grants
 

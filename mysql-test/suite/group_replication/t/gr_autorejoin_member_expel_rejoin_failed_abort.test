@@ -65,12 +65,12 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -80,7 +80,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 --echo #####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # First, enable auto-rejoin
 SET GLOBAL group_replication_autorejoin_tries = 3;
@@ -147,7 +147,7 @@ while ($tries <= 3)
 --source include/wait_until_disconnected.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $rpl_server_number = 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # Verify in the log file that the server aborted
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -159,13 +159,13 @@ while ($tries <= 3)
 # For simplicity, let's assume that once the group size is 2, then member 1 has
 # aborted
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
@@ -177,7 +177,7 @@ while ($tries <= 3)
 --echo
 # Restart GR on aborted member
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $group_seeds_server GROUP_SEEDS_SERVER
 --eval SET @@global.group_replication_group_seeds = "$group_seeds_server"
@@ -193,13 +193,13 @@ while ($tries <= 3)
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 3
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 3
 --source include/gr_wait_for_number_of_members.inc
@@ -210,7 +210,7 @@ while ($tries <= 3)
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_end_autorejoin_monitoring.inc
 --source include/group_replication_end.inc

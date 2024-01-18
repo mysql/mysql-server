@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 
 # 1.1 Block the action on validation with a debug point
@@ -47,7 +47,7 @@ include/assert.inc [The completed work is 1]
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
 SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_1]
 include/assert.inc [The stage should be "Single-primary Switch: waiting for operation to complete on all members"]
 include/assert.inc [The estimated work is 2]

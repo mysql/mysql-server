@@ -57,7 +57,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
   --let $mysqlbinlog_allow_error=1
   --let $mysqlbinlog_parameters= --require_row_format $MYSQLD_DATADIR/$binlog_file
   --let $mysqlbinlog_pipe= > $MYSQL_TMP_DIR/mysqlbinlog.out 2>&1
-  --source include/mysqlbinlog.inc
+  --source include/rpl/mysqlbinlog.inc
 
   --let $assert_text = There was an error when executing mysqlbinlog
   --let $assert_file = $MYSQL_TMP_DIR/mysqlbinlog.out
@@ -74,7 +74,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
   --let $mysqlbinlog_allow_error=1
   --let $mysqlbinlog_parameters= -R --host=127.0.0.1 -P $MASTER_MYPORT -u root --require_row_format $binlog_file
   --let $mysqlbinlog_pipe= > $MYSQL_TMP_DIR/mysqlbinlog_remote.out 2>&1
-  --source include/mysqlbinlog.inc
+  --source include/rpl/mysqlbinlog.inc
 
   --let $assert_text = There was an error when executing mysqlbinlog remotely
   --let $assert_file = $MYSQL_TMP_DIR/mysqlbinlog_remote.out
@@ -94,7 +94,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
   --let $mysqlbinlog_allow_error=0
   --let $mysqlbinlog_parameters= $MYSQLD_DATADIR/$binlog_file
   --let $mysqlbinlog_pipe= > $MYSQL_TMP_DIR/mysqlbinlog.out 2>&1
-  --source include/mysqlbinlog.inc
+  --source include/rpl/mysqlbinlog.inc
 
   --let $assert_text = $assert_text_event_present_mysqlbinlog
   --let $assert_file = $MYSQL_TMP_DIR/mysqlbinlog.out

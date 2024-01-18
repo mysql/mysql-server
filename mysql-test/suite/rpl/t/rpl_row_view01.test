@@ -9,8 +9,8 @@
 #############################################################################
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 # Begin clean up test section
 connection master;
@@ -44,8 +44,8 @@ SELECT * FROM mysqltest1.v1;
 
 CREATE TABLE mysqltest1.t10 (a INT, PRIMARY KEY(a));
 let $wait_binlog_event= CREATE TABLE mysqltest1.t10;
--- source include/wait_for_binlog_event.inc
---source include/sync_slave_sql_with_master.inc
+-- source include/rpl/wait_for_binlog_event.inc
+--source include/rpl/sync_to_replica.inc
 
 SELECT * FROM mysqltest1.v2;
 SELECT * FROM mysqltest1.v1;
@@ -56,7 +56,7 @@ INSERT INTO mysqltest1.t3 SELECT * FROM mysqltest1.v1;
 
 SELECT * FROM mysqltest1.t5 ORDER BY qty;
 SELECT * FROM mysqltest1.t3 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM mysqltest1.t5 ORDER BY qty;
 SELECT * FROM mysqltest1.t3 ORDER BY a;
 connection master;
@@ -65,7 +65,7 @@ INSERT INTO mysqltest1.v4 VALUES (4,'TEST');
 
 SELECT * FROM mysqltest1.t1 ORDER BY a;
 SELECT * FROM mysqltest1.v4 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM mysqltest1.t1 ORDER BY a;
 SELECT * FROM mysqltest1.v4 ORDER BY a;
 
@@ -82,8 +82,8 @@ DROP TABLE IF EXISTS mysqltest1.t2;
 DROP TABLE IF EXISTS mysqltest1.t4;
 DROP TABLE IF EXISTS mysqltest1.t10;
 DROP DATABASE mysqltest1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 5.1 test case
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

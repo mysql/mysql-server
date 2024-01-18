@@ -14,7 +14,7 @@ INSERT INTO t1 VALUES (100, 200, 300, 400), (200, 300, 400, 500);
 UPDATE t1 SET col1 = 200 WHERE ABS(col2) = 200;
 DROP TABLE t1;
 FLUSH LOGS;
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 ### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1
@@ -100,7 +100,7 @@ UPDATE t1 SET col2 = 4 WHERE ABS(col1) = 1;
 DROP TABLE t1;
 FLUSH LOGS;
 SET @@session.binlog_row_image = @start_row_image_value;
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 ### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1

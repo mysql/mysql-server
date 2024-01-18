@@ -6,7 +6,7 @@
 #############################################
 
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --echo ******************************************************
 --echo * 1. Set compression to ON
@@ -29,9 +29,9 @@ let $rpl_format = 'ROW';
 --echo * 3. Cleanup
 --echo ******************************************************
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --replace_result $saved_binlog_transaction_compression_global SAVED
 --eval SET GLOBAL binlog_transaction_compression = $saved_binlog_transaction_compression_global
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 #
 # ndb_rpl_skip.test
@@ -79,7 +79,7 @@ insert into t1 values (3000,3000,3000);
 --echo Expect replication to stop with an error
 --connection slave
 --let $slave_sql_errno=1296
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo Data not replicated
 select * from t1 where a=3000;
@@ -171,4 +171,4 @@ set global ndb_applier_allow_skip_epoch=0;
 drop table t1;
 
 # Cleanup Replication
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

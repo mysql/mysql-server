@@ -21,7 +21,7 @@ CREATE TABLE t1(f0 INT NOT NULL PRIMARY KEY);
 ########################################################################
 # 2. Testing memory/group_rpl/write_set_encoded.
 #
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/assert.inc ['GTID_EXECUTED before and after query must be equal']
 include/assert.inc ['Assert key is not present on table']
@@ -30,23 +30,23 @@ memory/group_rpl/write_set_encoded test passed.
 ########################################################################
 # 3. Testing memory/group_rpl/Gcs_message_data::m_buffer.
 #
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/assert.inc ['GTID_EXECUTED before and after query must be equal']
 include/assert.inc ['Assert key is not present on table']
 memory/group_rpl/Gcs_message_data::m_buffer test passed.
 # Test query using consistency 'BEFORE'
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/assert.inc ['GTID_EXECUTED before and after query must be equal']
 include/assert.inc ['Assert key is not present on table']
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/assert.inc ['GTID_EXECUTED before and after query must be equal']
 include/assert.inc ['Assert key is not present on table']
 memory/group_rpl/Gcs_message_data::m_buffer test passed.
 # Test query using consistency 'AFTER'
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/assert.inc ['GTID_EXECUTED before and after query must be equal']
 include/assert.inc ['Assert key is not present on table']
@@ -55,7 +55,7 @@ memory/group_rpl/Gcs_message_data::m_buffer test passed.
 ########################################################################
 # 4. Cleanup
 #
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc ['server1 and server2 GTID_EXECUTED must be equal']
 DROP TABLE t1;
 include/group_replication_end.inc

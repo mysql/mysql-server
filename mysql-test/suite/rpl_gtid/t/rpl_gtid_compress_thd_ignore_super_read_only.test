@@ -32,11 +32,11 @@
 --source include/have_binlog_format_row.inc
 --let $use_gtids= 1
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # Clear gtid_executed table.
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression("You need to use --log-bin*");
 SET @saved_value_super= @@GLOBAL.super_read_only;
 SET @saved_value= @@GLOBAL.read_only;
@@ -46,7 +46,7 @@ SET GLOBAL super_read_only= 1;
 --source include/assert.inc
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 CREATE TABLE t1(a INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES(1);
@@ -54,7 +54,7 @@ INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 INSERT INTO t1 VALUES(4);
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # connection slave
@@ -78,4 +78,4 @@ SELECT * FROM mysql.gtid_executed;
 SET GLOBAL super_read_only= @saved_value_super;
 SET GLOBAL read_only= @saved_value;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

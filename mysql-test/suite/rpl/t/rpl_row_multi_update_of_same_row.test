@@ -16,12 +16,12 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Create a table, with no primary key.
 CREATE TABLE t1 (i INT);
 # Create a table, with primary key.
@@ -41,16 +41,16 @@ CREATE FUNCTION f1 () RETURNS INT BEGIN
   RETURN 0;
 END|
 --delimiter ;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Insert a row and invoke the stored function.
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 SELECT f1();
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $assert_text= 'There is only one row in table t1'
 --let $assert_cond= [SELECT COUNT(*) FROM t1] = 1
 --source include/assert.inc
@@ -59,7 +59,7 @@ SELECT f1();
 --let $assert_cond= [SELECT COUNT(*) FROM t2] = 1
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Verify that there is no difference between tables of master and slave.
 --let diff_tables=master:test.t1, slave:test.t1
@@ -73,4 +73,4 @@ DROP FUNCTION f1;
 DROP TABLE t1,t2;
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

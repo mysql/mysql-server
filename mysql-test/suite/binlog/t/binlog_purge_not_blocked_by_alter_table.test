@@ -37,7 +37,7 @@ SHOW BINARY LOGS;
 --connect (con1, localhost, root,,)
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $statement_connection = con1
 --let $statement = ALTER TABLE t1 SECONDARY_LOAD

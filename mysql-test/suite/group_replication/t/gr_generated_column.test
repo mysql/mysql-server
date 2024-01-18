@@ -50,7 +50,7 @@ UPDATE st1 SET c1=3 WHERE c2=3;
 UPDATE st1 SET c1=4 WHERE c1=3;
 DELETE FROM st1 WHERE c2=5;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo # check that st1 exists and has same values in both servers
 --let $diff_tables=server1:st1, server2:st1
 --source include/diff_tables.inc
@@ -59,7 +59,7 @@ DELETE FROM st1 WHERE c2=5;
 
 --echo # Table st2: stored column as primary key
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE st2 (c1 VARCHAR(10),c2 CHAR(2) GENERATED ALWAYS AS (SUBSTRING(c1, 1, 2)) STORED PRIMARY KEY);
 
@@ -70,7 +70,7 @@ UPDATE st2 SET c1="abgh" WHERE c1='abcd';
 UPDATE st2 SET c1="cdgh" WHERE c2='ef';
 DELETE FROM st2 WHERE c2='cd';
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo # check that st2 exists and has same values in both servers
 --let $diff_tables=server1:st2, server2:st2
 --source include/diff_tables.inc
@@ -79,7 +79,7 @@ DELETE FROM st2 WHERE c2='cd';
 
 --echo Table st3: stored column as unique
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE st3 (
 	c1 INT AUTO_INCREMENT PRIMARY KEY,
@@ -101,7 +101,7 @@ UPDATE st3 SET c3='update' WHERE c2='second';
 DELETE FROM st3 WHERE c2='first';
 DELETE FROM st3 WHERE c3='update';
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo # check that st3 exists and has same values in both servers
 --let $diff_tables=server1:st3, server2:st3
 --source include/diff_tables.inc
@@ -110,7 +110,7 @@ DELETE FROM st3 WHERE c3='update';
 
 --echo Table st4: Stored column as foreign key
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Parent table
 CREATE TABLE t1 (a INT,b INT GENERATED ALWAYS AS (a-10)STORED, PRIMARY KEY(b));
@@ -127,7 +127,7 @@ UPDATE st4 SET c1=21 WHERE c2=1;
 DELETE FROM st4 WHERE c2=2;
 DELETE FROM st4 WHERE c1=21;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo # check that st4 exists and has same values in both servers
 --let $diff_tables=server1:st4, server2:st4
 --source include/diff_tables.inc
@@ -136,7 +136,7 @@ DELETE FROM st4 WHERE c1=21;
 
 --echo Table vt1: virtual column genarated on primary key
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE vt1 (c1 DATE PRIMARY KEY,c2 INT AS (year(c1)) VIRTUAL);
 
@@ -148,7 +148,7 @@ UPDATE vt1 SET c1='1999-06-17' WHERE c1='1998-06-17';
 DELETE FROM vt1 WHERE c1='2009-09-02';
 DELETE FROM vt1 WHERE c2=1999;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo # check that vt1 exists and has same values in both servers
 --let $diff_tables=server1:vt1, server2:vt1
 --source include/diff_tables.inc
@@ -157,7 +157,7 @@ DELETE FROM vt1 WHERE c2=1999;
 
 --echo Table  vt2: virtual column as unique key
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE vt2 (c1 TEXT,PRIMARY KEY(c1(20)),c2 TEXT GENERATED ALWAYS AS (SUBSTRING(c1, 1, 2)) VIRTUAL ,UNIQUE(c2(2)));
 
@@ -169,7 +169,7 @@ UPDATE vt2 SET c1='second update' WHERE c2='se';
 DELETE FROM vt2 WHERE c1='first update';
 DELETE FROM vt2 WHERE c2='se';
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo # check that vt2 exists and has same values in both servers
 --let $diff_tables=server1:vt2, server2:vt2
 --source include/diff_tables.inc
@@ -178,7 +178,7 @@ DELETE FROM vt2 WHERE c2='se';
 
 --echo Table vt3: Virtual Column with foreign keys
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 #Parent table
 CREATE TABLE t2(a INT PRIMARY KEY,b INT GENERATED ALWAYS AS (a+1) VIRTUAL,INDEX(b));
@@ -202,7 +202,7 @@ DELETE FROM t2 WHERE a=2;
 DELETE FROM vt3 WHERE a=1;
 DELETE FROM vt3 WHERE c=100;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo # check that vt3 exists and has same values in both servers
 --let $diff_tables=server1:vt3, server2:vt3
 --source include/diff_tables.inc
@@ -211,7 +211,7 @@ DELETE FROM vt3 WHERE c=100;
 
 --echo Table gt1: gt1: both stored and virtual columns
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE gt1 (a INT, b INT AS (a+1)STORED PRIMARY KEY);
 ALTER TABLE gt1 ADD COLUMN c INT GENERATED ALWAYS AS (b+1)VIRTUAL;
@@ -232,7 +232,7 @@ DELETE FROM gt1 WHERE b=24;
 DELETE FROM gt1 WHERE c=24;
 DELETE FROM gt1 WHERE d=33;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo # check that gt1 exists and has same values in both servers
 --let $diff_tables=server1:gt1, server2:gt1
 --source include/diff_tables.inc

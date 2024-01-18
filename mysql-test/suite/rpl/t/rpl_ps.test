@@ -5,10 +5,10 @@
 # 2006-02-08 By JBM added order by for use w/ NDB engine
 ###########################################################
 --source include/not_group_replication_plugin.inc
---source include/set_privilege_checks_user_as_system_user.inc
-source include/master-slave.inc;
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+source include/rpl/init_source_replica.inc;
 
-#--source include/sync_slave_sql_with_master.inc
+#--source include/rpl/sync_to_replica.inc
 #reset binary logs and gtids;
 #connection master;
 
@@ -30,16 +30,16 @@ prepare stmt2 from @var2;
 set @var1='from-master-3';
 execute stmt2 using @var1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY n;
 
 connection master;
 
 drop table t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 STOP REPLICA;
-source include/wait_for_slave_to_stop.inc;
+source include/rpl/wait_for_replica_to_stop.inc;
 # End of 4.1 tests
 
 #
@@ -88,7 +88,7 @@ use mysqltest1;
 EXECUTE stmt_d_1;
 
 --echo # Connection: slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SELECT * FROM t1;
 
@@ -100,4 +100,4 @@ DROP DATABASE mysqltest1;
 use test;
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

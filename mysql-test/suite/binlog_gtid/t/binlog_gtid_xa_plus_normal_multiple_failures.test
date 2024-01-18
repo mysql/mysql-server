@@ -81,7 +81,7 @@
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
 
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 
 --echo ==== 0. Initialize ====
 
@@ -412,7 +412,7 @@ DROP TABLE xa_recover;
 --echo ==== 6. Verify the log messages are as expected ====
 
 --let $assert_select = Successfully committed $internal_committed, rolled back $internal_rolled_back internal transaction.* Successfully committed $xa_committed, rolled back $xa_rolled_back, prepared $xa_prepared XA transaction
---source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--source common/xa_crash_safe/assert_recovery_message.inc
 
 --echo ==== 7. Verify the first five transactions are committed ====
 
@@ -435,4 +435,4 @@ while ($expect_prepared) {
 
 DROP TABLE t;
 
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc

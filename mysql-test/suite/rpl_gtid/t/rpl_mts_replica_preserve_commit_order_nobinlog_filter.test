@@ -23,7 +23,7 @@
 --source include/have_debug_sync.inc
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #### R1. First filtered-in transaction, then filtered-out transaction ####
 
@@ -45,4 +45,4 @@
 --let $mts_spco_end_statement = DROP TABLE test.t1; USE ignored_db; DROP TABLE t2; DROP DATABASE ignored_db; USE test
 --let $mts_spco_cleanup_statement = 1
 
---source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc

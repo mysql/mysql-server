@@ -42,7 +42,7 @@ FLUSH BINARY LOGS;
 --connect (con1, localhost, root,,)
 
 --let $rpl_connection_name = con1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 LOCK INSTANCE FOR BACKUP;
 
@@ -51,7 +51,7 @@ LOCK INSTANCE FOR BACKUP;
 --echo #
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/save_error_log_position.inc
 
@@ -75,7 +75,7 @@ FLUSH BINARY LOGS;
 --echo #
 
 --let $rpl_connection_name = con1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 UNLOCK INSTANCE;
 
@@ -84,7 +84,7 @@ UNLOCK INSTANCE;
 --echo #
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/save_error_log_position.inc
 

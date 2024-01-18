@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -144,9 +144,9 @@ set GLOBAL replica_transaction_retries=1;
 **** On Master ****
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 **** On Slave ****
-include/wait_for_slave_sql_error.inc [errno=1205 ]
+include/rpl/wait_for_applier_error.inc [errno=1205 ]
 set GLOBAL replica_transaction_retries=10;
-include/start_slave.inc
+include/rpl/start_replica.inc
 select * from t1 order by nid;
 nid	nom	prenom
 1	LOCK	ABC1
@@ -264,4 +264,4 @@ length(b)
 29000
 29000
 drop table t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

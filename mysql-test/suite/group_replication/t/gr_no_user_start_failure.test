@@ -19,7 +19,7 @@
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 #save user timestamps for later restore
 let $date_to_restore=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
@@ -62,7 +62,7 @@ START GROUP_REPLICATION;
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $assert_text= Member 1 is OFFLINE
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_state="OFFLINE"] = 1
@@ -107,7 +107,7 @@ SET SESSION sql_log_bin= 1;
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/restart_mysqld.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 
 --source include/group_replication_end.inc

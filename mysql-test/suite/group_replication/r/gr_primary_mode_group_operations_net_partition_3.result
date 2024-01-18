@@ -13,7 +13,7 @@ SET SESSION sql_log_bin = 1;
 
 # 2. Create table t1
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 3. Lock table t1 on server2 to block action
 [connection server2]

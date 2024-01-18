@@ -53,15 +53,15 @@
 
 --let $rpl_topology= 1->2->3
 --let $rpl_gtid_utils= 1
---source include/rpl_init.inc
---source include/rpl_default_connections.inc
+--source include/rpl/init.inc
+--source include/rpl/default_connections.inc
 --source include/have_binlog_format_row.inc
 
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo ==== Case 1A: Transaction filtered out ====
 
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 
 CREATE TABLE t_ignore(id INT);
 INSERT INTO t_ignore VALUES (1);
@@ -73,16 +73,16 @@ DROP TABLE t_ignore_wild;
 
 # Verify that 6 GTIDs were generated.
 --let $gtid_step_count= 6
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
 # Verify that the GTIDs make it to every slave
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo ==== Case 1B: obsolete, removed ====
 
 --echo ==== Case 1C: database filters on slave applier ====
 
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 
 # These two will be ignored on first slave.
 CREATE DATABASE db_ignore;
@@ -93,9 +93,9 @@ USE test;
 
 # Verify 2 GTIDs were generated
 --let $gtid_step_count= 3
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $assert_text= db_ignore should not be created on slave
 --let $assert_cond= "[slave:SHOW DATABASES LIKE "db_ignore"]" = ""
@@ -106,11 +106,11 @@ USE test;
 --source include/assert.inc
 
 DROP DATABASE db_ignore;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo ==== Case 1D: database filters on slave binary log ====
 
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 
 # These two will be ignored on first slave.
 CREATE DATABASE db_binlog_ignore;
@@ -121,9 +121,9 @@ USE test;
 
 # Verify 2 GTIDs were generated
 --let $gtid_step_count= 3
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $assert_text= db_binlog_ignore should not be created on slave
 --let $assert_cond= "[slave:SHOW DATABASES LIKE "db_binlog_ignore"]" = "db_binlog_ignore"
@@ -134,16 +134,16 @@ USE test;
 --source include/assert.inc
 
 DROP DATABASE db_binlog_ignore;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo ==== Case 2A: temp table transaction not logged in row format ====
 
 --echo ---- Initialize ----
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @save.binlog_format = @@global.binlog_format;
 SET @@session.binlog_format = 'STATEMENT';
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 
 --echo ---- Test ----
 
@@ -162,11 +162,11 @@ INSERT INTO t2 VALUES (1, 2);
 
 # assert exactly 3 GTIDs were generated
 --let $gtid_step_count = 3
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
 # Verify that the GTID gets replicated everywhere.
 --let $use_gtids= 1
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Verify temp tables on first slave but not on second slave
 --let $assert_text= First replica should have created a temp table
@@ -178,7 +178,7 @@ INSERT INTO t2 VALUES (1, 2);
 --echo ---- Clean up ----
 
 DROP TEMPORARY TABLE t2;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Verify temp table is deleted
 --let $assert_text= First replica should have dropped the temp table
@@ -190,7 +190,7 @@ DROP TEMPORARY TABLE t2;
 
 --connection master
 CREATE TABLE t1(id INT) ENGINE = InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --connection server_3
 INSERT INTO t1 VALUES (0);
 --connection master
@@ -212,7 +212,7 @@ UPDATE t1 SET id= 1 WHERE id = 0;
 
 # Verify that the GTID gets replicated everywhere.
 --let $use_gtids= 1
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $assert_text= Second slave should not have done any update
 --let $assert_cond= [server_3:SELECT * FROM t1] = 0
@@ -220,12 +220,12 @@ UPDATE t1 SET id= 1 WHERE id = 0;
 -- echo ---- Clean up ----
 
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 SET @@session.binlog_format = @save.binlog_format;
 
 --echo ==== Case 3: explicit empty transaction on master ====
 
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 eval SET @@SESSION.GTID_NEXT = '$uuida:1';
 COMMIT;
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
@@ -233,7 +233,7 @@ SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 # Verify exactly one GTID was generated
 --let $gtid_step_count= 1
 --let $gtid_step_only_count= 1
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
 # ==== Purpose ====
 #
@@ -264,7 +264,7 @@ delimiter ;|
 # Verify exactly two GTIDs were generated
 --let $gtid_step_count= 2
 --let $gtid_step_only_count= 1
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
 CALL p1();
 
@@ -272,13 +272,13 @@ SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 # Verify exactly four GTIDs were generated
 --let $gtid_step_count= 2
 --let $gtid_step_only_count= 1
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 --let $gtid_step_only_count= 0
 
 DROP TABLE t1;
 
 # Verify the GTID makes it to every slave.
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo ==== Case 4: Nothing logged for ROLLBACK transactions ====
 
@@ -290,7 +290,7 @@ CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 
 --echo ---- Test ----
 
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 
 --error ER_BAD_TABLE_ERROR
 DROP TABLE t2;
@@ -303,11 +303,11 @@ INSERT INTO t1 VALUES (2);
 ROLLBACK;
 
 --let $gtid_step_count= 0
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
 --echo ---- Clean Up ----
 
 DROP TABLE t1;
 DROP PROCEDURE p1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

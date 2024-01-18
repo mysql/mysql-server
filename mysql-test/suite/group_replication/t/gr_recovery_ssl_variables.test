@@ -28,7 +28,7 @@
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #
 --echo # Make a copy of existing SSL options before modifying them.
@@ -65,7 +65,7 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert = 1;
 --let $status_items= Source_SSL_Allowed, Source_SSL_Verify_Server_Cert
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --disable_warnings
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --enable_warnings
 
 --echo #
@@ -75,10 +75,10 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert = 1;
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
@@ -91,7 +91,7 @@ INSERT INTO t1 VALUES (1);
 --let $status_items= Source_SSL_Allowed, Source_SSL_Verify_Server_Cert
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --disable_warnings
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --enable_warnings
 
 --source include/stop_group_replication.inc
@@ -110,10 +110,10 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert = default; # Defaul
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (2);
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_start_member_state= ONLINE
 --source include/start_group_replication.inc
@@ -126,7 +126,7 @@ INSERT INTO t1 VALUES (2);
 --let $status_items= Source_SSL_Allowed, Source_SSL_Verify_Server_Cert
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --disable_warnings
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --enable_warnings
 
 --echo #
@@ -134,11 +134,11 @@ INSERT INTO t1 VALUES (2);
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # No need to print this to the result file
 --disable_result_log
 --eval SET @@GLOBAL.group_replication_recovery_use_ssl= $conf_rec_use_ssl

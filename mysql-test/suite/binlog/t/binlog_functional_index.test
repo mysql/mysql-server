@@ -27,7 +27,7 @@ FLUSH LOGS;
 --let $datadir = `SELECT @@GLOBAL.DATADIR`
 --let $mysqlbinlog_only_decoded_rows = 1
 --let $mysqlbinlog_parameters = $datadir/binlog.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # Clear the binlog
 RESET BINARY LOGS AND GTIDS;
@@ -59,4 +59,4 @@ SET @@session.binlog_row_image = @start_row_image_value;
 --let $datadir = `SELECT @@GLOBAL.DATADIR`
 --let $mysqlbinlog_only_decoded_rows = 1
 --let $mysqlbinlog_parameters = $datadir/binlog.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc

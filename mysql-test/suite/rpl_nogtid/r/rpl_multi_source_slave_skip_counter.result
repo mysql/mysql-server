@@ -1,7 +1,7 @@
 #
 # set up masters server_1 and server_3 with server_2 being a slave.
 #.
-include/rpl_init.inc [topology=1->2,3->2]
+include/rpl/init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,14 +18,14 @@ SET GLOBAL sql_replica_skip_counter= 1;
 0
 include/assert.inc [check that channel_1's Skip_Counter is 0.]
 STOP REPLICA SQL_THREAD;
-include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_stop.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_applier_to_stop.inc]
 #
 # Verify that START REPLICA FOR CHANNEL will copy sql_replica_skip_counter's
 # value to the channel and reset sql_replica_skip_counter to 0
 #
 [connection server_2]
-include/stop_slave.inc
-include/start_slave.inc [FOR CHANNEL 'channel_1']
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc [FOR CHANNEL 'channel_1']
 1
 include/assert.inc [check that channel_1's Skip_Counter is 0.]
 include/assert.inc [check that sql_replica_skip_counter is 0]
@@ -42,9 +42,9 @@ ERROR HY000: When sql_replica_skip_counter > 0, it is not allowed to start more 
 # START REPLICA IO_THREAD should not fail.
 #
 START REPLICA IO_THREAD;
-include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_receiver_to_start.inc]
 include/assert.inc [All two IO threads are running after START REPLICA IO_THREAD]
 SET GLOBAL sql_replica_skip_counter= 0;
-include/rpl_end.inc
+include/rpl/deinit.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 RESET REPLICA ALL FOR CHANNEL 'channel_3';

@@ -45,7 +45,7 @@ START GROUP_REPLICATION;
 --echo #################################################################
 --echo # 3. Start group replication on server2 and wait until recovered
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
@@ -69,14 +69,14 @@ START GROUP_REPLICATION;
 INSERT INTO t1 VALUES (2);
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo Wait until server1 has the table with 2 rows
 --let $wait_condition= SELECT COUNT(*)=2 FROM t1
 --source include/wait_condition.inc
 
 DROP TABLE t1;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo Wait until server2 has dropped table t1
 --let $wait_condition= SELECT COUNT(*)=0 FROM information_schema.tables WHERE TABLE_SCHEMA="test" AND TABLE_NAME="t1";
@@ -87,6 +87,6 @@ DROP TABLE t1;
 --echo # 5. Clean up: stop group replication on both members
 STOP GROUP_REPLICATION;
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 STOP GROUP_REPLICATION;
 --source include/group_replication_end.inc

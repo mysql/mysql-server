@@ -54,7 +54,7 @@ INSERT IGNORE INTO t1 VALUES (@positive,
 -- echo ## assertion: checks that User_var_log_event::pack_info
 -- echo ## correctly displays the binlog content by taking into
 -- echo ## account the unsigned_flag
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 -- echo ### insert min signed
 -- echo ### a) declarative
@@ -84,6 +84,6 @@ INSERT IGNORE INTO t1 VALUES (@negative,
 -- echo ## assertion: checks that User_var_log_event::pack_info
 -- echo ## correctly displays the binlog content by taking into
 -- echo ## account the unsigned_flag
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 DROP TABLE t1;

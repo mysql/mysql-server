@@ -1,0 +1,68 @@
+# BUG #36763: TRUNCATE TABLE fails to replicate when stmt-based
+# binlogging is not supported.
+
+# This should always be logged as a statement, even when executed as a
+# row-by-row deletion.
+
+# $before_truncate    A statement to execute (just) before issuing the
+#                     TRUNCATE TABLE
+
+
+eval CREATE TABLE t1 (a INT) ENGINE=$engine;
+eval CREATE TABLE t2 (a INT) ENGINE=$engine;
+INSERT INTO t2 VALUES (1),(2),(3);
+let $binlog_start = query_get_value("SHOW BINARY LOG STATUS", Position, 1);
+if ($before_truncate) {
+  eval $before_truncate;
+}
+--echo **** Truncate of empty table shall be logged
+TRUNCATE TABLE t1;
+
+if ($before_truncate) {
+  eval $before_truncate;
+}
+TRUNCATE TABLE t2;
+source include/rpl/deprecated/show_binlog_events.inc;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#42643: InnoDB does not support replication of TRUNCATE TABLE
+--echo #
+
+eval CREATE TABLE t1 (a INT) ENGINE=$engine;
+eval CREATE TABLE t2 (a INT) ENGINE=$engine;
+INSERT INTO t1 VALUES (1),(2);
+
+let $binlog_start = query_get_value("SHOW BINARY LOG STATUS", Position, 1);
+if ($before_truncate) {
+  eval $before_truncate;
+}
+
+--echo # Connection: default
+BEGIN;
+INSERT INTO t2 SELECT * FROM t1;
+
+connect (truncate,localhost,root,,);
+--echo # Connection: truncate
+send TRUNCATE TABLE t1;
+
+connection default;
+--echo # Connection: default
+INSERT INTO t2 SELECT * FROM t1;
+SELECT COUNT(*) FROM t2;
+COMMIT;
+
+connection truncate;
+--echo # Connection: truncate
+--echo # Reaping TRUNCATE TABLE
+--reap
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+
+connection default;
+--echo # Connection: default
+
+source include/rpl/deprecated/show_binlog_events.inc;
+disconnect truncate;
+DROP TABLE t1,t2;

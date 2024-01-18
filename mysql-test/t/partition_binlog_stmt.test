@@ -1,4 +1,4 @@
---source include/force_binlog_format_statement.inc
+--source include/rpl/force_binlog_format_statement.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -28,4 +28,4 @@ INTO TABLE t1 (name);
 DROP TABLE t1;
 SET sql_mode = default;
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

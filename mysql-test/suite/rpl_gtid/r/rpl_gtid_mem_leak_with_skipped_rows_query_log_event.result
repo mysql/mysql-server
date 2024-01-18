@@ -1,7 +1,7 @@
 #
-# Step 1) Create a basic master-slave topology.
+# Step 1) Create a basic source-replica topology.
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -24,7 +24,7 @@ CREATE TABLE t1(i INT);
 #         and execute two empty transactions so that the next two events
 #         from master are skipped on slave.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GTID_NEXT='MASTER_UUID:2';
 BEGIN;
 COMMIT;
@@ -39,7 +39,7 @@ SET GTID_NEXT=AUTOMATIC;
 [connection master]
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Step 6) Cleanup
 #
@@ -47,4 +47,4 @@ SET @@session.binlog_rows_query_log_events= @slave_binlog_rows_query_log_events;
 [connection master]
 SET @@session.binlog_rows_query_log_events= @master_binlog_rows_query_log_events;
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

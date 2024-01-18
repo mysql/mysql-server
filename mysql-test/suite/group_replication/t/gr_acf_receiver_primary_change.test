@@ -75,7 +75,7 @@ if (!$have_xcom_stack) {
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_4 SERVER_4_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_4, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1'
 
@@ -84,7 +84,7 @@ if (!$have_xcom_stack) {
 --echo # 2. Deploy a 2 members receiver group in single primary mode.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_group_name = $group_A
 --disable_query_log
 --eval SET GLOBAL group_replication_group_seeds= $group_a_group_seeds
@@ -92,14 +92,14 @@ if (!$have_xcom_stack) {
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_channel_name='ch1'
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 
 --let $assert_text= Verify replica_monitor thread is running
 --let $assert_cond= "[select count(*) FROM performance_schema.threads where NAME=\"thread/sql/replica_monitor\"]" = 1;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_group_name = $group_A
 --disable_query_log
 --eval SET GLOBAL group_replication_group_seeds= $group_a_group_seeds
@@ -111,7 +111,7 @@ if (!$have_xcom_stack) {
 --echo # 3. Deploy a 2 members sender group in single primary mode.
 --echo #
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_group_name = $group_B
 --disable_query_log
 --eval SET GLOBAL group_replication_group_seeds= $group_b_group_seeds
@@ -120,7 +120,7 @@ if (!$have_xcom_stack) {
 
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_group_name = $group_B
 --disable_query_log
 --eval SET GLOBAL group_replication_group_seeds= $group_b_group_seeds
@@ -135,7 +135,7 @@ if (!$have_xcom_stack) {
 --echo #    through asynchronous_connection_failover_add_managed() UDF.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_4 SERVER_MYPORT_4 $group_B GROUP_NAME_SERVER2
 --eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', "$group_B",'127.0.0.1', $SERVER_MYPORT_4, '', 80, 60)
 
@@ -176,7 +176,7 @@ if (!$have_xcom_stack) {
 --echo #     and for replication_asynchronous_connection_failover_managed.
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
@@ -199,13 +199,13 @@ if (!$have_xcom_stack) {
 --let $server2_uuid= `SELECT @@server_uuid`
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --eval SELECT group_replication_set_as_primary("$server2_uuid")
@@ -217,7 +217,7 @@ if (!$have_xcom_stack) {
 --source include/wait_condition.inc
 
 --let $rpl_channel_name='ch1'
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_configuration where CHANNEL_NAME='ch1' and HOST='127.0.0.1' and PORT=$SERVER_MYPORT_3
 --source include/wait_condition.inc
@@ -240,7 +240,7 @@ if (!$have_xcom_stack) {
 --echo #    through asynchronous_connection_failover_delete_managed() UDF.
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $group_B GROUP_NAME_SERVER2
 --eval SELECT asynchronous_connection_failover_delete_managed('ch1', '$group_B')
@@ -253,7 +253,7 @@ if (!$have_xcom_stack) {
 --echo #    and for replication_asynchronous_connection_failover_managed.
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
@@ -282,7 +282,7 @@ if (!$have_xcom_stack) {
 --echo #     and for replication_asynchronous_connection_failover_managed.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
@@ -305,43 +305,43 @@ if (!$have_xcom_stack) {
 --echo # 11. Clean up.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1'
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

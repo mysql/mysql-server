@@ -7,9 +7,9 @@
 # connections, you must also use include/wait_until_disconnected.inc
 # on all other connections.
 #
-# In replication tests, which use include/master-slave.inc or
-# include/rpl_init.inc, it is recommended to use
-# rpl_restart_server.inc instead.
+# In replication tests, which use include/rpl/init_source_replica.inc or
+# include/rpl/init.inc, it is recommended to use
+# rpl/restart_server.inc instead.
 #
 # ==== Usage ====
 #
@@ -28,7 +28,7 @@
 #     By default, uses the mysqld of the current connection.
 #     To shut down another one, set $mysqld_name.
 #     Note: in replication tests is is usually better to use
-#     rpl_restart_server.inc instead, since it waits for all client
+#     rpl/restart_server.inc instead, since it waits for all client
 #     sessions to reconnect.
 #
 #   $shutdown_server_timeout
@@ -44,7 +44,7 @@ if ($rpl_inited)
 {
   if (!$allow_rpl_inited)
   {
-    --die ERROR IN TEST: When using the replication test framework (master-slave.inc, rpl_init.inc etc), use rpl_restart_server.inc instead of restart_mysqld.inc. If you know what you are doing and you really have to use restart_mysqld.inc, set allow_rpl_inited=1 before you source restart_mysqld.inc
+    --die ERROR IN TEST: When using the replication test framework (rpl/init_source_replica.inc, rpl/init.inc etc), use rpl/restart_server.inc instead of restart_mysqld.inc. If you know what you are doing and you really have to use restart_mysqld.inc, set allow_rpl_inited=1 before you source restart_mysqld.inc
   }
 }
 

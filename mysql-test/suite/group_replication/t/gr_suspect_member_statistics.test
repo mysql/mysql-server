@@ -33,18 +33,18 @@
 --echo # 2. Set the group_replication_member_expel_timeout parameter to 15
 --echo #    seconds
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 15;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 15;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 15;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 --let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -63,14 +63,14 @@ while ($number_of_restarts_of_server_3 < 4) {
     --source include/kill_and_restart_mysqld.inc
 
     --echo # Restarting server 3
-    # Needed as we are not using rpl_restart_server.inc
+    # Needed as we are not using rpl/restart_server.inc
     --let $rpl_server_number= 3
-    --source include/rpl_reconnect.inc
+    --source include/rpl/reconnect.inc
 
     --echo #
     --echo # 4. Then check if server 3 is still in the group
     --let $rpl_connection_name= server1
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
     --source include/wait_condition.inc
     let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
@@ -90,7 +90,7 @@ while ($number_of_restarts_of_server_3 < 4) {
     --echo #
     --echo # 5. 15 seconds later, server 3 should still be in the group as UNREACHABLE
     --let $rpl_connection_name= server2
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
     --source include/wait_condition.inc
     let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
@@ -99,35 +99,35 @@ while ($number_of_restarts_of_server_3 < 4) {
     --echo #
     --echo # 6. Server 3 should have been expelled from the group
     --let $rpl_connection_name= server1
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
     --source include/wait_condition.inc
 
     --let $rpl_connection_name= server2
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
     --source include/wait_condition.inc
 
     --echo #
     --echo # 7. Restart GR on server 3
     --let $rpl_connection_name= server3
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     --source include/start_group_replication.inc
 
     --echo #
     --echo # 8. Server 3 should be back in the group
     --let $rpl_connection_name= server1
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
     --source include/wait_condition.inc
 
     --let $rpl_connection_name= server2
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
     --source include/wait_condition.inc
 
     --let $rpl_connection_name= server3
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
     --source include/wait_condition.inc
 
@@ -146,7 +146,7 @@ while ($number_of_restarts_of_server_3 < 4) {
 }
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #
 --echo # 9. Crash server 2 and repeat the whole process that was done for
@@ -157,12 +157,12 @@ while ($number_of_restarts_of_server_3 < 4) {
 --replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/kill_and_restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
@@ -178,32 +178,32 @@ let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
 --source include/wait_condition.inc
 
 --echo #
 --echo # 10. Rejoin server 2 to the group
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo #
 --echo # 11. Then check if server 2 back still to the group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 
@@ -227,12 +227,12 @@ let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 

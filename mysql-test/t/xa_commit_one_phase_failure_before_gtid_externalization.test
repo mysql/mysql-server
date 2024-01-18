@@ -32,7 +32,7 @@
 # WL#11300: Crash-safe XA + binary log
 #
 # Related tests;
-#   see extra/xa_crash_safe_tests/setup.inc
+#   see common/xa_crash_safe/setup.inc
 #
 --source include/not_valgrind.inc
 --source include/have_debug.inc
@@ -48,7 +48,7 @@
 #
 --let $xid_data = xid1
 --let $xid = `SELECT CONCAT("X'", LOWER(HEX('$xid_data')), "',X'',1")`
---source extra/xa_crash_safe_tests/setup.inc
+--source common/xa_crash_safe/setup.inc
 --let $uuid = 72e9b9d8-8a89-11ec-8f56-6f896ffede71
 RESET BINARY LOGS AND GTIDS;
 
@@ -76,7 +76,7 @@ INSERT INTO t1 VALUES (1);
 --let $sync_point = before_gtid_externalization
 --source include/execute_to_conditional_timestamp_sync_point.inc
 --source include/dbug_crash_safe.inc
---source extra/xa_crash_safe_tests/cleanup_connection.inc
+--source common/xa_crash_safe/cleanup_connection.inc
 
 # 5. Restart server and check:
 #
@@ -86,7 +86,7 @@ INSERT INTO t1 VALUES (1);
 #       any transaction needing recovery.
 #
 --let $assert_select = in InnoDB engine. No attempts to commit, rollback or prepare any transactions.
---source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--source common/xa_crash_safe/assert_recovery_message.inc
 
 # 5.b. The GTID_EXECUTED variable was updated.
 #
@@ -99,11 +99,11 @@ INSERT INTO t1 VALUES (1);
 #      RECOVER`.
 #
 --let $expected_prepared_xa_count = 0
---source extra/xa_crash_safe_tests/assert_xa_recover.inc
+--source common/xa_crash_safe/assert_xa_recover.inc
 
 # 5.d. The table has been updated.
 #
 --let $expected_row_count = 2
---source extra/xa_crash_safe_tests/assert_row_count.inc
+--source common/xa_crash_safe/assert_row_count.inc
 
 DROP TABLE t1;

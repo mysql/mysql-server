@@ -30,7 +30,7 @@ include/assert.inc [stage/group_rpl/Multi-primary Switch: waiting on another mem
 # 6. Restart a member, won't impact the success of action
 [connection server3]
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 7. COMMIT pending transaction to action switch to multi primary  be
 #    executed

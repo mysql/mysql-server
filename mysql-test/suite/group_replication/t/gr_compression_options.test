@@ -38,12 +38,12 @@
 ##
 # make sure that compression is disabled
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_compression_threshold= 0;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_compression_threshold= 0;
 
@@ -52,7 +52,7 @@ SET GLOBAL group_replication_compression_threshold= 0;
 ##
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 #
 # Assert that the wrong input results in an error
@@ -101,12 +101,12 @@ SET GLOBAL group_replication_compression_threshold=DEFAULT;
 
 ## Start GR on server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 ## Go back to server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 #
 # Assert that we cannot change the variable while group replication
@@ -138,9 +138,9 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=InnoDB;
 --eval INSERT INTO t1 VALUES(2, REPEAT('B', $half_sound_threshold))
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 #
 # Assert that compression is disabled on server2
@@ -155,7 +155,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=InnoDB;
 # is able to speak with server1 which has compression on
 --eval INSERT INTO t1 VALUES(3, REPEAT('C', $double_sound_threshold))
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 #
 # Assert that the data made it through
@@ -202,10 +202,10 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=InnoDB;
 
 DROP TABLE t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --replace_result $saved_threshold SAVED_THRESHOLD
@@ -213,7 +213,7 @@ DROP TABLE t1;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --replace_result $saved_threshold SAVED_THRESHOLD

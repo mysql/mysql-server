@@ -35,7 +35,7 @@
 --echo # 1. Install clone plugin on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -62,7 +62,7 @@ INSERT INTO db1.t1 VALUES (1);
 --echo # 4. Restart server 2 with a monitoring process (mysqld_safe) if needed
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -101,7 +101,7 @@ START GROUP_REPLICATION;
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $group_replication_member_state=ONLINE
 --source include/gr_wait_for_member_state.inc
@@ -118,7 +118,7 @@ START GROUP_REPLICATION;
 --echo # 7. Check that the recovery privileged user was preserved
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $slave_rl_info_count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE channel_name="group_replication_recovery" AND Privilege_checks_username = "u1" AND Privilege_checks_hostname="localhost" AND Require_row_format=1`
 --let $assert_text= Credentials on server 1 are preserved
@@ -126,7 +126,7 @@ START GROUP_REPLICATION;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $slave_rl_info_count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE channel_name="group_replication_recovery" AND Privilege_checks_username = "u1" AND Privilege_checks_hostname="localhost" AND Require_row_format=1`
 --let $assert_text= Credentials on server 2 were proprely cloned
@@ -152,27 +152,27 @@ RESET PERSIST IF EXISTS group_replication_communication_stack;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL FOR CHANNEL 'group_replication_recovery';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL FOR CHANNEL 'group_replication_recovery';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP USER u1@localhost;
 
 UNINSTALL PLUGIN clone;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 UNINSTALL PLUGIN clone;
 

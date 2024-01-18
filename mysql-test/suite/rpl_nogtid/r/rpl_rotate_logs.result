@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,10 +9,10 @@ create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break replica'),('Tried hard');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 Source_Log_File = 'master-bin.000001'
 Relay_Source_Log_File = 'master-bin.000001'
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 include/assert.inc [Table t1 should contain the first inserted line]
 include/assert.inc [Table t1 should contain the second inserted line]
 flush logs;
@@ -25,16 +25,16 @@ master-bin.000001	#	#
 master-bin.000002	#	#
 master-bin.000003	#	#
 create table t3 select * from temp_table;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Data in t3 should be equal to temp_table]
 drop table temp_table, t3;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 insert into t2 values(1234);
 set insert_id=1234;
 insert into t2 values(NULL);
 call mtr.add_suppression("Replica SQL.*Error .Duplicate entry .1234. for key .t2.PRIMARY.. on query.* Error_code: MY-001062");
-include/wait_for_slave_sql_error_and_skip.inc [errno=1062]
-include/sync_slave_sql_with_master.inc
+include/rpl/wait_for_applier_error_and_skip.inc [errno=1062]
+include/rpl/sync_to_replica.inc
 purge binary logs to 'master-bin.000002';
 show binary logs;
 Log_name	master-bin.000002
@@ -56,10 +56,10 @@ show binary logs;
 Log_name	File_size	Encrypted
 master-bin.000003	#	#
 insert into t2 values (65);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 Source_Log_File = 'master-bin.000003'
 Relay_Source_Log_File = 'master-bin.000003'
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 include/assert.inc [Table t2 should still contain the first inserted line after creation]
 include/assert.inc [Table t2 should contain the line inserted after the purge]
 include/assert.inc [Table t2 should still contain the second insert line after creation]
@@ -70,15 +70,15 @@ insert into temp_table values ("testing temporary tables part 2");
 create table t3 (n int);
 include/assert.inc [Table t3 should contain 90 lines on the source]
 create table t4 select * from temp_table;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Data in t4 should be equal to temp_table]
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 lock tables t3 read;
 include/assert.inc [Table t3 should contain 90 lines on the replica]
 unlock tables;
 drop table if exists t1,t2,t3,t4;
 drop temporary table temp_table;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 End of 4.1 tests
 show binlog events in 'non existing_binlog_file';
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find target log
@@ -91,4 +91,4 @@ purge binary logs before now();
 Warnings:
 Warning	1868	file slave-bin.000001 was not purged because it is the active log file.
 End of 5.0 tests
-include/rpl_end.inc
+include/rpl/deinit.inc

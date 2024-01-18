@@ -66,7 +66,7 @@ SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WH
 --eval SELECT group_replication_service_message_send("$tag", repeat('a',1024*1024))
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_message_service_dispatcher_before_pop_reached";
 
 --let $assert_text= 'The sum bytes allocated must be greater than 0'

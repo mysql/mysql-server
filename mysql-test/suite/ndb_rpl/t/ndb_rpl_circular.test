@@ -2,15 +2,15 @@
 
 # set up circular replication
 --let $rpl_topology= 1->2->1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= master
 --let $rpl_server_number= 1
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= slave
 --let $rpl_server_number= 2
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 
 # create the table on the "slave"
@@ -40,27 +40,27 @@ SELECT * FROM t1 ORDER BY a;
 #SELECT * FROM t2 ORDER BY a;
 
 # Check slave has no errors and are running
---source include/check_slave_no_error.inc
---source include/check_slave_is_running.inc
+--source include/rpl/assert_replica_no_error.inc
+--source include/rpl/assert_replica_running.inc
 
 --echo Slave Binlog contains all ops as log_replica_updates is on
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_replica_updates';
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
-source include/check_slave_is_running.inc;
+source include/rpl/assert_replica_running.inc;
 # connect to master and ensure data it there.
 --connection master
 SELECT * FROM t1 ORDER BY a;
 #SELECT * FROM t2 ORDER BY a;
-source include/check_slave_is_running.inc;
+source include/rpl/assert_replica_running.inc;
 
 --echo Master Binlog contains only Master ops as log_replica_updates is off
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_replica_updates';
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # stop replication on "master" as not to replicate
 # shutdown circularly, eg drop table
@@ -105,7 +105,7 @@ insert into t1 values (1,1);
 select server_id, log_name from mysql.ndb_apply_status order by server_id;
 
 --disable_result_log
---source include/wait_for_ndb_committed_to_binlog.inc
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
 --enable_result_log
 --echo 'Slave' has following ndb_binlog_index entries
 select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position,orig_epoch;
@@ -152,4 +152,4 @@ drop table t1;
 drop table t1;
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

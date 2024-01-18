@@ -129,7 +129,7 @@ if (!$found)
 {
   if ($show_rpl_debug_info)
   {
-    --source include/show_rpl_debug_info.inc
+    --source include/rpl/debug/show_debug_info.inc
   }
   echo # Timeout in include/wait_show_condition.inc for $condition;
   echo #         show_statement : $show_statement;

@@ -42,12 +42,12 @@
 
 # This test is binary_log format agnostic so row is chosen.
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Clean all configuration changes after running the test.
 --source include/force_restart.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $datadir= `SELECT @@GLOBAL.datadir`
 
 --echo #
@@ -72,10 +72,10 @@ FLUSH RELAY LOGS FOR CHANNEL "ch2";
 --echo #
 --let $rpl_channel_name= 'ch1'
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --let $rpl_channel_name= 'ch2'
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
@@ -90,7 +90,7 @@ eval RESET REPLICA FOR CHANNEL "ch1";
 --echo #
 --let $rpl_channel_name= 'ch1'
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
@@ -102,7 +102,7 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 --echo #
 --let $rpl_channel_name=
 --disable_warnings
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --enable_warnings
 RESET REPLICA;
 
@@ -112,10 +112,10 @@ RESET REPLICA;
 --echo #
 --let $rpl_channel_name= 'ch1'
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --let $rpl_channel_name= 'ch2'
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
@@ -166,7 +166,7 @@ SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 --let $rpl_channel_name= ''
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 
 --echo #
 --echo # Verify that default channel would copy global replication filters
@@ -184,7 +184,7 @@ SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 --let $rpl_channel_name= ''
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 
 --echo #
 --echo # Verify that "RESET REPLICA ALL" with no FOR CHANNEL clause removes all
@@ -231,6 +231,6 @@ SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
 --let $rpl_channel_name=
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc
 

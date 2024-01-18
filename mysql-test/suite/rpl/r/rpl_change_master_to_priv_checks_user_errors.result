@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,8 +13,8 @@ CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopp
 CREATE USER 'u1'@'localhost';
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL '';
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=13496]
-include/stop_slave.inc
+include/rpl/wait_for_applier_error.inc [errno=13496]
+include/rpl/stop_replica.inc
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 #
 # TC2. `Query_log_event` should fail if `PRIVILEGE_CHECKS_USER` user
@@ -31,21 +31,21 @@ START REPLICA;
 [connection master]
 CREATE TABLE t1 (c1 INT);
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=1142]
-include/stop_slave.inc
+include/rpl/wait_for_applier_error.inc [errno=1142]
+include/rpl/stop_replica.inc
 GRANT CREATE ON *.* TO 'u1'@'localhost';
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # TC3. Slave thread should fail to start if `PRIVILEGE_CHECKS_USER`
 #      user gets dropped.
 # ----------------------------------------------------------------------
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 DROP USER 'u1'@'localhost';
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=13494]
-include/stop_slave.inc
+include/rpl/wait_for_applier_error.inc [errno=13494]
+include/rpl/stop_replica.inc
 #
 # TC4. Validate that slave stops when PRIVILEGE_CHECKS_USER is not able
 #      to grant privileges.
@@ -61,12 +61,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=MY_SOURCE_PORT, SOU
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 GRANT REPLICATION_APPLIER on *.* TO 'u1'@'localhost';
 [connection slave]
 CALL mtr.add_suppression(".*Access denied. you need .at least one of. the GRANT OPTION privilege.*");
-include/wait_for_slave_sql_error.inc [errno=1227]
+include/rpl/wait_for_applier_error.inc [errno=1227]
 [connection master]
 SET sql_log_bin= 0;
 DROP USER 'u1'@'localhost';
@@ -78,14 +78,14 @@ DROP USER 'u1'@'localhost';
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT DROP ON *.* TO 'u1'@'localhost';
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_SOURCE_LOG_POS;
 START REPLICA;
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';
 START REPLICA;
 DROP USER 'u1'@'localhost';
-include/rpl_end.inc
+include/rpl/deinit.inc

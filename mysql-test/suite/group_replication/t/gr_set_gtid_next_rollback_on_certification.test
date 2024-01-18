@@ -29,13 +29,13 @@
 --echo # 1. Execute some transactions on server 1 with and without
 --echo #    GTID specified.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -43,11 +43,11 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo # 2. Force negative certification outcome of the next
 --echo #    transaction.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
 
@@ -62,10 +62,10 @@ INSERT INTO t1 VALUES (1);
 SET GTID_NEXT= AUTOMATIC;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= @debug_saved;
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= @debug_saved;
 
 INSERT INTO t1 VALUES (2);
@@ -129,7 +129,7 @@ INSERT INTO t1 VALUES (4);
 DROP TABLE t1;
 
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 
 --source include/group_replication_end.inc

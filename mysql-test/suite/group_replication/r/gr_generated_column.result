@@ -11,7 +11,7 @@ INSERT INTO st1(c1) VALUES(2);
 UPDATE st1 SET c1=3 WHERE c2=3;
 UPDATE st1 SET c1=4 WHERE c1=3;
 DELETE FROM st1 WHERE c2=5;
-include/rpl_sync.inc
+include/rpl/sync.inc
 # check that st1 exists and has same values in both servers
 include/diff_tables.inc [server1:st1, server2:st1]
 # Table st2: stored column as primary key
@@ -22,7 +22,7 @@ INSERT INTO st2(c1) VALUES("efgh");
 UPDATE st2 SET c1="abgh" WHERE c1='abcd';
 UPDATE st2 SET c1="cdgh" WHERE c2='ef';
 DELETE FROM st2 WHERE c2='cd';
-include/rpl_sync.inc
+include/rpl/sync.inc
 # check that st2 exists and has same values in both servers
 include/diff_tables.inc [server1:st2, server2:st2]
 Table st3: stored column as unique
@@ -41,7 +41,7 @@ UPDATE st3 SET c3='update' WHERE c2='first';
 UPDATE st3 SET c3='update' WHERE c2='second';
 DELETE FROM st3 WHERE c2='first';
 DELETE FROM st3 WHERE c3='update';
-include/rpl_sync.inc
+include/rpl/sync.inc
 # check that st3 exists and has same values in both servers
 include/diff_tables.inc [server1:st3, server2:st3]
 Table st4: Stored column as foreign key
@@ -55,7 +55,7 @@ INSERT INTO st4(c1) VALUES(32);
 UPDATE st4 SET c1=21 WHERE c2=1;
 DELETE FROM st4 WHERE c2=2;
 DELETE FROM st4 WHERE c1=21;
-include/rpl_sync.inc
+include/rpl/sync.inc
 # check that st4 exists and has same values in both servers
 include/diff_tables.inc [server1:st4, server2:st4]
 Table vt1: virtual column genarated on primary key
@@ -67,7 +67,7 @@ UPDATE vt1 SET c1='2009-09-02' WHERE c2=2008;
 UPDATE vt1 SET c1='1999-06-17' WHERE c1='1998-06-17';
 DELETE FROM vt1 WHERE c1='2009-09-02';
 DELETE FROM vt1 WHERE c2=1999;
-include/rpl_sync.inc
+include/rpl/sync.inc
 # check that vt1 exists and has same values in both servers
 include/diff_tables.inc [server1:vt1, server2:vt1]
 Table  vt2: virtual column as unique key
@@ -79,7 +79,7 @@ UPDATE vt2 SET c1='first update' WHERE c1='first insert';
 UPDATE vt2 SET c1='second update' WHERE c2='se';
 DELETE FROM vt2 WHERE c1='first update';
 DELETE FROM vt2 WHERE c2='se';
-include/rpl_sync.inc
+include/rpl/sync.inc
 # check that vt2 exists and has same values in both servers
 include/diff_tables.inc [server1:vt2, server2:vt2]
 Table vt3: Virtual Column with foreign keys
@@ -97,7 +97,7 @@ DELETE FROM t2 WHERE a=2;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`vt3`, CONSTRAINT `vt3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 DELETE FROM vt3 WHERE a=1;
 DELETE FROM vt3 WHERE c=100;
-include/rpl_sync.inc
+include/rpl/sync.inc
 # check that vt3 exists and has same values in both servers
 include/diff_tables.inc [server1:vt3, server2:vt3]
 Table gt1: gt1: both stored and virtual columns
@@ -118,7 +118,7 @@ DELETE FROM gt1 WHERE a=5;
 DELETE FROM gt1 WHERE b=24;
 DELETE FROM gt1 WHERE c=24;
 DELETE FROM gt1 WHERE d=33;
-include/rpl_sync.inc
+include/rpl/sync.inc
 # check that gt1 exists and has same values in both servers
 include/diff_tables.inc [server1:gt1, server2:gt1]
 # Clean Up

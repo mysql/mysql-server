@@ -57,7 +57,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --echo #    that is defined on group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin=0;
@@ -99,7 +99,7 @@ START GROUP_REPLICATION;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= GTID_EXECUTED must only contain view changes
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$view_change_uuid:1-3"
@@ -114,7 +114,7 @@ SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;

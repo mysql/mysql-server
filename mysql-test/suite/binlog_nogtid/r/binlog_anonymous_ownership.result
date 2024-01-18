@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=none]
+include/rpl/init.inc [topology=none]
 ==== Initialize ====
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 CREATE TABLE statements (
@@ -257,7 +257,7 @@ include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
 include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
 # Statement 24:
 [connection server_1_1]
-include/rpl_connect.inc [creating server_1_1]
+include/rpl/connect.inc [creating server_1_1]
 include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
 ---- Comment ----
 # Statement 25:
@@ -290,7 +290,7 @@ include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
 include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 3]
 # Statement 30:
 [connection server_1_2]
-include/rpl_connect.inc [creating server_1_2]
+include/rpl/connect.inc [creating server_1_2]
 include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 2]
 # Statement 31:
 [connection server_1_1]
@@ -390,4 +390,4 @@ SET GLOBAL GTID_MODE = 'OFF';
 DROP TABLE statements;
 DROP TABLE t1;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,7 +19,7 @@ INSERT INTO t VALUES(2);
 #    Check START REPLICA UNTIL SOURCE_LOS_POS works as intended
 [connection slave]
 START REPLICA UNTIL SOURCE_LOG_FILE='SOURCE_LOG_FILE', SOURCE_LOG_POS=SOURCE_LOG_POS;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [The table only has 1 line]
 #
 # 3. Add some more data
@@ -28,23 +28,23 @@ include/assert.inc [The table only has 1 line]
 [connection master]
 INSERT INTO t VALUES(3);
 INSERT INTO t VALUES(4);
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 SET @@GLOBAL.local_infile= true;
 START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE='RELAY_LOG_FILE', RELAY_LOG_POS=RELAY_LOG_POS;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [The table only has 3 lines]
 #
 # 4. Restart the server so positions become invalid
 #    Add some more data on the source and record the positions
 #    Check START REPLICA UNTIL SOURCE_LOS_POS works as intended
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=1]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_slave_start=1]
 include/assert.inc [The source log file name in the applier is invalid]
 [connection master]
 INSERT INTO t VALUES(5);
 INSERT INTO t VALUES(6);
 [connection slave]
 START REPLICA UNTIL SOURCE_LOG_FILE='SOURCE_LOG_FILE', SOURCE_LOG_POS=SOURCE_LOG_POS;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [The table only has 5 lines]
 #
 # 5. Insert data in the source and extract the relay log position
@@ -53,21 +53,21 @@ include/assert.inc [The table only has 5 lines]
 [connection master]
 INSERT INTO t VALUES(7);
 INSERT INTO t VALUES(8);
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 SET @@GLOBAL.local_infile= true;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=1]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_slave_start=1]
 include/assert.inc [The source log file name in the applier is invalid]
 START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE='RELAY_LOG_FILE', RELAY_LOG_POS=RELAY_LOG_POS;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [The table only has 7 lines]
 #
 # 6. Cleanup
 SET @@GLOBAL.local_infile= REPLICA_LOCAL_INFILE;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

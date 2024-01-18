@@ -24,23 +24,23 @@
 # only replication as a result of 72475
 -- source include/have_binlog_format_statement.inc
 
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 create temporary table t1 (n int);
 insert into t1 values(1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 show status like 'Replica_open_temp_tables';
 
 # Perform a delete from temp table
 connection master;
 delete from t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 show status like 'Replica_open_temp_tables';
 
 # Perform truncate on temp table
 connection master;
 truncate t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 show status like 'Replica_open_temp_tables';
 
 # Disconnect the master, temp table on slave should dissapear
@@ -50,9 +50,9 @@ connection slave;
 
 # Wait until drop of temp tables appers in slave's binlog
 let $wait_binlog_event= DROP;
-source include/wait_for_binlog_event.inc;
+source include/rpl/wait_for_binlog_event.inc;
 
 show status like 'Replica_open_temp_tables';
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

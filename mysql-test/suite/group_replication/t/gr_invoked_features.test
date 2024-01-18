@@ -19,7 +19,7 @@
 # 6. Clean up.
 ################################################################################
 
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 
@@ -93,7 +93,7 @@ END|
 DELIMITER ;|
 
 # Syncing the second member with the first one
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --connection server1
 
 #
@@ -107,7 +107,7 @@ DELIMITER ;|
 CREATE TABLE t13(a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) engine=InnoDB;
 INSERT INTO t11 VALUES (3,3,'');
 UPDATE t11 SET c='2' WHERE a = 1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server2
 INSERT INTO t11 VALUES(4,4,f1(4));
@@ -141,7 +141,7 @@ ALTER EVENT e1 ENABLE;
 --source include/wait_condition_or_abort.inc
 SET GLOBAL EVENT_SCHEDULER = @old_event_scheduler;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 # Check original objects
 --echo
 --sorted_result
@@ -156,7 +156,7 @@ SELECT routine_type, routine_name FROM information_schema.routines WHERE routine
 SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
 
 # Syncing the two members involved in the group
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables= server1:t11, server2:t11
 --source include/diff_tables.inc

@@ -71,7 +71,7 @@ include/assert.inc [On the recovered member, the table should contain 1 elements
 #
 server1
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/stop_group_replication.inc
 SET session sql_log_bin=0;
 call mtr.add_suppression("Member version is incompatible with the group");

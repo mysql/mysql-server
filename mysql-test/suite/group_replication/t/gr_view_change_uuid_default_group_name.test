@@ -18,10 +18,10 @@
 --source include/have_group_replication_plugin.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 
 --source include/group_replication.inc
@@ -45,7 +45,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --echo #    log view change. Check on server 2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= group_replication_group_replication_view_change_uuid is AUTOMATIC
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_view_change_uuid]" = "AUTOMATIC"
@@ -56,10 +56,10 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --source include/group_replication_end.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 #
 # Restart replica with TABLE repository to test with privilege_checks_user config.
 #
-include/rpl_restart_server.inc [server_number=2 parameters: --debug=d,simulate_priv_check_user_nullptr_t]
+include/rpl/restart_server.inc [server_number=2 parameters: --debug=d,simulate_priv_check_user_nullptr_t]
 include/assert.inc [Check that mysql.slave_relay_log_info has 1 entries for 1 channels]
 include/assert.inc [Check that performance_schema.replication_applier_configuration has 1 entries for 1 channels]
 include/assert.inc [Check that priv_chks_username for channel "" is correct]
@@ -39,7 +39,7 @@ include/assert.inc [Check that priv_chks_hostname for channel "ch2" is correct]
 #
 # TC.P.T2: PRIVILEGE_CHECKS_USER persists after restarting the server.
 #
-include/rpl_restart_server.inc [server_number=2]
+include/rpl/restart_server.inc [server_number=2]
 include/assert.inc [Check that mysql.slave_relay_log_info has 3 entries for 3 channels]
 include/assert.inc [Check that performance_schema.replication_applier_configuration has 3 entries for 3 channels]
 include/assert.inc [Check that priv_chks_username for channel "ch1" is correct]
@@ -70,7 +70,7 @@ ERROR HY000: String 'repli_priv_checks_user_more_than_32' is too long for user n
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="repl_priv_chcks_usr_more_than_32", Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --debug=d,simulate_priv_check_username_above_limit,simulate_priv_check_user_nullptr_t]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start --debug=d,simulate_priv_check_username_above_limit,simulate_priv_check_user_nullptr_t]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_username_above_limit' from @@GLOBAL.debug
 START REPLICA FOR CHANNEL "ch1";
@@ -85,7 +85,7 @@ ERROR HY000: String 'replication_privilege_checks_hostname_more_than_255_replica
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="replication_applier", Privilege_checks_hostname="replication_applier_hostname_more_than_255" WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --debug=d,simulate_priv_check_hostname_above_limit,simulate_priv_check_user_nullptr_t]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start --debug=d,simulate_priv_check_hostname_above_limit,simulate_priv_check_user_nullptr_t]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_hostname_above_limit' from @@GLOBAL.debug
 START REPLICA FOR CHANNEL "ch1";
@@ -100,7 +100,7 @@ ERROR HY000: Malformed hostname (illegal symbol: '@')
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username='replication_applier', Privilege_checks_hostname='l@calhost' WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START REPLICA FOR CHANNEL "ch1";
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
@@ -112,7 +112,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username=NULL, Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START REPLICA FOR CHANNEL "ch1";
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
@@ -126,7 +126,7 @@ ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel 'ch1' was set to ``@`
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="", Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START REPLICA FOR CHANNEL "ch1";
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
@@ -140,7 +140,7 @@ ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel 'ch1' was set to `rep
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="replication_applier_nonexist", Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START REPLICA FOR CHANNEL "ch1";
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
@@ -149,7 +149,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=11 FOR CHANNEL
 include/assert_grep.inc [Found 5 warning in the error log]
 include/assert_grep.inc [Found 1 warning in the error log]
 DROP USER 'replication_applier'@'localhost';
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'ch1' are already stopped.
 RESET REPLICA ALL;
@@ -157,5 +157,5 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST="127.0.0.1", SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

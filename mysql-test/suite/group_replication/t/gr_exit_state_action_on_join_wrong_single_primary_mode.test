@@ -37,7 +37,7 @@
 --source include/group_replication.inc
 --source include/start_and_bootstrap_group_replication.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo #########################################################################
@@ -45,7 +45,7 @@
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Save all the context we'll need during the test
 --let $error_file = $MYSQLTEST_VARDIR/tmp/gr_exit_state_action_on_join_wrong_single_primary_mode.2.err
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
@@ -57,7 +57,7 @@
 --source include/restart_mysqld.inc
 # Reestablish the connection to the server
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo #########################################################################
@@ -66,7 +66,7 @@
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait for the debug sync to be reached.
 SET DEBUG_SYNC= "now WAIT_FOR signal.wait_leave_process";
@@ -89,7 +89,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 --source include/assert_grep.inc
 # Verify that member 2 didn't join the group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 1
 --source include/gr_wait_for_number_of_members.inc
 
@@ -100,7 +100,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Restart the server again with group_replication_start_on_boot enabled and with
 # group_replication_exit_state_action set to ABORT_SERVER
 --let $allow_rpl_inited = 1
@@ -116,13 +116,13 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 --echo
 # Wait for server 1 to see that server 2 didn't join
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 1
 --source include/gr_wait_for_number_of_members.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Verify that super_read_only mode is reverted to its original value
 --let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
@@ -146,13 +146,13 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 --replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/restart_mysqld.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 # Start GR on server 2 and verify that the group stabilizes itself
 --source include/start_group_replication.inc
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 

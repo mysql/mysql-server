@@ -35,15 +35,15 @@
 --echo #    server2: secondary;
 --echo #    server3: secondary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -52,7 +52,7 @@
 --echo # 2. Validate that `Gcs_message_data::m_buffer` returns
 --echo #    valid memory consumption values on all members.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_primary_member.inc
 
 --let $assert_text= 'The current number of bytes used for `Gcs_message_data::m_buffer` must be equal or greater than 0'
@@ -64,7 +64,7 @@
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_secondary_member.inc
 
 --let $assert_text= 'The current number of bytes used for `Gcs_message_data::m_buffer` must be equal or greater than 0'
@@ -76,7 +76,7 @@
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_secondary_member.inc
 
 --let $assert_text= 'The current number of bytes used for `Gcs_message_data::m_buffer` must be equal or greater than 0'
@@ -94,7 +94,7 @@
 --echo #    Validate that `Gcs_message_data::m_buffer` returns
 --echo #    valid memory consumption values after a member leaves.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $assert_text= 'The current number of bytes used for `Gcs_message_data::m_buffer` must be 0'
@@ -106,7 +106,7 @@
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'The current number of bytes used for `Gcs_message_data::m_buffer` must be equal or greater than 0'
 --let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer"] >= 0
 --source include/assert.inc
@@ -126,7 +126,7 @@
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'The current number of bytes used for `Gcs_message_data::m_buffer` must be equal or greater than 0'
 --let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer"] >= 0
 --source include/assert.inc
@@ -153,15 +153,15 @@
 --echo #    server2: secondary;
 --echo #    server3: secondary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -170,7 +170,7 @@
 --echo # 5. Validate that `Gcs_message_data::m_buffer` returns
 --echo #    valid memory consumption values on all members.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_primary_member.inc
 
 --let $assert_text= 'The current number of bytes used for `Gcs_message_data::m_buffer` must be equal or greater than 0'
@@ -182,7 +182,7 @@
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_secondary_member.inc
 
 --let $assert_text= 'The current number of bytes used for `Gcs_message_data::m_buffer` must be equal or greater than 0'
@@ -194,7 +194,7 @@
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_secondary_member.inc
 
 --let $assert_text= 'The current number of bytes used for `Gcs_message_data::m_buffer` must be equal or greater than 0'

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -36,7 +36,7 @@ GRANT SELECT (user, host) ON mysql.user TO u44;
 GRANT EXECUTE ON PROCEDURE mysql.p TO u55;
 GRANT proxy ON u1 TO u2;
 GRANT ALL ON *.* TO u6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @sql_log_bin_saved = @@sql_log_bin;
 SET sql_log_bin = 0;
@@ -141,7 +141,7 @@ DROP ROLE r1, r2, u1, u_ne1;
 ERROR HY000: Operation DROP ROLE failed for 'u_ne1'@'%'
 DROP ROLE r1, r2, u5, u6, u1_failed;
 ERROR HY000: Operation DROP ROLE failed for 'u5'@'%','u1_failed'@'%'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @sql_log_bin_saved = @@sql_log_bin;
 SET sql_log_bin = 0;
@@ -169,5 +169,5 @@ ERROR 28000: Access denied for user 'u44'@'localhost' (using password: YES)
 DROP ROLE IF EXISTS r1, r2, r33, r44, u1, u2, u33, u44, u55, u6;
 DROP TABLE test.user_1;
 DROP TABLE test.user_2;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

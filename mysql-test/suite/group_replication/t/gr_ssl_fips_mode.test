@@ -26,7 +26,7 @@
 --echo #    with ssl_fips_mode= 'ON'.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $allow_rpl_inited= 1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -35,9 +35,9 @@
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # create a user for replication that requires ssl encryption
 SET SESSION sql_log_bin= 0;
@@ -66,7 +66,7 @@ SHOW WARNINGS;
 --echo #    Start GR on M2. Check the data is there.
 --echo #
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $allow_rpl_inited= 1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -75,9 +75,9 @@ SHOW WARNINGS;
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 SET @group_replication_recovery_use_ssl_save= @@GLOBAL.group_replication_recovery_use_ssl;
 SET @group_replication_recovery_ssl_ca_save= @@GLOBAL.group_replication_recovery_ssl_ca;
@@ -117,10 +117,10 @@ SET GLOBAL group_replication_recovery_use_ssl= 1;
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (3, 'three');
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column values of performance_schema.replication_group_members table are correct and DNS resolvable.");
@@ -152,7 +152,7 @@ SET @@GLOBAL.group_replication_recovery_ssl_cipher= @group_replication_recovery_
 SET @@GLOBAL.group_replication_recovery_retry_count= @group_replication_recovery_retry_count_save;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 DROP USER 'rec_ssl_user';
 SET SESSION sql_log_bin= 1;

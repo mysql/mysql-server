@@ -52,14 +52,14 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 --let $local_address_server3= `SELECT @@GLOBAL.group_replication_local_address`
@@ -70,7 +70,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_autorejoin_tries = 1;
 
@@ -84,10 +84,10 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
 
 # We have to reset the group
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $group_seeds_server2 GROUP_SEEDS_SERVER2
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
@@ -104,10 +104,10 @@ INSERT INTO t1 VALUES(3);
 INSERT INTO t1 VALUES(4);
 
 --let $rpl_server_number= 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
 --eval SET @@global.group_replication_group_seeds="$local_address_server2"
@@ -116,16 +116,16 @@ INSERT INTO t1 VALUES(4);
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
 
 --echo
@@ -142,19 +142,19 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.recovery_waiting";
 --source include/gr_wait_for_member_state.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state = RECOVERING
 --let $group_replication_member_id = $member_id
 --source include/gr_wait_for_member_state.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state = RECOVERING
 --let $group_replication_member_id = $member_id
 --source include/gr_wait_for_member_state.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC = "now SIGNAL signal.recovery_continue";
 
 SET @@GLOBAL.DEBUG='-d,recovery_thread_start_wait';
@@ -165,7 +165,7 @@ SET @@GLOBAL.DEBUG='-d,recovery_thread_start_wait';
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 3
 --source include/gr_wait_for_number_of_members.inc
@@ -174,7 +174,7 @@ SET @@GLOBAL.DEBUG='-d,recovery_thread_start_wait';
 --source include/gr_wait_for_member_state.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 3
 --source include/gr_wait_for_number_of_members.inc
@@ -185,7 +185,7 @@ SET @@GLOBAL.DEBUG='-d,recovery_thread_start_wait';
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 SET @@GLOBAL.DEBUG = @debug_saved;

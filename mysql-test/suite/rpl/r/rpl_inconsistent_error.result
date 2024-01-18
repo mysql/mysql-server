@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,12 +14,12 @@ ERROR 23000: Duplicate entry '10' for key 't1.s'
 DROP TABLE t1;
 CREATE TABLE t2(s INT);
 INSERT INTO t2 VALUES(10);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t2,slave:t2]
 [connection master]
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
 include/assert_grep.inc [Found the expected information about the ER_INCONSISTENT_ERROR being skipped.]
-include/rpl_end.inc
+include/rpl/deinit.inc

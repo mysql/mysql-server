@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -28,7 +28,7 @@ CREATE USER IF NOT EXISTS wl8540@nohost1, wl8540@nohost2;
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [On Slave]
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
@@ -50,7 +50,7 @@ DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [On Slave]
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
@@ -74,7 +74,7 @@ CREATE USER IF NOT EXISTS wl8540@nohost1, wl8540@nohost2;
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [On Slave]
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
@@ -97,7 +97,7 @@ slave_user1@localhost,slave_user2@localhost;
 Warnings:
 Note	3162	Authorization ID 'slave_user2'@'localhost' does not exist.
 FLUSH PRIVILEGES;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 WL#11144: Check that ALTER/CREATE/DROP USER IF [NOT] EXISTS will succesfully replicate in multi user scenarios
 # All users exist on master, some on slave
 [connection master]
@@ -118,7 +118,7 @@ set @@session.sql_log_bin=0;
 CREATE USER u3,u4;
 set @@session.sql_log_bin=1;
 DROP USER IF EXISTS u1, u2, u3, u4;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # All users exist on master, none on slave
 [connection master]
 set @@session.sql_log_bin=0;
@@ -136,13 +136,13 @@ set @@session.sql_log_bin=0;
 CREATE USER u1,u2,u3,u4;
 set @@session.sql_log_bin=1;
 DROP USER IF EXISTS u1, u2, u3, u4;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Some users exist on master, others on slave
 [connection master]
 set @@session.sql_log_bin=0;
 CREATE USER u3,u4;
 set @@session.sql_log_bin=1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE USER u1,u2;
 [connection master]
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
@@ -156,7 +156,7 @@ Note	3163	Authorization ID 'u4'@'%' already exists.
 set @@session.sql_log_bin=0;
 DROP USER u1,u2;
 set @@session.sql_log_bin=1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP USER u3,u4;
 [connection master]
 DROP USER IF EXISTS u1, u2, u3, u4;
@@ -164,7 +164,7 @@ Warnings:
 Note	3162	Authorization ID 'u1'@'%' does not exist.
 Note	3162	Authorization ID 'u2'@'%' does not exist.
 # Some users exist on master, all on slave
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE USER u1,u2;
 [connection master]
 CREATE USER u3,u4;
@@ -183,7 +183,7 @@ DROP USER IF EXISTS u1, u2, u3, u4;
 Warnings:
 Note	3162	Authorization ID 'u1'@'%' does not exist.
 Note	3162	Authorization ID 'u2'@'%' does not exist.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Some users exist on master, none on slave
 [connection master]
 set @@session.sql_log_bin=0;
@@ -206,7 +206,7 @@ Warnings:
 Note	3162	Authorization ID 'u1'@'%' does not exist.
 Note	3162	Authorization ID 'u2'@'%' does not exist.
 # No users exist on master, some on slave
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE USER u3,u4;
 [connection master]
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
@@ -227,7 +227,7 @@ Note	3162	Authorization ID 'u2'@'%' does not exist.
 Note	3162	Authorization ID 'u3'@'%' does not exist.
 Note	3162	Authorization ID 'u4'@'%' does not exist.
 # No users exist on master, all on slave
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE USER u1,u2,u3,u4;
 [connection master]
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
@@ -297,4 +297,4 @@ include/assert.inc [assert that the above Event has not been added to binlog]
 RENAME TABLE mysql.password_history_backup TO mysql.password_history;
 SET @@GLOBAL.password_history= @old_password_history;
 DROP USER no_pwd_history@localhost;
-include/rpl_end.inc
+include/rpl/deinit.inc

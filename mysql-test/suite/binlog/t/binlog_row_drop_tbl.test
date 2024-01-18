@@ -3,4 +3,4 @@
 # For both statement and row based bin logs
 
 -- source include/have_binlog_format_row.inc
--- source extra/binlog_tests/drop_table.test
+-- source common/binlog/drop_table.test

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -307,7 +307,7 @@ f299 int,
 f300 int,
 primary key (f1));
 insert into t300 set f1= 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select f300 from t300;
 f300
 NULL
@@ -316,4 +316,4 @@ one
 1
 *** Cleanup  ***
 DROP TABLE t300;
-include/rpl_end.inc
+include/rpl/deinit.inc

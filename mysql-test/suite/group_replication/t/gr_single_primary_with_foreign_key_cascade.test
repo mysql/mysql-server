@@ -32,12 +32,12 @@
 --echo # Bootstrap start GR on server1 (Primary). Start GR on server2 (Secondary).
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Make sure server1 is Primary
@@ -49,7 +49,7 @@
 --echo # Create parent and child tables.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Parent table
 CREATE TABLE tp1 (c1 char(50) NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 

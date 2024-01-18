@@ -27,7 +27,7 @@ include/start_group_replication.inc
 #
 [connection server1]
 CREATE TABLE test.mytable (f1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f2 VARCHAR(100)) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SESSION sql_log_bin= 0;
 CREATE EVENT IF NOT EXISTS test.event1
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
@@ -84,7 +84,7 @@ include/start_group_replication.inc
 # Test everything is fine
 #
 INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, @@port));
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/assert.inc ['There are 1951 values in the table']
 [connection server2]

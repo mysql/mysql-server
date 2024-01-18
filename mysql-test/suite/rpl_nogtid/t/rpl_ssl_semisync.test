@@ -4,47 +4,47 @@
 # The following CREATE TABLE as written below crashed with
 # invalid memory access.
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_semisync_plugin.inc
---source include/install_semisync.inc
+--source include/rpl/install_semisync.inc
 
 call mtr.add_suppression(".*Semi-sync source failed on net_flush.*before waiting for replica reply.*");
 call mtr.add_suppression(".*Timeout waiting for reply of binlog .* semi-sync up to file .*");
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_SSL = 1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo # Try replicating CREATE TABLE and verify that everything is fine.
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 USE test;
 CREATE TABLE table1 (a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # STOP REPLICA and verify that replication works fine when slave resumes.
 --echo
 
---source include/stop_slave_io.inc
---source include/rpl_connection_master.inc
+--source include/rpl/stop_receiver.inc
+--source include/rpl/connection_source.inc
 INSERT INTO table1 VALUES(1);
 
---source include/rpl_connection_slave.inc
---source include/start_slave_io.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
 
 --echo
 --echo # RE-START REPLICA and execute on master, verify that replication works fine.
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO table1 VALUES(2);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= Slave should have 2 rows(1,2)
 --let $assert_cond= `SELECT COUNT(*)=2 from table1`
@@ -54,13 +54,13 @@ INSERT INTO table1 VALUES(2);
 --echo # Clean-up
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE table1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/uninstall_semisync.inc
---source include/stop_slave.inc
+--source include/rpl/uninstall_semisync.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_SSL = 0;
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

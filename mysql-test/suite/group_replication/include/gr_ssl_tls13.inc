@@ -48,7 +48,7 @@
 --echo ############################################################
 --echo # 0. Configure members to use encryption and save defaults.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @tls_version_save= @@GLOBAL.tls_version;
 SET @tls_ciphersuites_save= @@GLOBAL.tls_ciphersuites;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
@@ -61,7 +61,7 @@ if($have_mysql_stack) {
 SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @tls_version_save= @@GLOBAL.tls_version;
 SET @tls_ciphersuites_save= @@GLOBAL.tls_ciphersuites;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
@@ -86,22 +86,22 @@ SET SESSION sql_log_bin= 1;
 --echo #    No --tls-version
 --echo #    Outcome: group will work.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 
@@ -113,7 +113,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    server2: --tls-version='TLSv1.2'
 --echo #    Outcome: group will work.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
 if($have_mysql_stack) {
@@ -123,7 +123,7 @@ ALTER INSTANCE RELOAD TLS;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.tls_version= 'TLSv1.2';
 if($have_mysql_stack) {
@@ -136,11 +136,11 @@ ALTER INSTANCE RELOAD TLS;
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 
@@ -152,7 +152,7 @@ ALTER INSTANCE RELOAD TLS;
 --echo #    server2: --tls-version='TLSv1.2'
 --echo #    Outcome: group will not work.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.tls_version= 'TLSv1.3';
 if($have_mysql_stack) {
@@ -162,7 +162,7 @@ ALTER INSTANCE RELOAD TLS;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.tls_version= 'TLSv1.2';
 if($have_mysql_stack) {
@@ -174,7 +174,7 @@ ALTER INSTANCE RELOAD TLS;
 START GROUP_REPLICATION;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 
@@ -186,7 +186,7 @@ START GROUP_REPLICATION;
 --echo #    server2: --tls-version='TLSv1.3'
 --echo #    Outcome: group will work.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.tls_version= 'TLSv1.3';
 if($have_mysql_stack) {
@@ -196,7 +196,7 @@ ALTER INSTANCE RELOAD TLS;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.tls_version= 'TLSv1.3';
 if($have_mysql_stack) {
@@ -209,11 +209,11 @@ ALTER INSTANCE RELOAD TLS;
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 
@@ -225,7 +225,7 @@ ALTER INSTANCE RELOAD TLS;
 --echo #    server2: --tls-version='TLSv1.2,TLSv1.3'
 --echo #    Outcome: group will work.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_256_GCM_SHA384';
@@ -237,7 +237,7 @@ ALTER INSTANCE RELOAD TLS;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_256_GCM_SHA384';
@@ -252,11 +252,11 @@ ALTER INSTANCE RELOAD TLS;
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 
@@ -267,7 +267,7 @@ ALTER INSTANCE RELOAD TLS;
 --echo #    No --tls-version
 --echo #    Outcome: group will not work.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_set_bootstrap_group.inc
 
 SET @@GLOBAL.tls_ciphersuites= '';
@@ -292,7 +292,7 @@ if(!$have_mysql_stack) {
 --echo ############################################################
 --echo # 7. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
@@ -303,7 +303,7 @@ if($have_mysql_stack) {
 ALTER INSTANCE RELOAD TLS;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;

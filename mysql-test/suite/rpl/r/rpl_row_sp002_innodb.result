@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -58,7 +58,7 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 --------------------------------------
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1;
 a	t
 1	texas
@@ -100,7 +100,7 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 --------------------------------------
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1;
 a	t
 4	to
@@ -171,7 +171,7 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 --------------------------------------
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1;
 a	t
 1	texas
@@ -221,7 +221,7 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 --------------------------------------
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1;
 a	t
 1	texas
@@ -260,7 +260,7 @@ START TRANSACTION;
 ROLLBACK;
 select * from test.t3;
 a	t
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from test.t3;
 a	t
 START TRANSACTION;
@@ -268,7 +268,7 @@ COMMIT;
 select * from test.t3;
 a	t
 98	NONE
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from test.t3;
 a	t
 98	NONE
@@ -280,4 +280,4 @@ DROP PROCEDURE test.p2;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP TABLE test.t3;
-include/rpl_end.inc
+include/rpl/deinit.inc

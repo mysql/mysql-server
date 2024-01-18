@@ -1,0 +1,21 @@
+--source include/have_log_bin.inc
+
+#
+# Check correct binlogging of UCS2 user variables (BUG#3875)
+#
+SET TIMESTAMP=10000;
+create table t2 (c char(30)) charset=ucs2;
+set @v=convert('abc' using ucs2);
+reset binary logs and gtids;
+insert into t2 values (@v);
+source include/rpl/deprecated/show_binlog_events.inc;
+# more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
+# absolutely need variables names to be quoted and strings to be
+# escaped).
+flush logs;
+let $MYSQLD_DATADIR= `select @@datadir`;
+--let $mysqlbinlog_parameters= --short-form $MYSQLD_DATADIR/binlog.000001
+--source include/rpl/mysqlbinlog.inc
+drop table t2;
+
+# End of 4.1 tests

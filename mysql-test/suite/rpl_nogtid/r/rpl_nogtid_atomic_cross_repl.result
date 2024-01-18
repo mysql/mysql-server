@@ -1,21 +1,21 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection master]
 DROP TABLE IF EXISTS t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Query caused different errors on source and replica");
 SET @@global.debug="+d,simulate_error_in_ddl";
 [connection master]
 CREATE TABLE t1(a int);
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=13113]
+include/rpl/wait_for_applier_error.inc [errno=13113]
 DROP TABLE t1;
 SET @@global.debug="-d,simulate_error_in_ddl";
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

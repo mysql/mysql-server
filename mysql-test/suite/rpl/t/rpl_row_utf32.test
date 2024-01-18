@@ -1,6 +1,6 @@
 --source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 # Max key length in InnoDB is 3072, whereas, in MyISAM it is 1000     # WL#6921
 --let $key_length_innodb=3072
@@ -26,9 +26,9 @@ SET @saved_replica_type_conversions= @@global.replica_type_conversions;
 #  slave, which also makes use of sql_type method, thence
 #  can ultimately trigger the assertion.
 #
--- source include/stop_slave.inc
+-- source include/rpl/stop_replica.inc
 SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
--- source include/start_slave.inc
+-- source include/rpl/start_replica.inc
 
 SET SQL_LOG_BIN=0;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -43,14 +43,14 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t1(c1) VALUES ('insert into t1');
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # assertion: the slave woul hit an/several assertions:
 #            before and during slave conversion procedure
 #            Now that is fixed, it wont.
 
 SET GLOBAL REPLICA_TYPE_CONVERSIONS= @saved_replica_type_conversions;
--- source include/stop_slave.inc
--- source include/start_slave.inc
+-- source include/rpl/stop_replica.inc
+-- source include/rpl/start_replica.inc
 -- connection master
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

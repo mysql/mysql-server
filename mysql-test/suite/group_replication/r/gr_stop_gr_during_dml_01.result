@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server1]
 CREATE TABLE test.t1 ( a int primary key);
-include/rpl_sync.inc
+include/rpl/sync.inc
 USE test;
 CREATE PROCEDURE insert_into_t1()
 BEGIN

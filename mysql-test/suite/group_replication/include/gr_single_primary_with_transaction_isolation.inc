@@ -42,7 +42,7 @@
 
 --echo # CONFIGURE SERVER 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_enforce_update_everywhere_checks= $test_parameter_enforce_checks
 --eval SET GLOBAL group_replication_single_primary_mode= $test_parameter_single_primary_mode
 --eval SET SESSION transaction_isolation=$test_parameter_tx_isolation
@@ -66,7 +66,7 @@ if ($test_parameter_single_primary_mode == FALSE)
 
 --echo # CONFIGURE SERVER 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_enforce_update_everywhere_checks= $test_parameter_enforce_checks
 --eval SET GLOBAL group_replication_single_primary_mode= $test_parameter_single_primary_mode
 --eval SET SESSION transaction_isolation=$test_parameter_tx_isolation
@@ -89,16 +89,16 @@ if ($test_parameter_single_primary_mode == FALSE)
 --echo # WRITE DATA ON SERVER 1 (ISOLATION LEVEL $test_parameter_tx_isolation)
 --echo # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 
 --error $test_parameter_sql_execution_error
 INSERT INTO first(c1) VALUES(2),(4);
 if ($test_parameter_sql_execution_error == 0)
 {
-  --source include/rpl_sync.inc
+  --source include/rpl/sync.inc
   --let $rpl_connection_name= server2
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $assert_text= All data inserted on server1 should be present on server2
   --let $assert_cond= [SELECT COUNT(*) as count FROM first, count, 1] = 2
@@ -108,15 +108,15 @@ if ($test_parameter_sql_execution_error == 0)
 }
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE first;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --connection $_saved_connection

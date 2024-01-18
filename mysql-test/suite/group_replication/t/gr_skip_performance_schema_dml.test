@@ -15,7 +15,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # This should not error out as performance schema tables are not used in the before dml hook process.
 UPDATE performance_schema.setup_instruments SET ENABLED='YES', TIMED='YES' WHERE name='wait/lock/metadata/sql/mdl';

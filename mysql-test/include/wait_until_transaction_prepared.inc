@@ -46,7 +46,7 @@ while ($wait_counter)
 --enable_query_log
 if (!$success)
 {
-  --source include/show_rpl_debug_info.inc
+  --source include/rpl/debug/show_debug_info.inc
   --echo "Timeout in wait_until_transaction_prepared.inc"
   --echo "wait_for_prepared_count = $wait_for_prepared_count"
   --echo "wait_timeout = $wait_timeout"

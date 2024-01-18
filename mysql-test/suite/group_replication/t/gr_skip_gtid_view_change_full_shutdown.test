@@ -34,19 +34,19 @@
 --let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (i INT PRIMARY KEY);
@@ -57,7 +57,7 @@ CREATE TABLE t1 (i INT PRIMARY KEY);
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 # Here start will trigger the new view change event to be generated with the
@@ -66,7 +66,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Checking that the new GTID added to the gtid executed set is UUID_GROUP:3
 # i.e. For the view change event triggered by the server2 joining the group.
 --let $assert_text= GTID_EXECUTED must contain three transactions, the new one from the insert.
@@ -75,18 +75,18 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 
 # View change (s1) # Create table # View change (s2)
 --let $event_sequence= $vcle_seq # !Gtid_transaction # $vcle_seq
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # View change (s1) # Create table # View change (s2)
 --let $event_sequence= $vcle_seq # !Gtid_transaction # $vcle_seq
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Insert a row with GTID specified to the next possible generated value.
 --eval SET GTID_NEXT= "$group_replication_group_name:4"
@@ -104,24 +104,24 @@ SET GTID_NEXT='AUTOMATIC';
 # This start group replication will generate a view change event with GTID
 # $group_replication_group_name:6.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # This start group replication will generate a view change event with GTID
 # $group_replication_group_name:7
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # View change (s1) # Create table # View change (s2) # Insert # Insert # View change (s1) # View change (s2)
 --let $event_sequence= $vcle_seq # !Gtid_transaction # $vcle_seq # !Gtid_transaction # !Gtid_transaction # $vcle_seq # $vcle_seq
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # View change (s1) # Create table # View change (s2) # Insert # Insert # View change (s1) # View change (s2)
 --let $event_sequence= $vcle_seq # !Gtid_transaction # $vcle_seq # !Gtid_transaction # !Gtid_transaction # $vcle_seq # $vcle_seq
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --let $assert_text= The GTID EXECUTED must not contain holes.
 --let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_EXECUTED]", "$group_replication_group_name:1-7")
@@ -130,19 +130,19 @@ SET GTID_NEXT='AUTOMATIC';
 # Cleanup
 
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 
 --source include/group_replication_end.inc

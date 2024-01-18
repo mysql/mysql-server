@@ -4,7 +4,7 @@
 # whereas statement (for instance) is not.
 #
 -- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/have_plugin_auth.inc
 
 --let $offset_of_query_event= 2
@@ -27,7 +27,7 @@
 --let $assert_cond= `SELECT "$logged_query" LIKE "%$query /* xid=% */"`
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- connection master
 
 ## testing with escaped characters
@@ -39,15 +39,15 @@
 --let $assert_text= Logged query must match the one issued but properly escaped.
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- connection master
 
 DROP USER b59708_user1;
 DROP USER 'b59708_user\''@'localhost\'';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- connection master
 
 --enable_query_log
 
--- source include/rpl_end.inc
+-- source include/rpl/deinit.inc

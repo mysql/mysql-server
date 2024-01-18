@@ -50,12 +50,12 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -65,7 +65,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 INSERT INTO t1 VALUES(4);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ####
@@ -73,7 +73,7 @@ INSERT INTO t1 VALUES(4);
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # First, enable auto-rejoin
 SET GLOBAL group_replication_autorejoin_tries = 1;
@@ -85,11 +85,11 @@ SET GLOBAL group_replication_autorejoin_tries = 1;
 --source include/gr_expel_member_from_group.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Data to be recovered when server 1 rejoins the group
 INSERT INTO t1 VALUES(5);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ####
@@ -99,7 +99,7 @@ INSERT INTO t1 VALUES(5);
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
 
@@ -136,13 +136,13 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 3
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 3
 --source include/gr_wait_for_number_of_members.inc
@@ -157,7 +157,7 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 SET @@GLOBAL.DEBUG = @debug_saved;

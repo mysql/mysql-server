@@ -1,15 +1,15 @@
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #
 # BUG#16621582: REPLICATION FAILS WITH ERROR 1837 WHEN DOING MULTI-TABLE UPDATES WITH SAVEPOINTS
 #
 
---source include/rpl_connection_slave.inc
---source include/gtid_utils.inc
---source include/rpl_connection_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/gtid_utils.inc
+--source include/rpl/connection_source.inc
 
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --let $server_uuid= SELECT @@server_uuid
 
@@ -23,12 +23,12 @@ CREATE TABLE t2(c1 int) ENGINE=InnoDB;
 #
 
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # needed for the assert below
 --let $saved_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 START TRANSACTION;
 UPDATE t1,t2 SET t1.c1 = 0;
@@ -37,7 +37,7 @@ UPDATE t1,t2 SET t1.c1 = 0;
 SAVEPOINT sp2;
 COMMIT;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # assert that we have 1 more transaction in STMT or MIXED
 # or no additional transaction at all in RBR
@@ -58,7 +58,7 @@ if (`SELECT @@binlog_format <> 'row'`)
 --let $assert_text= The correct count of transactions is expected on the slave
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 #
 # Test #2: assert that on multi-table updates the tables are
@@ -69,18 +69,18 @@ if (`SELECT @@binlog_format <> 'row'`)
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (2);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # needed for the assert below
 --let $saved_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 START TRANSACTION;
 UPDATE t1,t2 SET t1.c1 = 0;
 COMMIT;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # assert that we have 1 more transaction in STMT or MIXED
 # or no additional transaction at all in RBR
@@ -93,13 +93,13 @@ COMMIT;
 --let $assert_text= The correct count of transactions is expected on the slave
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 DROP TABLE t2;
 
---source include/sync_slave_sql_with_master.inc
---source include/gtid_utils_end.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/gtid_utils_end.inc
+--source include/rpl/connection_source.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

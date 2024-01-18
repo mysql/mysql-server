@@ -37,7 +37,7 @@
 --source include/gr_wait_primary_member_uuid.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -46,7 +46,7 @@
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 --let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -63,13 +63,13 @@
 # the group.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
@@ -80,13 +80,13 @@
 --let $group_replication_member_id= $member1_uuid
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_server_number= 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $group_seeds_server2 GROUP_SEEDS_SERVER2
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
 --replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
@@ -97,7 +97,7 @@
 --eval SET @@global.group_replication_single_primary_mode=ON
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $group_seeds_server3 GROUP_SEEDS_SERVER3
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
 --replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3
@@ -108,7 +108,7 @@
 --eval SET @@global.group_replication_single_primary_mode=ON
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Make sure server 2 and server 3 are in UNREACHABLE state
 --echo # Wait for the member state for server3 to be unreachable
@@ -141,11 +141,11 @@ INSERT INTO test.t1 VALUES (1);
 
 # Start group replication again in server 2 and server 3
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
@@ -156,7 +156,7 @@ INSERT INTO test.t1 VALUES (1);
 
 # Connect to primary and cleanup
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE test.t1;
 
 --source include/group_replication_end.inc

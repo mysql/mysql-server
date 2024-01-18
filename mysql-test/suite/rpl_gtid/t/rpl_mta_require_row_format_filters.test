@@ -71,36 +71,36 @@
 # workers PFS table. The single threaded applier in the reports in the
 # coordinator PFS table. We cover the most common case which is the
 # MTA (and is the default configuration).
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Setup
 --echo #
 --let $ignored_db = ignored_db
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression("The query does not comply with variable require_row_format restrictions");
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # FR1 ####################################
 
 --echo # FR1: Receiver thread does not error on an event that violates
 --echo #      require_row_format when that is not filtered out.
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE test.t1 (c1 INT PRIMARY KEY);
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 --let $offending_gtid='00000000-0000-0000-0000-000000000000:1'
 
 # Add an event that violates require row format
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES (1);
 SET SESSION binlog_format=STATEMENT;
 --eval SET GTID_NEXT=$offending_gtid
@@ -108,18 +108,18 @@ INSERT INTO t1 VALUES (2);
 SET GTID_NEXT=AUTOMATIC;
 SET SESSION binlog_format=ROW;
 
---source include/rpl_connection_slave.inc
---source include/start_slave_io.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # now that the receiver has not failed, let's start the
 # applier and watch it fail, just for completeness
 # it also shows that an offending event that is not filtered
 # out will eventually lead to the applier stop
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 START REPLICA SQL_THREAD;
 
 # this makes sure that the applier started and worked fine
@@ -131,7 +131,7 @@ START REPLICA SQL_THREAD;
 # but it will eventually stop with an error, wait for that
 # to happen
 --let $slave_sql_errno = convert_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # FR2 ####################################
 
@@ -146,9 +146,9 @@ COMMIT;
 SET GTID_NEXT=AUTOMATIC;
 
 # applier should start normally and proceed
---source include/start_slave_sql.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # assert that the transaction was indeed skipped
 --let $assert_cond= count(*) = 1 FROM t1
@@ -156,27 +156,27 @@ SET GTID_NEXT=AUTOMATIC;
 --source include/assert.inc
 
 # clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/reset.inc
 
 # FR3 ####################################
 
 --echo # FR3: Applier thread shall not error out if the offending statement
 --echo #      is filtered out
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval CREATE DATABASE $ignored_db
 --eval CREATE TABLE $ignored_db.t1 (c1 INT PRIMARY KEY)
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ($ignored_db);
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Add an event that violates require row format
 --eval use $ignored_db
@@ -186,11 +186,11 @@ SET SESSION binlog_format=ROW;
 use test;
 
 # observe that the event does not cause the applier to fail
---source include/rpl_connection_slave.inc
---source include/start_slave_sql.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # assert that the change was not applied
 --let $assert_cond= count(*) = 0 FROM $ignored_db.t1
@@ -199,82 +199,82 @@ use test;
 
 --echo # clean up
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 --eval DROP DATABASE $ignored_db
---source include/sync_slave_sql_with_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/reset.inc
 
 # FR4 ####################################
 
 --echo # FR4: Applier thread shall not error out if the offending LOAD DATA
 --echo #      statement applies to an ignored database
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval CREATE DATABASE $ignored_db;
 --eval CREATE TABLE $ignored_db.tload (c1 TEXT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ($ignored_db)
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 
 --eval USE $ignored_db
 SET SESSION binlog_format=STATEMENT;
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
 use test;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_cond=count(*) = 0 FROM $ignored_db.tload
 --let $assert_text=table is empty on the secondary
 --source include/assert.inc
 
 # clean up
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ()
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 --eval DROP DATABASE $ignored_db
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 # FR5 ####################################
 
 --echo # FR5: Applier thread shall not error out if the offending LOAD DATA
 --echo #      statement applies to an ignored table
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE tload (c1 TEXT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = (test.tload)
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 
 SET SESSION binlog_format=STATEMENT;
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_cond=count(*) = 0 FROM test.tload
 --let $assert_text=table is empty on the secondary
 --source include/assert.inc
 
 # clean up
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = ()
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 DROP TABLE tload;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 # FR6 ####################################
 
@@ -283,9 +283,9 @@ DROP TABLE tload;
 --echo #      automatically skipped (GTID had already been processed).
 
 --let $offending_gtid='00000000-0000-0000-0000-000000000000:1'
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE tload (c1 TEXT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # commit empty transaction on the secondary
 --eval SET GTID_NEXT=$offending_gtid
@@ -294,55 +294,55 @@ COMMIT;
 SET GTID_NEXT=AUTOMATIC;
 
 # issue the transaction on the source
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET SESSION binlog_format=STATEMENT;
 --eval SET GTID_NEXT=$offending_gtid
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET GTID_NEXT=AUTOMATIC;
 SET SESSION binlog_format=ROW;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_cond=count(*) = 0 FROM test.tload
 --let $assert_text=table is empty on the secondary
 --source include/assert.inc
 
 # clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE tload;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 # FR7 ####################################
 
 --echo # FR7: Applier thread shall error out if the offending LOAD DATA
 --echo #      statement is not filtered out nor skipped.
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE tload (c1 TEXT);
 SET SESSION binlog_format=STATEMENT;
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $slave_sql_errno = convert_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT)
---source include/wait_for_slave_sql_error.inc
---source include/stop_slave.inc
+--source include/rpl/wait_for_applier_error.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 RESET REPLICA;
 DROP TABLE tload;
 RESET BINARY LOGS AND GTIDS;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE tload;
 RESET BINARY LOGS AND GTIDS;
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 --echo # Tear down
---source include/rpl_connection_master.inc
---source include/rpl_end.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/deinit.inc

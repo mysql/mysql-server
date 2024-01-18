@@ -8,4 +8,4 @@
 #
 --source include/not_binlog_transaction_compression_on.inc
 
---source extra/binlog_tests/binlog_mysqlbinlog_row.inc
+--source common/binlog/mysqlbinlog_row.inc

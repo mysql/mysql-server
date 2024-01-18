@@ -44,7 +44,7 @@
 --source include/have_debug.inc
 --let $rpl_extra_connections_per_server= 3
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #### Initialize ####
 
@@ -76,7 +76,7 @@ INSERT INTO t VALUES (1);
 #        two-digit integers as abbreviations. For instance, 37:1 is an
 #        abbreviation for 37373737-3737-3737-3737-373737373737:1
 #        (cf. the functions NUMBER_TO_UUID and UUID_TO_NUMBER defined
-#        in include/gtid_utils.inc)
+#        in include/rpl/gtid_utils.inc)
 #      CREATE, INSERT, BEGIN, COMMIT, ROLLBACK
 #        Execute the given statement.
 #      CREATE-NODROP
@@ -276,7 +276,7 @@ eval INSERT INTO stmts VALUES
 ;
 
 # Clear binlog to get better debug info
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo #### Test ####
 
@@ -379,7 +379,7 @@ while ($id <= $max_id)
   }
 
   --let $rpl_connection_name= server_1_$connection
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $rpl_connection_silent= 1
 
@@ -449,7 +449,7 @@ while ($id <= $max_id)
   }
 
   --let $rpl_connection_name= master
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   # Check that thread is still running query
   if ($send_reap == 'running')
@@ -459,7 +459,7 @@ while ($id <= $max_id)
     --let $info= `SELECT Info FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Id = $last_send_id`
     if ($info != $last_send_stmt)
     {
-      --source include/show_rpl_debug_info.inc
+      --source include/rpl/debug/show_debug_info.inc
       --echo info='$info'
       --echo last_send_stmt='$last_send_stmt'
       --die Error: thread was supposed to be still running query
@@ -471,7 +471,7 @@ while ($id <= $max_id)
   {
     if ($send_reap != 'running')
     {
-      --source include/sync_slave_sql_with_master.inc
+      --source include/rpl/sync_to_replica.inc
       --connection master
       # Concurrent tests require two or more connections and at least one connection sends  
       # the statements in async mode (via send/reap command). We need to make sure that
@@ -520,10 +520,10 @@ while ($id <= $max_id)
 
         # $before = the value of the $variable before the statement
         --let $rpl_connection_name= server_1_$connection
-        --source include/rpl_connection.inc
+        --source include/connection.inc
         --let $before= `SELECT $before`
         --let $rpl_connection_name= master
-        --source include/rpl_connection.inc
+        --source include/connection.inc
 
         # $diff = the expected change in the variable
         --let $diff= `SELECT NUMBER_TO_UUID($col) FROM stmts WHERE id = $id`
@@ -549,7 +549,7 @@ while ($id <= $max_id)
       # whether gtid_executed changed/didn't change).
 
       --let $rpl_connection_name= master
-      --source include/rpl_connection.inc
+      --source include/connection.inc
 
       --let $changed_binlog= `SELECT gtid_executed != '' FROM stmts WHERE id = $id`
       if ($changed_binlog)
@@ -620,4 +620,4 @@ if (!$fixed_bug13687542)
 DROP TABLE stmts;
 DROP TABLE t;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

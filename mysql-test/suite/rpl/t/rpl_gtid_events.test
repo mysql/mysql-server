@@ -31,7 +31,7 @@
 
 # No need to run test in more than one binlog_format.
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Initialize ====
 
@@ -43,20 +43,20 @@ if (!$gtid_mode_on)
 
 --echo ==== Test presence of transaction events ====
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (a VARCHAR(10000));
 
 --let $dont_print_pattern= 1
 --let $event_sequence= $gtid_event # !Q(CREATE.*)
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 --let $dont_print_pattern= 0
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t1 VALUES ('1');
 
 --let $dont_print_pattern= 1
 --let $event_sequence= $gtid_event # !Begin # !Q(INSERT.*) # !Commit
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 --let $dont_print_pattern= 0
 
 --echo ==== Generate new binary logs in many ways ====
@@ -65,7 +65,7 @@ INSERT INTO t1 VALUES ('1');
 
 # RESET BINARY LOGS AND GTIDS is with a running slave has undefined consequences.
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
@@ -75,7 +75,7 @@ INSERT INTO t1 VALUES ('2');
 
 --connection slave
 # Do not start the applier threads since that would purge processed relay logs.
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 --connection master
 
 --echo ---- FLUSH LOGS ----
@@ -95,21 +95,21 @@ eval INSERT INTO t1 VALUES ('4');
 
 --echo ---- Restart server ----
 
---source include/sync_slave_io_with_master.inc
---source include/stop_slave_io.inc
+--source include/rpl/sync_to_replica_received.inc
+--source include/rpl/stop_receiver.inc
 --connection master
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 INSERT INTO t1 VALUES ('5');
 
 --echo ==== Generate new relay logs in many ways ====
 
 --echo ---- Reconnect receiver thread ----
 
---source include/save_master_pos.inc
+--source include/rpl/save_server_position.inc
 --connection slave
---source include/start_slave_io.inc
---source include/sync_slave_io.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/sync_received_with_saved.inc
 # At this point, the slave running without GTID auto positioning will
 # produce one relaylog file more than the slave running with GTID and auto
 # positioning.
@@ -132,17 +132,17 @@ if ($is_auto_position_enabled)
   FLUSH RELAY LOGS;
   --enable_query_log
 }
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 # Needed in the 'grow over the limit' case below.  We don't want to
 # disturb that case by reconnecting the receiver thread, so we set the
 # variable here.
 --let $old_max_relay_log_size= `SELECT @@GLOBAL.MAX_RELAY_LOG_SIZE`
 SET @@GLOBAL.MAX_RELAY_LOG_SIZE= 4096;
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 --connection master
 INSERT INTO t1 VALUES ('6');
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 --connection master
 
 --echo ---- FLUSH RELAY LOGS ----
@@ -152,7 +152,7 @@ FLUSH RELAY LOGS;
 
 --connection master
 INSERT INTO t1 VALUES ('7');
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 --connection master
 
 --echo ---- Grow over the limit ----
@@ -160,20 +160,20 @@ INSERT INTO t1 VALUES ('7');
 --replace_result $long_text <LONG_TEXT>
 eval INSERT INTO t1 VALUES ('$long_text');
 INSERT INTO t1 VALUES ('8');
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 --connection master
 
 --echo ---- Restart replica server ----
 
 --let $rpl_server_number= 2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --connection slave
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 --connection master
 INSERT INTO t1 VALUES ('9');
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 --connection master
 
 --echo ==== Test that binary logs contain Previous_gtids ====
@@ -192,7 +192,7 @@ CREATE TEMPORARY TABLE binlogs
   (id INT PRIMARY KEY AUTO_INCREMENT, filename VARCHAR(512));
 --let $index_file= `SELECT @@GLOBAL.LOG_BIN_INDEX`
 --let $table= binlogs
---source include/rpl_read_binlog_index_into_table.inc
+--source include/rpl/read_binlog_index_into_table.inc
 
 # Verify that each binlog contains the events.
 --let $count= `SELECT COUNT(*) FROM binlogs`
@@ -202,7 +202,7 @@ while ($i < $count)
   --let $binlog_file= `SELECT filename FROM binlogs LIMIT $i, 1`
   --echo $binlog_file
   --let $event_sequence= Format_desc # Previous_gtids(.|#)*
-  --source include/assert_binlog_events.inc
+  --source include/rpl/assert_binlog_events.inc
   --inc $i
 }
 DROP TEMPORARY TABLE binlogs;
@@ -220,7 +220,7 @@ CREATE TEMPORARY TABLE relay_logs
   (id INT PRIMARY KEY AUTO_INCREMENT, filename VARCHAR(512));
 --let $index_file= `SELECT @@GLOBAL.RELAY_LOG_INDEX`
 --let $table= relay_logs
---source include/rpl_read_binlog_index_into_table.inc
+--source include/rpl/read_binlog_index_into_table.inc
 
 # Verify that each binlog contains the events.
 --let $count= `SELECT COUNT(*) FROM relay_logs`
@@ -229,7 +229,7 @@ while ($i < $count)
 {
   --let $binlog_file= `SELECT filename FROM relay_logs LIMIT $i, 1`
   --let $event_sequence= Format_desc # Previous_gtids(.|#)*
-  --source include/assert_binlog_events.inc
+  --source include/rpl/assert_binlog_events.inc
 
   --inc $i
 }
@@ -238,9 +238,9 @@ SET SQL_LOG_BIN= 1;
 
 --echo ==== Clean up ====
 
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --connection master
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

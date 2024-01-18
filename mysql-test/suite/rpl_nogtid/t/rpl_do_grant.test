@@ -3,9 +3,9 @@
 
 --source include/not_group_replication_plugin.inc
 --source include/no_ps_protocol.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # do not be influenced by other tests.
 connection master;
@@ -231,7 +231,7 @@ SET SQL_LOG_BIN= 1;
 # so that we leave a pristine environment for the
 # following tests
 --let $rpl_only_running_threads= 1
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 USE test;
 
 # BUG#49119: Master crashes when executing 'REVOKE ... ON
@@ -277,7 +277,7 @@ DROP PROCEDURE p1;
 -- echo ### ii) Test case in which REVOKE partially succeeds
 
 -- connection master
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 -- connection master
 
 CREATE TABLE t1(c1 INT);
@@ -342,7 +342,7 @@ DROP USER 'user49119'@'localhost';
 # Bug #51987  	revoke privileges logs wrong error code
 #
 
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 -- connection master
 
 create user foo@"1.2.3.4";
@@ -351,7 +351,7 @@ grant all on *.* to foo@"1.2.3.4";
 revoke all privileges, grant option from "foo";
 
 ## assertion: revoke is logged
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 -- sync_slave_with_master
 
 -- connection master
@@ -360,7 +360,7 @@ DROP USER foo@"1.2.3.4";
 
 --echo 
 --echo # Bug#27606 GRANT statement should be replicated with DEFINER information
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --connection master
 CREATE USER user_bug27606@localhost;
 GRANT SELECT, INSERT ON mysql.user TO user_bug27606@localhost;
@@ -378,4 +378,4 @@ SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
 --connection master
 DROP USER user_bug27606@localhost;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

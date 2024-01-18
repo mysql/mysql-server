@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ CREATE TABLE t (i INT, j JSON NOT NULL);
 SET SESSION binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
 Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT IGNORE INTO t VALUES (1, NULL);
 Warnings:
 Warning	1048	Column 'j' cannot be null
@@ -19,14 +19,14 @@ SELECT * FROM t;
 i	j
 1	null
 # mysqlbinlog used to show 'Invalid JSON' for the second column.
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 ### INSERT INTO `test`.`t`
 ### SET
 ###   @1=1
 ###   @2='null'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t;
 i	j
 1	null
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -7,15 +7,15 @@
 --let $rpl_skip_start_slave= 1
 --let $rpl_topology= 1->2,3->2
 --let $rpl_multi_source= 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 # Connect to mysqld in second cluster and start replication
 --let $rpl_connection_name= cluster2
 --let $rpl_server_number= 2
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= cluster2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 # Supress error messages written when ndbcluster plugin refuses
@@ -41,12 +41,12 @@ START REPLICA FOR CHANNEL 'channel_1';
 --let $show_sql_error= 1
 --let $rpl_channel_name= 'channel_1'
 --let $not_switch_connection= true
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Stop IO thread and reset
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 RESET REPLICA;
 
 # tear down replication
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

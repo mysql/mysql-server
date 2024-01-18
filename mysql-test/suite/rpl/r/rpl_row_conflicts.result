@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ SET @@global.replica_exec_mode = 'STRICT';
 [on master]
 CREATE TABLE t1(a INT PRIMARY KEY);
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ==== Test: SQL thread sees 'INSERT' of existing key ====
 ---- Prepare slave so that it will get duplicate key error ----
 INSERT INTO t1 VALUES (1);
@@ -24,7 +24,7 @@ a
 1
 [on slave]
 ---- Wait until slave stops with an error ----
-include/wait_for_slave_sql_error.inc [errno=1062]
+include/rpl/wait_for_applier_error.inc [errno=1062]
 SELECT "1062" as 'Last_SQL_Errno';
 Last_SQL_Errno
 1062
@@ -36,9 +36,9 @@ a
 ---- Resolve the conflict on the slave and restart SQL thread ----
 DELETE FROM t1 WHERE a = 1;
 START REPLICA SQL_THREAD;
-include/wait_for_slave_sql_to_start.inc
+include/rpl/wait_for_applier_to_start.inc
 ---- Sync slave and verify that there is no error ----
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 SELECT * FROM t1;
 a
 1
@@ -48,7 +48,7 @@ a
 DELETE FROM t1;
 INSERT INTO t1 VALUES (1);
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DELETE FROM t1 WHERE a = 1;
 ---- On master, remove the row that does not exist on slave ----
 [on master]
@@ -58,7 +58,7 @@ a
 [on slave]
 ---- Wait until slave stops with an error ----
 call mtr.add_suppression("Replica SQL.*Can.t find record in .t1., Error_code: 1032");
-include/wait_for_slave_sql_error.inc [errno=1032]
+include/rpl/wait_for_applier_error.inc [errno=1032]
 SELECT "1032" as 'Last_SQL_Errno';
 Last_SQL_Errno
 1032
@@ -67,24 +67,24 @@ a
 ---- Resolve the conflict on the slave and restart SQL thread ----
 INSERT INTO t1 VALUES (1);
 START REPLICA SQL_THREAD;
-include/wait_for_slave_sql_to_start.inc
+include/rpl/wait_for_applier_to_start.inc
 ---- Sync slave and verify that there is no error ----
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 SELECT * FROM t1;
 a
 ==== Clean up ====
 [on master]
 DROP TABLE t1;
 [on slave]
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 ######## Run with replica_exec_mode=IDEMPOTENT ########
 set @@global.replica_exec_mode= 'IDEMPOTENT';
 ==== Initialize ====
 [on master]
 CREATE TABLE t1(a INT PRIMARY KEY);
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ==== Test: SQL thread sees 'INSERT' of existing key ====
 ---- Prepare slave so that it will get duplicate key error ----
 INSERT INTO t1 VALUES (1);
@@ -96,7 +96,7 @@ a
 1
 [on slave]
 ---- Sync slave and verify that there is no error ----
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 SELECT * FROM t1;
 a
 1
@@ -106,7 +106,7 @@ a
 DELETE FROM t1;
 INSERT INTO t1 VALUES (1);
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DELETE FROM t1 WHERE a = 1;
 ---- On master, remove the row that does not exist on slave ----
 [on master]
@@ -115,13 +115,13 @@ SELECT * FROM t1;
 a
 [on slave]
 ---- Sync slave and verify that there is no error ----
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 SELECT * FROM t1;
 a
 ==== Clean up ====
 [on master]
 DROP TABLE t1;
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @@global.replica_exec_mode= @old_replica_exec_mode;
-include/rpl_end.inc
+include/rpl/deinit.inc

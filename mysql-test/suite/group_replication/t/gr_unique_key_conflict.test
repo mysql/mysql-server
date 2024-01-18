@@ -31,9 +31,9 @@
 --echo ############################################################
 --echo # Create a table on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY NOT NULL);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ###########################################################
@@ -61,7 +61,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY NOT NULL);
 --echo ############################################################
 --echo # Check the data sanity
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= Table t1 will contain row after the above execution
 --let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3 AND t1.c2 = 2, count, 1]" = "1"
 --source include/assert.inc

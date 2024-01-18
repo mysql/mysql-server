@@ -1,7 +1,7 @@
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 -- source include/have_ndbapi_examples.inc
--- source suite/ndb_rpl/ndb_master-slave.inc
+-- source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 # Connect using socket to the MySQL Server which mysqltest currently
 # is connected to
@@ -18,4 +18,4 @@ let NDB_EXAMPLES_OUTPUT=$MYSQLTEST_VARDIR/log/ndbapi_examples.log;
 
 drop database ndb_examples;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

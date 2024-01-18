@@ -25,7 +25,7 @@
 --echo ############################################################
 --echo # 01. Create two tables on the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.group_replication_consistency= 'AFTER';
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
@@ -35,7 +35,7 @@ CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
 --echo ############################################################
 --echo # 02. Force server2 to block between T1 prepare and commit.
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_after_applier_prepare';
 
 
@@ -43,7 +43,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_after_applier_prepare';
 --echo ############################################################
 --echo # 03. Execute transaction T1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 BEGIN;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -54,7 +54,7 @@ INSERT INTO t2 VALUES (1);
 --echo ############################################################
 --echo # 04. Wait for server2 to block between T1 prepare and commit.
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.after_applier_prepare_waiting";
 
 
@@ -62,12 +62,12 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.after_applier_prepare_waiting";
 --echo ############################################################
 --echo # 05. Stop the plugin on server2.
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_hold_stop_before_leave_the_group';
 --send STOP GROUP_REPLICATION
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State='debug sync point: now' AND Info='STOP GROUP_REPLICATION'
 --source include/wait_condition.inc
 
@@ -78,7 +78,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_hold_stop_before_leave_the_group';
 --echo #     execute since plugin is stopping, otherwise there may
 --echo #     be a deadlock on the waiting conditions.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_GRP_TRX_CONSISTENCY_BEGIN_NOT_ALLOWED
 SELECT * FROM t1;
 
@@ -87,7 +87,7 @@ SELECT * FROM t1;
 --echo ############################################################
 --echo # 07. Unblock T1 prepare on server2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Signal debug sync to continue.
 SET DEBUG_SYNC= 'now SIGNAL signal.after_applier_prepare_continue';
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
@@ -97,12 +97,12 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
 --echo ############################################################
 --echo # 08. Resume the plugin stop.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
 SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $group_replication_member_state= OFFLINE
@@ -114,7 +114,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
 --echo ############################################################
 --echo # 09. Resume transaction T1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 
@@ -122,13 +122,13 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
 --echo ############################################################
 --echo # 10. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.group_replication_consistency= DEFAULT;
 DROP TABLE t1;
 DROP TABLE t2;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 DROP TABLE t2;
 

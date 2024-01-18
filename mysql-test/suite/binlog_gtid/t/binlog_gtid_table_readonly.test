@@ -95,14 +95,14 @@ CALL mtr.add_suppression(".Gtid table is not ready to be used.");
 
 # 2) Execute `FLUSH BINARY LOGS` and expect failure with
 #    `ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY`.
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_before_flush = $log_file_max_number
 
 --error ER_DA_RPL_GTID_TABLE_CANNOT_OPEN
 FLUSH BINARY LOGS;
 
 # 3) Assert that binary log didn't rotate.
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_after_flush = $log_file_max_number
 --let $assert_text = 'FLUSH BINARY LOGS' failed to rotate binlog
 --let $assert_cond = $max_log_file_before_flush = $max_log_file_after_flush
@@ -127,14 +127,14 @@ SET DEBUG = "d,gtid_executed_readonly,simulate_max_binlog_size";
 
 # 3) Execute `FLUSH BINARY LOGS` and expect failure with
 #    `ER_RPL_GTID_TABLE_CANNOT_OPEN`.
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_before_flush = $log_file_max_number
 
 --error ER_DA_RPL_GTID_TABLE_CANNOT_OPEN
 FLUSH BINARY LOGS;
 
 # 4) Assert that binary log didn't rotate.
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_after_flush = $log_file_max_number
 --let $assert_text = 'FLUSH BINARY LOGS' failed to rotate binlog
 --let $assert_cond = $max_log_file_before_flush = $max_log_file_after_flush
@@ -167,7 +167,7 @@ CALL mtr.add_suppression(".");
 # 2) Add `DEBUG` sync point, `simulate_max_binlog_size` to simulate that
 #    `max_binlog_size` limit was reached.
 SET DEBUG = "d,gtid_executed_readonly,simulate_max_binlog_size";
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_before_flush = $log_file_max_number
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -182,7 +182,7 @@ FLUSH BINARY LOGS;
 --source include/wait_until_connected_again.inc
 
 # 4) Assert that binary log didn't rotate.
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_after_flush = $log_file_max_number
 --let $offset = 1
 --expr $expected_max_log_file_after_flush = $max_log_file_before_flush + $offset

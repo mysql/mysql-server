@@ -19,14 +19,14 @@
 --echo
 --echo # 1. Bootstrap M1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
 --echo # 2. Set parameters for server 2 for start gr.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
@@ -42,7 +42,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_wait_on_start';
 --send START GROUP_REPLICATION;
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC='now wait_for signal.start_waiting';
 
@@ -54,7 +54,7 @@ STOP GROUP_REPLICATION;
 SET DEBUG_SYNC='now signal signal.start_continue';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $group_replication_member_state = ONLINE
@@ -68,7 +68,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 --send STOP GROUP_REPLICATION;
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC='now wait_for signal.stopping_before_leave_the_group';
 
@@ -81,7 +81,7 @@ STOP GROUP_REPLICATION;
 SET DEBUG_SYNC='now signal signal.resume_stop_before_leave_the_group';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $group_replication_member_state = OFFLINE

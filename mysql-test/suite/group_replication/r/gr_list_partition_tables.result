@@ -11,7 +11,7 @@ PARTITION BY LIST (id)
 (PARTITION p1 VALUES in (5, 10, 15),
 PARTITION p2 VALUES in (2, 3),
 PARTITION p3 VALUES in (11, 21));
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -29,16 +29,16 @@ INSERT INTO t1 VALUES (10, 5);
 INSERT INTO t1 VALUES (03, 1);
 INSERT INTO t1 VALUES (100, 50);
 ERROR HY000: Table has no partition for value 100
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 INSERT INTO t1 VALUES (11, 5);
 INSERT INTO t1 VALUES (21, 10);
 DELETE FROM t1 WHERE id= 5;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server3]
 include/assert.inc ['Check that partition p1 on table t1 has 1 row']
 include/assert.inc ['Check that partition p2 on table t1 has 1 row']
 include/assert.inc ['Check that partition p3 on table t1 has 2 rows']
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

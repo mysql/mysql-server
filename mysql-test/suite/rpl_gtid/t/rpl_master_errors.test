@@ -4,15 +4,15 @@
 --source include/not_group_replication_plugin.inc
 --source include/not_rpl_gtid_only.inc
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression(".* You need to use --log-bin to make .* work.");
 CALL mtr.add_suppression("Failed to open log");
 --sync_slave_with_master
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo #
 --echo # Error: binlog file doesn't exist
@@ -88,9 +88,9 @@ FLUSH BINARY LOGS;
 --echo #
 --echo # Error: Client requests from a position less than 4
 --echo #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $debug_point= request_source_log_pos_3
 --source include/add_debug_point.inc
@@ -98,7 +98,7 @@ FLUSH BINARY LOGS;
 START REPLICA IO_THREAD;
 --let $slave_io_errno= 13114
 call mtr.add_suppression(".* Got fatal error 1236 from source when reading data from binary log");
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $debug_point= request_source_log_pos_3
 --source include/remove_debug_point.inc
@@ -110,7 +110,7 @@ call mtr.add_suppression(".* Got fatal error 1236 from source when reading data 
 # Need to restart master without binlog
 --let $rpl_server_number= 1
 --let $rpl_server_parameters= --disable-log-bin --gtid-mode=off
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --error 1
 --exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server master-bin.000001
@@ -120,19 +120,19 @@ call mtr.add_suppression(".* Got fatal error 1236 from source when reading data 
 --echo #
 # Need to restart master without gtid
 --let $rpl_server_parameters= --gtid-mode=off
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --error 1
 --exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-source=BINLOG-DUMP-GTIDS master-bin.000001
 
 --let $rpl_server_parameters=
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo #
 --echo # Error: Dump thread is killed
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(c1 INT);
 
@@ -163,8 +163,8 @@ INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/output
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

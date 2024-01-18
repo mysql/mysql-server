@@ -1,0 +1,560 @@
+###########################################################
+# See if queries that use both auto_increment and LAST_INSERT_ID()
+# are replicated well
+############################################################
+# REQUIREMENT
+# Auto increment should work for a table with an auto_increment
+# column and index but without primary key.
+##############################################################
+
+--echo #
+--echo # Setup
+--echo #
+
+--echo #
+--echo # See if queries that use both auto_increment and LAST_INSERT_ID()
+--echo # are replicated well
+--echo #
+--echo # We also check how the foreign_key_check variable is replicated
+--echo #
+
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
+#should work for both SBR and RBR
+
+--disable_query_log
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--connection slave
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
+
+# If concurrent inserts are on, it is not guaranteed that the rows
+# inserted by INSERT are immediately accessible by SELECT in another
+# thread. This would cause problems near the line 'connection master1'
+# below. So we turn off concurrent inserts.
+connection master;
+SET @old_concurrent_insert= @@global.concurrent_insert;
+SET @@global.concurrent_insert= 0;
+
+connection master;
+eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
+eval create table t2(b int auto_increment, c int, key(b)) engine=$engine_type;
+insert into t1 values (1),(2),(3);
+insert into t1 values (null);
+insert into t2 values (null,last_insert_id());
+--source include/rpl/sync_to_replica.inc
+select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+connection master;
+#check if multi-line inserts,
+#which set last_insert_id to the first id inserted,
+#are replicated the same way
+drop table t1;
+drop table t2;
+--disable_warnings
+eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
+eval create table t2(b int auto_increment, c int, key(b), foreign key(b) references t1(a)) engine=$engine_type;
+--enable_warnings
+SET FOREIGN_KEY_CHECKS=0;
+insert into t1 values (10);
+insert into t1 values (null),(null),(null);
+insert into t2 values (5,0);
+insert into t2 values (null,last_insert_id());
+SET FOREIGN_KEY_CHECKS=1;
+--source include/rpl/sync_to_replica.inc
+select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+connection master;
+
+--echo #
+--echo # check if INSERT SELECT in auto_increment is well replicated (bug #490)
+--echo #
+
+drop table t2;
+drop table t1;
+eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
+eval create table t2(b int auto_increment, c int, key(b)) engine=$engine_type;
+insert into t1 values (10);
+insert into t1 values (null),(null),(null);
+insert into t2 values (5,0);
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+insert into t2 (c) select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+--source include/rpl/sync_to_replica.inc
+select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+connection master;
+drop table t1;
+drop table t2;
+--source include/rpl/sync_to_replica.inc
+
+--echo #
+--echo # Bug#8412: Error codes reported in binary log for CHARACTER SET,
+--echo #           FOREIGN_KEY_CHECKS
+--echo #
+
+connection master;
+SET TIMESTAMP=1000000000;
+eval CREATE TABLE t1 ( a INT UNIQUE ) engine=$engine_type;
+SET FOREIGN_KEY_CHECKS=0;
+# Duplicate Key Errors
+--error 1022, ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1),(1);
+--source include/rpl/sync_to_replica.inc
+connection master;
+drop table t1;
+--source include/rpl/sync_to_replica.inc
+
+--echo #
+--echo # Bug#14553: NULL in WHERE resets LAST_INSERT_ID
+--echo #
+
+connection master;
+set @@session.sql_auto_is_null=1;
+eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
+eval create table t2(a int) engine=$engine_type;
+insert into t1 (a) values (null);
+--disable_warnings
+insert into t2 (a) select a from t1 where a is null;
+insert into t2 (a) select a from t1 where a is null;
+--enable_warnings
+select * from t2 ORDER BY a;
+--source include/rpl/sync_to_replica.inc
+connection slave;
+select * from t2 ORDER by a;
+connection master;
+drop table t1;
+drop table t2;
+
+--echo #
+--echo # End of 4.1 tests
+--echo #
+
+--echo #
+--echo # BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
+--echo #
+--echo # The solution is not to reset last_insert_id on enter to sub-statement.
+--echo #
+
+connection master;
+--disable_warnings
+drop function if exists bug15728;
+drop function if exists bug15728_insert;
+drop table if exists t1, t2;
+--enable_warnings
+
+eval create table t1 (
+  id int not null auto_increment,
+  last_id int,
+  primary key (id)
+) engine=$engine_type;
+create function bug15728() returns int(11)
+  return last_insert_id();
+
+insert into t1 (last_id) values (0);
+insert into t1 (last_id) values (last_insert_id());
+insert into t1 (last_id) values (bug15728());
+
+# Check that nested call replicates too.
+eval create table t2 (
+  id int not null auto_increment,
+  last_id int,
+  primary key (id)
+) engine=$engine_type;
+delimiter |;
+create function bug15728_insert() returns int(11) modifies sql data
+begin
+  insert into t2 (last_id) values (bug15728());
+  return bug15728();
+end|
+create trigger t1_bi before insert on t1 for each row
+begin
+  declare res int;
+  select bug15728_insert() into res;
+  set NEW.last_id = res;
+end|
+delimiter ;|
+
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+insert into t1 (last_id) values (0);
+
+drop trigger t1_bi;
+
+# Check that nested call doesn't affect outer context.
+select last_insert_id();
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+select bug15728_insert();
+select last_insert_id();
+insert into t1 (last_id) values (bug15728());
+# This should be exactly one greater than in the previous call.
+select last_insert_id();
+
+# BUG#20339 - stored procedure using LAST_INSERT_ID() does not
+# replicate statement-based
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
+drop procedure if exists foo;
+delimiter |;
+create procedure foo()
+begin
+  declare res int;
+  insert into t2 (last_id) values (bug15728());
+  insert into t1 (last_id) values (bug15728());
+end|
+delimiter ;|
+call foo();
+
+select * from t1 ORDER BY last_id;
+select * from t2 ORDER BY last_id;
+--source include/rpl/sync_to_replica.inc
+select * from t1 ORDER BY last_id;
+select * from t2 ORDER BY last_id;
+connection master;
+
+drop function bug15728;
+drop function bug15728_insert;
+drop table t1,t2;
+drop procedure foo;
+
+# test of BUG#20188 REPLACE or ON DUPLICATE KEY UPDATE in
+# auto_increment breaks binlog
+
+eval create table t1 (n int primary key auto_increment not null,
+                      b int, unique(b)) engine=$engine_type;
+
+# First, test that we do not call restore_auto_increment() too early
+# in write_record():
+set sql_log_bin=0;
+insert into t1 values(null,100);
+replace into t1 values(null,50),(null,100),(null,150);
+select * from t1 order by n;
+truncate table t1;
+set sql_log_bin=1;
+
+insert into t1 values(null,100);
+select * from t1 order by n;
+--source include/rpl/sync_to_replica.inc
+# make slave's table autoinc counter bigger
+insert into t1 values(null,200),(null,300);
+delete from t1 where b <> 100;
+# check that slave's table content is identical to master
+select * from t1 order by n;
+# only the auto_inc counter differs.
+
+connection master;
+replace into t1 values(null,100),(null,350);
+select * from t1 order by n;
+--source include/rpl/sync_to_replica.inc
+select * from t1 order by n;
+
+# Same test as for REPLACE, but for ON DUPLICATE KEY UPDATE
+
+# We first check that if we update a row using a value larger than the
+# table's counter, the counter for next row is bigger than the
+# after-value of the updated row.
+connection master;
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+insert into t1 values (NULL,400),(3,500),(NULL,600) on duplicate key UPDATE n=1000;
+select * from t1 order by n;
+--source include/rpl/sync_to_replica.inc
+select * from t1 order by n;
+
+# and now test for the bug:
+connection master;
+drop table t1;
+eval create table t1 (n int primary key auto_increment not null,
+                      b int, unique(b)) engine=$engine_type;
+insert into t1 values(null,100);
+select * from t1 order by n;
+--source include/rpl/sync_to_replica.inc
+insert into t1 values(null,200),(null,300);
+delete from t1 where b <> 100;
+select * from t1 order by n;
+
+connection master;
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+insert into t1 values(null,100),(null,350) on duplicate key update n=2;
+select * from t1 order by n;
+--source include/rpl/sync_to_replica.inc
+select * from t1 order by n;
+
+connection master;
+drop table t1;
+--source include/rpl/sync_to_replica.inc
+
+#
+# BUG#24432 "INSERT... ON DUPLICATE KEY UPDATE skips auto_increment values"
+#
+
+connection master;
+# testcase with INSERT VALUES
+eval CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
+                      UNIQUE(b)) ENGINE=$engine_type;
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
+SELECT * FROM t1 ORDER BY a;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 ORDER BY a;
+connection master;
+drop table t1;
+
+# tescase with INSERT SELECT
+eval CREATE TABLE t1 (
+  id bigint(20) unsigned NOT NULL auto_increment,
+  field_1 int(10) unsigned NOT NULL,
+  field_2 varchar(249) NOT NULL,
+  field_3 varchar(255) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY field_1 (field_1, field_2)
+) ENGINE=$engine_type;
+eval CREATE TABLE t2 (
+  field_a int(10) unsigned NOT NULL,
+  field_b varchar(249) NOT NULL,
+  field_c varchar(255) NOT NULL
+) ENGINE=$engine_type;
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (1, 'a', '1a');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (2, 'b', '2b');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (3, 'c', '3c');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (4, 'd', '4d');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (5, 'e', '5e');
+# Updating table t1 based on values from table t2
+--disable_warnings
+INSERT INTO t1 (field_1, field_2, field_3)
+SELECT t2.field_a, t2.field_b, t2.field_c
+FROM t2
+ON DUPLICATE KEY UPDATE
+t1.field_3 = t2.field_c;
+--enable_warnings
+# Inserting new record into t2
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (6, 'f', '6f');
+# Updating t1 again
+--disable_warnings
+INSERT INTO t1 (field_1, field_2, field_3)
+SELECT t2.field_a, t2.field_b, t2.field_c
+FROM t2
+ON DUPLICATE KEY UPDATE
+t1.field_3 = t2.field_c;
+--enable_warnings
+SELECT * FROM t1 ORDER BY id;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 ORDER BY id;
+connection master;
+drop table t1, t2;
+
+#
+# BUG#20339: stored procedure using LAST_INSERT_ID() does not
+# replicate statement-based.
+#
+# There is another version of the test for bug#20339 above that is
+# actually originates in 5.1, and this is the version that is merged
+# from 5.0.
+#
+connection master;
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+# Reset result of LAST_INSERT_ID().
+SELECT LAST_INSERT_ID(0);
+
+eval CREATE TABLE t1 (
+  id INT NOT NULL DEFAULT 0,
+  last_id INT,
+  PRIMARY KEY (id)
+) ENGINE=$engine_type;
+
+eval CREATE TABLE t2 (
+  id INT NOT NULL AUTO_INCREMENT,
+  last_id INT,
+  PRIMARY KEY (id)
+) ENGINE=$engine_type;
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t2 (last_id) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (last_id) VALUES (LAST_INSERT_ID());
+END|
+delimiter ;|
+
+CALL p1();
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
+
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
+
+connection master;
+
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+
+
+#
+# BUG#21726: Incorrect result with multiple invocations of
+# LAST_INSERT_ID
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+eval CREATE TABLE t1 (
+    i INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    j INT DEFAULT 0
+) ENGINE=$engine_type;
+eval CREATE TABLE t2 (i INT) ENGINE=$engine_type;
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t1 (i) VALUES (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (i) VALUES (NULL), (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+END |
+
+CREATE FUNCTION f1() RETURNS INT MODIFIES SQL DATA
+BEGIN
+  INSERT INTO t1 (i) VALUES (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (i) VALUES (NULL), (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  RETURN 0;
+END |
+
+CREATE FUNCTION f2() RETURNS INT NOT DETERMINISTIC
+  RETURN LAST_INSERT_ID() |
+
+CREATE FUNCTION f3() RETURNS INT MODIFIES SQL DATA
+BEGIN
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  RETURN 0;
+END |
+delimiter ;|
+
+INSERT INTO t1 VALUES (NULL, -1);
+CALL p1();
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+SELECT f1();
+INSERT INTO t1 VALUES (NULL, f2()), (NULL, LAST_INSERT_ID()),
+                      (NULL, LAST_INSERT_ID()), (NULL, f2()), (NULL, f2());
+INSERT INTO t1 VALUES (NULL, f2());
+# Test replication of substitution "IS NULL" -> "= LAST_INSERT_ID".
+INSERT INTO t1 VALUES (NULL, 0), (NULL, LAST_INSERT_ID());
+UPDATE t1 SET j= -1 WHERE i IS NULL;
+
+# Test statement-based replication of function calls.
+INSERT INTO t1 (i) VALUES (NULL);
+
+# Here, we rely on having set @@concurrent_insert= 0 (see comment at
+# the top of this file).
+connection master1;
+INSERT INTO t1 (i) VALUES (NULL);
+
+connection master;
+SELECT f3();
+
+SELECT * FROM t1 ORDER BY i;
+SELECT * FROM t2 ORDER BY i;
+
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 ORDER BY i;
+SELECT * FROM t2 ORDER BY i;
+
+connection master;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP TABLE t1, t2;
+
+
+--source include/rpl/sync_to_replica.inc
+
+--echo #
+--echo # End of 5.0 tests
+--echo #
+
+# Tests in this file are tightly bound together.  Recreate t2.
+connection master;
+eval create table t2 (
+  id int not null auto_increment,
+  last_id int,
+  primary key (id)
+) engine=$engine_type;
+
+
+# Test for BUG#20341 "stored function inserting into one
+# auto_increment puts bad data in slave"
+
+connection master;
+truncate table t2;
+# no auto_increment
+eval create table t1 (id tinyint primary key) engine=$engine_type;
+
+delimiter |;
+create function insid() returns int
+begin
+  insert into t2 (last_id) values (0);
+  return 0;
+end|
+delimiter ;|
+set sql_log_bin=0;
+insert into t2 (id) values(1),(2),(3);
+delete from t2;
+set sql_log_bin=1;
+#inside SELECT, then inside INSERT
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+select insid();
+set sql_log_bin=0;
+insert into t2 (id) values(5),(6),(7);
+delete from t2 where id>=5;
+set sql_log_bin=1;
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+insert into t1 select insid();
+select * from t1 order by id;
+select * from t2 order by id;
+
+--source include/rpl/sync_to_replica.inc
+select * from t1 order by id;
+select * from t2 order by id;
+
+connection master;
+drop table t1;
+drop function insid;
+
+truncate table t2;
+eval create table t1 (n int primary key auto_increment not null,
+                      b int, unique(b)) engine=$engine_type;
+delimiter |;
+create procedure foo()
+begin
+  insert into t1 values(null,10);
+  insert ignore into t1 values(null,10);
+  insert ignore into t1 values(null,10);
+  insert into t2 values(null,3);
+end|
+delimiter ;|
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+call foo();
+select * from t1 order by n;
+select * from t2 order by id;
+
+--source include/rpl/sync_to_replica.inc
+select * from t1 order by n;
+select * from t2 order by id;
+
+connection master;
+drop table t1, t2;
+drop procedure foo;
+SET @@global.concurrent_insert= @old_concurrent_insert;
+set @@session.sql_auto_is_null=default;
+
+--source include/rpl/deinit.inc

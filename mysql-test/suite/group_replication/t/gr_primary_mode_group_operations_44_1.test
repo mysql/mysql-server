@@ -36,7 +36,7 @@
 --echo # 2. Start server2 and server3
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an issue on the primary election process: Could not wait for the execution of local transactions. The member will now leave the group.");
@@ -47,7 +47,7 @@ set session sql_log_bin=1;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -56,7 +56,7 @@ set session sql_log_bin=1;
 --echo # 3. Fake a stopped applier on server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
@@ -75,7 +75,7 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --echo # 5. Stop primary member that will force election from another member
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -83,7 +83,7 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --echo # 6. Server2 will fail (applier thread stopped) and abort
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
@@ -96,13 +96,13 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --echo # 8. Wait for server 2 to disconnect/abort and restart
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_disconnected.inc
 # Inform MTR that it should restart the aborted member
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 --echo

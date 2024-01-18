@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 [connection master]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 SET @old_replica_parallel_workers= @@global.replica_parallel_workers;
 SET GLOBAL replica_parallel_workers = 4;
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_1']
 select CHANNEL_NAME, THREAD_ID
 from performance_schema.replication_applier_status_by_coordinator
 limit 1
@@ -82,8 +82,8 @@ where THREAD_ID = @t_id;
 SERVICE_STATE
 #
 OK: handler_read_key incremented
-include/stop_slave.inc [FOR CHANNEL 'channel_1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_1']
 RESET REPLICA ALL;
 SET GLOBAL replica_parallel_workers= @old_replica_parallel_workers;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

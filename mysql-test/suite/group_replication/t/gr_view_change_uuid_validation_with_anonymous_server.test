@@ -53,7 +53,7 @@
 --echo #     change uuid configured with an valid uuid
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $view_change_uuid_save = `SELECT @@GLOBAL.group_replication_view_change_uuid`
 --let $view_change_uuid = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
@@ -63,7 +63,7 @@
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SET GLOBAL group_replication_view_change_uuid = "$view_change_uuid"
 
@@ -74,11 +74,11 @@
 --echo #  2. Disable GTIDs on server 3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_gtid_mode= OFF
 --let $rpl_server_numbers= 3
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 --echo
 --echo ############################################################
@@ -86,7 +86,7 @@
 --echo #     server 3 into the group (server 1)
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $source_uuid = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab
 
@@ -135,7 +135,7 @@
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # Member should have failed on start during server boot
 --let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
@@ -177,14 +177,14 @@ START REPLICA;
 --eval SET GLOBAL group_replication_view_change_uuid= "$view_change_uuid"
 
 --source include/start_group_replication.inc
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo ###################################################################
 --echo #  5. Execute some transactions on server 3 and sync with server 1
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
@@ -193,24 +193,24 @@ UPDATE t1 SET c1=2 WHERE c1=0;
 
 --let $sync_slave_connection= server1
 --let $use_gtids = 0
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $use_gtids = 1
 
 --echo
 --echo ############################################################
 --echo #  6. Execute a transaction on the group and sync
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (6);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ############################################################
 --echo #  7. GTID_EXECUTED on server 1 must contain transactions
 --echo #     from server 3, from group and no view changes
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED from server 3 with server 1 UUID
 --let $assert_cond= [SELECT GTID_SUBSET("$source_uuid:1-4", @@GLOBAL.GTID_EXECUTED)] = 1
@@ -232,7 +232,7 @@ INSERT INTO t1 VALUES (6);
 --echo #     Validate data on server 2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED from server 3 with server 1 UUID
 --let $assert_cond= [SELECT GTID_SUBSET("$source_uuid:1-4", @@GLOBAL.GTID_EXECUTED)] = 1
@@ -252,34 +252,34 @@ INSERT INTO t1 VALUES (6);
 --echo #  9. Cleanup
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 
 --let $sync_slave_connection= server1
 --let $use_gtids = 0
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $use_gtids = 1
 
 # Stop asynchronous replication connection from server 3
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # Restore the GTID_MODE on server 3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_gtid_mode= ON
 --let $rpl_skip_sync= 1
 --let $rpl_server_numbers= 3
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Stop Group Replication on server 1 and 2 to avoid sync problems
 
@@ -294,14 +294,14 @@ CALL mtr.add_suppression("The group_replication_view_change_uuid .*. is the same
 SET session sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --replace_result $view_change_uuid_save VIEW_CHANGE_UUID
 --eval SET GLOBAL group_replication_view_change_uuid = $view_change_uuid_save
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 RESET PERSIST;
 
@@ -311,6 +311,6 @@ RESET PERSIST;
 --let $restart_parameters=restart:--group-replication-start-on-boot=OFF --group-replication-group-name=$group_replication_group_name --group_replication_local_address
 --source include/restart_mysqld_no_echo.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --source include/group_replication_end.inc

@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection server_1]
 CREATE TABLE t1(i INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # Step-2: Insert a tuple on server2 directly without writing
 #         into binlog.

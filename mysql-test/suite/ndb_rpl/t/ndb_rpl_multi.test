@@ -3,7 +3,7 @@
 
 # We need server 3 later on in this test.
 --let $rpl_server_count= 3
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --connection master
 
@@ -44,7 +44,7 @@ connection server2;
 # update is actually in the server2 binlog
 set SQL_LOG_BIN=0;
 insert into t2 values (1);
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 set SQL_LOG_BIN=1;
 --replace_result $the_epoch <the_epoch>
 --disable_query_log
@@ -61,9 +61,9 @@ let $the_file= `SELECT @the_file` ;
 --let $rpl_topology= 3->2
 --let $rpl_source_log_file= 2:$the_file
 --let $rpl_source_log_pos= 2:$the_pos
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # insert some more values on the first master
 connection master;
@@ -88,4 +88,4 @@ DROP TABLE t1;
 DROP TABLE t2;
 sync_slave_with_master;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

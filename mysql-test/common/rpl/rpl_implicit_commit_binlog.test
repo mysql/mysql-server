@@ -1,0 +1,746 @@
+# ==== Purpose ====
+#
+#  1. Verify that DDL statements implicitly commit a transaction.
+#
+#  2. Verify that DDL statements are not written to the statement or
+#     transaction cache.
+#
+# ==== Implementation ====
+#
+# We check a number of different types of DDL statements.
+#
+# For each DDL statement, we proceed as follows.
+#
+#  - Start a transaction and insert some values into a transactional table.
+#  - Execute the DDL statement.
+#  - Check in the binary log for a COMMIT mark which is supposed to be written
+#    before the DDL statement. This verifies (1).
+#  - Check in the binary log that the DDL is not wrapped in BEGIN...COMMIT.
+#    This verifies (2), since anything that goes through the statement
+#    cache or transaction cache is wrapped in BEGIN...COMMIT.
+#
+# ==== References ====
+#
+# WL#2687: Write non-transactional binlog events directly to binary log
+# WL#5072: Write a Test Case for WL#2687
+
+--source include/have_myisam.inc
+
+--echo #########################################################################
+--echo #                            CONFIGURATION
+--echo #########################################################################
+connection master;
+
+eval CREATE TABLE tt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = $engine;
+eval CREATE TABLE tt_2 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = $engine;
+eval CREATE TABLE nt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = MyIsam;
+
+INSERT INTO tt_1(ddl_case) VALUES(0);
+INSERT INTO tt_2(ddl_case) VALUES(0);
+
+--echo #########################################################################
+--echo #                          CHECK IMPLICT COMMIT
+--echo #########################################################################
+SET AUTOCOMMIT= 0;
+let $ddl_cases= 43;
+while ($ddl_cases >= 1)
+{
+  --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+  let $in_temporary= no;
+  let $check_position_of_commit_event= yes;
+  #
+  # In SBR and MIXED modes, the commit event is usually the 4th event in the
+  # binary log:
+  #
+  # 1: GTID
+  # 2: BEGIN
+  # 3: INSERT
+  # 4: COMMIT
+  # 5: DDL EVENT which triggered the previous commmit.
+  #
+  if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
+  {
+    let $commit_event_row_number= 4;
+  }
+  #
+  # In RBR mode, the commit event is usually the 5th event in the binary log:
+  #
+  # 1: GTID
+  # 2: BEGIN
+  # 3: TABLE MAP EVENT
+  # 4: ROW EVENT
+  # 5: COMMIT
+  # 6: DDL EVENT which triggered the previous commmit.
+  #
+  if (`select @@binlog_format = 'ROW'`)
+  {
+    let $commit_event_row_number= 5;
+  }
+  #
+  # In NDB (RBR and MIXED modes), the commit event is usually the 9th event
+  # in the binary log:
+  #
+  # 1: GTID
+  # 2: COMMAND
+  # 3: GTID
+  # 4: BEGIN
+  # 5: TABLE MAP EVENT
+  # 6: TABLE MAP EVENT (ndb_apply_status)
+  # 7: ROW EVENT
+  # 8: ROW EVENT
+  # 9: COMMIT
+  #
+  if ($engine == NDB)
+  {
+    let $commit_event_row_number= 9;
+  }
+
+  let $first_binlog_position= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
+  --enable_query_log
+  eval INSERT INTO tt_1(ddl_case) VALUES ($ddl_cases);
+
+  if ($ddl_cases == 43)
+  {
+    let $cmd= CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+  }
+  if ($ddl_cases == 42)
+  {
+    let $cmd= DROP FUNCTION myfunc_int;
+  }
+  if ($ddl_cases == 41)
+  {
+    let $cmd= LOAD INDEX INTO CACHE nt_1 IGNORE LEAVES;
+    if ($engine == NDB)
+    {
+      # This seems to be related to epochs.
+      # We need to check this against an updated version or avoid it.
+      let $check_position_of_commit_event= no;
+      let $commit_event_row_number= 7;
+    }
+  }
+  if ($ddl_cases == 40)
+  {
+    let $cmd= LOAD INDEX INTO CACHE tt_1, tt_2 IGNORE LEAVES;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 7;
+    }
+  }
+  if ($ddl_cases == 39)
+  {
+    let $cmd= ANALYZE TABLE nt_1;
+  }
+  if ($ddl_cases == 38)
+  {
+    let $cmd= CHECK TABLE nt_1;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the 7th event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 7;
+    }
+  }
+  if ($ddl_cases == 37)
+  {
+    let $cmd= OPTIMIZE TABLE nt_1;
+  }
+  if ($ddl_cases == 36)
+  {
+    let $cmd= REPAIR TABLE nt_1;
+  }
+  if ($ddl_cases == 35)
+  {
+    let $cmd= LOCK TABLES tt_1 WRITE;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the 7th event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 7;
+    }
+  }
+  if ($ddl_cases == 34)
+  {
+    let $cmd= UNLOCK TABLES;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the 7th event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 7;
+    }
+  }
+  if ($ddl_cases == 33)
+  {
+    let $cmd= CREATE USER 'user'@'localhost';
+  }
+  if ($ddl_cases == 32)
+  {
+    let $cmd= GRANT ALL ON *.* TO 'user'@'localhost';
+  }
+  if ($ddl_cases == 31)
+  {
+    let $cmd= SET PASSWORD FOR 'user'@'localhost' = 'newpass';
+    #
+    # In NDB (RBR mode), the commit event is the 14th event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: DDL EVENT which triggered the previous commmit.
+    # 3: GTID
+    # 4: BEGIN
+    # 5: TABLE MAP EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    # 8: GTID
+    # 9: BEGIN
+    # 10: TABLE MAP EVENT
+    # 11: TABLE MAP EVENT (ndb_apply_status)
+    # 12: ROW EVENT
+    # 13: ROW EVENT
+    # 14: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB' && @@binlog_format = 'ROW'`)
+    {
+      let $commit_event_row_number= 14;
+    }
+    #
+    # In NDB (MIXED mode), the commit event is the 9th event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: DDL EVENT which triggered the previous commmit.
+    # 3: GTID
+    # 4: BEGIN
+    # 5: TABLE MAP EVENT
+    # 6: TABLE MAP EVENT (ndb_apply_status)
+    # 7: ROW EVENT
+    # 8: ROW EVENT
+    # 9: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB' && @@binlog_format != 'ROW'`)
+    {
+      let $commit_event_row_number= 9;
+    }
+  }
+  if ($ddl_cases == 30)
+  {
+    let $cmd= REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user'@'localhost';
+  }
+  if ($ddl_cases == 29)
+  {
+    let $cmd= RENAME USER 'user'@'localhost' TO 'user_new'@'localhost';
+  }
+  if ($ddl_cases == 28)
+  {
+    let $cmd= DROP USER 'user_new'@'localhost';
+  }
+  if ($ddl_cases == 27)
+  {
+    let $cmd= CREATE EVENT evt ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT * FROM tt_1;
+  }
+  if ($ddl_cases == 26)
+  {
+    let $cmd= ALTER EVENT evt COMMENT 'evt';
+  }
+  if ($ddl_cases == 25)
+  {
+    let $cmd= DROP EVENT evt;
+  }
+  if ($ddl_cases == 24)
+  {
+    let $cmd= CREATE TRIGGER tr AFTER INSERT ON tt_1 FOR EACH ROW UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case;
+  }
+  if ($ddl_cases == 23)
+  {
+    let $cmd= DROP TRIGGER tr;
+    #
+    # In RBR mode, due to the trigger the tt_2 is also updated:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    # 7: GTID
+    # 8: DDL EVENT which triggered the previous commmit.
+    #
+    if (`select @@binlog_format = 'ROW' && '$engine' != 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
+  }
+  if ($ddl_cases == 22)
+  {
+    let $cmd= CREATE FUNCTION fc () RETURNS VARCHAR(64) RETURN "fc";
+  }
+  if ($ddl_cases == 21)
+  {
+    let $cmd= ALTER FUNCTION fc COMMENT 'fc';
+  }
+  if ($ddl_cases == 20)
+  {
+    let $cmd= DROP FUNCTION fc;
+  }
+  if ($ddl_cases == 19)
+  {
+    let $cmd= CREATE PROCEDURE pc () UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case;
+  }
+  if ($ddl_cases == 18)
+  {
+    let $cmd= ALTER PROCEDURE pc COMMENT 'pc';
+  }
+  if ($ddl_cases == 17)
+  {
+    let $cmd= DROP PROCEDURE pc;
+  }
+  if ($ddl_cases == 16)
+  {
+    let $cmd= CREATE VIEW v AS SELECT * FROM tt_1;
+  }
+  if ($ddl_cases == 15)
+  {
+    let $cmd= ALTER VIEW v AS SELECT * FROM tt_1;
+  }
+  if ($ddl_cases == 14)
+  {
+    let $cmd= DROP VIEW v;
+  }
+  if ($ddl_cases == 13)
+  {
+    let $cmd= CREATE INDEX ix ON tt_1(ddl_case);
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the 7th event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    # 8: GTID
+    # 9: DDL EVENT which triggered the previous commmit.
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 7;
+    }
+  }
+  if ($ddl_cases == 12)
+  {
+    let $cmd= DROP INDEX ix ON tt_1;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the 7th event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    # 8: DDL EVENT which triggered the previous commmit.
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 7;
+    }
+  }
+  if ($ddl_cases == 11)
+  {
+    let $cmd= CREATE TEMPORARY TABLE tt_xx (a int);
+    let $in_temporary= yes;
+    # In SBR mode, the DDL statement is written to the binary log but
+    # does not commit the current transaction.
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: CREATE TEMPORARY
+    # 4: INSERT
+    # 5: COMMIT
+    #
+    # In RBR the transaction is not committed either and the statement is not
+    # written to the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: ROW EVENT
+    # 5: COMMIT
+    #
+    if (`select @@binlog_format = 'STATEMENT'` )
+    {
+      let $commit_event_row_number= 5;
+    }
+    #
+    # In MIXED mode, the DDL statement is not written to the binary log and
+    # does not commit the current transaction.
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: INSERT
+    # 4: COMMIT
+    #
+    if (`select @@binlog_format = 'MIXED'` )
+    {
+      let $commit_event_row_number= 4;
+    }
+    #
+
+    # In NDB (RBR mode), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB' && @@binlog_format = 'ROW'` )
+    {
+      let $commit_event_row_number= 7;
+    }
+    #
+    # In NDB (MIXED mode), the commit event is the nineth event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: DDL EVENT which triggered the previous commmit.
+    # 4: COMMIT
+    # 5: GTID
+    # 6: BEGIN
+    # 7: TABLE MAP EVENT
+    # 8: TABLE MAP EVENT (ndb_apply_status)
+    # 9: ROW EVENT
+    # 10: ROW EVENT
+    # 11: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB' && @@binlog_format != 'ROW'` )
+    {
+      let $commit_event_row_number= 11;
+    }
+  }
+  if ($ddl_cases == 10)
+  {
+    let $cmd= ALTER TABLE tt_xx ADD COLUMN (b int);
+    #
+    # In MIXED mode, the changes are logged as rows and we have what follows:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: ROW EVENT
+    # 4: COMMIT
+    # 5: GTID
+    #
+    if (`select @@binlog_format = 'MIXED'`)
+    {
+      let $commit_event_row_number= 5;
+      # Since this alter is done on a temp table in MIXED, it will not be
+      # binlogged at all, so explicitly commit.
+      let $in_temporary= yes;
+      let $commit_event_row_number= 4;
+    }
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the 7th event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 7;
+    }
+  }
+  if ($ddl_cases == 9)
+  {
+    let $cmd= ALTER TABLE tt_xx RENAME new_tt_xx;
+    #
+    # In MIXED mode, the changes are logged as rows and we have what follows:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: ROW EVENT
+    # 4: COMMIT
+    #
+    if (`select @@binlog_format = 'MIXED'`)
+    {
+      let $commit_event_row_number= 5;
+      # Since this alter is done on a temp table in MIXED, it will not be
+      # binlogged at all, so explicitly commit.
+      let $in_temporary= yes;
+      let $commit_event_row_number= 4;
+    }
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 7;
+    }
+  }
+  if ($ddl_cases == 8)
+  {
+    let $cmd= DROP TEMPORARY TABLE IF EXISTS new_tt_xx;
+    let $in_temporary= yes;
+    #
+    # In SBR mode, the DDL statement is written to the binary log
+    # but does not commit the current transaction:
+    #
+    # In SBR, we have what follows:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: INSERT
+    # 4: DROP TEMPORARY
+    # 5: COMMIT
+    #
+    # In RBR and MIXED modes, the transaction is not committed either and the
+    # statement is not written to the binary log:
+    #
+    # RBR:
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: ROW EVENT
+    # 5: COMMIT
+    #
+    # MIXED:
+    # 1: GTID
+    # 2: BEGIN
+    # 3: ROW EVENT
+    # 4: COMMIT
+    if (`select @@binlog_format = 'STATEMENT'`)
+    {
+      let $commit_event_row_number= 5;
+    }
+    if (`select @@binlog_format = 'ROW'`)
+    {
+      let $commit_event_row_number= 5;
+    }
+    if (`select @@binlog_format = 'MIXED'`)
+    {
+      let $commit_event_row_number= 4;
+    }
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: DROP TEMPORARY table IF EXISTS
+    # 4: COMMIT
+    # 5: GTID
+    # 6: BEGIN
+    # 7: TABLE MAP EVENT
+    # 8: TABLE MAP EVENT (ndb_apply_status)
+    # 9: ROW EVENT
+    # 10: ROW EVENT
+    # 11: COMMIT
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 11;
+    }
+    #
+    # In NDB (MIXED mode), the commit event is the nineth event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: DDL EVENT which triggered the previous commmit.
+    # 4: COMMIT
+    # 5: GTID
+    # 6: BEGIN
+    # 7: TABLE MAP EVENT
+    # 8: TABLE MAP EVENT (ndb_apply_status)
+    # 9: ROW EVENT
+    # 10: ROW EVENT
+    # 11: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB' && @@binlog_format != 'ROW'` )
+    {
+      let $commit_event_row_number= 11;
+    }
+  }
+  if ($ddl_cases == 7)
+  {
+    let $cmd= CREATE TABLE tt_xx (a int);
+  }
+  if ($ddl_cases == 6)
+  {
+    let $cmd= ALTER TABLE tt_xx ADD COLUMN (b int);
+  }
+  if ($ddl_cases == 5)
+  {
+    let $cmd= RENAME TABLE tt_xx TO new_tt_xx;
+  }
+  if ($ddl_cases == 4)
+  {
+    let $cmd= TRUNCATE TABLE new_tt_xx;
+  }
+  if ($ddl_cases == 3)
+  {
+    let $cmd= DROP TABLE IF EXISTS tt_xx, new_tt_xx;
+  }
+  if ($ddl_cases == 2)
+  {
+    let $cmd= CREATE DATABASE db;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    # 8: GTID
+    # 9: DDL EVENT which triggered the previous commmit.
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 7;
+    }
+  }
+  if ($ddl_cases == 1)
+  {
+    let $cmd= DROP DATABASE IF EXISTS db;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: TABLE MAP EVENT (ndb_apply_status)
+    # 5: ROW EVENT
+    # 6: ROW EVENT
+    # 7: COMMIT
+    # 8: GTID
+    # 9: DDL EVENT which triggered the previous commmit.
+    #
+    if ($engine == NDB)
+    {
+      let $commit_event_row_number= 7;
+    }
+  }
+  --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+  --eval $cmd
+  --disable_query_log
+  #
+  # When a temporary table is either created or dropped, there is no implicit
+  # commit. The flag in_temporary is used to avoid aborting the test in such
+  # cases. Thus we force the commit.
+  #
+  if ($in_temporary == yes)
+  {
+    --eval COMMIT
+  }
+  if ($check_position_of_commit_event == yes)
+  {
+    if (`SELECT @@session.binlog_transaction_compression = TRUE AND @@session.binlog_format='ROW'`)
+    {
+      # there is an extra event when compression is enabled: Transaction_payload_event
+      --let $commit_event_row_number = `SELECT $commit_event_row_number + 1`
+    }
+
+    --let $assert_cond= SUBSTRING("[SHOW BINLOG EVENTS FROM $first_binlog_position LIMIT $commit_event_row_number, Info, $commit_event_row_number]", 1, 6) = "COMMIT"
+    --let $assert_text= There should be a COMMIT event at the specified position (test#$ddl_cases)
+    --source include/assert.inc
+  }
+
+  --echo -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+  let $binlog_start= $first_binlog_position;
+  --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+  --let $mask_user_password_events = 1
+  --let $mask_grant_as_events=1
+  --source include/rpl/deprecated/show_binlog_events.inc
+  --let $mask_user_password_events = 0
+  --echo -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+  --echo
+  dec $ddl_cases;
+}
+SET AUTOCOMMIT= 1;
+
+--echo ###################################################################################
+--echo #                               CHECK CONSISTENCY
+--echo ###################################################################################
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:tt_1,slave:tt_1
+--source include/diff_tables.inc
+
+--echo ###################################################################################
+--echo #                                        CLEAN
+--echo ###################################################################################
+connection master;
+
+DROP TABLE tt_1;
+DROP TABLE tt_2;
+DROP TABLE nt_1;
+
+--source include/rpl/sync_to_replica.inc

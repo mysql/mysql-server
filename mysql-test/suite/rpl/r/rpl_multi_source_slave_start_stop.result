@@ -1,7 +1,7 @@
 #
 # Set up masters server_1 and server_3 with server_2 being a slave.
 #.
-include/rpl_init.inc [topology=1->2,3->2]
+include/rpl/init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,39 +13,39 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1) Execute START REPLICA IO_THREAD; io_threads of all channels shall start
 #
 START REPLICA IO_THREAD;
-include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_receiver_to_start.inc]
 #
 # 2) Execute START REPLICA SQL_THREAD; sql_threads of all channels shall start
 #
 START REPLICA SQL_THREAD;
-include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_applier_to_start.inc]
 #
 #  Do stop replica IO_thread.  SQL threads must still be running
 #
 STOP REPLICA IO_THREAD;
-include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_stop.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_receiver_to_stop.inc]
 #
 #  Do  start replica.  IO threads should be up independently.
 #
 START REPLICA;
-include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_receiver_to_start.inc]
 #
 #  Do STOP REPLICA. All slave threads for all channnels must be down.
 #
 STOP REPLICA;
-include/rpl_for_each_connection.inc [include/wait_for_slave_to_stop.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_replica_to_stop.inc]
 #
 # 3) Check start and stop FOR CHANNEL, the inc files wait till
 #    the threads are run. No Notes shall be emitted also.
 #
 # 3.a) Test START REPLICA IO_THREAD FOR CHANNEL
-include/start_slave_io.inc [FOR CHANNEL 'channel_1']
+include/rpl/start_receiver.inc [FOR CHANNEL 'channel_1']
 # 3.b) Test START REPLICA SQL_THREAD FOR CHANNEL
-include/start_slave_sql.inc [FOR CHANNEL 'channel_1']
+include/rpl/start_applier.inc [FOR CHANNEL 'channel_1']
 # 3.c) Test STOP REPLICA IO_THREAD FOR CHANNEL
-include/stop_slave_io.inc [FOR CHANNEL 'channel_1']
+include/rpl/stop_receiver.inc [FOR CHANNEL 'channel_1']
 # 3.d) Test STOP REPLICA SQL_THREAD FOR CHANNEL
-include/stop_slave_sql.inc [FOR CHANNEL 'channel_1']
-include/rpl_end.inc
+include/rpl/stop_applier.inc [FOR CHANNEL 'channel_1']
+include/rpl/deinit.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 RESET REPLICA ALL FOR CHANNEL 'channel_3';

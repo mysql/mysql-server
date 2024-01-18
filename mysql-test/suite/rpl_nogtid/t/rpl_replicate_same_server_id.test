@@ -15,21 +15,21 @@
 
 # Replicating in a loop like this won't work with GTIDs.
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== If server with replicate-same-server-id is slave of itself, it executes transactions twice ====
 
 --echo ---- Initialize ----
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CREATE TABLE t1 (n INT);
 RESET BINARY LOGS AND GTIDS;
 
 # replicate slave -> slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_PORT = $SLAVE_MYPORT;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo ---- Test ----
 
@@ -44,7 +44,7 @@ SELECT * FROM t1; # check that indeed 2 were inserted
 # We stop the slave before cleaning up otherwise we'll get
 # 'DROP TABLE t1' executed twice, so an error in the slave.err
 # (not critical).
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 DROP TABLE t1;
 
@@ -62,7 +62,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_PORT = $MASTER_MYPORT;
 
 --echo ---- Initialize ----
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # setting the until position to correspond to the first following create table
 # which will make the event executed and the slave sql thread stopped
@@ -75,13 +75,13 @@ CREATE TABLE t2(n int);
 
 --echo ---- Test ----
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $until_pos UNTIL_POS
 --disable_warnings
 eval START REPLICA UNTIL SOURCE_LOG_FILE = 'master-bin.000001', SOURCE_LOG_POS = $until_pos;
 --enable_warnings
---source include/wait_for_slave_io_to_start.inc
+--source include/rpl/wait_for_receiver_to_start.inc
 
 # It is theoretically possible that the SQL thread starts after the IO
 # thread, so wait_for_io_to_start returns after the IO thread has
@@ -92,7 +92,7 @@ eval START REPLICA UNTIL SOURCE_LOG_FILE = 'master-bin.000001', SOURCE_LOG_POS =
 --let $query= SELECT * FROM t1
 --source include/wait_for_query_to_succeed.inc
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $assert_cond= "[SHOW TABLES]" = "t1"
 --let $assert_text= t1 should be replicated, t2 should not
@@ -100,11 +100,11 @@ eval START REPLICA UNTIL SOURCE_LOG_FILE = 'master-bin.000001', SOURCE_LOG_POS =
 
 --echo ---- Clean up ----
 
---source include/rpl_connection_slave.inc
---source include/start_slave_sql.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 DROP TABLE t2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

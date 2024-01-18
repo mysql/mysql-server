@@ -21,15 +21,15 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch3_2']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch3_2']
 SET @@GLOBAL.group_replication_consistency= EVENTUAL;
 
 # 5. Create table t1 an t2 on server3 and replicate to group
 [connection server3]
 CREATE TABLE test.t1 (a int primary key);
 CREATE TABLE test.t2 (a int primary key);
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
+include/rpl/sync_to_replica.inc
 
 # 6. Pause applier threads to hold primary election (on wait
 #    for stabilizing transactions from former primaries)
@@ -106,9 +106,9 @@ Mode switched to single-primary successfully.
 [connection server3]
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server3]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server2]
 SET @@GLOBAL.group_replication_consistency= DEFAULT;
 STOP REPLICA FOR CHANNEL 'ch3_2';

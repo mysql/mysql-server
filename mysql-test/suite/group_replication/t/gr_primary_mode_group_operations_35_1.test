@@ -36,14 +36,14 @@ set session sql_log_bin=1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -53,10 +53,10 @@ set session sql_log_bin=1;
 --echo # 1. Begin a transaction on server 1 but do not commit it
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -67,7 +67,7 @@ INSERT INTO t1 VALUES (1);
 --echo # See that it is stuck waiting for current transactions
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $conn_id=`SELECT CONNECTION_ID()`
 
@@ -75,13 +75,13 @@ INSERT INTO t1 VALUES (1);
 --send SELECT group_replication_switch_to_multi_primary_mode()
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: waiting for pending transactions to finish%"
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: waiting on another member step completion%"
 --source include/wait_condition.inc
@@ -90,7 +90,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 3. Kill the query
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $conn_id CONNECTION_ID
 --eval KILL QUERY $conn_id
@@ -99,13 +99,13 @@ INSERT INTO t1 VALUES (1);
 --echo # 4. Commit transaction and member will finish the UDF
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 COMMIT;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
@@ -113,7 +113,7 @@ COMMIT;
 --echo # 5. Unlock the table, check the action completed in the other members
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -121,7 +121,7 @@ COMMIT;
 --source include/gr_assert_multi_primary_mode.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -129,7 +129,7 @@ COMMIT;
 --source include/gr_assert_multi_primary_mode.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -140,7 +140,7 @@ COMMIT;
 --echo # 6. Cleanup
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

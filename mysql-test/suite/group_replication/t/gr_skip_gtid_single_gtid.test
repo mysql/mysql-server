@@ -21,9 +21,9 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 --source include/start_and_bootstrap_group_replication.inc
@@ -42,14 +42,14 @@ INSERT INTO t1 VALUES(1);
 --source include/assert.inc
 
 --let $event_sequence= Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 # Cleanup
 
 DROP TABLE t1;
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 --source include/group_replication_end.inc

@@ -39,7 +39,7 @@
 #
 
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Checks for add sender configuration UDF
 # i.e. asynchronous_connection_failover_add_source()
@@ -323,7 +323,7 @@ SELECT asynchronous_connection_failover_reset();
 --echo #     asynchronous_connection_failover_delete_source UDF.
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 GRANT REPLICATION_SLAVE_ADMIN ON *.* TO 'async_user';
 
@@ -338,7 +338,7 @@ SELECT asynchronous_connection_failover_reset();
 
 --disconnect connect_async
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP USER 'async_user';
 
 --let $assert_text= 'There are 0 rows in performance_schema.replication_asynchronous_connection_failover'
@@ -347,4 +347,4 @@ DROP USER 'async_user';
 
 RESET REPLICA ALL;
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

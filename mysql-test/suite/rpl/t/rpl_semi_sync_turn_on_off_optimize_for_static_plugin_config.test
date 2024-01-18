@@ -45,10 +45,10 @@ while ($i <= $servers)
   --let $rpl_topology = $rpl_topology, 2->$i
   --inc $i
 }
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t (a int);
 
@@ -58,7 +58,7 @@ CREATE TABLE t (a int);
 while ($i <= $servers)
 {
   --let $rpl_connection_name= server_$i
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   SET GLOBAL replication_optimize_for_static_plugin_config = 1;
   SET GLOBAL replication_sender_observe_commit_only = 1;
@@ -68,19 +68,19 @@ while ($i <= $servers)
     SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
     CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
     CALL mtr.add_suppression(".* Timeout waiting for reply of binlog .*");
-    --source include/install_semisync_source.inc
+    --source include/rpl/install_semisync_source.inc
   }
   if ($i != 2)
   {
     SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
     CALL mtr.add_suppression("Semi-sync replica net_flush.*");
-    --source include/install_semisync_replica.inc
+    --source include/rpl/install_semisync_replica.inc
   }
   --inc $i
 }
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $replicas_layer_2
 
 # 3. Using `mysqlslap`, send 5000 insert statements in the background.
@@ -92,25 +92,25 @@ SET GLOBAL replication_optimize_for_static_plugin_config = 1,
            replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
            replication_sender_observe_commit_only = 0;
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 
 --let $diff_tables = server_1:t
 --let $i = $servers
 while ($i > 1)
 {
   --let $rpl_connection_name= server_$i
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
   SET GLOBAL replication_optimize_for_static_plugin_config = 0,
              replication_sender_observe_commit_only = 0;
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
 
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
   SET GLOBAL replication_optimize_for_static_plugin_config = 1,
              replication_sender_observe_commit_only = 1;
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
 
   --sleep 1
 
@@ -120,8 +120,8 @@ while ($i > 1)
              replication_sender_observe_commit_only = 1;
   SET GLOBAL replication_optimize_for_static_plugin_config = 0,
              replication_sender_observe_commit_only = 0;
-  --source include/stop_slave.inc
-  --source include/start_slave.inc
+  --source include/rpl/stop_replica.inc
+  --source include/rpl/start_replica.inc
 
   SET GLOBAL replication_optimize_for_static_plugin_config = 0,
              replication_sender_observe_commit_only = 0;
@@ -134,21 +134,21 @@ while ($i > 1)
 
 # Wait for `mysqlslap` to finish execution of 5000 inserts
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=5000 FROM t
 --let $wait_timeout= 120
 --source include/wait_condition.inc
 
 # 5. Sync all servers.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $slave_timeout=600
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $slave_timeout=600
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # 6. Ensure that all servers have the same data.
 --source include/diff_tables.inc
@@ -158,24 +158,24 @@ while ($i > 1)
 while ($i > 1)
 {
   --let $rpl_connection_name= server_$i
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   SET GLOBAL replication_optimize_for_static_plugin_config = 0;
   SET GLOBAL replication_sender_observe_commit_only = 0;
 
   if ( $i == 2)
   {
-    --source include/uninstall_semisync_source.inc
+    --source include/rpl/uninstall_semisync_source.inc
   }
   if ($i != 2)
   {
-    --source include/uninstall_semisync_replica.inc
+    --source include/rpl/uninstall_semisync_replica.inc
   }
 
   --dec $i
 }
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

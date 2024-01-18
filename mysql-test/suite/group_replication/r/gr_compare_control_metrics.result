@@ -136,7 +136,7 @@ SET GLOBAL super_read_only = 0;
 SET GLOBAL group_replication_member_expel_timeout = 3000;
 SET GLOBAL super_read_only = 1;
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server1]
 INSERT INTO t1 VALUES (10002);
 #Gr_extended_consensus_count value should be increased after it became UNREACHABLE.

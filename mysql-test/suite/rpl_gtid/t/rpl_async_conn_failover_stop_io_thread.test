@@ -10,19 +10,19 @@
 #   3. Clean up.
 ###############################################################################
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo ############################################################
 --echo # 1. Create a replication channel ch1 to replicate from
 --echo #    server2 to server1.
 --let $rpl_connection_name= slave
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1'
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 
 --echo
@@ -31,7 +31,7 @@
 --echo #    Verify that SQL thread is running
 --echo #    It will be allowed.
 --let $rpl_channel_name='ch1'
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 
 --let $assert_text= Verify replica_monitor thread is not running
 --let $assert_cond= "[select count(*) FROM performance_schema.threads where NAME=\"thread/sql/replica_monitor\"]" = 0;
@@ -46,15 +46,15 @@
 --echo ############################################################
 --echo # 3. Clean up.
 --let $rpl_channel_name='ch1'
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 
 --let $rpl_channel_name='ch1'
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
 
 --let $rpl_skip_sync = 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

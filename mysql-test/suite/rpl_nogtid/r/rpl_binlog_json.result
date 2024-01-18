@@ -2,7 +2,7 @@
 # Bug#21276751 JSON+MYSQLBINLOG: JSON DATA NOT PRINTING PROPERLY
 #              WHEN USING MYSQLBINLOG UTILITY
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ INSERT INTO tab1 (json_col1) VALUES ('{"key": "value", "key2": [1, 2, 3]}');
 SELECT json_col1 FROM tab1;
 json_col1
 {"key": "value", "key2": [1, 2, 3]}
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 json_col1
 {"key": "value", "key2": [1, 2, 3]}
@@ -20,7 +20,7 @@ UPDATE tab1 SET json_col1 = JSON_SET(json_col1, '$.key3', 'abc');
 SELECT json_col1 FROM tab1;
 json_col1
 {"key": "value", "key2": [1, 2, 3], "key3": "abc"}
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 json_col1
 {"key": "value", "key2": [1, 2, 3], "key3": "abc"}
@@ -28,7 +28,7 @@ UPDATE tab1 SET json_col1 = NULL;
 SELECT json_col1 FROM tab1;
 json_col1
 NULL
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 json_col1
 NULL
@@ -36,7 +36,7 @@ UPDATE tab1 SET json_col1 = '[ 1, { "k" : "v" } ]' WHERE json_col1 IS NULL;
 SELECT json_col1 FROM tab1;
 json_col1
 [1, {"k": "v"}]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 json_col1
 [1, {"k": "v"}]
@@ -45,7 +45,7 @@ SELECT json_col1 FROM tab1;
 json_col1
 [1, {"k": "v"}]
 NULL
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 json_col1
 [1, {"k": "v"}]
@@ -53,12 +53,12 @@ NULL
 DELETE FROM tab1;
 SELECT json_col1 FROM tab1;
 json_col1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 json_col1
 DROP TABLE tab1;
 FLUSH LOGS;
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -273,4 +273,4 @@ DELIMITER ;
 # End of log file
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
-include/rpl_end.inc
+include/rpl/deinit.inc

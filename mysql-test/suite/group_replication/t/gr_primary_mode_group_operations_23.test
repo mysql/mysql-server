@@ -31,7 +31,7 @@ SET @@GLOBAL.group_replication_member_weight= 50;
 --echo # 2. Store uuid from server2 and set election weight to 90
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 SET @@GLOBAL.group_replication_member_weight= 90;
@@ -45,7 +45,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -60,7 +60,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 5. Set election weight on server2 to 50
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait for the action to be declared as not running on server2
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"

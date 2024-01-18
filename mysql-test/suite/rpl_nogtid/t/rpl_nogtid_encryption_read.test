@@ -114,7 +114,7 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $keyring_file= $MYSQL_TMP_DIR/keyring_master
 --let $keyring_original_file= $MYSQL_TEST_DIR/std_data/rpl_nogtid_encryption_keyring_master
@@ -131,7 +131,7 @@ FLUSH LOCAL LOGS;
 
 # Stop the master server
 --let $rpl_server_number= 1
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 --connection slave
 # Replace the binary log file
 --remove_file $binlog_file_path
@@ -253,7 +253,7 @@ while ($point < 13)
 --let $rpl_server_number= 1
 --let $rpl_server_parameters= $keyring_parameters
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 --connection master
 
 --echo # Part 2
@@ -269,24 +269,24 @@ while ($point < 13)
 --let $binlog_file= master-bin.000002
 --let $binlog_start= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' LIMIT 1, End_log_pos, 1)
 --let $keep_gtid_events= 1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --let $binlog_start =
 
 --echo # Part 3
 # Start replica threads so it can sync with master
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let $assert_text= Slave shall have t1 with a 6 rows on it
 --let $assert_cond= [SELECT COUNT(*) AS t1_rows FROM t1, t1_rows, 1] = 6
 --source include/assert.inc
 # Slave cleanup
 DROP TABLE t1;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --echo # Part 4
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo # Part 4.1
 --echo # Part 4.1.1
@@ -360,13 +360,13 @@ DROP TABLE t1;
 UNINSTALL PLUGIN keyring_file;
 # Stop the master server
 --let $rpl_server_number= 1
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 # Remove the keyring file to create a new empty one
 --remove_file $keyring_file
 # Restart the server
 --let $rpl_server_number= 1
 --let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_file
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 --error ER_RPL_ENCRYPTION_KEY_NOT_FOUND
 --eval SHOW BINLOG EVENTS IN '$binlog_file'
 
@@ -393,6 +393,6 @@ UNINSTALL PLUGIN keyring_file;
 
 # Cleanup
 --remove_file $keyring_file
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

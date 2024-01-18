@@ -48,21 +48,21 @@ include/assert.inc [Assert that PRIMARY server has not changed.]
 #
 include/gr_find_a_primary.inc
 include/stop_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/gr_wait_for_role_count.inc
 include/gr_find_a_primary.inc
 include/assert.inc [Assert that PRIMARY changed its super_read_only setting from RO to RW.]
 include/assert.inc [Assert that PRIMARY server HAS changed.]
 include/gr_find_a_primary.inc
 include/stop_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/gr_wait_for_role_count.inc
 include/gr_find_a_primary.inc
 include/assert.inc [Assert that PRIMARY changed its super_read_only setting from RO to RW.]
 include/assert.inc [Assert that PRIMARY server HAS changed.]
 include/gr_find_a_primary.inc
 include/stop_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/gr_wait_for_role_count.inc
 include/gr_find_a_primary.inc
 include/assert.inc [Assert that PRIMARY changed its super_read_only setting from RO to RW.]

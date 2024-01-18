@@ -76,7 +76,7 @@
 --echo ############################################################
 --echo # 01. Create a table on the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 
@@ -97,7 +97,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo # 03. Commit a transaction on the group that will be logged
 --echo #     with GTID UUID:3.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
 
 --let $assert_text= GTID_EXECUTED is UUID:1-2
@@ -125,11 +125,11 @@ SELECT * FROM t1;
 --echo ############################################################
 --echo # 06. Clean up.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.group_replication_consistency= DEFAULT;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 ROLLBACK;
 SET @@SESSION.GTID_NEXT= "AUTOMATIC";
 

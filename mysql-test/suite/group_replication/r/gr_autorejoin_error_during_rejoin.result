@@ -63,20 +63,20 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
 #    group the number of it is configured in
 #    group_replication_autorejoin_tries sysvar.
 ####
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server2]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER2";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER2";
 include/start_and_bootstrap_group_replication.inc
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server3]
 SET @@global.group_replication_group_seeds="LOCAL_ADDRESS_SERVER2";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER3";
 include/start_group_replication.inc
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server3]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';

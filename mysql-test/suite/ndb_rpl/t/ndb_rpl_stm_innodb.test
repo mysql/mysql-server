@@ -6,7 +6,7 @@
 #############################################
 
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 # statement format is supported because master uses innodb
 SET binlog_format = STATEMENT;
@@ -14,4 +14,4 @@ let $off_set = 7;
 let $rpl_format = 'SBR';
 --source suite/ndb_rpl/t/ndb_rpl_xxx_innodb.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

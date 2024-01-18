@@ -23,7 +23,7 @@
 --echo ############################################################
 --echo # 1. Persist configuration on server1. Uninstall plugin.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
@@ -51,7 +51,7 @@ SET SESSION sql_log_bin= 1;
 --let $restart_parameters="restart: --plugin-load="
 --source include/restart_mysqld.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --let $assert_text= 'There must be NO variable shown as persisted in variables_info table.'
@@ -91,7 +91,7 @@ SET SESSION sql_log_bin= 1;
 --let $restart_parameters=
 --source include/restart_mysqld.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $MYSQLD_DATADIR= `select @@datadir;`
 
 --let $group_replication_member_state= ONLINE
@@ -110,7 +110,7 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 5. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 RESET PERSIST;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 SET GLOBAL group_replication_start_on_boot= OFF;

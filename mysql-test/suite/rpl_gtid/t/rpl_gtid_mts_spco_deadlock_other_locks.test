@@ -41,7 +41,7 @@
 # The scenarios being tested are all built upon a generic logic that will
 # serliaze the client side execution and the MTA worker thread in order to
 # force a deadlock situation that should be broken. This logic is
-# implemented in `extra/rpl_tests/mts_spco_generate_deadlock.inc` and the file
+# implemented in `common/rpl/mta_rpco_generate_deadlock.inc` and the file
 # contains a description on how it's done. A high-level description is:
 #
 #   1. On the source, set up a commit group that contains statements that
@@ -172,7 +172,7 @@
 #
 --source include/have_debug_sync.inc
 --let $rpl_privilege_checks_user = *:'applier'@'localhost'
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
 
@@ -187,9 +187,9 @@ INSERT INTO t1 VALUES
 
 CREATE TABLE t2(a INT PRIMARY KEY);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source extra/rpl_tests/mts_spco_generate_deadlock_setup.inc
+--source common/rpl/mta_rpco_generate_deadlock_setup.inc
 
 --let $rpl_diff_statement = SELECT * FROM t1, t2
 
@@ -198,7 +198,7 @@ CREATE TABLE t2(a INT PRIMARY KEY);
 --echo # TC1. `GLOBAL READ_ONLY=ON` issued by client and DDL replicated
 --echo #      from source.
 --echo #------------------------------------------------------------------------
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(10, 10);
 
 --let $mts_spco_gd_trx_blocking_worker_1 = ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1
@@ -209,9 +209,9 @@ INSERT INTO t1 VALUES(10, 10);
 --let $mts_spco_gd_state_blocking_client = Waiting for commit lock
 --let $mts_spco_gd_error_expected_replica = ER_LOCK_DEADLOCK
 --let $mts_spco_gd_trx_to_client_unblocking_workers = SET GLOBAL read_only = OFF
---source extra/rpl_tests/mts_spco_generate_deadlock.inc
+--source common/rpl/mta_rpco_generate_deadlock.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(13, 13);
 --let $mts_spco_gd_trx_blocking_worker_1 = ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1
 --let $mts_spco_gd_trx_assigned_worker_2 = INSERT INTO t1 VALUES(14, NULL)
@@ -221,7 +221,7 @@ INSERT INTO t1 VALUES(13, 13);
 --let $mts_spco_gd_state_blocking_client = Waiting for commit lock
 --let $mts_spco_gd_error_expected_replica = ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = SET GLOBAL read_only = OFF
---source extra/rpl_tests/mts_spco_generate_deadlock.inc
+--source common/rpl/mta_rpco_generate_deadlock.inc
 
 
 --echo
@@ -229,7 +229,7 @@ INSERT INTO t1 VALUES(13, 13);
 --echo # TC2. `GLOBAL READ_ONLY=ON` issued by client and DML replicated
 --echo #      from source.
 --echo #------------------------------------------------------------------------
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(16, 16);
 
 --let $mts_spco_gd_trx_blocking_worker_1 = INSERT INTO t1 VALUES(17, NULL)
@@ -239,9 +239,9 @@ INSERT INTO t1 VALUES(16, 16);
 --let $mts_spco_gd_trx_blocking_client = SET GLOBAL read_only = ON
 --let $mts_spco_gd_error_expected_replica = ER_LOCK_DEADLOCK
 --let $mts_spco_gd_trx_to_client_unblocking_workers = SET GLOBAL read_only = OFF
---source extra/rpl_tests/mts_spco_generate_deadlock.inc
+--source common/rpl/mta_rpco_generate_deadlock.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(20, 20);
 
 --let $mts_spco_gd_trx_blocking_worker_1 = INSERT INTO t1 VALUES(21, NULL)
@@ -251,14 +251,14 @@ INSERT INTO t1 VALUES(20, 20);
 --let $mts_spco_gd_trx_blocking_client = SET GLOBAL read_only = ON
 --let $mts_spco_gd_error_expected_replica = ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = SET GLOBAL read_only = OFF
---source extra/rpl_tests/mts_spco_generate_deadlock.inc
+--source common/rpl/mta_rpco_generate_deadlock.inc
 
 --echo
 --echo #
 --echo # TC3. `FLUSH TABLES WITH READ LOCK` issued by client and DDL replicated
 --echo #      from source.
 --echo #------------------------------------------------------------------------
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(24, 24);
 
 --let $mts_spco_gd_trx_blocking_worker_1 = ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1
@@ -270,9 +270,9 @@ INSERT INTO t1 VALUES(24, 24);
 --let $mts_spco_gd_wait_for_coordinator_running_state = Replica has read all relay log; waiting for more updates
 --let $mts_spco_gd_error_expected_replica = ER_LOCK_DEADLOCK
 --let $mts_spco_gd_trx_to_client_unblocking_workers = UNLOCK TABLES
---source extra/rpl_tests/mts_spco_generate_deadlock.inc
+--source common/rpl/mta_rpco_generate_deadlock.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(27, 27);
 
 --let $mts_spco_gd_trx_blocking_worker_1 = ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1
@@ -284,14 +284,14 @@ INSERT INTO t1 VALUES(27, 27);
 --let $mts_spco_gd_wait_for_coordinator_running_state = Replica has read all relay log; waiting for more updates
 --let $mts_spco_gd_error_expected_replica = ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = UNLOCK TABLES
---source extra/rpl_tests/mts_spco_generate_deadlock.inc
+--source common/rpl/mta_rpco_generate_deadlock.inc
 
 --echo
 --echo #
 --echo # TC4. `FLUSH TABLES WITH READ LOCK` issued by client and DML replicated
 --echo #      from source.
 --echo #------------------------------------------------------------------------
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(30, 30);
 
 --let $mts_spco_gd_trx_blocking_worker_1 = INSERT INTO t1 VALUES(31, NULL)
@@ -303,9 +303,9 @@ INSERT INTO t1 VALUES(30, 30);
 --let $mts_spco_gd_wait_for_coordinator_running_state = Replica has read all relay log; waiting for more updates
 --let $mts_spco_gd_error_expected_replica = ER_LOCK_DEADLOCK
 --let $mts_spco_gd_trx_to_client_unblocking_workers = UNLOCK TABLES
---source extra/rpl_tests/mts_spco_generate_deadlock.inc
+--source common/rpl/mta_rpco_generate_deadlock.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(34, 34);
 
 --let $mts_spco_gd_trx_blocking_worker_1 = INSERT INTO t1 VALUES(35, NULL)
@@ -317,13 +317,13 @@ INSERT INTO t1 VALUES(34, 34);
 --let $mts_spco_gd_wait_for_coordinator_running_state = Replica has read all relay log; waiting for more updates
 --let $mts_spco_gd_error_expected_replica = ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = UNLOCK TABLES
---source extra/rpl_tests/mts_spco_generate_deadlock.inc
+--source common/rpl/mta_rpco_generate_deadlock.inc
 
 --echo
 --echo #
 --echo # TC5. DML issued by client and `XA PREPARE` replicated from source.
 --echo #------------------------------------------------------------------------
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(41, 41);
 
 --let $mts_spco_gd_trx_blocking_worker_1 = XA START 'xa1'; INSERT INTO t1 VALUES(42, NULL); XA END 'xa1'; XA PREPARE 'xa1'
@@ -333,12 +333,12 @@ INSERT INTO t1 VALUES(41, 41);
 --let $mts_spco_gd_error_expected_replica = ER_LOCK_WAIT_TIMEOUT
 --let $mts_spco_gd_trx_to_client_unblocking_workers = ROLLBACK
 --let $mts_spco_gd_trx_finishing_group = XA COMMIT 'xa1'
---source extra/rpl_tests/mts_spco_generate_deadlock.inc
+--source common/rpl/mta_rpco_generate_deadlock.inc
 
---source include/start_slave_sql.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 DROP TABLE t2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
---source extra/rpl_tests/mts_spco_generate_deadlock_cleanup.inc
+--source common/rpl/mta_rpco_generate_deadlock_cleanup.inc

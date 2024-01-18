@@ -43,7 +43,7 @@ SHOW BINARY LOGS;
 --echo #
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval PURGE BINARY LOGS TO '$binlog_file'
 --let $statement_connection = con1
@@ -78,6 +78,6 @@ UNLOCK INSTANCE;
 --echo #
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;

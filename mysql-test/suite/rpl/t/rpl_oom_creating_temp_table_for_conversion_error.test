@@ -22,9 +22,9 @@
 
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Replica SQL for channel .*Can.t create conversion table for table .test.t., Error_code: MY-001678");
 #  1a. Add debug point to hit the OOM at slave.
 --let $debug_point = simulate_out_of_memory_while_creating_temp_table_for_conversion
@@ -35,21 +35,21 @@ SET @saved_global_replica_type_conversions = @@global.REPLICA_TYPE_CONVERSIONS;
 SET @@global.REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 
 # 2. At master, create a table t with tinyint column.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET sql_log_bin = 0;
 CREATE TABLE t (a TINYINT);
 SET sql_log_bin = 1;
 
 # 3. At slave, create a table t with int column.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CREATE TABLE t (a INT);
 
 # 4. At master, insert a row in the table.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t VALUES (1);
 
 # 5a. At slave, remove the debug point and restore SLAVE_TYPE_CONVERSION.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --source include/remove_debug_point.inc
 SET @@global.REPLICA_TYPE_CONVERSIONS = @saved_global_replica_type_conversions;
 
@@ -60,7 +60,7 @@ SET @@global.REPLICA_TYPE_CONVERSIONS = @saved_global_replica_type_conversions;
 --let $assert_count = 1
 --source include/assert_grep.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
 
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

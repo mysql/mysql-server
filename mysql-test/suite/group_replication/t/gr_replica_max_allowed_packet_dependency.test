@@ -33,7 +33,7 @@
 --echo #    Set replica_max_allowed_packet to lowest value
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_do_not_clear_certification_database';
 SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
@@ -55,7 +55,7 @@ SET GLOBAL replica_max_allowed_packet=1024;
 ## which includes (12+48)*200 and other View_change information.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (a INT PRIMARY KEY);
 --disable_query_log
 --let $rows= 200
@@ -72,7 +72,7 @@ WHILE($rows)
 
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --let $wait_timeout= 600
@@ -92,19 +92,19 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --echo # 4. Set a bigger value of replica_max_allowed_packet on server1
 --echo #    Restart server2 and see it come ONLINE.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.replica_max_allowed_packet=@debug_save_replica_max_allowed_packet;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --let $wait_timeout=150
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
@@ -120,13 +120,13 @@ SET @@GLOBAL.replica_max_allowed_packet=@debug_save_replica_max_allowed_packet;
 DROP TABLE t1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_do_not_clear_certification_database';
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 SET session sql_log_bin=0;

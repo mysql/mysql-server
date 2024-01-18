@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->6,2->3,5->7]
+include/rpl/init.inc [topology=1->6,2->3,5->7]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,13 +8,13 @@ Note	####	Storing MySQL user name or password information in the connection meta
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/rpl_connect.inc [creating source.1]
-include/rpl_connect.inc [creating source.2]
-include/rpl_connect.inc [creating replica.3]
-include/rpl_connect.inc [creating source.4]
-include/rpl_connect.inc [creating source.5]
-include/rpl_connect.inc [creating replica.6]
-include/rpl_connect.inc [creating replica.7]
+include/rpl/connect.inc [creating source.1]
+include/rpl/connect.inc [creating source.2]
+include/rpl/connect.inc [creating replica.3]
+include/rpl/connect.inc [creating source.4]
+include/rpl/connect.inc [creating source.5]
+include/rpl/connect.inc [creating replica.6]
+include/rpl/connect.inc [creating replica.7]
 [connection source.1]
 CREATE TABLE t1 (k INT PRIMARY KEY, c CHAR) ENGINE = NDB;
 INSERT INTO t1 VALUES (1, 'a');
@@ -74,4 +74,4 @@ k	c
 Cleanup
 [connection source.1]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

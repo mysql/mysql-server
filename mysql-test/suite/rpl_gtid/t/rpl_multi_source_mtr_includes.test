@@ -14,9 +14,9 @@
 --source include/have_binlog_format_mixed.inc
 
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Suppression of error messages
 CALL mtr.add_suppression('Duplicate entry .* for key');
 CALL mtr.add_suppression('A replica with the same server_uuid/server_id as this replica has connected to the source');
@@ -32,67 +32,67 @@ CALL mtr.add_suppression('The replica coordinator and worker threads are stopped
 --echo #
 
 --let $rpl_channel_name= ''
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name= 'ch1'
---source include/start_slave.inc
---source include/check_slave_is_running.inc
---source include/check_slave_no_error.inc
---source include/stop_slave.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/assert_replica_running.inc
+--source include/rpl/assert_replica_no_error.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name= ''
---source include/start_slave.inc
---source include/check_slave_is_running.inc
---source include/check_slave_no_error.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/assert_replica_running.inc
+--source include/rpl/assert_replica_no_error.inc
 
---source include/stop_slave_io.inc
---source include/stop_slave_sql.inc
+--source include/rpl/stop_receiver.inc
+--source include/rpl/stop_applier.inc
 --let $rpl_channel_name= 'ch1'
---source include/start_slave_io.inc
---source include/start_slave_sql.inc
---source include/stop_slave_io.inc
---source include/stop_slave_sql.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/stop_receiver.inc
+--source include/rpl/stop_applier.inc
 --let $rpl_channel_name= ''
---source include/start_slave_io.inc
---source include/start_slave_sql.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/start_applier.inc
 
 --echo #
 --echo # Sync slave
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
 --let $rpl_channel_name= ''
---source include/sync_slave_io_with_master.inc
---source include/sync_slave_sql_with_io.inc
+--source include/rpl/sync_to_replica_received.inc
+--source include/rpl/sync_with_recieved.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES (1);
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_io.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_receiver.inc
 
 --let $rpl_channel_name= 'ch1'
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES (2);
---source include/sync_slave_io_with_master.inc
---source include/sync_slave_sql_with_io.inc
+--source include/rpl/sync_to_replica_received.inc
+--source include/rpl/sync_with_recieved.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES (3);
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_channel_name= ''
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo #
 --echo # Show relaylog events
 --echo #
 
 --let $rpl_channel_name= ''
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 --let $rpl_channel_name= 'ch1'
 --let $binlog_limit= 3
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 
 --echo #
 --echo # Wait for error and skip
@@ -100,36 +100,36 @@ INSERT INTO t1 VALUES (3);
 
 --let $rpl_channel_name= ''
 INSERT INTO t1 VALUES (4);
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES (4);
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --let $rpl_channel_name= 'ch1'
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 --let $rpl_channel_name= ''
 # The default channel will be disconnected from master by ch1
 --let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 START REPLICA SQL_THREAD FOR CHANNEL 'ch1';
 --let $rpl_channel_name= 'ch1'
 --let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --let $rpl_channel_name= ''
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 --let $rpl_channel_name= 'ch1'
 # The ch1 channel will be disconnected from master by the default
 --let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 DELETE FROM t1 WHERE c1 = 4;
 --let $rpl_channel_name= ''
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --let $rpl_channel_name= 'ch1'
---source include/rpl_skip_to_end_of_relay_log.inc
---source include/stop_slave.inc
+--source include/rpl/skip_to_end_of_relay_log.inc
+--source include/rpl/stop_replica.inc
 
 --echo #
 --echo # Cleanup
@@ -139,7 +139,7 @@ DELETE FROM t1 WHERE c1 = 4;
 --let $binlog_limit=
 RESET REPLICA ALL FOR CHANNEL 'ch1';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

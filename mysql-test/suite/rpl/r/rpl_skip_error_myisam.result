@@ -1,9 +1,9 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ==== Using MyIsam ====
 SET SQL_LOG_BIN=0;
 CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
@@ -31,11 +31,11 @@ SET SQL_LOG_BIN=0;
 DELETE FROM t2 WHERE id = 5;
 SET SQL_LOG_BIN=1;
 UPDATE t2 SET id= id + 3, data = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 **** We cannot execute a select as there are differences in the 
 **** behavior between STMT and RBR.
 ==== Clean Up ====
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

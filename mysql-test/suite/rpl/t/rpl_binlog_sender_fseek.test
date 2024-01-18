@@ -31,8 +31,8 @@
 # This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
---source include/stop_dump_threads.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/stop_dump_threads.inc
 
 ##################################################
 # Some variable to help calculating the workload #
@@ -99,13 +99,13 @@ while ($counter)
 TRUNCATE performance_schema.file_summary_by_event_name;
 
 # Sync slave I/O thread
---source include/rpl_connection_slave.inc
---source include/start_slave_io.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # Check the COUNT_MISC counter
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # In a first run, the counter tops 6 without GTIDs, and tops 9 when GTIDs are
 # enabled, because of the process of searching the binary log file that
 # contains the first GTID not yet retrieved/executed by the slave.
@@ -124,8 +124,8 @@ if ($use_gtids)
 --source include/assert.inc
 
 # Cleanup
---source include/rpl_connection_slave.inc
---source include/start_slave_sql.inc
---source include/rpl_connection_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

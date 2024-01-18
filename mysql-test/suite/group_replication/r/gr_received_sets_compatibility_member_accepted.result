@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/assert.inc [Server 2 has 1 transaction belonging to the group]
 [connection server3]
@@ -24,7 +24,7 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 [connection server1]
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Server 3 has 3 transaction belonging to the group]
 include/stop_group_replication.inc
 #

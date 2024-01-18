@@ -34,26 +34,26 @@
 
 --source include/have_binlog_format_statement.inc
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Disable GTID auto positioning
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT) ENGINE= InnoDB;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # We stop the SQL thread as we don't want it to apply the transaction to be
 # replicated before the recovery
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 
 --let $debug_point= stop_io_after_reading_query_log_event
 --source include/add_debug_point.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $inserts= 3
 --let $counter= 0
 # This transaction should be spanned on every query log event:
@@ -69,14 +69,14 @@ COMMIT;
 --eval INSERT INTO t1 VALUES ($counter + 1)
 
 # We now span the transaction along distinct relay log files
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $restarts= $inserts
 # The amount of restarts is the amount of INSERT + 1 (BEGIN)
 --inc $restarts
 while ($restarts > 0)
 {
   # Waiting for replica IO thread to stop
-  --source include/wait_for_slave_io_to_stop.inc
+  --source include/rpl/wait_for_receiver_to_stop.inc
   --dec $restarts
   # At this point, the Retrieved_Gtid_Set should have only one GTID
   --let $retrieved_gtids= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
@@ -88,13 +88,13 @@ while ($restarts > 0)
   {
     --source include/remove_debug_point.inc
   }
-  # We should not use "start_slave_io.inc" here because the IO thread
+  # We should not use "start_receiver.inc" here because the IO thread
   # will stop just a few events after starting.
   START REPLICA IO_THREAD;
 }
 
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # At this point, the Retrieved_Gtid_Set should have three GTIDs
 # One for the CREATE TABLE, one for the transaction with the split
@@ -107,8 +107,8 @@ while ($restarts > 0)
 # Restart the slave to verify the spanned transaction
 --let $rpl_server_number= 2
 --let $rpl_force_stop= 0
---source include/rpl_stop_server.inc
---source include/rpl_start_server.inc
+--source include/rpl/stop_server.inc
+--source include/rpl/start_server.inc
 
 # As we restarted the whole slave server with the spanned transaction fully
 # replicated but without any additional relay log rotation, there is no
@@ -116,9 +116,9 @@ while ($restarts > 0)
 # spanned transaction was retrieved. The slave will have to scan this info
 # during the relay log recovery.
 
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 # At this point, the Retrieved_Gtid_Set should have three GTIDs
 --let $retrieved_gtids= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
 --let $assert_text= Exactly two GTIDs should have been retrieved from master after restarting
@@ -126,7 +126,7 @@ while ($restarts > 0)
 --source include/assert.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

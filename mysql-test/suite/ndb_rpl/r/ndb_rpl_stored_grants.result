@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->3]
+include/rpl/init.inc [topology=1->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -28,13 +28,13 @@ pk	a
 SHOW VARIABLES LIKE 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	OFF
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 
 [Test 1D: Server D binlog events]
 **   Expect 4 Query events: 1 CREATE USER + 3 GRANTs.
 **   These must have server_id = 1.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	#	Query	1	#	CREATE USER 'ndb_u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 #	#	Query	1	#	GRANT USAGE ON *.* TO 'ndb_u1'@'localhost'
@@ -129,4 +129,4 @@ drop table t1;
 drop database auth_test_db;
 drop user local_user_2@b;
 FLUSH BINARY LOGS;
-include/rpl_end.inc
+include/rpl/deinit.inc

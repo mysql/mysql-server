@@ -34,7 +34,7 @@
 --source include/have_debug_sync.inc
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $mts_spco_save_gtid_executed =
 --let $mts_spco_check_gtid_executed_before_rollback = 0
@@ -54,4 +54,4 @@
 --let $mts_spco_end_statement = DROP TABLE t1; DROP TABLE t2;
 --let $mts_spco_cleanup_statement = 1
 
---source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc

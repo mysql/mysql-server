@@ -16,7 +16,7 @@
 #               CAUSES A TRX TO LOG WITH A DIFFERENT GTID
 #
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # Test should run only on debug build
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
@@ -33,13 +33,13 @@ source include/have_debug_sync.inc;
 # the Gtid_log_event. Because auto positioning is disabled, the IO thread
 # will not ask the Gtid_log_event again.
 #
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 # Disabling auto positioning
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 # Make sync includes to rely on position instead of GTIDs
 --let $use_gtids= 0
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 # Setting the debug point to stop IO thread after queuing Gtid_log_event
 SET @save_debug=@@global.debug;
@@ -47,38 +47,38 @@ SET GLOBAL DEBUG='+d,stop_io_after_reading_gtid_log_event';
 
 --echo # Create a transaction on the master
 --echo # that will have it's GTID and other events in separated relay log files
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 
 # Wait for IO thread to stop and restarts it to get the rest of the transaction
---source include/rpl_connection_slave.inc
---source include/wait_for_slave_io_to_stop.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/wait_for_receiver_to_stop.inc
 SET GLOBAL DEBUG=@save_debug;
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 --echo # Create other transaction on the master
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 --echo # Restart the SQL thread until the beginning of the last relay log file
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Disable warnings to avoid logging "UNTIL condtion is not supported ..." on MTS
 --disable_warnings
 START REPLICA SQL_THREAD UNTIL
   RELAY_LOG_FILE= 'slave-relay-bin.000003',
   RELAY_LOG_POS= 4;
 --enable_warnings
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --echo # Restart the SQL thread
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 # If t1 was replicated to the slave and it's original GTID was skipped
-# this test will fail in the rpl_end.inc because the GTID_EXECUTED of the
+# this test will fail in the rpl/deinit.inc because the GTID_EXECUTED of the
 # master contains a GTID that was sent to the slave (it is in
 # Retrieved_Gtid_Set), but wasn't applied by the SQL thread.
 --let $assert_cond= "[SHOW TABLES LIKE "t1"]" = "t1"
@@ -86,8 +86,8 @@ START REPLICA SQL_THREAD UNTIL
 --source include/assert.inc
 
 --echo # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2;
-# Make rpl_end.inc to verify GTID_EXECUTED
+# Make rpl/deinit.inc to verify GTID_EXECUTED
 --let $use_gtids= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -36,10 +36,10 @@ select * from t1;
 
 --echo # Verify that the replication API is working properly.
 --echo # The binlog should have the insert event.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 PURGE BINARY LOGS TO 'binlog.000002';
---source include/wait_for_ndb_committed_to_binlog.inc
---source include/show_binlog_events.inc
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Cleanup
 drop table t1;

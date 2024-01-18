@@ -15,16 +15,16 @@
 
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Create the table, sync slave and lock the table on the slave
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 LOCK TABLES t1 READ, performance_schema.threads READ;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 (c1) VALUES (1);
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 --echo # check that a worker thread is waiting using the thread id
 --echo # given as index by the table replication_applier_status_by_worker
@@ -54,6 +54,6 @@ SELECT COUNT(*) = $num_workers
 
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

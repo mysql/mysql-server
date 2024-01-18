@@ -30,7 +30,7 @@
 #     Do not print table names to result log.
 #
 #   $rpl_debug
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 #
 #
 # ==== Side effects ====
@@ -109,7 +109,7 @@ while ($_dt_tables)
     --let $_dt_connection= `SELECT SUBSTRING('$_dt_table', 1, $_dt_colon_index - 1)`
     --let $_dt_table= `SELECT SUBSTRING('$_dt_table', $_dt_colon_index + 1)`
     --let $rpl_connection_name= $_dt_connection
-    --source include/rpl_connection.inc
+    --source include/connection.inc
   }
 
   # Parse database name, if any

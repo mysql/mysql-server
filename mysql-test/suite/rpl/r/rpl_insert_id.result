@@ -8,7 +8,7 @@ SET @@GLOBAL.concurrent_insert = 0;
 #
 # We also check how the foreign_key_check variable is replicated
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,7 +20,7 @@ create table t2(b int auto_increment, c int, key(b)) engine=myisam;
 insert into t1 values (1),(2),(3);
 insert into t1 values (null);
 insert into t2 values (null,last_insert_id());
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 ORDER BY a;
 a
 1
@@ -40,7 +40,7 @@ insert into t1 values (null),(null),(null);
 insert into t2 values (5,0);
 insert into t2 values (null,last_insert_id());
 SET FOREIGN_KEY_CHECKS=1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 ORDER BY a;
 a
 10
@@ -69,7 +69,7 @@ b	c
 7	11
 8	12
 9	13
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 ORDER BY a;
 a
 10
@@ -85,7 +85,7 @@ b	c
 9	13
 drop table t1;
 drop table t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Bug#8412: Error codes reported in binary log for CHARACTER SET,
 #           FOREIGN_KEY_CHECKS
@@ -95,9 +95,9 @@ CREATE TABLE t1 ( a INT UNIQUE ) engine=myisam;
 SET FOREIGN_KEY_CHECKS=0;
 INSERT INTO t1 VALUES (1),(1);
 Got one of the listed errors
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Bug#14553: NULL in WHERE resets LAST_INSERT_ID
 #
@@ -111,7 +111,7 @@ select * from t2 ORDER BY a;
 a
 1
 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t2 ORDER by a;
 a
 1
@@ -195,7 +195,7 @@ id	last_id
 1	3
 2	4
 3	5
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 ORDER BY last_id;
 id	last_id
 1	0
@@ -229,7 +229,7 @@ insert into t1 values(null,100);
 select * from t1 order by n;
 n	b
 1	100
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 insert into t1 values(null,200),(null,300);
 delete from t1 where b <> 100;
 select * from t1 order by n;
@@ -240,7 +240,7 @@ select * from t1 order by n;
 n	b
 2	100
 3	350
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 order by n;
 n	b
 2	100
@@ -252,7 +252,7 @@ n	b
 4	400
 5	600
 1000	350
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 order by n;
 n	b
 2	100
@@ -266,7 +266,7 @@ insert into t1 values(null,100);
 select * from t1 order by n;
 n	b
 1	100
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 insert into t1 values(null,200),(null,300);
 delete from t1 where b <> 100;
 select * from t1 order by n;
@@ -277,13 +277,13 @@ select * from t1 order by n;
 n	b
 2	100
 3	350
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 order by n;
 n	b
 2	100
 3	350
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
 UNIQUE(b)) ENGINE=myisam;
 INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
@@ -291,7 +291,7 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 1	10
 2	2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	10
@@ -339,7 +339,7 @@ id	field_1	field_2	field_3
 4	4	d	4d
 5	5	e	5e
 6	6	f	6f
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY id;
 id	field_1	field_2	field_3
 1	1	a	1a
@@ -376,7 +376,7 @@ id	last_id
 SELECT * FROM t2 ORDER BY id;
 id	last_id
 1	0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY id;
 id	last_id
 0	1
@@ -458,7 +458,7 @@ i
 5
 6
 16
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY i;
 i	j
 1	-1
@@ -490,7 +490,7 @@ DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
 DROP TABLE t1, t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # End of 5.0 tests
 #
@@ -525,7 +525,7 @@ select * from t2 order by id;
 id	last_id
 4	0
 8	0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 order by id;
 id
 0
@@ -552,7 +552,7 @@ n	b
 select * from t2 order by id;
 id	last_id
 1	3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 order by n;
 n	b
 1	10
@@ -563,5 +563,5 @@ drop table t1, t2;
 drop procedure foo;
 SET @@global.concurrent_insert= @old_concurrent_insert;
 set @@session.sql_auto_is_null=default;
-include/rpl_end.inc
+include/rpl/deinit.inc
 SET @@GLOBAL.concurrent_insert = SAVED_CONCURRENT_INSERT;

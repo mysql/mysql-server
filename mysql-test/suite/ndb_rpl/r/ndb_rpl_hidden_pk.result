@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -24,10 +24,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1 (a INT, b INT) engine = NDB;
 INSERT INTO t1 VALUES (1, 1);
 UPDATE t1 SET a=NULL where b=1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 2) This tests show that applying changes to table with hidden pk
 # ignore error(s) from previously defined changes (in the same epoch
@@ -42,7 +42,7 @@ INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
 INSERT INTO t2_hidden_pk VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
 INSERT INTO t3_hidden_pk_unique VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
 INSERT INTO t4_hidden_pk_index VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 ## Delete rows on replica to make it possible to change something
 ## on the source that would then fail when applied on the replica.
@@ -58,7 +58,7 @@ BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
 UPDATE t1 SET b = 10 WHERE a = 1;
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ## Case 2, hidden pk table
 ## - update row that does not exist on replica
 ## - update hidden pk table -> uses scan
@@ -67,7 +67,7 @@ BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
 UPDATE t2_hidden_pk SET b = 10 WHERE a = 1;
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ## Case 3, hidden pk table with unique index
 ## - update row that does not exist on replica
 ## - update hidden pk table with unique index -> uses index scan
@@ -76,7 +76,7 @@ BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
 UPDATE t3_hidden_pk_unique SET a = 30 WHERE b < 3;
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ## Case 4, hidden pk table with index
 ## - update row that does not exist on replica
 ## - update hidden pk table with index -> uses index scan
@@ -85,9 +85,9 @@ BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
 UPDATE t4_hidden_pk_index SET a = 40 WHERE b < 4;
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Cleanup
 [connection master]
 DROP TABLE t1, t2_hidden_pk, t3_hidden_pk_unique, t4_hidden_pk_index;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

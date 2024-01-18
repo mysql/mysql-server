@@ -25,7 +25,7 @@
 --echo # 1. Set up source server_1 with server_2 being a replica.
 --let $rpl_multi_source= 1
 --let $rpl_topology= 1->2
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --connect(server_3,127.0.0.1,root,,test,$SERVER_MYPORT_3,)
 --connect(server_3_1,127.0.0.1,root,,test,$SERVER_MYPORT_3,)
@@ -34,12 +34,12 @@
 --echo # 2. Create a table for testing
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= 'channel_1'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 3. Configure ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL on server 2
@@ -49,39 +49,39 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo #    Configure server 3 to invoke clone
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_set_enforce_gtid_consistency= 1
 --let $rpl_gtid_mode= ON
 --let $rpl_server_numbers= 2
 --let $rpl_skip_sync= 1
---source include/rpl_set_gtid_mode.inc
---source include/stop_slave.inc
+--source include/rpl/set_gtid_mode.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL for channel 'channel_1';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES(10);
 
 --let $sync_slave_connection= server_2
 
 # Check the genereted gtid event to verify the UUID in use is that of local server.
 --let $rpl_channel_name= 'channel_1'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let server_2_uuid = `SELECT @@GLOBAL.SERVER_UUID`
 --let $gtid_step_count= 1
 --let $gtid_step_uuid = $server_2_uuid
 --let $gtid_step_only_count = 1
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Make server 3 run with mysqld_safe
 
@@ -105,7 +105,7 @@ INSERT INTO t1 VALUES(10);
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo #
 --echo # Verify the UUID being used for converting Gtid event from
@@ -119,17 +119,17 @@ INSERT INTO t1 VALUES(10);
 --let $rpl_gtid_mode= ON
 --let $rpl_server_numbers= 3
 --let $rpl_skip_sync= 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1);
 
 --let $sync_slave_connection= server_3
 --let $rpl_channel_name= 'channel_1'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Verifying the UUID generated for the Gtid_events
 
 USE test;
@@ -137,12 +137,12 @@ USE test;
 --let $gtid_step_count= 1
 --let $gtid_step_uuid = $server_local_uuid
 --let $gtid_step_only_count = 1
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
 # Verifying that the UUID of server_2 has not been used
 --let $gtid_step_count= 0
 --let $gtid_step_uuid = $server_2_uuid
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
 --let $server_1_data = `SELECT COUNT(*) FROM test.t1`
 --let $assert_text= All info from server 1 is present
@@ -165,25 +165,25 @@ USE test;
 --echo # 8. Cleanup
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 
 --let $sync_slave_connection= server_3
 --let $rpl_channel_name= 'channel_1'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= 'channel_1'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # reset the gtid value to off
 #
@@ -193,15 +193,15 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF for ch
 --let $rpl_gtid_mode= OFF
 --let $rpl_server_numbers= 2
 --let $rpl_skip_sync= 1
---source include/rpl_set_gtid_mode.inc
---source include/start_slave.inc
+--source include/rpl/set_gtid_mode.inc
+--source include/rpl/start_replica.inc
 
 UNINSTALL PLUGIN clone;
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF for channel 'channel_1';
 
@@ -209,8 +209,8 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF for ch
 --let $rpl_gtid_mode= OFF
 --let $rpl_server_numbers= 3
 --let $rpl_skip_sync= 1
---source include/rpl_set_gtid_mode.inc
---source include/start_slave.inc
+--source include/rpl/set_gtid_mode.inc
+--source include/rpl/start_replica.inc
 UNINSTALL PLUGIN clone;
 
 --source include/clean_monitoring_process.inc
@@ -219,7 +219,7 @@ UNINSTALL PLUGIN clone;
 --disable_warnings
 
 --let $rpl_channel_name=
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --enable_warnings
 
@@ -238,8 +238,8 @@ CALL mtr.add_suppression(".*Failed to initialize the connection metadata structu
 CALL mtr.add_suppression("Error reading relay log configuration");
 
 set session sql_log_bin=1;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 
 --let $rpl_skip_sync= 1
 --let $rpl_skip_delete_channels = 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

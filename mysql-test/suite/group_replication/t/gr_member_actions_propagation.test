@@ -23,7 +23,7 @@
 --echo # 1. Start a group in single-primary mode with two members.
 --echo #    The primary is server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_member_actions_propagation
@@ -34,7 +34,7 @@
 --source include/assert_grep.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_member_actions_propagation
@@ -50,7 +50,7 @@
 --echo # 2. Disable the action `mysql_disable_super_read_only_if_primary`
 --echo #    on the primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
 
@@ -68,7 +68,7 @@ SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if
 --echo # 3. server2 will receive the member actions configuration
 --echo #    from the primary.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version WHERE name="replication_group_member_actions" AND version=2;
 --source include/wait_condition.inc

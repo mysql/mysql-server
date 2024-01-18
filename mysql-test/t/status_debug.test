@@ -3,7 +3,7 @@
 
 # Skipping the test when binlog_format=STATEMENT due to unsafe statements:
 # unsafe operation on auto-increment column, and performance_schema table.
---source include/not_binlog_format_statement.inc
+--source include/rpl/deprecated/not_binlog_format_statement.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc

@@ -10,7 +10,7 @@
 # shouldn't be affected to replicated data.
 #############################################################
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --echo
 
 #
@@ -44,7 +44,7 @@ while ($counter) {
 --replace_result $row_count ROW_COUNT
 --eval SELECT COUNT(*)=$row_count FROM t1
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $row_count ROW_COUNT
 --eval SELECT COUNT(*)=$row_count FROM t1 WHERE b='master' GROUP BY b ORDER BY b
 # Truncate the table so that the slaves max_heap_table_size value takes effect on
@@ -98,7 +98,7 @@ SET @@session.default_storage_engine=Memory;
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10));
 CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=InnoDB;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 CREATE TABLE t3 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10));
 
 --connection master
@@ -137,7 +137,7 @@ CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c DATE);
 INSERT INTO t1 VALUES (1, 'master', '0000-00-00');
 SELECT * FROM t1 ORDER BY a;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --error 1292
 INSERT INTO t1 VALUES (1, 'slave', '0000-00-00');
 SELECT * FROM t1 ORDER BY a;
@@ -154,7 +154,7 @@ DROP TABLE t1;
 # Clean up
 --echo *** clean up ***
 SET @@global.default_storage_engine=@restore_master_storage_engine;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET @@global.max_heap_table_size=@restore_slave_max_heap_table_size;
 SET @@global.default_storage_engine=@restore_slave_storage_engine;
 
@@ -164,4 +164,4 @@ SET @@global.default_storage_engine=@restore_slave_storage_engine;
 call mtr.add_suppression("The table 't[12]' is full");
 
 # End of 5.1 test 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

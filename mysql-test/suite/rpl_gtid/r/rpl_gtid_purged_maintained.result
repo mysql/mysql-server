@@ -1,25 +1,25 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ######## Initialize ########
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ######## corruption_mode = 1 of 2 ########
 Phase one: Generating logs
-include/rpl_reset.inc
+include/rpl/reset.inc
 ======== restart_i = 1 of 2 ========
-include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on parameters: --debug=d,skip_writing_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=1 gtids=on parameters: --debug=d,skip_writing_previous_gtids_log_event]
+include/rpl/restart_server.inc [server_number=1 gtids=on]
+include/rpl/start_replica.inc
 -------- flush_i = 1 of 2 --------
 FLUSH LOGS;
 INSERT INTO t1 VALUES (1);
 FLUSH LOGS;
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [no gtids lost yet on slave]
 include/assert.inc [committed gno 1 on slave]
 [on master]
@@ -31,23 +31,23 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 FLUSH LOGS;
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [no gtids lost yet on slave]
 include/assert.inc [committed gno 3 on slave]
 [on master]
 include/assert.inc [no gtids lost yet on master]
 include/assert.inc [committed gno 3 on master]
 ======== restart_i = 2 of 2 ========
-include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on parameters: --debug=d,skip_writing_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=1 gtids=on parameters: --debug=d,skip_writing_previous_gtids_log_event]
+include/rpl/restart_server.inc [server_number=1 gtids=on]
+include/rpl/start_replica.inc
 -------- flush_i = 1 of 2 --------
 FLUSH LOGS;
 INSERT INTO t1 VALUES (4);
 FLUSH LOGS;
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [no gtids lost yet on slave]
 include/assert.inc [committed gno 4 on slave]
 [on master]
@@ -59,60 +59,60 @@ INSERT INTO t1 VALUES (5);
 INSERT INTO t1 VALUES (6);
 FLUSH LOGS;
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [no gtids lost yet on slave]
 include/assert.inc [committed gno 6 on slave]
 [on master]
 include/assert.inc [no gtids lost yet on master]
 include/assert.inc [committed gno 6 on master]
 FLUSH LOGS;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ######## corruption_mode = 1 ########
 Phase two: Purging logs
 ======== restart_i = 1 of 2 ========
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 0 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 0 on master]
 -------- flush_i = 1 of 2 --------
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 0 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 1 on master]
 -------- flush_i = 2 of 2 --------
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 1 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 3 on master]
 ======== restart_i = 2 of 2 ========
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 3 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 3 on master]
 -------- flush_i = 1 of 2 --------
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 3 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 4 on master]
 -------- flush_i = 2 of 2 --------
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 4 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 6 on master]
 ######## corruption_mode = 2 of 2 ########
 Phase one: Generating logs
-include/rpl_reset.inc
+include/rpl/reset.inc
 ======== restart_i = 1 of 2 ========
-include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=1 gtids=on]
+include/rpl/restart_server.inc [server_number=1 gtids=on]
+include/rpl/start_replica.inc
 -------- flush_i = 1 of 2 --------
 FLUSH LOGS;
 INSERT INTO t1 VALUES (1);
 FLUSH LOGS;
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [no gtids lost yet on slave]
 include/assert.inc [committed gno 1 on slave]
 [on master]
@@ -124,23 +124,23 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 FLUSH LOGS;
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [no gtids lost yet on slave]
 include/assert.inc [committed gno 3 on slave]
 [on master]
 include/assert.inc [no gtids lost yet on master]
 include/assert.inc [committed gno 3 on master]
 ======== restart_i = 2 of 2 ========
-include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=1 gtids=on]
+include/rpl/restart_server.inc [server_number=1 gtids=on]
+include/rpl/start_replica.inc
 -------- flush_i = 1 of 2 --------
 FLUSH LOGS;
 INSERT INTO t1 VALUES (4);
 FLUSH LOGS;
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [no gtids lost yet on slave]
 include/assert.inc [committed gno 4 on slave]
 [on master]
@@ -152,46 +152,46 @@ INSERT INTO t1 VALUES (5);
 INSERT INTO t1 VALUES (6);
 FLUSH LOGS;
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [no gtids lost yet on slave]
 include/assert.inc [committed gno 6 on slave]
 [on master]
 include/assert.inc [no gtids lost yet on master]
 include/assert.inc [committed gno 6 on master]
 FLUSH LOGS;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ######## corruption_mode = 2 ########
 Phase two: Purging logs
 ======== restart_i = 1 of 2 ========
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 0 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 0 on master]
 -------- flush_i = 1 of 2 --------
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 0 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 1 on master]
 -------- flush_i = 2 of 2 --------
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 1 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 3 on master]
 ======== restart_i = 2 of 2 ========
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 3 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 3 on master]
 -------- flush_i = 1 of 2 --------
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 3 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 4 on master]
 -------- flush_i = 2 of 2 --------
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 4 on master]
-include/purge_first_log.inc
+include/rpl/purge_first_binlog.inc
 include/assert.inc [lost gtids from 1 to 6 on master]
 ######## Clean up ########
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

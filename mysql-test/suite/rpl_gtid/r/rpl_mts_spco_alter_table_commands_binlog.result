@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -16,13 +16,13 @@ Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers= 8;
 SET GLOBAL replica_preserve_commit_order= ON;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master1]
 CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE commands (a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100));
 LOAD DATA INFILE '../../std_data/alter_table.csv' INTO TABLE commands(b);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for CREATE TABLE ti1(a INT NOT NULL, b INT, c INT) engine=InnoDB;
 
@@ -59,7 +59,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for CREATE TABLE ti2(a INT PRIMARY KEY AUTO_INCREMENT, b INT, c INT) engine=InnoDB;
 
@@ -96,7 +96,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for INSERT INTO ti1 VALUES (1,1,1), (2,2,2);
 
@@ -133,7 +133,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for INSERT INTO ti2 VALUES (1,1,1), (2,2,2);
 
@@ -170,7 +170,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for CREATE TABLE talter (a int AUTO_INCREMENT PRIMARY KEY);
 
@@ -207,7 +207,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for CREATE TABLE tgeom (a VARCHAR(20));
 
@@ -244,7 +244,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for INSERT INTO talter VALUES (1),(2),(3);
 
@@ -281,7 +281,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1;
 
@@ -318,7 +318,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 AUTO_INCREMENT=10;
 
@@ -355,7 +355,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ADD COLUMN d VARCHAR(200);
 
@@ -392,7 +392,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ADD COLUMN d2 VARCHAR(200);
 
@@ -429,7 +429,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ADD COLUMN e ENUM ("a","b");
 
@@ -466,7 +466,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ADD COLUMN f INT AFTER a;
 
@@ -503,7 +503,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ADD INDEX ii1(b);
 
@@ -540,7 +540,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ADD UNIQUE INDEX ii2 (c);
 
@@ -577,7 +577,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ADD FULLTEXT INDEX ii3 (d);
 
@@ -616,7 +616,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ADD FULLTEXT INDEX ii4 (d2);
 
@@ -653,7 +653,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ADD PRIMARY KEY(a);
 
@@ -690,7 +690,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 DROP INDEX ii3;
 
@@ -727,7 +727,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 DROP COLUMN d2;
 
@@ -764,7 +764,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ADD CONSTRAINT fi1 FOREIGN KEY (b) REFERENCES ti2(a);
 
@@ -801,7 +801,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ALTER COLUMN b SET DEFAULT 1;
 
@@ -838,7 +838,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ALTER COLUMN b DROP DEFAULT;
 
@@ -875,7 +875,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 CHANGE COLUMN f g INT;
 
@@ -912,7 +912,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 CHANGE COLUMN g h VARCHAR(20);
 
@@ -949,7 +949,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 MODIFY COLUMN e ENUM ("a","b","c");
 
@@ -986,7 +986,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 MODIFY COLUMN e INT;
 
@@ -1023,7 +1023,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 MODIFY COLUMN e INT AFTER h;
 
@@ -1060,7 +1060,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 MODIFY COLUMN e INT FIRST;
 
@@ -1097,7 +1097,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 MODIFY COLUMN c INT NOT NULL;
 
@@ -1134,7 +1134,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 MODIFY COLUMN c INT NULL;
 
@@ -1171,7 +1171,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 MODIFY COLUMN h VARCHAR(30);
 
@@ -1208,7 +1208,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 MODIFY COLUMN h VARCHAR(30) AFTER d;
 
@@ -1245,7 +1245,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 DROP COLUMN h;
 
@@ -1282,7 +1282,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 DROP INDEX ii2;
 
@@ -1319,7 +1319,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 DROP PRIMARY KEY;
 
@@ -1356,7 +1356,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 DROP FOREIGN KEY fi1;
 
@@ -1393,7 +1393,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 RENAME TO ti3;
 
@@ -1430,7 +1430,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti3 RENAME TO ti1;
 
@@ -1467,7 +1467,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 ORDER BY b;
 
@@ -1504,7 +1504,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 CONVERT TO CHARACTER SET utf16;
 
@@ -1541,7 +1541,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 DEFAULT CHARACTER SET utf8;
 
@@ -1580,7 +1580,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 FORCE;
 
@@ -1617,7 +1617,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 AUTO_INCREMENT 3;
 
@@ -1654,7 +1654,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 AVG_ROW_LENGTH 10;
 
@@ -1691,7 +1691,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 CHECKSUM 1;
 
@@ -1728,7 +1728,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 COMMENT = "test";
 
@@ -1765,7 +1765,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 MAX_ROWS 100;
 
@@ -1802,7 +1802,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 MIN_ROWS 1;
 
@@ -1839,7 +1839,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE ti1 PACK_KEYS 1;
 
@@ -1876,7 +1876,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter ADD COLUMN c1 INT, ADD COLUMN c2 FLOAT GENERATED ALWAYS AS ((1.4 * 2.8)) VIRTUAL;
 
@@ -1913,7 +1913,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter ADD KEY(c1);
 
@@ -1950,7 +1950,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter disable keys;
 
@@ -1989,7 +1989,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter enable keys;
 
@@ -2028,7 +2028,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter RENAME COLUMN a TO aa;
 
@@ -2065,7 +2065,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter RENAME COLUMN aa TO aaa, ALGORITHM=COPY;
 
@@ -2102,7 +2102,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter RENAME COLUMN aaa TO a, ALGORITHM=INPLACE;
 
@@ -2139,7 +2139,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter ADD INDEX id1 USING BTREE (a);
 
@@ -2176,7 +2176,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter RENAME INDEX id1 to id11;
 
@@ -2213,7 +2213,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter RENAME KEY id11 to id1;
 
@@ -2250,7 +2250,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter key_block_size=16;
 
@@ -2287,7 +2287,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter ALTER INDEX id1 INVISIBLE;
 
@@ -2324,7 +2324,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE talter ALTER INDEX id1 VISIBLE;
 
@@ -2361,7 +2361,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for ALTER TABLE tgeom ADD b GEOMETRY NOT NULL SRID 0, ADD SPATIAL INDEX(b);
 
@@ -2398,7 +2398,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for DROP TABLE talter,tgeom;
 
@@ -2435,7 +2435,7 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Check for DROP TABLE ti1,ti2;
 
@@ -2472,18 +2472,18 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 [connection slave]
 ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Cleanup
 
 [connection master1]
 DROP TABLE t1,t2,commands;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
 SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

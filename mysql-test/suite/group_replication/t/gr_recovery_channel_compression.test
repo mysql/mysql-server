@@ -18,7 +18,7 @@
 --echo ############################################################
 --echo # 1. Create a table on the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 --let $saved_gr_recovery_compression_algorithm = `SELECT @@GLOBAL.group_replication_recovery_compression_algorithms;`
 --let $saved_gr_recovery_compression_level = `SELECT @@GLOBAL.group_replication_recovery_zstd_compression_level;`
@@ -34,14 +34,14 @@ call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave ope
 SET SESSION sql_log_bin= 1;
 
 CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
 --echo ############################################################
 --echo # 2. Test invalid algorithm and level values.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_WRONG_TYPE_FOR_VAR
 SET @@GLOBAL.group_replication_recovery_compression_algorithms= 1;
@@ -69,7 +69,7 @@ SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 1.0;
 --echo ############################################################
 --echo # 3. Test invalid algorithm and level combinations.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.group_replication_recovery_compression_algorithms= "zlib";
 --error ER_WRONG_VALUE_FOR_VAR
@@ -93,7 +93,7 @@ SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 23;
 --echo ############################################################
 --echo # 4. Test valid algorithm and level combinations.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.group_replication_recovery_compression_algorithms= DEFAULT;
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= DEFAULT;
@@ -136,7 +136,7 @@ SET @@GLOBAL.group_replication_recovery_zstd_compression_level= 22;
 --echo ############################################################
 --echo # 6. Clean up.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --disable_query_log

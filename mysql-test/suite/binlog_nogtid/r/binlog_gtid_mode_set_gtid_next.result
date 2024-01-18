@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=none]
+include/rpl/init.inc [topology=none]
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 ==== GTID_MODE = OFF ====
 ---- Old value is AUTOMATIC or ANONYMOUS ----
@@ -249,4 +249,4 @@ SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -3,26 +3,26 @@
 #
 --source include/force_restart.inc
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/connection_replica.inc
 
 # Test starts here
---source include/rpl_reset.inc
---source include/rpl_connection_master.inc
+--source include/rpl/reset.inc
+--source include/rpl/connection_source.inc
 --let $prefix= `SELECT UUID()`
 --let $slave_error_log= $MYSQLTEST_VARDIR/tmp/$prefix.err
 
 CREATE TABLE t1 (c1 INT);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression("Recovery from source pos");
 
 # stop the slave applier thread
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 
 --let $relay_log= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (1);
 
@@ -30,7 +30,7 @@ INSERT INTO t1 VALUES (1);
 
 # make sure that the slave copies everything, but does not apply
 # this last insert statement
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # Verify that the positions are the ones we expect at this
 # point in time (read all the binary log, applied just the
@@ -61,7 +61,7 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_server_parameters= --relay-log-recovery=1 --skip-replica-start --log_error=$slave_error_log --no-console
 --let $rpl_omit_print_server_parameters= 1
 --echo Omitting server parameters, since there is a path in one of them.
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $exec_source_log_pos_restart= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
 --let $read_source_log_pos_restart= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1)
@@ -93,15 +93,15 @@ INSERT INTO t1 VALUES (1);
 
 --replace_result $relay_log_pos RELAY_LOG_POS $relay_log SLAVE_RELAY_LOG_FILE_NAME
 --eval CHANGE REPLICATION SOURCE TO Relay_log_pos= $relay_log_pos, Relay_log_file='$relay_log'
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 --let $wait_condition= SELECT COUNT(*)=1 FROM t1
 --source include/wait_condition.inc
 
---source include/start_slave_io.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

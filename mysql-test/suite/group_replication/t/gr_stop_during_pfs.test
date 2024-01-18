@@ -25,7 +25,7 @@
 --echo # Set the necessary debug points required for the simulation.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 
@@ -39,7 +39,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 --echo # Wait for STOP GR to reach the debug sync point.
 --echo #
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
 
 --echo #
@@ -47,7 +47,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
 --echo # "get_group_member_stats()" function.
 --echo #
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_get_group_member_stats';
 --send SELECT * FROM performance_schema.replication_group_member_stats
 
@@ -56,13 +56,13 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_get_group_member_stats';
 --echo # signalling it.
 --echo #
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.reached_get_group_member_stats";
 SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
 
 # Reap the STOP GR query.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --echo #
@@ -73,7 +73,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.resume_get_group_member_stats";
 # Reap the PS query.
 --disable_result_log
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 --enable_result_log
 
@@ -81,7 +81,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.resume_get_group_member_stats";
 --echo # Verify that MEMBER_STATE is OFFLINE on server_1.
 --echo #
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= Verified that MEMBER_STATE is OFFLINE on server_1
 --let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members, MEMBER_STATE, 1]" = "OFFLINE"
 --source include/assert.inc
@@ -90,14 +90,14 @@ SET DEBUG_SYNC= "now SIGNAL signal.resume_get_group_member_stats";
 --echo # Verify that MEMBER_STATE is ONLINE on server_2.
 --echo #
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= Verified that MEMBER_STATE is ONLINE on server_2
 --let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members, MEMBER_STATE, 1]" = "ONLINE"
 --source include/assert.inc
 
 # Cleanup
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL DEBUG= @debug_save;
 SET DEBUG_SYNC= 'RESET';
 --source include/group_replication_end.inc

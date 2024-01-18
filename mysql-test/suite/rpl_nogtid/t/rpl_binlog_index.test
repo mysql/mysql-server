@@ -18,7 +18,7 @@
 # BUG#42576 Relay logs in relay-log.info&localhost-relay-bin.index not processed after move
 
 --source include/not_group_replication_plugin.inc
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 # There is no need to run this test case on all binlog format
 source include/have_binlog_format_row.inc;
 
@@ -48,14 +48,14 @@ FLUSH BINARY LOGS;
 INSERT INTO t1 VALUES (1);
 
 sync_slave_with_master;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 #
 # Test on master
 #
 connection master;
 --echo # Shutdown master
 --let $rpl_server_number=1
-source include/rpl_stop_server.inc;
+source include/rpl/stop_server.inc;
 
 --echo # Move the master binlog files and the index file to a new place
 --move_file $master_datadir/master-bin.000001 $tmpdir/master-bin.000001
@@ -65,12 +65,12 @@ source include/rpl_stop_server.inc;
 --echo # Restart master with log-bin option set to the new path
 --let $rpl_server_parameters=--log-bin=$tmpdir/master-bin
 --let $include_silent=1
-source include/rpl_start_server.inc;
+source include/rpl/start_server.inc;
 --let $include_silent=0
 
 --echo # Master has restarted successfully
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
 #
 # Test master can handle old format with directory path in index file
@@ -93,12 +93,12 @@ if (!$is_windows)
 source include/write_var_to_file.inc;
 --enable_query_log
 --sync_slave_with_master
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --connection master
 
 --echo # Shutdown master
 --let $rpl_server_number=1
-source include/rpl_stop_server.inc;
+source include/rpl/stop_server.inc;
 
 --echo # Move back the master binlog files
 --move_file $tmpdir/master-bin.000001 $master_datadir/master-bin.000001
@@ -111,17 +111,17 @@ source include/rpl_stop_server.inc;
 --echo # Restart master with log-bin option set to default
 --let $rpl_server_parameters=--log-bin=$master_datadir/master-bin
 --let $include_silent=1
-source include/rpl_start_server.inc;
+source include/rpl/start_server.inc;
 --let $include_silent=0
 
 --echo # Master has restarted successfully
 
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --sync_with_master
 --connection master
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 # switch to master because the slave has been shutdown
 # and relocate_binlogs requires a running server to do
@@ -135,24 +135,24 @@ source include/rpl_start_server.inc;
 
 --echo # relocate  binlogs
 --let $relocate_index_file=$slave_datadir/slave-bin.index
---source include/relocate_binlogs.inc
+--source include/rpl/relocate_binlogs.inc
 
 --echo # relocate  relay logs
 --let $relocate_index_file=$slave_datadir/slave-relay-bin.index
---source include/relocate_binlogs.inc
+--source include/rpl/relocate_binlogs.inc
 
 --echo # Restart replica with options log-bin, relay-log set to the new paths
 --let $rpl_server_parameters=--log-bin=$tmpdir/slave-bin --relay-log=$tmpdir/slave-relay-bin
 --let $include_silent=1
 --let $rpl_server_number= 2
-source include/rpl_start_server.inc;
+source include/rpl/start_server.inc;
 --let $include_silent=0
 
 --connection slave
 
 --echo # Slave server has restarted successfully
---source include/start_slave.inc
---source include/stop_slave.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/stop_replica.inc
 
 connection master;
 FLUSH LOGS;
@@ -165,7 +165,7 @@ FLUSH LOGS;
 
 connection slave;
 FLUSH LOGS;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 connection master;
 sync_slave_with_master;
 --let $diff_tables= master:t1,slave:t1
@@ -174,9 +174,9 @@ source include/diff_tables.inc;
 connection master;
 DROP TABLE t1;
 --sync_slave_with_master
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 --connection master
 
@@ -186,7 +186,7 @@ DROP TABLE t1;
 
 # binlogs
 --let $relocate_index_file=$tmpdir/slave-bin.index
---source include/relocate_binlogs.inc
+--source include/rpl/relocate_binlogs.inc
 
 # relay logs
 
@@ -197,7 +197,7 @@ DROP TABLE t1;
 # Instead, we reset the slave and let the test clean up.
 
 --let $relocate_index_file=$tmpdir/slave-relay-bin.index
---source include/relocate_binlogs.inc
+--source include/rpl/relocate_binlogs.inc
 
 --echo # remove tmpdir
 --remove_files_wildcard $tmpdir *
@@ -207,7 +207,7 @@ DROP TABLE t1;
 --let $rpl_server_parameters=--log-bin=$slave_datadir/slave-bin --relay-log=$slave_datadir/slave-relay-bin
 --let $include_silent=1
 --let $rpl_server_number= 2
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 --let $include_silent=0
 
 --connection slave
@@ -249,12 +249,12 @@ SET SQL_LOG_BIN=1;
 # server to relay log file change be considered.
 --let $include_silent= 1
 --let $rpl_server_number= 2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --let $include_silent= 0
 
 # The slave will restart if we have fixed the relay-log.info
 # correctly
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

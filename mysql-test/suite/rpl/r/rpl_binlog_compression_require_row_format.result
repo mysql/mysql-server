@@ -1,16 +1,16 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection master]
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET @@global.binlog_transaction_compression=TRUE;
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 [connection master]
 SET @@session.binlog_transaction_compression=TRUE;
 [connection slave]
@@ -31,7 +31,7 @@ INSERT INTO t1 VALUES (2, REPEAT('a', 1000000));
 INSERT INTO t1 VALUES (1, REPEAT('a', 1000000));
 COMMIT;
 BINLOG EVENTS on master []
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT)
 master-bin.000002	#	Transaction_payload	#	#	compression='ZSTD', decompressed_size=## bytes
@@ -58,13 +58,13 @@ master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000002	#	Xid	#	#	COMMIT /* XID */
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 Warnings:
 Note	3083	Replication thread(s) for channel '' are already runnning.
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 RELAY LOG EVENTS for 
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000006	#	Rotate	#	#	master-bin.000002;pos=POS
 slave-relay-bin.000006	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
@@ -93,14 +93,14 @@ slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
 slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-relay-bin.000006	#	Xid	#	#	COMMIT /* XID */
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 Warnings:
 Note	3083	Replication thread(s) for channel '' are already runnning.
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Assert that master and slave tables have the same content]
 BINLOG EVENTS on slave contain compressed events
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000002	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT)
 slave-bin.000002	#	Transaction_payload	#	#	compression='ZSTD', decompressed_size=## bytes
@@ -128,14 +128,14 @@ slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000002	#	Xid	#	#	COMMIT /* XID */
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@global.binlog_transaction_compression=SAVED;
 [connection slave]
 SET @@global.binlog_transaction_compression=SAVED;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=SAVED;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/rpl_reset.inc
-include/rpl_end.inc
+include/rpl/reset.inc
+include/rpl/deinit.inc

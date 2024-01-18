@@ -1,2 +1,2 @@
 --source include/no_valgrind_without_big.inc
---source extra/rpl_tests/rpl_split_statements.test
+--source common/rpl/rpl_split_statements.test

@@ -24,7 +24,7 @@ include/assert.inc ['Assert server-1 and server-2 are ONLINE']
 ## 3B. Test GR start on boot when lower_case_table_names matches.
 
 # restart:--group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=1
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 ## 4.  Cleanup.
 

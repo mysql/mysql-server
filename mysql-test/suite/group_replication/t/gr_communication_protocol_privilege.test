@@ -29,7 +29,7 @@ CREATE USER 'group_rpl_user' IDENTIFIED BY '';
 --echo # 2. Connect to server using group_rpl_user
 
 --let $rpl_connection_name= con_group_rpl_user
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # 3. group_replication_set_communication_protocol should fail due to lack of privileges
@@ -41,7 +41,7 @@ SELECT group_replication_set_communication_protocol("8.0.14");
 --echo # 4. Cleanup
 
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disconnect con_group_rpl_user
 DROP USER group_rpl_user;

@@ -9,9 +9,9 @@ source include/not_valgrind.inc;
 # The COLLATION_SERVER and TIME_ZONE are got only on master server version 4.
 # So they can't be verified by test case here.
 # Finish the following tests by calling its common test script:  
-# extra/rpl_tests/rpl_get_master_version_and_clock.test. 
+# common/rpl/rpl_get_source_version_and_clock.test. 
 
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
 
@@ -31,31 +31,31 @@ call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on source");
 
 #Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
 
-# set up two parameters to pass into extra/rpl_tests/rpl_get_master_version_and_clock
+# set up two parameters to pass into common/rpl/rpl_get_source_version_and_clock.inc
 let $dbug_sync_point= 'debug_lock.before_get_UNIX_TIMESTAMP';
 let $debug_sync_action= 'now SIGNAL signal.get_unix_timestamp';
-source extra/rpl_tests/rpl_get_master_version_and_clock.test; 
+source common/rpl/rpl_get_source_version_and_clock.test; 
 
 #Test case 2: Try to get the value of the SERVER_ID from master under network disconnection
 connection slave;
 
 let $dbug_sync_point= 'debug_lock.before_get_SERVER_ID';
 let $debug_sync_action= 'now SIGNAL signal.get_server_id';
-source extra/rpl_tests/rpl_get_master_version_and_clock.test;
+source common/rpl/rpl_get_source_version_and_clock.test;
 
 #Test case 3: Try to get the value of the Source_UUID from master under network disconnection
 connection slave;
 
 let $dbug_sync_point= 'dbug.before_get_SOURCE_UUID';
 let $debug_sync_action= 'now SIGNAL signal.get_source_uuid';
-source extra/rpl_tests/rpl_get_master_version_and_clock.test;
+source common/rpl/rpl_get_source_version_and_clock.test;
 
 #Test case 4: This test checks that the slave I/O thread refuses to start
 #if slave and master have the same server id.
 connection slave;
 reset binary logs and gtids;
 # replicate ourselves
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$SLAVE_MYPORT;
 START REPLICA;
@@ -63,7 +63,7 @@ START REPLICA;
 --echo *** must be having the replicate-same-server-id IO thread error ***
 let $slave_io_errno= 13117;
 let $show_slave_io_error= 1;
-source include/wait_for_slave_io_error.inc;
+source include/rpl/wait_for_receiver_error.inc;
 
 #  Bug#45214 cleanup
 
@@ -71,7 +71,7 @@ source include/wait_for_slave_io_error.inc;
 SET DEBUG_SYNC= 'RESET';
 
 # clear slave_io_error
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 RESET REPLICA;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_PORT=$MASTER_MYPORT;
@@ -82,14 +82,14 @@ RESET REPLICA;
 --connection slave
 --let $debug_point=dbug.simulate_no_such_var_server_uuid
 --source include/add_debug_point.inc
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 --let $assert_text= Source_UUID must be empty string
 --let $assert_cond= "[SHOW REPLICA STATUS, Source_UUID, 1]" = ""
 --source include/assert.inc
 
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 --source include/remove_debug_point.inc
 
 # End of tests
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

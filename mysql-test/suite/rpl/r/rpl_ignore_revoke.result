@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,7 +9,7 @@ revoke select on *.* from 'user_foo'@'%';
 select select_priv from mysql.user where user='user_foo' /* master:must be N */;
 select_priv
 N
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create user 'user_foo'@'%' identified by 'user_foopass';
 grant select on *.* to 'user_foo'@'%';
 revoke select on *.* from 'user_foo'@'%';
@@ -24,12 +24,12 @@ revoke select on *.* from 'user_foo';
 select select_priv from mysql.user where user='user_foo' /* master:must be N */;
 select_priv
 N
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select select_priv from mysql.user where user='user_foo' /* slave:must get Y */;
 select_priv
 Y
 revoke select on *.* FROM 'user_foo';
 delete from mysql.user where user="user_foo";
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 delete from mysql.user where user="user_foo";
-include/rpl_end.inc
+include/rpl/deinit.inc

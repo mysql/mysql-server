@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -113,4 +113,4 @@ drop table t3;
 drop table t4;
 set global ndb_replica_batch_size = DEFAULT;
 set global replica_allow_batching = DEFAULT;
-include/rpl_end.inc
+include/rpl/deinit.inc

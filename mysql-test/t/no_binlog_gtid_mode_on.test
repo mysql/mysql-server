@@ -31,12 +31,12 @@ RESET BINARY LOGS AND GTIDS;
 
 # Initial setup
 connect (connection_for_table_check,127.0.0.1,root,,test,$MASTER_MYPORT);
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`;
 
 # Remember the current gtid_executed context
 --connection connection_for_table_check
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 
 # Check-1: CREATE TABLE
 --connection default
@@ -45,7 +45,7 @@ let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`;
 CREATE TABLE t1( i INT) engine=INNODB;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -57,7 +57,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 INSERT INTO t1 VALUES (12);
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -69,7 +69,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 INSERT INTO t1 SELECT * FROM t1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -81,7 +81,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 UPDATE t1 SET i=13 WHERE i=12;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -93,7 +93,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 DELETE FROM t1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -105,7 +105,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 ALTER TABLE t1 ADD COLUMN other_column INT;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -117,7 +117,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 CREATE INDEX t_index ON t1(i);
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -129,7 +129,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 DROP INDEX t_index ON t1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -141,7 +141,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 RENAME TABLE t1 TO t2;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -153,7 +153,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 DROP TABLE t2;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -165,7 +165,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 CREATE TEMPORARY TABLE t1(i INT);
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -177,7 +177,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 DROP TEMPORARY TABLE t1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -189,7 +189,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 CREATE VIEW v1 as SELECT 1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -201,7 +201,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 DROP VIEW v1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -213,7 +213,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 CREATE USER user1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -225,7 +225,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 ALTER USER user1 IDENTIFIED BY 'passwd';
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -237,7 +237,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 GRANT ALL ON *.* TO user1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -249,7 +249,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 REVOKE ALL PRIVILEGES ON *.* FROM user1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -261,7 +261,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 DROP USER user1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -273,7 +273,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 CREATE DATABASE db1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -285,7 +285,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -297,7 +297,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 DROP DATABASE db1;
 
 --connection connection_for_table_check
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
@@ -316,4 +316,4 @@ DROP TABLE t1;
 
 
 # Cleanup
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -24,7 +24,7 @@ call mtr.add_suppression("Replica: Got error 3649 - ");
 call mtr.add_suppression("Replica: Got error 5 - ");
 ######## Test ########
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 ******** ERROR MODE: FAIL ********
 ---- Configure slave ----
 [connection slave]
@@ -33,9 +33,9 @@ SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @@GLOBAL.BINLOG_ROW_IMAGE = 'MINIMAL';
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
-include/start_slave.inc
+include/rpl/start_replica.inc
 ==== 1. E1. Path exists on master but not on slave, JSON_REMOVE ====
-include/rpl_row_jsondiff_error_scenario [3648/FAIL]
+include/rpl/row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -53,7 +53,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 2. E1. Path exists on master but not on slave, JSON_SET ====
-include/rpl_row_jsondiff_error_scenario [3648/FAIL]
+include/rpl/row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -71,7 +71,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 3. E2. Path exists on slave but not on master ====
-include/rpl_row_jsondiff_error_scenario [3648/FAIL]
+include/rpl/row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -89,7 +89,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 4. E4. Violation of slave-only uniqueness constraint in generated column ====
-include/rpl_row_jsondiff_error_scenario [1062/FAIL]
+include/rpl/row_jsondiff_error_scenario [1062/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON, g INT GENERATED ALWAYS AS (j->"$.id") VIRTUAL);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}'), (2, '{"id": 2, "value": "y"}');
@@ -108,10 +108,10 @@ RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 ==== 5. E5. Out of memory applying diff ====
-include/rpl_row_jsondiff_error_scenario [5/FAIL]
+include/rpl/row_jsondiff_error_scenario [5/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -132,10 +132,10 @@ RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 ==== 6. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/FAIL]
+include/rpl/row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -160,7 +160,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 7. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/FAIL]
+include/rpl/row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -185,7 +185,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 8. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/FAIL]
+include/rpl/row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -210,7 +210,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 9. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/FAIL]
+include/rpl/row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -235,7 +235,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 10. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/FAIL]
+include/rpl/row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -260,7 +260,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 11. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/FAIL]
+include/rpl/row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -285,7 +285,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 12. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/FAIL]
+include/rpl/row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -310,7 +310,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 13. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/FAIL]
+include/rpl/row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -335,7 +335,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 14. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/FAIL]
+include/rpl/row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -360,7 +360,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 15. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [1610/FAIL]
+include/rpl/row_jsondiff_error_scenario [1610/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -400,7 +400,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_H
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 [connection slave]
-include/rpl_restart_server.inc [server_number=2 parameters: --replica_skip_errors=1062,1032,3648,3649,1610,5]
+include/rpl/restart_server.inc [server_number=2 parameters: --replica_skip_errors=1062,1032,3648,3649,1610,5]
 [connection slave]
 ******** ERROR MODE: SKIP ********
 ---- Configure slave ----
@@ -410,9 +410,9 @@ SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @@GLOBAL.BINLOG_ROW_IMAGE = 'MINIMAL';
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
-include/start_slave.inc
+include/rpl/start_replica.inc
 ==== 16. E1. Path exists on master but not on slave, JSON_REMOVE ====
-include/rpl_row_jsondiff_error_scenario [3648/SKIP]
+include/rpl/row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -428,7 +428,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 17. E1. Path exists on master but not on slave, JSON_SET ====
-include/rpl_row_jsondiff_error_scenario [3648/SKIP]
+include/rpl/row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -444,7 +444,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 18. E2. Path exists on slave but not on master ====
-include/rpl_row_jsondiff_error_scenario [3648/SKIP]
+include/rpl/row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -460,7 +460,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 19. E4. Violation of slave-only uniqueness constraint in generated column ====
-include/rpl_row_jsondiff_error_scenario [1062/SKIP]
+include/rpl/row_jsondiff_error_scenario [1062/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON, g INT GENERATED ALWAYS AS (j->"$.id") VIRTUAL);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}'), (2, '{"id": 2, "value": "y"}');
@@ -477,10 +477,10 @@ RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 ==== 20. E5. Out of memory applying diff ====
-include/rpl_row_jsondiff_error_scenario [5/SKIP]
+include/rpl/row_jsondiff_error_scenario [5/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -499,10 +499,10 @@ RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 ==== 21. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/SKIP]
+include/rpl/row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -520,7 +520,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 22. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/SKIP]
+include/rpl/row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -538,7 +538,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 23. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/SKIP]
+include/rpl/row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -556,7 +556,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 24. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/SKIP]
+include/rpl/row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -574,7 +574,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 25. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/SKIP]
+include/rpl/row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -592,7 +592,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 26. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/SKIP]
+include/rpl/row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -610,7 +610,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 27. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/SKIP]
+include/rpl/row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -628,7 +628,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 28. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/SKIP]
+include/rpl/row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -646,7 +646,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 29. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/SKIP]
+include/rpl/row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -664,7 +664,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 30. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [1610/SKIP]
+include/rpl/row_jsondiff_error_scenario [1610/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -686,7 +686,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_H
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 [connection slave]
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip-replica-start]
 [connection slave]
 SET GLOBAL REPLICA_EXEC_MODE = IDEMPOTENT;
 ******** ERROR MODE: IDEMPOTENT ********
@@ -697,9 +697,9 @@ SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @@GLOBAL.BINLOG_ROW_IMAGE = 'MINIMAL';
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
-include/start_slave.inc
+include/rpl/start_replica.inc
 ==== 31. E1. Path exists on master but not on slave, JSON_REMOVE ====
-include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -717,7 +717,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 32. E1. Path exists on master but not on slave, JSON_SET ====
-include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -735,7 +735,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 33. E2. Path exists on slave but not on master ====
-include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -753,7 +753,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 34. E4. Violation of slave-only uniqueness constraint in generated column ====
-include/rpl_row_jsondiff_error_scenario [1062/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [1062/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON, g INT GENERATED ALWAYS AS (j->"$.id") VIRTUAL);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}'), (2, '{"id": 2, "value": "y"}');
@@ -770,10 +770,10 @@ RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 ==== 35. E5. Out of memory applying diff ====
-include/rpl_row_jsondiff_error_scenario [5/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [5/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -794,10 +794,10 @@ RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 ==== 36. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -822,7 +822,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 37. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -847,7 +847,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 38. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -872,7 +872,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 39. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -897,7 +897,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 40. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -922,7 +922,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 41. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -947,7 +947,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 42. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -972,7 +972,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 43. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -997,7 +997,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 44. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -1022,7 +1022,7 @@ RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=SOURCE_PORT,SOURCE_HOST='127.0.0.1';
 ==== 45. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [1610/IDEMPOTENT]
+include/rpl/row_jsondiff_error_scenario [1610/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -1066,4 +1066,4 @@ SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 [connection slave]
 SET GLOBAL REPLICA_EXEC_MODE = STRICT;
-include/rpl_end.inc
+include/rpl/deinit.inc

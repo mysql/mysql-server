@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -62,7 +62,7 @@ RESET REPLICA;
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 
 # T3.1. On the source: Set debug point that will simulate unknown
 #       ignorable fields in the tagged Gtid_log_event (debug point set)
@@ -78,7 +78,7 @@ DROP TABLE t1;
 # T3.3. Synchronize source with the replica
 
 # Removing debug point 'add_unknown_ignorable_fields_to_gtid_log_event' from @@GLOBAL.debug
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # T3.4. On the replica: Check that tagged transactions were replicated
 
@@ -87,4 +87,4 @@ include/assert.inc [Ensure that executed transactions with specified tag and aut
 #
 # Clean-up
 #
-include/rpl_end.inc
+include/rpl/deinit.inc

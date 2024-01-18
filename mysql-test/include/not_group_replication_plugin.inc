@@ -5,7 +5,7 @@
 #  Used to suppress the test run with Group Replication.
 #
 --let $include_silent= 1
---source include/rpl_group_replication_plugin_installed.inc
+--source include/rpl/group_replication_plugin_installed.inc
 if ($group_replication_plugin_installed)
 {
   --skip Test doesn't support Group Replication plugin

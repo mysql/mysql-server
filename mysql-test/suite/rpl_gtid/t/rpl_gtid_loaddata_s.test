@@ -3,4 +3,4 @@
 # This is for BUG#1100 (LOAD DATA INFILE was half-logged).
 
 
---source ./extra/rpl_tests/rpl_loaddata_s.inc
+--source ./common/rpl/loaddata_s.inc

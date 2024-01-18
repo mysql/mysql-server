@@ -23,10 +23,10 @@
 --let $rpl_multi_source= 1
 --source include/have_binlog_format_row.inc
 --source include/force_restart.inc
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 call mtr.add_suppression("There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.");
 call mtr.add_suppression("There are per-channel replication filter.s. configured for channel 'channel_3_2' which does not exist. The filter.s. have been discarded.");
@@ -38,12 +38,12 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=$MASTER_M
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_USER='root' for CHANNEL 'channel_3_2';
 --enable_warnings
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo # Restart replica server to activate replicate-ignore-table per-channel filter.
 --let $rpl_server_number= 2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo
 --echo # Check that the replicate-ignore-table filter has been activated.
@@ -58,7 +58,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=$SERVER_M
 --echo
 --echo # Do some transactions on server_1.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE DATABASE db1;
 use db1;
@@ -75,7 +75,7 @@ INSERT INTO t1 values(23);
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= ''
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # Check that the replicate-ignore-table filter has been applied correctly.
@@ -103,7 +103,7 @@ INSERT INTO t1 values(23);
 --echo
 --echo # Do some transactions on server_3.
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE DATABASE db3;
 use db3;
@@ -120,7 +120,7 @@ INSERT INTO t1 values(23);
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= 'channel_3_2'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # Check that the replicate-ignore-table filter has been applied correctly.
@@ -148,30 +148,30 @@ INSERT INTO t1 values(23);
 --echo
 --echo # Cleanup
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP DATABASE db1;
 DROP DATABASE db2;
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= ''
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP DATABASE db3;
 DROP DATABASE db4;
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= 'channel_3_2'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_channel_name= 'channel_3_2'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_channel_name= ''
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 RESET REPLICA ALL FOR CHANNEL '';
 RESET REPLICA ALL FOR CHANNEL 'channel_3_2';
@@ -185,4 +185,4 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=$SERVER_M
 
 --let $rpl_channel_name=
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

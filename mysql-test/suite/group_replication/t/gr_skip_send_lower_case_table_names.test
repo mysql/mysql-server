@@ -23,7 +23,7 @@
 --echo ##     lower_case_table_names and bootstrap group.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_lower_case_table_names';
@@ -34,7 +34,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_lower_case_table_names';
 --echo ## 2.  Start server2.
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -46,7 +46,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_lower_case_table_names';
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= Assert 2 servers are ONLINE
 --let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 2
 --source include/assert.inc

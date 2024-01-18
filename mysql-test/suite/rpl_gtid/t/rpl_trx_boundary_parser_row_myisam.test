@@ -27,42 +27,42 @@
 --let $rpl_gtid_utils= 1
 --source include/have_binlog_format_row.inc
 --source include/not_rpl_gtid_only.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo # Using MyISAM storage engine
 --let $storage_engine= MyISAM
---source extra/rpl_tests/rpl_trx_boundary_parser.inc
+--source common/rpl/trx_boundary_parser.inc
 
 #
 # As we are going to use GTID related checks for the IO thread after
 # a CHANGE REPLICATION SOURCE, we will first reset both slave and master to avoid
 # problems with the gtid related mtr includes.
 #
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 RESET BINARY LOGS AND GTIDS;
 
 #
 # Disabling slave's auto positioning
 #
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo # Using MyISAM storage engine without auto positioning
 --let $storage_engine= MyISAM
---source extra/rpl_tests/rpl_trx_boundary_parser.inc
+--source common/rpl/trx_boundary_parser.inc
 
 #
 # Enabling slave's auto positioning again
 #
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -8,6 +8,6 @@
 
 --let $master= server1
 --let $slave= server2
---source extra/rpl_tests/rpl_rename_index.inc
+--source common/rpl/rename_index.inc
 
 --source include/group_replication_end.inc

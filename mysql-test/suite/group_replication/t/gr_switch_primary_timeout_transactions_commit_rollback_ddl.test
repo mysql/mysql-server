@@ -28,7 +28,7 @@
 --echo # 1. Setup group of 2 servers, M1(primary) and M2(secondary).
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -38,7 +38,7 @@ CREATE TABLE t2(c1 int primary key, c2 varchar(1));
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -48,14 +48,14 @@ CREATE TABLE t2(c1 int primary key, c2 varchar(1));
 --echo # 2. Test CREATE TABLE statement.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $statement_to_execute_on_server1=CREATE TABLE t3(c1 int primary key)
 --let $statement_to_execute_on_server2=CREATE TABLE t4(c1 int primary key)
 --source ../include/gr_switch_primary_timeout_transactions_commit_rollback.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check CREATE TABLE rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t3\"]" = 0
@@ -66,7 +66,7 @@ CREATE TABLE t2(c1 int primary key, c2 varchar(1));
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check CREATE TABLE rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t3\"]" = 0
@@ -80,7 +80,7 @@ CREATE TABLE t2(c1 int primary key, c2 varchar(1));
 --echo # 3. Test TRUNCATE TABLE statement.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1, '');
 INSERT INTO t2 VALUES (1, '');
@@ -90,7 +90,7 @@ INSERT INTO t2 VALUES (1, '');
 --source ../include/gr_switch_primary_timeout_transactions_commit_rollback.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check TRUNCATE TABLE rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM test.t1]" = 1
@@ -101,7 +101,7 @@ INSERT INTO t2 VALUES (1, '');
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check TRUNCATE TABLE rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM test.t1]" = 1
@@ -115,14 +115,14 @@ INSERT INTO t2 VALUES (1, '');
 --echo # 4. Test ALTER TABLE statement.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $statement_to_execute_on_server1=ALTER TABLE t1 ADD COLUMN c3 VARCHAR(3) DEFAULT ''
 --let $statement_to_execute_on_server2=ALTER TABLE t2 ADD COLUMN c3 VARCHAR(3) DEFAULT ''
 --source ../include/gr_switch_primary_timeout_transactions_commit_rollback.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check ALTER TABLE rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.columns WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\" AND COLUMN_NAME=\"c3"\]" = 0
@@ -133,7 +133,7 @@ INSERT INTO t2 VALUES (1, '');
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check ALTER TABLE rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.columns WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\" AND COLUMN_NAME=\"c3"\]" = 0
@@ -147,7 +147,7 @@ INSERT INTO t2 VALUES (1, '');
 --echo # 5. Test ANALYZE TABLE statement.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 
@@ -156,14 +156,14 @@ INSERT INTO t2 VALUES (1, '');
 --source ../include/gr_switch_primary_timeout_transactions_commit_rollback.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check ANALYZE TABLE rolledback.'
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$server_gtid_executed";
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check ANALYZE TABLE rolledback.'
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$server_gtid_executed";
@@ -173,7 +173,7 @@ INSERT INTO t2 VALUES (1, '');
 --echo # 6. Test OPTIMIZE TABLE statement.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 
@@ -182,14 +182,14 @@ INSERT INTO t2 VALUES (1, '');
 --source ../include/gr_switch_primary_timeout_transactions_commit_rollback.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check OPTIMIZE TABLE rolledback.'
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$server_gtid_executed";
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check OPTIMIZE TABLE rolledback.'
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$server_gtid_executed";
@@ -199,14 +199,14 @@ INSERT INTO t2 VALUES (1, '');
 --echo # 7. Test CREATE INDEX statement.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $statement_to_execute_on_server1=CREATE INDEX idx1 ON t1 (c2)
 --let $statement_to_execute_on_server2=CREATE INDEX idx2 ON t2 (c2)
 --source ../include/gr_switch_primary_timeout_transactions_commit_rollback.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check CREATE INDEX rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.statistics WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\" AND INDEX_SCHEMA=\"test"\ AND INDEX_NAME=\"idx1"\]" = 0
@@ -217,7 +217,7 @@ INSERT INTO t2 VALUES (1, '');
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check CREATE INDEX rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.statistics WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\" AND INDEX_SCHEMA=\"test"\ AND INDEX_NAME=\"idx1"\]" = 0
@@ -231,7 +231,7 @@ INSERT INTO t2 VALUES (1, '');
 --echo # 8. Test DROP INDEX statement.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE INDEX idx1 ON t1 (c2);
 CREATE INDEX idx2 ON t2 (c2);
@@ -241,7 +241,7 @@ CREATE INDEX idx2 ON t2 (c2);
 --source ../include/gr_switch_primary_timeout_transactions_commit_rollback.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check DROP INDEX rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.statistics WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\" AND INDEX_SCHEMA=\"test"\ AND INDEX_NAME=\"idx1"\]" = 1
@@ -252,7 +252,7 @@ CREATE INDEX idx2 ON t2 (c2);
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check DROP INDEX rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.statistics WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\" AND INDEX_SCHEMA=\"test"\ AND INDEX_NAME=\"idx1"\]" = 1
@@ -266,14 +266,14 @@ CREATE INDEX idx2 ON t2 (c2);
 --echo # 9. Test DROP TABLE statement.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $statement_to_execute_on_server1=DROP TABLE t1
 --let $statement_to_execute_on_server2=DROP TABLE t2
 --source ../include/gr_switch_primary_timeout_transactions_commit_rollback.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check DROP TABLE rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\"]" = 1
@@ -284,7 +284,7 @@ CREATE INDEX idx2 ON t2 (c2);
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check DROP TABLE rolledback.'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\"]" = 1
@@ -298,12 +298,12 @@ CREATE INDEX idx2 ON t2 (c2);
 --echo # 10. Cleanup.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP INDEX idx1 ON t1;
 DROP INDEX idx2 ON t2;
 DROP TABLE t1;
 DROP TABLE t2;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --source include/group_replication_end.inc

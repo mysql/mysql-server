@@ -36,14 +36,14 @@ source include/have_debug.inc;
 source include/have_debug_sync.inc;
 source include/have_binlog_format_row.inc;
 source include/big_test.inc;
-source include/not_mts_replica_parallel_workers.inc;
+source include/not_replica_parallel_workers.inc;
 
 --echo #
 --echo # 1. Create source-replica topology and initial setup.
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 call mtr.add_suppression("Replica SQL for channel.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 
 # Adding debug sync points to execute special code required for this test
@@ -58,12 +58,12 @@ while ($iter < 2)
 {
   --echo #
   --echo # 2.1 Execute a statement on source.
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   --send INSERT INTO t1 (c1) VALUES (1);
 
   --echo #
   --echo # 2.2 Verify that applier thread is waiting on debug sync point.
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now';
   --source include/wait_condition.inc
 
@@ -87,7 +87,7 @@ while ($iter < 2)
   --echo # 2.5 Continue 'stop replica sql_thread'.
   --source include/execute_from_sync_point.inc
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   --reap;
 
   #wait till SLAVE_WAIT_GROUP_DONE
@@ -96,7 +96,7 @@ while ($iter < 2)
     --sleep 61
   }
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   if ($iter == 1)
   {
     # Remove debug sync point
@@ -106,13 +106,13 @@ while ($iter < 2)
 
   --echo #
   --echo # 2.6 Execute 'start replica sql_thread'.
-  --source include/start_slave_sql.inc
+  --source include/rpl/start_applier.inc
 
   --inc $iter
 }
 
 --echo #
 --echo # 3. Cleanup.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -57,7 +57,7 @@ ENGINE NDB;
 --let $initial_synced_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
 --connection server1
 
--- source include/ndb_restore_master.inc
+-- source common/rpl/ndb_restore_source.inc
 
 # Set low interval so changes are detected quickly
 SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
@@ -179,7 +179,7 @@ ENGINE NDB;
 --let $initial_synced_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
 --connection server1
 
--- source include/ndb_restore_master.inc
+-- source common/rpl/ndb_restore_source.inc
 
 # Set low interval so changes are detected quickly
 SET GLOBAL ndb_metadata_check_interval = 0;
@@ -367,7 +367,7 @@ ENGINE NDB;
 --let $initial_synced_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
 --connection server1
 
--- source include/ndb_restore_master.inc
+-- source common/rpl/ndb_restore_source.inc
 
 # Set low interval so changes are detected quickly
 SET GLOBAL ndb_metadata_check_interval = 0;

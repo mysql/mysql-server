@@ -12,7 +12,7 @@ INSERT INTO t1 VALUES (2);
 XA END 'xid0';
 XA PREPARE 'xid0';
 XA COMMIT 'xid0';
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN; INSERT INTO t1 VALUES (3);
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 COMMIT;

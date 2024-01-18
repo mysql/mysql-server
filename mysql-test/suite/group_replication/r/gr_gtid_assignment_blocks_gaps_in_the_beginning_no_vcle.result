@@ -25,7 +25,7 @@ include/assert.inc [GTID_EXECUTED must be UUID:110-120]
 [connection server1]
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 include/assert.inc [GTID_EXECUTED must be UUID:1:110-120]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 4. Execute a transaction on server 2.
@@ -39,7 +39,7 @@ include/assert.inc [assert GTID_EXECUTED]
 #    101 interval will continue to be used and will merge
 #    with 110-120 interval.
 include/assert.inc [assert GTID_EXECUTED]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 6. Execute a transaction on server 1.
@@ -52,7 +52,7 @@ include/assert.inc [assert GTID_EXECUTED]
 #    1-* interval will continue to be used and will merge
 #    with 101-122 interval.
 include/assert.inc [assert GTID_EXECUTED]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 8. Execute a transaction on server 2.
@@ -60,7 +60,7 @@ include/rpl_sync.inc
 [connection server2]
 INSERT INTO t1 VALUES (NULL);
 include/assert.inc [assert GTID_EXECUTED]
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/assert.inc ['There are 113 values in table t1']
 [connection server1]

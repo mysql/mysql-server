@@ -22,14 +22,14 @@
 --echo # 1. Start group with group_replication_preemptive_garbage_collection
 --echo #    enabled.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
 --source include/start_group_replication.inc
@@ -40,7 +40,7 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
 --echo # 2. Try to change group mode to single-primary, it will not
 --echo #    be allowed.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_switch_to_single_primary_mode();
 
@@ -49,7 +49,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 --eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_switch_to_single_primary_mode();
 
@@ -63,12 +63,12 @@ SELECT group_replication_switch_to_single_primary_mode();
 --echo # 3. Try to change group mode to multi-primary, it will not
 --echo #    be allowed.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_switch_to_multi_primary_mode();
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_switch_to_multi_primary_mode();
 
@@ -77,12 +77,12 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
 

@@ -45,9 +45,9 @@
 --let $rpl_privilege_checks_user = *:$applier_user
 --let $rpl_skip_grant_privilege_checks_user_roles = 1
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --eval GRANT REPLICATION_APPLIER,CREATE,DROP ON *.* TO $applier_user
 CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
@@ -55,7 +55,7 @@ CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopp
 #
 # 2) Ensure `sql_require_primary_key` is set on the master.
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $sql_require_primary_key = `SELECT @@global.sql_require_primary_key`
 SET @@global.sql_require_primary_key = 1;
 
@@ -67,11 +67,11 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY);
 #
 # 4) Wait for slave to catch-up and expect error.
 #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 START REPLICA;
 
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo #
 --echo # TC2. Run slave with `SESSION_VARIABLES_ADMIN` privilege
@@ -87,12 +87,12 @@ START REPLICA;
 #
 # 2) Wait for slave to catch-up and expect success.
 #
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # Clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --replace_result $sql_require_primary_key SQL_REQUIRE_PRIMARY_KEY
 --eval SET @@global.sql_require_primary_key = $sql_require_primary_key
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

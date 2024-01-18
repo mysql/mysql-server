@@ -29,14 +29,14 @@
 --source include/force_restart.inc
 --source include/have_binlog_format_row.inc
 
---source include/only_mts_replica_parallel_workers.inc
---source include/only_mts_replica_parallel_type_database.inc
---source include/master-slave.inc
+--source include/have_replica_parallel_workers.inc
+--source include/have_replica_parallel_type_database.inc
+--source include/rpl/init_source_replica.inc
 
 --let $skip_replica_start_var= FALSE
---source extra/rpl_tests/rpl_mts_relay_log_recovery.test
+--source common/rpl/rpl_mta_relay_log_recovery.test
 
 --let $skip_replica_start_var= TRUE
---source extra/rpl_tests/rpl_mts_relay_log_recovery.test
+--source common/rpl/rpl_mta_relay_log_recovery.test
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

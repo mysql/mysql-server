@@ -5,7 +5,7 @@
 #
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --echo Setup circular replication
 --echo The circle is setup between Primary and Secondary
@@ -249,7 +249,7 @@ start replica;
 # TODO : Reenable with new slave counts
 #--disable_result_log
 # Don't include results as they vary depending on epoch boundaries
-#--source suite/ndb_rpl/include/ndb_slave_counts.inc
+#--source suite/ndb_rpl/include/ndb_replica_counts.inc
 #--enable_result_log
 #--echo -- Verify that batching occurred when replicating the above
 #select (@ndb_slave_execute_count - @ndb_slave_commit_count) > 1;
@@ -328,4 +328,4 @@ drop table mysql.ndb_replication;
 stop replica;
 reset replica;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

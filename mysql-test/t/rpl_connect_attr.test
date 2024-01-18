@@ -14,7 +14,7 @@
 # Uses /dev/null
 --source include/not_windows.inc
  
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
  
 --echo ==== Case 1: slave connection ====
  
@@ -31,10 +31,10 @@ eval SELECT ATTR_NAME, ATTR_VALUE FROM performance_schema.session_connect_attrs
  
 # Stop replica so as not to mix client attrs from slave with client
 # attrs from mysqlbinlog.
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
---source include/rpl_connection_master.inc
---source include/stop_dump_threads.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/stop_dump_threads.inc
  
 --echo # Start mysqlbinlog
 --let BINLOG_FILE= query_get_value(SHOW BINARY LOG STATUS, File, 1)
@@ -63,4 +63,4 @@ eval SELECT ATTR_NAME, ATTR_VALUE FROM performance_schema.session_connect_attrs
 eval KILL $thread_id;
  
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

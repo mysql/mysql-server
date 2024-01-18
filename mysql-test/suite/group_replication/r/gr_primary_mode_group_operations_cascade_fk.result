@@ -53,7 +53,7 @@ Mode switched to multi-primary successfully.
 include/gr_assert_multi_primary_mode.inc
 [connection server2]
 include/gr_assert_multi_primary_mode.inc
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:tp1, server2:tp1]
 include/diff_tables.inc [server1:tc1, server2:tc1]
 

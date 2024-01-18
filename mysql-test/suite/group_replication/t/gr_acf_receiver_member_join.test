@@ -26,7 +26,7 @@
 --echo # 1. Add a single server and managed sources to failover
 --echo #    channel 'ch1' to server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
 SELECT asynchronous_connection_failover_add_source('ch1', '10.0.0.1', 3306, '', 50);
@@ -68,7 +68,7 @@ SELECT * FROM performance_schema.replication_group_configuration_version WHERE n
 --echo # 2. Bootstrap the group on server1, all failover configuration
 --echo #    will be preserved.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Do not automatically start failover channels.
 SELECT group_replication_disable_member_action("mysql_start_failover_channels_if_primary", "AFTER_PRIMARY_ELECTION");
@@ -115,7 +115,7 @@ SELECT * FROM performance_schema.replication_group_configuration_version WHERE n
 --echo # 3. Join server2 to the group, it will replace its failover
 --echo #    configuration.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
 SELECT asynchronous_connection_failover_add_source('ch9', '10.0.0.19', 3306, '', 50);
@@ -170,20 +170,20 @@ SELECT * FROM performance_schema.replication_group_configuration_version WHERE n
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch1'
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch1'
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 

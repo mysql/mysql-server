@@ -11,8 +11,8 @@
 
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 
 # Begin clean up test section
@@ -75,7 +75,7 @@ SELECT * FROM test.t2 ORDER BY id2;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1 ORDER BY id;
 SELECT * FROM test.t2 ORDER BY id2;
 
@@ -91,7 +91,7 @@ SELECT * FROM test.t3 ORDER BY id3;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM test.t3 ORDER BY id3;
 
 connection master;
@@ -107,7 +107,7 @@ DROP PROCEDURE IF EXISTS test.p2;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 5.0 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

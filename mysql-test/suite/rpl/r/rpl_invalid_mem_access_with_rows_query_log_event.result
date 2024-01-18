@@ -1,8 +1,8 @@
 #
-# Step 1) Create a basic master-slave topology with
+# Step 1) Create a basic source-replica topology with
 #         binlog_rows_query_log_events enabled on master.
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,7 +13,7 @@ SET @@session.binlog_rows_query_log_events=ON;
 # Step 2) On master, create a table and wait till it is replicated to
 #         slave.
 CREATE TABLE t1(a INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Step 3) On slave, set a debug point 'after_deleting_the_rows_query_ev'.
 #
@@ -44,4 +44,4 @@ SET GLOBAL debug= @old_debug;
 [connection master]
 DROP TABLE t1;
 SET @@session.binlog_rows_query_log_events= @old_binlog_rows_query_log_events;
-include/rpl_end.inc
+include/rpl/deinit.inc

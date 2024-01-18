@@ -8,7 +8,7 @@ CREATE TABLE t1 (a INT);
 
 # T1.3
 
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 include/assert_grep.inc [Check that original commit timestamp value equals 1]
 include/assert_grep.inc [Check that immediate commit timestamp differs from original commit timestamp]
 

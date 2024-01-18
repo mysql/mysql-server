@@ -32,7 +32,7 @@
 # We should eventually try transactions touching two tables which are
 # of different engines on the same server (so that we try, e.g. punch
 # transactions; cf BUG#34600).  However, that will make the test much
-# bigger (9 master-slave engine combinations [myisam->myisam,
+# bigger (9 source-replica engine combinations [myisam->myisam,
 # myisam->ndb, etc].  To try all combinations of one or more such
 # tables means 2^9-1=511 transactions.  We need to multiplied by 5
 # since we want to test committed/rollback'ed transactions
@@ -43,7 +43,7 @@
 --echo ==== Initialization ====
 
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --echo ---- setup master ----
 
@@ -348,4 +348,4 @@ drop table myisam_innodb, innodb_myisam;
 drop table myisam_ndb, ndb_myisam;
 drop table innodb_ndb, ndb_innodb;
 sync_slave_with_master;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -38,7 +38,7 @@
 
 # Suppress expected errors on error log.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Unable to initialize the group communication engine");
 call mtr.add_suppression("Error on group communication engine initialization");
@@ -53,7 +53,7 @@ call mtr.add_suppression("\\[GCS\\] Invalid hostname or IP address.*");
 call mtr.add_suppression("\\[GCS\\] The group_name, peer_nodes, local_node,");
 SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Unable to initialize the group communication engine");
 call mtr.add_suppression("Error on group communication engine initialization");
@@ -68,23 +68,23 @@ SET SESSION sql_log_bin= 1;
 
 # Hide generated group name from result file.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --enable_query_log
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --enable_query_log
 
 # Save XCom configuration.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @local_address= @@GLOBAL.group_replication_local_address;
 SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @local_address= @@GLOBAL.group_replication_local_address;
 SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
 
@@ -95,13 +95,13 @@ SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
 --eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $_group_replication_ip_allowlist GROUP_LOCAL_IP_ALLOWLIST
 --eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #######################################################
 --echo #  1. Try setting bootstrap_group variable with invalid
@@ -119,7 +119,7 @@ SET GLOBAL group_replication_bootstrap_group= 1.2;
 --echo #  2. Try start Group Replication without configure any
 --echo #     communication engine parameter, start must fail.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
 START GROUP_REPLICATION;
 
@@ -211,7 +211,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 
 --echo #  8. Try start Group Replication on server2 with invalid
 --echo #     invalid group_seeds, start must fail.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_bootstrap_group= 0;
 SET GLOBAL group_replication_local_address= @local_address;
 SET GLOBAL group_replication_group_seeds= "ola";
@@ -282,11 +282,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 
 --echo #######################################################
 --echo #  12. We must have a group with two members.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 

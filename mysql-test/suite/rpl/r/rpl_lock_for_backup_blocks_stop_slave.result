@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ CALL mtr.add_suppression("Cannot stop the replica SQL thread while the instance 
 LOCK INSTANCE FOR BACKUP;
 STOP REPLICA;
 ERROR HY000: Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.
-include/wait_for_slave_param.inc [Replica_SQL_Running]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
 UNLOCK INSTANCE;
 #
 # TC2. Lock instance for backup and execute `STOP REPLICA SQL_THREAD`
@@ -21,6 +21,6 @@ CALL mtr.add_suppression("Cannot stop the replica SQL thread while the instance 
 LOCK INSTANCE FOR BACKUP;
 STOP REPLICA SQL_THREAD;
 ERROR HY000: Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.
-include/wait_for_slave_param.inc [Replica_SQL_Running]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
 UNLOCK INSTANCE;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -17,5 +17,5 @@ ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server
 # Test the transaction with a log event injected a wrong crc value
 # will be trimmed from the crashed binlog file
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TABLE t1;

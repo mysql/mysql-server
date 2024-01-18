@@ -452,7 +452,7 @@ SET GLOBAL group_replication_flow_control_release_percent= 150;
 --echo #    Replication.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 set session sql_log_bin=0;
@@ -498,10 +498,10 @@ START GROUP_REPLICATION;
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_flow_control_mode= @group_replication_flow_control_mode_save;
 SET GLOBAL group_replication_flow_control_certifier_threshold= @group_replication_flow_control_certifier_threshold_save;

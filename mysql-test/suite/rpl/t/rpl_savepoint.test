@@ -1,7 +1,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Bug#50124 Rpl failure on DROP table with concurrent txn/non-txn
@@ -47,4 +47,4 @@ FLUSH LOGS;
 connection master;
 DROP TABLE nt;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

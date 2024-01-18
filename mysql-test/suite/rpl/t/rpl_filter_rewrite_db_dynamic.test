@@ -3,16 +3,16 @@
 #
 
 source include/have_binlog_format_statement.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 connection slave;
 --error ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
 
 connection slave;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 connection master;
 
 CREATE DATABASE db1;
@@ -22,7 +22,7 @@ USE db1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 values (12);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Just prove that there is no db1.t1 at slave after sync
 --error ER_NO_SUCH_TABLE
@@ -36,7 +36,7 @@ connection master;
 DROP DATABASE db1;
 DROP DATABASE db2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 connection slave;
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=();

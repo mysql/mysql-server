@@ -31,29 +31,29 @@ call mtr.add_suppression("The function 'group_replication_switch_to_single_prima
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo # 1. Get a transaction stuck on server 2 (the new primary)
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= group_replication_wait_on_observer_trans
 --source include/add_debug_point.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1);
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
 --echo
@@ -62,7 +62,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_wa
 --echo # See that it is stuck on Primary election
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $conn_id=`SELECT CONNECTION_ID()`
 
@@ -70,7 +70,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_wa
 --send_eval SELECT group_replication_switch_to_single_primary_mode("$server2_uuid")
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: executing Primary%" and work_completed=1
 --source include/wait_condition.inc
@@ -81,7 +81,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_wa
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: executing Primary%" and work_completed=1
 --source include/wait_condition.inc
@@ -95,7 +95,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_wa
 --echo # 3. Kill the query
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $conn_id CONNECTION_ID
 --eval KILL QUERY $conn_id
@@ -105,20 +105,20 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_wa
 --echo #    completed in the other members
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= group_replication_wait_on_observer_trans
 --source include/remove_debug_point.inc
 SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER2_UUID
 --reap
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -128,7 +128,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 SET DEBUG_SYNC='RESET';
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -136,7 +136,7 @@ SET DEBUG_SYNC='RESET';
 --source include/gr_assert_secondary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -147,7 +147,7 @@ SET DEBUG_SYNC='RESET';
 --echo # 5. Cleanup
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

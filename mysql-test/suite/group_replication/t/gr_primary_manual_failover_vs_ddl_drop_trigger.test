@@ -10,7 +10,7 @@
 # the primary.                                              #
 #############################################################
 
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 
 --let $ddl_preparation_statement= CREATE TABLE t1 (f1 INT); CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @sum=@sum+NEW.f1
 --let $ddl_statement= DROP TRIGGER tr1

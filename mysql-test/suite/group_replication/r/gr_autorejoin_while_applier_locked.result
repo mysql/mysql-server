@@ -62,9 +62,9 @@ INSERT INTO test.t1 VALUES (2, 1);
 
 # 8. Expel server3 from the group
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server3]
 
 # 9. Server3 should change is status to ERROR

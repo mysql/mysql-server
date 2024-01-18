@@ -52,12 +52,12 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -67,7 +67,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # First, enable auto-rejoin
 SET GLOBAL group_replication_autorejoin_tries = 1;
@@ -84,7 +84,7 @@ SET GLOBAL group_replication_autorejoin_tries = 1;
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
 
@@ -121,7 +121,7 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member2_id = `SELECT @@GLOBAL.server_uuid`
 
@@ -129,7 +129,7 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 3
 --source include/gr_wait_for_number_of_members.inc
@@ -140,14 +140,14 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --echo ####
 --echo
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # We switch to SPM with server2 as the primary - it shouldn't hang
 --replace_result $member2_id MEMBER2_UUID
 --eval SELECT group_replication_switch_to_single_primary_mode("$member2_id");
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -157,13 +157,13 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --echo ####
 --echo
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_switch_to_multi_primary_mode();
 ## We stop the plugin so we can reset the sysvars we modified
 #--source include/stop_group_replication.inc
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG = @debug_saved;
 SET @@GLOBAL.group_replication_autorejoin_tries = default;

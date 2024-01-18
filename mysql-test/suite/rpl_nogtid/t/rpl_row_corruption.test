@@ -1,7 +1,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # BUG#11753004: 44360: REPLICATION FAILED 
 
@@ -22,15 +22,15 @@
 --eval INSERT INTO $t1 VALUES (1)
 --eval INSERT INTO $t2 VALUES (2)
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 call mtr.add_suppression(".*Found table map event mapping table id 0 which was already mapped but with different settings.*");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 # stop the slave and inject corruption
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET @save_debug= @@global.debug;
 SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
 # both tables get mapped to 0 (in a way, simulating scenario 
 # originated by BUG#56226)
@@ -39,26 +39,26 @@ SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
 
 # wait for error 13117 (ER_REPLICA_FATAL_ERROR)
 --let $slave_sql_errno=13117
---source include/wait_for_slave_sql_error.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_applier_error.inc
+--source include/rpl/stop_receiver.inc
 
 # clean up
 SET GLOBAL debug="-d,inject_tblmap_same_id_maps_diff_table";
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --eval DROP TABLE $t1, $t2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 ## test #2: assert that ignored tables that may have been mapped
 ##          with the same identifier are skipped, thus no error
 ##          is raised.
 
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
---source include/start_slave.inc
---source include/rpl_reset.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/reset.inc
 --connection master
 --eval CREATE TABLE $t1 (c1 INT)
 --eval CREATE TABLE $t2_ign (c1 INT)
@@ -67,7 +67,7 @@ SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
 --eval UPDATE $t1, $t2_ign SET $t1.c1=3, $t2_ign.c1=4 WHERE $t1.c1=1 OR $t2_ign.c1=2
 
 # must not raise error as second table is filtered
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 ## test #3: check that BINLOG statements will also raise an
@@ -110,7 +110,7 @@ SET GLOBAL debug="-d,inject_tblmap_same_id_maps_diff_table";
 --connection master
 --eval DROP TABLE $t1
 --eval DROP TABLE $t2_ign
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET GLOBAL debug= @save_debug;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

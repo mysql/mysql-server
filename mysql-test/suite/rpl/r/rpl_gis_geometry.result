@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -78,7 +78,7 @@ INSERT INTO geom_data SELECT * FROM multipoint_geom;
 INSERT INTO geom_data SELECT * FROM multilinestring_geom;
 INSERT INTO geom_data SELECT * FROM multipolygon_geom;
 INSERT INTO geom_data SELECT * FROM geometrycollection_geom;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether data was inserted on the slave
 SELECT id, ST_ASTEXT(geom) FROM geom_data;
@@ -136,7 +136,7 @@ FROM geom_data WHERE ST_GEOMETRYTYPE(geom) = 'LINESTRING';
 CREATE VIEW geomcollection_view
 AS SELECT ST_NUMGEOMETRIES(geom) as numgeometries, ST_GEOMETRYN(geom,3) as nthgeom
 FROM geom_data WHERE ST_GEOMETRYTYPE(geom) = 'GEOMETRYCOLLECTION';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether views were created on slave
 SELECT * FROM linestring_view;
@@ -153,7 +153,7 @@ include/diff_tables.inc [master:geom_data, slave:geom_data]
 # Drop the views
 DROP VIEW linestring_view;
 DROP VIEW geomcollection_view;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether views are dropped on slave
 SELECT * FROM linestring_view;
@@ -163,7 +163,7 @@ ERROR 42S02: Table 'test.geomcollection_view' doesn't exist
 [Connection Master]
 # Update a row in the table
 UPDATE geom_data SET geom = ST_GEOMFROMTEXT('POINT(4 5)') WHERE id = 10;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether row is updated on slave
 SELECT id, ST_ASTEXT(geom) FROM geom_data WHERE id = 10;
@@ -173,7 +173,7 @@ include/diff_tables.inc [master:geom_data, slave:geom_data]
 [Connection Master]
 # Delete a row from the table
 DELETE FROM geom_data WHERE id = 13;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether row is deleted on slave
 SELECT COUNT(geom) FROM geom_data;
@@ -183,7 +183,7 @@ include/diff_tables.inc [master:geom_data, slave:geom_data]
 [Connection Master]
 # Drop the spatial index from the table
 ALTER TABLE geom_data DROP INDEX geom;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether spatial index is dropped on slave
 SHOW CREATE TABLE geom_data;
@@ -196,7 +196,7 @@ geom_data	CREATE TABLE `geom_data` (
 [Connection Master]
 # Add spatial index to the column of GEOMETRY data type
 ALTER TABLE geom_data ADD SPATIAL INDEX(geom);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether spatial index is added on slave
 SHOW CREATE TABLE geom_data;
@@ -264,7 +264,7 @@ UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                  'MULTILINESTRING((4 3,4 7,4 8),(4 4,5 6,7 6,8 8,10 10)),'
                                                  'MULTIPOLYGON(((7 7,7 10,10 10,10 7,7 7)),((3 4,5 7,7 4,3 4))))')
 WHERE id = 72;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether the column is added and populated on slave
 SHOW CREATE TABLE geom_data;
@@ -314,7 +314,7 @@ include/diff_tables.inc [master:geom_data, slave:geom_data]
 [Connection Master]
 # Drop a column from the table
 ALTER TABLE geom_data DROP COLUMN geom1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether column is dropped on slave
 SHOW CREATE TABLE geom_data;
@@ -335,9 +335,9 @@ DROP TABLE multilinestring_geom;
 DROP TABLE multipolygon_geom;
 DROP TABLE geometrycollection_geom;
 DROP TABLE geom_data;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether table is dropped on slave
 SELECT COUNT(id) FROM geom_data;
 ERROR 42S02: Table 'test.geom_data' doesn't exist
-include/rpl_end.inc
+include/rpl/deinit.inc

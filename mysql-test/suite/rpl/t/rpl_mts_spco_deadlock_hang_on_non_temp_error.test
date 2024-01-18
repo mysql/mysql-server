@@ -43,7 +43,7 @@
 
 --echo #
 --echo # 1. Create source-replica topology.
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 2. Setup testing environment.
@@ -55,8 +55,8 @@ CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
 --echo #
 --echo # 2.2 Setup necessary variables on replica server.
 --echo #
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 SET @saved_replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
 SET GLOBAL replica_preserve_commit_order = ON;
 SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;
@@ -65,8 +65,8 @@ SET GLOBAL replica_parallel_type = "LOGICAL_CLOCK";
 SET GLOBAL replica_parallel_workers = 3;
 
 # switched to slave connection
---source include/only_mts_replica_parallel_type_logical_clock.inc
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_type_logical_clock.inc
+--source include/have_replica_parallel_workers.inc
 
 --echo #
 --echo # 2.3 Set innodb_lock_wait_timeout to 300 to make test work without issues
@@ -98,7 +98,7 @@ connect(slave2,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 --echo #
 --echo # 3.1 Insert basic data on Master
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(1, 1),(2, 2);
 
 --echo #
@@ -133,7 +133,7 @@ INSERT INTO t1 values(10,10);
 --echo #     which will acquire MDL lock on t1
 --echo #     (that blocks 'Transacation-1').
 --echo #
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 BEGIN;
 INSERT INTO t1 VALUES(3, 3);
 
@@ -141,7 +141,7 @@ INSERT INTO t1 VALUES(3, 3);
 --echo # 3.7 On Slave, begin a transaction (Transacation-5)
 --echo #     that can block INSERT in 'Transacation-2'.
 --echo #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 BEGIN;
 INSERT INTO t2 VALUES(1);
 
@@ -149,7 +149,7 @@ INSERT INTO t2 VALUES(1);
 --echo # 3.8 Start SQL thread, let Transaction-1 & 2 reach SQL workers
 --echo #
 --connection slave2
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --echo #
 --echo # 3.9 Wait till the worker threads pick up those transacations
@@ -165,7 +165,7 @@ INSERT INTO t2 VALUES(1);
 --echo # 3.10 Rollback Transaction-4 which will release MDL lock required for
 --echo #      Transaction-1.
 --echo #
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 ROLLBACK;
 
 --echo #
@@ -179,7 +179,7 @@ SET debug_sync = "now WAIT_FOR reported_deadlock";
 --echo # 3.12 Commit Transaction-5 which will release MDL lock required for
 --echo #      Transaction-2.
 --echo #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 COMMIT;
 
 # Without the fix, this would make the worker 2 to exit without removing its
@@ -194,7 +194,7 @@ COMMIT;
 --echo #      detected the 'commit order deadlock').
 --echo #
 --let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo #
 --echo # 3.13 Check that worker 2 did not *retry* transaction-2
@@ -218,7 +218,7 @@ COMMIT;
 --echo #
 --echo # 4.2 Clean the data on Slave.
 --echo #
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 RESET REPLICA;
 DROP TABLE t1, t2;
 
@@ -234,7 +234,7 @@ SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
 --echo #
 --echo # 4.4 Clear debug point.
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $debug_type= SESSION
 --let $debug_point= set_commit_parent_100
 --source include/remove_debug_point.inc
@@ -245,4 +245,4 @@ SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
 DROP TABLE t1, t2;
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

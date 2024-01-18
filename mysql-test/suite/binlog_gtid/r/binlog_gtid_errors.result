@@ -194,7 +194,7 @@ SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13. Ownership is released on COMMIT or ROLLBACK.
 ROLLBACK;
 # Can't set while owning ANONYMOUS
-include/rpl_set_gtid_mode.inc [OFF on servers 1]
+include/rpl/set_gtid_mode.inc [OFF on servers 1]
 SET GTID_NEXT = 'ANONYMOUS';
 SET GTID_NEXT = 'ANONYMOUS';
 ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns ANONYMOUS. Ownership is released on COMMIT or ROLLBACK.
@@ -205,7 +205,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 SET GTID_NEXT = 'AUTOMATIC';
 ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns ANONYMOUS. Ownership is released on COMMIT or ROLLBACK.
 SET GTID_NEXT = 'AUTOMATIC';
-include/rpl_set_gtid_mode.inc [ON on servers 1]
+include/rpl/set_gtid_mode.inc [ON on servers 1]
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14';
 # can't do implicit commit while gtid_next=SID:GNO
 BEGIN;

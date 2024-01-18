@@ -27,8 +27,8 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 --let $gtid_event= !Gtid_or_anon
 
 # Test partition information with Functions
@@ -50,16 +50,16 @@ DELETE FROM func WHERE id=100;
 RETURN (SELECT COUNT(*) FROM func);
 END//
 DELIMITER ;//
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN; SELECT insert_data(); COMMIT;
 --let $expected_partition_id = 1
---source suite/rpl/include/rpl_partition_info.inc
+--source common/rpl/partition_info.inc
 BEGIN; SELECT update_data(); COMMIT;
 --let $partition_id= 1 0
---source suite/rpl/include/rpl_partition_info_update.inc
+--source common/rpl/partition_info_update.inc
 BEGIN; SELECT delete_data(); COMMIT;
 --let $expected_partition_id = 0
---source suite/rpl/include/rpl_partition_info.inc
+--source common/rpl/partition_info.inc
 
 # Test partition information with Procedures
 CREATE TABLE proc(id INT, age INT) PARTITION BY RANGE(age) (PARTITION P0 VALUES LESS THAN (35), PARTITION P1 VALUES LESS THAN (60));
@@ -77,18 +77,18 @@ BEGIN
 DELETE FROM proc WHERE id=100;
 END//
 DELIMITER ;//
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN; CALL insert_data(); COMMIT;
 --let $expected_partition_id = 0
---source suite/rpl/include/rpl_partition_info.inc
---source include/save_binlog_position.inc
+--source common/rpl/partition_info.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN; CALL update_data(); COMMIT;
 --let $partition_id= 0 1
---source suite/rpl/include/rpl_partition_info_update.inc
---source include/save_binlog_position.inc
+--source common/rpl/partition_info_update.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN; CALL delete_data(); COMMIT;
 --let $expected_partition_id = 1
---source suite/rpl/include/rpl_partition_info.inc
+--source common/rpl/partition_info.inc
 
 # Test partition information with Triggers
 CREATE TABLE t1(a INT);
@@ -107,18 +107,18 @@ BEGIN
 DELETE FROM trigg WHERE id=100;
 END//
 DELIMITER ;//
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN; INSERT INTO t1 VALUES(1); COMMIT;
 --let $expected_partition_id = 1
---source suite/rpl/include/rpl_partition_info.inc
---source include/save_binlog_position.inc
+--source common/rpl/partition_info.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN; UPDATE t1 SET a=a+10; COMMIT;
 --let $partition_id= 1 0
---source suite/rpl/include/rpl_partition_info_update.inc
---source include/save_binlog_position.inc
+--source common/rpl/partition_info_update.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN; DELETE FROM t1; COMMIT;
 --let $expected_partition_id = 0
---source suite/rpl/include/rpl_partition_info.inc
+--source common/rpl/partition_info.inc
 
 # Test partition information with Transactions
 CREATE TABLE trans(id INT, age INT) PARTITION BY RANGE(age) SUBPARTITION BY KEY(id)
@@ -129,20 +129,20 @@ PARTITION P0 VALUES LESS THAN (30)
 PARTITION P1 VALUES LESS THAN (60)
  (SUBPARTITION P1A, SUBPARTITION P1B)
 );
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN; INSERT INTO trans VALUES(100,46); COMMIT;
 --let $expected_partition_id = 3
---source suite/rpl/include/rpl_partition_info.inc
---source include/save_binlog_position.inc
+--source common/rpl/partition_info.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN; UPDATE trans SET age=age-20 WHERE id=100; COMMIT;
 --let $partition_id = 3 1
---source suite/rpl/include/rpl_partition_info_update.inc
---source include/save_binlog_position.inc
+--source common/rpl/partition_info_update.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN; DELETE FROM trans WHERE id=100; COMMIT;
 --let $expected_partition_id = 1
---source suite/rpl/include/rpl_partition_info.inc
+--source common/rpl/partition_info.inc
 # Verify Table_map and event_type for Insert Update Delete within a single transaction on single partition
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN;
 INSERT INTO trans VALUES(1,55),(1,55);
 UPDATE trans SET id=id+10;
@@ -153,19 +153,19 @@ COMMIT;
 --let $delete_pattern= # Table_map # Delete_rows
 --let $dont_print_pattern= 1
 --let $event_sequence = $gtid_event  # !Begin $insert_pattern $update_pattern $delete_pattern # !Commit
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 # Verify Table_map and event_type for Insert Update Delete within a single transaction on multiple partitions
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN;
 INSERT INTO trans VALUES(101,46),(102,23);
 UPDATE trans SET id=id+100;
 DELETE FROM trans WHERE id=201;
 COMMIT;
 --let $event_sequence = $gtid_event  # !Begin $insert_pattern # Write_rows $update_pattern # Update_rows $delete_pattern # !Commit
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 # Verify Table_map and event_type for Insert Update Delete within a single transaction on partitioned and non-partitioned table
 CREATE TABLE t2(a INT);
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 BEGIN;
 INSERT INTO trans VALUES(301,55),(301,55);
 INSERT INTO t2 VALUES(10);
@@ -175,10 +175,10 @@ DELETE FROM trans WHERE id=11;
 DELETE FROM t2 WHERE a=20;
 COMMIT;
 --let $event_sequence = $gtid_event  # !Begin $insert_pattern $insert_pattern $update_pattern # Update_rows $update_pattern $delete_pattern # !Commit
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 # Check if data is replicated properly across master and slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 let $diff_tables= master:trans, slave:trans;
 --source include/diff_tables.inc
 let $diff_tables= master:func, slave:func;
@@ -206,5 +206,5 @@ DROP TABLE trigg;
 DROP TABLE t1;
 DROP TABLE t2;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

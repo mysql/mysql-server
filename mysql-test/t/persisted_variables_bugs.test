@@ -31,15 +31,15 @@ CREATE TABLE T( i int);
 --disable_query_log
 RESET BINARY LOGS AND GTIDS;
 --enable_query_log
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 BEGIN;
 INSERT INTO T values (9);
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 SET PERSIST max_connections=31;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 RESET PERSIST;
 # There should be no COMMIT event in binlog
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # cleanup
 SET GLOBAL max_connections=DEFAULT;

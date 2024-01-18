@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,29 +6,29 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1 (a INT);
 FLUSH BINARY LOGS;
 INSERT INTO t1 VALUES (1);
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Shutdown master
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 # Move the master binlog files and the index file to a new place
 # Restart master with log-bin option set to the new path
 # Master has restarted successfully
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Create the master-bin.index file with the old format
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Shutdown master
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 # Move back the master binlog files
 # Remove the unneeded master-bin.index file
 # Restart master with log-bin option set to default
 # Master has restarted successfully
-include/start_slave.inc
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/start_replica.inc
+include/rpl/stop_server.inc [server_number=2]
 # relocate  binlogs
 # relocate  relay logs
 # Restart replica with options log-bin, relay-log set to the new paths
 # Slave server has restarted successfully
-include/start_slave.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
 FLUSH LOGS;
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (2);
@@ -36,12 +36,12 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (2);
 FLUSH LOGS;
 FLUSH LOGS;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/diff_tables.inc [master:t1,slave:t1]
 DROP TABLE t1;
-include/stop_slave.inc
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_replica.inc
+include/rpl/stop_server.inc [server_number=2]
 # remove tmpdir
 # restarted with previous slave settings
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

@@ -25,7 +25,7 @@
 CREATE TABLE t1 (i int PRIMARY KEY);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 SET @debug_saved= @@GLOBAL.DEBUG;
@@ -42,7 +42,7 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Add a remote transaction for server2 so that the debug point is hit.
 --eval SET GTID_NEXT= "$group_replication_group_name:4"
@@ -50,7 +50,7 @@ INSERT INTO t1 VALUES(1);
 SET GTID_NEXT='AUTOMATIC';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
 --source include/wait_condition.inc
@@ -65,6 +65,6 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 # Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 --source include/group_replication_end.inc

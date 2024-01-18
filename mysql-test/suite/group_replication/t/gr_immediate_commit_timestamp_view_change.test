@@ -22,7 +22,7 @@
 --echo # 1. Start GR on S1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
@@ -33,7 +33,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --echo #    are correct on S1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME="group_replication_applier" AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP) > 0 AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP) > 0, count, 1] = 1
@@ -47,7 +47,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --echo # 3. Start GR on S2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
@@ -58,7 +58,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --echo #    are correct on S1 and S2
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME="group_replication_applier" AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP) > 0 AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP) > 0, count, 1] = 1
@@ -69,7 +69,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME="group_replication_applier" AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP) > 0 AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP) > 0, count, 1] = 1

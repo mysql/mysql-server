@@ -3,4 +3,4 @@
 # result file differs for autoincrement values.
 
 --let $DEFAULT_ENGINE = INNODB
---source extra/rpl_tests/rpl_variables_stm.test
+--source common/rpl/rpl_variables_stm.test

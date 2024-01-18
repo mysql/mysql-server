@@ -1,13 +1,13 @@
-include/rpl_init.inc [topology=1->2,3->2]
+include/rpl/init.inc [topology=1->2,3->2]
 [connection server_2]
 call mtr.add_suppression("There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.");
 call mtr.add_suppression("There are per-channel replication filter.s. configured for channel 'channel_3_2' which does not exist. The filter.s. have been discarded.");
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root' for CHANNEL '';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=SOURCE_PORT_3, SOURCE_USER='root' for CHANNEL 'channel_3_2';
-include/start_slave.inc
+include/rpl/start_replica.inc
 
 # Restart replica server to activate replicate-rewrite-db per-channel filter.
-include/rpl_restart_server.inc [server_number=2]
+include/rpl/restart_server.inc [server_number=2]
 
 # Check that the replicate-rewrite-db filter has been activated.
 include/assert.inc [Check that the filters have been set properly]
@@ -24,7 +24,7 @@ CREATE DATABASE db2;
 use db2;
 CREATE TABLE db2.t1(a int primary key);
 INSERT INTO t1 values(23);
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
+include/rpl/sync_to_replica.inc [FOR CHANNEL '']
 
 # Check that the replicate-rewrite-db filter has been applied correctly.
 include/assert.inc [Check that the table rewrite_db1.t1 is present.]
@@ -44,7 +44,7 @@ CREATE DATABASE db4;
 use db4;
 CREATE TABLE db4.t1(a int primary key);
 INSERT INTO t1 values(23);
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3_2']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3_2']
 
 # Check that the replicate-rewrite-db filter has been applied correctly.
 include/assert.inc [Check that the table rewrite_db3.t1 is present.]
@@ -58,19 +58,19 @@ include/assert.inc [Check that table db4.t1 has 1 record.]
 DROP DATABASE db1;
 DROP DATABASE rewrite_db1;
 DROP DATABASE db2;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
+include/rpl/sync_to_replica.inc [FOR CHANNEL '']
 [connection server_3]
 DROP DATABASE db3;
 DROP DATABASE rewrite_db3;
 DROP DATABASE db4;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3_2']
-include/stop_slave.inc [FOR CHANNEL 'channel_3_2']
-include/stop_slave.inc [FOR CHANNEL '']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3_2']
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_3_2']
+include/rpl/stop_replica.inc [FOR CHANNEL '']
 RESET REPLICA ALL FOR CHANNEL '';
 RESET REPLICA ALL FOR CHANNEL 'channel_3_2';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost',SOURCE_PORT=SOURCE_PORT,SOURCE_USER='root' for CHANNEL 'channel_1';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost',SOURCE_PORT=SOURCE_PORT_3,SOURCE_USER='root' for CHANNEL 'channel_3';
-include/rpl_end.inc
+include/rpl/deinit.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
 Warnings:

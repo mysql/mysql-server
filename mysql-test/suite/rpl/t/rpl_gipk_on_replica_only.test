@@ -26,32 +26,32 @@
 #
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo ##################################################
 --echo # 1. Enable the generation of GIPKs in the replica
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Store the default value
 --let $_pk_key_check_value = `SELECT require_table_primary_key_check FROM performance_schema.replication_applier_configuration WHERE channel_name=""`
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo #####################################################
 --echo # 2. Create a table with no primary key in the source
 --echo #    Check it was created with a GIPK in the replica
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1(f1 INT, f2 INT);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $column_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t1';`
 --let $assert_text= The table contains 3 columns
@@ -72,16 +72,16 @@ CREATE TABLE t1(f1 INT, f2 INT);
 --source include/save_sysvars.inc
 
 # Make the applier deterministic by having only 1 thread
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 SET @@GLOBAL.replica_parallel_workers= 1;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (1, 10);
 INSERT INTO t1 VALUES (2, 20);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $row_count= `SELECT COUNT(*) FROM t1 WHERE my_row_id = 1 AND f1 = 1 AND f2 = 10;`
 --let $assert_text= The table contains a row with generated key 1
@@ -96,11 +96,11 @@ INSERT INTO t1 VALUES (2, 20);
 # Add a row on the replica to make the auto increment value jump to 4
 INSERT INTO t1 (my_row_id,f1,f2) VALUES (3, 3, 30);
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (4, 40);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $row_count= `SELECT COUNT(*) FROM t1 WHERE my_row_id = 3 AND f1 = 3 AND f2 = 30;`
 --let $assert_text= The table contains a row with generated key 3
@@ -117,15 +117,15 @@ INSERT INTO t1 VALUES (4, 40);
 --echo # 4. Update one of the row in the source and delete another
 --echo #    Check the changes are correctly propagated
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 UPDATE t1 SET t1.f2 = 60 WHERE t1.f1=2;
 
 DELETE FROM t1 WHERE t1.f1=1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $row_count= `SELECT COUNT(*) FROM t1;`
 --let $assert_text= The table contains 3 row
@@ -145,14 +145,14 @@ DELETE FROM t1 WHERE t1.f1=1;
 --source include/restore_sysvars.inc
 --enable_warnings
 
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 --replace_result $_pk_key_check_value PRIMARY_KEY_CHECK_VALUE
 --eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

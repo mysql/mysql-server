@@ -29,7 +29,7 @@
 --echo ############################################################
 --echo # 1. Start one member with GCS SSL enabled.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET GLOBAL group_replication_ssl_mode= REQUIRED;
 --source include/start_and_bootstrap_group_replication.inc
@@ -45,7 +45,7 @@ SET GLOBAL group_replication_ssl_mode= REQUIRED;
 --echo # 2. Start a second member with GCS SSL disabled, the member
 --echo #    will fail to join the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= '$group_replication_group_name'
 --enable_query_log
@@ -123,11 +123,11 @@ SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
 --echo ############################################################
 --echo # 6. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 
 --source include/group_replication_end.inc

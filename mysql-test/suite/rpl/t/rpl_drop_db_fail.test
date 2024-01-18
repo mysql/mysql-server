@@ -8,8 +8,8 @@
 # not cause slave to break.
 ###############################################################################
 --source include/not_group_replication_plugin.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 connection master;
 CREATE DATABASE IF NOT EXISTS db1;
@@ -19,7 +19,7 @@ use db1;
 CREATE TABLE a(id INT);
 CREATE VIEW v AS SELECT * FROM a;
 CREATE TABLE table_father(id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(20)) ENGINE=INNODB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 use db2;
@@ -29,7 +29,7 @@ ALTER TABLE table_child ADD CONSTRAINT aaa FOREIGN KEY (father_id) REFERENCES db
 --error ER_FK_CANNOT_DROP_PARENT
 DROP DATABASE db1;
 DROP DATABASE db2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection master
 DROP DATABASE db1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

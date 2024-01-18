@@ -38,9 +38,9 @@ select * from t1 where 1=0 /* force discover table */;
 
 create table binlogmarker (a int) engine=ndb;
 let $wait_binlog_event= binlogmarker;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # reset and restore schema again
@@ -61,9 +61,9 @@ select * from t1 where 1=0 /* force discover table */;
 
 create table binlogmarker (a int) engine=ndb;
 let $wait_binlog_event= binlogmarker;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 drop table binlogmarker, t1;
 
@@ -128,7 +128,7 @@ reset binary logs and gtids;
 --exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR --no-binlog -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
 
 select count(*) from TRANSACTION;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 DROP DATABASE BANK;
 --source suite/ndb/include/backup_restore_cleanup.inc

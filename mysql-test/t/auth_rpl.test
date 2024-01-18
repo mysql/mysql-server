@@ -1,5 +1,5 @@
 --source include/have_plugin_auth.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #
 # Check that replication slave can connect to master using an account
@@ -10,7 +10,7 @@
 #
 --connection slave
 --echo [connection slave]
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 #
 # Create an replication account on the master.
 #
@@ -36,7 +36,7 @@ CHANGE REPLICATION SOURCE TO
 # Start replica with new replication account - this should trigger connection
 # to the master server.
 #
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Replicate all statements executed on master, in this case,
 # (creation of the plug_user account).
@@ -55,7 +55,7 @@ SELECT user, plugin, authentication_string FROM mysql.user WHERE user LIKE 'plug
 # would be replicated on slave!
 #
 --echo # Cleanup (on slave).
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_USER='$source_user';
 DROP USER 'plug_user';
@@ -65,4 +65,4 @@ DROP USER 'plug_user';
 DROP USER 'plug_user';
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -10,4 +10,4 @@
 #
 
 --let $using_mts= 0
---source extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test
+--source common/rpl/rpl_gtids_restart_receiver_lost_trx.test

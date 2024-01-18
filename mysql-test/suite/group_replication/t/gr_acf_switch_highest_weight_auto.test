@@ -26,7 +26,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The source.*for channel.*has joined the group.*and so added its entry into replication_asynchronous_connection_failover table");
@@ -42,7 +42,7 @@ SET SESSION sql_log_bin = 1;
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 #check which stack are we using
 --let $have_xcom_stack= `SELECT @@group_replication_communication_stack LIKE 'XCOM'`
@@ -103,12 +103,12 @@ while ($_rpl_server)
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_group_name= $_group_replication_group_name1
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_group_name= $_group_replication_group_name1
 --source include/start_group_replication.inc
 
@@ -166,12 +166,12 @@ while ($_rpl_server > 2)
 --echo
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_group_name= $_group_replication_group_name2
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_group_name= $_group_replication_group_name2
 --source include/start_group_replication.inc
 
@@ -180,13 +180,13 @@ while ($_rpl_server > 2)
 --echo #    and verify channel ch1_5 IO and SQL THREADS are ON.
 --echo
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 for channel 'ch1_5'
 
 --let $rpl_channel_name='ch1_5'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $assert_text= Verify channel ch1_5 IO_THREAD is ON
@@ -205,15 +205,15 @@ while ($_rpl_server > 2)
 --echo #
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $_tmp_gr_group_name1= `SELECT @@GLOBAL.group_replication_group_name`
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $_tmp_gr_group_name2= `SELECT @@GLOBAL.group_replication_group_name`
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $_tmp_gr_group_name1 GROUP_NAME
 --eval SELECT asynchronous_connection_failover_add_managed('ch1_5', 'GroupReplication', '$_tmp_gr_group_name1', '127.0.0.1', $SERVER_MYPORT_2, '', 70, 60);
@@ -234,7 +234,7 @@ while ($_rpl_server > 2)
 --echo #    replication_asynchronous_connection_failover table.
 --echo
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=4 FROM performance_schema.replication_asynchronous_connection_failover;
 --source include/wait_condition.inc
@@ -245,7 +245,7 @@ while ($_rpl_server > 2)
 --echo #    weight which will be server3.
 --echo
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_configuration WHERE HOST = '127.0.0.1' AND PORT = $SERVER_MYPORT_3
 --source include/wait_condition.inc
@@ -259,35 +259,35 @@ while ($_rpl_server > 2)
 --echo
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_1 FOR CHANNEL 'ch1_3'
 
 --let $rpl_channel_name='ch1_3'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 FOR CHANNEL 'ch3_1'
 
 --let $rpl_channel_name='ch3_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $sync_slave_connection= server5
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --let $_rpl_server= 4
@@ -300,13 +300,13 @@ while ($_rpl_server)
 }
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1_5'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 
 --replace_result $_tmp_gr_group_name1 GROUP_NAME1
 --eval SELECT asynchronous_connection_failover_delete_managed('ch1_5', '$_tmp_gr_group_name1')
@@ -316,21 +316,21 @@ while ($_rpl_server)
 
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1_3'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch3_1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 

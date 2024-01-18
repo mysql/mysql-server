@@ -29,17 +29,17 @@
 --echo ############################################################
 --echo # 01. Create two tables on the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
 --echo ############################################################
 --echo # 02. Lock table t1 on server2 to block a future update.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 LOCK table t1 READ;
 
 
@@ -48,7 +48,7 @@ LOCK table t1 READ;
 --echo # 03. Execute transaction T1, the transaction will block on
 --echo #     server2 due to the table lock.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 BEGIN;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -59,7 +59,7 @@ COMMIT;
 --echo ############################################################
 --echo # 04. Wait until T1 is delivered to server2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked=3 AND count_transactions_remote_in_applier_queue=1
 --source include/wait_condition.inc
@@ -72,12 +72,12 @@ COMMIT;
 --echo #     will wait for T1 commit and will make new transactions
 --echo #     wait for T2.
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
 --send UPDATE t2 SET c1=99 WHERE c1=1
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state='Executing hook on transaction begin.' AND info='UPDATE t2 SET c1=99 WHERE c1=1'
 --source include/wait_condition.inc
 
@@ -86,7 +86,7 @@ SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
 --echo ############################################################
 --echo # 06. Force server1 to block between T2 prepare and commit.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_after_applier_prepare';
 
 
@@ -94,11 +94,11 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_after_applier_prepare';
 --echo ############################################################
 --echo # 07. Unblock T1 on server2.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Get transaction T1 outcome.
 --reap
 SET @@SESSION.group_replication_consistency= DEFAULT;
@@ -137,7 +137,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --echo ############################################################
 --echo # 08. Wait until T2 reaches prepare on server1.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.after_applier_prepare_waiting";
 
 
@@ -146,12 +146,12 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.after_applier_prepare_waiting";
 --echo # 09. Now that T2 is prepared on server1 but it is not yet
 --echo #     committed, new transactions (T3) are hold on server1.
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --send SELECT COUNT(*) AS count FROM t2 WHERE c1=99
 
 # server1 is waiting for T2 to commit
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='Executing hook on transaction begin.' AND info="SELECT COUNT(*) AS count FROM t2 WHERE c1=99"
 --source include/wait_condition.inc
 
@@ -160,13 +160,13 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.after_applier_prepare_waiting";
 --echo ############################################################
 --echo # 10. Unblock T2 prepare on server1.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Signal debug sync to continue.
 SET DEBUG_SYNC= 'now SIGNAL signal.after_applier_prepare_continue';
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Get transaction T3 outcome.
 --reap
 
@@ -204,7 +204,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
 --echo ############################################################
 --echo # 11. Validate data.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There is 1 value in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
 --source include/assert.inc
@@ -214,7 +214,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There is 1 value in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
 --source include/assert.inc
@@ -234,7 +234,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
 --echo ############################################################
 --echo # 12. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 DROP TABLE t2;
 

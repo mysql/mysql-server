@@ -42,7 +42,7 @@
 # The amount of transactions that will be part of the commit group
 --let $group_size= 10
 --let $rpl_extra_connections_per_server= $group_size
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $sync_point_timeout= 100
 
@@ -84,7 +84,7 @@ while ($i <= $group_size)
 while ($i <= $group_size)
 {
   --let $rpl_connection_name= server_1_$i
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --reap
 
   --inc $i
@@ -103,4 +103,4 @@ while ($i <= $group_size)
 
 # Cleanup
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

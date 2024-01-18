@@ -1,5 +1,5 @@
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # New --dump-replica, --apply-replica-statements functionality
@@ -28,4 +28,4 @@ connection slave;
 # Execute mysqldump with --dump-replica ,--apply-replica-statements and --include-source-host-port
 --exec $MYSQL_DUMP_SLAVE --compact --dump-replica --apply-replica-statements --include-source-host-port test
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

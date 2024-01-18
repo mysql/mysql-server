@@ -1,19 +1,19 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 4;
-include/start_slave.inc
+include/rpl/start_replica.inc
 create database d1;
 create database d2;
 create database d3;
 create table d1.t1 (a int auto_increment primary key) engine=innodb;
 create table d2.t1 (a int auto_increment primary key) engine=innodb;
 create table d3.t1 (a int auto_increment primary key) engine=innodb;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 begin;
 insert into d2.t1 values (1);
 begin;
@@ -33,7 +33,7 @@ Either the coordinator is waiting for a worker to unlock d1
 has scheduled the 2nd transaction to the sane worker (binlog
 transaction compression ON)
 rollback;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select count(*) from d1.t1 into @d1;
 select count(*) from d2.t1 into @d2;
 select count(*) from d3.t1 into @d3;
@@ -77,6 +77,6 @@ rollback;
 drop database d1;
 drop database d2;
 drop database d3;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
-include/rpl_end.inc
+include/rpl/deinit.inc

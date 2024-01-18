@@ -3,7 +3,7 @@
 
 # Skipping the test when binlog_format=STATEMENT due to unsafe statements:
 # UPDATE IGNORE, INSERT... SELECT... ON DUPLICATE KEY UPDATE, REPLACE... SELECT.
---source include/not_binlog_format_statement.inc
+--source include/rpl/deprecated/not_binlog_format_statement.inc
 
 # The test fails with log_bin ON and binlog_format=ROW due to Bug#22164698.
 # Temporarily, overriding binlog_format to MIXED when log_bin is ON.

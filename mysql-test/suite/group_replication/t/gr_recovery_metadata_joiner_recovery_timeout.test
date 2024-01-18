@@ -35,7 +35,7 @@
 --echo #    to block send recovery metadata.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.DEBUG='+d,gr_wait_before_sending_metadata';
@@ -50,7 +50,7 @@ SET @@GLOBAL.DEBUG='+d,gr_wait_before_sending_metadata';
 --echo #    for recovery metadata for 10 seconds.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Error fetching AFTER_GTIDS from Recovery Metadata by Recovery thread. The Recovery thread timeout after waiting for 10 seconds. The Recovery will be terminated.");
@@ -80,7 +80,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.reached_recovery_metadata_send";
 --echo #    ER_GROUP_REPLICATION_TIMEOUT_ERROR_FETCHING_METADATA error.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state = ERROR
 --source include/gr_wait_for_member_state.inc
@@ -96,7 +96,7 @@ SET @@GLOBAL.DEBUG='-d,gr_set_metadata_wait_time_10';
 --echo # 5. Unblock send recovery metadata.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='-d,gr_wait_before_sending_metadata';
 SET DEBUG_SYNC= "now SIGNAL signal.send_the_recovery_metadata";
 

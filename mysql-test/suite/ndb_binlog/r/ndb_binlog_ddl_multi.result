@@ -4,12 +4,12 @@ create database mysqltest;
 use mysqltest;
 create table t1 (a int primary key) engine=ndb;
 create table t2 (a int primary key) engine=ndb;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	create database mysqltest
 binlog.000001	#	Query	#	#	use `mysqltest`; create table t1 (a int primary key) engine=ndb
 binlog.000001	#	Query	#	#	use `test`; create table t2 (a int primary key) engine=ndb
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	create database mysqltest
 binlog.000001	#	Query	#	#	use `mysqltest`; create table t1 (a int primary key) engine=ndb
@@ -19,13 +19,13 @@ reset binary logs and gtids;
 alter table t2 add column (b int);
 Warnings:
 Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable online ADD COLUMN
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; alter table t2 add column (b int)
 reset binary logs and gtids;
 reset binary logs and gtids;
 ALTER DATABASE mysqltest CHARACTER SET latin1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	ALTER DATABASE mysqltest CHARACTER SET latin1
 drop table mysqltest.t1;
@@ -35,7 +35,7 @@ use test;
 insert into t2 values (1,2);
 drop database mysqltest;
 create table t1 (a int primary key) engine=ndb;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -72,7 +72,7 @@ DROP DATAFILE 'datafile02.dat';
 DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -109,7 +109,7 @@ create table t1 (a int key) engine=ndb;
 create table t2 (a int key) engine=ndb;
 create table t3 (a int key) engine=ndb;
 rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; create table t1 (a int key) engine=ndb
 binlog.000001	#	Query	#	#	use `test`; create table t2 (a int key) engine=ndb
@@ -132,7 +132,7 @@ insert into t1 values(1);
 rename table t1 to t2;
 insert into t2 values(2);
 drop table t2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; create table t1 (a int key) engine=ndb
 binlog.000001	#	Query	#	#	BEGIN
@@ -181,7 +181,7 @@ drop database mysqltest;
 drop table t1;
 create table dummy (dummyk int primary key) engine = ndb;
 drop table dummy;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	create database mysqltest
 binlog.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=ndb
@@ -284,7 +284,7 @@ ERROR 23000: Column 'b' cannot be null
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 # Verify that the CREATE TABLE t2 query is not present in binlog
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (
 a int,
@@ -300,7 +300,7 @@ binlog.000001	#	Query	#	#	COMMIT
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 # Verify that the CREATE TABLE t2 query is present in binlog
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (
 a int,

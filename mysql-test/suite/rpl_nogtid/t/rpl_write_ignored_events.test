@@ -12,31 +12,31 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1);
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 DROP TABLE t1;
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # The last event of the relay log should be a rotate with
 # the latest master position received by the I/O thread.
 --let $binlog_file= slave-relay-bin.000002
 --let $binlog_limit= 3
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 (c1) VALUES (1);
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

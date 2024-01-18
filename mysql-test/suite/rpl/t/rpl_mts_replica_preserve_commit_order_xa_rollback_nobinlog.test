@@ -44,7 +44,7 @@
 --source include/have_debug_sync.inc
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 
@@ -66,7 +66,7 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 --let $mts_spco_assert_cond3 = "[SELECT count(XID_GTRID) COUNT FROM performance_schema.events_transactions_current WHERE XID_GTRID = \'xa_test_xid1\', COUNT, 1]" = "1"
 
 --let $mts_spco_rollback_statement = ROLLBACK;
---source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
 
 
 --connection server_2
@@ -88,7 +88,7 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 --let $debug_point=syncpoint_commit_order_manager_after_wait_100
 --source include/add_debug_point.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET TIMESTAMP = 100; XA ROLLBACK 'xa_test_xid1';
 
 --connection server_1
@@ -103,7 +103,7 @@ COMMIT;
 --echo # XA ROLLBACK which is still blocked.
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $wait_condition = SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE state like 'debug sync point: now%'
 --source include/wait_condition.inc
@@ -132,19 +132,19 @@ SET DEBUG_SYNC= 'now SIGNAL continue_commit_order_manager_after_wait_100';
 --echo # Cleanup
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 DROP TABLE t2;
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 SET GLOBAL replica_parallel_type= @save_replica_parallel_type;
 --disable_warnings
 SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
 --enable_warnings
 SET GLOBAL replica_preserve_commit_order= @save_replica_preserve_commit_order;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

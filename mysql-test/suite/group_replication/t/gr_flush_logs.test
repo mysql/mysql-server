@@ -63,15 +63,15 @@
   --let $include_silent = 1
 
   --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*binary-log*
-  --source include/rpl_log_file_max_number.inc
+  --source include/rpl/log_file_max_number.inc
   --let MAX_BINLOG_FILE_BEFORE_FLUSH = $log_file_max_number
 
   --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*group_replication_applier*
-  --source include/rpl_log_file_max_number.inc
+  --source include/rpl/log_file_max_number.inc
   --let MAX_APPLIER_LOG_FILE_BEFORE_FLUSH = $log_file_max_number
 
   --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*group_replication_recovery*
-  --source include/rpl_log_file_max_number.inc
+  --source include/rpl/log_file_max_number.inc
   --let MAX_RECOVERY_LOG_FILE_BEFORE_FLUSH = $log_file_max_number
 
   --let RESULT_FILE = $MYSQLTEST_VARDIR/tmp/save_current_log_info_$server_number.inc
@@ -123,7 +123,7 @@ PROCEDURE
 
   --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*binary-log*
   --let $include_silent = 1
-  --source include/rpl_log_file_max_number.inc
+  --source include/rpl/log_file_max_number.inc
   --let $max_binlog_file_after_flush = $log_file_max_number
   --let $assert_text = Binary log WAS flushed and rotated
   --let $operator = <
@@ -138,7 +138,7 @@ PROCEDURE
 
   --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*group_replication_applier*
   --let $include_silent = 1
-  --source include/rpl_log_file_max_number.inc
+  --source include/rpl/log_file_max_number.inc
   --let $max_applier_log_file_after_flush = $log_file_max_number
   --let $assert_text = Applier relay log WAS flushed and rotated
   --let $operator = <
@@ -153,7 +153,7 @@ PROCEDURE
 
   --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*group_replication_recovery*
   --let $include_silent = 1
-  --source include/rpl_log_file_max_number.inc
+  --source include/rpl/log_file_max_number.inc
   --let $max_recovery_log_file_after_flush = $log_file_max_number
   --let $assert_text = Recovery relay log WAS flushed and rotated
   --let $operator = <
@@ -174,13 +174,13 @@ PROCEDURE
 PROCEDURE
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (i INT PRIMARY KEY) engine= innodb;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Test if support 'flush error logs' statement.
 --let $server_number = 1
@@ -201,9 +201,9 @@ flush error logs;
 --let $must_rotate_recovery_log = no
 --source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush error logs' statement.
 --echo # Make sure applier logs was not flushed after execute 'flush error logs' statement.
@@ -216,18 +216,18 @@ flush error logs;
 
 # Testing if the replication is working fine between the members.
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES(1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 INSERT INTO t1 VALUES(2);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= select count(*) = 2 from t1
 --source include/wait_condition.inc
 
@@ -236,7 +236,7 @@ INSERT INTO t1 VALUES(2);
 
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo # Test if support 'flush local relay logs' statement.
 --let $server_number = 1
 --source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
@@ -254,9 +254,9 @@ flush local relay logs;
 --let $must_rotate_recovery_log = yes
 --source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush local relay logs' statement.
 --echo # Make sure applier logs was flushed after execute 'flush local relay logs' statement.
@@ -270,15 +270,15 @@ flush local relay logs;
 # Testing if the replication is working fine between the members.
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES(3);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 INSERT INTO t1 VALUES(4);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= select count(*) = 4 from t1
 --source include/wait_condition.inc
 
@@ -303,9 +303,9 @@ flush slow logs;
 --let $must_rotate_recovery_log = no
 --source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush slow logs' statement.
 --echo # Make sure applier logs was not flushed after execute 'flush slow logs' statement.
@@ -319,17 +319,17 @@ flush slow logs;
 
 # Testing if the replication is working fine between the members.
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES(5);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 INSERT INTO t1 VALUES(6);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= select count(*) = 6 from t1
 --source include/wait_condition.inc
 
@@ -337,7 +337,7 @@ INSERT INTO t1 VALUES(6);
 --source include/diff_tables.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Test 'flush general logs' statement.
 --echo # Test if support 'flush general logs' statement.
 --let $server_number = 1
@@ -356,9 +356,9 @@ flush general logs;
 --let $must_rotate_recovery_log = no
 --source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush general logs' statement.
 --echo # Make sure applier logs was not flushed after execute 'flush general logs' statement.
@@ -372,15 +372,15 @@ flush general logs;
 # Testing if the replication is working fine between the members.
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES(7);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 INSERT INTO t1 VALUES(8);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= select count(*) = 8 from t1
 --source include/wait_condition.inc
 
@@ -405,9 +405,9 @@ flush engine logs;
 --let $must_rotate_recovery_log = no
 --source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush engine logs' statement.
 --echo # Make sure applier logs was not flushed after execute 'flush engine logs' statement.
@@ -421,15 +421,15 @@ flush engine logs;
 # Testing if the replication is working fine between the members.
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES(9);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 INSERT INTO t1 VALUES(10);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= select count(*) = 10 from t1
 --source include/wait_condition.inc
 
@@ -437,7 +437,7 @@ INSERT INTO t1 VALUES(10);
 --source include/diff_tables.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Test 'flush binary logs' statement.
 --echo # Test if support 'flush binary logs' statement.
 --let $server_number = 1
@@ -468,9 +468,9 @@ flush binary logs;
 --let $assert_cond= "$binlog2" = "server-binary-log.000002"
 --source include/assert.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush binary logs' statement.
 --echo # Make sure applier logs was not flushed after execute 'flush binary logs' statement.
@@ -484,15 +484,15 @@ flush binary logs;
 # Testing if the replication is working fine between the members.
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES(11);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 INSERT INTO t1 VALUES(12);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= select count(*) = 12 from t1
 --source include/wait_condition.inc
 
@@ -500,7 +500,7 @@ INSERT INTO t1 VALUES(12);
 --source include/diff_tables.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Test if support to combine all kinds of logs into one statement.
 --let $server_number = 1
@@ -521,9 +521,9 @@ flush local error logs, relay logs;
 --let $must_rotate_recovery_log = yes
 --source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush local error logs, relay logs' statement.
 --echo # Make sure applier logs was flushed after execute 'flush local error logs, relay logs' statement.
@@ -536,17 +536,17 @@ flush local error logs, relay logs;
 
 # Testing if the replication is working fine between the members.
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES(13);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 INSERT INTO t1 VALUES(14);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= select count(*) = 14 from t1
 --source include/wait_condition.inc
 
@@ -554,11 +554,11 @@ INSERT INTO t1 VALUES(14);
 --source include/diff_tables.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Test 'flush logs' statement
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Test if 'flush logs' statement works fine and flush all the logs.
 --let $server_number = 1
@@ -579,9 +579,9 @@ flush logs;
 --let $must_rotate_recovery_log = yes
 --source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush logs' statement.
 --echo # Make sure applier logs was not flushed after execute 'flush logs' statement.
@@ -595,7 +595,7 @@ flush logs;
 --echo # Checking the "flush logs" behavior executed from the server2 side
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server_number = 1
 --source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
 --let $server_number = 2
@@ -612,9 +612,9 @@ flush logs;
 --let $must_rotate_recovery_log = yes
 --source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush logs' statement.
 --echo # Make sure applier logs was not flushed after execute 'flush logs' statement.
@@ -627,14 +627,14 @@ flush logs;
 
 # Testing if the replication is working fine between the members.
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES(15);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 INSERT INTO t1 VALUES(16);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $wait_condition= select count(*) = 16 from t1
 --source include/wait_condition.inc
@@ -643,7 +643,7 @@ INSERT INTO t1 VALUES(16);
 --source include/diff_tables.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc

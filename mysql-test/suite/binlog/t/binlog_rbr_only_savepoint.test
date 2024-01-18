@@ -92,7 +92,7 @@ while ($transactions)
 --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 # The workload is not deterministic, so skipping to print the expected flags
 --let $dont_print_rbr_only_flags= 1
---source include/assert_rbr_only_flags.inc
+--source include/rpl/assert_rbr_only_flags.inc
 
 # Cleanup
 DROP TABLE t1;

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -826,7 +826,7 @@ c1	c2
 4	1
 100	2
 6	3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 c1	c2
@@ -1964,7 +1964,7 @@ c1	c2
 4	1
 100	2
 6	3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 c1	c2
@@ -1998,8 +1998,8 @@ include/diff_tables.inc [master:t1,slave:t1]
 DROP TABLE t1;
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-include/rpl_end.inc
+include/rpl/deinit.inc

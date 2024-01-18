@@ -54,7 +54,7 @@ SET sql_log_bin=1;
 --echo #    group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
@@ -67,7 +67,7 @@ SET sql_log_bin=1;
 --echo #    and reduce stop_component timeout to recovery module stop faster
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_autorejoin_tries_save = @@GLOBAL.group_replication_autorejoin_tries;
 SET @group_replication_components_stop_timeout_save = @@GLOBAL.group_replication_components_stop_timeout;
@@ -103,7 +103,7 @@ SET SESSION sql_log_bin= 1;
 
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -112,7 +112,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    tables READ. Table locked will prevent server to finish recovery
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL super_read_only= 1;
 FLUSH TABLES WITH READ LOCK;
@@ -122,7 +122,7 @@ FLUSH TABLES WITH READ LOCK;
 --echo # 6. Insert data on group
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO test.t1 VALUES (1, 1);
 INSERT INTO test.t1 VALUES (2, 1);
@@ -133,7 +133,7 @@ INSERT INTO test.t1 VALUES (2, 1);
 --echo #    read lock
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Waiting for global read lock'
 --source include/wait_condition.inc
 
@@ -146,18 +146,18 @@ INSERT INTO test.t1 VALUES (2, 1);
 
 # Wait until the group settles on 2 members
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 # Send signal SIGCONT to server 3.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec kill -18 $server_pid
 
 --echo
@@ -195,7 +195,7 @@ INSERT INTO test.t1 VALUES (2, 1);
 --echo # 12. UNLOCK tables on server3
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --echo
@@ -208,7 +208,7 @@ UNLOCK TABLES;
 --echo # 14. Wait for member to be ONLINE after autorejoin third attempt succeed
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_timeout= 600
 --let $group_replication_member_state= ONLINE
 --let $group_replication_member_id= $member3_uuid

@@ -32,7 +32,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 # Supress log errors since they are expected.
 call mtr.add_suppression("read failed");
@@ -54,12 +54,12 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 --let $group_seeds_server1= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $member1_uuid= `SELECT @@GLOBAL.server_uuid`
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $member2_uuid= `SELECT @@GLOBAL.server_uuid`
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $local_address_server3= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server3= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $member3_uuid= `SELECT @@GLOBAL.server_uuid`
@@ -71,7 +71,7 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 --echo
 # Crash server 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
@@ -79,7 +79,7 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 --source include/wait_until_connected_again.inc
 # Crash server 3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
@@ -91,7 +91,7 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= ERROR
 --let $group_replication_member_id= $member1_uuid
 --source include/gr_wait_for_member_state.inc
@@ -106,23 +106,23 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --source include/start_and_bootstrap_group_replication.inc
 # First we relaunch server 2 and 3
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $group_seeds_server2 GROUP_SEEDS_SERVER2
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
 --replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
 --eval SET @@global.group_replication_local_address="$local_address_server2"
 --source include/start_group_replication.inc
 --let $rpl_server_number= 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $group_seeds_server3 GROUP_SEEDS_SERVER3
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
 --replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3
@@ -133,7 +133,7 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 --source include/gr_wait_for_number_of_members.inc
 # Then we set server 1's exit_state_action to ABORT_SERVER
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Set the exit state action sysvar to ABORT_SERVER
 SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 
@@ -146,14 +146,14 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 # Crash server 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 --source include/wait_until_connected_again.inc
 # Crash server 3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
@@ -165,7 +165,7 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Wait until the connection is dropped
 --let $disconnect_timeout= 300
 --source include/wait_until_disconnected.inc
@@ -178,27 +178,27 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --echo
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $group_seeds_server1 GROUP_SEEDS_SERVER1
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
 --replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1
 --eval SET @@global.group_replication_local_address="$local_address_server1"
 --source include/start_and_bootstrap_group_replication.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $group_seeds_server2 GROUP_SEEDS_SERVER2
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
 --replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
 --eval SET @@global.group_replication_local_address="$local_address_server2"
 --source include/start_group_replication.inc
 --let $rpl_server_number= 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $group_seeds_server3 GROUP_SEEDS_SERVER3
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
 --replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3

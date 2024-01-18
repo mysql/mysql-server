@@ -4,7 +4,7 @@
 --source include/not_group_replication_plugin.inc
 source include/force_myisam_default.inc;
 source include/have_myisam.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -23,9 +23,9 @@ CREATE TABLE t1 (
 --disable_warnings
 INSERT INTO t1(data) VALUES(SESSION_USER());
 --enable_warnings
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT length(data) < 100 FROM t1;
 connection master;
 drop table t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

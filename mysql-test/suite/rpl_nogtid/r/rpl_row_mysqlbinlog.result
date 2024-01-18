@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -82,12 +82,12 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 STOP REPLICA;
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 reset binary logs and gtids;
 RESET REPLICA;
 reset binary logs and gtids;
 START REPLICA;
-include/wait_for_slave_to_start.inc
+include/rpl/wait_for_replica_to_start.inc
 
 --- Test 1 Load from Dump binlog file --
 
@@ -154,7 +154,7 @@ c1	c3	c4	c5
 5	2006-02-22 00:00:00	Tested in Texas	11
 
 --- Test 2 position test --
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -189,7 +189,7 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 --- Test 3 First Remote test --
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -258,12 +258,12 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 STOP REPLICA;
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 reset binary logs and gtids;
 RESET REPLICA;
 reset binary logs and gtids;
 START REPLICA;
-include/wait_for_slave_to_start.inc
+include/rpl/wait_for_replica_to_start.inc
 SELECT COUNT(*) from t1;
 COUNT(*)
 352
@@ -326,7 +326,7 @@ c1	c3	c4	c5
 5	2006-02-22 00:00:00	Tested in Texas	11
 
 --- Test 5 LOAD DATA --
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -339,19 +339,19 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 --- Test 6 reading stdin --
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 
 --- Test 7 reading stdin w/position --
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 
 --- Test 8 switch internal charset --
 STOP REPLICA;
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 reset binary logs and gtids;
 RESET REPLICA;
 reset binary logs and gtids;
 START REPLICA;
-include/wait_for_slave_to_start.inc
+include/rpl/wait_for_replica_to_start.inc
 create table t4 (f text character set utf8);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -392,4 +392,4 @@ a	b
 1	1
 FLUSH LOGS;
 DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -57,12 +57,12 @@ if ($rpl_debug)
 
 # Tell statement to continue on auxiliary connection.
 --let $rpl_connection_name= $_esp_auxiliary_connection
---source include/rpl_connection.inc
+--source include/connection.inc
 eval SET @@SESSION.DEBUG_SYNC = 'now SIGNAL _esp_go_$sync_point$underscore$statement_connection';
 
 # Wait for statement to finish.
 --let $rpl_connection_name= $statement_connection
---source include/rpl_connection.inc
+--source include/connection.inc
 if ($_esp_quiet != 2)
 {
   --echo [END] $statement;
@@ -72,7 +72,7 @@ if (!$skip_reap)
   reap;
 }
 --let $rpl_connection_name= $_esp_auxiliary_connection
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $include_filename= execute_from_sync_point.inc
 --source include/end_include_file.inc

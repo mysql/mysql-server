@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection master]
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT) ENGINE= InnoDB;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression(".*worker thread retried transaction.*time.*in vain, giving up.*");
 SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
@@ -18,24 +18,24 @@ INSERT INTO t1 VALUES (7,0);
 INSERT INTO t1 VALUES (7,7);
 [connection slave]
 SET @@GLOBAL.replica_transaction_retries = 0;
-include/start_slave.inc
+include/rpl/start_replica.inc
 ### Specified retry number is expected ###
 ### Timeout error is expected ###
-include/wait_for_slave_sql_error.inc [errno=1205]
+include/rpl/wait_for_applier_error.inc [errno=1205]
 [connection slave]
 SET @@GLOBAL.replica_transaction_retries = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 ### Specified retry number is expected ###
 ### Timeout error is expected ###
-include/wait_for_slave_sql_error.inc [errno=1205]
+include/rpl/wait_for_applier_error.inc [errno=1205]
 [connection slave1]
 ROLLBACK;
 #### Cleanup ####
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET @@GLOBAL.replica_transaction_retries = @saved_replica_transaction_retries;
 SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout ;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,9 +1,9 @@
 include/save_error_log_position.inc
-include/install_semisync_source.inc
+include/rpl/install_semisync_source.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 include/stop_mysqld.inc [server 1]
 # restart
 include/assert_error_log.inc [server: 1, pattern: NONE]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
-include/uninstall_semisync_source.inc
+include/rpl/uninstall_semisync_source.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = REPLICATION_OPTIMIZE_FOR_STATIC_PLUGIN_CONFIG;

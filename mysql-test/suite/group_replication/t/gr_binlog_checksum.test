@@ -27,7 +27,7 @@
 --echo ############################################################
 --echo # 1. Start GR on server1 and create a table.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
@@ -37,7 +37,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo # 2. Start GR on server2.
 --echo #    Disable recovery channel relay logs purge through a debug flag.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL debug= '+d,gr_recovery_skip_purge_logs';
 --source include/start_group_replication.inc
 SET GLOBAL debug= '-d,gr_recovery_skip_purge_logs';
@@ -50,7 +50,7 @@ SET GLOBAL debug= '-d,gr_recovery_skip_purge_logs';
 --let $datadir= `SELECT @@datadir`
 --let $mysqlbinlog_parameters= $datadir/server-relay-log-group_replication_recovery.000003
 --let $mysqlbinlog_pipe= > $output_file 2>&1
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --let $assert_file= $output_file
 --let $assert_count = 7
@@ -64,16 +64,16 @@ SET GLOBAL debug= '-d,gr_recovery_skip_purge_logs';
 --echo # 4. Execute a new transaction on server1 and validate that
 --echo #    server2 applier channel relay logs do not have checksums.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $datadir= `SELECT @@datadir`
 --let $mysqlbinlog_parameters= $datadir/server-relay-log-group_replication_applier.000002
 --let $mysqlbinlog_pipe= > $output_file 2>&1
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --let $assert_file= $output_file
 --let $assert_count = 0
@@ -86,11 +86,11 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 5. Validate that server2 binary log have checksums.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $datadir= `SELECT @@datadir`
 --let $mysqlbinlog_parameters= $datadir/server-binary-log.000001
 --let $mysqlbinlog_pipe= > $output_file 2>&1
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --let $assert_file= $output_file
 --let $assert_count = 9
@@ -106,11 +106,11 @@ if ($_binlog_compression_enable == 1) {
 --echo ############################################################
 --echo # 6. Validate that server1 binary log have checksums.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $datadir= `SELECT @@datadir`
 --let $mysqlbinlog_parameters= $datadir/server-binary-log.000001
 --let $mysqlbinlog_pipe= > $output_file 2>&1
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --let $assert_file= $output_file
 --let $assert_count = 9

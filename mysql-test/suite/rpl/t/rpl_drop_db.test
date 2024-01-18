@@ -2,7 +2,7 @@
 # dropping the db on the master causes replication problems
 -- source include/have_myisam.inc
 -- source include/not_group_replication_plugin.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/have_debug.inc
 
 --disable_warnings
@@ -68,9 +68,9 @@ INSERT INTO t1 VALUES (1234);
 DROP TABLE t1;
 
 #cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP DATABASE test1;
 DROP DATABASE test2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

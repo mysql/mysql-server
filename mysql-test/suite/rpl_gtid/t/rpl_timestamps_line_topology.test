@@ -29,12 +29,12 @@
 
 # Establish the line topology.
 --let $rpl_topology=1->2, 2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (a INT);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
 --let $gtid= $server_uuid:1
 #
@@ -43,10 +43,10 @@ CREATE TABLE t1 (a INT);
 # checks that the  ICT value is greater than or equal to the
 # time of execution of the GTID event.
 #
---source include/get_gtid_time.inc
+--source include/rpl/get_gtid_time.inc
 --let $readable= 1
 --let $only_time= 1
---source include/get_immediate_commit_timestamp.inc
+--source include/rpl/get_immediate_commit_timestamp.inc
 --let $readable= 0
 
 --disable_query_log
@@ -59,19 +59,19 @@ CREATE TABLE t1 (a INT);
 --let $server_1= server_1
 --let $server_2= server_2
 --let $server_3= server_3
---source extra/rpl_tests/rpl_timestamps_line_topology.inc
+--source common/rpl/timestamps_line_topology.inc
 --let $OCT1=  $original_commit_timestamp
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES(1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
 --let $gtid= $server_uuid:2
 
---source include/get_gtid_time.inc
+--source include/rpl/get_gtid_time.inc
 --let $readable= 1
---source include/get_immediate_commit_timestamp.inc
+--source include/rpl/get_immediate_commit_timestamp.inc
 --let $readable= 0
 
 --disable_query_log
@@ -79,19 +79,19 @@ INSERT INTO t1 VALUES(1);
 --eval select cast('$immediate_commit_timestamp' as time) >= cast('$gtid_time' as time)
 --enable_query_log
 
---source extra/rpl_tests/rpl_timestamps_line_topology.inc
+--source common/rpl/timestamps_line_topology.inc
 --let $OCT2=  $original_commit_timestamp
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 UPDATE t1 SET a=2;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
 --let $gtid= $server_uuid:3
 
---source include/get_gtid_time.inc
+--source include/rpl/get_gtid_time.inc
 --let $readable= 1
---source include/get_immediate_commit_timestamp.inc
+--source include/rpl/get_immediate_commit_timestamp.inc
 --let $readable= 0
 
 --disable_query_log
@@ -99,19 +99,19 @@ UPDATE t1 SET a=2;
 --eval select cast('$immediate_commit_timestamp' as time) >= cast('$gtid_time' as time)
 --enable_query_log
 
---source extra/rpl_tests/rpl_timestamps_line_topology.inc
+--source common/rpl/timestamps_line_topology.inc
 --let $OCT3=  $original_commit_timestamp
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DELETE FROM t1 WHERE a=2;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
 --let $gtid= $server_uuid:4
 
---source include/get_gtid_time.inc
+--source include/rpl/get_gtid_time.inc
 --let $readable= 1
---source include/get_immediate_commit_timestamp.inc
+--source include/rpl/get_immediate_commit_timestamp.inc
 --let $readable= 0
 
 --disable_query_log
@@ -119,19 +119,19 @@ DELETE FROM t1 WHERE a=2;
 --eval select cast('$immediate_commit_timestamp' as time) >= cast('$gtid_time' as time)
 --enable_query_log
 
---source extra/rpl_tests/rpl_timestamps_line_topology.inc
+--source common/rpl/timestamps_line_topology.inc
 --let $OCT4=  $original_commit_timestamp
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
 --let $gtid= $server_uuid:5
 
---source include/get_gtid_time.inc
+--source include/rpl/get_gtid_time.inc
 --let $readable= 1
---source include/get_immediate_commit_timestamp.inc
+--source include/rpl/get_immediate_commit_timestamp.inc
 --let $readable= 0
 --let $only_time= 0
 
@@ -140,7 +140,7 @@ DROP TABLE t1;
 --eval select cast('$immediate_commit_timestamp' as time) >= cast('$gtid_time' as time)
 --enable_query_log
 
---source extra/rpl_tests/rpl_timestamps_line_topology.inc
+--source common/rpl/timestamps_line_topology.inc
 --let $OCT5=  $original_commit_timestamp
 
 --echo # 2. Verify that the Original_commit_timestamps are correct.
@@ -198,4 +198,4 @@ if (!$is_windows)
 }
 --source include/assert.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

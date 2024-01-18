@@ -1,0 +1,78 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/13/2005 Created from Bug 12335                         #
+#############################################################################
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t1;
+--enable_warnings
+# End of cleanup
+
+# Begin test section 1
+
+eval CREATE TABLE test.t1(a INT,PRIMARY KEY(a))ENGINE=$engine_type;
+
+delimiter |;
+CREATE PROCEDURE test.p1()
+BEGIN
+  INSERT INTO test.t1 VALUES (4);
+  SELECT  get_lock("test", 100);
+  UPDATE test.t1 set a=a+4 WHERE a=4;
+END|
+CREATE PROCEDURE test.p2()
+BEGIN
+  UPDATE test.t1 SET a=a+1;
+END|
+delimiter ;|
+
+SELECT get_lock("test", 200);
+
+connection master1;
+send CALL test.p1();
+
+connection master;
+# Make sure that the call on master1 arrived at the get_lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = 'User lock' and
+        info = 'SELECT  get_lock("test", 100)';
+--source include/wait_condition_or_abort.inc
+CALL test.p2();
+SELECT release_lock("test");
+
+connection master1;
+# Reap CALL test.p1() to ensure that it has fully completed
+# before doing any selects on test.t1.
+--reap
+# Release lock acquired by it.
+SELECT release_lock("test");
+
+connection master;
+SELECT * FROM test.t1; 
+#show binlog events;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM test.t1;
+
+connection master;
+DROP TABLE IF EXISTS test.t1;
+eval CREATE TABLE test.t1(a INT,PRIMARY KEY(a))ENGINE=$engine_type;
+CALL test.p2();
+CALL test.p1();
+SELECT release_lock("test");
+SELECT * FROM test.t1;
+
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM test.t1;
+connection master;
+#show binlog events from 720;
+
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t1;
+--source include/rpl/sync_to_replica.inc
+
+# End of 5.0 test case

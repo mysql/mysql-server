@@ -51,7 +51,7 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 set session sql_log_bin=0;
 INSERT INTO test.t1 VALUES (1);
 set session sql_log_bin=1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 INSERT INTO test.t1 VALUES (1);
 [connection server2]
@@ -84,7 +84,7 @@ SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
 ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Can't execute the given operation because you have active locked tables.
 UNLOCK TABLES;
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 7. Kill server1 to create a network partition on group.
 [connection server1]
@@ -104,7 +104,7 @@ ERROR HY000: Can't initialize function 'group_replication_switch_to_single_prima
 
 # 9. Cleanup.
 [connection server_1]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server2]
 set session sql_log_bin=0;
 call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");

@@ -33,9 +33,9 @@
 --source include/have_debug.inc
 # The test case only make sense for RBR
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # To hit the issue, we need to split the data in two pages.
 # This global variable will help us.
 SET @saved_innodb_limit_optimistic_insert_debug = @@GLOBAL.innodb_limit_optimistic_insert_debug;
@@ -46,7 +46,7 @@ SET @@GLOBAL.innodb_limit_optimistic_insert_debug = 2;
 #
 
 # Let's generate the workload on the master
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (
   c1 INT NOT NULL,
@@ -61,7 +61,7 @@ CREATE TABLE t2 (
 SET restrict_fk_on_non_standard_key=ON;
 INSERT INTO t1 VALUES (1), (3), (4);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 XA START 'XA1';
 INSERT INTO t1 values(2);
 XA END 'XA1';
@@ -70,7 +70,7 @@ XA END 'XA1';
 # was inserted, and will be prepared and committed
 # before XA1, so the slave will prepare it (but will
 # not commit it) before preparing XA1.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 XA START 'XA2';
 INSERT INTO t2 values(3);
 XA END 'XA2';
@@ -80,26 +80,26 @@ XA PREPARE 'XA2';
 
 # The XA1 prepare should be binary logged
 # after XA2 prepare and before XA2 commit.
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 XA PREPARE 'XA1';
 
 # The commit order doesn't matter much for the issue being tested.
 XA COMMIT 'XA1';
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 XA COMMIT 'XA2';
 
 # Everything is fine if the slave can sync with the master.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Step 2 - Using mysqlbinlog dump to restore the salve
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 DROP TABLE t2, t1;
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $master_data_dir= `SELECT @@datadir`
 --let $source_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $mysql_server= $MYSQL --defaults-group-suffix=.2 --init-command="SET restrict_fk_on_non_standard_key=OFF"
@@ -119,7 +119,7 @@ RESET BINARY LOGS AND GTIDS;
 DROP TABLE t2, t1;
 
 # When GTID_MODE=OFF, we need to skip already applied transactions
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $gtid_mode= `SELECT @@GTID_MODE`
 if ($gtid_mode == OFF)
 {
@@ -130,6 +130,6 @@ if ($gtid_mode == OFF)
   --enable_query_log
 }
 SET @@GLOBAL.innodb_limit_optimistic_insert_debug = @saved_innodb_limit_optimistic_insert_debug;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

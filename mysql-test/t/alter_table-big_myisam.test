@@ -12,7 +12,7 @@
 --source include/have_debug.inc
 # Also we are using SBR to check that statements are executed
 # in proper order.
---source include/force_binlog_format_statement.inc
+--source include/rpl/force_binlog_format_statement.inc
 
 --source include/count_sessions.inc
 
@@ -369,7 +369,7 @@ connection addconroot;
 --reap
 connection default;
 # Check that statements were executed/binlogged in correct order.
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 # Clean up
 drop tables t1, t2;
@@ -377,7 +377,7 @@ disconnect addconroot;
 disconnect addconroot2;
 set debug_sync='RESET';
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

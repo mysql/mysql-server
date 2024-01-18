@@ -1,5 +1,5 @@
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 #
 # MySQL Bug#15276: MySQL ignores collation-server
@@ -37,4 +37,4 @@ select * from t1 order by nid;
 connection master;
 DROP TABLE t1;
 sync_slave_with_master;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

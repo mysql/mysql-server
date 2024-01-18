@@ -30,14 +30,14 @@
 --echo #
 --echo # 1. Start Group Replication on server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 
 --echo #
 --echo # 2. Save initial value of GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT for server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $_init_auto_increment= `SELECT @@GLOBAL.GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT`
 
 

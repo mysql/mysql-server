@@ -13,7 +13,7 @@
 ####################################################################################
 
 --source include/have_binlog_format_mixed_or_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 SET @saved_session_sql_generate_invisible_primary_key = @@session.sql_generate_invisible_primary_key;
 SET SESSION sql_generate_invisible_primary_key = ON;
@@ -36,31 +36,31 @@ SET SESSION show_gipk_in_create_table_and_information_schema =
 --echo # Check that t1 exists and has generated invisible primary key definition
 --echo # in source and replica.
 --let $rpl_diff_statement= SHOW CREATE TABLE t1;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 --echo # Check if t1 has same column values in source and replica.
 --let $rpl_diff_statement= SELECT my_row_id, t1.* FROM t1
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
 --echo # Check that t2 exists and has generated invisible primary key definition
 --echo # in source and replica.
 --let $rpl_diff_statement= SHOW CREATE TABLE t2;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 --echo # Check if t2 has same column values in source and replica.
 --let $rpl_diff_statement= SELECT my_row_id, t2.* FROM t2;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
 --echo # Check that t3 exists and has generated invisible primary key definition
 --echo # in source and replica. show_gipk_in_create_table_and_information_schema=OFF
 --echo # should not effect generating query string to binlog.
 --let $rpl_diff_statement= SHOW CREATE TABLE t3;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 --echo # Check if t3 has same column values in source and replica.
 --let $rpl_diff_statement= SELECT my_row_id, t3.* FROM t3
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2, t3;
 
 SET SESSION sql_generate_invisible_primary_key =
               @saved_session_sql_generate_invisible_primary_key;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

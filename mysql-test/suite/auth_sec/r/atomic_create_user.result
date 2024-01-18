@@ -1,4 +1,4 @@
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # ----------------------------------------------------------------------
 # Begin : Tests for CREATE USER
 CREATE USER userX;
@@ -13,10 +13,10 @@ SELECT user FROM mysql.user WHERE user LIKE 'user%';
 user
 userX
 # This event sequence pattern MUST be present in binlog: !Q(CREATE USER .userX.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 # This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER .*userY.*userZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # Case 2 : Execute CREATE USER for non-existing users
 CREATE USER userY, userZ;
 # Must show entries for userX, userY and userZ
@@ -26,8 +26,8 @@ userX
 userY
 userZ
 # This event sequence pattern MUST be present in binlog: !Q(CREATE USER .userY.*userZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # Case 3 : Try creating anonymous user with expired password
 CREATE USER ''@localhost,
 userA IDENTIFIED BY 'abcd'
@@ -56,7 +56,7 @@ userY
 userZ
 # Check binlog for Cases 3, 4 and 5 above
 # This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 # Case 6 : Add a row in mysql.user without FLUSH PRIVILEGES and
 #          execute CREATE USER for same user
 # Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
@@ -65,7 +65,7 @@ INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userX';
 UPDATE mysql.tmp_user SET user='userW' WHERE user LIKE 'userX';
 INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
 DROP TABLE mysql.tmp_user;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # Though userW is not present in cache, CREATE USER should fail
 # because we will encounter duplicate key error while inserting entry
 # in mysql.user table for userW.
@@ -79,16 +79,16 @@ userX
 userY
 userZ
 # This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 FLUSH PRIVILEGES;
 DROP USER userW, userX, userY, userZ;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # End : Tests for CREATE USER
 # ----------------------------------------------------------------------
 # BEGIN : Tests for CREATE USER IF NOT EXISTS
 CALL mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS but they already exist.");
 CREATE USER userX;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # Case 1 : Execute CREATE USER IF NOT EXISTS for existing user
 CREATE USER IF NOT EXISTS userX, userY, userZ;
 Warnings:
@@ -100,8 +100,8 @@ userX
 userY
 userZ
 # This event sequence pattern MUST be present in binlog: !Q(CREATE USER IF NOT EXISTS.*userX.*userY.*userZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # Must show warnings about userX, userY and userZ
 CREATE USER IF NOT EXISTS userX, userY, userZ;
 Warnings:
@@ -109,8 +109,8 @@ Note	3163	Authorization ID 'userX'@'%' already exists.
 Note	3163	Authorization ID 'userY'@'%' already exists.
 Note	3163	Authorization ID 'userZ'@'%' already exists.
 # This event sequence pattern MUST be present in binlog: !Q(CREATE USER IF NOT EXISTS.*userX.*userY.*userZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # Case 2 : Try creating anonymous user with expired password
 #          using CREATE USER IF NOT EXISTS
 CREATE USER IF NOT EXISTS ''@'' PASSWORD EXPIRE;
@@ -131,7 +131,7 @@ userX
 userY
 userZ
 # This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 # Case 6 : Add a row in mysql.user without FLUSH PRIVILEGES and
 #          execute CREATE USER IF NOT for same user
 # Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
@@ -140,7 +140,7 @@ INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userX';
 UPDATE mysql.tmp_user SET user='userW' WHERE user LIKE 'userX';
 INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
 DROP TABLE mysql.tmp_user;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # Though userW is not present in cache, CREATE USER IF NOT EXISTS
 # will skip it because we will encounter duplicate key error while
 # inserting entry in mysql.user table for userW.
@@ -158,9 +158,9 @@ userX
 userY
 userZ
 # This event sequence pattern MUST be present in binlog: !Q(CREATE USER.*userW.*userV.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 DROP USER userV, userW, userX, userY, userZ;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # END : Tests for CREATE USER IF NOT EXISTS
 # ----------------------------------------------------------------------
 # Begin : Tests for CREATE USER with DEFAULT ROLE
@@ -179,8 +179,8 @@ userX
 SELECT user FROM mysql.default_roles where user LIKE 'user%';
 user
 # This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER .*userY.*userZ.*.userX)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # Case 2 : Execute CREATE USER for non-existing users
 CREATE USER userY, userZ DEFAULT ROLE 'roleX', 'roleY';
 # Must show entries for userX, userY and userZ
@@ -196,8 +196,8 @@ userY
 userZ
 userZ
 # This event sequence pattern MUST be present in binlog: !Q(CREATE USER .userY.*userZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # Case 3 : Try creating user with invalid hash
 CREATE USER userA IDENTIFIED BY 'abcd',
 userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha'
@@ -217,8 +217,8 @@ userZ
 userZ
 # Check binlog for Cases 3
 # This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 DROP USER userX, userY, userZ;
 DROP ROLE roleX, roleY, roleZ;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # ----------------------------------------------------------------------

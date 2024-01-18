@@ -29,7 +29,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= @debug_save;
 
@@ -63,7 +63,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo #
 --echo # 3.1 Check the super read only mode is enabled
@@ -111,7 +111,7 @@ SET GLOBAL super_read_only= 1;
 --echo #
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --send START GROUP_REPLICATION;
 
@@ -121,7 +121,7 @@ SET GLOBAL super_read_only= 1;
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.continue_group_join";
 
@@ -130,7 +130,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_group_join";
 --source include/gr_wait_for_member_state.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GROUP_REPLICATION_RUNNING
 --reap

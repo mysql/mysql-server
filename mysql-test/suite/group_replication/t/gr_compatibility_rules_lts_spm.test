@@ -43,7 +43,7 @@
 # | server1 | ONLINE  | 8.4.1   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
 SET SESSION sql_log_bin= 1;
@@ -64,7 +64,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
 # | server2 | ONLINE  | 8.4.1   | Secondary | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
@@ -87,7 +87,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
 # | server3 | ONLINE  | 8.4.0   | Secondary | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
 SET SESSION sql_log_bin= 1;
@@ -99,18 +99,18 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo #  4. Validate that the group has one primary and two secondaries.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 3
 --source include/gr_wait_for_number_of_members.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_secondary_member.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_secondary_member.inc
 
 
@@ -119,7 +119,7 @@ SET SESSION sql_log_bin= 1;
 --echo #  5. Try to make server2, a higher version, the primary.
 --echo #     It must fail.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server2_uuid SERVER2_UUID
 --error ER_GRP_RPL_UDF_ERROR
 --eval SELECT group_replication_set_as_primary("$server2_uuid")
@@ -127,11 +127,11 @@ SET SESSION sql_log_bin= 1;
 --source include/gr_assert_secondary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_secondary_member.inc
 
 
@@ -147,18 +147,18 @@ SET SESSION sql_log_bin= 1;
 # | server3 | ONLINE  | 8.4.0   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_secondary_member.inc
 
 
@@ -173,11 +173,11 @@ SET SESSION sql_log_bin= 1;
 # | server2 | ONLINE  | 8.4.1   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 1
 --source include/gr_wait_for_number_of_members.inc
 
@@ -195,7 +195,7 @@ SET SESSION sql_log_bin= 1;
 # | server2 | ONLINE  | 8.4.1   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_patch_version';
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 
@@ -224,7 +224,7 @@ SET SESSION sql_log_bin= 1;
 # | server3 | OFFLINE | 8.4.0   |           | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Member version is incompatible with the group.");
@@ -238,12 +238,12 @@ START GROUP_REPLICATION;
 --echo ############################################################
 --echo # 10. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_major_version';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_patch_version';
 

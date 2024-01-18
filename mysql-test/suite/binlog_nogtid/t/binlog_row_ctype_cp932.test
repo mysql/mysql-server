@@ -4,4 +4,4 @@
 
 --source include/no_ps_protocol.inc
 -- source include/have_binlog_format_row.inc
--- source extra/binlog_tests/ctype_cp932.test
+-- source common/binlog/ctype_cp932.test

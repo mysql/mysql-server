@@ -13,7 +13,7 @@
 #     Skip reset offline_mode variable.
 #
 #   $rpl_debug
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 
 --let $include_filename= assert_and_disable_offline_mode.inc
 --source include/begin_include_file.inc

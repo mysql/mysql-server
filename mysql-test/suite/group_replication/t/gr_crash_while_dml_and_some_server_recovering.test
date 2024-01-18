@@ -22,14 +22,14 @@
 --source include/big_test.inc
 --source include/force_restart.inc
 
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
@@ -38,7 +38,7 @@ SET sql_log_bin=1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
@@ -47,7 +47,7 @@ SET sql_log_bin=1;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Insert some data into the table
 
@@ -60,10 +60,10 @@ while ($i < 100)
 }
 --enable_query_log
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
@@ -72,7 +72,7 @@ SET sql_log_bin=1;
 LOCK TABLES t1 READ;
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
@@ -93,7 +93,7 @@ if(`SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHER
 
 --let $rpl_connection_silent= 1
 --let $rpl_connection_name= server$non_donor_id
---source include/rpl_connection.inc
+--source include/connection.inc
 
 delimiter $$;
 CREATE PROCEDURE dml_operations()
@@ -115,11 +115,11 @@ delimiter ;$$
 --echo
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --let $rpl_connection_name= server_$non_donor_id
---source include/rpl_connection.inc
+--source include/connection.inc
 # kill non-donor server
 --echo # killing
 --let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -131,19 +131,19 @@ UNLOCK TABLES;
 --echo # restarting
 
 --let $rpl_connection_name= server$non_donor_id
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
 --error 2006,2013
 --reap
 
 --let $rpl_connection_name= server_$non_donor_id
---source include/rpl_connection.inc
-# Needed as we are not using rpl_restart_server.inc
+--source include/connection.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= $non_donor_id
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server_$donor_id
---source include/rpl_connection.inc
+--source include/connection.inc
 # Wait until group has only 2 members, that is, non-donor server's death
 # is detected by the group.
 --echo # check that there are 2 mebers in the group
@@ -155,7 +155,7 @@ UNLOCK TABLES;
 
 # Join server non-donor server back to the group.
 --let $rpl_connection_name= server_$non_donor_id
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -164,7 +164,7 @@ UNLOCK TABLES;
 --let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_members WHERE member_state='ONLINE';
 --source include/wait_condition.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Verify that all the all the servers have same data.
 --let $diff_tables= server_1:t1, server_2:t1, server3:t1

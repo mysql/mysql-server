@@ -23,7 +23,7 @@
 # MyISAM engine tables.
 --source include/not_group_replication_plugin.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection master
 
@@ -48,7 +48,7 @@ INSERT INTO t1 (no_srid, srid_0, srid_4326)
           ST_GeomFromText('POINT(1 1)', 0),
           ST_GeomFromText('POINT(1 1)', 4326));
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --let $diff_tables = master:t1, slave:t1
@@ -68,7 +68,7 @@ ALTER TABLE t1 CHANGE COLUMN srid_4326 no_srid_2 POINT DEFAULT NULL;
 
 SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY COLUMN_NAME;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --let $diff_tables = master:t1, slave:t1
@@ -85,7 +85,7 @@ SELECT ST_SRID(no_srid) AS no_srid,
 
 DELETE FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --let $diff_tables = master:t1, slave:t1
@@ -108,7 +108,7 @@ INSERT INTO t1 (no_srid, no_srid_2, srid_4326)
           ST_GeomFromText('POINT(1 1)', 2000),
           ST_GeomFromText('POINT(1 1)', 4326));
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --let $diff_tables = master:t1, slave:t1
@@ -126,7 +126,7 @@ SELECT ST_SRID(no_srid) AS no_srid,
 --echo # Cleanup
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # The SRID property on a generated column should work
 
@@ -140,7 +140,7 @@ INSERT INTO t1 (col1) VALUES (ST_GeomFromText('POINT(1 1)', 4326));
 
 SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --let $diff_tables = master:t1, slave:t1
@@ -163,7 +163,7 @@ INSERT INTO t1 (col1) VALUES (ST_GeomFromText('POINT(1 1)', 2000));
 
 SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --let $diff_tables = master:t1, slave:t1
@@ -179,6 +179,6 @@ SELECT ST_SRID(col1) AS srid_2000, ST_SRID(col2) AS srid_4326 FROM t1;
 --echo # Cleanup
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -97,7 +97,7 @@ hex(bit3)
 15
 24
 35
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034
 FROM test.t1
 ORDER BY oSupp, sSuppD, GSuppDf, VNotSupp, x034;
@@ -156,7 +156,7 @@ SELECT * FROM test.t3 ORDER BY a,b;
 a	b
 1	NULL
 2	0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT a, hex(b) FROM test.t2 ORDER BY a,b;
 a	hex(b)
 1	0
@@ -168,5 +168,5 @@ a	b
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

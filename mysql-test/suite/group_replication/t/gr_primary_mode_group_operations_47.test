@@ -29,10 +29,10 @@
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # 2. Lock tables on server2, this will block the action after insert
@@ -41,7 +41,7 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 LOCK TABLE t1 WRITE;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # 3. Insert values and execute action
@@ -57,7 +57,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 4. Confirm group is waiting for members to set read only
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl/Primary Election: waiting for members to enable super_read_only%"
 --source include/wait_condition.inc
@@ -67,7 +67,7 @@ INSERT INTO t1 VALUES (1);
 --echo #    member weight
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_member_weight= 100;
@@ -77,7 +77,7 @@ SET @@GLOBAL.group_replication_member_weight= 100;
 --echo #    being executed on the group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_member_weight= 100;
@@ -91,7 +91,7 @@ UNLOCK TABLES;
 --echo # 8. Reap action that will complete successfully
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid MEMBER1_UUID
 --reap

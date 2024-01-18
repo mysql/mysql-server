@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -105,7 +105,7 @@ Master bykey	500
 CALL test.proc_byrange();
 SELECT count(*) as "Master byrange" FROM test.byrange_tbl;
 Master byrange	500
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 show create table test.byrange_tbl;
 Table	byrange_tbl
 Create Table	CREATE TABLE `byrange_tbl` (
@@ -143,4 +143,4 @@ DROP PROCEDURE test.proc_byrange;
 DROP TABLE test.regular_tbl;
 DROP TABLE test.bykey_tbl;
 DROP TABLE test.byrange_tbl;
-include/rpl_end.inc
+include/rpl/deinit.inc

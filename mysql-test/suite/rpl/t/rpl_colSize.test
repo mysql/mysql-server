@@ -7,8 +7,8 @@
 ##################################################################
 
 -- source include/not_group_replication_plugin.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -16,9 +16,9 @@ DROP TABLE IF EXISTS t1;
 
 --echo **** Testing WL#3228 changes. ****
 --echo *** Create "wider" table on slave ***
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 STOP REPLICA;
---source include/wait_for_slave_to_stop.inc
+--source include/rpl/wait_for_replica_to_stop.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
@@ -79,7 +79,7 @@ RESET BINARY LOGS AND GTIDS;
 --echo *** Start replication ***
 connection slave;
 START REPLICA;
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 
 --echo *** Insert data on master and display it. ***
 connection master;
@@ -110,7 +110,7 @@ INSERT INTO t1 () VALUES (
 SELECT * FROM t1 ORDER BY a;
 
 --echo *** Select data from slave to compare ***
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Replace values in columns that display differently between SBR & RBR
 --replace_column 5 # 8 #
@@ -142,7 +142,7 @@ CREATE TABLE t1 (
 );
 
 --let $sync_slave_connection= slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo Alter varchar table on slave
 ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(100);
@@ -163,7 +163,7 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 
 --let $sync_slave_connection= slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo Insert some values and select them on slave
 SELECT * FROM t1;
@@ -193,7 +193,7 @@ CREATE TABLE t1 (
 );
 
 --echo Create bit table on slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -221,7 +221,7 @@ SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
 SHOW CREATE TABLE t1;
 
 --let $sync_slave_connection= slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo Insert some values and select them on master
 SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
@@ -273,7 +273,7 @@ INSERT INTO t1 VALUES (
   );
 
 # Step 6) Make sure this insert is replicated without any issues.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of test for Bug#19704825
 
@@ -281,9 +281,9 @@ INSERT INTO t1 VALUES (
 connection master;
 DROP TABLE t1;
 DROP TABLE t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 
 # END 5.1 Test Case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 # Clear gtid_purged to make variable settable.
 RESET BINARY LOGS AND GTIDS;
 
@@ -152,4 +152,4 @@ SELECT @@global.gtid_purged;
 #
 # See rpl_gtid_purged_maintained.test for a comprehensive test case.
 #
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc

@@ -40,7 +40,7 @@ include/stop_group_replication.inc
 # 06. Wait until server1 is removed from the group.
 #     Make server3 do send its prepare message.
 [connection server3]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
 

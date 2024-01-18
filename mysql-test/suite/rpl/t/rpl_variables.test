@@ -61,8 +61,8 @@
 
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_mixed_or_row.inc;
-source include/set_privilege_checks_user_as_system_user.inc;
-source include/master-slave.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/init_source_replica.inc;
 
 # The hostname needs to be stripped off its extensions as even
 # in code we use the stripped hostname as default basename
@@ -113,8 +113,8 @@ SET @user_text = 'Alunda';
 
 # Stop replica so that we get a fresh sql thread, reading the slave's
 # global values of variables into its local copies.
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 
 # We would have wanted to set this together with the other variables
 # above, but can't because it affects how the slave works.
@@ -699,7 +699,7 @@ EXECUTE p49; EXECUTE p50; EXECUTE p51; EXECUTE p52; EXECUTE p53; EXECUTE p54;
 EXECUTE p55; EXECUTE p56; EXECUTE p57; EXECUTE p58; EXECUTE p59; EXECUTE p60;
 EXECUTE p61; EXECUTE p62; EXECUTE p63; EXECUTE p64;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection master
 
 
@@ -708,7 +708,7 @@ EXECUTE p61; EXECUTE p62; EXECUTE p63; EXECUTE p64;
 # Show the result in table test.tstmt on master...
 SELECT * FROM tstmt ORDER BY id;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # ... then compare test.tstmt on master to the other tables on master and slave.
 let $diff_tables= master:tstmt, master:tproc, master:tfunc, master:ttrig, master:tprep,  slave:tstmt, slave:tproc, slave:tfunc, slave:ttrig, slave:tprep;
@@ -745,5 +745,5 @@ SET @@global.sql_mode=             @s_sql_mode;
 SET @@global.sync_binlog=          @s_sync_binlog;
 
 connection master;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

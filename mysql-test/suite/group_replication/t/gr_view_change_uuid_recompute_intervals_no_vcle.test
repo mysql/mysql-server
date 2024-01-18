@@ -45,7 +45,7 @@ SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_ch
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 --eval SET GLOBAL group_replication_view_change_uuid =  "$view_change_uuid"
@@ -59,10 +59,10 @@ SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_ch
 --echo #     transaction to the group
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -71,10 +71,10 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo #     transaction to the group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (0);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -107,7 +107,7 @@ if ($gtid_assignment_block_size == 1)
 --echo #     transaction to the group
 
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ############################################################
@@ -130,7 +130,7 @@ if ($gtid_assignment_block_size == 1)
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 3 transactions, two on first interval
 --let $assert_cond= [SELECT GTID_SUBSET("$expected_gtid_set", @@GLOBAL.GTID_EXECUTED)] = 1
@@ -148,19 +148,19 @@ if ($gtid_assignment_block_size == 1)
 --echo #     Start server 2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SET GTID_NEXT= '$view_change_uuid:4';
 
 INSERT INTO t1 VALUES (2);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -180,7 +180,7 @@ INSERT INTO t1 VALUES (2);
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 3 transactions, two on first interval
 --let $assert_cond= [SELECT GTID_SUBSET("$expected_gtid_set", @@GLOBAL.GTID_EXECUTED)] = 1
@@ -202,7 +202,7 @@ DROP TABLE t1;
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;

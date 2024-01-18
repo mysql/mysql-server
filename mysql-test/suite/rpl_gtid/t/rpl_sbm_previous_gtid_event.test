@@ -11,7 +11,7 @@
 ###############################################################################
 --source include/have_debug_sync.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 # Set sync debug point to calculate sbm exactly after every
@@ -37,12 +37,12 @@ SET @@global.replica_transaction_retries=0;
 
 # Case-2 : Start IO thread , relay log will be rotated to
 #  slave-relay-bin.000002
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 # Case-3 : Restart IO thread, relay log will be rotated to
 #  slave-relay-bin.000003
---source include/stop_slave_io.inc
---source include/start_slave_io.inc
+--source include/rpl/stop_receiver.inc
+--source include/rpl/start_receiver.inc
 
 # Case-4 Lets put (more than) 4096 data in binary log and when it
 #  reaches slave, relaylog will be rotated (please relay-log-file-size
@@ -67,7 +67,7 @@ FLUSH LOGS;
 # slave-relay-bin.000007)
 --connection master
 FLUSH LOGS;
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 #####################################
 #                                   #
@@ -78,7 +78,7 @@ FLUSH LOGS;
 # Let SQL thread read and execute all 7 slave-relay-bin's
 #  previous_gtid_log_events and SBM cannot be greater or equal to
 #  $idle seconds.
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 # Just to fake that I/O thread started 3 mints ago,
 #  the server changes the I/O thread start time to
@@ -107,4 +107,4 @@ SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 # Cleanup
 SET @@GLOBAL.DEBUG=@save_global_debug;
 SET @@global.replica_transaction_retries=@saved_replica_transaction_retries;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

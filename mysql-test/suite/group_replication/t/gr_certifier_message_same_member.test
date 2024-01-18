@@ -43,7 +43,7 @@ SET @@GLOBAL.DEBUG= '+d,certifier_inject_duplicate_certifier_data_message';
 --echo # second server and applied on both of them.
 --connection server1
 CREATE TABLE t1(i INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo # Start the first round of garbage collection here. Since we have set the DBUG
 --echo # flag on the second server we expect a message to be logged in the error log

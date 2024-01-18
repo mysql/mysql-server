@@ -9,7 +9,7 @@
 # Change: Added Order by for NDB
 ##########
 
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 
 # Begin clean up test section
@@ -78,7 +78,7 @@ SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034 FROM test.t1;
 SELECT hex(bit1) FROM test.t1 ORDER BY bit1;
 SELECT hex(bit2) from test.t1 ORDER BY bit2;
 SELECT hex(bit3) from test.t1 ORDER BY bit3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034 FROM test.t1;
 SELECT hex(bit1) FROM test.t1 ORDER BY bit1;
@@ -87,7 +87,7 @@ SELECT hex(bit3) from test.t1 ORDER BY bit3;
 
 connection master;
 DROP TABLE IF EXISTS test.t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 5.0 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

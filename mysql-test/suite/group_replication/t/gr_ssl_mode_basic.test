@@ -12,10 +12,10 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 
 
@@ -92,11 +92,11 @@ SET GLOBAL group_replication_ssl_mode= DEFAULT;
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 
 --source include/group_replication_end.inc

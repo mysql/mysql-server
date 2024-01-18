@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection server1]
 CREATE TABLE IF NOT EXISTS t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # Create the events in each member.
 #

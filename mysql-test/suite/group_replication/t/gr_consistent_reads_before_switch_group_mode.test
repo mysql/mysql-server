@@ -26,18 +26,18 @@
 --echo ############################################################
 --echo # 01. Create two tables on the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
 --echo ############################################################
 --echo # 02. Lock table t1 on server2 to block a future update.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 LOCK table t1 READ;
 
 
@@ -46,7 +46,7 @@ LOCK table t1 READ;
 --echo # 03. Execute transaction T1, the transaction will block on
 --echo #     server2 due to the table lock.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 BEGIN;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (100);
@@ -57,7 +57,7 @@ COMMIT;
 --echo ############################################################
 --echo # 04. Wait until T1 is delivered to server2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked=3 AND count_transactions_remote_in_applier_queue=1
 --source include/wait_condition.inc
@@ -69,12 +69,12 @@ COMMIT;
 --echo #     group_replication_consistency= 'BEFORE' , it will wait
 --echo #     for T1 commit.
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.group_replication_consistency= 'BEFORE';
 --send SELECT COUNT(*) AS count FROM t2 WHERE c1 >= 99
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state='Executing hook on transaction begin.' AND info='SELECT COUNT(*) AS count FROM t2 WHERE c1 >= 99'
 --source include/wait_condition.inc
 
@@ -84,12 +84,12 @@ SET @@SESSION.group_replication_consistency= 'BEFORE';
 --echo # 06. Execute a group mode switch, it will wait for the
 --echo #     UNLOCK TABLES.
 --let $rpl_connection_name= slave
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server1_uuid MEMBER1_UUID
 --send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='executing' AND info LIKE 'SELECT group_replication_switch_to_single_primary_mode(%'
 --source include/wait_condition.inc
 
@@ -101,29 +101,29 @@ SET @@SESSION.group_replication_consistency= 'BEFORE';
 --echo ############################################################
 --echo # 07. Unblock T1 on server2.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 SET @@SESSION.group_replication_consistency= DEFAULT;
 
 --let $rpl_connection_name= slave
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server1_uuid MEMBER1_UUID
 --reap
 --source include/gr_assert_secondary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 
 --echo
 --echo ############################################################
 --echo # 08. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 DROP TABLE t2;
 

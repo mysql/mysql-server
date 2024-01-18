@@ -1,6 +1,6 @@
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
---source include/only_mts_replica_parallel_workers.inc
+--source include/rpl/init_source_replica.inc
+--source include/have_replica_parallel_workers.inc
 
 --let $save_replica_parallel_workers=`SELECT @@global.replica_parallel_workers`
 
@@ -13,11 +13,11 @@
 # Test that default channel is always created to preserve
 # backward compatibility.
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Got fatal error .* from source .* replica with the same server_uuid/server_id");
 CALL mtr.add_suppression("Error during --relay-log-recovery.*");
 CALL mtr.add_suppression("Server was not able to find a rotate event from source server.*");
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # On the slave
 RESET REPLICA ALL;
@@ -33,7 +33,7 @@ RESET REPLICA ALL;
 --echo #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --relay-log-recovery --skip-replica-start --replica-parallel-workers=4 --relay-log-purge=0
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # This command earlier failed with error ER_CONNECTION_METADATA and the server would
 # crash when start replica was issued in the later stages.
@@ -43,10 +43,10 @@ RESET REPLICA ALL;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
 --enable_warnings
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Stop the slave to execute RESET REPLICA ALL in next step.
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 # Lets clear the offending channel and recreate it.
 RESET REPLICA ALL FOR CHANNEL 'ch1';
 --disable_warnings
@@ -65,12 +65,12 @@ RESET REPLICA ALL FOR CHANNEL 'ch1';
 #
 # (There are two channels connected to the same server
 # though, which may render the slave unable to connect,
-# thence not using --source include/start_slave.inc )
+# thence not using --source include/rpl/start_replica.inc )
 START REPLICA;
 
 # clean up
 --let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 --replace_result $save_replica_parallel_workers SAVE_PARALLEL_WORKERS
 --eval SET @@global.replica_parallel_workers=$save_replica_parallel_workers
@@ -79,12 +79,12 @@ RESET REPLICA ALL;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT
 --enable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_server_number= 2
 --let $rpl_server_parameters=
---source include/rpl_restart_server.inc
---source include/rpl_connection_master.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/connection_source.inc
 
 #
 # BUG#20191813: MSR + MTS: IF WE HAVE ANY INACTIVE CHANNEL, POST RESTART START SLAVE HITS ER1794
@@ -98,11 +98,11 @@ RESET REPLICA ALL;
 # able to start and not throw an error.
 #
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Recovery from source pos");
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 SET @@global.replica_parallel_workers=5;
 --disable_warnings
@@ -114,17 +114,17 @@ SET @@global.replica_parallel_workers=5;
 # existing channel is indeed started (on slow systems
 # START REPLICA is asynchronous and thus the server
 # could shutdown without having the structures initialized).
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo === RESTART REPLICA SERVER ===
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --relay-log-recovery --skip-replica-start --replica-parallel-workers=5
---source include/rpl_restart_server.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/connection_replica.inc
 START REPLICA;
 
 # clean up
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 --replace_result $save_replica_parallel_workers SAVE_PARALLEL_WORKERS
 --eval SET @@global.replica_parallel_workers=$save_replica_parallel_workers
@@ -133,12 +133,12 @@ RESET REPLICA ALL;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT
 --enable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_server_number= 2
 --let $rpl_server_parameters=
---source include/rpl_restart_server.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

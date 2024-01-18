@@ -5,4 +5,4 @@
 # differs. (Reason: Non Transactional and Trasactional differences)
 
 --let $DEFAULT_ENGINE = myisam
---source extra/rpl_tests/rpl_sp.test
+--source common/rpl/rpl_sp.test

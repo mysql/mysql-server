@@ -28,7 +28,7 @@
 --echo # 1. Bootstrap a GROUP on M1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
@@ -39,7 +39,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --echo # 2. Start GR on M2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $warning_count= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015058' AND data LIKE '%View_change_log_event will not be logged further on the binary log%', COUNT, 1)
 
@@ -54,7 +54,7 @@ SET SESSION sql_log_bin = 1;
 --echo # 3. Stop GR on M1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -63,7 +63,7 @@ SET SESSION sql_log_bin = 1;
 --echo # 4. Assert VCLE not being logged message is present in logs.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --inc $warning_count
 --let $wait_condition= SELECT COUNT(*)=$warning_count FROM performance_schema.error_log WHERE error_code='MY-015059' AND data LIKE '%View_change_log_event will not be logged further on the binary log, as all members of the group are 8.3.0 or greater.%'
@@ -73,6 +73,6 @@ SET SESSION sql_log_bin = 1;
 --echo # 5. Cleanup.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/group_replication_end.inc

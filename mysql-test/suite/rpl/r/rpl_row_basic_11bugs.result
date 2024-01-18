@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -28,14 +28,14 @@ SHOW TABLES;
 Tables_in_test_ignore
 t2
 INSERT INTO t2 VALUES (3,3), (4,4);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b INT)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 **** On Slave ****
 SHOW DATABASES;
 Database
@@ -54,17 +54,17 @@ ERROR 42000: Unknown database 'test_ignore'
 DROP DATABASE test_ignore;
 USE test;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 USE test;
 # Bug#19995: Extreneous table maps generated for statements that does
 # not generate rows
-include/rpl_reset.inc
+include/rpl/reset.inc
 CREATE TABLE t1 (a INT);
 DELETE FROM t1;
 INSERT INTO t1 VALUES (1),(2);
 DELETE FROM t1 WHERE a = 0;
 UPDATE t1 SET a=99 WHERE a = 0;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 master-bin.000001	#	Query	#	#	BEGIN
@@ -73,18 +73,18 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TABLE t1;
 ================ Test for BUG#17620 ================
-include/rpl_reset.inc
+include/rpl/reset.inc
 **** On Slave **** 
 call mtr.add_suppression("Replica SQL.*Could not execute Update_rows event on table test.t1.* Error_code: 1032");
 **** On Master **** 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 **** On Slave **** 
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 **** On Master **** 
 INSERT INTO t1 VALUES (4),(5),(6);
 **** On Slave **** 
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 a
 1
@@ -96,7 +96,7 @@ a
 **** On Master **** 
 INSERT INTO t1 VALUES (7),(8),(9);
 **** On Slave **** 
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 a
 1
@@ -110,14 +110,14 @@ a
 9
 DROP TABLE t1;
 ================ Test for BUG#22550 ================
-include/rpl_reset.inc
+include/rpl/reset.inc
 CREATE TABLE t1 (a BIT(1), b INT) ENGINE=MYISAM;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t1 VALUES(1,2);
 SELECT HEX(a),b FROM t1;
 HEX(a)	b
 1	2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT HEX(a),b FROM t1;
 HEX(a)	b
 1	2
@@ -125,21 +125,21 @@ UPDATE t1 SET a=0 WHERE b=2;
 SELECT HEX(a),b FROM t1;
 HEX(a)	b
 0	2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT HEX(a),b FROM t1;
 HEX(a)	b
 0	2
 DROP TABLE IF EXISTS t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ================ Test for BUG#22583 ================
-include/rpl_reset.inc
+include/rpl/reset.inc
 **** On Master **** 
 CREATE TABLE t1_myisam (k INT, a BIT(1), b BIT(9)) ENGINE=MYISAM;
 CREATE TABLE t1_innodb (k INT, a BIT(1), b BIT(9)) ENGINE=INNODB;
 CREATE TABLE t2_myisam (k INT, a BIT(1) NOT NULL, b BIT(4) NOT NULL) ENGINE=MYISAM;
 CREATE TABLE t2_innodb (k INT, a BIT(1) NOT NULL, b BIT(4) NOT NULL) ENGINE=INNODB;
 **** On Slave **** 
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ALTER TABLE t1_myisam ENGINE=INNODB;
 ALTER TABLE t1_innodb ENGINE=MYISAM;
 ALTER TABLE t2_myisam ENGINE=INNODB;
@@ -170,7 +170,7 @@ k	HEX(a)	HEX(b)
 1	0	9
 2	1	8
 **** On Slave **** 
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT k, HEX(a),HEX(b) FROM t1_myisam;
 k	HEX(a)	HEX(b)
 1	0	101
@@ -209,7 +209,7 @@ k	HEX(a)	HEX(b)
 1	0	9
 2	0	8
 **** On Slave **** 
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT k, HEX(a),HEX(b) FROM t1_myisam;
 k	HEX(a)	HEX(b)
 1	0	101
@@ -228,7 +228,7 @@ k	HEX(a)	HEX(b)
 2	0	8
 **** On Master **** 
 DROP TABLE IF EXISTS t1_myisam, t1_innodb, t2_myisam, t2_innodb;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Bug#27716  	multi-update did partially and has not binlogged
 #
@@ -257,23 +257,23 @@ select * from t2 /* must be (3,1), (4,4) */;
 a	b
 3	1
 4	4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t2 /* must be (3,1), (4,4) */;
 a	b
 3	1
 4	4
 drop table t1,t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # BUG#31702: Missing row on slave causes assertion failure under
 # row-based replication
 #
-include/rpl_reset.inc
+include/rpl/reset.inc
 **** On Master ****
 CREATE TABLE t1 (a INT PRIMARY KEY, b SET('master','slave'));
 INSERT INTO t1 VALUES (1,'master,slave'), (2,'master,slave');
 **** On Slave ****
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 UPDATE t1 SET a = 5, b = 'slave' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
 a	b
@@ -287,7 +287,7 @@ a	b
 2	master,slave
 5	master
 **** On Slave ****
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set @@global.replica_exec_mode= default;
 Last_SQL_Error
 
@@ -297,4 +297,4 @@ a	b
 5	slave
 **** On Master ****
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

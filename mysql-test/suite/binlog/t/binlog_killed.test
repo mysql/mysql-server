@@ -71,7 +71,7 @@ eval set @result= $rows - $error_code - $insert_binlogged;
 
 if (`SELECT @result != 0`)
 {
-  --source include/show_rpl_debug_info.inc
+  --source include/rpl/debug/show_debug_info.inc
   -- echo error_code:$error_code, insert:$insert_binlogged, rows:$rows
   SELECT * FROM t2;
   
@@ -271,7 +271,7 @@ reap;
 select * from t4 order by b /* must be (1,1), (1,2) */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 --echo must have the update query event on the 4th line
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 --let $row_number= 6
 
 --let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, $row_number)
@@ -320,7 +320,7 @@ reap;
 select count(*) from t4 /* must be 1 */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 --echo must have the delete query event on the 4th line
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 --let $row_number= 6
 

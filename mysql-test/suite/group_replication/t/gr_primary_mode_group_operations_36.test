@@ -46,18 +46,18 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --echo # 2. Start server2 and server3
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo
 --echo # 3. Begin a transaction on server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 BEGIN;
 INSERT INTO t1 VALUES(1);
@@ -66,7 +66,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 4. Execute action to switch to multi primary
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --send SELECT group_replication_switch_to_multi_primary_mode()
 
@@ -74,7 +74,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 5. Assert that action is waiting for a member
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%waiting on another member step%"
 --source include/wait_condition.inc
@@ -88,7 +88,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 6. Restart a member, won't impact the success of action
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -96,12 +96,12 @@ INSERT INTO t1 VALUES(1);
 --echo # 7. The action continued on other servers and everyone is on MP
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_multi_primary_mode.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_multi_primary_mode.inc
 
@@ -110,7 +110,7 @@ INSERT INTO t1 VALUES(1);
 --echo #    everywhere checks are false.
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GRP_RPL_UDF_ERROR
 --reap
@@ -126,7 +126,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 9. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 ROLLBACK;
 
@@ -136,7 +136,7 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= ON;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

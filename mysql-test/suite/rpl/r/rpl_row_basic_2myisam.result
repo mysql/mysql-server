@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)) ENGINE = 'MYISAM'  ;
 SELECT * FROM t1;
 C1	C2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 C1	C2
 INSERT INTO t1 VALUES ('A','B'), ('X','Y'), ('X','X');
@@ -19,7 +19,7 @@ A	C
 X	X
 X	Y
 X	Z
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY C1,C2;
 C1	C2
 A	A
@@ -35,7 +35,7 @@ A	B
 A	C
 X	Y
 X	Z
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY C1,C2;
 C1	C2
 A	B
@@ -49,7 +49,7 @@ A	B
 A	I
 X	Y
 X	Z
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY C1,C2;
 C1	C2
 A	B
@@ -67,7 +67,7 @@ A	B
 A	I
 X	Y
 X	Z
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY c1,c2;
 C1	C2
 A	B
@@ -96,7 +96,7 @@ c1	c12	c2
 5	A	25
 8	A	64
 9	A	81
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2 ORDER BY c1,c2;
 c1	c12	c2
 1	A	2
@@ -127,7 +127,7 @@ c1	c12	c2
 7	A	49
 8	A	64
 9	A	81
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2 WHERE c2 = c1 * c1 ORDER BY c1,c2;
 c1	c12	c2
 1	A	1
@@ -151,7 +151,7 @@ c1	c12	c2
 7	A	49
 8	A	64
 9	A	81
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2 ORDER BY c1,c2;
 c1	c12	c2
 1	A	1
@@ -173,7 +173,7 @@ c1	c12	c2
 6	A	36
 7	A	49
 9	A	81
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2 ORDER BY c1,c2;
 c1	c12	c2
 1	A	1
@@ -195,7 +195,7 @@ A	C	1	B	2
 X	X	3	B	1
 X	Y	2	B	1
 X	Z	2	B	2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t3 ORDER BY C1,C2;
 C1	C2	pk1	C3	pk2
 A	A	3	B	2
@@ -211,7 +211,7 @@ A	B	1	B	1
 A	C	1	B	2
 X	Y	2	B	1
 X	Z	2	B	2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t3 ORDER BY C1,C2;
 C1	C2	pk1	C3	pk2
 A	B	1	B	1
@@ -225,7 +225,7 @@ A	B	1	B	1
 A	I	1	B	2
 X	Y	2	B	1
 X	Z	2	B	2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t3 ORDER BY C1,C2;
 C1	C2	pk1	C3	pk2
 A	B	1	B	1
@@ -243,7 +243,7 @@ X	X	3
 A	C	4
 X	Z	5
 A	A	6
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t6 ORDER BY C3;
 C1	C2	C3
 A	B	1
@@ -259,7 +259,7 @@ A	B	1
 X	Y	2
 A	C	4
 X	Z	5
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t6 ORDER BY C3;
 C1	C2	C3
 A	B	1
@@ -273,7 +273,7 @@ A	B	1
 X	Y	2
 A	I	4
 X	Z	5
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t6 ORDER BY C3;
 C1	C2	C3
 A	B	1
@@ -328,7 +328,7 @@ X	Q	5	7	R	49	X	Y	2	S	1
 X	Q	5	7	R	49	X	Z	2	S	2
 X	Q	5	9	R	81	X	Y	2	S	1
 X	Q	5	9	R	81	X	Z	2	S	2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t5,t2,t3 WHERE t5.C2='Q' AND t2.c12='R' AND t3.C3 ='S' ORDER BY t5.C3,t2.c1,t3.pk1,t3.pk2;
 C1	C2	C3	c1	c12	c2	C1	C2	pk1	C3	pk2
 X	Q	2	1	R	1	X	Y	2	S	1
@@ -378,12 +378,12 @@ INSERT INTO t4 SET C1 = 1;
 SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
 C1	HEX(B1)	HEX(B2)
 1	NULL	0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
 C1	HEX(B1)	HEX(B2)
 1	NULL	0
 CREATE TABLE t7 (C1 INT PRIMARY KEY, C2 INT) ENGINE = 'MYISAM'  ;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 --- on slave: original values ---
 INSERT INTO t7 VALUES (1,3), (2,6), (3,9);
 SELECT * FROM t7 ORDER BY C1;
@@ -399,7 +399,7 @@ C1	C2
 1	2
 2	4
 3	6
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set @@global.replica_exec_mode= default;
 --- on slave: old values should be overwritten by replicated values ---
 SELECT * FROM t7 ORDER BY C1;
@@ -419,7 +419,7 @@ ERROR 23000: Duplicate entry '99' for key 't8.c'
 SELECT * FROM t8 ORDER BY a;
 a	b	c
 99	99	99
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 --- on slave ---
 SELECT * FROM t8 ORDER BY a;
 a	b	c
@@ -434,7 +434,7 @@ a	b	c
 set @@global.replica_exec_mode= 'IDEMPOTENT';
 --- on master ---
 INSERT INTO t8 VALUES (2,4,8);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set @@global.replica_exec_mode= default;
 --- on slave ---
 SELECT * FROM t8 ORDER BY a;
@@ -446,20 +446,20 @@ a	b	c
 **** Test for BUG#31552 ****
 **** On Master ****
 DELETE FROM t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 **** On Master ****
 INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
 **** On Master ****
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set @@global.replica_exec_mode= 'IDEMPOTENT';
 DELETE FROM t1 WHERE C1 = 'L';
 DELETE FROM t1;
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set @@global.replica_exec_mode= default;
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
 **** Test for BUG#37076 ****
@@ -469,12 +469,12 @@ CREATE TABLE t1 (a TIMESTAMP, b DATETIME, c DATE);
 INSERT INTO t1 VALUES(
 '2005-11-14 01:01:01', '2005-11-14 01:01:02', '2005-11-14');
 **** On Slave ****
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 a	b	c
 2005-11-14 01:01:01	2005-11-14 01:01:02	2005-11-14
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t1 (i INT NOT NULL,
 c CHAR(16) CHARACTER SET utf8 NOT NULL,
 j INT NOT NULL) ENGINE = 'MYISAM'  ;
@@ -485,7 +485,7 @@ c CHAR(16) CHARACTER SET utf8 NOT NULL,
 j INT NOT NULL) ENGINE = 'MYISAM'  ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ALTER TABLE t2 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -494,7 +494,7 @@ c CHAR(128) CHARACTER SET utf8 NOT NULL,
 j INT NOT NULL) ENGINE = 'MYISAM'  ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ALTER TABLE t3 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -508,7 +508,7 @@ c CHAR(255) CHARACTER SET utf8 NOT NULL,
 j INT NOT NULL) ENGINE = 'MYISAM'  ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ALTER TABLE t5 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -517,7 +517,7 @@ c CHAR(255) CHARACTER SET utf8 NOT NULL,
 j INT NOT NULL) ENGINE = 'MYISAM'  ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ALTER TABLE t6 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -533,60 +533,60 @@ INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [expecting slave to replicate correctly]
 INSERT INTO t2 VALUES (1, "", 1);
 INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t2, slave:t2]
 SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column 1 size mismatch.* Error_code: MY-001535");
 call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table test.t1.* Error_code: MY-001032");
 call mtr.add_suppression("Replica SQL.*Column 1 of table .test.t.. cannot be converted from type.*, Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-include/rpl_reset.inc
+include/rpl/reset.inc
 [expecting slave to replicate correctly]
 INSERT INTO t4 VALUES (1, "", 1);
 INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t4, slave:t4]
 [expecting slave to stop]
 INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
+include/rpl/wait_for_applier_error.inc [errno=13146]
+include/rpl/reset.inc
 [expecting slave to stop]
 INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-include/wait_for_slave_sql_error.inc [errno=13146]
-include/rpl_reset.inc
+include/rpl/wait_for_applier_error.inc [errno=13146]
+include/rpl/reset.inc
 [expecting slave to replicate correctly]
 INSERT INTO t7 VALUES (1, "", 1);
 INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t7, slave:t7]
 drop table t1, t2, t3, t4, t5, t6, t7;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE='MYISAM' ;
 INSERT INTO t1 VALUES (1), (2), (3);
 UPDATE t1 SET a = 10;
 ERROR 23000: Duplicate entry '10' for key 't1.PRIMARY'
 INSERT INTO t1 VALUES (4);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (
 `pk` int(11) NOT NULL AUTO_INCREMENT,
@@ -647,7 +647,7 @@ DELETE FROM t2 WHERE `pk` < 6 LIMIT 1;
 UPDATE t1 SET `pk` = 6 ORDER BY `int_key` LIMIT 6;
 DELETE FROM t2 WHERE `pk` < 7 LIMIT 1;
 UPDATE t1 SET `int_key` = 4 ORDER BY `pk` LIMIT 6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 *** results: t2 must be consistent ****
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1, t2;
@@ -665,10 +665,10 @@ UPDATE t1 SET a = 9 WHERE a < 3;
 INSERT INTO t1 ( a ) VALUES ( 3 );
 UPDATE t1 SET a = 0 WHERE a < 4;
 UPDATE t1 SET a = 8 WHERE a < 5;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t1 (a bit) ENGINE='MYISAM' ;
 INSERT IGNORE INTO t1 VALUES (NULL);
 INSERT INTO t1 ( a ) VALUES ( 0 );
@@ -709,8 +709,8 @@ DELETE FROM t1 WHERE a < 3 LIMIT 0;
 UPDATE t1 SET a = 8 WHERE a = 5 LIMIT 2;
 INSERT IGNORE INTO t1 ( a ) VALUES ( 1 );
 UPDATE IGNORE t1 SET a = 9 WHERE a < 5 LIMIT 3;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

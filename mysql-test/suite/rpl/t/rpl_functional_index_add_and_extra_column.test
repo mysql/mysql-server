@@ -45,7 +45,7 @@
 # BUG#29390506 HIDDEN GENERATED COLUMNS PREVENT SLAVE FROM HAVING EXTRA COLUMNS IN TABLES
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 --let $initial_row_image = `SELECT @@global.binlog_row_image`
@@ -87,19 +87,19 @@
                        INDEX ((a+1)), KEY ((a+10)));
   SET @@session.sql_log_bin = 1;
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   INSERT INTO t VALUES (1, 2);
   UPDATE t SET b = 1 WHERE a = 1;
   INSERT INTO t VALUES (2, 2);
   DELETE FROM t WHERE b = 2;
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   --let $diff_tables = master:t, slave:t
   --source include/diff_tables.inc
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   DROP TABLE t;
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 #END OF
 PROCEDURE
 
@@ -118,10 +118,10 @@ PROCEDURE
   --echo # $row_image and aditional columns props equal to '$aditional_column_prop'
   --echo #
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   eval CREATE TABLE t (a INT $aditional_column_prop, b INT,
                        INDEX ((a+1)), KEY ((a+10)));
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   --connection $alter_on
   --echo [connection $alter_on]
@@ -129,18 +129,18 @@ PROCEDURE
   ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
   SET @@session.sql_log_bin = 1;
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   INSERT INTO t (a, b) VALUES (1, 2);
   UPDATE t SET b = 1 WHERE a = 1;
   INSERT INTO t (a, b) VALUES (2, 2);
   DELETE FROM t WHERE b = 2;
 
   --let $rpl_diff_statement = SELECT a, b FROM t
-  --source include/rpl_diff.inc
+  --source include/rpl/diff.inc
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   DROP TABLE t;
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 #END OF
 PROCEDURE
 
@@ -237,4 +237,4 @@ while ($k != 2) {
 --remove_file $MYSQLTEST_VARDIR/tmp/add_one_extra_column.inc
 --replace_result $initial_row_image INITIAL_ROW_IMAGE
 --eval SET @@global.binlog_row_image = $initial_row_image
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

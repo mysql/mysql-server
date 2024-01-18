@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -9,7 +9,7 @@
 --echo # Begin : Tests for ALTER USER
 
 CREATE USER userX, userY, userZ;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # This should not produce any warning in server log because none of the
 # non-existing users are using default authentication plugin.
@@ -22,7 +22,7 @@ ALTER USER IF EXISTS userX, userY, userZ,
 
 --let $event= !Q(ALTER USER.*userX.*userY.*userZ.*userW.*ACCOUNT LOCK.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 DROP USER userX, userY, userZ;
 

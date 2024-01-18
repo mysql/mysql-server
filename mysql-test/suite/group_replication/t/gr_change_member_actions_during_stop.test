@@ -27,7 +27,7 @@
 --echo #    STOP GROUP_REPLICATION command
 --echo #    after the plugin_running_lock is acquired.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.DEBUG='+d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
 
@@ -35,11 +35,11 @@ SET @@GLOBAL.DEBUG='+d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
 --echo ############################################################
 --echo # 2. Asynchronously execute STOP GROUP_REPLICATION command.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --send STOP GROUP_REPLICATION
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.reached_plugin_gr_stop_after_holding_plugin_running_lock";
 SET @@GLOBAL.DEBUG='-d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
 
@@ -48,7 +48,7 @@ SET @@GLOBAL.DEBUG='-d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
 --echo # 3. Try to change Group Replication member actions while a
 --echo #    STOP GROUP_REPLICATION is ongoing, they must fail.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_GRP_RPL_UDF_ERROR
 SELECT group_replication_reset_member_actions();
 
@@ -66,11 +66,11 @@ SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if
 --echo ############################################################
 --echo # 4. Resume the STOP GROUP_REPLICATION command.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now SIGNAL signal.resume_plugin_gr_stop_after_holding_plugin_running_lock";
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $group_replication_member_state= OFFLINE
@@ -80,7 +80,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.resume_plugin_gr_stop_after_holding_plugin_ru
 --echo ############################################################
 --echo # 5. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.read_only= 0;
 

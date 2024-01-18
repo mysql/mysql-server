@@ -14,41 +14,41 @@
 --let $rpl_topology= 1->2,3->2,4->2,5->2
 --let $rpl_multi_source= 1
 --let $rpl_skip_start_slave=1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --echo #
 --echo # On slave, issue start replica/stop replica command. Slave should not
 --echo # error out anywhere.
 --echo #
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START REPLICA SQL_THREAD;
 #check till sql_thread returned Yes
---let $rpl_source_file= include/wait_for_slave_sql_to_start.inc
---source include/rpl_for_each_connection.inc
+--let $rpl_source_file= include/rpl/wait_for_applier_to_start.inc
+--source include/rpl/for_each_connection.inc
 
 START REPLICA SQL_THREAD;
 #check till sql_thread returned Yes
---let $rpl_source_file= include/wait_for_slave_sql_to_start.inc
---source include/rpl_for_each_connection.inc
+--let $rpl_source_file= include/rpl/wait_for_applier_to_start.inc
+--source include/rpl/for_each_connection.inc
 
 START REPLICA IO_THREAD;
 #check till sql_thread returned Yes
---let $rpl_source_file= include/wait_for_slave_io_to_start.inc
---source include/rpl_for_each_connection.inc
+--let $rpl_source_file= include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/for_each_connection.inc
 
 STOP REPLICA;
---let $rpl_source_file= include/wait_for_slave_io_to_stop.inc
---source include/rpl_for_each_connection.inc
---let $rpl_source_file= include/wait_for_slave_sql_to_stop.inc
---source include/rpl_for_each_connection.inc
+--let $rpl_source_file= include/rpl/wait_for_receiver_to_stop.inc
+--source include/rpl/for_each_connection.inc
+--let $rpl_source_file= include/rpl/wait_for_applier_to_stop.inc
+--source include/rpl/for_each_connection.inc
 
 START REPLICA;
---let $rpl_source_file= include/wait_for_slave_io_to_start.inc
---source include/rpl_for_each_connection.inc
---let $rpl_source_file= include/wait_for_slave_sql_to_start.inc
---source include/rpl_for_each_connection.inc
+--let $rpl_source_file= include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/for_each_connection.inc
+--let $rpl_source_file= include/rpl/wait_for_applier_to_start.inc
+--source include/rpl/for_each_connection.inc
 
 --let $rpl_skip_sync=1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -525,4 +525,4 @@ SET @@global.lc_time_names=            @s_lc_time_names;
 SET @@global.collation_database=       @s_collation_database;
 Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
-include/rpl_end.inc
+include/rpl/deinit.inc

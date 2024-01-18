@@ -94,6 +94,6 @@ DROP TABLE t1;
 --reap
 
 --let $wait_for_gtid_executed_set=1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --source include/group_replication_end.inc

@@ -26,9 +26,9 @@
 # Added few replication cases related to WL#9591
 
 --source include/not_group_replication_plugin.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Create new replication user ====
 --echo [on master]
@@ -39,12 +39,12 @@ CREATE USER rpluser_with_length_32_1234567890@127.0.0.1 IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO rpluser_with_length_32_123456789@127.0.0.1;
 
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
-source include/stop_slave.inc;
+--source include/rpl/sync_to_replica.inc
+source include/rpl/stop_replica.inc;
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER='rpluser_with_length_32_123456789',
 SOURCE_PASSWORD='rpl', GET_SOURCE_PUBLIC_KEY = 1, SOURCE_SSL = 1;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 --echo ==== Do replication as new user ====
 --echo [on master]
@@ -52,7 +52,7 @@ connection master;
 CREATE TABLE t1 (n INT);
 INSERT INTO t1 VALUES (1);
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 
 --echo ==== Delete new replication user ====
@@ -62,20 +62,20 @@ DROP USER rpluser_with_length_32_123456789@127.0.0.1;
 FLUSH PRIVILEGES;
 
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ==== Restart replica without privileges =====
 # (slave.err will contain access denied error for this START REPLICA command)
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 START REPLICA;
-source include/wait_for_slave_sql_to_start.inc;
+source include/rpl/wait_for_applier_to_start.inc;
 --let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
-source include/wait_for_slave_io_to_stop.inc;
+source include/rpl/wait_for_receiver_to_stop.inc;
 
 --echo ==== Verify that Slave IO thread stopped with error ====
 # 1045 = ER_ACCESS_DENIED_ERROR
 --let $slave_io_errno= 1045
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 #
 # Bug #77732 REGRESSION: REPLICATION FAILS FOR INSUFFICIENT PRIVILEGES
@@ -90,9 +90,9 @@ GRANT REPLICATION SLAVE ON *.* TO rpluser_plain@127.0.0.1;
 
 --echo [on slave]
 --connection slave
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='rpluser_plain', SOURCE_PASSWORD='rpl', SOURCE_SSL = 0, GET_SOURCE_PUBLIC_KEY = 1;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 --echo [on master]
 --connection master
@@ -101,14 +101,14 @@ FLUSH PRIVILEGES;
 
 --echo [on slave]
 --connection slave
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 --echo # Resetting replication user to root
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;
 --let $rpl_only_running_threads= 1
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo # Replication Tests related to WL#9591 and WL#11057
 --echo # Check if replication takes place when slave user
@@ -120,13 +120,13 @@ CREATE USER u1_caching_sha2_password@127.0.0.1 IDENTIFIED WITH
 GRANT all ON *.* TO u1_caching_sha2_password@127.0.0.1;
 
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
-source include/stop_slave.inc;
+--source include/rpl/sync_to_replica.inc
+source include/rpl/stop_replica.inc;
 --echo # Set the user created with authentication plugin caching_sha2_password
 --echo # as replication slave user and get RSA public key from master
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER='u1_caching_sha2_password', SOURCE_PASSWORD='pwd', SOURCE_SSL=0, GET_SOURCE_PUBLIC_KEY = 1;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 --echo # Do replication with the user created with
 --echo # authentication plugin caching_sha2_password
@@ -142,7 +142,7 @@ CREATE USER u2 IDENTIFIED WITH 'caching_sha2_password' BY 'pwd_u2';
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -uu2 -ppwd_u2 -e "SELECT USER(), CURRENT_USER()" 2>&1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -uu2 -ppwd_u2 --ssl-mode=DISABLED -e "SELECT USER(), CURRENT_USER()" 2>&1
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo # On slave it is ensured that password cached on master is not replicated
 --echo # and after successful login on slave, it is cached
 --error 1
@@ -157,18 +157,18 @@ FLUSH PRIVILEGES;
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -uu2 -ppwd_u2 --ssl-mode=DISABLED -e "SELECT USER(), CURRENT_USER()" 2>&1
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT -uu2 -ppwd_u2 --ssl-mode=DISABLED -e "SELECT USER(), CURRENT_USER()" 2>&1
 
 --echo [on slave]
 connection slave;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --echo # Set the user created with authentication plugin caching_sha2_password
 --echo # as replication slave user and get RSA public key from master
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='u1_caching_sha2_password', SOURCE_PASSWORD='pwd', SOURCE_SSL = 0, SOURCE_PUBLIC_KEY_PATH='$MYSQL_TEST_DIR/std_data/rsa_public_key.pem', GET_SOURCE_PUBLIC_KEY = 0;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 --echo # Do replication with the user created with
 --echo # authentication plugin caching_sha2_password
@@ -184,7 +184,7 @@ CREATE USER u3 IDENTIFIED WITH 'caching_sha2_password' BY 'pwd_u3';
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -uu3 -ppwd_u3 -e "SELECT USER(), CURRENT_USER()" 2>&1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -uu3 -ppwd_u3 --ssl-mode=DISABLED -e "SELECT USER(), CURRENT_USER()" 2>&1
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo # On slave it is ensured that password cached on master is not replicated
 --echo # and after successful login on slave, it is cached
 --error 1
@@ -199,13 +199,13 @@ FLUSH PRIVILEGES;
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -uu3 -ppwd_u3 --ssl-mode=DISABLED -e "SELECT USER(), CURRENT_USER()" 2>&1
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT -uu3 -ppwd_u3 --ssl-mode=DISABLED -e "SELECT USER(), CURRENT_USER()" 2>&1
 
 --echo [on slave]
 --connection slave
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 --echo ==== Cleanup (Note that slave IO thread is not running) ====
 # cleanup: slave io thread has stopped so we reset replication
@@ -213,7 +213,7 @@ source include/stop_slave.inc;
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;
 # clear Slave_IO_Errno
 --let $rpl_only_running_threads= 1
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo [on master]
 connection master;
@@ -221,5 +221,5 @@ DROP TABLE t1;
 DROP USER u1_caching_sha2_password@127.0.0.1;
 DROP USER u2, u3;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --source include/force_restart.inc

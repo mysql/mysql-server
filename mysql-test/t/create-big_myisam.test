@@ -5,7 +5,7 @@
 --source include/have_debug_sync.inc
 # Some of tests below also use binlog to check that statements are
 # executed and logged in correct order
-#--source include/force_binlog_format_statement.inc
+#--source include/rpl/force_binlog_format_statement.inc
 # Save the initial number of concurrent sessions.
 #--source include/count_sessions.inc
 

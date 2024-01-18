@@ -1,0 +1,91 @@
+# Setting $gtid_violation= 0 and $error_code= 0, because CREATE TEMPORARY or
+# DROP TEMPORARY is allowed inside a transaction when @@global.gtid_mode=ON
+# and @@session.binlog_format=ROW/MIXED in Wl#8872.
+--let $gtid_violation= 0
+--let $error_code= 0
+
+# When CREATE TEMPORARY or DROP TEMPORARY occurs in the middle of a
+# transaction, it is a GTID-violation for @@session.binlog_format=
+# STATEMENT because these statements do not generate an implicit
+# commit, but cannot be rolled back. This is regardless of the
+# storage engine.
+if (`SELECT @@SESSION.binlog_format = 'STATEMENT'`)
+{
+  --let $error_code= ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+  --let $error_message= Statement violates GTID consistency: CREATE TEMPORARY
+  --let $gtid_violation= 1
+}
+--let $sync_point= before_execute_sql_command
+
+# When the created table is myisam, it is considered a
+# non-transactional statement, and therefore logged before the
+# transaction ends, and thus anonymous ownership is released and the
+# counters decreased.  Except when binlog_format='row' or 'mixed': in
+# that case CREATE TEMPORARY is not logged at all.  Therefore, the
+# transaction context is left open, so it keeps anonymous ownership,
+# and does not modify counter values.
+
+--echo ---- CREATE TEMPORARY in trx (InnoDB, BEGIN) ----
+--let $statement_ends_transaction= 0
+--let $pre_statement= BEGIN
+--let $statement= CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB
+--source common/binlog/enforce_gtid_consistency_statement.inc
+DROP TEMPORARY TABLE IF EXISTS t1;
+
+--echo ---- CREATE TEMPORARY in trx (MyISAM, BEGIN) ----
+--let $statement_ends_transaction= 1
+--let $statement_ends_transaction_row_mixed= 0
+--let $pre_statement= BEGIN
+--let $statement= CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM
+--source common/binlog/enforce_gtid_consistency_statement.inc
+DROP TEMPORARY TABLE IF EXISTS t1;
+
+--echo ---- CREATE TEMPORARY in trx (InnoDB, AUTOCOMMIT=0) ----
+--let $statement_ends_transaction= 0
+SET AUTOCOMMIT = 0;
+--let $statement= CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB
+--source common/binlog/enforce_gtid_consistency_statement.inc
+SET AUTOCOMMIT = 1;
+DROP TEMPORARY TABLE IF EXISTS t1;
+
+--echo ---- CREATE TEMPORARY in trx (MyISAM, AUTOCOMMIT=0) ----
+--let $statement_ends_transaction= 1
+--let $statement_ends_transaction_row_mixed= 0
+SET AUTOCOMMIT = 0;
+--let $statement= CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM
+--source common/binlog/enforce_gtid_consistency_statement.inc
+SET AUTOCOMMIT = 1;
+DROP TEMPORARY TABLE IF EXISTS t1;
+
+--echo ---- DROP TEMPORARY in trx (InnoDB, BEGIN) ----
+--let $statement_ends_transaction= 0
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = InnoDB;
+--let $pre_statement= BEGIN
+--let $statement= DROP TEMPORARY TABLE t1
+--source common/binlog/enforce_gtid_consistency_statement.inc
+
+--echo ---- DROP TEMPORARY in trx (MyISAM, BEGIN) ----
+--let $statement_ends_transaction= 1
+--let $statement_ends_transaction_row_mixed= 0
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = MyISAM;
+--let $pre_statement= BEGIN
+--let $statement= DROP TEMPORARY TABLE t1
+--source common/binlog/enforce_gtid_consistency_statement.inc
+
+--echo ---- DROP TEMPORARY in trx (InnoDB, AUTOCOMMIT=0) ----
+--let $statement_ends_transaction= 0
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = InnoDB;
+SET AUTOCOMMIT = 0;
+--let $statement= DROP TEMPORARY TABLE t1
+--source common/binlog/enforce_gtid_consistency_statement.inc
+SET AUTOCOMMIT = 1;
+
+--echo ---- DROP TEMPORARY in trx (MyISAM, AUTOCOMMIT=0) ----
+--let $statement_ends_transaction= 1
+--let $statement_ends_transaction_row_mixed= 0
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = MyISAM;
+SET AUTOCOMMIT = 0;
+--let $statement= DROP TEMPORARY TABLE t1
+--source common/binlog/enforce_gtid_consistency_statement.inc
+SET AUTOCOMMIT = 1;
+DROP TEMPORARY TABLE IF EXISTS t1;

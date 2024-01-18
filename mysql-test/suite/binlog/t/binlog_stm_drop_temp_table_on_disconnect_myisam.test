@@ -42,7 +42,7 @@ CREATE TEMPORARY TABLE tmp8 LIKE t2;
 --connection default
 --source include/wait_until_count_sessions.inc
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 DROP TABLE t1, t2;
 

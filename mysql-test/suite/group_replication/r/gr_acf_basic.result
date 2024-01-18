@@ -40,19 +40,19 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave_io.inc [FOR CHANNEL 'ch1_3']
+include/rpl/start_receiver.inc [FOR CHANNEL 'ch1_3']
 
 # 5. Verify channel ch1_3 IO THREAD is ON
 #    Start SQL THREAD
 
 include/assert.inc [Verify channel ch1_3 IO_THREAD is ON]
-include/start_slave_sql.inc [FOR CHANNEL 'ch1_3']
+include/rpl/start_applier.inc [FOR CHANNEL 'ch1_3']
 include/assert.inc [Verify channel ch1_3 SQL_THREAD is ON]
 
 # 6. Verify data is replicated to server1 & 3
 
 [connection server1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch1_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'ch1_3']
 [connection server3]
 include/assert.inc [Verify test.t1 is synced]
 [connection server1]
@@ -77,9 +77,9 @@ include/assert.inc [Verify Slave_monitor thread is FOREGROUND thread]
 
 [connection server1]
 DROP TABLE test.t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc [FOR CHANNEL 'ch1_3']
-include/rpl_reset_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1_3']
+include/rpl/reset_replica.inc
 SELECT asynchronous_connection_failover_delete_managed('ch1_3', 'FAILOVER_GROUP_NAME');
 asynchronous_connection_failover_delete_managed('ch1_3', 'FAILOVER_GROUP_NAME')
 The UDF asynchronous_connection_failover_delete_managed() executed successfully.

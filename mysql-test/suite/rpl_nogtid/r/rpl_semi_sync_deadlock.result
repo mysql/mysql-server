@@ -1,9 +1,9 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/install_semisync.inc
+include/rpl/install_semisync.inc
 # Initialization
 SET @debug_save= @@GLOBAL.DEBUG;
 SET GLOBAL rpl_semi_sync_source_timeout= 6000000;
@@ -32,7 +32,7 @@ SET DEBUG_SYNC= "before_rotate_binlog SIGNAL signal.continue";
 FLUSH LOGS;
 # Cleanup
 SET GLOBAL rpl_semi_sync_source_timeout= 600000;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GLOBAL debug= '+d,semi_sync_3-way_deadlock';
 SET DEBUG_SYNC= "before_process_commit_stage_queue WAIT_FOR signal.rotate_finished";
 # Build 10 connections to master server
@@ -43,6 +43,6 @@ FLUSH LOGS;
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
-include/sync_slave_sql_with_master.inc
-include/uninstall_semisync.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/uninstall_semisync.inc
+include/rpl/deinit.inc

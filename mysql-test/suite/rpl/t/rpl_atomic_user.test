@@ -14,7 +14,7 @@
 #                                                                    #
 ######################################################################
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CALL mtr.add_suppression('Following users were specified in CREATE USER');
 --echo # CREATE USER statement test where user does not exist
@@ -55,14 +55,14 @@ GRANT SELECT (user, host) ON mysql.user TO u44;
 GRANT EXECUTE ON PROCEDURE mysql.p TO u55;
 GRANT proxy ON u1 TO u2;
 GRANT ALL ON *.* TO u6;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Bug#27627586: Exclude from the analysis of the content of mysql.user table
 # the rows which were created during server startup, to prevent mismatches due
 # to different startup between the master and the slave servers
 
 --let $rpl_connection_name= master
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @sql_log_bin_saved = @@sql_log_bin;
 SET sql_log_bin = 0;
 CREATE TABLE test.user_1
@@ -72,7 +72,7 @@ ORDER BY user;
 SET sql_log_bin = @sql_log_bin_saved;
 
 --let $rpl_connection_name= slave
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @sql_log_bin_saved = @@sql_log_bin;
 SET sql_log_bin = 0;
 CREATE TABLE test.user_1
@@ -87,7 +87,7 @@ SET sql_log_bin = @sql_log_bin_saved;
 
 --echo # REVOKE FROM USER statement test
 --let $rpl_connection_name= master
---source include/rpl_connection.inc
+--source include/connection.inc
 REVOKE SELECT ON *.* FROM u1;
 REVOKE SELECT ON mysql.user FROM u2;
 REVOKE SELECT ON mysql.* FROM u33;
@@ -146,14 +146,14 @@ DROP ROLE r1, r2, u1, u_ne1;
 --error ER_CANNOT_USER
 DROP ROLE r1, r2, u5, u6, u1_failed;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Bug#27627586: Exclude from the analysis of the content of mysql.user table
 # the rows which were created during server startup, to prevent mismatches due
 # to different startup between the master and the slave servers
 
 --let $rpl_connection_name= master
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @sql_log_bin_saved = @@sql_log_bin;
 SET sql_log_bin = 0;
 CREATE TABLE test.user_2
@@ -163,7 +163,7 @@ ORDER BY user;
 SET sql_log_bin = @sql_log_bin_saved;
 
 --let $rpl_connection_name= slave
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @sql_log_bin_saved = @@sql_log_bin;
 SET sql_log_bin = 0;
 CREATE TABLE test.user_2
@@ -194,9 +194,9 @@ DISCONNECT conssl4;
 
 --echo # Cleanup
 --let $rpl_connection_name= master
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP ROLE IF EXISTS r1, r2, r33, r44, u1, u2, u33, u44, u55, u6;
 DROP TABLE test.user_1;
 DROP TABLE test.user_2;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

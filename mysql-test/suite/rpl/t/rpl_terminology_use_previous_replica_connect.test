@@ -37,7 +37,7 @@
 --source include/have_debug.inc
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #### Initialize ####
 
@@ -98,7 +98,7 @@ while ($terminology_use_previous < 2) {
       SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
 
       --let $status_items = Replica_IO_State
-      --source include/show_slave_status.inc
+      --source include/rpl/deprecated/show_replica_status.inc
 
       # Remove the debug points, allowing receiver to succeed reconnecting
       --let $debug_point = simulate_reconnect_after_$json_condition_value
@@ -110,7 +110,7 @@ while ($terminology_use_previous < 2) {
       --let $thread_id = `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%'`
       --replace_result $thread_id THREAD_ID_OF_RECEIVER
       eval KILL $thread_id;
-      --source include/wait_for_slave_io_to_stop.inc
+      --source include/rpl/wait_for_receiver_to_stop.inc
 
       --source $json_stage_next
     }
@@ -123,7 +123,7 @@ while ($terminology_use_previous < 2) {
 --echo #### Clean up ####
 
 SET @@session.terminology_use_previous = NONE;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --source include/destroy_json_functions.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

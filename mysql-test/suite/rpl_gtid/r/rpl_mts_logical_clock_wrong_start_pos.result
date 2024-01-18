@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 call mtr.add_suppression("Either event.*is from an old source");
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
@@ -18,23 +18,23 @@ Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = 2;
 SET GLOBAL replica_transaction_retries = 0;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 CREATE TABLE t1(a INT);
 INSERT INTO t1 SET a=1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=QUERY_POS, SOURCE_AUTO_POSITION=0;
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 START REPLICA SQL_THREAD;
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
 SET GLOBAL replica_parallel_type = @save_replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_transaction_retries = @save_replica_transaction_retries;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

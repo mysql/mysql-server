@@ -46,11 +46,11 @@
 # 1) Set `PRIVELEGE_CHECKS_USER` to a user with `REPLICATION_APPLIER`
 #    privilege.
 --let $rpl_privilege_checks_user= *:'u1'@'localhost'
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # 2) Start the slave.
---source include/rpl_connection_slave.inc
---source include/wait_for_slave_to_start.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/wait_for_replica_to_start.inc
 
 # 3) Ensure that the message in the log contains the user info.
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err
@@ -73,8 +73,8 @@
 --let $rpl_server_number = 2
 --let $rpl_force_stop = 1
 --let $rpl_server_parameters = --skip_replica_start=FALSE
---source include/rpl_restart_server.inc
---source include/wait_for_slave_to_start.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/wait_for_replica_to_start.inc
 
 # 3) Ensure that the message in the log contains the user info.
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err
@@ -86,7 +86,7 @@
 # Cleanup
 --let $rpl_server_number = 2
 --let $rpl_server_parameters =
---source include/rpl_restart_server.inc
---source include/start_slave.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

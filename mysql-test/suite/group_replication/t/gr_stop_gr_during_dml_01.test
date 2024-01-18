@@ -16,16 +16,16 @@
 # 7. Cleanup
 ################################################################################
 --source include/big_test.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE test.t1 ( a int primary key);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 USE test;
 delimiter $$;
@@ -50,7 +50,7 @@ delimiter ;$$
 # Stop group replication on server3 once atleast 50 records are inserted and synched
 #
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)>=50 FROM test.t1
 --source include/wait_condition.inc
 
@@ -59,7 +59,7 @@ delimiter ;$$
 
 #reap has been done after send
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 # Check the no of online servers by connecting client to server 1 and server2
@@ -69,7 +69,7 @@ delimiter ;$$
 
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo ####### Checking the member count having online status #######
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
@@ -88,7 +88,7 @@ while($i)
 # Start the group replication again and check the status
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_timeout= 600
 --source include/start_group_replication.inc
 

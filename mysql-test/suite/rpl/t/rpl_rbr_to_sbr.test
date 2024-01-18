@@ -1,7 +1,7 @@
 --source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_mixed.inc
 -- source include/not_ndb_default.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 # Test that the slave temporarily switches to ROW when seeing row
 # events when it is in MIXED mode
@@ -12,10 +12,10 @@ INSERT INTO t1 VALUES (1,1), (2,2);
 INSERT INTO t1 VALUES (3,UUID()), (4,UUID());
 
 --let $mask_binlog_commit_events= 1
-source include/show_binlog_events.inc;
---source include/sync_slave_sql_with_master.inc
+source include/rpl/deprecated/show_binlog_events.inc;
+--source include/rpl/sync_to_replica.inc
 --echo **** On Slave ****
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 --let $mask_binlog_commit_events= 0
 
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql
@@ -35,4 +35,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql $MYSQLTEST_VARDIR/tmp
 
 --remove_file $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_slave.sql
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

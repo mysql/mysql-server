@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,13 +8,13 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection slave]
 call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
-include/setup_fake_relay_log.inc
+include/rpl/setup_fake_relay_log.inc
 Setting up fake replication from MYSQL_TEST_DIR/std_data/rpl_unfiltered_hidden_gcol.000001
 START REPLICA SQL_THREAD;
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [Slave was able to apply the provided relay log.]
 DROP TABLE t;
 STOP REPLICA SQL_THREAD;
-include/cleanup_fake_relay_log.inc
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/cleanup_fake_relay_log.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

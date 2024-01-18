@@ -65,7 +65,7 @@
 --echo # 1. Bootstrap start a GROUP on M1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -86,7 +86,7 @@ while ($test_count)
 --echo # 2. Start GR on M2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo
@@ -97,7 +97,7 @@ while ($test_count)
 --echo #    on M1 for new member joining the group.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
 --source include/wait_condition.inc
@@ -116,7 +116,7 @@ while ($test_count)
 --echo #    on M2 for new member joining the group.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
 --source include/wait_condition.inc
@@ -137,7 +137,7 @@ while ($test_count)
 SET @@GLOBAL.DEBUG='+d,gr_recovery_metadata_verify_metadata_exist';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='+d,gr_recovery_metadata_verify_metadata_exist';
 
 
@@ -159,11 +159,11 @@ while ($start_count < 4)
   --echo
   --echo # Test run number: $start_count
   --let $rpl_connection_name= server3
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --source include/start_group_replication.inc
 
   --let $rpl_connection_name= server1
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
   --source include/wait_condition.inc
@@ -174,7 +174,7 @@ while ($start_count < 4)
   --source include/assert.inc
 
   --let $rpl_connection_name= server3
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $assert_text= 'Assert GTID is same on M1 and M3'
   --let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
@@ -199,14 +199,14 @@ while ($start_count < 4)
 --echo #    Transactions, and Certification Information are stored.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.error_log WHERE error_code='MY-011071' AND data LIKE "%gr_recovery_metadata_verify_metadata_exist debug point view_id: % and gtid executed set%:1-101%"
 --source include/wait_condition.inc
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.error_log WHERE error_code='MY-011071' AND data LIKE "%gr_recovery_metadata_verify_metadata_exist debug point view_id: % and gtid executed set%:1-101%"
 --source include/wait_condition.inc
@@ -220,7 +220,7 @@ while ($start_count < 4)
 --echo #    server.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-010379' AND data LIKE "%Replica SQL thread stopped because it reached UNTIL SQL_AFTER_GTIDS %:1-101%"
 --source include/wait_condition.inc
@@ -234,15 +234,15 @@ while ($start_count < 4)
 --echo # 9. Cleanup.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='-d,gr_recovery_metadata_verify_metadata_exist';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 SET @@GLOBAL.DEBUG='-d,gr_recovery_metadata_verify_metadata_exist';
 

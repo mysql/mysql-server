@@ -19,7 +19,7 @@
 --source include/have_binlog_format_row.inc
 --source include/have_debug_sync.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --let $uuida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 
 --connection slave
@@ -83,7 +83,7 @@ while ($i < 2)
 
 --connection master
 SET GLOBAL GTID_MODE = OFF;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Test that SELECT WAIT_FOR_EXECUTED_GTID_SET() gives an error if
@@ -98,5 +98,5 @@ SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 --connection master
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

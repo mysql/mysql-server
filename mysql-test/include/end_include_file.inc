@@ -103,7 +103,7 @@ if (!$_tmp) {
 if (!$skip_restore_connection)
 {
   --let $rpl_connection_name= $_include_file_rpl_connection_name
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 }
 --let $skip_restore_connection= 0
 

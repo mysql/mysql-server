@@ -20,24 +20,24 @@
 
 # Start the first member here
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # Start the second member. Add some data and sync it in the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 CREATE TABLE test.t1 (i INT PRIMARY KEY);
 INSERT INTO test.t1 VALUES(1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Establish an async connection between the third server and member 1 of
 # the group.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 # Make this server the slave of the first server which belongs to the group.
@@ -45,20 +45,20 @@ SET SESSION sql_log_bin= 1;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_AUTO_POSITION=1
 --enable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Restart GR on M2 and add some data to the group. Verify that the same events are replicated to M3 later.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 INSERT INTO test.t1 VALUES(2);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # On the slave (server3), test that the data is properly replicated
 --echo # after the start replica is complete.
@@ -69,20 +69,20 @@ INSERT INTO test.t1 VALUES(2);
 --let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
 # View change (s1) # View change (s2) # Create table # Insert # View change (s2) # Insert
 --let $event_sequence= # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 # Cleanup
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE test.t1;
 
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 
 --source include/group_replication_end.inc

@@ -7,7 +7,7 @@ ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 DROP TABLE t1,t2;
 SET DEBUG_SYNC= 'now SIGNAL continue';
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 DELETE FROM tmp;
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # !Q(DELETE.*) # !Commit]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # !Q(DELETE.*) # !Commit]
 DROP VIEW v_12;

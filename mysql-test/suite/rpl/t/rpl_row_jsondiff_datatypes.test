@@ -4,6 +4,6 @@
 
 --let $key=
 
---source extra/rpl_tests/rpl_row_jsondiff_init.inc
---source extra/rpl_tests/rpl_row_jsondiff_datatypes.inc
---source extra/rpl_tests/rpl_row_jsondiff_exit.inc
+--source common/rpl/row_jsondiff_init.inc
+--source common/rpl/row_jsondiff_datatypes.inc
+--source common/rpl/row_jsondiff_exit.inc

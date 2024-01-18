@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,7 +14,7 @@ CREATE TABLE t_w1 (c1 int PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t_w2 (c1 int PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t_w3 (c1 int PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t_w4 (c1 int PRIMARY KEY) ENGINE = InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 INSERT INTO t_w2 VALUES(1);
 LOCK TABLES t_w1 WRITE, t_w2 WRITE, t_w3 WRITE, t_w4 WRITE;
@@ -38,21 +38,21 @@ INSERT INTO t_w3 VALUES(4);
 COMMIT;
 INSERT INTO t_w4 VALUES(1);
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
 UNLOCK TABLES;
-include/wait_for_slave_sql_error.inc [errno=1062,3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR]
+include/rpl/wait_for_applier_error.inc [errno=1062,3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR]
 include/assert.inc ['Rows have been inserted to table t_w1']
 include/assert.inc ['No rows have been inserted to table t_w2']
 include/assert.inc ['No rows have been inserted to table t_w3']
 include/assert.inc ['No rows have been inserted to table t_w4']
 DELETE FROM t_w2 WHERE c1 = 1;
-include/start_slave_sql.inc
-include/sync_slave_sql.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
+include/rpl/start_applier.inc
+include/rpl/sync_with_saved.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP TABLE t_w1, t_w2, t_w3, t_w4;
-include/rpl_end.inc
+include/rpl/deinit.inc

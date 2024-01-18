@@ -16,7 +16,7 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Check test_table last_committed and sequence_number
@@ -38,7 +38,7 @@ CREATE TABLE test_table (
 --echo # Insert rows into test_table
 --echo #
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # insert row1: unique key: (aaa-bbb-2-1)
 INSERT INTO test_table VALUES (1, 1, 'aaabbb', 'bbbccc', 2);
@@ -59,7 +59,7 @@ INSERT INTO test_table VALUES (2, 1, 'aaaddd', 'bbbeee', 2);
 # Flush logs to force binlog to rotate
 --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $logical_timestamps=2 3;3 4;4 5
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo #
 --echo # Check test2 last_committed and sequence_number
@@ -77,7 +77,7 @@ CREATE TABLE test2 (
 --echo # Insert rows into test2
 --echo #
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # last_committed=7 sequence_number=8
 INSERT INTO test2 VALUES ('aaabbb', 1);
@@ -104,7 +104,7 @@ DELETE FROM test2 WHERE did = 3;
 # Flush logs to force binlog to rotate
 --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $logical_timestamps=7 8;8 9;9 10;10 11;11 12;12 13
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo #
 --echo # Clean up
@@ -113,4 +113,4 @@ DELETE FROM test2 WHERE did = 3;
 DROP TABLE test_table;
 DROP TABLE test2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,5 +1,5 @@
 include/have_replication_observers_example_plugin.inc
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 # Stop replica and install plugin.
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 include/install_replication_observers_example.inc
 #
 # Cause a reset replica notification.
@@ -16,18 +16,18 @@ RESET REPLICA;
 #
 # Cause a connect notification.
 #
-include/start_slave.inc
+include/rpl/start_replica.inc
 #
 # Execute some transactions on master to cause the other notifications.
 #
 CREATE TABLE t1 (c1 INT) Engine=InnoDB;
 INSERT t1 VALUES(1);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Stop replica and uninstall plugin.
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 include/uninstall_replication_observers_example.inc
 #
 # Verify that all relay hooks were called.
@@ -56,4 +56,4 @@ Occurrences of 'replication_observers_example_plugin:binlog_relay_applier_stop' 
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_thread_stop'
 Occurrences of 'replication_observers_example_plugin:binlog_relay_thread_stop' in the input file: 1
-include/rpl_end.inc
+include/rpl/deinit.inc

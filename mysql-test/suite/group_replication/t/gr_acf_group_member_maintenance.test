@@ -47,19 +47,19 @@
 --echo #    Set group_replication_member_expel_timeout to 3600, so
 --echo #    that a UNREACHABLE member is only expelled after 1 hour.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 SET GLOBAL group_replication_member_expel_timeout = 3600;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= `SELECT @@server_uuid`
 SET GLOBAL group_replication_member_expel_timeout = 3600;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server3_uuid= `SELECT @@server_uuid`
 SET GLOBAL group_replication_member_expel_timeout = 3600;
 --source include/start_group_replication.inc
@@ -70,7 +70,7 @@ SET GLOBAL group_replication_member_expel_timeout = 3600;
 --echo # 2. Configure replica to manage the asynchronous connection
 --echo #    to group.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1 $group_replication_group_name GROUP_NAME
 --eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_replication_group_name', '127.0.0.1', $SERVER_MYPORT_1, '', 90, 70);
@@ -88,12 +88,12 @@ SET GLOBAL group_replication_member_expel_timeout = 3600;
 --echo ############################################################
 --echo # 3. Create and start the managed channel connected to server1.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECT_RETRY=1 FOR CHANNEL 'ch1'
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
@@ -109,20 +109,20 @@ SET GLOBAL group_replication_member_expel_timeout = 3600;
 --echo # 4. Kill server1.
 --echo #    Server will return without starting Group Replication.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $server1_uuid
 --source include/gr_wait_for_member_state.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $server1_uuid
 --source include/gr_wait_for_member_state.inc
@@ -134,7 +134,7 @@ SET GLOBAL group_replication_member_expel_timeout = 3600;
 --echo #    Server1 is back and has the highest weight, but since it
 --echo #    is not part of the group it cannot be selected as the sender.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo Wait until ch1 IO_THREAD is connected to server2 or server3
 --let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_connection_status WHERE channel_name="ch1" AND source_uuid="$server2_uuid" OR source_uuid="$server3_uuid"
 --source include/wait_condition.inc
@@ -145,7 +145,7 @@ SET GLOBAL group_replication_member_expel_timeout = 3600;
 --echo # 6. Wait 30 seconds and validate that replica is still connected
 --echo #    to server2 or server3.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --sleep 30
 --let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server2 or server3
 --let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name=\'ch1\' AND source_uuid=\'$server2_uuid\' OR source_uuid=\'$server3_uuid\', SERVICE_STATE, 1]" = "ON"
@@ -157,7 +157,7 @@ SET GLOBAL group_replication_member_expel_timeout = 3600;
 --echo # 7. Assert that group information did not change, since the
 --echo #    missing member is UNREACHABLE
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There are 3 rows in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 3
 --source include/assert.inc
@@ -169,11 +169,11 @@ SET GLOBAL group_replication_member_expel_timeout = 3600;
 --echo #    default value on server2 and server3, which will cause
 --echo #    server1 to be expelled.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members
@@ -187,7 +187,7 @@ SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 --let $primary_uuid= query_get_value(SELECT MEMBER_ID FROM performance_schema.replication_group_members where member_role='PRIMARY', MEMBER_ID, 1)
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
 
@@ -204,13 +204,13 @@ SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 --echo ############################################################
 --echo # 10. Clean up.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
@@ -238,15 +238,15 @@ call mtr.add_suppression("Replica I/O for channel 'ch1': Source command COM_REGI
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 
 --source include/group_replication_end.inc

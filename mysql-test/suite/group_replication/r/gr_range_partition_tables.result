@@ -13,7 +13,7 @@ PARTITION BY RANGE (id)
 PARTITION p2 VALUES LESS THAN (10),
 PARTITION p3 VALUES LESS THAN (15),
 PARTITION p4 VALUES LESS THAN MAXVALUE);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -32,7 +32,7 @@ INSERT INTO t1 VALUES (01, 'test partioning of tables', '2013-03-01');
 INSERT INTO t1 VALUES (10, 'test partioning of tables', '2012-12-10');
 INSERT INTO t1 VALUES (12, 'test partioning of tables', '2011-11-13');
 INSERT INTO t1 VALUES (100, 'test partioning of tables', '2011-10-13');
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server3]
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -53,7 +53,7 @@ include/assert.inc ['Check that partition p3 on table t1 has 2 rows']
 include/assert.inc ['Check that partition p4 on table t1 has 1 row']
 DELETE FROM t1 WHERE id=12;
 INSERT INTO t1 values (7, 'test partioning of tables', '2016-08-15');
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -73,5 +73,5 @@ include/assert.inc ['Check that partition p2 on table t1 has 1 row']
 include/assert.inc ['Check that partition p3 on table t1 has 1 row']
 include/assert.inc ['Check that partition p4 on table t1 has 1 row']
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

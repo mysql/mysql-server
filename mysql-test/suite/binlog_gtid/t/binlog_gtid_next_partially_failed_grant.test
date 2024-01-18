@@ -57,7 +57,7 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo # Verify that the partially failed GRANT statement is not binlogged.
 --echo #
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 DROP USER u1@h;
 DROP TABLE t1;

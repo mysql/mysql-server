@@ -24,7 +24,7 @@
 
 --source include/have_semisync_plugin.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $status = _status
 --let $clients = _clients
@@ -48,7 +48,7 @@ while ($old_names < 2) {
 
   --echo ==== Step $old_names: Using $source/$replica terminology ====
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
   #############################################################################
   --echo # Case 1: Uninstallation of semi sync plugins should be allowed when it is
@@ -81,7 +81,7 @@ while ($old_names < 2) {
   --echo # when it is in use i.e., when semi sync replication is active
 
   # Step 2.1: Install and enable semi sync replication between master and slave
-  --source include/install_semisync.inc
+  --source include/rpl/install_semisync.inc
 
   # Step 2.2: Check that rpl_semi_sync_replica uninstallation on Slave is not
   #  possible at this state
@@ -147,13 +147,13 @@ while ($old_names < 2) {
 
   # Step 4.1: Stop IO thread on slave.
   --connection slave
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
 
   # Step 4.2: Disable semi sync on slave.
   eval SET GLOBAL rpl_semi_sync_$replica$enabled = OFF;
 
   # Step 4.3: Start IO thread on slave.
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
 
   # Step 4.4: Uninstall semi sync plugin, it should be successful now.
   eval UNINSTALL PLUGIN rpl_semi_sync_$replica;
@@ -177,4 +177,4 @@ while ($old_names < 2) {
 }
 
 # Cleanup
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

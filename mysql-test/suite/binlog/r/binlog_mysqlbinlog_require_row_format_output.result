@@ -10,14 +10,14 @@ FLUSH LOGS;
 # 2. Execute mysqlbinlog without --require_row_format
 #    @@SESSION.REQUIRE_ROW_FORMAT is not set
 #    @@session.pseudo_thread_id is set
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There is no session.require_row_format being set]
 include/assert_grep.inc [There are occurrences of session.pseudo_thread_id being set]
 #
 # 3. Execute mysqlbinlog with --require_row_format
 #    @@SESSION.REQUIRE_ROW_FORMAT is set
 #    @@session.pseudo_thread_id is not set
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [Session.require_row_format is being set]
 include/assert_grep.inc [There are no occurrences of session.pseudo_thread_id being set]
 #

@@ -30,7 +30,7 @@
 --echo # Commit a transaction (T1) on server 1, that will be
 --echo # certified and applied on both members.
 CREATE TABLE t1(i INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server1
 --echo # Wait for the first round of garbage collection to finish on server 1.
@@ -61,7 +61,7 @@ SET @@GLOBAL.DEBUG= '+d,certifier_garbage_collection_block';
 --echo # Commit a transaction (T2) on server 1, that will be
 --echo # certified and applied on both members.
 INSERT INTO t1 VALUES(1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server1
 --echo # Wait for the second round of garbage collection to finish on server 1.

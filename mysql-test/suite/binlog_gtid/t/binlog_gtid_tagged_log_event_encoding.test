@@ -45,7 +45,7 @@ CREATE TABLE t1 (a INT);
 --echo # T1.3
 --echo
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $output_file=$MYSQLTEST_VARDIR/tmp/binlog_gtid_tagged_log_event_encoding.output
 --exec $MYSQL_BINLOG --force-if-open $binlog_fullpath > $output_file
 

@@ -62,12 +62,12 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -231,12 +231,12 @@ SELECT group_replication_set_as_primary(b) FROM test.t1 WHERE a=5;
 SELECT group_replication_set_as_primary(b) FROM test.t1 WHERE a=6;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
@@ -245,7 +245,7 @@ SELECT group_replication_set_as_primary(b) FROM test.t1 WHERE a=6;
 
 DROP TABLE test.t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1

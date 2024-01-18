@@ -277,7 +277,7 @@ while ($i < $ceiling)
   --let $rpl_connection_silent= 1
   --let $rpl_connection_name= server$i
   --echo [Setup XPlugin user on connection '$rpl_connection_name']
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --let $create_user_disable_binlog=1
   --source include/xplugin_create_user.inc
   --inc $i
@@ -302,19 +302,19 @@ exec $MYSQLXTEST
   -v %SERVER_XPORT_3%=$MASTER_X_MYPORT_3 2>&1;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 
@@ -334,19 +334,19 @@ exec $MYSQLXTEST
   -v %SERVER_XPORT_3%=$MASTER_X_MYPORT_3 2>&1;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 ## Cleanup
@@ -360,7 +360,7 @@ while ($i < $ceiling)
 {
   --let $rpl_connection_silent= 1
   --let $rpl_connection_name= server$i
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --source include/xplugin_drop_user.inc
   --inc $i
 }

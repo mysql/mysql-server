@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 ############################################################
 # 1. Create a table on the group.
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 2. Collect server uuids and increase member2 weight.
@@ -33,9 +33,9 @@ SELECT group_replication_switch_to_single_primary_mode("MEMBER3_UUID");
 [connection server3]
 [connection server4]
 [connection server3]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server4]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server_1]
 include/gr_wait_for_member_state.inc
 include/gr_wait_for_member_state.inc
@@ -47,7 +47,7 @@ include/gr_wait_for_member_state.inc
 # 6. Force membership to member1 and member2.
 [connection server2]
 SET GLOBAL group_replication_force_members= "MEMBER1,MEMBER2";
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 ############################################################
 # 7. Unlock table t1 on member2.
@@ -60,7 +60,7 @@ Warnings:
 Warning	3910	The appointed primary being elected exited the group. Check the group member list to see who is the primary. There were warnings detected also on other members, check their logs.
 [connection server2]
 INSERT INTO t1 VALUES (2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:t1, server2:t1]
 
 ############################################################

@@ -1,8 +1,8 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 [connection master]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA ALL;
-include/start_slave.inc
+include/rpl/start_replica.inc
 select THREAD_ID from performance_schema.replication_connection_status
 where CHANNEL_NAME = "channel_1"
   into @tid;
@@ -78,7 +78,7 @@ where THREAD_ID = @tid;
 SERVICE_STATE
 #
 OK: handler_read_key incremented
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA ALL;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

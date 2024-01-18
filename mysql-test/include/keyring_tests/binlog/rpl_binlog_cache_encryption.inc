@@ -23,9 +23,9 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 --let $keyring_master= $MYSQL_TMP_DIR/keyring_master
 --let $keyring_slave= $MYSQL_TMP_DIR/keyring_slave
 --let $MASTER_DATADIR= `select @@datadir`
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $SLAVE_DATADIR= `select @@datadir`
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 
 --write_file $MYSQLTEST_VARDIR/tmp/rpl_binlog_cache_encryption.inc PROCEDURE
@@ -88,7 +88,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
 --let $rpl_server_number= 1
 --let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $assert_text=binlog_encryption option shall be ON
 --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
@@ -97,7 +97,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
 
 --let $encrypted_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$encrypted_master_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=Binary log is encrypted using 1st master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
@@ -117,19 +117,19 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
 --let $rpl_server_number= 1
 --let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # Table diff
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/rpl_binlog_cache_encryption.inc
 
 DROP TABLE t1;

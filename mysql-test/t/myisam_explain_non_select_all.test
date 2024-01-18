@@ -5,7 +5,7 @@
 --source include/have_myisam.inc
 
 # Don't run with binlog_format=statement due to unsafe REPLACE... SELECT.
---source include/not_binlog_format_statement.inc
+--source include/rpl/deprecated/not_binlog_format_statement.inc
 
 # 
 # Run explain_non_select.inc on MyISAM with all of the so-called 6.0 features.

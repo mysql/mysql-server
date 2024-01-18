@@ -6,10 +6,10 @@
 #  Variable Scope: Global
 #  Dynamic Variable: No
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection slave
 --let $rpl_log_var_name=relay_log_index
 --source suite/sys_vars/inc/bin_relay_log_basename_index.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

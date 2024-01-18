@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -24,7 +24,7 @@ INSERT INTO t1 (first) VALUES(1.55);
 ##############################################################
 # 4. Delete the row on the source and verify it was deleted on the replica
 DELETE FROM t1 WHERE gen_col="00:00:01.5";
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 include/assert.inc [The data on the replica was deleted]
 
@@ -32,4 +32,4 @@ include/assert.inc [The data on the replica was deleted]
 # 5. Cleanup
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

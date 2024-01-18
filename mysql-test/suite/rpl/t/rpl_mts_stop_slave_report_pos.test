@@ -25,11 +25,11 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 # do not execute when binlog compression is on as the debug
 # point below is not activated
 --source include/not_binlog_transaction_compression_on.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Do some DMLs on master and sync with slave to make sure that one checkpoint
 # is done.
@@ -39,7 +39,7 @@ CREATE TABLE db1.t1 ( id INT(11) PRIMARY KEY ) ENGINE=INNODB;
 CREATE TABLE db2.t1 ( id INT(11) PRIMARY KEY ) ENGINE=INNODB;
 INSERT INTO db1.t1 VALUES (40);
 INSERT INTO db2.t1 VALUES (40);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Save the global variables that are being modified. Set bigger values for
 # replica_checkpoint_group/period so that no further checkpoints are done
@@ -51,7 +51,7 @@ SET GLOBAL replica_checkpoint_group=512;
 SET GLOBAL replica_checkpoint_period=3000000;
 
 # Do some DMLs on master.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $i=30
 while ($i)
 {
@@ -59,12 +59,12 @@ while ($i)
   --eval insert into db2.t1 values ($i)
   dec $i;
 }
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # Wait till all the transactions are applied on slave. This will ensure that
 # at the time of STOP REPLICA few more committited transactions are present
 # above the recent LWM.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $table=db1.t1
 --let $count=31
 --source include/wait_until_rows_count.inc
@@ -72,7 +72,7 @@ while ($i)
 --let $table=db2.t1
 --let $count=31
 --source include/wait_until_rows_count.inc
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 
 # Wait for coordinator to populate worker's queues.
 --let $show_statement= SHOW PROCESSLIST
@@ -85,19 +85,19 @@ while ($i)
 # applier it will receive a STOP REPLICA due to debug simulation. Applier will
 # execute gracefully after completing the current group in progress and print
 # appropriate exit positions.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
 INSERT INTO db1.t1 VALUES (50);
 COMMIT;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Debug simulation which will ensure that SLAVE STOPS as a regular exit
 # without an error. This ensures we have the same scenario as that of the bug
 # report.
 SET global debug="+d,simulate_stop_when_mta_in_group";
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 --let $exec_source_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
 --let $exec_source_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 1)
 
@@ -114,7 +114,7 @@ SET global debug="+d,simulate_stop_when_mta_in_group";
 SET GLOBAL debug=@save_debug;
 SET @@GLOBAL.replica_checkpoint_group= @save_replica_checkpoint_group;
 set @@GLOBAL.replica_checkpoint_period= @save_replica_checkpoint_period;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Assert that the positions that are reported by the applier thread during
 # START REPLICA are the same as the positions reported during STOP REPLICA.
@@ -125,10 +125,10 @@ set @@GLOBAL.replica_checkpoint_period= @save_replica_checkpoint_period;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP DATABASE db1;
 DROP DATABASE db2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

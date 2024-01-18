@@ -2,8 +2,8 @@
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_mixed_or_statement.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 --disable_query_log
 call mtr.add_suppression('Attempting backtrace');
@@ -14,5 +14,5 @@ call mtr.add_suppression("allocated tablespace .*, old maximum was .*");
 
 let $engine_type=Innodb;
 let $database_name=test;
---source extra/rpl_tests/rpl_crash_safe.test
---source include/rpl_end.inc
+--source common/rpl/rpl_crash_safe.test
+--source include/rpl/deinit.inc

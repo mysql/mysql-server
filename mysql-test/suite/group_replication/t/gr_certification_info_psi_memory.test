@@ -48,7 +48,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_after_add_item';
 --send INSERT INTO t1 VALUES(1);
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_certifier_after_add_item_reached";
 
 --let $assert_text= 'The sum bytes allocated must be greater than 0'
@@ -59,7 +59,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_after_add_item';
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_certifier_after_add_item_continue";
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 DROP TABLE t1;

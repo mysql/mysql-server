@@ -6,9 +6,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
-include/rpl_connect.inc [creating sigcon]
+include/rpl/connect.inc [creating sigcon]
 [connection sigcon]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET DEBUG_SYNC='ha_innobase_end_statement WAIT_FOR waiting1';
 BEGIN;
 UPDATE t1 SET c1=99 WHERE c1=0;
@@ -21,7 +21,7 @@ SET DEBUG_SYNC='now SIGNAL waiting1';
 [connection sigcon]
 COMMIT;
 ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc ['There is a 1 in t1']
 include/assert.inc ['There is no 0 in t1']
 include/assert.inc ['There is no 99 in t1']

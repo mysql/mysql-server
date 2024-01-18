@@ -29,10 +29,10 @@
 --let use_gtids=0
 --let $rpl_skip_start_slave= 1
 --let $rpl_topology= 1->2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Non-transactional table (MyISAM engine)
 CREATE TABLE t1 (i VARCHAR(8192)) ENGINE=MyISAM;
@@ -41,13 +41,13 @@ CREATE TABLE t1 (i VARCHAR(8192)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(repeat('a',8192)), (repeat('b', 8192));
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Set simulation point to restart IO thread, so that the transaction
 #  is split across the relay logs.
 SET @saved_debug=@@GLOBAL.debug;
 SET GLOBAL debug="+d,stop_io_after_reading_write_rows_log_event";
 START REPLICA IO_THREAD;
---source include/wait_for_slave_io_to_stop.inc
+--source include/rpl/wait_for_receiver_to_stop.inc
 SET GLOBAL debug=@saved_debug;
 
 # Make sure there are no replication issues
@@ -56,21 +56,21 @@ START REPLICA;
 --enable_warnings
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_warnings
 START REPLICA;
 --enable_warnings
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
---source include/rpl_sync.inc
+--source include/connection.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables= server_1:t1, server_2:t1, server_3:t1
 --source include/diff_tables.inc
 
 # Assert that relay log info pos is stored on table
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sql_thread_pos=query_get_value('SHOW REPLICA STATUS', Exec_Source_Log_Pos, 1)
 --let $sql_thread_file=query_get_value('SHOW REPLICA STATUS', Relay_Source_Log_File, 1)
 --let $assert_cond= Master_log_pos = $sql_thread_pos FROM mysql.slave_relay_log_info
@@ -82,6 +82,6 @@ START REPLICA;
 
 # Cleanup
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

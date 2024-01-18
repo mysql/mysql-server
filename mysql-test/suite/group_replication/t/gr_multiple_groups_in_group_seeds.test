@@ -29,7 +29,7 @@
 --echo # 1. Bootstrap start GR on M1 and M2.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Bootstrap start GR on M1.
 --let $group_name_server1= b0000000-7fb8-11e6-9f35-ac56a84b7f00
 --let $group_replication_group_name= $group_name_server1
@@ -41,7 +41,7 @@ call mtr.add_suppression("The request to remove .*:[0-9]* from the group has bee
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Bootstrap start GR on M2.
 --let $group_name_server2= b1111111-7fb8-11e6-9f35-ac56a84b7f11
 --let $group_replication_group_name= $group_name_server2
@@ -62,7 +62,7 @@ set session sql_log_bin=1;
 --echo # a) Have group_seeds as 'M1_LA, M2_LA' and group_name: GROUP#1.
 --echo #    Expect SUCCESS.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $saved_gr_group_seeds = `SELECT @@GLOBAL.group_replication_group_seeds;`
 
 --replace_result $local_address_m1 M1_LA $local_address_m2 M2_LA
@@ -152,12 +152,12 @@ RESET BINARY LOGS AND GTIDS;
 --enable_query_log
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 RESET BINARY LOGS AND GTIDS;
 

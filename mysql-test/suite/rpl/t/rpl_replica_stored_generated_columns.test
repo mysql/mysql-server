@@ -49,7 +49,7 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Setup
 # -----
@@ -70,7 +70,7 @@ CREATE TABLE `log_data` (
 
 # 2. Add stored and virtual generated columns to the given table, on the
 #    replica.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 ALTER TABLE
   `log_data`
 MODIFY
@@ -118,7 +118,7 @@ ADD
 
 # TC1. Stored generated columns are updated after a `Write_rows_event`
 # --------------------------------------------------------------------
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # 1. Insert 10 rows on the source.
 INSERT INTO `log_data` (`series`, `tm_ts`, `data`)
 SELECT *
@@ -146,7 +146,7 @@ FROM
       sequence
   ) AS F;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # 2. Ensure that the count of rows where the stored generated columns is
 #    not null is 10, on the replica.
 --let $updated_count = `SELECT COUNT(1) FROM log_data WHERE s_date IS NOT NULL AND s_hash IS NOT NULL`
@@ -164,11 +164,11 @@ FROM
 
 # TC2. Stored generated columns are updated after an `Update_rows_event`
 # ----------------------------------------------------------------------
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # 1. Update the 10 rows on the source.
 UPDATE `log_data` SET `tm_ts` = "20210101", `series` = 2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # 2. Ensure that the count of rows where the stored generated columns is
 #    not null is 10, on the replica.
 --let $updated_count = `SELECT COUNT(1) FROM log_data WHERE s_date = "2021-01-01"`
@@ -186,17 +186,17 @@ UPDATE `log_data` SET `tm_ts` = "20210101", `series` = 2;
 
 # TC3. Stored generated columns are removed after a `Delete_rows_event`
 # ---------------------------------------------------------------------
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # 1. Delete the 10 rows on the source.
 DELETE FROM `log_data` WHERE `id` < 11;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # 2. Ensure that the count of rows is 0.
 --let $updated_count = `SELECT COUNT(1) FROM log_data`
 --let $assert_text = Count is 0
 --let $assert_cond = "$updated_count" = "0"
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE `log_data`;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

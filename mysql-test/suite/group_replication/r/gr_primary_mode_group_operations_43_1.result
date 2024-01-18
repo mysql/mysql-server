@@ -30,11 +30,11 @@ Mode switched to multi-primary successfully.
 
 # 4. Server2 shall abort and 'exit' the group
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 5. Wait for server 2 to disconnect/abort and restart
 [connection server2]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 # 6. Cleanup

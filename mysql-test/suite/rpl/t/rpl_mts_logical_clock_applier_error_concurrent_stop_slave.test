@@ -13,9 +13,9 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression('The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.');
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
@@ -26,12 +26,12 @@ SET @@GLOBAL.replica_parallel_type = LOGICAL_CLOCK;
 SET @@GLOBAL.replica_parallel_workers = 3;
 SET @@GLOBAL.replica_transaction_retries = 0;
 SET @@GLOBAL.innodb_lock_wait_timeout = 1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 #
 # Workload
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE parent (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE child ( a INT NOT NULL PRIMARY KEY, b INT,
   FOREIGN KEY(a) REFERENCES parent (a) ON DELETE RESTRICT);
@@ -46,51 +46,51 @@ INSERT INTO child VALUES (2,1);
 INSERT INTO child VALUES (3,1);
 INSERT INTO child VALUES (4,1);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 
 #
 # Block MTS worker and put coordinator to wait on logical clock
 #
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 BEGIN;
 DELETE FROM child WHERE a=3;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM child WHERE a=3;
 DELETE FROM parent WHERE a=3;
 
 #
 # Wait until coordinator is waiting to schedule transactions
 #
---source include/sync_slave_io_with_master.inc
---source include/start_slave_sql.inc
+--source include/rpl/sync_to_replica_received.inc
+--source include/rpl/start_applier.inc
 --let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Waiting for dependent transaction to commit
---source include/wait_for_slave_param.inc
+--source include/rpl/wait_for_replica_status.inc
 #
 # Stop replica and cleanup the blocking
 #
 --disable_warnings
 --let $slave_sql_errno= convert_error(ER_LOCK_WAIT_TIMEOUT)
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 --enable_warnings
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 ROLLBACK;
 
 #
 # Cleanup
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE child, parent;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
 --disable_warnings
 SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
 --enable_warnings
 SET @@GLOBAL.replica_transaction_retries= @save_replica_transaction_retries;
 SET @@GLOBAL.innodb_lock_wait_timeout= @save_innodb_lock_wait_timeout;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

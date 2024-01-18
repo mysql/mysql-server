@@ -38,8 +38,8 @@ SET GTID_NEXT= "AUTOMATIC";
 #########################################################################
 
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
-include/rpl_reconnect.inc
+include/rpl/gr_wait_for_number_of_members.inc
+include/rpl/reconnect.inc
 [connection server2]
 include/assert.inc [offline mode must be disabled]
 include/assert_grep.inc [GR reported expected transaction mismatch]
@@ -55,9 +55,9 @@ RESET BINARY LOGS AND GTIDS;
 SET @@GLOBAL.group_replication_start_on_boot = OFF;
 SET @@GLOBAL.group_replication_exit_state_action = DEFAULT;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 #########################################################################
 # 5) Cleanup.

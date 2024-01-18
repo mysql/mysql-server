@@ -23,7 +23,7 @@
 --echo ############################################################
 --echo # 1. Deploy a group on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 
@@ -32,19 +32,19 @@
 --echo # 2. Configure a channel on server1 that replicates from
 --echo #    server2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_2 SERVER_2_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_AUTO_POSITION=1 FOR CHANNEL 'ch1'
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 
 --echo
 --echo ############################################################
 --echo # 3. Stop Group Replication on server1 with autocommit disabled.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @saved_autocommit = @@SESSION.autocommit;
 SET @@SESSION.autocommit = 0;
 
@@ -57,7 +57,7 @@ COMMIT;
 --echo # 4. Assert that no transaction was logged due to
 --echo #    STOP GROUP_REPLICATION;
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state = OFFLINE
 --source include/gr_wait_for_member_state.inc
 
@@ -69,13 +69,13 @@ COMMIT;
 --echo ############################################################
 --echo # 5. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.autocommit = @saved_autocommit;
 
 --let $rpl_channel_name='ch1'
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 

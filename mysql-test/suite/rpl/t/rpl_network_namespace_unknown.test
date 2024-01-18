@@ -4,13 +4,13 @@
 # is properly reported and handled.                                 #
 #####################################################################
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 
 --echo
 --echo ############################################################
 --echo # 1. Suppress expected error messages on the replica.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 let $messages =
 Unknown network namespace 'unknown'
@@ -37,7 +37,7 @@ START REPLICA FOR CHANNEL 'ch1';
 
 --let $rpl_channel_name= 'ch1'
 --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 --let $rpl_channel_name=
 
 --query_vertical SELECT CHANNEL_NAME, SERVICE_STATE, LAST_ERROR_NUMBER FROM performance_schema.replication_connection_status where CHANNEL_NAME='ch1'
@@ -47,10 +47,10 @@ START REPLICA FOR CHANNEL 'ch1';
 --echo ############################################################
 --echo # 3. Clean up.
 --let $rpl_channel_name= 'ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name=
 
 RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

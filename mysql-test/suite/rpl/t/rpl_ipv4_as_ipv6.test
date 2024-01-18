@@ -11,35 +11,35 @@
 
 let $IPv6= 127.0.0.1;
 --echo #################### IP: $IPv6 ###########################
---source include/rpl_ipv6.inc
+--source common/rpl/ipv6.inc
 
 let $IPv6= 0:0:0:0:0:FFFF:127.0.0.1;
 --echo #################### IP: $IPv6 ###########################
---source include/rpl_ipv6.inc
+--source common/rpl/ipv6.inc
 
 let $IPv6= 0000:0000:0000:0000:0000:FFFF:127.0.0.1;
 --echo #################### IP: $IPv6 ###########################
---source include/rpl_ipv6.inc
+--source common/rpl/ipv6.inc
 
 let $IPv6= 0:0000:0000:0:0000:FFFF:127.0.0.1;
 --echo #################### IP: $IPv6 ###########################
---source include/rpl_ipv6.inc
+--source common/rpl/ipv6.inc
 
 let $IPv6= 0::0000:FFFF:127.0.0.1;
 --echo #################### IP: $IPv6 ###########################
---source include/rpl_ipv6.inc
+--source common/rpl/ipv6.inc
 
 #let $IPv6= 0:0:0:0:0:FFFF:127.0.0.1/96;
 #--echo #################### IP: $IPv6 ###########################
-#--source include/rpl_ipv6.inc
+#--source common/rpl/ipv6.inc
 
 let $IPv6= ::FFFF:127.0.0.1;
 --echo #################### IP: $IPv6 ###########################
---source include/rpl_ipv6.inc
+--source common/rpl/ipv6.inc
 
 #let $IPv6= ::FFFF:127.0.0.1/96;
 #--echo #################### IP: $IPv6 ###########################
-#--source include/rpl_ipv6.inc
+#--source common/rpl/ipv6.inc
 
 let $IPv6= ::FFFF:127.0.0.1;
 --echo #################### IP: $IPv6 ###########################
@@ -50,7 +50,7 @@ connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT);
 --echo connection master;
 connection master;
 reset binary logs and gtids;
-source include/show_master_status.inc;
+source include/rpl/deprecated/show_binary_log_status.inc;
 save_master_pos;
 --echo connection slave;
 connection slave;

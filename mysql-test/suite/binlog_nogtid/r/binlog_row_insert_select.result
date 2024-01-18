@@ -6,7 +6,7 @@ insert into t2 values(1),(2);
 reset binary logs and gtids;
 insert into t1 select * from t2;
 ERROR 23000: Duplicate entry '2' for key 't1.a'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -22,6 +22,6 @@ insert into t1 values(1),(1);
 reset binary logs and gtids;
 create table t2(unique(a)) select a from t1;
 ERROR 23000: Duplicate entry '1' for key 't2.a'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 drop table t1;

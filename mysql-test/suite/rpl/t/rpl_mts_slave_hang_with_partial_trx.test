@@ -39,15 +39,15 @@
 # This test case uses a debug point based on RBR
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Prepare the slave IO thread to stop after queuing a WRITE_ROWS event
 SET @save_debug=@@global.debug;
 SET GLOBAL DEBUG= "+d,stop_io_after_reading_write_rows_log_event";
 
 # Put some data in to the master
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 # This transaction will be split
 BEGIN;
@@ -59,26 +59,26 @@ INSERT INTO t1 (c1) VALUES (2);
 COMMIT;
 
 # Wait the slave IO thread to reach the debug point
---source include/rpl_connection_slave.inc
---source include/wait_for_slave_io_to_stop.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/wait_for_receiver_to_stop.inc
 # Remove the debug point, so the IO thread will not stop after
 # queuing a WRITE_ROWS event anymore
 SET GLOBAL DEBUG= @save_debug;
 
 # Restart replica I/O thread
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 # Sync the slave with the master
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # Final data verification
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

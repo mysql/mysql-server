@@ -28,7 +28,7 @@
 --source include/save_error_log_position.inc
 
 # 1. Install a replication plugin.
---source include/install_semisync_source.inc
+--source include/rpl/install_semisync_source.inc
 
 # 2. Turn `replication_optimize_for_static_plugin_config` on.
 --let $saved_replication_optimize_for_static_plugin_config = `SELECT @@GLOBAL.replication_optimize_for_static_plugin_config`
@@ -45,6 +45,6 @@ SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 
 # 5. Clean up.
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
---source include/uninstall_semisync_source.inc
+--source include/rpl/uninstall_semisync_source.inc
 --replace_result $saved_replication_optimize_for_static_plugin_config REPLICATION_OPTIMIZE_FOR_STATIC_PLUGIN_CONFIG
 --eval SET GLOBAL replication_optimize_for_static_plugin_config = $saved_replication_optimize_for_static_plugin_config

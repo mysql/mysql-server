@@ -47,11 +47,11 @@ $table 0 $max_rows $MYSQL_TMP_DIR/load_generator 0 0 0;
     # Master needs to be restarted to start with an empty buffer pool so
     # that logical read ahead gets used.
     let rpl_server_number = 1;
-    source include/rpl_restart_server.inc;
+    source include/rpl/restart_server.inc;
     connection slave;
     # Start replica to avoid I/O thread retry errors
     disable_warnings;
-    source include/start_slave.inc;
+    source include/rpl/start_replica.inc;
     enable_warnings;
     let $num_records = 0;
 }
@@ -97,7 +97,7 @@ $table 0 $max_rows $MYSQL_TMP_DIR/load_generator 0 $checksum $secondary_index_ch
 
   # if sync_slave_with_master had a configurable timeout this would not be needed
   let $slave_sync_timeout = 7200;
-  --source include/wait_for_slave_to_sync_with_master.inc
+  --source include/rpl/deprecated/wait_for_replica_to_sync_with_source.inc
 
   connection slave;
   if ($fake_changes)
@@ -160,17 +160,17 @@ DROP TABLE errors;
 
 # if sync_slave_with_master had a configurable timeout this would not be needed
 let $slave_sync_timeout = 7200;
---source include/wait_for_slave_to_sync_with_master.inc
+--source include/rpl/deprecated/wait_for_replica_to_sync_with_source.inc
 
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 # For stress tests sometimes the replication thread can not connect to master
 # temporarily. This is either because the master crashed and it is recovering
 # or the master is too busy and could not service the slave's requests.
 # mtr's internal check requires that there be no errors in slave status.
 # restarting replication clears the errors.
---source include/start_slave.inc
---source include/stop_slave.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/stop_replica.inc
 
 connection master;
 
@@ -184,8 +184,8 @@ if ($fake_changes)
 if ($kill_db_after)
 {
   --let $rpl_server_number = 1
-  --source include/rpl_reconnect.inc
+  --source include/rpl/reconnect.inc
 }
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

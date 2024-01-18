@@ -9,7 +9,7 @@ CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
 INSERT INTO t2 (a) VALUES (REPEAT('a',1));
 # Test the transaction with a log event injected a wrong crc value
 # will be trimmed from the crashed binlog file
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.t2)

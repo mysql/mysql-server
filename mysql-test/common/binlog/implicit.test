@@ -1,0 +1,28 @@
+# First part: outside a transaction
+RESET BINARY LOGS AND GTIDS;
+eval $prepare;
+
+INSERT INTO t1 VALUES (1);
+source include/rpl/deprecated/show_binlog_events.inc;
+eval $statement;
+source include/rpl/deprecated/show_binlog_events.inc;
+if ($cleanup) {
+  eval $cleanup;
+}
+
+# Second part: inside a transaction
+RESET BINARY LOGS AND GTIDS;
+eval $prepare;
+BEGIN;
+INSERT INTO t1 VALUES (2);
+source include/rpl/deprecated/show_binlog_events.inc;
+eval $statement;
+source include/rpl/deprecated/show_binlog_events.inc;
+INSERT INTO t1 VALUES (3);
+source include/rpl/deprecated/show_binlog_events.inc;
+COMMIT;
+source include/rpl/deprecated/show_binlog_events.inc;
+if ($cleanup) {
+  eval $cleanup;
+}
+

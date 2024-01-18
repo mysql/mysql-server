@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,14 +18,14 @@ UPDATE t2 SET j = 4 WHERE j = 3;
 UPDATE t2 SET j = 5 WHERE j = 4;
 RETURN 0;
 END|
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 SELECT f1();
 f1()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc ['There is only one row in table t1']
 include/assert.inc ['There is only one row in table t2']
 [connection master]
@@ -33,4 +33,4 @@ include/diff_tables.inc [master:test.t1, slave:test.t1]
 include/diff_tables.inc [master:test.t2, slave:test.t2]
 DROP FUNCTION f1;
 DROP TABLE t1,t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

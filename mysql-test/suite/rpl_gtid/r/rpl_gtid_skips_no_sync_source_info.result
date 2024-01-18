@@ -1,31 +1,31 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 UPDATE performance_schema.setup_objects SET ENABLED='yes', TIMED='yes' WHERE OBJECT_SCHEMA='mysql';
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 CREATE TABLE t1 (f INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (10);
 INSERT INTO t1 VALUES (20);
 INSERT INTO t1 VALUES (30);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL debug="+d,reached_heart_beat_queue_event";
 START REPLICA;
 SET DEBUG_SYNC="now WAIT_FOR check_replica_source_info";
 SET DEBUG_SYNC="now SIGNAL proceed_write_rotate";
 SET GLOBAL debug="-d,reached_heart_beat_queue_event";
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Assert that sync_source_info io_requests are the same]
 include/diff_tables.inc [master:t1, slave:t1]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 UPDATE performance_schema.setup_objects SET ENABLED='no', TIMED='no' WHERE OBJECT_SCHEMA='mysql';
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

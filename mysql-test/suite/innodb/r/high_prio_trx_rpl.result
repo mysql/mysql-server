@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -23,7 +23,7 @@ ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 SELECT * FROM t1;
 c1
 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Row with value 2 is expected on slave.
 SELECT * FROM t1;
 c1
@@ -52,7 +52,7 @@ INSERT INTO t1 VALUES (3);
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 INSERT INTO t1 VALUES (4);
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Rows 1, 2, 3 & 4 is expected on slave.
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -62,5 +62,5 @@ c1
 
 # On connection master
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

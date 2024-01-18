@@ -13,7 +13,7 @@
 #                                                                    #
 ######################################################################
 
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 -- connection master
 # Create Insert Procedure
@@ -138,7 +138,7 @@ SELECT * FROM t_part WHERE id = 101;
 SELECT * FROM t_part WHERE title = 'a101';
 
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- connection slave
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t_part;
@@ -176,4 +176,4 @@ SELECT * FROM t_part WHERE title = 'a101';
 DROP PROCEDURE populate_t1;
 DROP TABLE t1;
 DROP TABLE t_part;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

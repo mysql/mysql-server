@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,8 +14,8 @@ SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= MINIMAL;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 ######## Initialize ########
 [connection master]
 CREATE TABLE t (i INT, j JSON,
@@ -24,26 +24,26 @@ s VARCHAR(256) AS (JSON_PRETTY(j)) STORED);
 INSERT INTO t (j) VALUES ('[{"a":"abc"},{"b":"abcd"}]'),
 ('{"key":[{"key":"value"},{"key":"value2"}]}');
 ######## Test ########
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:t, slave:t]
 UPDATE t SET j= JSON_REPLACE(j, '$[0].a',"a");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:t, slave:t]
 UPDATE t SET j= JSON_SET(j, '$.key[0]', "a");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:t, slave:t]
 UPDATE t SET j= JSON_REMOVE(j, '$.key[0].key');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:t, slave:t]
 ######## Clean up ########
 DROP TABLE t;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -99,7 +99,7 @@ DROP TABLE t1;
 #
 # This test does not test applying the output of
 # mysqlbinlog, since that is already tested in
-# mysql-test/extra/binlog_tests/binlog_xa_prepared.test
+# mysql-test/common/binlog/binlog_xa_prepared.test
 #
 
 # clean up binary log so that the following operation
@@ -117,7 +117,7 @@ XA COMMIT 'xa1' ONE PHASE;
 
 --echo [Validate that SHOW BINLOG EVENTS shows the ONE PHASE statement.]
 --let $wait_binlog_event= ONE PHASE
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 
 DROP TABLE t1;
 

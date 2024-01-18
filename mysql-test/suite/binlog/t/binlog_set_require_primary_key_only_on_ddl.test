@@ -68,7 +68,7 @@
 
   --let $before_include = $include_silent
   --let $include_silent = 1
-  --source include/save_binlog_position.inc
+  --source include/rpl/save_binlog_file_position.inc
   --let $include_silent = $before_include
   --let $assert_binlog_file = `SELECT CONCAT('$MYSQLTEST_VARDIR/tmp/mysqlbinlog_set_require_primary_key_', UUID(), '.binlog')`
 

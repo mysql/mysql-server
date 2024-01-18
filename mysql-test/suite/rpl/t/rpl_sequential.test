@@ -9,8 +9,8 @@
 # counterpart rpl_parallel.test. Read more comments in there.
 #
 
---source include/not_mts_replica_parallel_workers.inc
---source include/master-slave.inc
+--source include/not_replica_parallel_workers.inc
+--source include/rpl/init_source_replica.inc
 
 connection slave;
 
@@ -19,6 +19,6 @@ select @@global.replica_parallel_workers as 'zero';
 
 connection master;
 
-source extra/rpl_tests/rpl_parallel_load.test;
+source common/rpl/rpl_parallel_load.test;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -39,7 +39,7 @@
 --echo #    Create and start asynchronous connection with server3 as source and server1 as replica.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.");
@@ -51,10 +51,10 @@ set session sql_log_bin=1;
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_3 FOR CHANNEL 'gr_channel'
 --let $rpl_channel_name='gr_channel'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.");
@@ -67,10 +67,10 @@ set session sql_log_bin=1;
 --echo # 2. Create table t1 on server3 for later operations.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1(c1 int primary key);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo # 3. Block all transactions on server1.
@@ -79,17 +79,17 @@ CREATE TABLE t1(c1 int primary key);
 --echo #    Unblock all transactions on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_observer_trans';
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 values(1);
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now wait_for signal.group_replication_wait_on_observer_trans_waiting";
 
@@ -101,14 +101,14 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --eval SELECT group_replication_set_as_primary("$server2_uuid", 0);
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_continue";
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -120,29 +120,29 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo #    Unblock all transactions on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_observer_trans';
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 values(2);
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --error ER_GRP_RPL_UDF_ERROR
 --eval SELECT group_replication_set_as_primary("$server2_uuid", 0);
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
@@ -150,7 +150,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -158,20 +158,20 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --echo # 5. Clean up.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='gr_channel'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_channel_name='gr_channel'
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 

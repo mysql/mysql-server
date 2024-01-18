@@ -4,4 +4,4 @@
 # Bug#24670909:USING TEMPORARY TABLES ON SLAVES INCREASES GTID SEQUENCE NUMBER
 
 --source include/have_binlog_format_statement.inc
---source extra/rpl_tests/gtid_disconnect_drop_temporary_table.test
+--source common/rpl/gtid_disconnect_drop_temporary_table.test

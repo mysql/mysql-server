@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2->3->4->5->6]
+include/rpl/init.inc [topology=1->2->3->4->5->6]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,19 +14,19 @@ Note	####	Storing MySQL user name or password information in the connection meta
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/rpl_default_connections.inc
+include/rpl/default_connections.inc
 ######## INITIALIZE ########
-include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
+include/rpl/for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = PARTIAL_JSON;
 SET @@GLOBAL.BINLOG_ROW_IMAGE = MINIMAL;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = PARTIAL_JSON;
 ]
-include/rpl_stop_slaves.inc
-include/rpl_start_slaves.inc
+include/rpl/stop_all_replicas.inc
+include/rpl/start_all_replicas.inc
 ******** Single JSON column ********
 ==== Full format ====
 ---- 1. Update one row using full format (wrong column used) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 * CREATE TABLE test.t (i INT PRIMARY KEY, j JSON, k JSON)
 # Before update
 i	j	k
@@ -42,7 +42,7 @@ UPDATE `test`.`t` SET i=1, j='["a", 4]', k=k WHERE i=1 AND j=CAST('[1, 2]' AS JS
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j='["a", 4]', k=k WHERE i=1;
 ---- 2. Update one row using full format (no JSON function used) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 * CREATE TABLE test.t (i INT PRIMARY KEY, j JSON)
 # Before update
 i	j
@@ -58,7 +58,7 @@ UPDATE `test`.`t` SET i=1, j='7' WHERE i=1 AND j=CAST('[1, 2]' AS JSON);
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j='7' WHERE i=1;
 ---- 3. Update one row using full format (wrong JSON function used (1)) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2]
@@ -75,7 +75,7 @@ UPDATE `test`.`t` SET i=1, j='[1, 2, 8]' WHERE i=1 AND j=CAST('[1, 2]' AS JSON);
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j='[1, 2, 8]' WHERE i=1;
 ---- 4. Update one row using full format (wrong JSON function used (2)) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2]
@@ -92,7 +92,7 @@ UPDATE `test`.`t` SET i=1, j='[3, 2, 8]' WHERE i=1 AND j=CAST('[1, 2]' AS JSON);
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j='[3, 2, 8]' WHERE i=1;
 ---- 5. Update one row using full format (wrong JSON function used (3)) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2]
@@ -109,7 +109,7 @@ UPDATE `test`.`t` SET i=1, j='[3, 2, 8]' WHERE i=1 AND j=CAST('[1, 2]' AS JSON);
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j='[3, 2, 8]' WHERE i=1;
 ---- 6. Update one row using full format (full smaller than partial) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2]
@@ -125,7 +125,7 @@ UPDATE `test`.`t` SET i=1, j='[3, 2]' WHERE i=1 AND j=CAST('[1, 2]' AS JSON);
 UPDATE `test`.`t` SET i=1, j='[3, 2]' WHERE i=1;
 ==== Single diffs ====
 ---- 7. Update one row (REPLACE using JSON_REPLACE in array) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, {"a": 2}]
@@ -140,7 +140,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[0]', 7) WHERE i=1 AND j=CAST('[1
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[0]', 7) WHERE i=1;
 ---- 8. Update one row (REPLACE using JSON_SET in array) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, {"a": 2}]
@@ -155,7 +155,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[0]', '7') WHERE i=1 AND j=CAST('
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[0]', '7') WHERE i=1;
 ---- 9. Update one row (REPLACE using JSON_REPLACE in object) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, {"a": 2}]
@@ -170,7 +170,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[1].a', CAST('[7]' AS JSON)) WHER
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[1].a', CAST('[7]' AS JSON)) WHERE i=1;
 ---- 10. Update one row (REPLACE using JSON_SET in object) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, {"a": 2}]
@@ -185,7 +185,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[1].a', CAST('{"a": 7}' AS JSON))
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[1].a', CAST('{"a": 7}' AS JSON)) WHERE i=1;
 ---- 11. Update one row (INSERT using JSON_SET in array) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, {"a": 2}]
@@ -200,7 +200,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_SET(j, '$[2]', 3) WHERE i=1 AND j=CAST('[1, {"
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_SET(j, '$[2]', 3) WHERE i=1;
 ---- 12. Update one row (INSERT using JSON_SET in object) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, {"a": 2}]
@@ -215,7 +215,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_SET(j, '$[1].b', 4) WHERE i=1 AND j=CAST('[1, 
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_SET(j, '$[1].b', 4) WHERE i=1;
 ---- 13. Update one row (REMOVE using JSON_REMOVE in array) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, {"a": 2}]
@@ -230,7 +230,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REMOVE(j, '$[1]') WHERE i=1 AND j=CAST('[1, {"
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_REMOVE(j, '$[1]') WHERE i=1;
 ---- 14. Update one row (REMOVE using JSON_REMOVE in object) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, {"a": 2}]
@@ -246,7 +246,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REMOVE(j, '$[1].a') WHERE i=1 AND j=CAST('[1, 
 UPDATE `test`.`t` SET i=1, j=JSON_REMOVE(j, '$[1].a') WHERE i=1;
 ==== Multiple diffs from one function call ====
 ---- 15. Update one row (many different update types, using JSON_SET) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, {"a": 3, "b": 4, "a long string that ensures that the diff format is smaller than the full format": ""}]
@@ -261,7 +261,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_SET( JSON_SET( JSON_REPLACE(j, '$[0]', 'one', 
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_SET( JSON_SET( JSON_REPLACE(j, '$[0]', 'one', '$[1]', 'two', '$[2].a', 'three', '$[2].b', 'four'), '$[2].c', 'five', '$[2].d', 'six'), '$[3]', 'seven', '$[4]', 'eight') WHERE i=1;
 ---- 16. Update one row (many different update types, using JSON_REPLACE) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, {"a": 3, "b": 4, "a long string that ensures that the diff format is smaller than the full format": ""}]
@@ -276,7 +276,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[0]', 'one', '$[1]', 'two', '$[0]
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[0]', 'one', '$[1]', 'two', '$[0]', 'ONE', '$[1]', 'TWO') WHERE i=1;
 ---- 17. Update one row (using JSON_REMOVE) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, {"a": 3, "b": 4, "a long string that ensures that the diff format is smaller than the full format": ""}]
@@ -292,7 +292,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REMOVE(j, '$[1]', '$[0]') WHERE i=1 AND j=CAST
 UPDATE `test`.`t` SET i=1, j=JSON_REMOVE(j, '$[1]', '$[0]') WHERE i=1;
 ==== Multiple diffs from multiple function calls ====
 ---- 18. Update one row (using JSON_SET, JSON_REPLACE, and JSON_REMOVE) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, 3, "a long string that ensures that the diff format is smaller than the full format"]
@@ -308,7 +308,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REMOVE( JSON_SET( JSON_REPLACE(j, '$[0]', 'one
 UPDATE `test`.`t` SET i=1, j=JSON_REMOVE( JSON_SET( JSON_REPLACE(j, '$[0]', 'one', '$[1]', 'two', '$[2]', CAST('{"a": 1}' AS JSON)), '$[2].b', 2, '$[2].c', 3), '$[0]', '$[0]') WHERE i=1;
 ==== NULL values ====
 ---- 19. Updating from non-NULL to NULL using JSON_SET ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, 3, 4]
@@ -323,7 +323,7 @@ UPDATE `test`.`t` SET i=1, j=NULL WHERE i=1 AND j=CAST('[1, 2, 3, 4]' AS JSON);
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=NULL WHERE i=1;
 ---- 20. Updating from non-NULL to NULL using JSON_REPLACE ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, 3, 4]
@@ -338,7 +338,7 @@ UPDATE `test`.`t` SET i=1, j=NULL WHERE i=1 AND j=CAST('[1, 2, 3, 4]' AS JSON);
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=NULL WHERE i=1;
 ---- 21. Updating from non-NULL to NULL using JSON_REMOVE ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, 3, 4]
@@ -353,7 +353,7 @@ UPDATE `test`.`t` SET i=1, j=NULL WHERE i=1 AND j=CAST('[1, 2, 3, 4]' AS JSON);
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=NULL WHERE i=1;
 ---- 22. Updating from NULL to non-NULL using JSON_SET ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	NULL
@@ -368,7 +368,7 @@ UPDATE `test`.`t` SET i=1, j='{"a": "a", "b": null}' WHERE i=1 AND j IS NULL;
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j='{"a": "a", "b": null}' WHERE i=1;
 ---- 23. Updating from NULL to non-NULL using JSON_REPLACE ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	NULL
@@ -383,7 +383,7 @@ UPDATE `test`.`t` SET i=1, j='{"a": null}' WHERE i=1 AND j IS NULL;
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j='{"a": null}' WHERE i=1;
 ---- 24. Updating from NULL to non-NULL using JSON_REMOVE ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	NULL
@@ -399,7 +399,7 @@ UPDATE `test`.`t` SET i=1, j='{"a": "a", "b": "BB"}' WHERE i=1 AND j IS NULL;
 UPDATE `test`.`t` SET i=1, j='{"a": "a", "b": "BB"}' WHERE i=1;
 ==== No-op updates ====
 ---- 25. Making a no-op not mentioning the column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 * CREATE TABLE test.t (i INT PRIMARY KEY, j JSON, x INT)
 # Before update
 i	j	x
@@ -415,7 +415,7 @@ UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1 AND j=CAST('["a", {"b": "c"}]' AS 
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1;
 ---- 26. Making a no-op setting the column to itself ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j	x
 1	["a", {"b": "c"}]	1
@@ -430,7 +430,7 @@ UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1 AND j=CAST('["a", {"b": "c"}]' AS 
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1;
 ---- 27. Making a no-op setting the column to its own value (1) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j	x
 1	["a", {"b": "c"}]	1
@@ -445,7 +445,7 @@ UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1 AND j=CAST('["a", {"b": "c"}]' AS 
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1;
 ---- 28. Making a no-op setting the column to its own value (2) ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j	x
 1	["a", {"b": "c"}]	1
@@ -460,7 +460,7 @@ UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1 AND j=CAST('["a", {"b": "c"}]' AS 
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1;
 ---- 29. Making a no-op using JSON_SET inserting object in non-object or array element in non-array ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j	x
 1	["a", {"b": "c"}]	1
@@ -475,7 +475,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[1]', CAST('[{"b": "c"}, 1]' AS J
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_REPLACE(j, '$[1]', CAST('[{"b": "c"}, 1]' AS JSON)), x=2 WHERE i=1;
 ---- 30. Making a no-op using JSON_REPLACE with non-existing paths ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j	x
 1	["a", {"b": "c"}]	1
@@ -490,7 +490,7 @@ UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1 AND j=CAST('["a", {"b": "c"}]' AS 
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1;
 ---- 31. Making a no-op removing a non-existing path, using JSON_REMOVE ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j	x
 1	["a", {"b": "c"}]	1
@@ -505,7 +505,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_REMOVE(j, '$[1]'), x=2 WHERE i=1 AND j=CAST('[
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_REMOVE(j, '$[1]'), x=2 WHERE i=1;
 ---- 32. Making a no-op replacing a JSON value by itself, using JSON_SET ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j	x
 1	["a", {"b": "c"}]	1
@@ -520,7 +520,7 @@ UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1 AND j=CAST('["a", {"b": "c"}]' AS 
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1;
 ---- 33. Making a no-op replacing a JSON value by itself, using JSON_REPLACE ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j	x
 1	["a", {"b": "c"}]	1
@@ -535,7 +535,7 @@ UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1 AND j=CAST('["a", {"b": "c"}]' AS 
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1;
 ---- 34. Making a no-op update using JSON_SET, JSON_REPLACE, and JSON_REMOVE ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j	x
 1	["a", {"b": "c"}]	1
@@ -554,7 +554,7 @@ UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1 AND j=CAST('["a", {"b": "c"}]' AS 
 UPDATE `test`.`t` SET i=1, j=j, x=2 WHERE i=1;
 ==== Long paths ====
 ---- 35. Update using long path ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 * CREATE TABLE test.t (i INT PRIMARY KEY, j JSON)
 # Before update
 i	j
@@ -570,7 +570,7 @@ UPDATE `test`.`t` SET i=1, j=JSON_SET(j, '$.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_SET(j, '$.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'ghi') WHERE i=1;
 ---- 36. Update using long document ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	{"abc": "def"}
@@ -585,10 +585,10 @@ UPDATE `test`.`t` SET i=1, j=JSON_SET(j, '$.ghi', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 # Decoded rows, minimal image when master has full image
 UPDATE `test`.`t` SET i=1, j=JSON_SET(j, '$.ghi', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') WHERE i=1;
 ---- 37. Update using very long document ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 ==== Auto-wrapping ====
 ---- 38. Auto-wrap using JSON_SET ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	{"a": 1}
@@ -604,7 +604,7 @@ UPDATE `test`.`t` SET i=1, j='[{"a": 1}, 4711]' WHERE i=1 AND j=CAST('{"a": 1}' 
 UPDATE `test`.`t` SET i=1, j='[{"a": 1}, 4711]' WHERE i=1;
 ==== Multi-row updates ====
 ---- 39. Update two rows: both partial ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, 3]
@@ -628,7 +628,7 @@ UPDATE `test`.`t` SET i=4, j=JSON_REPLACE(j, '$[0]', 'abcdefghijklmnopqrstuvxyz'
 UPDATE `test`.`t` SET i=2, j=JSON_REPLACE(j, '$[0]', 'abcdefghijklmnopqrstuvxyz', '$[0]', 0) WHERE i=2;
 UPDATE `test`.`t` SET i=4, j=JSON_REPLACE(j, '$[0]', 'abcdefghijklmnopqrstuvxyz', '$[0]', 0) WHERE i=4;
 ---- 40. Update two rows: first partial, then full ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, 3]
@@ -652,7 +652,7 @@ UPDATE `test`.`t` SET i=3, j='[0, 8, 9]' WHERE i=3 AND j=CAST('[7, 8, 9]' AS JSO
 UPDATE `test`.`t` SET i=2, j=JSON_REPLACE(j, '$[0]', 'abcdefghijklmnopqrstuvxyz', '$[0]', 0) WHERE i=2;
 UPDATE `test`.`t` SET i=3, j='[0, 8, 9]' WHERE i=3;
 ---- 41. Update two rows: first full, then partial ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, 3]
@@ -676,7 +676,7 @@ UPDATE `test`.`t` SET i=2, j=JSON_REPLACE(j, '$[0]', 'abcdefghijklmnopqrstuvxyz'
 UPDATE `test`.`t` SET i=1, j='[0, 2, 3]' WHERE i=1;
 UPDATE `test`.`t` SET i=2, j=JSON_REPLACE(j, '$[0]', 'abcdefghijklmnopqrstuvxyz', '$[0]', 0) WHERE i=2;
 ---- 42. Update two rows: both full ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, 3]
@@ -700,7 +700,7 @@ UPDATE `test`.`t` SET i=3, j='[0, 8, 9]' WHERE i=3 AND j=CAST('[7, 8, 9]' AS JSO
 UPDATE `test`.`t` SET i=1, j='[0, 2, 3]' WHERE i=1;
 UPDATE `test`.`t` SET i=3, j='[0, 8, 9]' WHERE i=3;
 ---- 43. Update four rows: full, partial, full, partial ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 i	j
 1	[1, 2, 3]
@@ -733,7 +733,7 @@ UPDATE `test`.`t` SET i=4, j=JSON_REPLACE(j, '$[0]', 'abcdefghijklmnopqrstuvxyz'
 TODO
 ******** Multiple JSON columns ********
 ---- 44. Update after null and after non-modified column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 * CREATE TABLE test.t (i INT PRIMARY KEY, j JSON, k JSON, l JSON, m JSON)
 # Before update
 i	j	k	l	m
@@ -751,10 +751,10 @@ UPDATE `test`.`t` SET i=1, j=NULL, k=k, l=JSON_REPLACE(l, '$.d', 'DDD'), m=m WHE
 ******** Differences between master and slave ********
 TODO: applies ok, does not apply, and mix
 ######## CLEAN UP ########
-include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = FULL;
+include/rpl/for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = FULL;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = '';
 SET @@GLOBAL.BINLOG_ROW_IMAGE = FULL;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = '';
 SET SESSION SQL_LOG_BIN = 0; DROP TABLE test.t; SET SESSION SQL_LOG_BIN = 1;
 ]
-include/rpl_end.inc
+include/rpl/deinit.inc

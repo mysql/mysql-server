@@ -9,10 +9,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    GTID specified.
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 2. Force negative certification outcome of the next
@@ -62,6 +62,6 @@ include/assert.inc [GTID_EXECUTED must contain 3 group transactions]
 # 4. Clean up.
 DROP TABLE t1;
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 include/group_replication_end.inc

@@ -39,7 +39,7 @@ KILL CONNECTION_ID;
 # 4. Reap the killed command and reset debug point.
 [connection server1]
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 5. Restart Group Replication on server1
 SET DEBUG_SYNC= "now SIGNAL signal.gr_applier_init_signal";

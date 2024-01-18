@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,12 +6,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Restart master with innodb_autoinc_lock_mode = 1
-include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=1]
+include/rpl/restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=1]
 # Restart replica with innodb_autoinc_lock_mode = 1
-include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=1]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=1]
+include/rpl/start_replica.inc
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -21,7 +21,7 @@ CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t1 VALUES (NULL,10),
 (NULL,20),
 (NULL,30);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT @@global.innodb_autoinc_lock_mode;
 @@global.innodb_autoinc_lock_mode
@@ -35,7 +35,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 INSERT INTO t1 VALUES (3,35)
 ON DUPLICATE KEY UPDATE aa = aa+1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -53,7 +53,7 @@ INSERT INTO t1 VALUES (NULL,40),
 (NULL,60),
 (NULL,70),
 (NULL,80);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -68,7 +68,7 @@ pkey	aa
 include/diff_tables.inc [master:t1, slave:t1]
 [Conenction Master]
 DELETE FROM t1 WHERE aa IN (40,60);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -83,7 +83,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment= @default_auto_increment_increment;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -94,7 +94,7 @@ INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
 CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -105,7 +105,7 @@ SET auto_increment_offset = 4;
 SET auto_increment_increment = 16;
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -116,7 +116,7 @@ SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment = @default_auto_increment_increment;
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
@@ -129,7 +129,7 @@ INSERT INTO t1 VALUES(NULL,20),
 (NULL,80),
 (30,100),
 (NULL,120);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -137,15 +137,15 @@ COUNT(*)
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 # Restart master with innodb_autoinc_lock_mode = 0
-include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=0]
+include/rpl/restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=0]
 # Restart replica with innodb_autoinc_lock_mode = 0
-include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=0]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=0]
+include/rpl/start_replica.inc
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -155,7 +155,7 @@ CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t1 VALUES (NULL,10),
 (NULL,20),
 (NULL,30);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT @@global.innodb_autoinc_lock_mode;
 @@global.innodb_autoinc_lock_mode
@@ -169,7 +169,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 INSERT INTO t1 VALUES (3,35)
 ON DUPLICATE KEY UPDATE aa = aa+1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -187,7 +187,7 @@ INSERT INTO t1 VALUES (NULL,40),
 (NULL,60),
 (NULL,70),
 (NULL,80);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -202,7 +202,7 @@ pkey	aa
 include/diff_tables.inc [master:t1, slave:t1]
 [Conenction Master]
 DELETE FROM t1 WHERE aa IN (40,60);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -217,7 +217,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment= @default_auto_increment_increment;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -228,7 +228,7 @@ INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
 CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -239,7 +239,7 @@ SET auto_increment_offset = 4;
 SET auto_increment_increment = 16;
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -250,7 +250,7 @@ SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment = @default_auto_increment_increment;
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
@@ -263,7 +263,7 @@ INSERT INTO t1 VALUES(NULL,20),
 (NULL,80),
 (30,100),
 (NULL,120);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -271,15 +271,15 @@ COUNT(*)
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 # Restart master with innodb_autoinc_lock_mode = 2
-include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=2]
+include/rpl/restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=2]
 # Restart replica with innodb_autoinc_lock_mode = 2
-include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=2]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=2]
+include/rpl/start_replica.inc
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -289,7 +289,7 @@ CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t1 VALUES (NULL,10),
 (NULL,20),
 (NULL,30);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT @@global.innodb_autoinc_lock_mode;
 @@global.innodb_autoinc_lock_mode
@@ -303,7 +303,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 INSERT INTO t1 VALUES (3,35)
 ON DUPLICATE KEY UPDATE aa = aa+1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -321,7 +321,7 @@ INSERT INTO t1 VALUES (NULL,40),
 (NULL,60),
 (NULL,70),
 (NULL,80);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -336,7 +336,7 @@ pkey	aa
 include/diff_tables.inc [master:t1, slave:t1]
 [Conenction Master]
 DELETE FROM t1 WHERE aa IN (40,60);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -351,7 +351,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment= @default_auto_increment_increment;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -362,7 +362,7 @@ INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
 CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -373,7 +373,7 @@ SET auto_increment_offset = 4;
 SET auto_increment_increment = 16;
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -384,7 +384,7 @@ SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment = @default_auto_increment_increment;
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
@@ -397,7 +397,7 @@ INSERT INTO t1 VALUES(NULL,20),
 (NULL,80),
 (30,100),
 (NULL,120);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -405,13 +405,13 @@ COUNT(*)
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 # Restart replica with innodb_autoinc_lock_mode = 0
-include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=0]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=0]
+include/rpl/start_replica.inc
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -421,7 +421,7 @@ CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t1 VALUES (NULL,10),
 (NULL,20),
 (NULL,30);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT @@global.innodb_autoinc_lock_mode;
 @@global.innodb_autoinc_lock_mode
@@ -435,7 +435,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 INSERT INTO t1 VALUES (3,35)
 ON DUPLICATE KEY UPDATE aa = aa+1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -453,7 +453,7 @@ INSERT INTO t1 VALUES (NULL,40),
 (NULL,60),
 (NULL,70),
 (NULL,80);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -468,7 +468,7 @@ pkey	aa
 include/diff_tables.inc [master:t1, slave:t1]
 [Conenction Master]
 DELETE FROM t1 WHERE aa IN (40,60);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -483,7 +483,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment= @default_auto_increment_increment;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -494,7 +494,7 @@ INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
 CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -505,7 +505,7 @@ SET auto_increment_offset = 4;
 SET auto_increment_increment = 16;
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -516,7 +516,7 @@ SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment = @default_auto_increment_increment;
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
@@ -529,7 +529,7 @@ INSERT INTO t1 VALUES(NULL,20),
 (NULL,80),
 (30,100),
 (NULL,120);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -537,13 +537,13 @@ COUNT(*)
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 # Restart replica with innodb_autoinc_lock_mode = 1
-include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=1]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=1]
+include/rpl/start_replica.inc
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -553,7 +553,7 @@ CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t1 VALUES (NULL,10),
 (NULL,20),
 (NULL,30);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT @@global.innodb_autoinc_lock_mode;
 @@global.innodb_autoinc_lock_mode
@@ -567,7 +567,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 INSERT INTO t1 VALUES (3,35)
 ON DUPLICATE KEY UPDATE aa = aa+1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -585,7 +585,7 @@ INSERT INTO t1 VALUES (NULL,40),
 (NULL,60),
 (NULL,70),
 (NULL,80);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -600,7 +600,7 @@ pkey	aa
 include/diff_tables.inc [master:t1, slave:t1]
 [Conenction Master]
 DELETE FROM t1 WHERE aa IN (40,60);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -615,7 +615,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment= @default_auto_increment_increment;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -626,7 +626,7 @@ INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
 CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -637,7 +637,7 @@ SET auto_increment_offset = 4;
 SET auto_increment_increment = 16;
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -648,7 +648,7 @@ SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment = @default_auto_increment_increment;
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
@@ -661,7 +661,7 @@ INSERT INTO t1 VALUES(NULL,20),
 (NULL,80),
 (30,100),
 (NULL,120);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -669,12 +669,12 @@ COUNT(*)
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 # Restart master with innodb_autoinc_lock_mode = 0
-include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=0]
+include/rpl/restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=0]
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -684,7 +684,7 @@ CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t1 VALUES (NULL,10),
 (NULL,20),
 (NULL,30);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT @@global.innodb_autoinc_lock_mode;
 @@global.innodb_autoinc_lock_mode
@@ -698,7 +698,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 INSERT INTO t1 VALUES (3,35)
 ON DUPLICATE KEY UPDATE aa = aa+1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -716,7 +716,7 @@ INSERT INTO t1 VALUES (NULL,40),
 (NULL,60),
 (NULL,70),
 (NULL,80);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -731,7 +731,7 @@ pkey	aa
 include/diff_tables.inc [master:t1, slave:t1]
 [Conenction Master]
 DELETE FROM t1 WHERE aa IN (40,60);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -746,7 +746,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment= @default_auto_increment_increment;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -757,7 +757,7 @@ INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
 CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -768,7 +768,7 @@ SET auto_increment_offset = 4;
 SET auto_increment_increment = 16;
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -779,7 +779,7 @@ SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment = @default_auto_increment_increment;
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
@@ -792,7 +792,7 @@ INSERT INTO t1 VALUES(NULL,20),
 (NULL,80),
 (30,100),
 (NULL,120);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -800,13 +800,13 @@ COUNT(*)
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 # Restart replica with innodb_autoinc_lock_mode = 2
-include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=2]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=2]
+include/rpl/start_replica.inc
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -816,7 +816,7 @@ CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t1 VALUES (NULL,10),
 (NULL,20),
 (NULL,30);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT @@global.innodb_autoinc_lock_mode;
 @@global.innodb_autoinc_lock_mode
@@ -830,7 +830,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 INSERT INTO t1 VALUES (3,35)
 ON DUPLICATE KEY UPDATE aa = aa+1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -848,7 +848,7 @@ INSERT INTO t1 VALUES (NULL,40),
 (NULL,60),
 (NULL,70),
 (NULL,80);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -863,7 +863,7 @@ pkey	aa
 include/diff_tables.inc [master:t1, slave:t1]
 [Conenction Master]
 DELETE FROM t1 WHERE aa IN (40,60);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -878,7 +878,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment= @default_auto_increment_increment;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -889,7 +889,7 @@ INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
 CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -900,7 +900,7 @@ SET auto_increment_offset = 4;
 SET auto_increment_increment = 16;
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -911,7 +911,7 @@ SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment = @default_auto_increment_increment;
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
@@ -924,7 +924,7 @@ INSERT INTO t1 VALUES(NULL,20),
 (NULL,80),
 (30,100),
 (NULL,120);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -932,12 +932,12 @@ COUNT(*)
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 # Restart master with innodb_autoinc_lock_mode = 1
-include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=1]
+include/rpl/restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=1]
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -947,7 +947,7 @@ CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t1 VALUES (NULL,10),
 (NULL,20),
 (NULL,30);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT @@global.innodb_autoinc_lock_mode;
 @@global.innodb_autoinc_lock_mode
@@ -961,7 +961,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 INSERT INTO t1 VALUES (3,35)
 ON DUPLICATE KEY UPDATE aa = aa+1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -979,7 +979,7 @@ INSERT INTO t1 VALUES (NULL,40),
 (NULL,60),
 (NULL,70),
 (NULL,80);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -994,7 +994,7 @@ pkey	aa
 include/diff_tables.inc [master:t1, slave:t1]
 [Conenction Master]
 DELETE FROM t1 WHERE aa IN (40,60);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -1009,7 +1009,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment= @default_auto_increment_increment;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -1020,7 +1020,7 @@ INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
 CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -1031,7 +1031,7 @@ SET auto_increment_offset = 4;
 SET auto_increment_increment = 16;
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -1042,7 +1042,7 @@ SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment = @default_auto_increment_increment;
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
@@ -1055,7 +1055,7 @@ INSERT INTO t1 VALUES(NULL,20),
 (NULL,80),
 (30,100),
 (NULL,120);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -1063,13 +1063,13 @@ COUNT(*)
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 # Restart replica with innodb_autoinc_lock_mode = 0
-include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=0]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=0]
+include/rpl/start_replica.inc
 # Replicating simple inserts
 [Connection Master]
 SELECT @@global.innodb_autoinc_lock_mode;
@@ -1079,7 +1079,7 @@ CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t1 VALUES (NULL,10),
 (NULL,20),
 (NULL,30);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT @@global.innodb_autoinc_lock_mode;
 @@global.innodb_autoinc_lock_mode
@@ -1093,7 +1093,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 INSERT INTO t1 VALUES (3,35)
 ON DUPLICATE KEY UPDATE aa = aa+1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -1111,7 +1111,7 @@ INSERT INTO t1 VALUES (NULL,40),
 (NULL,60),
 (NULL,70),
 (NULL,80);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -1126,7 +1126,7 @@ pkey	aa
 include/diff_tables.inc [master:t1, slave:t1]
 [Conenction Master]
 DELETE FROM t1 WHERE aa IN (40,60);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 pkey	aa
@@ -1141,7 +1141,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment= @default_auto_increment_increment;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -1152,7 +1152,7 @@ INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
 CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -1163,7 +1163,7 @@ SET auto_increment_offset = 4;
 SET auto_increment_increment = 16;
 INSERT INTO t2(aa) SELECT * FROM t1;
 INSERT INTO t2(aa) SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -1174,7 +1174,7 @@ SET @@auto_increment_offset = @default_auto_increment_offset;
 SET @@auto_increment_increment = @default_auto_increment_increment;
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
@@ -1187,7 +1187,7 @@ INSERT INTO t1 VALUES(NULL,20),
 (NULL,80),
 (30,100),
 (NULL,120);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -1195,13 +1195,13 @@ COUNT(*)
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 # Restart master with innodb_autoinc_lock_mode = 2
-include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=2]
+include/rpl/restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=2]
 # Restart replica with innodb_autoinc_lock_mode = 2
-include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=2]
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=2]
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

@@ -27,7 +27,7 @@
 
 --echo # 2. Start and bootstrap the group with server 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $server_1_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -35,7 +35,7 @@
 --echo # 3. Change server 2 group_replication_local_address to be the same as
 --echo #    server 1
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Adding suppressions
 SET SESSION sql_log_bin= 0;

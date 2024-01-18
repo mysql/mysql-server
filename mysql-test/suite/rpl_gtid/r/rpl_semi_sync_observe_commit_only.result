@@ -1,6 +1,6 @@
 # 1. Set-up semi sync replication environment
 # a) Setup a 2 layered topology with the given topology 1->2
-include/rpl_init.inc [topology=1->2]
+include/rpl/init.inc [topology=1->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,9 +11,9 @@ CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
 CALL mtr.add_suppression("Read semi-sync reply magic number error.*");
 CALL mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached.*");
 CALL mtr.add_suppression("Timeout waiting for reply of binlog.*");
-include/install_semisync_source.inc
+include/rpl/install_semisync_source.inc
 [connection server_2]
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped.*");
 # b) Ensure that replication_sender_observe_commit_only is turned on
 [connection server_1]
@@ -23,24 +23,24 @@ include/assert.inc [replication_sender_observe_commit_only should be ON (source)
 CREATE TABLE t (a int);
 # 3. Issue the replica restart while the source is running statements
 [connection server_2]
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --skip_slave_start=0 --rpl_semi_sync_replica_enabled=1]
+include/rpl/restart_server.inc [server_number=2 gtids=on parameters: --skip_slave_start=0 --rpl_semi_sync_replica_enabled=1]
 # 4. Sanity check - check whether semi-sync replication was correctly restarted
-include/check_slave_is_running.inc
-include/check_slave_no_error.inc
+include/rpl/assert_replica_running.inc
+include/rpl/assert_replica_no_error.inc
 include/assert.inc [Semi sync should be enabled on the replica]
 # 5. Wait for source to finish the execution of statements
 [connection server_1]
 # 6. Wait for replica to catch-up with latest changes
 [connection server_2]
-include/rpl_sync.inc
+include/rpl/sync.inc
 # 7. Check whether the replica replicated table correctly
 include/diff_tables.inc [server_1:t, server_2:t]
 # 8. Clean up
 [connection server_2]
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_1]
 SET GLOBAL replication_sender_observe_commit_only = OFF;
 SET GLOBAL replication_optimize_for_static_plugin_config = OFF;
-include/uninstall_semisync_source.inc
+include/rpl/uninstall_semisync_source.inc
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

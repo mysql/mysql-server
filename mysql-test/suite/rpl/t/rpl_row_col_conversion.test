@@ -18,32 +18,32 @@
 # Bug#22110284 RBR CONVERSION FROM SMALLER MASTER TYPE TO BIGGER SLAVE TYPE IS BROKEN
 
 source include/have_binlog_format_row.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 --echo # Bug#22110284: RBR CONVERSION FROM SMALLER MASTER TYPE TO BIGGER SLAVE
 --echo # TYPE IS BROKEN
 --echo # Verify that 100kb string is not truncated when replicated to LONGTEXT
 --echo #
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @saved_global_replica_type_conversions = @@global.REPLICA_TYPE_CONVERSIONS;
 SET @@global.REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (col MEDIUMTEXT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --echo # Drop table on slave and recreate with LONGTEXT
 DROP TABLE t1;
 CREATE TABLE t1 (col LONGTEXT);
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1(col) VALUES (REPEAT('a',65534)), (REPEAT('b',65535)), (REPEAT('c',65536)), (REPEAT('d',100000));
 --let $master_lengths=`SELECT LENGTH(col) FROM t1`
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $slave_lengths=`SELECT LENGTH(col) FROM t1`
 --let $assert_text= Verify that the column has the same lengths on the slave as on the master
 --let $assert_cond= "$slave_lengths" = "$master_lengths"
@@ -51,8 +51,8 @@ INSERT INTO t1(col) VALUES (REPEAT('a',65534)), (REPEAT('b',65535)), (REPEAT('c'
 
 SET @@global.REPLICA_TYPE_CONVERSIONS = @saved_global_replica_type_conversions;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;
 

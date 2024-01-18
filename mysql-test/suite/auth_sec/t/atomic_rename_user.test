@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -11,7 +11,7 @@
 CREATE USER userX, userY, userZ;
 
 SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Modify multiple users
 RENAME USER userX TO userA, userY TO userB, userZ TO userC;
@@ -21,7 +21,7 @@ SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
 
 --let $event= !Q(RENAME USER.*userX.TO.*userA.*,.*userY.*TO.*userB.*,.*userZ.*TO.*userC.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Try renaming a non-existent user
 --error ER_CANNOT_USER
@@ -42,7 +42,7 @@ UPDATE mysql.tmp_user SET user='userZ' WHERE user LIKE 'userC';
 INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
 DROP TABLE mysql.tmp_user;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Though userX is not present in cache, RENAME should check in mysql.user
 --echo # table for the presence of an entry which may create problem while
@@ -60,7 +60,7 @@ SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
 --let $invert= 0
 
 FLUSH PRIVILEGES;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Try renaming two different user and use same user as target
 --error ER_CANNOT_USER
@@ -82,11 +82,11 @@ SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
 
 --let $event= !Q(RENAME USER.*userA.*TO.*userX.*,.*userB.*TO.*userA.*,.*userZ.*TO.*userB.*,.*userC.*TO.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 DROP USER userA, userB, userX, userZ;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo ## Malformed table should be handled gracefully
 --disable_query_log

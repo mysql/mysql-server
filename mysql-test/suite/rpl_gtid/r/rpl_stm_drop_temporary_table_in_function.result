@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -46,7 +46,7 @@ drop_temp_table()
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`create_temp_table`()
@@ -60,7 +60,7 @@ master-bin.000001	#	Query	#	#	ROLLBACK
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`drop_temp_table`()
 master-bin.000001	#	Query	#	#	ROLLBACK
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 #
 # Verify that a 'function call' top statement is written into binary
@@ -79,7 +79,7 @@ create_temp_table()
 SELECT drop_temp_table();
 drop_temp_table()
 2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`create_temp_table`()
@@ -93,7 +93,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`drop_temp_table`()
 master-bin.000001	#	Query	#	#	COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 #
 # Verify that a 'function call' top statement is written into binary
@@ -120,7 +120,7 @@ SELECT drop_temp_table();
 drop_temp_table()
 2
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`create_temp_table`()
@@ -134,8 +134,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`drop_temp_table`()
 master-bin.000001	#	Query	#	#	COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 DROP FUNCTION create_temp_table;
 DROP FUNCTION drop_temp_table;
-include/rpl_end.inc
+include/rpl/deinit.inc

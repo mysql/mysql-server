@@ -29,7 +29,7 @@
 --echo #    SELECT * FROM performance_schema.replication_group_member_stats
 --echo #    after the plugin_running_lock is acquired.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.DEBUG='+d,group_replication_get_group_member_stats_plugin_running_lock_acquired';
 
@@ -38,11 +38,11 @@ SET @@GLOBAL.DEBUG='+d,group_replication_get_group_member_stats_plugin_running_l
 --echo # 2. Asynchronously execute a query on the table
 --echo #    performance_schema.replication_group_member_stats
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --send SELECT CHANNEL_NAME, COUNT_TRANSACTIONS_ROWS_VALIDATING, COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.reached_get_group_member_stats_plugin_running_lock_acquired";
 SET @@GLOBAL.DEBUG='-d,group_replication_get_group_member_stats_plugin_running_lock_acquired';
 
@@ -50,7 +50,7 @@ SET @@GLOBAL.DEBUG='-d,group_replication_get_group_member_stats_plugin_running_l
 --echo ############################################################
 --echo # 3. Change a Group Replication option, it must succeed.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_member_weight_saved= @@GLOBAL.group_replication_member_weight;
 SET @@GLOBAL.group_replication_member_weight= 100;
 
@@ -63,18 +63,18 @@ SET @@GLOBAL.group_replication_member_weight= 100;
 --echo # 4. Resume the query on the table
 --echo #    performance_schema.replication_group_member_stats
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now SIGNAL signal.resume_get_group_member_stats_plugin_running_lock_acquired";
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 
 --echo ############################################################
 --echo # 5. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_member_weight= @group_replication_member_weight_saved;
 
 SET DEBUG_SYNC= 'RESET';

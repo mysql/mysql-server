@@ -56,5 +56,5 @@ include/assert.inc ['Checking the number of records in test.t2']
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE test.t1;
 DROP TABLE test.t2;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

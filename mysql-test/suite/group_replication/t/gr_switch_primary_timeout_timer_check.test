@@ -34,14 +34,14 @@
 --echo #    Server1 will be primary and server 2 secondary.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 CREATE TABLE t1 (c1 int primary key);
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_group_replication.inc
@@ -54,25 +54,25 @@ CREATE TABLE t1 (c1 int primary key);
 --echo #    Primary change operations finishes and THD_transaction_monitor finishes.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
 SET @@GLOBAL.DEBUG= '+d,group_replication_transaction_monitor_end';
 --send INSERT INTO t1 values(1)
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --send_eval SELECT group_replication_set_as_primary("$server2_uuid", 30);
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # verify thread THD_group_action_coordinator has started
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
@@ -120,11 +120,11 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
 SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_end';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server2_uuid SERVER2_UUID
 --reap
 
@@ -141,25 +141,25 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_end';
 --echo #    Primary change operations finishes and THD_transaction_monitor finishes.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
 SET @@GLOBAL.DEBUG= '+d,group_replication_transaction_monitor_end';
 --send INSERT INTO t1 values(2)
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid SERVER1_UUID
 --send_eval SELECT group_replication_set_as_primary("$server1_uuid", 30);
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # verify thread THD_group_action_coordinator has started
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
@@ -203,7 +203,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
 SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_end';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 # Transactions that have reached the commit stage are not rollback.
@@ -212,7 +212,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_end';
 --source include/assert.inc
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server1_uuid SERVER1_UUID
 --reap
 
@@ -220,7 +220,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_end';
 --echo # 4. Cleanup.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --source include/group_replication_end.inc

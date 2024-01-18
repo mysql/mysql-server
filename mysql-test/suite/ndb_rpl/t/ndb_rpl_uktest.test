@@ -20,7 +20,7 @@
 #
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 
 drop table if exists mysql.ndb_replication;
@@ -112,4 +112,4 @@ drop table mysql.ndb_replication;
 --sync_slave_with_master slave
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

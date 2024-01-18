@@ -64,21 +64,21 @@ if (!$conn_for_primary)
 --let $_saved_connection= $CURRENT_CONNECTION
 
 --let $rpl_connection_name= $conn_of_new_primary
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $uuid_of_new_primary= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --echo
 --echo # Start a transaction on $conn_for_command and block it.
 
 --let $rpl_connection_name= $conn_for_command
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC="before_reset_query_plan SIGNAL before_reset_query_ongoing WAIT_FOR after_reset_query_finished";
 
 --send_eval $command_to_execute;
 
 --let $rpl_connection_name= $conn_for_debug_sync
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC="now WAIT_FOR before_reset_query_ongoing";
 
@@ -86,7 +86,7 @@ SET DEBUG_SYNC="now WAIT_FOR before_reset_query_ongoing";
 --echo # Begin change of primary on $conn_for_primary.
 
 --let $rpl_connection_name= $conn_for_primary
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $uuid_of_new_primary MEMBER_UUID
 --eval SELECT group_replication_set_as_primary("$uuid_of_new_primary", 1)
@@ -95,7 +95,7 @@ SET DEBUG_SYNC="now WAIT_FOR before_reset_query_ongoing";
 --echo # Assert primary changed.
 
 --let $rpl_connection_name= $conn_of_new_primary
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
@@ -103,13 +103,13 @@ SET DEBUG_SYNC="now WAIT_FOR before_reset_query_ongoing";
 --echo # Reap the transaction.
 
 --let $rpl_connection_name= $conn_for_debug_sync
---source include/rpl_connection.inc
+--source include/connection.inc
 # before_reset_query_plan is present at 2 places so for safety added 2 signals
 SET DEBUG_SYNC="now SIGNAL after_reset_query_finished";
 SET DEBUG_SYNC="now SIGNAL after_reset_query_finished";
 
 --let $rpl_connection_name= $conn_for_command
---source include/rpl_connection.inc
+--source include/connection.inc
 
 if ($connection_is_killed)
 {

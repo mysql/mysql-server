@@ -34,7 +34,7 @@ GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'group_rpl_user2';
 --echo #    commands must fail due to lack of privileges.
 
 --let $rpl_connection_name= con_group_rpl_user1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -57,7 +57,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 --echo #    commands must not fail.
 
 --let $rpl_connection_name= con_group_rpl_user2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid MEMBER1_UUID
 --eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
@@ -73,7 +73,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 4. Cleanup
 
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disconnect con_group_rpl_user1
 --disconnect con_group_rpl_user2

@@ -21,8 +21,8 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
@@ -87,7 +87,7 @@ while ($type)
   
   connection conn2;
   ROLLBACK;
-  --source include/show_binlog_events.inc
+  --source include/rpl/deprecated/show_binlog_events.inc
 
   let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
   connection conn1;
@@ -122,19 +122,19 @@ while ($type)
   
   connection conn2;
   COMMIT;
-  --source include/show_binlog_events.inc
+  --source include/rpl/deprecated/show_binlog_events.inc
   
   dec $type;
 }
 
 connection master;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 let $rpl_diff_statement= SELECT * FROM t order by i;
-source include/rpl_diff.inc;
+source include/rpl/diff.inc;
 
 let $rpl_diff_statement= SELECT * FROM n order by d, f;
-source include/rpl_diff.inc;
+source include/rpl/diff.inc;
 
 --echo ########################################################################
 --echo #                                Cleanup
@@ -145,9 +145,9 @@ DROP TRIGGER tr;
 DROP TABLE t;
 DROP TABLE n;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 disconnect conn1;
 disconnect conn2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -15,4 +15,4 @@
 # This test is binary_log format agnostic so row is chosen.
 --source include/have_binlog_format_row.inc
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
---source extra/binlog_tests/binlog_xa_prepared.test
+--source common/binlog/binlog_xa_prepared.test

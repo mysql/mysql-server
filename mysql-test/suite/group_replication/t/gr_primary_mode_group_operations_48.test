@@ -36,7 +36,7 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --echo # 2. Configure server2 with weight to be next primary
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_member_weight= 90;
 
@@ -51,7 +51,7 @@ LOCK TABLE t1 READ;
 --echo # 4. Start server3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_switch_to_multi_primary_mode' failed. A primary election is occurring in the group. Wait for it to end.");
@@ -64,7 +64,7 @@ set session sql_log_bin=1;
 --echo #    election
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1);
 
@@ -77,7 +77,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 7. Executing an action will fail, a primary election is running
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl/Primary Election: waiting on current primary transaction execution%"
 --source include/wait_condition.inc
@@ -89,7 +89,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 8. Unlock table to primary election finish
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
@@ -108,12 +108,12 @@ SET @@SESSION.group_replication_consistency= @group_replication_consistency_save
 --echo # 10. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

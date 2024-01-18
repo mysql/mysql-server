@@ -2,7 +2,7 @@
 
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/big_test.inc
 
 # Too heavy for testing in debug mode

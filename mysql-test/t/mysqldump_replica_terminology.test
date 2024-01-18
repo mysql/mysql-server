@@ -31,12 +31,12 @@
 --source include/have_log_bin.inc
 --let $use_gtids= 0
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Create the database/table for testing
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE DATABASE mysqldump_test_db;
 CREATE TABLE mysqldump_test_db.t1 (a INT);
@@ -165,7 +165,7 @@ INSERT INTO mysqldump_test_db.t1 VALUES (2);
 --echo # Test application of dumps with either terminology
 --echo # Old terminology is no longer accepted
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT < $dump_file_master
@@ -181,7 +181,7 @@ INSERT INTO mysqldump_test_db.t1 VALUES (2);
 --echo #
 --echo # Mid test cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --source include/restore_sysvars.inc
 
@@ -193,7 +193,7 @@ INSERT INTO mysqldump_test_db.t1 VALUES (2);
 --echo # Test the output of --dump-replica, --apply-replica-statements and --include-source-host-port
 --echo #
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --echo #
 --echo # Case settings:
@@ -391,15 +391,15 @@ SET @@GLOBAL.terminology_use_previous = BEFORE_8_0_26;
 --echo # Test application of dumps
 --echo # Old terminology is no longer accepted
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO mysqldump_test_db.t1 VALUES (3);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT < $dump_file_master
@@ -418,7 +418,7 @@ INSERT INTO mysqldump_test_db.t1 VALUES (3);
 --source include/restore_sysvars.inc
 --source include/destroy_json_functions.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --remove_file $dump_file_master
 
@@ -426,4 +426,4 @@ INSERT INTO mysqldump_test_db.t1 VALUES (3);
 
 DROP DATABASE mysqldump_test_db;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

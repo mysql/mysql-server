@@ -1,7 +1,7 @@
 #
-# 1) Create a master-slave setup.
+# 1) Create a source-replica setup.
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,10 +11,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    thread on master.
 #
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 [connection master]
-include/stop_dump_threads.inc
+include/rpl/stop_dump_threads.inc
 #
 # 3) On master, generate a transaction, flush the binary log and execute
 #    PURGE BINARY LOGS TO command so that only remaining binlog only contains
@@ -32,15 +32,15 @@ include/assert.inc [PURGE BINARY LOGS successfully removed all but the latest fi
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START REPLICA;
-include/wait_for_slave_io_error.inc [errno=13114 # ER_SOURCE_FATAL_ERROR_READING_BINLOG]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=13114 # ER_SOURCE_FATAL_ERROR_READING_BINLOG]
+include/rpl/stop_applier.inc
 [connection master]
 SET @saved_debug= @@GLOBAL.DEBUG;
 SET GLOBAL DEBUG= '+d,simulate_long_missing_gtids';
 [connection slave]
 START REPLICA;
-include/wait_for_slave_io_error.inc [errno=13114 # ER_SOURCE_FATAL_ERROR_READING_BINLOG]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=13114 # ER_SOURCE_FATAL_ERROR_READING_BINLOG]
+include/rpl/stop_applier.inc
 [connection master]
 SET GLOBAL DEBUG= @saved_debug;
 [connection slave]
@@ -54,9 +54,9 @@ include/assert_grep.inc [Found a message about the long GTIDs in the slave error
 #    REPLICATION SOURCE TO SOURCE_LOG_POS.
 #
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = 'MASTER_FILE', SOURCE_LOG_POS = MASTER_POS, SOURCE_AUTO_POSITION = 0;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [t1 should contain only one row with the value 2]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 include/assert_grep.inc [Found warning containing lost GTIDs in the master error log.]
 include/assert_grep.inc [Found warning containing lost GTIDs in the slave error log.]
 [connection master]
@@ -72,8 +72,8 @@ RESET REPLICA;
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

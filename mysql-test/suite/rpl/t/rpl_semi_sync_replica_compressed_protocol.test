@@ -13,8 +13,8 @@
 # for testing. Choosing 'Row' format.
 --source include/have_binlog_format_row.inc
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
---source include/install_semisync.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/install_semisync.inc
 
 # Do some sample work on Master with replica_compressed_protocol ON.
 # (replica_compressed_protocol is set to ON in -slave.opt file of this test.)
@@ -23,7 +23,7 @@ DROP TABLE t1;
 
 # Make sure sync is done, so that next 'assert' step can be executed without
 # any issues.
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Without the fix, the test would have generated few
 # errors in the error log. With the fix, test will
@@ -36,5 +36,5 @@ DROP TABLE t1;
 
 
 # Cleanup
---source include/uninstall_semisync.inc
---source include/rpl_end.inc
+--source include/rpl/uninstall_semisync.inc
+--source include/rpl/deinit.inc

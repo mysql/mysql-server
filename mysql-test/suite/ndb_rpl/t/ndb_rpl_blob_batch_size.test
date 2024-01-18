@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --echo
 --echo Assert bounds of ndb_replica_blob_write_batch_bytes
@@ -46,7 +46,7 @@ create table t2 (a int primary key, b blob) engine=ndb;
 --sync_slave_with_master
 
 --connection slave
---source ndb_slave_exec_info_init.inc
+--source ndb_replica_exec_info_init.inc
 
 --connection master
 --echo
@@ -83,7 +83,7 @@ commit;
 --disable_query_log
 SET @start_exec_count = @init_wait_exec_complete_count_slave;
 SET @start_pk_op_count = @init_pk_op_count_slave;
---source ndb_slave_exec_info_init.inc
+--source ndb_replica_exec_info_init.inc
 --disable_query_log
 SET @low_batch_exec_count = @init_wait_exec_complete_count_slave - @start_exec_count;
 SET @low_batch_pk_op_count = @init_pk_op_count_slave - @start_pk_op_count;
@@ -99,7 +99,7 @@ delete from t2;
 # Now increase replica's blob batch size only (4MB) and reset counters
 set @@GLOBAL.ndb_replica_blob_write_batch_bytes = 4 * 1024 * 1024;
 show global variables like 'ndb_replica_blob_write_batch_bytes';
---source ndb_slave_exec_info_init.inc
+--source ndb_replica_exec_info_init.inc
 
 --connection master
 --echo
@@ -135,7 +135,7 @@ commit;
 --connection slave
 SET @start_exec_count = @init_wait_exec_complete_count_slave;
 SET @start_pk_op_count = @init_pk_op_count_slave;
---source ndb_slave_exec_info_init.inc
+--source ndb_replica_exec_info_init.inc
 --disable_query_log
 SET @high_batch_exec_count = @init_wait_exec_complete_count_slave - @start_exec_count;
 SET @high_batch_pk_op_count = @init_pk_op_count_slave - @start_pk_op_count;
@@ -157,4 +157,4 @@ drop table t2;
 set @@GLOBAL.ndb_replica_blob_write_batch_bytes = DEFAULT;
 set @@GLOBAL.replica_allow_batching = ON;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

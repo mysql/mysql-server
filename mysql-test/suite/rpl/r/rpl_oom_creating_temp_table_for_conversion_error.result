@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -16,10 +16,10 @@ SET sql_log_bin = 1;
 CREATE TABLE t (a INT);
 [connection master]
 INSERT INTO t VALUES (1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Removing debug point 'simulate_out_of_memory_while_creating_temp_table_for_conversion' from @@GLOBAL.debug
 SET @@global.REPLICA_TYPE_CONVERSIONS = @saved_global_replica_type_conversions;
 include/assert_grep.inc [Found 1 warning in the error log]
 [connection master]
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

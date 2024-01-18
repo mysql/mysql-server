@@ -8,12 +8,12 @@
 #
 # 1. Initial setup includes setting the transaction isolation level to
 #    'READ-COMMITTED' on master and setting binlog_row_image = FULL using
-#    rpl_row_img_set.inc.
+#    rpl/row_img_set.inc.
 # 2. Create two tables with same structure and insert a row into a table.
 # 3. Verify that INSERT..SELECT query is logged with full image on both master
-#    and slave with the use of rpl_row_img_parts_master_slave.inc file.
+#    and slave with the use of rpl_row_img_parts_source_replica.inc file.
 #
-# Note: Please see rpl_row_img_set.inc and rpl_row_img_parts_master_slave.inc
+# Note: Please see rpl/row_img_set.inc and rpl_row_img_parts_source_replica.inc
 # for more details.
 #
 # ==== References ====
@@ -21,24 +21,24 @@
 # Bug#29110804: BINLOG_ROW_IMAGE=FULL NOT ALWAYS HONOURED FOR BINROW_FORMAT=MIXED
 
 --source include/have_binlog_format_mixed.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Save the value binlog_row_image
 SET @old_binlog_row_image= @@binlog_row_image;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @old_binlog_row_image= @@binlog_row_image;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo # 1. Initial setup includes setting the transaction isolation level to
 --echo #    'READ-COMMITTED' on master and setting binlog_row_image = FULL using
---echo #    rpl_row_img_set.inc.
+--echo #    rpl/row_img_set.inc.
 
 SET @old_transaction_isolation= @@session.transaction_isolation;
 SET SESSION transaction_isolation='READ-COMMITTED';
 
 --echo # Set the binlog_row_image to FULL on both master and slave.
 --let $row_img_set=master:FULL:N,slave:FULL:Y
---source include/rpl_row_img_set.inc
+--source include/rpl/row_img_set.inc
 
 --echo #
 --echo # 2. Create two tables with same structure and insert a row into a table.
@@ -49,36 +49,36 @@ CREATE DATABASE b;
 CREATE TABLE a.test (id INT PRIMARY KEY, name VARCHAR(50) DEFAULT NULL, age BIGINT)ENGINE=InnoDB;
 CREATE TABLE b.test (id INT PRIMARY KEY, name VARCHAR(50) DEFAULT NULL, age BIGINT)ENGINE=InnoDB;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 3. Verify that INSERT..SELECT query is logged with full image on both
---echo #    master and slave with the use of rpl_row_img_parts_master_slave.inc
+--echo #    master and slave with the use of rpl_row_img_parts_source_replica.inc
 --echo #    file.
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $row_img_query= INSERT INTO a.test(id, age) VALUES (1,5)
 --let $row_img_expected_master= | 1:1 2:NULL 3:5
 --let $row_img_expected_slave = | 1:1 2:NULL 3:5
---source include/rpl_row_img_parts_master_slave.inc
+--source include/rpl/row_img_parts_source_replica.inc
 
 --let $row_img_query= INSERT INTO b.test(id,age) SELECT id , age FROM a.test
 --let $row_img_expected_master= | 1:1 2:NULL 3:5
 --let $row_img_expected_slave = | 1:1 2:NULL 3:5
---source include/rpl_row_img_parts_master_slave.inc
+--source include/rpl/row_img_parts_source_replica.inc
 
 # CLEAN UP
 DROP DATABASE a;
 DROP DATABASE b;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL binlog_row_image= @old_binlog_row_image;
 SET SESSION binlog_row_image= @old_binlog_row_image;
 SET SESSION transaction_isolation= @old_transaction_isolation;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET GLOBAL binlog_row_image= @old_binlog_row_image;
 SET SESSION binlog_row_image= @old_binlog_row_image;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

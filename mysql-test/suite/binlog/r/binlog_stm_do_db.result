@@ -32,7 +32,7 @@ INSERT INTO t1 SELECT * FROM t2;
 ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging. InnoDB is limited to row-logging when transaction isolation level is READ COMMITTED or READ UNCOMMITTED.
 COMMIT;
 ### assertion: filtered events did not make into the binlog
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	CREATE DATABASE b42829
 binlog.000001	#	Query	#	#	use `b42829`; CREATE TABLE t1 (x int, y int) engine=InnoDB

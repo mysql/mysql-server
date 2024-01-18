@@ -1,5 +1,5 @@
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 #
 # basic test of blob replication for NDB
@@ -153,4 +153,4 @@ drop table t1;
 #let $VERSION=`select version()`;
 #--replace_result $VERSION VERSION
 #show binlog events;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

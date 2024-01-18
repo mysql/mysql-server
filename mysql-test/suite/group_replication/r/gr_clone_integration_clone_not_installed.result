@@ -11,7 +11,7 @@ include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ###############################################################
 # 2. Configure the threshold on server 2 and start GR
@@ -38,7 +38,7 @@ include/assert_grep.inc [Clone plugin is not present in the donor]
 # 4. Cleanup
 SET GLOBAL group_replication_clone_threshold= 9223372036854775807;;
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 UNINSTALL PLUGIN clone;
 set session sql_log_bin=0;
 call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");

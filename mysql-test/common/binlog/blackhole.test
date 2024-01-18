@@ -1,0 +1,199 @@
+#
+# Simple test for blackhole example
+# Taken from the select test
+#
+-- source include/have_blackhole.inc
+-- source include/have_log_bin.inc
+
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+# The server need to be started in $MYSQLTEST_VARDIR since it
+# uses ../../std_data/
+-- source include/uses_vardir.inc
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+CREATE TABLE t1 (
+  Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
+  Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
+) ENGINE=blackhole;
+
+INSERT INTO t1 VALUES (9410,9412);
+  
+select period from t1;
+select * from t1;
+select t1.* from t1;
+
+#
+# Create test table
+#
+
+CREATE TABLE t2 (
+  auto int NOT NULL auto_increment,
+  fld1 int(6) unsigned zerofill DEFAULT '000000' NOT NULL,
+  companynr tinyint(2) unsigned zerofill DEFAULT '00' NOT NULL,
+  fld3 char(30) DEFAULT '' NOT NULL,
+  fld4 char(35) DEFAULT '' NOT NULL,
+  fld5 char(35) DEFAULT '' NOT NULL,
+  fld6 char(4) DEFAULT '' NOT NULL,
+  primary key (auto)
+) ENGINE=blackhole;  
+
+INSERT INTO t2 VALUES (1192,068305,00,'Colombo','hardware','colicky','');
+INSERT INTO t2 VALUES (1193,000000,00,'nondecreasing','implant','thrillingly','');
+--enable_query_log
+
+#
+# Search with a key
+#
+
+select t2.fld3 from t2 where companynr = 58 and fld3 like "%imaginable%";
+select fld3 from t2 where fld3 like "%cultivation" ;
+
+#
+# Search with a key using sorting and limit the same time
+#
+
+select t2.fld3,companynr from t2 where companynr = 57+1 order by fld3;
+select fld3,companynr from t2 where companynr = 58 order by fld3;
+
+select fld3 from t2 order by fld3 desc limit 10;
+select fld3 from t2 order by fld3 desc limit 5;
+select fld3 from t2 order by fld3 desc limit 5,5;
+
+#
+# Search with a key having a constant with each unique key.
+# The table is read directly with read-next on fld3
+#
+
+select t2.fld3 from t2 where fld3 = 'honeysuckle';
+select t2.fld3 from t2 where fld3 LIKE 'honeysuckl_';
+select t2.fld3 from t2 where fld3 LIKE 'hon_ysuckl_';
+select t2.fld3 from t2 where fld3 LIKE 'honeysuckle%';
+select t2.fld3 from t2 where fld3 LIKE 'h%le';
+
+select t2.fld3 from t2 where fld3 LIKE 'honeysuckle_';
+select t2.fld3 from t2 where fld3 LIKE 'don_t_find_me_please%';
+
+#
+# Test sorting with a used key (there is no need for sorting)
+#
+
+select t2.fld3 from t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
+select fld1,fld3 from t2 where fld3="Colombo" or fld3 = "nondecreasing" order by fld3;
+
+
+# Test for fulltext
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
+                       ('Full-text indexes', 'are called collections'),
+                          ('Only MyISAM tables','support collections'),
+             ('Function MATCH ... AGAINST()','is used to do a search'),
+        ('Full-text search in MySQL', 'implements vector space model');
+ANALYZE TABLE t1;
+SHOW INDEX FROM t1;
+
+# nl search
+
+--sorted_result
+select * from t1 where MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where MATCH(a,b) AGAINST ("collections");
+select * from t1 where MATCH(a,b) AGAINST ("indexes");
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
+select * from t1 where MATCH(a,b) AGAINST ("only");
+
+# Test that every DML (except SELECT) and DDL gets into binlog
+# so that blackhole can be used as "binlog propagator"
+
+reset binary logs and gtids;
+drop table t1,t2;
+create table t1 (a int) engine=blackhole;
+delete from t1 where a=10;
+update t1 set a=11 where a=15;
+insert into t1 values(1);
+insert ignore into t1 values(1);
+replace into t1 values(100);
+create table t2 (a varchar(200)) engine=blackhole;
+eval load data infile '../../std_data/words.dat' into table t2;
+alter table t1 add b int;
+alter table t1 drop b;
+create table t3 like t1;
+insert into t1 select * from t3;
+replace into t1 select * from t3;
+# Just to verify
+select * from t1;
+select * from t2;
+select * from t3;
+
+--source include/rpl/deprecated/show_binlog_events.inc
+
+drop table t1,t2,t3;
+
+#
+#Bug#19717: DELETE Query Error on BLACKHOLE when using WHERE on column with UNIQUE INDEX
+#
+CREATE TABLE t1(a INT, b INT) ENGINE=BLACKHOLE;
+DELETE FROM t1 WHERE a=10;
+ALTER TABLE t1 ADD INDEX(a);
+DELETE FROM t1 WHERE a=10;
+ALTER TABLE t1 DROP INDEX a;
+ALTER TABLE t1 ADD UNIQUE INDEX(a);
+DELETE FROM t1 WHERE a=10;
+ALTER TABLE t1 DROP INDEX a;
+ALTER TABLE t1 ADD PRIMARY KEY(a);
+DELETE FROM t1 WHERE a=10;
+DROP TABLE t1;
+
+
+# Test that a transaction which is rolled back does not go into binlog
+# and that a transaction which is committed does
+
+reset binary logs and gtids;
+create table t1 (a int) engine=blackhole;
+set autocommit=0;
+start transaction;
+insert into t1 values(1);
+commit;
+
+let $source_log_pos_1= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
+
+start transaction;
+insert into t1 values(2);
+rollback;
+
+let $source_log_pos_2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
+if ($source_log_pos_2 != $source_log_pos_1)
+{
+  echo $source_log_pos_1 $source_log_pos_2;
+  die Rollbacked transaction has been binlogged;
+}
+
+set autocommit=1;
+drop table if exists t1;
+
+#
+# Bug#35178 INSERT_ID not written to binary log for inserts against BLACKHOLE backed tables
+#
+#
+# the test checks that explicitly prescribed with set insert_id= value
+# preceeds the following autoincrement insert in a blachhole
+#
+
+reset binary logs and gtids;
+create table t1 (a int auto_increment, primary key (a)) engine=blackhole;
+
+# not insert_id prescribed insert binlogs with the default set insert_id 1
+insert into t1 values (11), (NULL), (NULL), (NULL);
+set insert_id= 3;
+insert into t1 values (NULL), (33), (NULL);
+set insert_id= 5;
+insert into t1 values (55), (NULL);
+source include/rpl/deprecated/show_binlog_events.inc;
+
+# cleanup
+drop table t1;
+
+# End of tests

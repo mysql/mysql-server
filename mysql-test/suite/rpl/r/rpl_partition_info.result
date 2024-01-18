@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,103 +6,103 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #####1.Verifying the value of partition_id written to the binary log #####
 CREATE TABLE employees (store_id INT NOT NULL) PARTITION BY RANGE (store_id)
 ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20), PARTITION p2 VALUES LESS THAN (30));
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO employees VALUES(22);
-include/rpl_partition_info.inc
+include/rpl/partition_info.inc
 ALTER TABLE employees ADD PARTITION (PARTITION p3 VALUES LESS THAN (40));
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO employees VALUES(38);
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE employees SET store_id = 39 WHERE store_id = 38;
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE employees SET store_id = 28 WHERE store_id = 39;
-include/rpl_partition_info_update.inc
+include/rpl/partition_info_update.inc
 #####2.INSERT, UPDATE, DELETE in a partitioned table affecting same and multiple partition #####
 #####3.Verifying the number of events created when executing statements affecting same and multiple partitions #####
 -----INSERT-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO employees VALUES(4), (5);
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO employees VALUES(7), (15);
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
 -----UPDATE-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE employees SET store_id = 9 WHERE store_id < 6;
-include/assert_binlog_events.inc
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE employees SET store_id = 12 WHERE store_id < 25 AND store_id > 10;
-include/assert_binlog_events.inc
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE employees SET store_id = store_id + 2 WHERE store_id < 10;
-include/assert_binlog_events.inc
-include/rpl_partition_info_update.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info_update.inc
 -----DELETE-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 DELETE FROM employees where store_id < 10;
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 DELETE FROM employees where store_id < 40;
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
 DROP TABLE employees;
 CREATE TABLE employees (store_id INT NOT NULL);
 ALTER TABLE employees PARTITION BY RANGE (store_id) ( PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN (20),
 PARTITION p2 VALUES LESS THAN (30));
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO employees VALUES(22);
-include/rpl_partition_info.inc
+include/rpl/partition_info.inc
 ALTER TABLE employees ADD PARTITION (PARTITION p3 VALUES LESS THAN (40));
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO employees VALUES(38);
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE employees SET store_id = 39 WHERE store_id = 38;
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE employees SET store_id = 28 WHERE store_id = 39;
-include/rpl_partition_info_update.inc
+include/rpl/partition_info_update.inc
 #####2.INSERT, UPDATE, DELETE in a partitioned table affecting same and multiple partition #####
 #####3.Verifying the number of events created when executing statements affecting same and multiple partitions #####
 -----INSERT-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO employees VALUES(4), (5);
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO employees VALUES(7), (15);
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
 -----UPDATE-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE employees SET store_id = 9 WHERE store_id < 6;
-include/assert_binlog_events.inc
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE employees SET store_id = 12 WHERE store_id < 25 AND store_id > 10;
-include/assert_binlog_events.inc
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE employees SET store_id = store_id + 2 WHERE store_id < 10;
-include/assert_binlog_events.inc
-include/rpl_partition_info_update.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info_update.inc
 -----DELETE-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 DELETE FROM employees where store_id < 10;
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 DELETE FROM employees where store_id < 40;
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
 DROP TABLE employees;
 #####4.Verifying the value of partition_id written to the binary log in case of table with more than 128 partitions######
 CREATE TABLE tp (
@@ -174,67 +174,67 @@ PARTITION p122 VALUES LESS THAN (122), PARTITION p123 VALUES LESS THAN (123),
 PARTITION p124 VALUES LESS THAN (124), PARTITION p125 VALUES LESS THAN (125),
 PARTITION p126 VALUES LESS THAN (126), PARTITION p127 VALUES LESS THAN (127),
 PARTITION p128 VALUES LESS THAN (128), PARTITION p129 VALUES LESS THAN (129));
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO tp VALUES(126), (127), (128);
-include/rpl_partition_info.inc
+include/rpl/partition_info.inc
 #####5.Verifying the value of partition_id written to the binary log in case of sub-partitions######
 CREATE TABLE sp(id INT, age INT) PARTITION BY RANGE(age) SUBPARTITION BY KEY(id) (
 PARTITION p0 VALUES LESS THAN (30) (SUBPARTITION p0a, SUBPARTITION p0b),
 PARTITION p1 VALUES LESS THAN (60) (SUBPARTITION p1a, SUBPARTITION p1b));
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO sp VALUES(101, 31);
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO sp VALUES (102, 32);
-include/rpl_partition_info.inc
+include/rpl/partition_info.inc
 #####6.INSERTS, UPDATES, DELETES in a partitioned table affecting same and multiple sub_partition #####
 #####7.Verifying the number of events created when executing statements affecting single and multiple sub_partitions #####
 -----INSERT-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO sp VALUES(103, 31), (105, 32);
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO sp VALUES(104, 32), (105, 32);
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
 -----UPDATE-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE sp set age=31 where id = 102 or id=104;
-include/assert_binlog_events.inc
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE sp set age=29 where id = 102 or id=103;
-include/assert_binlog_events.inc
-include/rpl_partition_info_update.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info_update.inc
 -----DELETE-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 DELETE FROM sp where id = 101 or id=105;
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 DELETE FROM sp where id = 102 or id=103;
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
 #####8.INSERT, UPDATE, DELETE in a table with no partition #####
 #####9.Verifying the number of events created when executing the above statements #####
 CREATE TABLE t(s int, x int);
 INSERT INTO t VALUES (11, 2);
 INSERT INTO t VALUES (13, 4);
 -----INSERT-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t VALUES (10, 1), (11, 20);
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 -----UPDATE-----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE t SET s= 7 WHERE x > 3;
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 -----DELETE------
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 DELETE from t where x < 4;
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 #####10.Sync with slave and check if all the tables are replicated correctly#####
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:tp, slave:tp]
 include/diff_tables.inc [master:t, slave:t]
 include/diff_tables.inc [master:sp, slave:sp]
@@ -243,11 +243,11 @@ DROP TABLE t;
 DROP TABLE sp;
 #####11.INSERT in a table which has both partition info and ndb_info #####
 CREATE TABLE t1 (store_id INT NOT NULL) PARTITION BY RANGE (store_id) ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t1 VALUES (1), (11), (15);
-include/assert_binlog_events.inc
-include/rpl_partition_info.inc
-include/mysqlbinlog.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info.inc
+include/rpl/mysqlbinlog.inc
 ### Extra row ndb info: data_format: 0, len: 0, data: ""
 ### Extra row info for partitioning: partition: 0
 ### INSERT INTO `test`.`t1`
@@ -263,18 +263,18 @@ include/mysqlbinlog.inc
 ### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=15
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #####12.Test partial JSON Update #####
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 Warnings:
 Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 UPDATE t1 SET  store_id = 8 WHERE store_id = 11;
-include/assert_binlog_events.inc
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t1 VALUES (2);
 include/assert_grep.inc [The error block is working fine for ndb_info print.]
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
-include/rpl_end.inc
+include/rpl/deinit.inc

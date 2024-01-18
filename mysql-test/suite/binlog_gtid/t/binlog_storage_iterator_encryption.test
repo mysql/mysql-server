@@ -23,11 +23,11 @@
 # an artificial failure.
 --source include/not_binlog_transaction_compression_on.inc
 
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 
 # run the tests
 --let $restart_parameters=restart: $PLUGIN_DIR_OPT
---source extra/binlog_tests/binlog_storage_iterator.inc
+--source common/binlog/storage_iterator.inc
 
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 --source ../mysql-test/suite/component_keyring_file/inc/teardown_component.inc

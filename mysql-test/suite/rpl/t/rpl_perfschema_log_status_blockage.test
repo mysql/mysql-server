@@ -26,13 +26,13 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --let $rpl_extra_connections_per_server= 6
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $replica_checkpoint_period_value = `SELECT @@global.replica_checkpoint_period`
 SET @@GLOBAL.replica_checkpoint_period= 1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Create a table to store the data to be validated
 CREATE TABLE ils_copy (
   uuid VARCHAR(36) PRIMARY KEY,
@@ -44,7 +44,7 @@ CREATE TABLE t1_innodb (c1 INT);
 
 CREATE TABLE t2_myisam (c1 INT) ENGINE=MyISAM;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Make server to pause when fully blocked
 --let $debug_point= pause_collecting_instance_logs_info
@@ -62,7 +62,7 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 {
   --let $use_gtids= 1
 }
---source include/save_master_pos.inc
+--source include/rpl/save_server_position.inc
 
 # Save current slave relay log coordinates
 --let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
@@ -72,10 +72,10 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 # test case purposes. That is fine as the objective is to test a non-empty
 # channel name.
 
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 FLUSH TABLES test.t2_myisam, performance_schema.threads WITH READ LOCK;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Save current InnoDB LSN and LSN_checkpoint before the collection
 --replace_regex /\n/<EOL>/ /.*<EOL>Last checkpoint at[[:space:]]*([0-9]+)<EOL>.*/\1/
 --let $innodb_seis=`SHOW ENGINE INNODB STATUS`
@@ -91,7 +91,7 @@ FLUSH TABLES test.t2_myisam, performance_schema.threads WITH READ LOCK;
 --replace_result $ils_dump ILS_DUMP
 --send_eval SELECT * FROM performance_schema.log_status INTO OUTFILE '$ils_dump'
 
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 SET DEBUG_SYNC='now WAIT_FOR reached_collecting_instance_logs_info';
 
 
@@ -100,44 +100,44 @@ SET DEBUG_SYNC='now WAIT_FOR reached_collecting_instance_logs_info';
 
 # No changes into binary log
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $tid1=`SELECT CONNECTION_ID()`
 --send FLUSH LOCAL BINARY LOGS;
 
 # No changes into Gtid_state (GTID_EXECUTED)
 --let $rpl_connection_name= server_2_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $tid2=`SELECT CONNECTION_ID()`
 --send SET @@GLOBAL.gtid_purged = '+00000000-0000-0000-0000-000000000000:1-999'
 
 # No new channels can be created
 --let $rpl_connection_name= server_2_3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $tid3=`SELECT CONNECTION_ID()`
 --send CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1' FOR CHANNEL 'ch2'
 
 # No existing channels can be removed
 --let $rpl_connection_name= server_2_4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $tid4=`SELECT CONNECTION_ID()`
 --send RESET REPLICA ALL FOR CHANNEL 'ch1'
 
 # No changes into blocked storage engines (InnoDB)
 --let $rpl_connection_name= server_2_5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $tid5=`SELECT CONNECTION_ID()`
 SET @sql_log_bin = 0;
 --send INSERT INTO t1_innodb VALUE (9)
 
 # No changes into blocked tables (MyISAM)
 --let $rpl_connection_name= server_2_6
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $tid6=`SELECT CONNECTION_ID()`
 SET @sql_log_bin = 0;
 --send INSERT INTO t2_myisam VALUE (9)
 
 # No changes into I/O thread relay log positions
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 FLUSH BINARY LOGS;
 INSERT INTO t1_innodb VALUES (1);
 INSERT INTO t2_myisam VALUES (1);
@@ -149,9 +149,9 @@ INSERT INTO t2_myisam VALUES (2);
 --sleep 1
 
 
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 --echo Wait until all threads expecting to be block be doing something
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 let $wait_condition=
   SELECT COUNT(*) = 6 FROM performance_schema.threads
   WHERE PROCESSLIST_ID IN ($tid1, $tid2, $tid3, $tid4, $tid5, $tid6)
@@ -161,37 +161,37 @@ let $wait_condition=
 SET DEBUG_SYNC='now SIGNAL continue_collecting_instance_logs_info';
 UNLOCK TABLES;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --reap
 
 --replace_result $ils_dump ILS_DUMP
 --eval LOAD DATA INFILE '$ils_dump' INTO TABLE ils_copy
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $rpl_connection_name= server_2_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $rpl_connection_name= server_2_3
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $rpl_connection_name= server_2_4
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $rpl_connection_name= server_2_5
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $rpl_connection_name= server_2_6
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 --echo Wait until all blocked threads are released and finish
 let $wait_condition=
   SELECT COUNT(*) = 6 FROM performance_schema.threads
@@ -202,7 +202,7 @@ let $wait_condition=
 #
 # Validate what was collected from performance_schema.log_status table
 #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 if ($rpl_debug)
 {
   --query_vertical SELECT * FROM ils_copy
@@ -283,14 +283,14 @@ if ($rpl_debug)
 
 
 # Cleanup
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --source include/remove_debug_point.inc
 --replace_result $replica_checkpoint_period_value REPLICA_CHECKPOINT_PERIOD
 --eval SET @@GLOBAL.replica_checkpoint_period= $replica_checkpoint_period_value
 RESET REPLICA ALL FOR CHANNEL 'ch2';
 --remove_file $ils_dump
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE ils_copy, t1_innodb, t2_myisam;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

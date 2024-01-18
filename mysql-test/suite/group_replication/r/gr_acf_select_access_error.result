@@ -42,7 +42,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='rpl_user', SO
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch1_2']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1_2']
 include/assert.inc [Verify channel ch1_2 IO_THREAD is ON]
 include/assert.inc [Verify channel ch1_2 SQL_THREAD is ON]
 
@@ -54,8 +54,8 @@ include/assert.inc [Verify channel ch1_2 SQL_THREAD is ON]
 # 6. Clean Up.
 
 [connection server2]
-include/stop_slave.inc [FOR CHANNEL 'ch1_2']
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1_2']
+include/rpl/reset_replica.inc
 SELECT asynchronous_connection_failover_delete_managed('ch1_2', 'FAILOVER_GROUP_NAME');
 asynchronous_connection_failover_delete_managed('ch1_2', 'FAILOVER_GROUP_NAME')
 The UDF asynchronous_connection_failover_delete_managed() executed successfully.

@@ -1,13 +1,13 @@
 # ==== Purpose ====s
 #
-# This is wrapper testcase of rpl_mts_spco_alter_table_commands.test to verify the behavior
+# This is wrapper testcase of common/rpl/rpl_mta_rpco_alter_table_commands.test to verify the behavior
 # of ALTER TABLE variants with replica-preserve-commit-order enabled binlog slave.
 #
 # === Implementation ====
 #
 # 1. Configure master-binlog enabled slave replication.
 #
-# 2. Source rpl_mts_spco_alter_table_commands.test to verify if
+# 2. Source common/rpl/rpl_mta_rpco_alter_table_commands.test to verify if
 #    ALTER TABLE variant commands respect replica-preserve-commit-order.
 #
 # === References ===
@@ -20,4 +20,4 @@
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
 
---source extra/rpl_tests/rpl_mts_spco_alter_table_commands.test
+--source common/rpl/rpl_mta_rpco_alter_table_commands.test

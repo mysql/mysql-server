@@ -27,14 +27,14 @@
 --let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 
@@ -42,7 +42,7 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 1. Bootstrap the group and create a table on it.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (i INT PRIMARY KEY);
 
@@ -57,7 +57,7 @@ CREATE TABLE t1 (i INT PRIMARY KEY);
 --echo #    Assert that both members have 3 GTIDs.
 --echo #    Server 2 leaves the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $assert_text= GTID_EXECUTED must contain one transactions
@@ -65,13 +65,13 @@ CREATE TABLE t1 (i INT PRIMARY KEY);
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= GTID_EXECUTED must contain one transactions
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1")
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -81,7 +81,7 @@ CREATE TABLE t1 (i INT PRIMARY KEY);
 --echo # 3. Execute transactions with specificed GTIDs to create
 --echo #    holes on GTID_EXECUTED.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Insert a row with GTID specified to the next possible generated value.
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GTID_NEXT= "$group_replication_group_name:4"
@@ -111,21 +111,21 @@ INSERT INTO t1 VALUES(9);
 --source include/assert.inc
 
 --let $event_sequence= !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 
 --echo
 --echo ############################################################
 --echo # 5. Server 2 joins the group again.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 --let $assert_text= GTID_EXECUTED must contain no holes
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-6")
 --source include/assert.inc
 
 --let $event_sequence= !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 
 --echo
@@ -134,14 +134,14 @@ INSERT INTO t1 VALUES(9);
 DROP TABLE t1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 
 --source include/group_replication_end.inc

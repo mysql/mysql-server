@@ -86,10 +86,10 @@ RESET REPLICA ALL;
 
 --let $rpl_topology = 1->2, 1->3
 --let $rpl_require_table_primary_key_check = 2:ON,3:OFF
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name = server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'ON'`
 --let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to ON
@@ -97,7 +97,7 @@ RESET REPLICA ALL;
 --source include/assert.inc
 
 --let $rpl_connection_name = server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'OFF'`
 --let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF
@@ -109,7 +109,7 @@ RESET REPLICA ALL;
 --echo #    If you stop the applier thread, it possible to set it
 
 --let $rpl_connection_name = server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
@@ -125,4 +125,4 @@ START REPLICA SQL_THREAD;
 --let $assert_cond = 1 = $count
 --source include/assert.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

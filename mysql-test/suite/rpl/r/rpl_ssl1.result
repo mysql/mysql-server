@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,21 +8,21 @@ create user replssl@localhost require ssl;
 grant replication slave on *.* to replssl@localhost;
 SET SQL_LOG_BIN= 1;
 create table t1 (t int);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 STOP REPLICA;
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='replssl',SOURCE_PASSWORD='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
-include/wait_for_slave_io_error.inc [errno=1045]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=1045]
+include/rpl/stop_applier.inc
 CHANGE REPLICATION SOURCE to SOURCE_SSL=1 , SOURCE_SSL_CA ='MYSQL_TEST_DIR/std_data/cacert.pem', SOURCE_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem', SOURCE_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem', SOURCE_TLS_VERSION='TLSv1.2';
 START REPLICA;
-include/wait_for_slave_to_start.inc
+include/rpl/wait_for_replica_to_start.inc
 insert into t1 values (1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 t
 1
@@ -32,29 +32,29 @@ Source_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Source_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Source_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
 Source_TLS_Version = 'TLSv1.2'
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 STOP REPLICA;
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='root',SOURCE_PASSWORD='', SOURCE_SSL=0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
-include/wait_for_slave_to_start.inc
+include/rpl/wait_for_replica_to_start.inc
 SET SQL_LOG_BIN= 0;
 drop user replssl@localhost;
 SET SQL_LOG_BIN= 1;
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 Source_SSL_Allowed = 'No'
 Source_SSL_CA_Path = ''
 Source_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Source_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Source_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
 Source_TLS_Version = 'TLSv1.2'
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 STOP REPLICA;
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 CHANGE REPLICATION SOURCE to
 SOURCE_HOST="localhost",
 SOURCE_SSL=1 ,
@@ -63,10 +63,10 @@ SOURCE_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem',
 SOURCE_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem',
 SOURCE_SSL_VERIFY_SERVER_CERT=1;
 START REPLICA;
-include/wait_for_slave_to_start.inc
+include/rpl/wait_for_replica_to_start.inc
 create table t1 (t int);
 insert into t1 values (1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 on slave
 select * from t1;
 t
@@ -77,20 +77,20 @@ Source_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Source_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Source_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
 Source_TLS_Version = 'TLSv1.2'
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 drop table t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on STOP REPLICA.]
 RESET REPLICA;
 include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on RESET REPLICA.]
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_MYPORT;
 include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on CHANGE REPLICATION SOURCE.]
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on START REPLICA.]
 DROP TABLE IF EXISTS t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO
 SOURCE_HOST="127.0.0.1",
 SOURCE_SSL_CA ='',
@@ -99,4 +99,4 @@ SOURCE_SSL_KEY='',
 SOURCE_SSL_VERIFY_SERVER_CERT=0,
 SOURCE_SSL=0,
 SOURCE_TLS_VERSION='';
-include/rpl_end.inc
+include/rpl/deinit.inc

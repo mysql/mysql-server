@@ -4,11 +4,11 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/stop_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/stop_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 INSERT INTO t1 SET c1=1;
 BEGIN;
 INSERT INTO t1 SET c1=2;
@@ -17,9 +17,9 @@ rollback;
 include/start_group_replication.inc
 include/start_group_replication.inc
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
-include/rpl_gr_wait_for_number_of_members.inc
-include/rpl_gr_wait_for_number_of_members.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 DROP TABLE t1;
 include/group_replication_end.inc

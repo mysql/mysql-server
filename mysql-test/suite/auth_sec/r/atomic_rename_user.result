@@ -1,4 +1,4 @@
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # -----------------------------------------------------------------------
 # Begin : Tests for RENAME USER
 CREATE USER userX, userY, userZ;
@@ -7,7 +7,7 @@ user	authentication_string
 userX	
 userY	
 userZ	
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # Modify multiple users
 RENAME USER userX TO userA, userY TO userB, userZ TO userC;
 # Must show userA, userB, userC
@@ -17,8 +17,8 @@ userA
 userB	
 userC	
 # This event sequence pattern MUST be present in binlog: !Q(RENAME USER.*userX.TO.*userA.*,.*userY.*TO.*userB.*,.*userZ.*TO.*userC.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # Try renaming a non-existent user
 RENAME USER userA TO userX, user_ne1 TO user_ne2, userC TO userZ;
 ERROR HY000: Operation RENAME USER failed for 'user_ne1'@'%'
@@ -29,14 +29,14 @@ userA
 userB	
 userC	
 # This event sequence pattern MUST NOT be present in binlog: !Q(RENAME USER.*userA.*TO.*userX.*,.*user_ne1.*TO.*user_ne2.*,.*userC.*TO.*userZ.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 # Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
 CREATE TABLE mysql.tmp_user LIKE mysql.user;
 INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userC';
 UPDATE mysql.tmp_user SET user='userZ' WHERE user LIKE 'userC';
 INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
 DROP TABLE mysql.tmp_user;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # Though userX is not present in cache, RENAME should check in mysql.user
 # table for the presence of an entry which may create problem while
 # renaming users.
@@ -50,9 +50,9 @@ userB
 userC	
 userZ	
 # This event sequence pattern MUST NOT be present in binlog: !Q(RENAME USER.*userA.*TO.*userX.*,.*userB.*TO.*userY.*,.*userC.*TO.*userZ.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 FLUSH PRIVILEGES;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # Try renaming two different user and use same user as target
 RENAME USER userA TO userX, userB TO userX;
 ERROR HY000: Operation RENAME USER failed for 'userB'@'%'
@@ -64,7 +64,7 @@ userB
 userC	
 userZ	
 # This event sequence pattern MUST NOT be present in binlog: !Q(RENAME USER.*userA.*TO.*userX.*,.*userB.*TO.*userX.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 # This should succeed
 RENAME USER userA TO userX, userB TO userA, userZ TO userB, userC TO userZ;
 # Must show userA, userB, userX and userZ
@@ -75,10 +75,10 @@ userB
 userX	
 userZ	
 # This event sequence pattern MUST be present in binlog: !Q(RENAME USER.*userA.*TO.*userX.*,.*userB.*TO.*userA.*,.*userZ.*TO.*userB.*,.*userC.*TO.*userZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 DROP USER userA, userB, userX, userZ;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ## Malformed table should be handled gracefully
 RENAME TABLE mysql.user TO mysql.user_bak;
 CREATE TABLE mysql.user(dummy INT) ENGINE=MyISAM;

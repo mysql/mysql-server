@@ -1,4 +1,4 @@
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # ----------------------------------------------------------------------
 # Begin : Tests for GRANT : Routine grants
 CREATE USER userX, userY, userZ;
@@ -7,7 +7,7 @@ CREATE PROCEDURE db1.proc1()
 BEGIN
 SELECT 1234;
 END ||
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # Case 1 : Valid grants
 GRANT EXECUTE ON PROCEDURE db1.proc1 TO userX, userY, userZ;
 # Must show new grant
@@ -24,8 +24,8 @@ Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
 GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userZ`@`%`
 # This event sequence pattern MUST be present in binlog: !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userX.*userY.*userZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # Case 6 : Create new user with an account without CREATE USER privilege
 CREATE USER userA, userB;
 GRANT EXECUTE ON PROCEDURE db1.proc1 to userX WITH GRANT OPTION;
@@ -43,7 +43,7 @@ GRANT USAGE ON *.* TO `userA`@`%`
 SHOW GRANTS FOR userB;
 Grants for userB@%
 GRANT USAGE ON *.* TO `userB`@`%`
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # should succeed
 GRANT EXECUTE ON PROCEDURE db1.proc1 TO userY, userZ;
 # should fail
@@ -66,10 +66,10 @@ SHOW GRANTS FOR userB;
 Grants for userB@%
 GRANT USAGE ON *.* TO `userB`@`%`
 # This event sequence pattern MUST be present in binlog: !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userY.*userZ.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 DROP USER userX, userY, userZ, userA, userB;
 DROP PROCEDURE db1.proc1;
 DROP DATABASE db1;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # End : Tests for GRANT : Routine grants
 # ----------------------------------------------------------------------

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -61,41 +61,41 @@ flush logs;
 select count(*) as zero from t1;
 zero
 0
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @@global.binlog_checksum = CRC32;
 insert into t1 values (1) /* will not be applied on slave due to simulation */;
 set @@global.debug='+d,simulate_replica_unaware_checksum';
 START REPLICA;
-include/wait_for_slave_io_error.inc [errno=13114]
+include/rpl/wait_for_receiver_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'Replica can not handle replication events with the checksum that source is configured to log; the first event 'master-bin.000009' at XXX, the last event read from './master-bin.000010' at XXX, the last byte read from './master-bin.000010' at XXX.''
 select count(*) as zero from t1;
 zero
 0
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @@global.debug='-d,simulate_replica_unaware_checksum';
-include/start_slave.inc
+include/rpl/start_replica.inc
 set @@global.source_verify_checksum = 1;
 set @@session.debug='+d,simulate_checksum_test_failure';
 show binlog events;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Error reading Log_event at position 4: Failed decoding event: Event crc check failed! Most likely there is event corruption.
 set @@session.debug='-d,simulate_checksum_test_failure';
 set @@global.source_verify_checksum = default;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 create table t2 (a int);
 set @@global.debug='+d,simulate_checksum_test_failure';
 START REPLICA io_thread;
-include/wait_for_slave_io_error.inc [errno=13122, 13115]
+include/rpl/wait_for_receiver_error.inc [errno=13122, 13115]
 set @@global.debug='-d,simulate_checksum_test_failure';
 START REPLICA io_thread;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 set @@global.replica_sql_verify_checksum = 1;
 set @@global.debug='+d,simulate_checksum_test_failure';
 START REPLICA sql_thread;
-include/wait_for_slave_sql_error.inc [errno=13117]
+include/rpl/wait_for_applier_error.inc [errno=13117]
 Last_SQL_Error = 'Event crc check failed! Most likely there is event corruption.'
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @@global.debug='-d,simulate_checksum_test_failure';
-include/start_slave.inc
+include/rpl/start_replica.inc
 select count(*) as 'must be zero' from t2;
 must be zero
 0
@@ -108,11 +108,11 @@ set @@global.binlog_checksum= CRC32;
 reset binary logs and gtids;
 flush logs;
 create table t3 (a int, b char(5));
-include/start_slave.inc
+include/rpl/start_replica.inc
 select count(*) as 'must be zero' from t3;
 must be zero
 0
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -120,7 +120,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 flush logs;
 reset binary logs and gtids;
 insert into t3 value (1, @@global.binlog_checksum);
-include/start_slave.inc
+include/rpl/start_replica.inc
 flush logs;
 select count(*) as 'must be one' from t3;
 must be one
@@ -132,4 +132,4 @@ set @@global.binlog_checksum = @master_save_binlog_checksum;
 set @@global.source_verify_checksum = @save_source_verify_checksum;
 set @@global.binlog_checksum = @slave_save_binlog_checksum;
 set @@global.replica_sql_verify_checksum = @save_replica_sql_verify_checksum;
-include/rpl_end.inc
+include/rpl/deinit.inc

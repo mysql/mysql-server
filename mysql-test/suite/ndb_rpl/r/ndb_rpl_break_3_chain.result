@@ -1,13 +1,13 @@
-include/rpl_init.inc [topology=1->2->3]
+include/rpl/init.inc [topology=1->2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/rpl_connect.inc [creating cluster1]
-include/rpl_connect.inc [creating cluster2]
-include/rpl_connect.inc [creating cluster3]
+include/rpl/connect.inc [creating cluster1]
+include/rpl/connect.inc [creating cluster2]
+include/rpl/connect.inc [creating cluster3]
 [connection cluster1]
 CLUSTER1_SERVER_ID: 1
 [connection cluster2]
@@ -33,7 +33,7 @@ server_id	epoch	log_name	start_pos	end_pos
 select * from test.t1;
 a	b
 1	Summertime
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 ---- [cluster2] SHOW BINLOG EVENTS FROM <POSITION> ----
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 cluster2-bin.000001	#	Query	1	#	use `test`; create table t1(a int primary key, b varchar(50)) engine=ndb
@@ -57,7 +57,7 @@ a	b
 1	Summertime
 Break Cluster3's link with Cluster2
 [connection cluster3]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Make further changes on Cluster1
 [connection cluster1]
 insert into test.t1 values (2, "The cotton is high");
@@ -79,11 +79,11 @@ server_id	epoch	log_name	start_pos	end_pos
 1	#	cluster1-bin.000001	#	#
 2	#	cluster2-bin.000001	#	#
 RESET REPLICA;
-include/rpl_change_topology.inc [new topology=1->2,1->3]
+include/rpl/change_topology.inc [new topology=1->2,1->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection cluster1]
 Now show that cluster 3 is successfully replicating from Cluster1
 [connection cluster3]
@@ -95,4 +95,4 @@ a	b
 Clean up
 [connection cluster1]
 drop table test.t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

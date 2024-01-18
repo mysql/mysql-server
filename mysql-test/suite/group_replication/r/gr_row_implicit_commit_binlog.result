@@ -22,7 +22,7 @@ Table	Op	Msg_type	Msg_text
 test.nt_1	preload_keys	note	The storage engine for the table doesn't support preload_keys
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -38,7 +38,7 @@ test.tt_1	preload_keys	note	The storage engine for the table doesn't support pre
 test.tt_2	preload_keys	note	The storage engine for the table doesn't support preload_keys
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -53,7 +53,7 @@ Table	Op	Msg_type	Msg_text
 test.nt_1	analyze	status	OK
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -69,7 +69,7 @@ Table	Op	Msg_type	Msg_text
 test.nt_1	check	status	OK
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -85,7 +85,7 @@ test.nt_1	optimize	note	Table does not support optimize, doing recreate + analyz
 test.nt_1	optimize	status	OK
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -101,7 +101,7 @@ Table	Op	Msg_type	Msg_text
 test.nt_1	repair	note	The storage engine for the table doesn't support repair
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -115,7 +115,7 @@ INSERT INTO tt_1(ddl_case) VALUES (25);
 LOCK TABLES tt_1 WRITE;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -128,7 +128,7 @@ INSERT INTO tt_1(ddl_case) VALUES (24);
 UNLOCK TABLES;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -141,7 +141,7 @@ INSERT INTO tt_1(ddl_case) VALUES (23);
 CREATE USER 'user'@'localhost';
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -155,7 +155,7 @@ INSERT INTO tt_1(ddl_case) VALUES (22);
 GRANT ALL ON *.* TO 'user'@'localhost';
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -169,7 +169,7 @@ INSERT INTO tt_1(ddl_case) VALUES (21);
 SET PASSWORD FOR 'user'@'localhost' = 'newpass';
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -183,7 +183,7 @@ INSERT INTO tt_1(ddl_case) VALUES (20);
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user'@'localhost';
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -197,7 +197,7 @@ INSERT INTO tt_1(ddl_case) VALUES (19);
 RENAME USER 'user'@'localhost' TO 'user_new'@'localhost';
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -211,7 +211,7 @@ INSERT INTO tt_1(ddl_case) VALUES (18);
 DROP USER 'user_new'@'localhost';
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -225,7 +225,7 @@ INSERT INTO tt_1(ddl_case) VALUES (17);
 CREATE EVENT evt ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT * FROM tt_1;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -239,7 +239,7 @@ INSERT INTO tt_1(ddl_case) VALUES (16);
 ALTER EVENT evt COMMENT 'evt';
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -253,7 +253,7 @@ INSERT INTO tt_1(ddl_case) VALUES (15);
 DROP EVENT evt;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -267,7 +267,7 @@ INSERT INTO tt_1(ddl_case) VALUES (14);
 CREATE FUNCTION fc () RETURNS VARCHAR(64) CHARSET utf8mb4 RETURN "fc";
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -282,7 +282,7 @@ INSERT INTO tt_1(ddl_case) VALUES (13);
 ALTER FUNCTION fc COMMENT 'fc';
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -296,7 +296,7 @@ INSERT INTO tt_1(ddl_case) VALUES (12);
 DROP FUNCTION fc;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -310,7 +310,7 @@ INSERT INTO tt_1(ddl_case) VALUES (11);
 CREATE PROCEDURE pc () UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -325,7 +325,7 @@ INSERT INTO tt_1(ddl_case) VALUES (10);
 ALTER PROCEDURE pc COMMENT 'pc';
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -339,7 +339,7 @@ INSERT INTO tt_1(ddl_case) VALUES (9);
 CREATE VIEW v AS SELECT * FROM tt_1;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -353,7 +353,7 @@ INSERT INTO tt_1(ddl_case) VALUES (8);
 DROP PROCEDURE pc;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -367,7 +367,7 @@ INSERT INTO tt_1(ddl_case) VALUES (7);
 ALTER VIEW v AS SELECT * FROM tt_1;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -381,7 +381,7 @@ INSERT INTO tt_1(ddl_case) VALUES (6);
 DROP VIEW v;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -395,7 +395,7 @@ INSERT INTO tt_1(ddl_case) VALUES (5);
 CREATE TABLE tt_xx (a int);
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -409,7 +409,7 @@ INSERT INTO tt_1(ddl_case) VALUES (4);
 RENAME TABLE tt_xx TO new_tt_xx;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -425,7 +425,7 @@ Warnings:
 Note	1051	Unknown table 'test.tt_xx'
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -439,7 +439,7 @@ INSERT INTO tt_1(ddl_case) VALUES (2);
 CREATE DATABASE db;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -453,7 +453,7 @@ INSERT INTO tt_1(ddl_case) VALUES (1);
 DROP DATABASE IF EXISTS db;
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
@@ -465,12 +465,12 @@ server-binary-log.000001	#	Query	#	#	DROP DATABASE IF EXISTS db
 ###################################################################################
 #                               CHECK CONSISTENCY
 ###################################################################################
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:tt_1,server2:tt_1]
 include/diff_tables.inc [server1:tt_2,server2:tt_2]
 include/diff_tables.inc [server1:nt_1,server2:nt_1]
 ###################################################################################
 #                                        CLEAN
 ###################################################################################
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

@@ -49,25 +49,25 @@
 # between source and replica memory regardless of GTIDs.
 --let $ignore_gtids_on_sync= 1
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Create a table on the source and replicate it.
 --echo #    Check the repo shows the same value as SHOW REPLICA STATUS
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Reduce this to a minimum
 --let $replica_checkpoint_period_value = `SELECT @@global.replica_checkpoint_period`
 SET @@GLOBAL.replica_checkpoint_period= 1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 INSERT INTO t1 VALUES (1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $srs_relay_log_pos = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Log_Pos, 1)
 --let $table_relay_log_pos = `SELECT Relay_log_pos FROM mysql.slave_relay_log_info`
@@ -88,20 +88,20 @@ INSERT INTO t1 VALUES (1);
 --echo #    Start replication and add some values to the table.
 --echo #    Check the repo shows the old values in relation to SHOW REPLICA STATUS
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, REQUIRE_ROW_FORMAT=1;
 
 --let $table_relay_log_pos_orig = `SELECT Relay_log_pos FROM mysql.slave_relay_log_info`
 --let $table_relay_log_name_orig = `SELECT Relay_log_name FROM mysql.slave_relay_log_info`
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (2);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $srs_relay_log_pos = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Log_Pos, 1)
 --let $table_relay_log_pos = `SELECT Relay_log_pos FROM mysql.slave_relay_log_info`
@@ -123,7 +123,7 @@ INSERT INTO t1 VALUES (2);
 --echo # 3. Stop replication
 --echo #    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $srs_relay_log_pos = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Log_Pos, 1)
 --let $table_relay_log_pos = `SELECT Relay_log_pos FROM mysql.slave_relay_log_info`
@@ -145,13 +145,13 @@ INSERT INTO t1 VALUES (2);
 --echo # 4. Start replication again
 --echo #    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (3);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $srs_relay_log_pos = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Log_Pos, 1)
 --let $table_relay_log_pos = `SELECT Relay_log_pos FROM mysql.slave_relay_log_info`
@@ -186,7 +186,7 @@ INSERT INTO t1 VALUES (3);
 --enable_query_log
 
 --let $slave_sql_errno= convert_error(ER_MTA_INCONSISTENT_DATA)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --let $srs_relay_log_pos = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Log_Pos, 1)
 --let $table_relay_log_pos = `SELECT Relay_log_pos FROM mysql.slave_relay_log_info`
@@ -215,7 +215,7 @@ INSERT INTO t1 VALUES (3);
 --echo # 6. Change a replication connection setting with CHANGE REPLICATION SOURCE
 --echo #    Check the repo now has the same value in relation to SHOW REPLICA STATUS
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 10000;
 
@@ -237,13 +237,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 10000;
 --echo # 7.  Restart the replica server
 --echo #    Check the repo still shows the old values
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (4);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $table_relay_log_pos_orig = `SELECT Relay_log_pos FROM mysql.slave_relay_log_info`
 --let $table_relay_log_name_orig = `SELECT Relay_log_name FROM mysql.slave_relay_log_info`
@@ -255,7 +255,7 @@ INSERT INTO t1 VALUES (4);
 
 --let $rpl_server_parameters= --skip_replica_start=FALSE
 --let $rpl_server_number = 2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $table_relay_log_pos = `SELECT Relay_log_pos FROM mysql.slave_relay_log_info`
 --let $table_relay_log_name = `SELECT Relay_log_name FROM mysql.slave_relay_log_info`
@@ -272,11 +272,11 @@ INSERT INTO t1 VALUES (4);
 --echo #    Execute a RESET REPLICA command
 --echo #    Check the repo persisted the reset position
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (5);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $srs_relay_log_pos = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Log_Pos, 1)
 --let $table_relay_log_pos = `SELECT Relay_log_pos FROM mysql.slave_relay_log_info`
@@ -285,7 +285,7 @@ INSERT INTO t1 VALUES (5);
 --let $assert_text= The repository position is not the one shown on show replica status
 --source include/assert.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 RESET REPLICA;
 
@@ -307,20 +307,20 @@ RESET REPLICA;
 --echo #
 --echo # 9. Check RESET REPLICA ALL removes all the information
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (6);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $table_relay_log_pos = `SELECT Relay_log_pos FROM mysql.slave_relay_log_info`
 --let $assert_cond= [ SELECT $table_relay_log_pos = 4 ]
 --let $assert_text= The repository position was persisted when the channel was initialized after the reset
 --source include/assert.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 RESET REPLICA ALL;
 
@@ -336,13 +336,13 @@ RESET REPLICA ALL;
 
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

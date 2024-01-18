@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,8 +8,8 @@ SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
 CREATE DATABASE db_wl7364;
 use db_wl7364;
 CREATE TABLE t1 (c1 INT);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 [connection master]
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -18,7 +18,7 @@ DELETE FROM t1 WHERE c1=2;
 COMMIT;
 [connection slave]
 # Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
 include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=db_wl7364, info LIKE "INSERT INTO t1 VALUES (1)", Query]
 include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
@@ -37,8 +37,8 @@ SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
 [connection master]
 SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
 TRUNCATE t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 # Removing debug point 'dbug.rpl_apply_sync_barrier' from @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -48,7 +48,7 @@ DELETE FROM t1 WHERE c1=2;
 COMMIT;
 [connection slave]
 # Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
 include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=db_wl7364, info IS NULL, Query]
 include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info IS NULL, command=Query]
@@ -109,10 +109,10 @@ DROP DATABASE db_wl7364;
 [connection master]
 use test;
 CREATE TABLE t1 (c1 INT);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 # Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
 USE test;
 BEGIN;
@@ -154,11 +154,11 @@ DROP TABLE t1;
 [connection master]
 use test;
 CREATE TABLE t1 (c1 INT);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 UPDATE performance_schema.setup_instruments SET ENABLED = 'NO' WHERE NAME LIKE 'stage/sql/Applying batch of row changes%';
 # Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
 USE test;
 BEGIN;
@@ -199,9 +199,9 @@ UPDATE performance_schema.setup_instruments SET ENABLED = 'YES' WHERE NAME LIKE 
 [connection slave]
 CREATE DATABASE db2;
 use db2;
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
 SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
 set sql_log_bin=0;
@@ -209,8 +209,8 @@ CREATE DATABASE db1;
 use db1;
 set sql_log_bin=1;
 CREATE TABLE t1 (c1 INT);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 [connection master]
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -219,7 +219,7 @@ DELETE FROM t1 WHERE c1=2;
 COMMIT;
 [connection slave]
 # Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
 include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=db2, info LIKE "INSERT INTO t1 VALUES (1)", Query]
 include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db2, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
@@ -237,9 +237,9 @@ include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db2, info LIKE "D
 SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
 [connection slave]
 # Removing debug point 'dbug.rpl_apply_sync_barrier' from @@GLOBAL.debug
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=();
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 DROP DATABASE db2;
 [connection master]
 set sql_log_bin=0;
@@ -249,5 +249,5 @@ set sql_log_bin=1;
 USE test;
 DROP TABLE t1;
 SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

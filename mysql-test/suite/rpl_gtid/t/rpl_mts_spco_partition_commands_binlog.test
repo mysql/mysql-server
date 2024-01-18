@@ -1,8 +1,8 @@
-# This is wrapper testcase of rpl_mts_spco_partition_commands.test to verify the behavior
+# This is wrapper testcase of common/rpl/rpl_mta_rpco_partition_commands.test to verify the behavior
 # of commands on partition tables with replica-preserve-commit-order enabled binlog slave.
 
 --source include/big_test.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
---source extra/rpl_tests/rpl_mts_spco_partition_commands.test
+--source common/rpl/rpl_mta_rpco_partition_commands.test

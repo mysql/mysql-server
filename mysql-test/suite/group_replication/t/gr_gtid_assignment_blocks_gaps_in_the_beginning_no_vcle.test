@@ -32,7 +32,7 @@
 --echo ############################################################
 --echo # 1. Start server 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL GTID_PURGED= "$group_replication_group_name:110-120"
 --let $assert_text= GTID_EXECUTED must be UUID:110-120
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:110-120"
@@ -48,7 +48,7 @@
 --echo ############################################################
 --echo # 2. Start server 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL GTID_PURGED= "$group_replication_group_name:110-120"
 --let $assert_text= GTID_EXECUTED must be UUID:110-120
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:110-120"
@@ -64,12 +64,12 @@
 --echo ############################################################
 --echo # 3. Execute a transaction on server 1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 --let $assert_text= GTID_EXECUTED must be UUID:1:110-120
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1:110-120"
 --source include/assert.inc
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -77,7 +77,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 --echo # 4. Execute a transaction on server 2.
 --echo #    A new interval will be used.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $gtid_assignment_block_size= `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size;`
 
 INSERT INTO t1 VALUES (NULL);
@@ -111,14 +111,14 @@ if ($gtid_assignment_block_size == 1)
   --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-12:110-120"
 }
 --source include/assert.inc
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
 --echo ############################################################
 --echo # 6. Execute a transaction on server 1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (NULL);
 --let $assert_text= assert GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-2:110-131"
@@ -150,7 +150,7 @@ if ($gtid_assignment_block_size == 1)
   --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-124"
 }
 --source include/assert.inc
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -158,7 +158,7 @@ if ($gtid_assignment_block_size == 1)
 --echo # 8. Execute a transaction on server 2.
 --echo #    A new interval will be used.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (NULL);
 --let $assert_text= assert GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-102:110-132"
@@ -167,7 +167,7 @@ if ($gtid_assignment_block_size == 1)
   --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-125"
 }
 --source include/assert.inc
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables= server1:test.t1, server2:test.t1
 --source include/diff_tables.inc
@@ -177,7 +177,7 @@ if ($gtid_assignment_block_size == 1)
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There are 113 values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 113
 --source include/assert.inc
@@ -188,7 +188,7 @@ if ($gtid_assignment_block_size == 1)
 --echo ############################################################
 --echo # 9. View changes are not logged.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 
@@ -201,7 +201,7 @@ if ($gtid_assignment_block_size == 1)
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= assert GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-102:110-132"
 if ($gtid_assignment_block_size == 1)

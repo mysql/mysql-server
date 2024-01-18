@@ -35,7 +35,7 @@ while ($_rpl_server <= $_rpl_server_max)
 
 
 # Set XCom configuration on all servers.
-# Order is from last to first server like on rpl_init.inc.
+# Order is from last to first server like on rpl/init.inc.
 --let $_rpl_server= $_rpl_gcs_server_number
 while ($_rpl_server)
 {

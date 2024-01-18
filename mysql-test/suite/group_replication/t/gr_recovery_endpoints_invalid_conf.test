@@ -45,7 +45,7 @@ SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "127.0.0.1:0";
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # 3. Assert server log message on wrong option on recovery endpoints
@@ -75,7 +75,7 @@ SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "127.0.0.1:360
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # 6. Assert server log message on wrong option on recovery endpoints
@@ -107,7 +107,7 @@ SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "128.0.0.1:360
  --source include/restart_mysqld.inc
 
  --let $rpl_server_number= 1
- --source include/rpl_reconnect.inc
+ --source include/rpl/reconnect.inc
 
 --error ER_DA_GRP_RPL_RECOVERY_ENDPOINT_INVALID
 START GROUP_REPLICATION;

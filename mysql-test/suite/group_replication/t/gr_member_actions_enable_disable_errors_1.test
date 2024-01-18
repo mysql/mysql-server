@@ -35,7 +35,7 @@
 --echo #    parameters.
 --echo #    It will not be allowed.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_enable_member_action();
@@ -109,11 +109,11 @@ SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if
 --echo # 5. Try to enable and disable a action on a secondary.
 --echo #    It will not be allowed.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 --source include/gr_assert_secondary_member.inc
 
@@ -135,7 +135,7 @@ SET GLOBAL super_read_only= 1;
 --echo #    super_read_only enabled.
 --echo #    It will not be allowed.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL super_read_only= 1;
 
 --error ER_CANT_INITIALIZE_UDF
@@ -151,7 +151,7 @@ SET GLOBAL super_read_only= 0;
 --echo ############################################################
 --echo # 7. Check that configuration was not changed.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= There must be two member actions
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2
@@ -174,7 +174,7 @@ SET GLOBAL super_read_only= 0;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= There must be two member actions
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2

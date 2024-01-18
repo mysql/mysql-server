@@ -1,5 +1,5 @@
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 connection slave;
 
@@ -8,9 +8,9 @@ show global variables like 'ndb_applier_conflict_role';
 #show replica status;
 
 --let $status_items=Replica_SQL_Running
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 STOP REPLICA sql_thread;
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 
 --echo Show set-to-same state is ok
 set global ndb_applier_conflict_role = NONE;
@@ -61,7 +61,7 @@ set global ndb_applier_conflict_role = "NONE";
 --echo Slave SQL thread running
 
 START REPLICA sql_thread;
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 
 --echo From NONE
 set global ndb_applier_conflict_role = "NONE";
@@ -169,7 +169,7 @@ set global ndb_applier_conflict_role = NON;
 
 START REPLICA sql_thread;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 --echo
 --echo # Reboot server setting with both ndb_slave_conflict_role & ndb_applier_conflict_role variable.

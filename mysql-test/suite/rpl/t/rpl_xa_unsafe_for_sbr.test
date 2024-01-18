@@ -18,9 +18,9 @@
 
 # This test case is specific to binlog_format=mixed
 --source include/have_binlog_format_mixed.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Suppression of error messages
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
 
@@ -71,24 +71,24 @@ COMMIT;
 XA START 'a';
 INSERT INTO t1 VALUES (5);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 XA START 'b';
 DELETE FROM t1 WHERE c1 > 5 AND c1 < 8;
 XA END 'b';
 XA PREPARE 'b';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 XA END 'a';
 XA PREPARE 'a';
 XA COMMIT 'a';
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 XA COMMIT 'b';
 
 --echo #
 --echo # Cleanup
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

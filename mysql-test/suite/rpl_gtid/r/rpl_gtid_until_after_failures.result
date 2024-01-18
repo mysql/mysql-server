@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1(c1 INTEGER PRIMARY KEY);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 include/suppress_messages.inc
 # Connection 2 suppresses message <Worker .* failed executing transaction>.
 # Connection 2 suppresses message <The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
@@ -30,7 +30,7 @@ SET sql_log_bin=1;
 INSERT INTO t1 VALUES(2);
 [connection slave]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:2";
-include/wait_for_slave_sql_error.inc [errno=1317,13121,1062]
+include/rpl/wait_for_applier_error.inc [errno=1317,13121,1062]
 
 ##############################################################
 # 2. Check general data failures are handled correctly for the last
@@ -41,7 +41,7 @@ INSERT INTO t1 VALUES(3);
 [connection slave]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:2";
 UNLOCK TABLES;
-include/wait_for_slave_sql_error.inc [errno=1317,13121,1062]
+include/rpl/wait_for_applier_error.inc [errno=1317,13121,1062]
 
 ##############################################################
 # 3. Cleanup
@@ -51,5 +51,5 @@ SET sql_log_bin=1;
 [connection master]
 DROP TABLE t1;
 [connection slave]
-include/start_slave_sql.inc
-include/rpl_end.inc
+include/rpl/start_applier.inc
+include/rpl/deinit.inc

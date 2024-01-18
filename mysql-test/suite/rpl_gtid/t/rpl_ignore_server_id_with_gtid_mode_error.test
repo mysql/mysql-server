@@ -26,9 +26,9 @@
 
 --source include/not_rpl_gtid_only.inc
 --let $rpl_skip_start_slave=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --echo #
 --echo # 1) Check that an error is emited when setting ignore_server_ids and GTID_MODE=ON
@@ -83,6 +83,6 @@ CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=() FOR CHANNEL '';
 RESET REPLICA ALL FOR CHANNEL 'ch1';
 SET @@global.gtid_mode=ON;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -316,7 +316,7 @@ set @a=2.345;
 insert delayed into t2 values(@a);
 Warnings:
 Warning	3005	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create table t20 select * from t1;
 create table t21 select * from t2;
 create table t22 select * from t3;
@@ -333,14 +333,14 @@ end|
 select f("try_41_");
 f("try_41_")
 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 use mysqltest1;
 insert into t2 values(2,null),(3,null),(4,null);
 delete from t2 where a>=2;
 select f("try_42_");
 f("try_42_")
 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 insert into t2 values(3,null),(4,null);
 delete from t2 where a>=3;
 prepare stmt1 from 'select f(?)';
@@ -350,7 +350,7 @@ execute stmt1 using @string;
 f(?)
 1
 deallocate prepare stmt1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create table t12 select * from t1;
 drop table t1;
 create table t1 (a int, b varchar(100), key(a));
@@ -376,14 +376,14 @@ end|
 select f1("try_46_"),f2("try_47_");
 f1("try_46_")	f2("try_47_")
 1	1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 insert into t2 values(2,null),(3,null),(4,null);
 delete from t2 where a>=2;
 select f1("try_48_"),f2("try_49_");
 f1("try_48_")	f2("try_49_")
 1	1
 insert into t3 values(concat("try_50_",f1("try_51_"),f2("try_52_")));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 drop function f2;
 create function f2 (x varchar(100)) returns int deterministic
 begin
@@ -395,7 +395,7 @@ end|
 select f1("try_53_"),f2("try_54_");
 f1("try_53_")	f2("try_54_")
 1	3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 drop function f2;
 create trigger t1_bi before insert on t1 for each row
 begin
@@ -404,14 +404,14 @@ end|
 insert into t1 values(null,"try_56_");
 alter table t1 modify a int, drop primary key;
 insert into t1 values(null,"try_57_");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TEMPORARY TABLE t15 SELECT UUID();
 create table t16 like t15;
 INSERT INTO t16 SELECT * FROM t15;
 insert into t16 values("try_65_");
 drop table t15;
 insert into t16 values("try_66_");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select count(*) from t1;
 count(*)
 7
@@ -448,7 +448,7 @@ count(*)
 select count(*) from t16;
 count(*)
 3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE IF EXISTS t11;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 Warnings:
@@ -467,7 +467,7 @@ UNLOCK TABLES;
 SELECT * FROM t11;
 song	Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict
 song	Careful With That Axe, Eugene
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 USE mysqltest1;
 SELECT * FROM t11;
 song	Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict
@@ -480,7 +480,7 @@ CREATE TABLE t12 (data LONG);
 LOCK TABLES t12 WRITE;
 INSERT INTO t12 VALUES(UUID());
 UNLOCK TABLES;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE FUNCTION my_user()
 RETURNS CHAR(64)
 BEGIN
@@ -501,10 +501,10 @@ INSERT INTO t13 VALUES (USER());
 INSERT INTO t13 VALUES (my_user());
 INSERT INTO t13 VALUES (CURRENT_USER());
 INSERT INTO t13 VALUES (my_current_user());
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 drop database mysqltest1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set global binlog_format =@my_binlog_format;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/rpl_end.inc
+include/rpl/deinit.inc

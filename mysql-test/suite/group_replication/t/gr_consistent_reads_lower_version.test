@@ -22,20 +22,20 @@
 --echo ############################################################
 --echo # 01. Create one table on the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
 --echo ############################################################
 --echo # 02. Force that there is a lower version member.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_force_lower_version_on_group_replication_consistency';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_force_lower_version_on_group_replication_consistency';
 
 
@@ -68,10 +68,10 @@ INSERT INTO t1 VALUES (3);
 # Wait until server1 applier handles all transactions.
 SET @@SESSION.group_replication_consistency= DEFAULT;
 INSERT INTO t1 VALUES (0);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= '1 exists in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
@@ -86,7 +86,7 @@ INSERT INTO t1 VALUES (0);
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= '1 exists in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
@@ -105,12 +105,12 @@ INSERT INTO t1 VALUES (0);
 --echo ############################################################
 --echo # 07. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 SET @@GLOBAL.DEBUG= '-d,group_replication_force_lower_version_on_group_replication_consistency';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_force_lower_version_on_group_replication_consistency';
 
 --source include/group_replication_end.inc

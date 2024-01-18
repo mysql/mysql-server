@@ -46,14 +46,14 @@
 # Added in WL#3584 - Global Transaction Identifiers
 
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_debug.inc
 
 --echo ######## Initialize ########
 
 --let $master_uuid= `SELECT @@SERVER_UUID`
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $corruption_mode_count= 2
 --let $restart_count= 2
@@ -68,7 +68,7 @@ while ($corruption_mode <= $corruption_mode_count)
   --echo ######## corruption_mode = $corruption_mode of $corruption_mode_count ########
   --echo Phase one: Generating logs
 
-  --source include/rpl_reset.inc
+  --source include/rpl/reset.inc
 
   # Restart the server three times
   --let $restart_i= 1
@@ -78,17 +78,17 @@ while ($corruption_mode <= $corruption_mode_count)
     --echo ======== restart_i = $restart_i of $restart_count ========
 
     --connection slave
-    --source include/stop_slave.inc
+    --source include/rpl/stop_replica.inc
 
     --let $rpl_server_number= 1
     --let $rpl_start_with_gtids= 1
     --let $rpl_server_parameters= \$corruption_mode_flag_$corruption_mode
-    --source include/rpl_restart_server.inc
+    --source include/rpl/restart_server.inc
 
     --let $rpl_server_parameters=
-    --source include/rpl_restart_server.inc
+    --source include/rpl/restart_server.inc
 
-    --source include/start_slave.inc
+    --source include/rpl/start_replica.inc
     --connection master
 
     # For each restart, flush the log three times
@@ -108,7 +108,7 @@ while ($corruption_mode <= $corruption_mode_count)
       FLUSH LOGS;
 
       --echo [on slave]
-      --source include/sync_slave_sql_with_master.inc
+      --source include/rpl/sync_to_replica.inc
 
       --let $assert_text= no gtids lost yet on slave
       --let $assert_cond= @@GTID_PURGED = ""
@@ -136,7 +136,7 @@ while ($corruption_mode <= $corruption_mode_count)
   }
   FLUSH LOGS;
 
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
   --connection master
 
   --echo ######## corruption_mode = $corruption_mode ########
@@ -149,12 +149,12 @@ while ($corruption_mode <= $corruption_mode_count)
   {
     --echo ======== restart_i = $restart_i of $restart_count ========
 
-    --source include/purge_first_log.inc
+    --source include/rpl/purge_first_binlog.inc
     --let $assert_text= lost gtids from 1 to $gno on master
     --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
     --source include/assert.inc
 
-    --source include/purge_first_log.inc
+    --source include/rpl/purge_first_binlog.inc
     --let $assert_text= lost gtids from 1 to $gno on master
     --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
     --source include/assert.inc
@@ -164,7 +164,7 @@ while ($corruption_mode <= $corruption_mode_count)
     {
       # Purge one log for each FLUSH LOGS above.
       --echo -------- flush_i = $flush_i of $flush_count --------
-      --source include/purge_first_log.inc
+      --source include/rpl/purge_first_binlog.inc
       --let $assert_text= lost gtids from 1 to $gno on master
       --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
       --source include/assert.inc
@@ -178,7 +178,7 @@ while ($corruption_mode <= $corruption_mode_count)
         --inc $transaction_i
       }
 
-      --source include/purge_first_log.inc
+      --source include/rpl/purge_first_binlog.inc
       --let $assert_text= lost gtids from 1 to $gno on master
       --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
       --source include/assert.inc
@@ -195,4 +195,4 @@ while ($corruption_mode <= $corruption_mode_count)
 --echo ######## Clean up ########
 --connection master
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

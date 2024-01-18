@@ -76,7 +76,7 @@ if (!$ddl_statement)
 --echo # 1. Deploy a group in single-primary mode.  server1 is the
 --echo #    primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_and_bootstrap_group_replication.inc
 if ($ddl_preparation_statement)
@@ -86,7 +86,7 @@ if ($ddl_preparation_statement)
 }
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_group_replication.inc
 
@@ -96,7 +96,7 @@ if ($ddl_preparation_statement)
 --echo # 2. Start a DDL statement on server1, but do not let it complete yet.
 # server_1_1: Send some DDL to server1, and use debug feature to make it "hang".
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 if ($ddl_transaction_statement)
 {
@@ -110,7 +110,7 @@ SET DEBUG_SYNC= 'execute_command_before_main_switch SIGNAL ddl_running WAIT_FOR 
 
 # server1: Wait for DDL to complete on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'now WAIT_FOR ddl_running';
 
 
@@ -119,7 +119,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR ddl_running';
 --echo # 3. Set server2 as primary. The primary change must wait
 --echo #    until the DDL statement has completed.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server2_uuid SERVER2_UUID
 --send_eval SELECT group_replication_set_as_primary("$server2_uuid")
 
@@ -131,7 +131,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR ddl_running';
 --echo #    finishes. (And that statement of course can not finish
 --echo #    yet as it is hanging on DEBUG_SYNC.)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait for the primary-change to begin.
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Primary Switch: waiting for pending transactions to finish"
@@ -147,12 +147,12 @@ SET DEBUG_SYNC= 'now WAIT_FOR ddl_running';
 --echo ############################################################
 --echo # 5. Let the DDL statement finish.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'now SIGNAL ddl_resume';
 
 # server_1_1: reap DDL statement once it completes.
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
@@ -164,14 +164,14 @@ SET DEBUG_SYNC= 'RESET';
 
 # server_1: reap "change primary" when it completes.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server2_uuid SERVER2_UUID
 --reap
 --source include/gr_assert_secondary_member.inc
 
 # server2: prove that this is now the primary.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_primary_member.inc
 
 
@@ -181,11 +181,11 @@ SET DEBUG_SYNC= 'RESET';
 --echo #    the 'group_replication_applier' channel.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name= 'group_replication_applier'
 --let $binlog_file= server-relay-log-group_replication_applier.000002
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 
 --let $rpl_channel_name=
 
@@ -196,21 +196,21 @@ SET DEBUG_SYNC= 'RESET';
 
 # Run clean-up statement if caller defined one.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 if ($ddl_cleanup_statement)
 {
   --echo # The clean-up statement for our earlier test statement:
   --eval $ddl_cleanup_statement
-  --source include/rpl_sync.inc
+  --source include/rpl/sync.inc
 }
 
 # Stop replication.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

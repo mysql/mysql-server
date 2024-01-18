@@ -37,7 +37,7 @@ SET GLOBAL group_replication_clone_threshold= 1;
 #    Joiner must fail to join the group.
 
 START GROUP_REPLICATION;
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 6. Confirm value of PRIVILEGE_CHECKS_USER is preserved pre and post GR start.
 

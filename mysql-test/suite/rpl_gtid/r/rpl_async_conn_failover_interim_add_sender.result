@@ -1,4 +1,4 @@
-include/master-slave.inc [rpl_server_count=3]
+include/rpl/init_source_replica.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server_1]
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_2]
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression(".*The Monitor IO thread encountered an error while executing the query to check connection to the source server. Error: Can't connect to MySQL server.*");
@@ -27,9 +27,9 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #    count and retry time to 2 and verify its enabled in
 #    performance_schema.replication_connection_configuration.
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 #
 # 4. Add three asynchronous connection failover servers including
@@ -61,7 +61,7 @@ include/assert.inc ['There are three rows in performance_schema.replication_asyn
 #
 SET @old_debug= @@global.debug;
 SET GLOBAL debug = '+d,async_conn_failover_wait_new_sender, async_conn_failover_check_interim_sender';
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 [connection server_2]
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_sender_selection';
 SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 50001, '', 80);;
@@ -93,10 +93,10 @@ include/assert_grep.inc [Assert that the IO thread tried two times connecting to
 #    consider wl#12649 FR8 and remove the last failing sender from sender
 #    to be considered for async failover connection.
 #
-include/rpl_start_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
 [connection server_2]
 SET GLOBAL debug = '+d,async_conn_failover_wait_new_4sender';
-include/rpl_stop_server.inc [server_number=3]
+include/rpl/stop_server.inc [server_number=3]
 [connection server_2]
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_4sender_selection';
 SET GLOBAL debug = '-d,async_conn_failover_wait_new_4sender';
@@ -108,8 +108,8 @@ SET DEBUG_SYNC= 'now SIGNAL continue_connect_new_4sender';
 DROP TABLE t1;
 [connection server_2]
 SET GLOBAL debug= @old_debug;
-include/stop_slave.inc
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/reset_replica.inc
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '');;
 asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
@@ -123,5 +123,5 @@ SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 50001, ''
 asynchronous_connection_failover_delete_source('', '127.0.0.1', 50001, '')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
 DROP TABLE IF EXISTS t1;
-include/rpl_start_server.inc [server_number=3]
-include/rpl_end.inc
+include/rpl/start_server.inc [server_number=3]
+include/rpl/deinit.inc

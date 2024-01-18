@@ -23,21 +23,21 @@ call mtr.add_suppression("Statement is unsafe because it is being used inside a 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Error messages suppression on slave
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("GTID_LOG_EVENT.* is not expected in an event stream");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since*");
 # Disable GTID auto positioning
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
-#--source include/start_slave.inc
+#--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 # Create a DDL with a USER_VAR event
 SET @var= 10;
@@ -59,7 +59,7 @@ INSERT INTO t1 VALUES(2);
 --replace_result $master_uuid MASTER_UUID
 # Make the non-GTID binlog event stream just like GTID one
 --let $mask_anonymous_gtid_events= 1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 ###
 ### Set some parameter that will be used in the event count loop
@@ -76,7 +76,7 @@ INSERT INTO t1 VALUES(2);
 ###
 ### Prepare to count the events queued the the IO thread
 ###
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Get the master.info file path (the $MYSQLD_SLAVE_DATADIR)
 --let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
 --let $debug_point= pause_on_queuing_event
@@ -100,8 +100,8 @@ while ($event_counter <= $expected_amount_of_events)
   # no more events to retrieved after it.
   if ($event_counter == $expected_amount_of_events)
   {
-    --source include/rpl_connection_master.inc
-    --source include/sync_slave_io_with_master.inc
+    --source include/rpl/connection_source.inc
+    --source include/rpl/sync_to_replica_received.inc
   }
   # For all retrieved events after the PREVIOUS_GTIDs
   if ($event_counter > 2)
@@ -110,7 +110,7 @@ while ($event_counter <= $expected_amount_of_events)
     --let $master_pos= query_get_value(SHOW RELAYLOG EVENTS IN 'slave-relay-bin.000002' FROM $master_pos, Pos, 2)
     --let $binlog_start= $master_pos
     --let $binlog_file= slave-relay-bin.000002
-    --source include/show_relaylog_events.inc
+    --source include/rpl/deprecated/show_relaylog_events.inc
   }
   # We can remove the debug point after reaching the event before
   # the last expected event
@@ -147,7 +147,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 8
 --let $restart_at= 8
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] GTID_LOG_EVENT.* is not expected.*
 --let $assert_text= Case 1 found the expected warning line in the error log.
@@ -159,7 +159,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 6
 --let $restart_at= 8
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] GTID_LOG_EVENT.* is not expected.*
 --let $assert_text= Case 2 found the expected warning line in the error log.
@@ -171,7 +171,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 11
 --let $restart_at= 10
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] GTID_LOG_EVENT.* is not expected.*
 --let $assert_text= Case 3 found the expected warning line in the error log.
@@ -183,7 +183,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 6
 --let $restart_at= 11
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(BEGIN\) is not expected.*
 --let $assert_text= Case 4 found the expected warning line in the error log.
@@ -195,7 +195,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 11
 --let $restart_at= 11
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(BEGIN\) is not expected.*
 --let $assert_text= Case 5 found the expected warning line in the error log.
@@ -207,7 +207,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 9
 --let $restart_at= 13
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 6.a found the expected warning line in the error log.
@@ -219,7 +219,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 9
 --let $restart_at= 19
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 6.b found the expected warning line in the error log.
@@ -231,7 +231,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 8
 --let $restart_at= 13
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 7.a found the expected warning line in the error log.
@@ -243,7 +243,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 8
 --let $restart_at= 19
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 7.b found the expected warning line in the error log.
@@ -255,7 +255,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 6
 --let $restart_at= 13
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 8.a found the expected warning line in the error log.
@@ -267,7 +267,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 6
 --let $restart_at= 19
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 8.b found the expected warning line in the error log.
@@ -279,7 +279,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 6
 --let $restart_at= 26
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(XA ROLLBACK\) is not expected.*
 --let $assert_text= Case 9.a found the expected warning line in the error log.
@@ -291,7 +291,7 @@ while ($event_counter <= $expected_amount_of_events)
 --echo #
 --let $stop_after= 9
 --let $restart_at= 26
---source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
+--source common/rpl/trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(XA ROLLBACK\) is not expected.*
 --let $assert_text= Case 9.b found the expected warning line in the error log.
@@ -304,12 +304,12 @@ while ($event_counter <= $expected_amount_of_events)
 # Restart the slave
 --let $rpl_server_number= 2
 --let $rpl_force_stop=0
---source include/rpl_stop_server.inc
---source include/rpl_start_server.inc
+--source include/rpl/stop_server.inc
+--source include/rpl/start_server.inc
 
 # Reset the slave and enable GTID auto positioning if needed
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
@@ -321,7 +321,7 @@ if ($use_gtids)
   CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
   --enable_query_log
 }
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 ###
 ### Cleanup
@@ -329,8 +329,8 @@ if ($use_gtids)
 # Remove backup positions
 DROP TABLE saved_positions;
 # Drop the created tables
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2;
 DROP EVENT ev1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

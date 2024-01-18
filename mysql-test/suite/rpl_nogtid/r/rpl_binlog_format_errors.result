@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -23,7 +23,7 @@ CREATE TRIGGER trig_double_autoinc BEFORE INSERT ON t_double_autoinc FOR EACH RO
 CREATE DATABASE other;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE t_slave_stmt;
 CREATE TABLE t_slave_stmt (a INT) ENGINE = EXAMPLE;
 [on master]
@@ -52,7 +52,7 @@ a
 INSERT INTO t_slave_stmt VALUES (1);
 [on slave]
 [connection slave]
-include/wait_for_slave_sql_error_and_skip.inc [errno=1664]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=1664]
 Last_SQL_Error = 'Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and at least one table uses a storage engine limited to statement-based logging.''
 [connection slave]
 SELECT * FROM t_slave_stmt /* should be empty */;
@@ -69,10 +69,10 @@ SELECT * FROM t_stmt /* should be empty */;
 a
 ---- binlog_format=mixed ----
 [on slave]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET @@global.binlog_format = MIXED;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [on master]
 [connection master]
 SET @@global.binlog_format = MIXED;
@@ -91,10 +91,10 @@ a
 /* should be empty */;
 ---- binlog_format=statement ----
 [on slave]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET @@global.binlog_format = STATEMENT;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [on master]
 [connection master]
 SET @@global.binlog_format = STATEMENT;
@@ -159,7 +159,7 @@ SET @@session.binlog_format = MIXED;
 INSERT INTO t VALUES (COALESCE(1, UUID()));
 [on slave]
 [connection slave]
-include/wait_for_slave_sql_error_and_skip.inc [errno=1666]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=1666]
 Last_SQL_Error = 'Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and BINLOG_FORMAT = STATEMENT.''
 [connection slave]
 SELECT * FROM t /* should be empty */;
@@ -175,10 +175,10 @@ SET @@global.binlog_format = @old_binlog_format;
 SET @@session.binlog_format = @old_binlog_format;
 UNINSTALL PLUGIN example;
 [on slave]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET @@global.binlog_format = @old_binlog_format;
 SET @@session.binlog_format = @old_binlog_format;
-include/start_slave.inc
+include/rpl/start_replica.inc
 UNINSTALL PLUGIN example;
-include/rpl_end.inc
+include/rpl/deinit.inc

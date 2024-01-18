@@ -15,9 +15,9 @@
 # an artificial failure.
 --source include/not_binlog_transaction_compression_on.inc 
 
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 
 # run the tests
---source extra/binlog_tests/binlog_storage_iterator.inc
+--source common/binlog/storage_iterator.inc
 
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc

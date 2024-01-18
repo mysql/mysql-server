@@ -30,8 +30,8 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo ##############################################################
@@ -45,7 +45,7 @@ CREATE TABLE t2 (f1 INT) ENGINE=InnoDB;
 
 CREATE TABLE t3 (f1 TEXT);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 ALTER TABLE t2 ADD f2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY AFTER f1;
 
@@ -58,7 +58,7 @@ ALTER TABLE t3 ADD f2 INT NOT NULL AUTO_INCREMENT KEY AFTER f1;
 --echo #    too large to be grouped with other in a single log event
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --delimiter |
 CREATE TRIGGER insert_trigger BEFORE INSERT ON t1
@@ -77,7 +77,7 @@ CREATE FUNCTION multi_event_function() RETURNS INT BEGIN
 END|
 --delimiter ;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo ##############################################################
@@ -86,13 +86,13 @@ END|
 --echo #    Execute the multi_event_function() on the source
 --echo #    Validate that the table t3 on the replica has the expected values
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (99);
 
 SELECT multi_event_function();
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $column_count= `SELECT COUNT(*) FROM t2 WHERE f2 IN (1,2);`
 --let $assert_text= The trigger associated table was updated
@@ -108,7 +108,7 @@ SELECT multi_event_function();
 --echo ##############################################################
 --echo # 4. Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP FUNCTION multi_event_function;
 DROP TRIGGER insert_trigger;
@@ -116,5 +116,5 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

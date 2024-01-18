@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -29,7 +29,7 @@ INSERT INTO t1 VALUES (2);
 
 SET GTID_NEXT= "AUTOMATIC:aa";
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # 5. On the replica: Check pass condition 1:
 #    There should be 1 transaction with a specified UUID and
@@ -81,4 +81,4 @@ AUTOMATIC:tag_tag_tag_tag_tag_tag_tag_tag_
 # Clean-up
 
 SET GTID_NEXT= "AUTOMATIC";
-include/rpl_end.inc
+include/rpl/deinit.inc

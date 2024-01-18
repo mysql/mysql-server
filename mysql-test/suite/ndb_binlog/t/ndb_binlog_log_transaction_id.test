@@ -12,7 +12,7 @@ create table t2 (a int primary key, b int) engine=ndb;
 insert into t1 values (1,1);
 
 let $wait_binlog_event= COMMIT;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --source suite/ndb_binlog/t/ndb_binlog_get_row_extra_data.inc
 reset binary logs and gtids;
 
@@ -20,7 +20,7 @@ reset binary logs and gtids;
 insert into t1 values (2,2);
 
 let $wait_binlog_event= COMMIT;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --source suite/ndb_binlog/t/ndb_binlog_get_row_extra_data.inc
 reset binary logs and gtids;
 
@@ -28,7 +28,7 @@ reset binary logs and gtids;
 update t1 set b=20 where a=2;
 
 let $wait_binlog_event= COMMIT;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --source suite/ndb_binlog/t/ndb_binlog_get_row_extra_data.inc
 reset binary logs and gtids;
 
@@ -37,7 +37,7 @@ reset binary logs and gtids;
 delete from t1;
 
 let $wait_binlog_event= COMMIT;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --source suite/ndb_binlog/t/ndb_binlog_get_row_extra_data.inc
 reset binary logs and gtids;
 
@@ -50,7 +50,7 @@ insert into t1 values (5,5);
 commit;
 
 let $wait_binlog_event= COMMIT;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --source suite/ndb_binlog/t/ndb_binlog_get_row_extra_data.inc
 reset binary logs and gtids;
 
@@ -62,7 +62,7 @@ delete from t1 where a=5;
 commit;
 
 let $wait_binlog_event= COMMIT;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --source suite/ndb_binlog/t/ndb_binlog_get_row_extra_data.inc
 reset binary logs and gtids;
 
@@ -75,7 +75,7 @@ insert into t2 values (8,8);
 commit;
 
 let $wait_binlog_event= COMMIT;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --source suite/ndb_binlog/t/ndb_binlog_get_row_extra_data.inc
 reset binary logs and gtids;
 
@@ -85,7 +85,7 @@ insert into t1 values (8,8);
 insert into t1 values (9,9);
 
 let $wait_binlog_event= COMMIT;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --source suite/ndb_binlog/t/ndb_binlog_get_row_extra_data.inc
 reset binary logs and gtids;
 
@@ -96,7 +96,7 @@ update t1 set b=100 where a=10;
 delete from t1 where a=10;
 
 let $wait_binlog_event= COMMIT;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --source suite/ndb_binlog/t/ndb_binlog_get_row_extra_data.inc
 reset binary logs and gtids;
 
@@ -113,7 +113,7 @@ delete from t2;
 commit;
 
 let $wait_binlog_event= COMMIT;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --source suite/ndb_binlog/t/ndb_binlog_get_row_extra_data.inc
 reset binary logs and gtids;
 

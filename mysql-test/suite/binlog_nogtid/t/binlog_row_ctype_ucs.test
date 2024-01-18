@@ -7,5 +7,5 @@
 # additional things in it when compression is enabled
 -- source include/not_binlog_transaction_compression_on.inc
 
--- source extra/binlog_tests/ctype_ucs_binlog.test
+-- source common/binlog/ctype_ucs_binlog.test
 

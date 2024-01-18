@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1. Create a table on server1.
 [connection server1]
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 2. Set a debug sync before broadcast message to group on
@@ -80,7 +80,7 @@ XA PREPARE 'trx2';
 #    certification, since server_1 is blocked before broadcast.
 [connection server2]
 INSERT INTO t1 VALUES (3);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ############################################################
 # 4. Signal the waiting thread on server_1 to resume.
@@ -93,7 +93,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 #    been removed.
 [connection server_1]
 XA COMMIT 'trx2';
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 6. Assert that number of certified transactions are the

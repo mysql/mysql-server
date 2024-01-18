@@ -1,64 +1,64 @@
-include/rpl_init.inc [topology=none]
+include/rpl/init.inc [topology=none]
 CALL mtr.add_suppression("option 'enforce-gtid-consistency': value '.*' was");
 ==== No option: defaults to 0 ====
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 OFF
 ==== Option given without value: defaults to 1 ====
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 ON
 ==== Option given with invalid values: defaults to 0 ====
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 OFF
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=homersimpson]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=homersimpson]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 OFF
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=-1]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=-1]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 OFF
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=3]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=3]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 OFF
 ==== Option given with correct value, equal to 1 ====
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=1]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=1]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 ON
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=on]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=on]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 ON
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=true]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=true]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 ON
 ==== Option given with correct value, equal to 2 ====
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=2]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=2]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 WARN
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=warn]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=warn]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 WARN
 ==== Option given with correct value, equal to 0 ====
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=0]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=0]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 OFF
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=off]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=off]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 OFF
-include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=false]
+include/rpl/restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=false]
 SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 @@GLOBAL.ENFORCE_GTID_CONSISTENCY
 OFF
-include/rpl_end.inc
+include/rpl/deinit.inc

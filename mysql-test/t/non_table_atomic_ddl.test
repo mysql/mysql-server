@@ -39,7 +39,7 @@ SHOW CREATE PROCEDURE p;
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE FUNCTION f;
 --echo # Binlog event for failed create routine statement is not created.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Routines are created and binlog event is written on a transaction
 --echo # commit.
@@ -47,7 +47,7 @@ CREATE PROCEDURE p() SELECT 1;
 CREATE FUNCTION f() RETURNS INT return 1;
 SHOW CREATE PROCEDURE p;
 SHOW CREATE FUNCTION f;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to verify if ALTER routine statement is atomic/crash safe.
@@ -72,14 +72,14 @@ SET SESSION DEBUG="-d,simulate_alter_routine_xcommit_failure";
 SHOW CREATE PROCEDURE p;
 SHOW CREATE FUNCTION f;
 --echo # Binlog event for failed ALTER routine statement is not created.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Routines are altered and binlog event is written on a transaction commit.
 ALTER FUNCTION f comment "atomic DDL on routine";
 ALTER PROCEDURE p comment "atomic DDL on routine";
 SHOW CREATE FUNCTION f;
 SHOW CREATE PROCEDURE p;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to verify if DROP routine statement is atomic/crash safe.
@@ -96,12 +96,12 @@ SET SESSION DEBUG="-d,simulate_drop_routine_failure";
 SHOW CREATE PROCEDURE p;
 SHOW CREATE FUNCTION f;
 --echo # Binlog event for failed drop routine statement is not created.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Routines are dropped and binlog event is written on transaction commit.
 DROP FUNCTION f;
 DROP PROCEDURE p;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE PROCEDURE p;
 --error ER_SP_DOES_NOT_EXIST
@@ -120,7 +120,7 @@ CREATE TABLE t1(a INT);
 CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 --replace_column 6 # 7 # 8 # 9 # 10 # 11 #
 SHOW TRIGGERS;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to verify if CREATE trigger statement is atomic/crash safe.
@@ -135,13 +135,13 @@ SET SESSION DEBUG="-d,simulate_create_trigger_failure";
 --replace_column 6 # 7 # 8 # 9 # 10 # 11 #
 SHOW TRIGGERS;
 --echo # Binlog for failed create trigger statement is not created.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Trigger is created and binlog event is written on a transaction commit.
 CREATE TRIGGER trig2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
 --replace_column 6 # 7 # 8 # 9 # 10 # 11 #
 SHOW TRIGGERS;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to verify if DROP trigger statement is atomic/crash safe.
@@ -157,13 +157,13 @@ SET SESSION DEBUG="-d,simulate_drop_trigger_failure";
 --replace_column 6 # 7 # 8 # 9 # 10 # 11 #
 SHOW TRIGGERS;
 --echo # Binlog for failed drop trigger statement is not created.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Trigger is dropped and binlog event is written on a transaction commit.
 DROP TRIGGER trig2;
 --replace_column 6 # 7 # 8 # 9 # 10 # 11 #
 SHOW TRIGGERS;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 DROP TABLE t1;
 
@@ -189,19 +189,19 @@ SET SESSION DEBUG="-d,simulate_create_event_failure";
 --replace_column 3 # 4 # 9 # 10 # 13 # 14 # 15 #
 SHOW EVENTS;
 --echo # Binlog event for failed create event statement is not created.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # DD object for event is stored and binlog is written in a transaction
 --echo # commit cases.
 CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1;
 --replace_column 3 # 4 # 9 # 10 # 13 # 14 # 15 #
 SHOW EVENTS;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Binlog event for "create event if not exists" statement is
 --echo # created on a transaction commit.
 CREATE EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to verify if ALTER EVENT statement is atomic/crash safe.
@@ -216,13 +216,13 @@ SET SESSION DEBUG="-d,simulate_alter_event_failure";
 --replace_column 3 # 4 # 9 # 10 # 13 # 14 # 15 #
 SHOW EVENTS;
 --echo # Binlog event for failed alter event statement is not created.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Event is altered and binlog event is written on a transaction commit.
 ALTER EVENT event1 COMMENT "Atomic Event's DDL";
 --replace_column 3 # 4 # 9 # 10 # 13 # 14 # 15 #
 SHOW EVENTS;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to verify if DROP EVENT statement is atomic/crash safe.
@@ -238,14 +238,14 @@ SET SESSION DEBUG="-d,simulate_drop_event_failure";
 --replace_column 3 # 4 # 9 # 10 # 13 # 14 # 15 #
 SHOW EVENTS;
 --echo # Binlog event for failed drop event statement is not created.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Event is dropped and binlog event is written on a transaction commit.
 DROP EVENT event1;
 DROP EVENT IF EXISTS event1;
 --replace_column 3 # 4 # 9 # 10 # 13 # 14 # 15 #
 SHOW EVENTS;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #########################################################################
 --echo # D. TEST CASES FOR DDL ON VIEWS.                                       #
@@ -260,7 +260,7 @@ CREATE VIEW v1 AS SELECT 1;
 CREATE VIEW v2 AS SELECT * FROM v1;
 DROP VIEW v1;
 SHOW CREATE VIEW v2;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to verify if CREATE VIEW statement is atomic/crash safe.
@@ -280,7 +280,7 @@ SHOW CREATE VIEW v1;
 --echo # View v2 state remains as invalid after transaction rollback.
 SHOW CREATE VIEW v2;
 --echo # Binlog for failed create view is not written.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # On transaction commit, DD object of view is stored and binlog
 --echo # event for view v1 is written.
@@ -290,7 +290,7 @@ SHOW CREATE VIEW v1;
 SHOW CREATE VIEW v2;
 --echo # View v1 is listed.
 SHOW TABLES;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to verify if ALTER VIEW statement is atomic/crash safe.
@@ -307,7 +307,7 @@ SHOW TABLES;
 SHOW CREATE VIEW v1;
 SHOW CREATE VIEW v2;
 --echo # Binlog for failed alter view is not written.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # On a transaction commit, DD object of view is stored and binlog
 --echo # event for view v1 is written.
@@ -315,7 +315,7 @@ ALTER VIEW v1 AS SELECT 1 as a1, 2 AS a2;
 SHOW CREATE VIEW v1;
 SHOW CREATE VIEW v2;
 SHOW TABLES;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to verify if DROP VIEW statement is atomic/crash safe.
@@ -332,18 +332,18 @@ SHOW CREATE VIEW v1;
 SHOW CREATE VIEW v2;
 SHOW TABLES;
 --echo # Binlog for failed drop view is not written.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # On a transaction commit, DD object of view is dropped and binlog
 --echo # event for view v1 is written.
 DROP VIEW v1;
 SHOW CREATE VIEW v2;
 SHOW TABLES;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # v1 view does not exists so only binlog is written in this case.
 DROP VIEW IF EXISTS v1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 CREATE VIEW v3 AS SELECT 1;
 CREATE VIEW v4 AS SELECT 1;
@@ -352,11 +352,11 @@ CREATE TABLE t1(f1 int);
 DROP VIEW t1, v3, v4;
 --echo # No binlog event is written in statement failure because of table
 --echo # usage in the statement.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --echo # Existing views v4 & v5 are dropped and binlog is written in this
 --echo # case.
 DROP VIEW IF EXISTS v3, v4, v5;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 #Clean up
 DROP VIEW v2;
@@ -388,7 +388,7 @@ CREATE TABLE t1(f1 INT);
 CREATE FUNCTION f() RETURNS INT return 1;
 CREATE VIEW v1 AS SELECT 2 as f2;
 CREATE VIEW v2 AS SELECT f() as f1, v1.f2 FROM v1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Acquire metadata lock on view v2.
 SET DEBUG_SYNC="rm_table_no_locks_before_delete_table SIGNAL drop_func WAIT_FOR go";
@@ -400,13 +400,13 @@ SET DEBUG_SYNC="now WAIT_FOR drop_func";
 --echo # times out.
 --error ER_LOCK_WAIT_TIMEOUT
 DROP FUNCTION f;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Drop function "f" fails as lock acquire on view "v2" referencing "f"
 --echo # times out.
 --error ER_LOCK_WAIT_TIMEOUT
 DROP VIEW v1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 SET DEBUG_SYNC="now SIGNAL go";
 
 --connection default
@@ -449,7 +449,7 @@ DROP VIEW v1, v2;
 SET GLOBAL lock_wait_timeout= @orig_lock_wait_timeout;
 --disable_connect_log
 --echo # Binlog should not contain any event from failed statements.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to cover stored routine and view object acquire method
@@ -482,7 +482,7 @@ SET SESSION DEBUG='-d,fail_while_acquiring_view_obj';
 DROP VIEW v1;
 
 --echo # Binlog should not contain any event from failed statements.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Test case to cover store routine drop object method failure.
@@ -494,7 +494,7 @@ DROP FUNCTION f1;
 SET DEBUG='-d,fail_while_dropping_dd_object';
 DROP FUNCTION f1;
 --echo # Binlog should not contain any event from failed statements.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #########################################################################
 

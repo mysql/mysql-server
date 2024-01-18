@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -10,7 +10,7 @@
 
 CREATE USER userX;
 CREATE ROLE roleX;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Execute CREATE ROLE for existing users
 
@@ -25,7 +25,7 @@ SELECT user FROM mysql.user WHERE user LIKE 'role%';
 --let $event= !Q(CREATE ROLE.*userZ.*roleZ.*userX.*roleX.*)
 --source ../include/auth_sec_assert_binlog_events.inc
 --let $invert= 0
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 2 : Execute CREATE ROLE for non-existing users
 
@@ -39,7 +39,7 @@ SELECT user FROM mysql.user WHERE user LIKE 'role%';
 
 DROP USER userX;
 DROP ROLE roleX, roleZ, roleA;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for CREATE ROLE
 
@@ -48,7 +48,7 @@ DROP ROLE roleX, roleZ, roleA;
 --echo # Begin : Tests for CREATE ROLE IF NOT EXISTS
 
 CREATE ROLE roleX;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Execute CREATE ROLE IF NOT EXISTS for exising and non-existing users
 
@@ -59,7 +59,7 @@ SELECT user FROM mysql.user WHERE user LIKE 'role%';
 
 --let $event= !Q(CREATE ROLE IF NOT EXISTS.*roleX.*roleY.*roleZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # case 2 : Execute CREATE ROLE IF NOT EXISTS for existing users
 
@@ -69,7 +69,7 @@ CREATE ROLE IF NOT EXISTS roleX, roleY, roleZ;
 --source ../include/auth_sec_assert_binlog_events.inc
 
 DROP ROLE roleX, roleY, roleZ;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --echo # End : Tests for CREATE ROLE IF NOT EXISTS
 
 --echo # ----------------------------------------------------------------------

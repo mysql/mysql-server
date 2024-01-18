@@ -22,8 +22,8 @@
 --source include/not_group_replication_plugin.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 --echo
 
 # Create tables and data
@@ -54,7 +54,7 @@ DELIMITER ;|
 INSERT INTO t3 VALUES(1, 'AA');
 INSERT INTO t2 VALUES(1, 'AA');
 INSERT INTO t1 VALUES(1, 'AA');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 RENAME TABLE t3 TO t3_bak;
 
@@ -73,7 +73,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 # whereas in the single-threaded case:
 # 1146 = ER_NO_SUCH_TABLE
 #--let $slave_sql_errno= 1146
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 let $slave_sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1);
 if (`select $slave_sql_errno != 1146 and $slave_sql_errno != 1593`)
 {
@@ -95,15 +95,15 @@ if (!`SELECT @@BINLOG_FORMAT = 'ROW'`) {
   SELECT * FROM t2 ORDER BY a;
 }
 
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 RENAME TABLE t3_bak TO t3;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 TRUNCATE t1;
 TRUNCATE t2;
 TRUNCATE t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo
 
 
@@ -115,7 +115,7 @@ TRUNCATE t3;
 ALTER TABLE t1 ADD PRIMARY KEY (a);
 ALTER TABLE t2 ADD PRIMARY KEY (a);
 ALTER TABLE t3 ADD PRIMARY KEY (a);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 RENAME TABLE t3 TO t3_bak;
 
 if (`select @@global.replica_parallel_type = 'LOGICAL_CLOCK'`)
@@ -144,7 +144,7 @@ UPDATE t1 SET b = 'X' WHERE a = 2;
 # whereas in the single-threaded case:
 #--let $slave_sql_errno= 1146
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 let $slave_sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1);
 if (`select $slave_sql_errno != 1146 and $slave_sql_errno != 1593`)
 {
@@ -169,17 +169,17 @@ if (`select @@global.replica_parallel_type = 'LOGICAL_CLOCK'`)
   --enable_query_log
 }
 
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 RENAME TABLE t3_bak TO t3;
 
 # TODO: recovery. Alfranio it fails to recover here.
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 TRUNCATE t1;
 TRUNCATE t2;
 TRUNCATE t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo
 
 
@@ -191,7 +191,7 @@ TRUNCATE t3;
 ALTER TABLE t1 ENGINE=InnoDB;
 ALTER TABLE t2 ENGINE=InnoDB;
 ALTER TABLE t3 ENGINE=InnoDB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --connection slave
 RENAME TABLE t3 TO t3_bak;
@@ -210,7 +210,7 @@ COMMIT;
 # whereas in the single-threaded case:
 #--let $slave_sql_errno= 1146
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 let $slave_sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1);
 if (`select $slave_sql_errno != 1146 and $slave_sql_errno != 1593`)
 {
@@ -229,15 +229,15 @@ SHOW TABLES LIKE 't%';
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
-source include/stop_slave_io.inc;
+source include/rpl/stop_receiver.inc;
 RENAME TABLE t3_bak TO t3;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 # Clean up
 --echo *** Clean up ***
 --connection master
 DROP TABLE t1,t2,t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 5.1 test
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

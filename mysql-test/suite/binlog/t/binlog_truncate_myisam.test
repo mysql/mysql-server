@@ -9,11 +9,11 @@ let $engine = MyISAM;
 SET BINLOG_FORMAT='ROW';
 RESET BINARY LOGS AND GTIDS;
 
-source extra/binlog_tests/binlog_truncate.test;
+source common/binlog/binlog_truncate.test;
 
 SET BINLOG_FORMAT='STATEMENT';
 RESET BINARY LOGS AND GTIDS;
 
-source extra/binlog_tests/binlog_truncate.test;
+source common/binlog/binlog_truncate.test;
 
 SET BINLOG_FORMAT=@old_binlog_format;

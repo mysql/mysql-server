@@ -31,7 +31,7 @@ SET SESSION sql_log_bin= 1;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 include/stop_group_replication.inc
 [connection server2]
@@ -51,7 +51,7 @@ include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.tls_version= 'TLSv1.2';
 ALTER INSTANCE RELOAD TLS;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 include/stop_group_replication.inc
 [connection server2]
@@ -89,7 +89,7 @@ include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.tls_version= 'TLSv1.3';
 ALTER INSTANCE RELOAD TLS;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 include/stop_group_replication.inc
 [connection server2]
@@ -111,7 +111,7 @@ SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_256_GCM_SHA384';
 ALTER INSTANCE RELOAD TLS;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 include/stop_group_replication.inc
 [connection server2]

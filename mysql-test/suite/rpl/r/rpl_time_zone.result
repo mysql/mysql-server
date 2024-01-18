@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -21,7 +21,7 @@ t	n
 2005-06-11 09:39:02	2
 2004-01-01 00:00:00	3
 2004-06-11 09:39:02	4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY n;
 t	n
 2005-01-01 06:00:00	1
@@ -35,7 +35,7 @@ SELECT * FROM t1 ORDER BY n;
 t	n
 2004-01-01 00:00:00	5
 2004-06-11 09:39:02	6
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set time_zone='Europe/Moscow';
 SELECT * FROM t1 ORDER BY n;
 t	n
@@ -53,7 +53,7 @@ SELECT * FROM t1 ORDER BY n;
 t	n
 0000-00-00 00:00:00	7
 0000-00-00 00:00:00	8
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set time_zone='UTC';
 SELECT * FROM t1 ORDER BY n;
 t	n
@@ -69,7 +69,7 @@ SELECT * FROM t1 ORDER BY n;
 t	n
 2003-12-31 22:00:00	10
 2004-06-11 07:39:02	11
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2 ORDER BY n;
 t	n
 2003-12-31 22:00:00	10
@@ -77,7 +77,7 @@ t	n
 delete from t2;
 set timestamp=1000072000;
 insert into t2 values (current_timestamp,NULL), (current_date,NULL), (current_time,NULL);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2 ORDER BY n;
 t	n
 2001-09-09 23:46:40	12
@@ -90,7 +90,7 @@ SELECT * FROM t2 ORDER BY n;
 t	n
 2001-09-09 03:46:40	15
 1000000000	16
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2 ORDER BY n;
 t	n
 2001-09-09 03:46:40	15
@@ -104,13 +104,13 @@ SELECT * FROM t2 ORDER BY n;
 t	n
 2003-12-31 23:00:00	17
 2005-01-01 08:00:00	18
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2 ORDER BY n;
 t	n
 2003-12-31 23:00:00	17
 2005-01-01 08:00:00	18
 drop table t1, t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set global time_zone= @my_time_zone;
 End of 4.1 tests
 CREATE TABLE t1 (a INT, b TIMESTAMP);
@@ -124,7 +124,7 @@ SET sql_mode = default;
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	0000-00-00 00:00:00
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @@session.time_zone='Japan';
 SELECT * FROM t1 ORDER BY a;
 a	b
@@ -132,7 +132,7 @@ a	b
 SET @@session.time_zone = default;
 DROP TABLE t1;
 SET @@session.time_zone = default;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/deinit.inc
 End of 5.0 tests

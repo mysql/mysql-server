@@ -36,9 +36,9 @@
 # on server shutdown.
 --let $rpl_gtid_only=2:1
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --echo #
 --echo # 1) Suppression of error messages
@@ -59,7 +59,7 @@ UPDATE mysql.slave_master_info SET IGNORED_SERVER_IDS= "1 10";
 --echo #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --skip-replica-start=false
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo #
 --echo # 4) Assert the error is emitted while restarting the server.
@@ -101,7 +101,7 @@ UPDATE mysql.slave_master_info SET IGNORED_SERVER_IDS= "1 10";
 --echo #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --skip-replica-start=true
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo #
 --echo # 10) No error emitted on setting GTID_MODE!=ON in an INVALID configuration
@@ -123,5 +123,5 @@ SET @@GLOBAL.GTID_MODE=ON;
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
 SET @@GLOBAL.GTID_MODE=ON;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

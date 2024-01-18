@@ -236,7 +236,7 @@ ROLLBACK;
 
 --echo # Can't set while owning ANONYMOUS
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 SET GTID_NEXT = 'ANONYMOUS';
 --error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
@@ -253,7 +253,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 SET GTID_NEXT = 'AUTOMATIC';
 
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 eval SET @@SESSION.GTID_NEXT = '$ida:14';
 --echo # can't do implicit commit while gtid_next=SID:GNO

@@ -35,7 +35,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch3_1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch3_1']
 [connection server4]
 set session sql_log_bin=0;
 call mtr.add_suppression("Error reading packet from server for channel 'ch4_1': .*");
@@ -44,7 +44,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch4_1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch4_1']
 
 # 4. Insert row on M1 and table t1 with binlog off.
 [connection server1]
@@ -78,9 +78,9 @@ include/assert.inc [Slave connection is stopped.]
 
 # 8. Restore M3 channel.
 [connection server3]
-include/stop_slave.inc [FOR CHANNEL 'ch3_1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch3_1']
 [connection server4]
-include/stop_slave.inc [FOR CHANNEL 'ch4_1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch4_1']
 [connection server1]
 SET GLOBAL super_read_only= FALSE;
 SET sql_log_bin=0;
@@ -100,9 +100,9 @@ group_replication_set_as_primary("SERVER1_UUID")
 Primary server switched to: SERVER1_UUID
 INSERT INTO test.t1 values (3);
 [connection server3]
-include/start_slave.inc [FOR CHANNEL 'ch3_1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch3_1']
 [connection server4]
-include/start_slave.inc [FOR CHANNEL 'ch4_1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch4_1']
 
 # 10. Stop GR on M1.
 [connection server1]
@@ -134,11 +134,11 @@ include/start_group_replication.inc
 [connection server2]
 DROP TABLE test.t1;
 [connection server3]
-include/stop_slave.inc [FOR CHANNEL 'ch3_1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch3_1']
 RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 include/start_group_replication.inc
 [connection server4]
-include/stop_slave.inc [FOR CHANNEL 'ch4_1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch4_1']
 RESET REPLICA ALL FOR CHANNEL 'ch4_1';
 include/start_group_replication.inc
 include/group_replication_end.inc

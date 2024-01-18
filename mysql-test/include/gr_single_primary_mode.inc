@@ -12,7 +12,7 @@
 #
 # Parameters:
 #   $rpl_server_count
-#     See include/master-slave.inc
+#     See include/rpl/init_source_replica.inc
 #
 #   $reset_single_primary_mode
 #     To check whether we are going to set or
@@ -36,9 +36,9 @@ while ($_i_set_single_primary_mode <= $rpl_server_count)
 {
   --let $rpl_connection_name= server_aux_$_i_set_single_primary_mode
   --let $rpl_server_number= $_i_set_single_primary_mode
-  --source include/rpl_connect.inc
+  --source include/rpl/connect.inc
   --let $rpl_connection_name= server_aux_$_i_set_single_primary_mode
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   # plugin cannot be running for us to setup these configs
   let $_this_member_id=

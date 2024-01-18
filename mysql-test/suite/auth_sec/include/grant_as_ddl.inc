@@ -249,7 +249,7 @@ GRANT r2, r4 TO foo;
 
 ALTER USER foo DEFAULT ROLE ALL;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $binlog_start = $binlog_position
 
 GRANT SELECT, INSERT ON *.* TO bar AS foo WITH ROLE ALL;
@@ -275,17 +275,17 @@ GRANT SELECT, INSERT ON *.* TO bar;
 
 --connection default
 --disconnect conn_foo
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 GRANT SELECT, INSERT ON *.* TO foo;
 REVOKE SELECT, INSERT ON db1.* FROM foo;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $binlog_start = $binlog_position
 
 GRANT SELECT, INSERT ON *.* TO bar AS foo;
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 DROP DATABASE db1;
 DROP ROLE r1, r2, r3, r4;

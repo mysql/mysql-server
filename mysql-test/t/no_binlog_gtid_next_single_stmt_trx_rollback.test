@@ -8,8 +8,8 @@
 #
 # ==== Implementation ====
 #
-# See extra/binlog_tests/gtid_next_single_stmt_trx_rollback_with_non-trans_table.test
-# and extra/binlog_tests/gtid_next_single_stmt_trx_rollback_with_trans_table.test
+# See common/binlog/gtid_next_single_stmt_trx_rollback_with_non-trans_table.test
+# and common/binlog/gtid_next_single_stmt_trx_rollback_with_trans_table.test
 #
 # ==== References ====
 #
@@ -22,6 +22,6 @@
 # Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
 
---source extra/binlog_tests/gtid_next_single_stmt_trx_rollback_with_non-trans_table.test
---source extra/binlog_tests/gtid_next_single_stmt_trx_rollback_with_trans_table.test
+--source common/binlog/gtid_next_single_stmt_trx_rollback_with_non-trans_table.test
+--source common/binlog/gtid_next_single_stmt_trx_rollback_with_trans_table.test
 

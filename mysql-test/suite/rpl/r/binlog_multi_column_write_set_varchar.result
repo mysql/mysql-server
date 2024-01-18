@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -23,14 +23,14 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 #
 # Insert rows into test_table
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO test_table VALUES (1, 1, 'aaabbb', 'bbbccc', 2);
 DELETE FROM test_table WHERE id = 1;
 #
 # Value validation int test_table
 #
 INSERT INTO test_table VALUES (2, 1, 'aaaddd', 'bbbeee', 2);
-include/include/assert_logical_timestamps.inc [2 3;3 4;4 5]
+include/include/rpl/assert_logical_timestamps.inc [2 3;3 4;4 5]
 #
 # Check test2 last_committed and sequence_number
 #
@@ -45,7 +45,7 @@ PRIMARY KEY (`id`(3))
 #
 # Insert rows into test2
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO test2 VALUES ('aaabbb', 1);
 DELETE FROM test2 WHERE did = 1;
 INSERT INTO test2 VALUES ('aaabbc', 2);
@@ -55,10 +55,10 @@ DELETE FROM test2 WHERE did = 3;
 #
 # Value validation in test2
 #
-include/include/assert_logical_timestamps.inc [7 8;8 9;9 10;10 11;11 12;12 13]
+include/include/rpl/assert_logical_timestamps.inc [7 8;8 9;9 10;10 11;11 12;12 13]
 #
 # Clean up
 #
 DROP TABLE test_table;
 DROP TABLE test2;
-include/rpl_end.inc
+include/rpl/deinit.inc

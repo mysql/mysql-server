@@ -61,8 +61,8 @@
 --source include/not_rpl_gtid_only.inc
 # This test is unrelated to log format
 --source include/have_binlog_format_row.inc
---source include/not_mts_replica_parallel_workers.inc
---source include/master-slave.inc
+--source include/not_replica_parallel_workers.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo # 0.Create a test auxiliary include file to avoid step repetition.
@@ -73,7 +73,7 @@
 # and $assign_gtids_to_anonymous_transactions_table_value to be set always the value for $assign_gtids_to_anonymous_transactions_value
 # can be skipped depending upon the scenario.
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --write_file $MYSQL_TMP_DIR/check_assign_gtids_to_anonymous_transactions_in_table_repo.inc END_OF_PROCEDURE
 
@@ -127,17 +127,17 @@ END_OF_PROCEDURE
 --echo #      Check the performance_schema table and applier metadata repository
 --echo #      are correct
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_set_enforce_gtid_consistency= 1
 --let $rpl_gtid_mode= ON
 --let $rpl_server_numbers= 2
 --let $rpl_skip_sync= 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --let $assign_gtids_to_anonymous_transactions_type = LOCAL
@@ -148,11 +148,11 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 --echo #      Check the performance_schema table and applier metadata repository
 --echo #      are correct
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $assign_gtids_to_anonymous_transactions_type = UUID
 --let assign_gtids_to_anonymous_transactions_table_value = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
@@ -163,7 +163,7 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-
 
 # 2. Table to Table upgrades
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --echo
 --echo # 2.1 Upgrade the server while using Table repositories
@@ -177,7 +177,7 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-
 --let $rpl_gtid_mode= ON
 --let $rpl_server_numbers= 2
 --let $rpl_skip_sync= 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 --disable_warnings
@@ -193,7 +193,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_replica_start  --upgrade=FORCE
 --let $explicit_default_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'OFF'`
 --let $assert_text = Check the number of channels with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF
@@ -219,7 +219,7 @@ RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 --let $rpl_gtid_mode= ON
 --let $rpl_server_numbers= 2
 --let $rpl_skip_sync= 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
@@ -244,7 +244,7 @@ RESET REPLICA;
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_replica_start
 --let $explicit_default_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'LOCAL' AND  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = '$server_local_uuid'`
 --let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
@@ -261,7 +261,7 @@ RESET REPLICA;
 --let $rpl_gtid_mode= ON
 --let $rpl_server_numbers= 2
 --let $rpl_skip_sync= 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
@@ -286,7 +286,7 @@ RESET REPLICA;
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_replica_start
 --let $explicit_default_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'UUID' AND  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 --let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
@@ -325,8 +325,8 @@ CALL mtr.add_suppression("Error writing relay log configuration.");
 --enable_query_log
 --enable_warnings
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_channel_name=
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

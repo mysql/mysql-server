@@ -1,0 +1,1058 @@
+#############################################################
+# Purpose: To test having extra columns on the master WL#3915
+# engine inspecific sourced part
+#############################################################
+
+#
+# Setup differently defined tables on master and slave
+#
+
+# Def on master: t (f_1 type_m_1,... f_s type_m_s, f_s1, f_m)
+# Def on slave:  t (f_1 type_s_1,... f_s type_s_s)
+# where type_mi,type_si (0 < i-1 <s1) pairs are compatible types (WL#3228)
+# Arbitrary paramaters of the test are:
+# 1. the tables type
+# 2. the types of the extra master's column f_s1,..., f_m
+# 3. the numbers of common columns `s' 
+# 4. and  extra columns `m' are par
+#
+# optionally
+#
+# 5. vary the common columns type within compatible ranges.
+
+#
+# constant size column type:
+
+#BIGINT       
+#BLOB         
+#DATE         
+#DATETIME     
+#FLOAT        
+#INT, INTEGER 
+#LONGBLOB      
+#LONGTEXT     
+#MEDIUMBLOB   
+#MEDIUMINT    
+#MEDIUMTEXT   
+#REAL         
+#SMALLINT     
+#TEXT         
+#TIME         
+#TIMESTAMP    
+#TINYBLOB     
+#TINYINT      
+#TINYTEXT     
+#YEAR         
+
+# variable size column types:
+
+#BINARY(M)    
+#BIT(M)        
+#CHAR(M)      
+#DECIMAL(M,D) 
+#DOUBLE[P]    
+#ENUM         
+#FLOAT(p)     
+#NUMERIC(M,D) 
+#SET           
+#VARBINARY(M) 
+#VARCHAR(M)    
+#
+
+--let $_saved_conn= $CURRENT_CONNECTION
+
+let $binformat = `SHOW VARIABLES LIKE '%binlog_format%'`;
+--echo
+--echo ***********************************************************
+--echo ***********************************************************
+--echo ***************** Start of Testing ************************
+--echo ***********************************************************
+--echo ***********************************************************
+--echo * This test format == $binformat and engine == $engine_type
+--echo ***********************************************************
+--echo ***********************************************************
+--echo
+--echo ***** Testing more columns on the Master *****
+--echo
+connection master;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                      /* extra */
+                      f5 FLOAT DEFAULT '2.00', 
+                      f6 CHAR(4) DEFAULT 'TEST',
+                      f7 INT DEFAULT '0',
+                      f8 TEXT,
+                      f9 LONGBLOB,
+                      f10 BIT(63),
+                      f11 VARBINARY(64))ENGINE=$engine_type;
+--echo
+--echo * Alter Table on Slave and drop columns f5 through f11 *
+--echo
+sync_slave_with_master;
+alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11;
+
+--echo
+--echo * Insert data in Master then update and delete some rows*
+--echo
+connection master;
+let $j= 50;
+--disable_query_log
+while ($j)
+{
+  eval INSERT INTO t1 VALUES ($j, $j, $j, 'second', 2.0, 'kaks', 2, 
+                              'got stolen from the paradise', 
+                              'very fat blob', b'01010101010101', 
+                              0x123456);
+  dec $j;
+}
+let $j= 30;
+while ($j)
+{
+ eval update t1 set f4= 'next' where f1=$j; 
+ dec $j;
+ dec $j;
+ eval delete from t1 where f1=$j;
+ dec $j;
+}
+--enable_query_log
+
+--echo * Select count and 20 rows from Master *
+--echo
+SELECT COUNT(*) FROM t1;
+--echo
+SELECT f1,f2,f3,f4,f5,f6,f7,f8,f9,
+       hex(f10),hex(f11) FROM t1 ORDER BY f3 LIMIT 20;
+
+#connection slave;
+
+--disable_query_log
+call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column 2 type mismatch.* MY-001535");
+call mtr.add_suppression("Replica.*Can.t DROP .c7.; check that column.key exists.* Error_code: MY-001091");
+call mtr.add_suppression("Replica.*Unknown column .c7. in .t15.* Error_code: MY-001054");
+call mtr.add_suppression("Replica.*Key column .c6. doesn.t exist in table.* Error_code: MY-001072");
+call mtr.add_suppression("Replica SQL.*Column 2 of table .test.t1.. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+--enable_query_log
+
+sync_slave_with_master;
+--echo
+--echo * Select count and 20 rows from Slave *
+--echo
+SELECT COUNT(*) FROM t1;
+--echo
+SELECT * FROM t1 ORDER BY f3 LIMIT 20;
+
+--source include/rpl/assert_replica_running.inc
+
+### Altering table def scenario
+--echo
+--echo ***** Testing Altering table def scenario *****
+--echo
+
+connection master;
+
+   eval CREATE TABLE t2 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                      /* extra */
+                       f5 DOUBLE DEFAULT '2.00', 
+                       f6 ENUM('a', 'b', 'c') default 'a',
+		       f7 DECIMAL(17,9) default '1000.00',
+		       f8 MEDIUMBLOB,
+		       f9 NUMERIC(6,2) default '2000.00',
+		       f10 VARCHAR(1024),
+		       f11 BINARY(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+		       f12 SET('a', 'b', 'c') default 'b')
+                       ENGINE=$engine_type;
+--echo
+   eval CREATE TABLE t3 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                      /* extra */
+                       f5 DOUBLE DEFAULT '2.00', 
+                       f6 ENUM('a', 'b', 'c') default 'a',
+		       f8 MEDIUMBLOB,
+		       f10 VARCHAR(1024),
+		       f11 BINARY(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+		       f12 SET('a', 'b', 'c') default 'b')
+                       ENGINE=$engine_type;
+
+--echo
+# no ENUM and SET
+    eval CREATE TABLE t4 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                      /* extra */
+                       f5 DOUBLE DEFAULT '2.00', 
+		       f6 DECIMAL(17,9) default '1000.00',
+		       f7 MEDIUMBLOB,
+		       f8 NUMERIC(6,2) default '2000.00',
+		       f9 VARCHAR(1024),
+		       f10 BINARY(20) not null default '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+		       f11 CHAR(255))
+                       ENGINE=$engine_type;
+
+--echo
+    eval CREATE TABLE t31 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       
+                       /* extra */
+
+                       f5  BIGINT,
+                       f6  BLOB,
+		       f7  DATE,
+		       f8  DATETIME,
+		       f9  FLOAT,
+		       f10 INT,
+		       f11 LONGBLOB,
+		       f12 LONGTEXT,
+		       f13 MEDIUMBLOB,
+		       f14 MEDIUMINT,
+		       f15 MEDIUMTEXT,
+		       f16 REAL,
+		       f17 SMALLINT,
+		       f18 TEXT,
+		       f19 TIME,
+		       f20 TIMESTAMP,
+		       f21 TINYBLOB,
+		       f22 TINYINT,
+		       f23 TINYTEXT,
+		       f24 YEAR,
+		       f25 BINARY(255),
+		       f26 BIT(64),
+		       f27 CHAR(255),
+		       f28 DECIMAL(30,7),
+		       f29 DOUBLE,
+		       f30 ENUM ('a','b', 'c') default 'a',
+		       f31 FLOAT,
+		       f32 NUMERIC(17,9),
+		       f33 SET ('a', 'b', 'c') default 'b',
+		       f34 VARBINARY(1025),
+		       f35 VARCHAR(257)       
+                       ) ENGINE=$engine_type;
+--echo
+--echo ** Alter tables on slave and drop columns **
+--echo
+#connection slave;
+    sync_slave_with_master;
+    alter table t2 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11, drop
+f12;
+    alter table t3 drop f5, drop f6, drop f8, drop f10, drop f11, drop f12;
+    alter table t4 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11;
+
+    alter table t31 
+       drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11,
+       drop f12, drop f13, drop f14, drop f15, drop f16, drop f17, drop f18,
+       drop f19, drop f20, drop f21, drop f22, drop f23, drop f24, drop f25,
+       drop f26, drop f27, drop f28, drop f29, drop f30, drop f31, drop f32,
+       drop f33, drop f34, drop f35;
+                 
+--echo
+--echo ** Insert Data into Master **
+connection master;
+   INSERT into t2 set f1=1, f2=1, f3=1, f4='first', f8='f8: medium size blob', f10='f10:
+some var char';
+   INSERT into t2 values (2, 2, 2, 'second',
+       2.0, 'b', 2000.0002, 'f8: medium size blob', 2000, 'f10: some var char',
+'01234567', 'c'),
+                       (3, 3, 3, 'third',
+       3.0, 'b', 3000.0003, 'f8: medium size blob', 3000, 'f10: some var char',
+'01234567', 'c');
+   INSERT into t3 set f1=1, f2=1, f3=1, f4='first', f10='f10: some var char';
+   INSERT into t4 set f1=1, f2=1, f3=1, f4='first', f7='f7: medium size blob', f10='f10:
+binary data';
+   INSERT into t31 set f1=1, f2=1, f3=1, f4='first';
+   INSERT IGNORE into t31 set f1=1, f2=1, f3=2, f4='second',
+     f9=2.2,  f10='seven samurai', f28=222.222, f35='222';
+   INSERT IGNORE into t31 values (1, 1, 3, 'third',
+      /* f5  BIGINT,  */            333333333333333333333333,
+      /* f6  BLOB,  */              '3333333333333333333333',
+      /* f7  DATE,  */              '2007-07-18',
+      /* f8  DATETIME,  */          "2007-07-18",
+      /* f9  FLOAT,  */             3.33333333,
+      /* f10 INT,  */               333333333,
+      /* f11 LONGBLOB,  */          '3333333333333333333',
+      /* f12 LONGTEXT,  */          '3333333333333333333',
+      /* f13 MEDIUMBLOB,  */        '3333333333333333333',
+      /* f14 MEDIUMINT,  */         33,
+      /* f15 MEDIUMTEXT,  */        3.3,
+      /* f16 REAL,  */              3.3,
+      /* f17 SMALLINT,  */          3,
+      /* f18 TEXT,  */              '33',
+      /* f19 TIME,  */              '2:59:58.999',
+      /* f20 TIMESTAMP,  */         20000303000000,
+      /* f21 TINYBLOB,  */          '3333',
+      /* f22 TINYINT,  */           3,
+      /* f23 TINYTEXT,  */          '3',
+      /* f24 YEAR,  */              3000,
+      /* f25 BINARY(255),  */       'three_33333',
+      /* f26 BIT(64),  */           b'011', 
+      /* f27 CHAR(255),  */         'three',
+      /* f28 DECIMAL(30,7),  */     3.333,
+      /* f29 DOUBLE,  */            3.333333333333333333333333333,
+      /* f30 ENUM ('a','b','c')*/   'c',
+      /* f31 FLOAT,  */             3.0,
+      /* f32 NUMERIC(17,9),  */     3.3333,
+      /* f33 SET ('a','b','c'),*/   'c',
+      /*f34 VARBINARY(1025),*/      '3333 minus 3',
+      /*f35 VARCHAR(257),*/         'three times three'
+      );
+   
+   INSERT IGNORE into t31 values (1, 1, 4, 'fourth',
+       /* f5  BIGINT,  */            333333333333333333333333,
+       /* f6  BLOB,  */              '3333333333333333333333',
+       /* f7  DATE,  */              '2007-07-18',
+       /* f8  DATETIME,  */          "2007-07-18",
+       /* f9  FLOAT,  */             3.33333333,
+       /* f10 INT,  */               333333333,
+       /* f11 LONGBLOB,  */          '3333333333333333333',
+       /* f12 LONGTEXT,  */          '3333333333333333333',
+       /* f13 MEDIUMBLOB,  */        '3333333333333333333',
+       /* f14 MEDIUMINT,  */         33,
+       /* f15 MEDIUMTEXT,  */        3.3,
+       /* f16 REAL,  */              3.3,
+       /* f17 SMALLINT,  */          3,
+       /* f18 TEXT,  */              '33',
+       /* f19 TIME,  */              '2:59:58.999',
+       /* f20 TIMESTAMP,  */         20000303000000,
+       /* f21 TINYBLOB,  */          '3333',
+       /* f22 TINYINT,  */           3,
+       /* f23 TINYTEXT,  */          '3',
+       /* f24 YEAR,  */              3000,
+       /* f25 BINARY(255),  */       'three_33333',
+       /* f26 BIT(64),  */           b'011',
+       /* f27 CHAR(255),  */         'three',
+       /* f28 DECIMAL(30,7),  */     3.333,
+       /* f29 DOUBLE,  */            3.333333333333333333333333333,
+       /* f30 ENUM ('a','b','c')*/   'c',
+       /* f31 FLOAT,  */             3.0,
+       /* f32 NUMERIC(17,9),  */     3.3333,
+       /* f33 SET ('a','b','c'),*/   'c',
+       /*f34 VARBINARY(1025),*/      '3333 minus 3',
+       /*f35 VARCHAR(257),*/         'three times three'
+       ),
+   (1, 1, 5, 'fifth',
+       /* f5  BIGINT,  */            333333333333333333333333,
+       /* f6  BLOB,  */              '3333333333333333333333',
+       /* f7  DATE,  */              '2007-07-18',
+       /* f8  DATETIME,  */          "2007-07-18",
+       /* f9  FLOAT,  */             3.33333333,
+       /* f10 INT,  */               333333333,
+       /* f11 LONGBLOB,  */          '3333333333333333333',
+       /* f12 LONGTEXT,  */          '3333333333333333333',
+       /* f13 MEDIUMBLOB,  */        '3333333333333333333',
+       /* f14 MEDIUMINT,  */         33,
+       /* f15 MEDIUMTEXT,  */        3.3,
+       /* f16 REAL,  */              3.3,
+       /* f17 SMALLINT,  */          3,
+       /* f18 TEXT,  */              '33',
+       /* f19 TIME,  */              '2:59:58.999',
+       /* f20 TIMESTAMP,  */         20000303000000,
+       /* f21 TINYBLOB,  */          '3333',
+       /* f22 TINYINT,  */           3,
+       /* f23 TINYTEXT,  */          '3',
+       /* f24 YEAR,  */              3000,
+       /* f25 BINARY(255),  */       'three_33333',
+       /* f26 BIT(64),  */           b'011',
+       /* f27 CHAR(255),  */         'three',
+       /* f28 DECIMAL(30,7),  */     3.333,
+       /* f29 DOUBLE,  */            3.333333333333333333333333333,
+       /* f30 ENUM ('a','b','c')*/   'c',
+       /* f31 FLOAT,  */             3.0,
+       /* f32 NUMERIC(17,9),  */     3.3333,
+       /* f33 SET ('a','b','c'),*/   'c',
+       /*f34 VARBINARY(1025),*/      '3333 minus 3',
+       /*f35 VARCHAR(257),*/         'three times three'
+       ),
+   (1, 1, 6, 'sixth',
+       /* f5  BIGINT,  */            NULL,
+       /* f6  BLOB,  */              '3333333333333333333333',
+       /* f7  DATE,  */              '2007-07-18',
+       /* f8  DATETIME,  */          "2007-07-18",
+       /* f9  FLOAT,  */             3.33333333,
+       /* f10 INT,  */               333333333,
+       /* f11 LONGBLOB,  */          '3333333333333333333',
+       /* f12 LONGTEXT,  */          '3333333333333333333',
+       /* f13 MEDIUMBLOB,  */        '3333333333333333333',
+       /* f14 MEDIUMINT,  */         33,
+       /* f15 MEDIUMTEXT,  */        3.3,
+       /* f16 REAL,  */              3.3,
+       /* f17 SMALLINT,  */          3,
+       /* f18 TEXT,  */              '33',
+       /* f19 TIME,  */              '2:59:58.999',
+       /* f20 TIMESTAMP,  */         20000303000000,
+       /* f21 TINYBLOB,  */          '3333',
+       /* f22 TINYINT,  */           3,
+       /* f23 TINYTEXT,  */          '3',
+       /* f24 YEAR,  */              3000,
+       /* f25 BINARY(255),  */       'three_33333',
+       /* f26 BIT(64),  */           b'011',
+       /* f27 CHAR(255),  */         'three',
+       /* f28 DECIMAL(30,7),  */     3.333,
+       /* f29 DOUBLE,  */            3.333333333333333333333333333,
+       /* f30 ENUM ('a','b','c')*/   'c',
+       /* f31 FLOAT,  */             3.0,
+       /* f32 NUMERIC(17,9),  */     3.3333,
+       /* f33 SET ('a','b','c'),*/   'c',
+       /*f34 VARBINARY(1025),*/      '3333 minus 3',
+       /*f35 VARCHAR(257),*/         NULL
+       );
+--echo 
+--echo ** Sync slave with master ** 
+--echo ** Do selects from tables **
+--echo  
+#connection slave;
+   sync_slave_with_master;
+
+   select * from t1 order by f3;
+   select * from t2 order by f1;
+   select * from t3 order by f1;
+   select * from t4 order by f1;
+   select * from t31 order by f3;
+   
+connection master;
+--echo
+--echo ** Do updates master **
+--echo
+   update t31 set f5=555555555555555 where f3=6;
+   update t31 set f2=2 where f3=2;
+   update t31 set f1=NULL where f3=1;
+   update ignore t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
+
+--echo
+--echo ** Delete from Master **
+--echo
+
+   delete from t1;
+   delete from t2;
+   delete from t3;
+   delete from t4;
+   delete from t31;
+
+#connection slave;
+   sync_slave_with_master;
+   select * from t31;
+
+--echo
+--echo ** Check slave status **
+--echo
+--source include/rpl/assert_replica_running.inc
+
+#### Clean Up ####
+
+connection master;
+--disable_warnings
+--disable_query_log
+  DROP TABLE t1,t2,t3,t4,t31;
+
+######################################################
+#connection slave;
+  sync_slave_with_master;
+--enable_query_log
+--enable_warnings
+--echo
+--echo ****************************************
+--echo * columns in master at middle of table *
+--echo * Expect: Proper error message         *
+--echo ****************************************
+--echo
+--echo ** Stop and Reset Replica **
+--echo
+STOP REPLICA;
+--echo
+--echo ** create table slave side **
+eval CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo ** Connect to master and create table **
+--echo
+--connection master
+eval CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233',
+                      c CHAR(5), e INT DEFAULT '1')ENGINE=$engine_type;
+
+--echo
+--echo *** Start Replica ***
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
+                         (2,@b1,DEFAULT,'JOE',DEFAULT),
+                         (3,@b1,DEFAULT,'QA',DEFAULT);
+
+--echo
+--echo ********************************************
+--echo *** Expect slave to fail with Error 1677 ***
+--echo ********************************************
+--echo
+connection slave;
+--let $slave_skip_counter= 2
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
+--source include/rpl/wait_for_applier_error_and_skip.inc
+
+--echo
+--echo *** Drop t10  ***
+connection master;
+DROP TABLE t10;
+sync_slave_with_master;
+
+############################################
+############## Continued ###################
+############################################
+--echo
+--echo *********************************************
+--echo * More columns in master at middle of table *
+--echo * Expect: Proper error message              *
+--echo *********************************************
+--echo
+--echo  *** Create t11 on slave  ***
+STOP REPLICA;
+
+eval CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t11 on Master ***
+connection master;
+eval CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
+                      c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE=$engine_type;
+
+--echo
+--echo *** Start Replica ***
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
+                         (2,@b1,'Testing is cool','JOE',DEFAULT),
+                         (3,@b1,DEFAULT,'QA',DEFAULT);
+
+--echo
+--echo ********************************************
+--echo *** Expect slave to fail with Error 1677 ***
+--echo ********************************************
+--echo
+connection slave;
+--let $slave_skip_counter= 2
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
+--source include/rpl/wait_for_applier_error_and_skip.inc
+
+--echo
+--echo *** Drop t11  ***
+connection master;
+DROP TABLE t11;
+sync_slave_with_master;
+
+############################################
+############## Continued ###################
+############################################
+--echo
+--echo *********************************************
+--echo * More columns in master at middle of table *
+--echo * Expect: This one should pass blob-text    *
+--echo *********************************************
+--echo
+--echo  *** Create t12 on slave  ***
+STOP REPLICA;
+eval CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t12 on Master ***
+connection master;
+eval CREATE TABLE t12 (a INT KEY, b BLOB, f TEXT,
+                      c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE=$engine_type;
+
+--echo
+--echo *** Start Replica ***
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t12 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+                         (2,@b1,'JOE',DEFAULT,DEFAULT),
+                         (3,@b1,'QA',DEFAULT,DEFAULT);
+--echo
+SELECT a,hex(b),f,c,e FROM t12 ORDER BY a;
+
+--echo
+--echo *** Select on Slave ***
+sync_slave_with_master;
+SELECT a,hex(b),c FROM t12 ORDER BY a;
+
+--echo
+--echo *** Drop t12  ***
+connection master;
+DROP TABLE t12;
+sync_slave_with_master;
+
+############################################
+############## Continued ###################
+############################################
+--echo
+--echo ****************************************************
+--echo * - Alter Master adding columns at middle of table *
+--echo *   Expect: columns added                          *
+--echo ****************************************************
+--echo
+--echo
+--echo *** Create t14 on slave  ***
+STOP REPLICA;
+eval CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t14 on Master ***
+connection master;
+eval CREATE TABLE t14 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 INT DEFAULT '1',
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+--echo
+--echo *** Start Replica ***
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+ALTER TABLE t14 ADD COLUMN c2 DECIMAL(8,2) AFTER c1;
+ALTER TABLE t14 ADD COLUMN c3 TEXT AFTER c2;
+--echo
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t14 () VALUES(1,1.00,'Replication Testing Extra Col',@b1,'Kyle',DEFAULT,DEFAULT),
+                        (2,2.00,'This Test Should work',@b1,'JOE',DEFAULT,DEFAULT),
+                        (3,3.00,'If is does not, I will open a bug',@b1,'QA',DEFAULT,DEFAULT);
+--echo
+--replace_column 7 CURRENT_TIMESTAMP
+SELECT c1,c2,c3,hex(c4),c5,c6,c7 FROM t14 ORDER BY c1;
+
+--echo
+--echo *** Select on Slave ****
+sync_slave_with_master;
+SELECT c1,c2,c3,hex(c4),c5 FROM t14 ORDER BY c1;
+
+####################################################
+--echo
+--echo ****************************************************
+--echo * - Alter Master Dropping columns from the middle. *
+--echo *   Expect: columns dropped                        *
+--echo ****************************************************
+--echo
+--echo *** connect to master and drop columns ***
+connection master;
+ALTER TABLE t14 DROP COLUMN c2;
+ALTER TABLE t14 DROP COLUMN c7;
+--echo
+--echo *** Select from Master ***
+SELECT c1,c3,hex(c4),c5,c6 FROM t14 ORDER BY c1;
+--echo
+
+--echo ************
+--echo * Bug30415 *
+--echo ************
+# Uncomment below once fixed
+
+#--echo *** Select from Slave ***
+#sync_slave_with_master;
+#SELECT c1,c2,c3,hex(c4),c5 FROM t14 ORDER BY c1;
+
+# Bug30415
+# Remove below once fixed
+#***************************
+connection slave;
+--let $slave_sql_errno= convert_error(ER_CANT_DROP_FIELD_OR_KEY)
+--source include/rpl/wait_for_applier_error.inc
+#***************************
+
+STOP REPLICA;
+
+--echo
+--echo *** Drop t14  ***
+DROP TABLE t14;
+
+connection master;
+DROP TABLE t14;
+
+connection slave;
+
+# Execute RESET REPLICA before calling rpl/reset.inc
+# To avoid failure in MTS and rpl-priv_checks_user runs
+RESET REPLICA;
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+#################################################
+--echo
+--echo *************************************************
+--echo * - Alter Master adding columns at end of table *
+--echo *   Expect: Error 1054                          *
+--echo *************************************************
+--echo
+--echo *** Create t15 on slave  ***
+STOP REPLICA;
+eval CREATE TABLE t15 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t15 on Master ***
+connection master;
+eval CREATE TABLE t15 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 INT DEFAULT '1',
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+--echo
+--echo *** Start Replica ***
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t15 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT,3.00),
+                        (2,@b1,'JOE',DEFAULT,DEFAULT,3.00),
+                        (3,@b1,'QA',DEFAULT,DEFAULT,3.00);
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7,c2 FROM t15 ORDER BY c1;
+
+--echo
+--echo ********************************************
+--echo *** Expect slave to fail with Error 1054 ***
+--echo ********************************************
+--echo
+connection slave;
+--let $slave_sql_errno= convert_error(ER_BAD_FIELD_ERROR)
+--source include/rpl/wait_for_applier_error.inc
+STOP REPLICA;
+
+--echo
+--echo *** Drop t15  ***
+DROP TABLE t15;
+
+connection master;
+DROP TABLE t15;
+
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+####################################################
+--echo
+--echo ************************************************
+--echo * - Create index on Master column not on slave *
+--echo *   Expect:Warning                             *
+--echo ************************************************
+--echo
+--echo *** Create t16 on slave  ***
+STOP REPLICA;
+eval CREATE TABLE t16 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t16 on Master ***
+connection master;
+eval CREATE TABLE t16 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 INT DEFAULT '1',
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+--echo
+--echo *** Start Replica ***
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo
+--echo *** Master Create Index and Data Insert ***
+connection master;
+CREATE INDEX part_of_c6 ON t16 (c6);
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t16 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+                        (2,@b1,'JOE',2,DEFAULT),
+                        (3,@b1,'QA',3,DEFAULT);
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7 FROM t16 ORDER BY c1;
+
+# Uncomment the below when bug 30434 is patched
+
+#--echo *** Select on Slave ****
+#sync_slave_with_master;
+#SELECT c1,hex(c4),c5 FROM t16 ORDER BY c1;
+#
+#--echo *** Drop t16  ***
+#connection master;
+#DROP TABLE t16;
+#sync_slave_with_master;
+
+# Remove the below when bug 30434 is patched
+#*******************************************
+--echo
+--echo *****************
+--echo *** BUG 30434 ***
+--echo *****************
+--echo
+connection slave;
+--let $slave_sql_errno= convert_error(ER_KEY_COLUMN_DOES_NOT_EXITS)
+--source include/rpl/wait_for_applier_error.inc
+STOP REPLICA;
+
+--echo
+--echo *** Drop t16  ***
+DROP TABLE t16;
+
+connection master;
+DROP TABLE t16;
+
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+####################################################
+--echo
+--echo *****************************************************
+--echo * - Delete rows using column on Master not on slave *
+--echo *   Expect: Rows Deleted                            *
+--echo *****************************************************
+--echo
+--echo *** Create t17 on slave  ***
+STOP REPLICA;
+eval CREATE TABLE t17 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t17 on Master ***
+connection master;
+eval CREATE TABLE t17 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 INT DEFAULT '1',
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+--echo
+--echo *** Start Replica ***
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t17 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+                        (2,@b1,'JOE',2,DEFAULT),
+                        (3,@b1,'QA',3,DEFAULT);
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7 FROM t17 ORDER BY c1;
+
+--echo
+--echo ** Select * from Slave **
+sync_slave_with_master;
+SELECT c1,hex(c4),c5 FROM t17 ORDER BY c1;
+
+--echo
+--echo ** Delete from master **
+connection master;
+DELETE FROM t17 WHERE c6 = 3;
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7 FROM t17 ORDER BY c1;
+
+--echo 
+--echo ** Check slave **
+sync_slave_with_master;
+SELECT c1,hex(c4),c5 FROM t17 ORDER BY c1;
+
+
+connection master;
+DROP TABLE t17;
+sync_slave_with_master;
+--echo
+
+####################################################
+--echo
+--echo *****************************************************
+--echo * - Update row using column on Master not on slave *
+--echo *   Expect: Rows updated                           *
+--echo *****************************************************
+--echo
+--echo ** Bug30674 **
+--echo
+--echo *** Create t18 on slave  ***
+--echo 
+
+STOP REPLICA;
+eval CREATE TABLE t18 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t18 on Master ***
+connection master;
+eval CREATE TABLE t18 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 INT DEFAULT '1',
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+--echo
+--echo *** Start Replica ***
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+
+INSERT INTO t18 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+                        (2,@b1,'JOE',2,DEFAULT),
+                        (3,@b1,'QA',3,DEFAULT);
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7 FROM t18 ORDER BY c1;
+
+--echo
+--echo ** Select * from Slave **
+sync_slave_with_master;
+SELECT c1,hex(c4),c5 FROM t18 ORDER BY c1;
+
+--echo
+--echo ** update from master **
+connection master;
+UPDATE t18 SET c5 = 'TEST' WHERE c6 = 3;
+
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7 FROM t18 ORDER BY c1;
+
+--echo
+--echo ** Check slave **
+sync_slave_with_master;
+SELECT c1,hex(c4),c5 FROM t18 ORDER BY c1;
+
+connection master;
+DROP TABLE t18;
+sync_slave_with_master;
+--echo
+
+####################################################
+--echo
+--echo *****************************************************
+--echo * - Insert UUID  column on Master not on slave *
+--echo *   Expect: Rows inserted                      *
+--echo *****************************************************
+--echo
+--echo *** Create t5 on slave  ***
+STOP REPLICA;
+eval CREATE TABLE t5 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t5 on Master ***
+connection master;
+eval CREATE TABLE t5 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 LONG, 
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+--echo
+--echo *** Start Replica ***
+connection slave;
+
+# reset binary logs and gtids and slave and start replica
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+INSERT INTO t5 () VALUES(1,@b1,'Kyle',UUID(),DEFAULT),
+                        (2,@b1,'JOE',UUID(),DEFAULT),
+                        (3,@b1,'QA',UUID(),DEFAULT);
+--replace_column 4 UUID 5 TIME 
+SELECT c1,hex(c4),c5,c6,c7 FROM t5 ORDER BY c1;
+
+--echo
+--echo ** Select * from Slave **
+sync_slave_with_master;
+SELECT c1,hex(c4),c5 FROM t5 ORDER BY c1;
+
+connection master;
+DROP TABLE t5;
+sync_slave_with_master;
+--echo
+
+# END of 5.1 tests case
+
+#
+# BUG#53386: HA_ERR_CORRUPT_EVENT or debug assertion with different table on slave
+#
+
+-- source include/rpl/reset.inc
+-- connection master
+SET NAMES utf8;
+
+# CREATE Different tables on master and slave
+SET SQL_LOG_BIN=0;
+-- eval CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE=$engine_type
+SET SQL_LOG_BIN=1;
+-- connection slave
+-- eval CREATE TABLE t1 (c1 INT) ENGINE=$engine_type
+
+# insert empty row (c2 gets an empty string)
+-- connection master
+
+-- disable_warnings
+INSERT IGNORE INTO t1 VALUES (); 
+
+# insert multi-byte chars that will take more than 255 bytes 
+SET @text= REPEAT(_utf8'ç', 255);
+INSERT INTO t1 VALUES (1, @text);
+-- enable_warnings
+
+SELECT * FROM t1 ORDER BY c1; 
+-- sync_slave_with_master
+SELECT * FROM t1 ORDER BY c1; 
+
+# clean up
+-- connection master
+DROP TABLE t1; 
+-- sync_slave_with_master
+
+--connection $_saved_conn

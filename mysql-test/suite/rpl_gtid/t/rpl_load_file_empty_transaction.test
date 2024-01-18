@@ -23,7 +23,7 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #
 # This test checks that a transaction that a transaction is successfully
@@ -32,14 +32,14 @@
 
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 --let $server_uuid=`SELECT @@GLOBAL.SERVER_UUID`
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CREATE USER u1;
 GRANT replication_applier ON *.* TO u1;
 GRANT session_variables_admin ON *.* TO u1;
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # empty transaction, so the applier skips the load data transaction later on
 --replace_result $server_uuid SERVER_UUID
@@ -47,7 +47,7 @@ CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1';
 COMMIT;
 SET @@SESSION.GTID_NEXT='AUTOMATIC';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $saved_binlog_format=`SELECT @@session.binlog_format`
 SET @@SESSION.binlog_format='statement';
 
@@ -59,20 +59,20 @@ SET @@SESSION.GTID_NEXT='AUTOMATIC';
 --replace_result $saved_binlog_format SAVED_BINLOG_FORMAT
 --eval SET @@SESSION.binlog_format='$saved_binlog_format'
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # if this did not work, the test would fail here
 
 # clean up
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
 DROP USER 'u1';
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

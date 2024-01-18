@@ -118,5 +118,5 @@ drop database my_local_db;
 # The content of the binlog dumped in the result file
 # should not contain any references to non-replicated tables.
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 

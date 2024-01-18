@@ -2,11 +2,11 @@
 # The aim of the test is to test multiple triggers on a table for same action
 # type and timing with replication.
 ################################################################################
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 --let $master= master
 --let $slave= slave
---source extra/rpl_tests/rpl_multiple_trigger.inc
+--source common/rpl/multiple_trigger.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

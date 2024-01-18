@@ -47,21 +47,21 @@
 
 --let $rpl_skip_start_slave = 1
 --let $rpl_extra_connections_per_server = 2
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # 1. Start only the IO_THREAD on replica and set the SOURCE_HEARTBEAT_PERIOD to
 #    0 in order to avoid the heartbeat_events from dump thread
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0;
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # 2. Create tables on source.
 CREATE TABLE t (a LONGBLOB);
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # 3. Sync the IO_THREAD on replica and stop the replica
---source include/sync_slave_io_with_master.inc
---source include/stop_slave_io.inc
+--source include/rpl/sync_to_replica_received.inc
+--source include/rpl/stop_receiver.inc
 
 # 4. Execute one 4 GiB transaction on connection_1 and one small transaction
 #    on connection_2, don't commit the transaction.
@@ -139,18 +139,18 @@ INSERT INTO t VALUES ('Hi!');
 # 8. Start the receiver thread and make it stop after receiving the first
 #    transaction from connection 1(the 4 GiB transaction)
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $rpl_after_received_events_action= stop
 --let $rpl_event_count= 2
 --let $rpl_count_only_event_type= Gtid
---source include/rpl_receive_event_count.inc
+--source include/rpl/receive_event_count.inc
 
 --let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1)
 
 # 9. Source enables a debug symbol that makes it hit an assertion in case it
 #    sends a heartbeat event with a position smaller than 4 GiB.
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $debug_point = heartbeat_event_with_position_greater_than_4_gb
 --source include/add_debug_point.inc
 
@@ -158,10 +158,10 @@ INSERT INTO t VALUES ('Hi!');
 #    and therefore the dump thread will emit a heartbeat event after skipping
 #    the 4 GiB transaction (in order to notify the receiver of the position).
 
---source include/rpl_connection_slave.inc
---source include/start_slave_io.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # 11.Verify that we received exactly 1 heartbeat event after step 8 by
 #    inspecting performance_schema.replication_connection_status
@@ -173,10 +173,10 @@ INSERT INTO t VALUES ('Hi!');
 --source include/assert.inc
 
 # 12. Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $debug_point = heartbeat_event_with_position_greater_than_4_gb
 --source include/remove_debug_point.inc
 DROP TABLE t;
 
 --let $rpl_only_running_threads = 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

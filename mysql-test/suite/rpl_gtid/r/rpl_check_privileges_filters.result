@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,30 +19,30 @@ CREATE TABLE t1 (word CHAR(20) NOT NULL);
 SET @@SESSION.binlog_format='statement';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
 CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
-include/start_slave.inc
+include/rpl/start_replica.inc
 # DMLs as STATEMENTS and replicate them to ignored table
 [connection master]
 INSERT INTO t1 VALUES ('abz');
 UPDATE t1 SET word = 'luis';
 DELETE FROM t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER replicate_ignore_table=();
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP DATABASE db1;
 USE test;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 #
 # Case #1.1: DML in statement format against a filtered out table (ROW)
 #
@@ -53,72 +53,72 @@ CREATE TABLE t1 (word CHAR(20) NOT NULL);
 SET @@SESSION.binlog_format='ROW';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
 CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
-include/start_slave.inc
+include/rpl/start_replica.inc
 # DMLs as STATEMENTS and replicate them to ignored table
 [connection master]
 INSERT INTO t1 VALUES ('abz');
 UPDATE t1 SET word = 'luis';
 DELETE FROM t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER replicate_ignore_table=();
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP DATABASE db1;
 USE test;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 #
 # Case 2: DDL against a table that is in an ignored database
 #
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
 CHANGE REPLICATION FILTER replicate_ignore_db=(db1_wl15032);
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 CREATE DATABASE db1_wl15032;
 USE db1_wl15032;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 # Issue DDLs and replicate them to ignored database
 [connection master]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@SESSION.sql_require_primary_key = TRUE;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
 DROP TABLE t1;
 SET @@SESSION.sql_require_primary_key = FALSE;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@SESSION.default_table_encryption = TRUE;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
 DROP TABLE t1;
 SET @@SESSION.default_table_encryption = FALSE;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 DROP DATABASE db1_wl15032;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER replicate_ignore_db=();
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 #
 # Case #3: SAVEPOINTs in statement format against a filtered out table
 #
@@ -129,11 +129,11 @@ CREATE TABLE t1 (word CHAR(20) NOT NULL);
 SET @@SESSION.binlog_format='statement';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
 CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Issue SAVEPOINTS and ROLLBACK to SAVEPOINTS and replicate them to ignored table
 [connection master]
 BEGIN;
@@ -144,34 +144,34 @@ INSERT INTO t1 VALUES ('foo');
 ROLLBACK TO SAVEPOINT sp;
 INSERT INTO t1 VALUES ('bar');
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # clean up
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER replicate_ignore_table=();
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP DATABASE db1;
 USE test;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 #
 # Case 4: Offending LOAD DATA is ignored because applies to ignored database
 #
 [connection master]
 CREATE DATABASE db1_wl15032;
 CREATE TABLE db1_wl15032.tload (c1 TEXT);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = (db1_wl15032);
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 USE db1_wl15032;
 SET SESSION binlog_format=STATEMENT;
@@ -183,27 +183,27 @@ Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 USE test;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [table is empty on the secondary]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP DATABASE db1_wl15032;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 #
 # Case 5: Offending LOAD DATA is ignored because applies to ignored table
 #
 [connection master]
 CREATE TABLE tload (c1 TEXT);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = (test.tload);
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 SET SESSION binlog_format=STATEMENT;
 Warnings:
@@ -213,26 +213,26 @@ SET SESSION binlog_format=ROW;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [table is empty on the secondary]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = ();
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE tload;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 #
 # Offending LOAD DATA is ignored because of empty transactions on replica
 #
 [connection master]
 CREATE TABLE tload (c1 TEXT);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET GTID_NEXT='00000000-0000-0000-0000-000000000000:1';
 BEGIN;
 COMMIT;
@@ -252,22 +252,22 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 SET GTID_NEXT='00000000-0000-0000-0000-000000000000:2';
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET GTID_NEXT=AUTOMATIC;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [table is empty on the secondary]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE tload;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 #
 # Global Cleanup
 #
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 DROP USER u1_wl15032;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/rpl_end.inc
+include/rpl/deinit.inc

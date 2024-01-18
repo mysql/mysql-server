@@ -38,7 +38,7 @@
 # make sure that fragmentation is disabled
 # disable compression to be sure fragmentation kicks in
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $saved_threshold_2= `SELECT @@group_replication_communication_max_message_size`
 SET GLOBAL group_replication_communication_max_message_size= 0;
@@ -46,7 +46,7 @@ SET GLOBAL group_replication_communication_max_message_size= 0;
 SET GLOBAL group_replication_compression_threshold= 0;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $saved_threshold_1= `SELECT @@group_replication_communication_max_message_size`
 SET GLOBAL group_replication_communication_max_message_size= 0;
@@ -56,7 +56,7 @@ SET GLOBAL group_replication_compression_threshold= 0;
 --echo #########################################################################
 --echo # 2. Check it asserts that:
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # 2.a. The variable does not take invalid inputs.
 --error ER_WRONG_TYPE_FOR_VAR
@@ -95,12 +95,12 @@ SET GLOBAL group_replication_communication_max_message_size=DEFAULT;
 
 # Start GR on server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Go back to server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #########################################################################
 --echo # 4. Assert that on running member variable cannot be changed.
@@ -125,9 +125,9 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=InnoDB;
 --eval INSERT INTO t1 VALUES(2, 'B')
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Assert that fragmentation is disabled on server2 given that we had set
 # threshold to 0 earlier in the test
@@ -140,7 +140,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=InnoDB;
 # is able to speak with server1 which has fragmentation on
 --eval INSERT INTO t1 VALUES(3, REPEAT('C', $double_sound_threshold))
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Assert that the data made it through
 --let $diff_tables= server1:test.t1,server2:test.t1
@@ -174,11 +174,11 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=InnoDB;
 --echo # Clean up
 DROP TABLE t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # restore server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --replace_result $saved_threshold_1 SAVED_VALUE
@@ -189,7 +189,7 @@ DROP TABLE t1;
 
 # restore server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --replace_result $saved_threshold_2 SAVED_VALUE

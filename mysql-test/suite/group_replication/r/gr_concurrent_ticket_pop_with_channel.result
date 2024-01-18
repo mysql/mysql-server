@@ -19,12 +19,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1']
 # Add some data on 3 and sync
 [connection server3]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 2. Insert one last transaction on server 3 that will block on commit on server 1
 #    Use a point that blocks the transaction after certification but before commit
@@ -79,10 +79,10 @@ SET DEBUG_SYNC= "now SIGNAL signal.end_of_ticket_continue";
 # 7. Cleaning up
 [connection server3]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server1]
 SET DEBUG_SYNC= 'RESET';
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "ch1";
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/stop_group_replication.inc

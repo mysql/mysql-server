@@ -1,13 +1,13 @@
 # ==== Purpose ====
 #
-# This is wrapper testcase of rpl_mts_spco_acl_commands.test to verify the behavior
+# This is wrapper testcase of common/rpl/rpl_mta_rpco_acl_commands.test to verify the behavior
 # of ACL commands with replica-preserve-commit-order enabled binlogless replica.
 #
 # === Implementation ====
 #
 # 1. Configure replication between source - binlogless replica.
 #
-# 2. Source rpl_mts_spco_acl_commands.test to verify if ACL
+# 2. Source common/rpl/rpl_mta_rpco_acl_commands.test to verify if ACL
 #    commands respect replica-preserve-commit-order.
 #
 # === References ===
@@ -19,4 +19,4 @@
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
 
---source extra/rpl_tests/rpl_mts_spco_acl_commands.test
+--source common/rpl/rpl_mta_rpco_acl_commands.test

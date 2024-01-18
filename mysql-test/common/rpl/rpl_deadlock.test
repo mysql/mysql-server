@@ -1,0 +1,210 @@
+# See if slave restarts the transaction after failing on an InnoDB deadlock error.
+
+# Note: testing what happens when too many retries is possible, but
+# needs large waits when running with --debug, so we don't do it.
+# The same way, this test may not test what is expected when run
+# under Valgrind, timings are too short then (with --valgrind I
+# (Guilhem) have seen the test manage to provoke lock wait timeout
+# error but not deadlock error; that is ok as code deals with the two
+# errors in exactly the same way.
+
+--source include/rpl/init_source_replica.inc
+
+#create a new connection  to the slave
+--connect (slave2, 127.0.0.1, root, ,test, $SLAVE_MYPORT,)
+
+# 0) Prepare tables and data
+--echo *** Prepare tables and data ***
+
+connection master;
+eval CREATE TABLE t1 (a INT NOT NULL, KEY(a)) ENGINE=$engine_type;
+eval CREATE TABLE t2 (a INT) ENGINE=$engine_type;
+eval CREATE TABLE t3 (a INT NOT NULL, KEY(a)) ENGINE=$engine_type;
+sync_slave_with_master;
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SELECT @@GLOBAL.replica_transaction_retries;
+SELECT @@GLOBAL.innodb_lock_wait_timeout;
+--source include/rpl/stop_replica.inc
+
+connection master;
+# Save position of BEGIN
+let $master_pos_begin= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
+BEGIN;
+INSERT INTO t1 VALUES (1);
+# We make a long transaction here
+INSERT INTO t2 VALUES (2), (2), (2), (2), (2), (2), (2), (2), (2), (2);
+INSERT INTO t3 VALUES (3);
+COMMIT;
+save_master_pos;
+--echo
+
+# 1) Test deadlock
+# Block slave SQL thread, wait retries of transaction, unlock slave before lock timeout
+--echo *** Test deadlock ***
+
+connection slave;
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+# Save value of 'count_transactions_retries' before deadlock
+let $count_transactions_retries= query_get_value(
+"select count_transactions_retries from 
+performance_schema.replication_applier_status",count_transactions_retries, 1);
+--connection slave2
+--source include/rpl/start_replica.inc
+--connection slave
+# Wait until SQL thread blocked: 'count_transactions_retries' will be incremented
+let $status_col= count_transactions_retries;
+let $status_col_value= $count_transactions_retries;
+let $table=replication_applier_status;
+let $status_col_comparsion= >;
+--source include/wait_for_pfs_status.inc
+SELECT COUNT(*) FROM t2;
+COMMIT;
+
+--echo
+--echo # Test that the performance schema column shows > 0 values.
+--echo
+
+--let $assert_text= current number of retries should be more than the value saved before deadlock.
+--let $assert_cond= [SELECT COUNT_TRANSACTIONS_RETRIES FROM performance_schema.replication_applier_status, COUNT_TRANSACTIONS_RETRIES, 1] > "$count_transactions_retries"
+--source include/assert.inc
+
+source include/rpl/assert_replica_running.inc;
+sync_with_master;
+
+# Check the data
+SELECT * FROM t1;
+SELECT * FROM t3;
+--echo
+
+# 2) Test lock wait timeout
+# Block slave and wait lock timeout error
+--echo *** Test lock wait timeout ***
+
+connection slave;
+--source include/rpl/stop_replica.inc
+DELETE FROM t2;
+# Set slave position to the BEGIN log event
+RESET BINARY LOGS AND GTIDS;
+--replace_result $master_pos_begin MASTER_POS_BEGIN
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$master_pos_begin;
+BEGIN;
+# Hold lock
+SELECT * FROM t1 FOR UPDATE;
+# Wait until slave stopped with error 'Lock wait timeout exceeded'
+--connection slave2
+START REPLICA;
+--connection slave
+let $slave_sql_errno= 1205;
+--source include/rpl/wait_for_applier_error.inc
+SELECT COUNT(*) FROM t2;
+COMMIT;
+--source include/rpl/start_replica.inc
+sync_with_master;
+# Check data from tables
+SELECT * FROM t1;
+SELECT * FROM t3;
+# Check that no error is reported
+source include/rpl/assert_replica_running.inc;
+--echo
+
+# 3) Test lock wait timeout and purged relay log
+# Set max_relay_log_size=0, block slave and wait lock timeout error.
+# Restart replica and check that no erros appear
+--echo *** Test lock wait timeout and purged relay logs ***
+
+connection slave;
+SET @my_max_relay_log_size= @@global.max_relay_log_size;
+SET global max_relay_log_size=0;
+--source include/rpl/stop_replica.inc
+DELETE FROM t2;
+# Set slave position to the BEGIN log event
+RESET BINARY LOGS AND GTIDS;
+--replace_result $master_pos_begin MASTER_POS_BEGIN
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$master_pos_begin; 
+BEGIN;
+# Hold lock
+SELECT * FROM t1 FOR UPDATE;
+# Wait until slave stopped with error 'Lock wait timeout exceeded'
+--connection slave2
+START REPLICA;
+--connection slave
+let $slave_sql_errno= 1205;
+--source include/rpl/wait_for_applier_error.inc
+SELECT COUNT(*) FROM t2;
+COMMIT;
+--source include/rpl/start_replica.inc
+sync_with_master;
+# Check data from tables
+SELECT * FROM t1;
+SELECT * FROM t3;
+# Check that no error is reported
+source include/rpl/assert_replica_running.inc;
+--echo
+
+#
+# bug#11748510/36524 incident of deadlock on slave is overdramatized
+#
+# Observe that the slave stopped when the number of transation retries 
+# exceeds @@global.replica_transaction_retries
+#
+connection master;
+
+--echo *** Test the deadlock warning to be escalated into the error ***
+
+delete from t1;
+delete from t2;
+delete from t3;
+
+sync_slave_with_master;
+
+# make sure slave's unilateral row gone as well
+delete from t1;
+delete from t2;
+delete from t3;
+
+# the first attempt to run a deadlock scenario of p 1) leads to the error
+set @save.replica_transaction_retries= @@global.replica_transaction_retries;
+set @@global.replica_transaction_retries= 0;
+source include/rpl/stop_replica.inc;
+
+connection master;
+
+BEGIN;
+INSERT INTO t1 VALUES (1);
+# We make a long transaction here
+INSERT INTO t2 VALUES (2), (2), (2), (2), (2), (2), (2), (2), (2), (2);
+INSERT INTO t3 VALUES (3);
+COMMIT;
+
+connection slave;
+BEGIN;
+SELECT count(*) as zero FROM t1 FOR UPDATE;
+
+--connection slave2
+START REPLICA;
+--connection slave
+
+--echo *** Now the slave must be stopped due to timeout ***
+
+let $slave_sql_errno= 1205; # ER_LOCK_TIMEOUT
+let $show_slave_sql_error= 0;
+source include/rpl/wait_for_applier_error.inc;
+
+rollback;
+
+set @@global.replica_transaction_retries= @save.replica_transaction_retries;
+source include/rpl/start_replica.inc;
+# Clean up
+--echo *** Clean up ***
+connection master;
+DROP TABLE t1,t2,t3;
+sync_slave_with_master;
+SET global max_relay_log_size= @my_max_relay_log_size;
+CALL mtr.add_suppression(".*worker thread retried transaction.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
+--echo End of 5.1 tests
+--source include/rpl/deinit.inc

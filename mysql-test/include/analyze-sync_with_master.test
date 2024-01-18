@@ -6,4 +6,4 @@
 
 --let $rpl_server_count= 0
 --let $rpl_only_current_connection= 1
---source include/show_rpl_debug_info.inc
+--source include/rpl/debug/show_debug_info.inc

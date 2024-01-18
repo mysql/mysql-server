@@ -20,7 +20,7 @@
 
 # This test requires binlog_format=mixed
 --source include/have_binlog_format_mixed.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo # Case-1: BINLOG_STMT_UNSAFE_SKIP_LOCKED
 --echo #   Statement is unsafe because it uses SKIP LOCKED.
@@ -57,4 +57,4 @@ ROLLBACK;
 --connection master
 DROP TABLE t1, t2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

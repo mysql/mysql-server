@@ -35,7 +35,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 --echo #    due to already one operation is being executed
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -83,12 +83,12 @@ set session sql_log_bin=1;
 --echo # 4. Unlock the blocked action on server1
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # 5. Resume the action on server1

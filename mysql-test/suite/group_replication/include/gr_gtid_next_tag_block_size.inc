@@ -75,7 +75,7 @@
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $block_size_saved= `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size`
 --eval SET GLOBAL group_replication_gtid_assignment_block_size=$use_block_size
 --source include/start_and_bootstrap_group_replication.inc
@@ -84,7 +84,7 @@
 while ($srv_id <= $rpl_server_count) {
   # Start GR on server$srv_num (Secondary $srv_num)
   --let $rpl_connection_name= server$srv_id
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --eval SET GLOBAL group_replication_gtid_assignment_block_size=$use_block_size
   --source include/start_group_replication.inc
   --inc $srv_id
@@ -95,7 +95,7 @@ while ($srv_id <= $rpl_server_count) {
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GTID_NEXT='AUTOMATIC:tag_1';
 --let $srv_id=1
@@ -115,7 +115,7 @@ SET GTID_NEXT='AUTOMATIC';
 --let $srv_id=1
 while ($srv_id <= $rpl_server_count) {
   --let $rpl_connection_name= server$srv_id
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --let $MYSQL_SVR_PORT= `SELECT @@port`
 
   --exec_in_background $MYSQL_SLAP --host=127.0.0.1 -P $MYSQL_SVR_PORT --create-schema=test$srv_id --delimiter=";" --iterations=$num_inserts --query="SET GTID_NEXT='AUTOMATIC:tag_1'; INSERT INTO t1 VALUES (NULL)" --concurrency=1 --silent
@@ -129,7 +129,7 @@ while ($srv_id <= $rpl_server_count) {
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $srv_id=1
 while ($srv_id <= $rpl_server_count) {
@@ -139,7 +139,7 @@ while ($srv_id <= $rpl_server_count) {
   --inc $srv_id
 }
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Prepare gtid_executed string that gtid_executed set will be tested against for
 # Test 1 and 2
@@ -174,7 +174,7 @@ while ($srv_id <= $rpl_server_count) {
   }
 
   --let $rpl_connection_name= server$srv_id
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   if (`SELECT @@GLOBAL.group_replication_gtid_assignment_block_size > 260`)
   {
@@ -196,7 +196,7 @@ while ($srv_id <= $rpl_server_count) {
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $srv_id=1
 while ($srv_id <= $rpl_server_count) {
@@ -209,7 +209,7 @@ while ($srv_id <= $rpl_server_count) {
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
 
@@ -276,7 +276,7 @@ DROP TABLE t1;
 --let $srv_id=1
 while ($srv_id <= $rpl_server_count) {
   --let $rpl_connection_name= server$srv_id
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --source include/stop_group_replication.inc
   --disable_query_log
   --eval SET GLOBAL group_replication_gtid_assignment_block_size=$block_size_saved
@@ -286,4 +286,4 @@ while ($srv_id <= $rpl_server_count) {
 }
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc

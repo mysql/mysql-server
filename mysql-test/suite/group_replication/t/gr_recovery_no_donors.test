@@ -16,7 +16,7 @@
 ################################################################################
 --source include/big_test.inc
 --source include/have_debug_sync.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 
 
@@ -29,7 +29,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -82,12 +82,12 @@ END//
 delimiter ;//
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
 
@@ -96,7 +96,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --echo ############################################################
 --echo # 2. Add error suppressions.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Relay log read failure: Could not parse relay log event entry.*");
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
@@ -107,7 +107,7 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
@@ -122,7 +122,7 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
@@ -147,7 +147,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    recovery waiting for the View_change_log_event on which
 --echo #    them joined.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 
@@ -156,27 +156,27 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 --echo # 4. Stop and start members 2 and 3 without waiting for
 --echo #    member status.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 STOP GROUP_REPLICATION;
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 STOP GROUP_REPLICATION;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication_command.inc
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication_command.inc
 
 # Member 2 and 3 will be on recovery
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= RECOVERING
 --source include/gr_wait_for_member_state.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= RECOVERING
 --source include/gr_wait_for_member_state.inc
 
@@ -185,7 +185,7 @@ STOP GROUP_REPLICATION;
 --echo ############################################################
 --echo # 5. Stop and start member 1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 SET @group_replication_components_stop_timeout_save = @@GLOBAL.group_replication_components_stop_timeout;
@@ -228,14 +228,14 @@ RESET BINARY LOGS AND GTIDS;
 --echo ############################################################
 --echo # 6. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
 SET GLOBAl group_replication_components_stop_timeout = @group_replication_components_stop_timeout_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --disable_warnings
@@ -244,7 +244,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --disable_warnings

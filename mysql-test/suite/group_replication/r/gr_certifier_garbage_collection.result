@@ -4,10 +4,10 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 ############################################################
@@ -15,7 +15,7 @@ SET SESSION sql_log_bin= 1;
 #     they are applied on all group members.
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 #  2. Block server 2 group replication applier so that
@@ -61,14 +61,14 @@ include/assert.inc ['There is no value 2 in table t1']
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 #  8. Execute a transaction on server 2 to verify that
 #     everything is OK.
 include/assert.inc [GTID_EXECUTED must contain all group transactions]
 UPDATE t1 SET c1=3 WHERE c1=2;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ############################################################
 #  9. Check that GTID_EXECUTED on server 1 contains all
 #     transactions.
@@ -86,10 +86,10 @@ include/assert.inc ['There is a value 3 in table t1']
 # 11. Clean up.
 DROP TABLE t1;
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 SET DEBUG_SYNC= 'RESET';
 include/group_replication_end.inc

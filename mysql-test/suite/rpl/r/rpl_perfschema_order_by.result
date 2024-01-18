@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=3->2,1->2]
+include/rpl/init.inc [topology=3->2,1->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,11 +20,11 @@ CREATE DATABASE db1;
 CREATE DATABASE db3;
 # 3)  sync the slave (server_2) with both masters (server_1 and server_3).
 [connection server_1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
-include/stop_slave.inc [FOR CHANNEL 'channel_3']
-include/start_slave.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_3']
+include/rpl/start_replica.inc [FOR CHANNEL 'channel_3']
 
 SELECT CHANNEL_NAME FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME
@@ -76,9 +76,9 @@ DROP DATABASE db1;
 [connection server_3]
 DROP DATABASE db3;
 [connection server_1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 # Test for Multi Threaded Slave
 STOP REPLICA;
 SET GLOBAL replica_parallel_workers = 2;
@@ -91,11 +91,11 @@ CREATE DATABASE db1;
 CREATE DATABASE db3;
 # 3)  sync the slave (server_2) with both masters (server_1 and server_3).
 [connection server_1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
-include/stop_slave.inc [FOR CHANNEL 'channel_3']
-include/start_slave.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_3']
+include/rpl/start_replica.inc [FOR CHANNEL 'channel_3']
 
 SELECT CHANNEL_NAME FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME
@@ -160,12 +160,12 @@ DROP DATABASE db1;
 [connection server_3]
 DROP DATABASE db3;
 [connection server_1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 STOP REPLICA;
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 START REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_3';
 RESET REPLICA ALL FOR CHANNEL 'channel_1';

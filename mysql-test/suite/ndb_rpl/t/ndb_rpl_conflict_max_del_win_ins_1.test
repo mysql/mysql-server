@@ -5,7 +5,7 @@
 
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --disable_query_log
 --connection master
@@ -117,13 +117,13 @@ call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 
 --echo Wait for slave to choke on that event.
 --let $slave_sql_errno=1296
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Recover sync
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 RESET REPLICA;
 --let $rpl_only_running_threads= 1
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo *** Test 8 ********************************************************************************
 --echo * Test that missing timestamp column in before image for delete doesn't cause slave failure
@@ -150,4 +150,4 @@ drop table `test`.`t1$EX`;
 --sync_slave_with_master
 --enable_query_log
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

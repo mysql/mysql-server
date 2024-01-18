@@ -131,5 +131,5 @@ include/gr_assert_primary_member.inc
 
 # 10. Cleanup
 DROP TABLE test.t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

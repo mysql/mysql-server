@@ -22,9 +22,9 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Recovery from source pos*");
 CALL mtr.add_suppression("Replica SQL.*Duplicate entry.* Error_code: MY-001062");
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -36,16 +36,16 @@ CALL mtr.add_suppression("The replica coordinator and worker threads are stopped
 # second time change replication source with auto position 1
 while ($loop_count)
 {
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
   eval CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=$auto_position;
   SET @@global.replica_parallel_workers=4;
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
 
-  --source extra/rpl_tests/rpl_gtid_mts_relay_log_recovery.test
+  --source common/rpl/rpl_gtid_mta_relay_log_recovery.test
 
   if ($auto_position == 0)
   {
-    --source include/rpl_reset.inc
+    --source include/rpl/reset.inc
   }
 
   --dec $loop_count
@@ -53,4 +53,4 @@ while ($loop_count)
 }
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

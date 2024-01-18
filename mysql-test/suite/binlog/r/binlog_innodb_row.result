@@ -7,7 +7,7 @@ update t1 set i = 3 where i < 3;
 ERROR 23000: Duplicate entry '3' for key 't1.i'
 commit;
 *** Results of the test: the binlog must have only Write_rows events not any Update_rows ***
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -22,7 +22,7 @@ insert into t1 values (3),(4),(1),(2);
 ERROR 23000: Duplicate entry '1' for key 't1.i'
 commit;
 *** Results of the test: the binlog must have only one Write_rows event not two ***
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -38,7 +38,7 @@ DROP TABLE t1;
 ###############################################
 ### assertion: No event for 'TRUNCATE TABLE t2'
 ###############################################
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 ( c1 int , primary key (c1)) ENGINE=InnoDB
 binlog.000001	#	Query	#	#	BEGIN
@@ -55,6 +55,6 @@ DROP TEMPORARY TABLE t1;
 ###############################################
 ### assertion: No event for 'TRUNCATE TABLE t1'
 ###############################################
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 ###############################################

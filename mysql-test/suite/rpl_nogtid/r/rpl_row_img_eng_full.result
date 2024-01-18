@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2->3]
+include/rpl/init.inc [topology=1->2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -16,8 +16,8 @@ binlog_row_image	MINIMAL
 CON: 'server_2', IMG: 'MINIMAL', RESTART REPLICA: 'Y'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
@@ -25,8 +25,8 @@ binlog_row_image	MINIMAL
 CON: 'server_3', IMG: 'MINIMAL', RESTART REPLICA: 'Y'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
@@ -37,7 +37,7 @@ INSERT INTO t1 VALUES ();
 SELECT * FROM t1;
 c1
 100
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT * FROM t1;
 c1
 100
@@ -45,7 +45,7 @@ SELECT * FROM t1;
 c1
 100
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #### case #2: AI: not empty but slave does not have usable data for its columns (INSERT)
 CREATE TABLE t1 (c1 int DEFAULT 100) Engine=ENGINE;
 SET SQL_LOG_BIN=0;
@@ -58,7 +58,7 @@ INSERT INTO t1(c2) VALUES (1);
 SELECT * FROM t1;
 c1	c2
 100	1
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT * FROM t1;
 c1
 100
@@ -66,7 +66,7 @@ SELECT * FROM t1;
 c1
 100
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #### case #3: BI: usable columns on the slave, AI: no usable columns on the slave
 CREATE TABLE t1 (c1 int DEFAULT 100) Engine=ENGINE;
 SET SQL_LOG_BIN=0;
@@ -79,7 +79,7 @@ INSERT INTO t1 VALUES (1,1);
 SELECT * FROM t1;
 c1	c2
 1	1
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT * FROM t1;
 c1
 1
@@ -90,7 +90,7 @@ UPDATE t1 SET c2=2 WHERE c1=1 AND c2=1;
 SELECT * FROM t1;
 c1	c2
 1	2
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT * FROM t1;
 c1
 1
@@ -98,7 +98,7 @@ SELECT * FROM t1;
 c1
 1
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #### case #4: AI, BI: no usable columns on the slave (NOOP UPDATE).
 ####          
 CREATE TABLE t1 (c1 int DEFAULT 100) Engine=ENGINE;
@@ -112,7 +112,7 @@ INSERT INTO t1 VALUES (1,1,1);
 SELECT * FROM t1;
 c1	c2	c3
 1	1	1
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT * FROM t1;
 c1
 1
@@ -123,7 +123,7 @@ UPDATE t1 SET c3=300 WHERE c2=1;
 SELECT * FROM t1;
 c1	c2	c3
 1	1	300
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT * FROM t1;
 c1
 1
@@ -131,7 +131,7 @@ SELECT * FROM t1;
 c1
 1
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #### case #5: BI: no usable columns on the slave, AI: usable columns on the slave (slave must stop).
 #### 
 CREATE TABLE t1 (c1 INT DEFAULT 100) Engine=ENGINE;
@@ -145,7 +145,7 @@ INSERT INTO t1 VALUES (1,1);
 SELECT * FROM t1;
 c1	c2
 1	1
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT * FROM t1;
 c1
 1
@@ -161,9 +161,9 @@ call mtr.add_suppression("Replica: Can\'t find record in \'t1\' Error_code: MY-0
 call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Update_rows event on table test.t1; Can.t find record in .t1.* Error_code: MY-001032");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SET SQL_LOG_BIN=1;
-include/wait_for_slave_sql_error_and_skip.inc [errno=1032]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=1032]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 CON: 'server_1', IMG: 'FULL', RESTART REPLICA: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
@@ -174,8 +174,8 @@ binlog_row_image	FULL
 CON: 'server_2', IMG: 'FULL', RESTART REPLICA: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
@@ -183,10 +183,10 @@ binlog_row_image	FULL
 CON: 'server_3', IMG: 'FULL', RESTART REPLICA: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
-include/rpl_end.inc
+include/rpl/deinit.inc

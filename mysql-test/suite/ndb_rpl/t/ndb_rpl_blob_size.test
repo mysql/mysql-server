@@ -3,7 +3,7 @@
 
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --connection slave
 stop replica;
@@ -117,4 +117,4 @@ SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl) FROM test.t1 
 --connection master
 DROP TABLE test.t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

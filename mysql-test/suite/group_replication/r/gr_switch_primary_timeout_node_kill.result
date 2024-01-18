@@ -16,7 +16,7 @@ include/start_group_replication.inc
 # 2. Create table on server1.
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 3. Start transaction on server1.
 [connection server1]
@@ -36,7 +36,7 @@ SELECT group_replication_set_as_primary("MEMBER2_UUID",30);
 
 # 7. Wait for server3 to be expelled
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 8. Check the monitor thread exited.
 #    Wait for client disconnection on server1.

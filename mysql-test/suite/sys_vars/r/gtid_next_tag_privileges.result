@@ -1,4 +1,4 @@
-include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
+include/rpl/set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
 
 # T1.1. Create a user with no privileges
 
@@ -118,4 +118,4 @@ SET GTID_NEXT= "AUTOMATIC:bb";
 #
 SET GTID_NEXT= "AUTOMATIC";
 DROP USER normal_user;
-include/rpl_set_gtid_mode.inc [OFF on servers 1]
+include/rpl/set_gtid_mode.inc [OFF on servers 1]

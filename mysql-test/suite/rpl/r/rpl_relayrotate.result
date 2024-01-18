@@ -1,10 +1,10 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Replica SQL for channel '': Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 STOP REPLICA;
 create table t1 (a int) engine=innodb;
 RESET REPLICA;
@@ -15,4 +15,4 @@ select max(a) from t1;
 max(a)
 loop_max
 drop table t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

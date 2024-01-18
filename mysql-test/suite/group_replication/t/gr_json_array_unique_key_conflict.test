@@ -36,12 +36,12 @@
 --echo ############################################################
 --echo # Create a table on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, data JSON,
   UNIQUE KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1(c1,data) VALUES (1,'[0,1,2]');
 INSERT INTO t1(c1,data) VALUES (2,'[100,101]');
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -96,7 +96,7 @@ INSERT INTO t1(c1,data) VALUES (2,'[100,101]');
 --echo ############################################################
 --echo # Check the data sanity
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Table t1 will contain 2 rows after the above execution
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "5"

@@ -28,6 +28,6 @@ INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f;
 UPDATE t3, t2 SET e = 2, b = 3 WHERE f = c;
 COMMIT;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 DROP TABLE t1, t2, t3;
 

@@ -23,7 +23,7 @@
 
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #####################################################################
 #
@@ -37,7 +37,7 @@
 #
 #####################################################################
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 CREATE EVENT test.slave_event ON SCHEDULE EVERY 3 SECOND DISABLE ON SLAVE DO SELECT 1;
 CREATE EVENT test.replica_event ON SCHEDULE EVERY 3 SECOND DISABLE ON REPLICA DO SELECT 1;
@@ -97,5 +97,5 @@ DROP EVENT test.slave_event;
 DROP EVENT test.replica_event;
 
 # Start replication to end the test
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

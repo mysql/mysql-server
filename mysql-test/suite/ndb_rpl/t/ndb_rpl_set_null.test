@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 # InnoDB
 CREATE TABLE t1_innodb (b1 BIT, b2 BIT);
@@ -23,9 +23,9 @@ INSERT INTO t3 VALUES (1, 1, 1);
 INSERT INTO t4 VALUES (1, 1, 1, 1, 1);
 INSERT INTO t5 VALUES (1, 63);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 UPDATE t1_innodb SET b1 = NULL WHERE b2 = 1;
 UPDATE t1_ndb SET c1 = NULL WHERE c2 = 1;
 UPDATE t2 SET d1 = NULL WHERE d3 = 1;
@@ -33,7 +33,7 @@ UPDATE t3 SET e1 = NULL WHERE a = 1;
 UPDATE t4 SET f1 = NULL, f5 = NULL WHERE f2 = 1;
 UPDATE t5 SET g1 = NULL WHERE a = 1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SELECT * FROM t1_ndb;
 SELECT * FROM t1_innodb;
@@ -42,37 +42,37 @@ SELECT * FROM t3;
 SELECT * FROM t4;
 SELECT * FROM t5;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM t1_innodb WHERE b2 = 1 LIMIT 1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1_innodb;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM t1_ndb WHERE c2 = 1 LIMIT 1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1_ndb;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM t2 WHERE d2 = 1 LIMIT 1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t2;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM t3 WHERE a = 1 LIMIT 1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t3;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM t4 WHERE f2 = 1 LIMIT 1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t4;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM t5 WHERE a = 1 LIMIT 1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t5;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1_innodb;
 DROP TABLE t1_ndb;
 DROP TABLE t2;
@@ -81,4 +81,4 @@ DROP TABLE t4;
 DROP TABLE t5;
 
 --echo Cleanup
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

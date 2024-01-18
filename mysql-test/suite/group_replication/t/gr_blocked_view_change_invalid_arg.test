@@ -23,7 +23,7 @@
 --echo # 1. Force expel of member 2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -46,7 +46,7 @@ SET SESSION sql_log_bin = 1;
 --echo # 2. Confirm member1 sees member2 as unreachable
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member2_uuid
@@ -73,16 +73,16 @@ SHUTDOWN;
 --source include/wait_until_connected_again.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # Send SIGCONT to server, so it can continue.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec kill -18 $server_pid
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The peer is trying to set up a configuration where there are members that don't belong to the current view.");
@@ -92,7 +92,7 @@ call mtr.add_suppression("The member has failed to gracefully leave the group.")
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");

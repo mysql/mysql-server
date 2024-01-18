@@ -21,13 +21,13 @@
 # to rerun them for every format.
 --source include/have_binlog_format_row.inc
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # Restrict the test runs to only debug builds, since we set DEBUG point in the test.
 --source include/have_debug.inc
 # Test simulates OOM condition and hence should not be run with valgrind
 -- source include/not_valgrind.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
@@ -35,14 +35,14 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 --let $debug_point= rpl_gtid_update_on_commit_simulate_out_of_memory
 --source include/add_debug_point.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --echo #
 --echo # Commit a transaction on master
 --echo #
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --echo #
 --echo # Wait the slave server crash caused by 'OUT OF MEMORY' error
 --echo # on adding GTID into @@GLOBAL.GTID_EXECUTED when applying
@@ -50,7 +50,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo #
 --source include/wait_until_disconnected.inc
 --let $rpl_server_number= 2
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
 --echo #
 --echo # Verify that the transaction is committed and its GTID is
@@ -68,10 +68,10 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --let $assert_text= Table t1 exists and is empty
 --let $assert_cond= "[SELECT c1 FROM t1]" = ""
 --source include/assert.inc
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

@@ -8,8 +8,8 @@
 --let $option_operator = >
 --let $option_value = 2
 --source include/only_with_option.inc
---source include/only_mts_replica_parallel_type_logical_clock.inc
--- source include/master-slave.inc
+--source include/have_replica_parallel_type_logical_clock.inc
+-- source include/rpl/init_source_replica.inc
 
 --let $debug_point=set_commit_parent_100
 --source include/add_debug_point.inc
@@ -19,8 +19,8 @@ CREATE TABLE t1 (a int primary key) engine=innodb;
 CREATE TABLE t2 (a int primary key) engine=innodb;
 CREATE TABLE t3 (a int primary key) engine=innodb;
 CREATE TABLE t4 (a int primary key) engine=innodb;
--- source include/sync_slave_sql_with_master.inc
--- source include/stop_slave_sql.inc
+-- source include/rpl/sync_to_replica.inc
+-- source include/rpl/stop_applier.inc
 --let $debug_point=crash_in_a_worker
 --source include/add_debug_point.inc
 
@@ -71,24 +71,24 @@ COMMIT;
 
 # Make sure the workload is already on the relay log before starting the
 # applier to avoid issues with slow systems.
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # This should prevent trx2 to trx5 from committing and will make all
 # four MTS workers to be busy regardless of server speed.
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 BEGIN;
 INSERT INTO t1 (a) VALUES (4);
 INSERT INTO t2 (a) VALUES (4);
 INSERT INTO t3 (a) VALUES (4);
 INSERT INTO t4 (a) VALUES (4);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # make sure mtr expects a crash & restarts
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 START REPLICA;
 -- source include/wait_until_disconnected.inc
 -- let $rpl_server_number= 2
--- source include/rpl_start_server.inc
+-- source include/rpl/start_server.inc
 -- echo # Reconnecting to the slave server
 -- source include/wait_until_connected_again.inc
 -- connection slave
@@ -103,13 +103,13 @@ START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 CREATE TABLE t5 (a int);
 
 -- connection slave
--- source include/wait_for_slave_sql_to_stop.inc
--- source include/start_slave.inc
+-- source include/rpl/wait_for_applier_to_stop.inc
+-- source include/rpl/start_replica.inc
 
 # cleanup
 -- connection master
 DROP TABLES t1, t2, t3, t4, t5;
 -- connection master
--- source include/sync_slave_sql_with_master.inc
--- source include/rpl_end.inc
+-- source include/rpl/sync_to_replica.inc
+-- source include/rpl/deinit.inc
 

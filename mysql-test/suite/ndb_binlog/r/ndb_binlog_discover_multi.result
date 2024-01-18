@@ -55,7 +55,7 @@ a
 FLUSH BINARY LOGS;
 ###   @2='String to find'
 # View binlog to verify that INSERTS were written properly
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000003	#	Query	#	#	BEGIN
 binlog.000003	#	Table_map	#	#	table_id: # (test.t1)

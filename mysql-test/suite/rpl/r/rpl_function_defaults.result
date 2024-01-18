@@ -1,7 +1,7 @@
 #
 # Test of function defaults on replicated tables.
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -58,7 +58,7 @@ o INT
 INSERT INTO t2 ( o ) VALUES ( 1 );
 SET sql_mode = default;
 sync_slave_with_master
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 connection slave
 SELECT * FROM t1;
 a	1970-01-02 10:17:36
@@ -100,7 +100,7 @@ CURRENT_TIMESTAMP
 UPDATE t1 SET o = 2;
 UPDATE t2 SET o = 2;
 sync_slave_with_master
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 connection slave
 SELECT * FROM t1;
 a	1970-01-02 10:17:36
@@ -136,4 +136,4 @@ n	2009-02-14 10:01:30.123456
 o	2
 connection master
 DROP TABLE t1, t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

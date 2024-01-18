@@ -3,7 +3,7 @@
 # erroring out due to inconsistent timestamps found.
 #
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # This test is binary_log format agnostic so row is chosen.
 --source include/have_binlog_format_row.inc
 
@@ -12,7 +12,7 @@ call mtr.add_suppression("Transaction is tagged with inconsistent logical timest
 call mtr.add_suppression("Cannot execute the current event group in the parallel mode.");
 #call mtr.add_suppression("Replica I/O: Got fatal error 1236 from source when reading data from binary log");
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
@@ -109,7 +109,7 @@ COMMIT;
 
 
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Proof of correctess stable execution
 --connection master
@@ -130,8 +130,8 @@ SET @@session.debug ='-d,feign_commit_parent';
 
 --connection slave
 --let $slave_sql_errno= convert_error(ER_MTA_CANT_PARALLEL)
---source include/wait_for_slave_sql_to_stop.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_applier_to_stop.inc
+--source include/rpl/stop_receiver.inc
 
 
 # "Manual" recovery to restart anew 'cos of the schrambled event
@@ -141,7 +141,7 @@ RESET BINARY LOGS AND GTIDS;
 --connection slave
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 #
 # Cleanup
@@ -153,13 +153,13 @@ DROP TABLE t1;
 --sync_slave_with_master
 
 #--connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
 --disable_warnings
 SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
 --enable_warnings
 SET @@GLOBAL.replica_transaction_retries= @save_replica_transaction_retries;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

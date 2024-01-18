@@ -46,10 +46,10 @@ UNLOCK TABLES;
 # killing
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_communication_stack=GROUP_REPLICATION_COMMUNICATION_STACK
 # restarting
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server2]
 # check that there are 2 mebers in the group
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 ----call procedure----
 call dml_operations(200,300);
@@ -69,16 +69,16 @@ UNLOCK TABLES;
 # killing
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_communication_stack=GROUP_REPLICATION_COMMUNICATION_STACK
 # restarting
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server2]
 # check that there are 2 mebers in a group
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 [connection server3]
 RESET REPLICA FOR CHANNEL 'group_replication_recovery';
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root' FOR CHANNEL 'group_replication_recovery';
 include/start_group_replication.inc
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:t1, server2:t1, server3:t1]
 drop table t1;
 drop procedure dml_operations;

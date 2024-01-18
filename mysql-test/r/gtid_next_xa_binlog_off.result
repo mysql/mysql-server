@@ -1,7 +1,7 @@
-include/rpl_init.inc [topology=none]
-include/rpl_default_connections.inc
+include/rpl/init.inc [topology=none]
+include/rpl/default_connections.inc
 call mtr.add_suppression("Found 1 prepared XA transactions");
-include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
+include/rpl/set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
 CREATE TABLE t1 (a INT);
 ---- XID 1, COMMIT: AUTOMATIC + AUTOMATIC ----
 [connection master]
@@ -378,8 +378,8 @@ include/assert.inc [Thread should not own any GTID.]
 [connection master1]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
-include/rpl_restart_server.inc [server_number=1]
-include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
 [connection master]
 SET @@SESSION.innodb_lock_wait_timeout = 1;
 SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' AND interval_end = 17;
@@ -790,8 +790,8 @@ include/assert.inc [Thread should not own any GTID.]
 [connection master1]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
-include/rpl_restart_server.inc [server_number=1]
-include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
 [connection master]
 SET @@SESSION.innodb_lock_wait_timeout = 1;
 SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' AND interval_end = 34;
@@ -829,5 +829,5 @@ ROLLBACK;
 SET @@SESSION.innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
 SET GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
-include/rpl_set_gtid_mode.inc [OFF on servers 1]
-include/rpl_end.inc
+include/rpl/set_gtid_mode.inc [OFF on servers 1]
+include/rpl/deinit.inc

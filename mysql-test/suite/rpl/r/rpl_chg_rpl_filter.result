@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ Replicate_Wild_Ignore_Table = 'initfiledb%.%'
 Replicate_Rewrite_DB = '(initfiledb1,initfiledb3)'
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`, `db,3`);
 ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`, `db,3`);
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db3);
 CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db3.`t`, db4.t6);
@@ -48,5 +48,5 @@ CREATE USER 'user7057' IDENTIFIED BY 'pass7057';
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1227 (42000) at line 1: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
 DROP USER 'user7057';
-include/start_slave_sql.inc
-include/rpl_end.inc
+include/rpl/start_applier.inc
+include/rpl/deinit.inc

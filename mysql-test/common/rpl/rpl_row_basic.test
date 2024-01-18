@@ -1,0 +1,685 @@
+#
+# Basic tests of row-level logging
+#
+
+#
+# First we test tables with only an index.
+#
+
+#BUG#12662190 - COM_COMMIT IS NOT INCREMENTED FROM THE BINARY LOGS ON SLAVE, COM_BEGIN IS
+#Testing command counters -BEFORE 
+#Storing the before counts of Slave
+connection slave;
+let $slave_com_commit_before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_commit', Value, 1);
+let $slave_com_insert_before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_insert', Value, 1);
+let $slave_com_delete_before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_delete', Value, 1);
+let $slave_com_update_before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_update', Value, 1);
+
+connection master;
+eval CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)$extra_index_t1) ENGINE = $type ;
+SELECT * FROM t1;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1;
+
+# Testing insert
+connection master;
+INSERT INTO t1 VALUES ('A','B'), ('X','Y'), ('X','X');
+INSERT INTO t1 VALUES ('A','C'), ('X','Z'), ('A','A');
+SELECT * FROM t1 ORDER BY C1,C2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 ORDER BY C1,C2;
+
+# Testing delete
+# Observe that are several rows having the value for the index but only one
+# should be deleted.
+connection master;
+DELETE FROM t1 WHERE C1 = C2;
+SELECT * FROM t1 ORDER BY C1,C2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 ORDER BY C1,C2;
+
+#
+# Testing update.
+# Note that we have a condition on a column that is not part of the index for
+# the table. The right row should be updated nevertheless.
+#
+connection master;
+UPDATE t1 SET C2 = 'I' WHERE C1 = 'A' AND C2 = 'C';
+SELECT * FROM t1 ORDER BY C1,C2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 ORDER BY C1,C2;
+
+#BUG#12662190 - COM_COMMIT IS NOT INCREMENTED FROM THE BINARY LOGS ON SLAVE, COM_BEGIN IS
+#Testing command counters -AFTER 
+#Storing the after counts of Slave
+connection slave;
+let $slave_com_commit_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_commit', Value, 1);
+let $slave_com_insert_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_insert', Value, 1);
+let $slave_com_delete_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_delete', Value, 1);
+let $slave_com_update_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_update', Value, 1);
+
+#Commit count check
+if (! `select $type = 'NDB'`) {
+--let $assert_text= Counter for COM_COMMIT is consistent with the number of actual commits
+--let $assert_cond= $slave_com_commit_after - $slave_com_commit_before = 4
+--source include/assert.inc
+#Insert count check
+--let $assert_text= Counter for COM_INSERT is consistent with the number of actual inserts
+--let $assert_cond= $slave_com_insert_after - $slave_com_insert_before = 2
+--source include/assert.inc
+#Delete count check
+--let $assert_text= Counter for COM_DELETE is consistent with the number of actual deletes
+--let $assert_cond= $slave_com_delete_after - $slave_com_delete_before = 1
+--source include/assert.inc
+#Update count check
+--let $assert_text= Counter for COM_UPDATE is consistent with the number of actual updates
+--let $assert_cond= $slave_com_update_after - $slave_com_update_before = 1
+--source include/assert.inc
+}
+
+# Testing update with a condition that does not match any rows, but
+# which has a match for the index.
+connection master;
+UPDATE t1 SET c2 = 'Q' WHERE c1 = 'A' AND c2 = 'N';
+SELECT * FROM t1 ORDER BY c1,c2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 ORDER BY c1,c2;
+
+#
+# Testing table with primary key
+#
+connection master;
+eval CREATE TABLE t2 (c1 INT, c12 char(1), c2 INT, PRIMARY KEY (c1)) ENGINE = $type ;
+INSERT INTO t2
+  VALUES (1,'A',2),  (2,'A',4),  (3,'A',9),  (4,'A',15), (5,'A',25),
+         (6,'A',35), (7,'A',50), (8,'A',64), (9,'A',81);
+SELECT * FROM t2 ORDER BY c1,c2;
+SELECT * FROM t2 WHERE c2 = c1 * c1 ORDER BY c1,c2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t2 ORDER BY c1,c2;
+SELECT * FROM t2 WHERE c2 = c1 * c1 ORDER BY c1,c2;
+
+connection master;
+UPDATE t2 SET c2 = c1*c1 WHERE c2 != c1*c1;
+SELECT * FROM t2 WHERE c2 = c1 * c1 ORDER BY c1,c2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t2 WHERE c2 = c1 * c1 ORDER BY c1,c2;
+
+# Testing update with a condition that does not match any rows, but
+# which has a match for the primary key.
+connection master;
+UPDATE t2 SET c12 = 'Q' WHERE c1 = 1 AND c2 = 999;
+SELECT * FROM t2 ORDER BY c1,c2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t2 ORDER BY c1,c2;
+
+connection master;
+DELETE FROM t2 WHERE c1 % 4 = 0;
+SELECT * FROM t2 ORDER BY c1,c2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t2 ORDER BY c1,c2;
+
+connection master;
+UPDATE t2 SET c12='X';
+
+#
+# Testing table with a multi-column primary key.
+#
+connection master;
+eval CREATE TABLE t3 (C1 CHAR(1), C2 CHAR(1), pk1 INT, C3 CHAR(1), pk2 INT, PRIMARY KEY (pk1,pk2)) ENGINE = $type ;
+
+INSERT INTO t3 VALUES ('A','B',1,'B',1), ('X','Y',2,'B',1), ('X','X',3,'B',1);
+INSERT INTO t3 VALUES ('A','C',1,'B',2), ('X','Z',2,'B',2), ('A','A',3,'B',2);
+SELECT * FROM t3 ORDER BY C1,C2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t3 ORDER BY C1,C2;
+
+connection master;
+DELETE FROM t3 WHERE C1 = C2;
+SELECT * FROM t3 ORDER BY C1,C2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t3 ORDER BY C1,C2;
+
+connection master;
+UPDATE t3 SET C2 = 'I' WHERE C1 = 'A' AND C2 = 'C';
+SELECT * FROM t3 ORDER BY C1,C2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t3 ORDER BY C1,C2;
+
+#
+# Testing table without index or primary key
+#
+connection master;
+eval CREATE TABLE t6 (C1 CHAR(1), C2 CHAR(1), C3 INT$extra_index_t6) ENGINE = $type;
+
+# Testing insert
+INSERT INTO t6 VALUES ('A','B',1), ('X','Y',2), ('X','X',3);
+INSERT INTO t6 VALUES ('A','C',4), ('X','Z',5), ('A','A',6);
+SELECT * FROM t6 ORDER BY C3;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t6 ORDER BY C3;
+
+# Testing delete
+# Observe that are several rows having the value for the index but only one
+# should be deleted.
+connection master;
+DELETE FROM t6 WHERE C1 = C2;
+SELECT * FROM t6 ORDER BY C3;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t6 ORDER BY C3;
+
+#
+# Testing update.
+# Note that we have a condition on a column that is not part of the index for
+# the table. The right row should be updated nevertheless.
+#
+connection master;
+UPDATE t6 SET C2 = 'I' WHERE C1 = 'A' AND C2 = 'C';
+SELECT * FROM t6 ORDER BY C3;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t6 ORDER BY C3;
+
+# now mixing the 3 tables without begin/commit
+connection master;
+eval CREATE TABLE t5 (C1 CHAR(1), C2 CHAR(1), C3 INT PRIMARY KEY) ENGINE = $type ;
+INSERT INTO t5 VALUES ('A','B',1), ('X','Y',2), ('X','X',3);
+INSERT INTO t5 VALUES ('A','C',4), ('X','Z',5), ('A','A',6);
+
+UPDATE t5,t2,t3 SET t5.C2='Q', t2.c12='R', t3.C3 ='S' WHERE t5.C1 = t2.c12 AND t5.C1 = t3.C1;
+SELECT * FROM t5,t2,t3 WHERE t5.C2='Q' AND t2.c12='R' AND t3.C3 ='S' ORDER BY t5.C3,t2.c1,t3.pk1,t3.pk2;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t5,t2,t3 WHERE t5.C2='Q' AND t2.c12='R' AND t3.C3 ='S' ORDER BY t5.C3,t2.c1,t3.pk1,t3.pk2;
+
+#
+# Testing special column types
+#
+
+if (`select char_length('$bit_field_special') > 0`) {
+  connection slave;
+  SET @saved_replica_type_conversions = @@REPLICA_TYPE_CONVERSIONS;
+  eval SET GLOBAL REPLICA_TYPE_CONVERSIONS = '$bit_field_special';
+}
+
+connection master;
+eval CREATE TABLE t4 (C1 CHAR(1) PRIMARY KEY, B1 BIT(1), B2 BIT(1) NOT NULL DEFAULT 0, C2 CHAR(1) NOT NULL DEFAULT 'A') ENGINE = $type ;
+
+INSERT INTO t4 SET C1 = 1;
+SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
+--source include/rpl/sync_to_replica.inc
+SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
+
+if (`select char_length('$bit_field_special') > 0`) {
+  SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
+}
+
+#
+# Testing conflicting operations
+#
+connection master;
+eval CREATE TABLE t7 (C1 INT PRIMARY KEY, C2 INT) ENGINE = $type ;
+--source include/rpl/sync_to_replica.inc
+--echo --- on slave: original values ---
+INSERT INTO t7 VALUES (1,3), (2,6), (3,9);
+SELECT * FROM t7 ORDER BY C1;
+
+# since bug#31552/31609 idempotency is not default any longer. In order
+# the preceding test INSERT INTO t7 to pass the mode is switched
+# temprorarily
+set @@global.replica_exec_mode= 'IDEMPOTENT';
+
+connection master;
+--echo --- on master: new values inserted ---
+INSERT INTO t7 VALUES (1,2), (2,4), (3,6);
+SELECT * FROM t7 ORDER BY C1;
+--source include/rpl/sync_to_replica.inc
+
+set @@global.replica_exec_mode= default;
+--echo --- on slave: old values should be overwritten by replicated values ---
+SELECT * FROM t7 ORDER BY C1;
+
+#
+# A more complicated test where the table has several keys and we are
+# causing a conflict for a key that is not "last".
+#
+connection master;
+--echo --- on master ---
+eval CREATE TABLE t8 (a INT PRIMARY KEY, b INT UNIQUE, c INT UNIQUE) ENGINE = $type ;
+
+# First we make sure that the constraints are correctly set.
+INSERT INTO t8 VALUES (99,99,99);
+--error ER_DUP_ENTRY
+INSERT INTO t8 VALUES (99,22,33);
+--error ER_DUP_ENTRY
+INSERT INTO t8 VALUES (11,99,33);
+--error ER_DUP_ENTRY
+INSERT INTO t8 VALUES (11,22,99);
+SELECT * FROM t8 ORDER BY a;
+
+--source include/rpl/sync_to_replica.inc
+--echo --- on slave ---
+SELECT * FROM t8 ORDER BY a;
+INSERT INTO t8 VALUES (1,2,3), (2,4,6), (3,6,9);
+SELECT * FROM t8 ORDER BY a;
+
+# since bug#31552/31609 idempotency is not default any longer. In order
+# the preceding test INSERT INTO t8 to pass the mode is switched
+# temprorarily
+set @@global.replica_exec_mode= 'IDEMPOTENT';
+
+connection master;
+--echo --- on master ---
+# We insert a row that will cause conflict on the primary key but not
+# on the other keys.
+INSERT INTO t8 VALUES (2,4,8);
+--source include/rpl/sync_to_replica.inc
+set @@global.replica_exec_mode= default;
+
+--echo --- on slave ---
+SELECT * FROM t8 ORDER BY a;
+
+# BUG#31552: Replication breaks when deleting rows from out-of-sync
+#            table without PK
+
+--echo **** Test for BUG#31552 ****
+
+--echo **** On Master ****
+# Clean up t1 so that we can use it.
+connection master;
+DELETE FROM t1;
+--source include/rpl/sync_to_replica.inc
+
+# Just to get a clean binary log
+--source include/rpl/reset.inc
+
+--echo **** On Master ****
+connection master;
+INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
+--echo **** On Master ****
+--source include/rpl/sync_to_replica.inc
+# since bug#31552/31609 idempotency is not default any longer. In order
+# the following test DELETE FROM t1 to pass the mode is switched
+# temprorarily
+set @@global.replica_exec_mode= 'IDEMPOTENT';
+DELETE FROM t1 WHERE C1 = 'L';
+
+connection master;
+DELETE FROM t1;
+query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
+--source include/rpl/sync_to_replica.inc
+set @@global.replica_exec_mode= default;
+source include/rpl/assert_replica_running.inc;
+query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
+
+# BUG#37076: TIMESTAMP/DATETIME values are not replicated correctly
+#            between machines with mixed endiannes
+#            (regression test)
+
+--echo **** Test for BUG#37076 ****
+--echo **** On Master ****
+connection master;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a TIMESTAMP, b DATETIME, c DATE);
+INSERT INTO t1 VALUES(
+  '2005-11-14 01:01:01', '2005-11-14 01:01:02', '2005-11-14');
+
+--echo **** On Slave ****
+--let $sync_slave_connection= slave
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1;
+
+#
+# cleanup
+#
+
+connection master;
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
+--source include/rpl/sync_to_replica.inc
+
+#
+# BUG#37426: RBR breaks for CHAR() UTF8 fields > 85 chars
+#
+
+# We have 4 combinations to test with respect to the field length
+# (i.e., the number of bytes) of the CHAR fields:
+#
+# 1. Replicating from CHAR<256 to CHAR<256 
+# 2. Replicating from CHAR<256 to CHAR>255
+# 3. Replicating from CHAR>255 to CHAR<256
+# 4. Replicating from CHAR>255 to CHAR>255
+
+# We also make a special case of using the max size of a field on the
+# master, i.e. CHAR(255) in UTF-8, giving another three cases.
+#
+# 5. Replicating UTF-8 CHAR(255) to CHAR(<256)
+# 6. Replicating UTF-8 CHAR(255) to CHAR(>255)
+# 7. Replicating UTF-8 CHAR(255) to CHAR(255) UTF-8
+
+connection master;
+eval CREATE TABLE t1 (i INT NOT NULL,
+                      c CHAR(16) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
+
+eval CREATE TABLE t2 (i INT NOT NULL,
+                      c CHAR(16) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
+
+--source include/rpl/sync_to_replica.inc
+ALTER TABLE t2 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
+
+connection master;
+eval CREATE TABLE t3 (i INT NOT NULL,
+                      c CHAR(128) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
+--source include/rpl/sync_to_replica.inc
+ALTER TABLE t3 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
+
+connection master;
+eval CREATE TABLE t4 (i INT NOT NULL,
+                      c CHAR(128) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
+
+eval CREATE TABLE t5 (i INT NOT NULL,
+                      c CHAR(255) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
+--source include/rpl/sync_to_replica.inc
+ALTER TABLE t5 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
+
+connection master;
+eval CREATE TABLE t6 (i INT NOT NULL,
+                      c CHAR(255) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
+--source include/rpl/sync_to_replica.inc
+ALTER TABLE t6 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
+
+connection master;
+eval CREATE TABLE t7 (i INT NOT NULL,
+                      c CHAR(255) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
+
+connection slave;
+SET @saved_replica_type_conversions = @@replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+
+--echo [expecting slave to replicate correctly]
+connection master;
+INSERT INTO t1 VALUES (1, "", 1);
+INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
+--source include/rpl/sync_to_replica.inc
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+--echo [expecting slave to replicate correctly]
+connection master;
+INSERT INTO t2 VALUES (1, "", 1);
+INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
+--source include/rpl/sync_to_replica.inc
+
+let $diff_tables= master:t2, slave:t2;
+source include/diff_tables.inc;
+
+connection slave;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
+call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column 1 size mismatch.* Error_code: MY-001535");
+call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table test.t1.* Error_code: MY-001032");
+call mtr.add_suppression("Replica SQL.*Column 1 of table .test.t.. cannot be converted from type.*, Error_code: MY-013146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+--echo [expecting slave to replicate correctly]
+connection master;
+INSERT INTO t4 VALUES (1, "", 1);
+INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
+--source include/rpl/sync_to_replica.inc
+
+let $diff_tables= master:t4, slave:t4;
+source include/diff_tables.inc;
+
+--echo [expecting slave to stop]
+connection master;
+INSERT INTO t5 VALUES (1, "", 1);
+INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
+
+connection slave;
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED) # 13146
+--source include/rpl/wait_for_applier_error.inc
+
+--source include/rpl/reset.inc
+
+--echo [expecting slave to stop]
+connection master;
+INSERT INTO t6 VALUES (1, "", 1);
+INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
+
+connection slave;
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED) # 13146
+--source include/rpl/wait_for_applier_error.inc
+
+--source include/rpl/reset.inc
+
+--echo [expecting slave to replicate correctly]
+connection master;
+INSERT INTO t7 VALUES (1, "", 1);
+INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
+--source include/rpl/sync_to_replica.inc
+
+let $diff_tables= master:t7, slave:t7;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1, t2, t3, t4, t5, t6, t7;
+--source include/rpl/sync_to_replica.inc
+
+#
+# BUG#32709: Assertion failed: trx_data->empty(), file .\log.cc, line 1293
+#
+
+connection master;
+eval CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=$type;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+--error ER_DUP_ENTRY
+UPDATE t1 SET a = 10;
+INSERT INTO t1 VALUES (4);
+--source include/rpl/sync_to_replica.inc
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1;
+--source include/rpl/sync_to_replica.inc
+
+#
+# Bug #38230  Differences between master and slave after 
+#             UPDATE or DELETE with LIMIT with pk
+#
+# the regression test verifies consistency via selecting
+
+--disable_abort_on_error
+
+--connection master
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+eval CREATE TABLE t1 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_nokey` int(11) NOT NULL,
+  `int_key` int(11) NOT NULL,
+  `date_key` date NOT NULL,
+  `date_nokey` date NOT NULL,
+  `time_key` time NOT NULL,
+  `time_nokey` time NOT NULL,
+  `datetime_key` datetime NOT NULL,
+  `datetime_nokey` datetime NOT NULL,
+  `varchar_key` varchar(1) NOT NULL,
+  `varchar_nokey` varchar(1) NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`),
+  KEY `date_key` (`date_key`),
+  KEY `time_key` (`time_key`),
+  KEY `datetime_key` (`datetime_key`),
+  KEY `varchar_key` (`varchar_key`)
+) ENGINE=$type;
+
+INSERT INTO t1 VALUES (1,8,5,'0000-00-00','0000-00-00','10:37:38','10:37:38','0000-00-00 00:00:00','0000-00-00 00:00:00','p','p'),(2,0,9,'0000-00-00','0000-00-00','00:00:00','00:00:00','2007-10-14 00:00:00','2007-10-14 00:00:00','d','d');
+
+eval CREATE TABLE t2 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_nokey` int(11) NOT NULL,
+  `int_key` int(11) NOT NULL,
+  `date_key` date NOT NULL,
+  `date_nokey` date NOT NULL,
+  `time_key` time NOT NULL,
+  `time_nokey` time NOT NULL,
+  `datetime_key` datetime NOT NULL,
+  `datetime_nokey` datetime NOT NULL,
+  `varchar_key` varchar(1) NOT NULL,
+  `varchar_nokey` varchar(1) NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`),
+  KEY `date_key` (`date_key`),
+  KEY `time_key` (`time_key`),
+  KEY `datetime_key` (`datetime_key`),
+  KEY `varchar_key` (`varchar_key`)
+) ENGINE=$type;
+
+INSERT INTO t2 VALUES (1,1,6,'2005-12-23','2005-12-23','02:24:28','02:24:28','0000-00-00 00:00:00','0000-00-00 00:00:00','g','g'),(2,0,3,'2009-09-14','2009-09-14','00:00:00','00:00:00','2000-01-30 16:39:40','2000-01-30 16:39:40','q','q'),(3,0,3,'0000-00-00','0000-00-00','00:00:00','00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','c','c'),(4,1,6,'2007-03-29','2007-03-29','15:49:00','15:49:00','0000-00-00 00:00:00','0000-00-00 00:00:00','m','m'),(5,4,0,'2002-12-04','2002-12-04','00:00:00','00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','o','o'),(6,9,0,'2005-01-28','2005-01-28','00:00:00','00:00:00','2001-05-18 00:00:00','2001-05-18 00:00:00','w','w'),(7,6,0,'0000-00-00','0000-00-00','06:57:25','06:57:25','0000-00-00 00:00:00','0000-00-00 00:00:00','m','m'),(8,0,0,'0000-00-00','0000-00-00','00:00:00','00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','z','z'),(9,4,6,'2006-08-15','2006-08-15','00:00:00','00:00:00','2002-04-12 14:44:25','2002-04-12 14:44:25','j','j'),(10,0,5,'2006-12-20','2006-12-20','10:13:53','10:13:53','2008-07-22 00:00:00','2008-07-22 00:00:00','y','y'),(11,9,7,'0000-00-00','0000-00-00','00:00:00','00:00:00','2004-07-05 00:00:00','2004-07-05 00:00:00','{','{'),(12,4,3,'2007-01-26','2007-01-26','23:00:51','23:00:51','2001-05-16 00:00:00','2001-05-16 00:00:00','f','f'),(13,7,0,'2004-03-27','2004-03-27','00:00:00','00:00:00','2005-01-24 03:30:37','2005-01-24 03:30:37','',''),(14,6,0,'2006-07-26','2006-07-26','18:43:57','18:43:57','0000-00-00 00:00:00','0000-00-00 00:00:00','{','{'),(15,0,6,'2000-01-14','2000-01-14','00:00:00','00:00:00','2000-09-21 00:00:00','2000-09-21 00:00:00','o','o'),(16,9,8,'0000-00-00','0000-00-00','21:15:08','21:15:08','0000-00-00 00:00:00','0000-00-00 00:00:00','a','a'),(17,2,0,'2004-10-27','2004-10-27','00:00:00','00:00:00','2004-03-24 22:13:43','2004-03-24 22:13:43','',''),(18,7,4,'0000-00-00','0000-00-00','08:38:27','08:38:27','2002-03-18 19:51:44','2002-03-18 19:51:44','t','t'),(19,5,3,'2008-03-07','2008-03-07','03:29:07','03:29:07','2007-12-01 18:44:44','2007-12-01 18:44:44','t','t'),(20,0,0,'2002-04-09','2002-04-09','16:06:03','16:06:03','2009-04-22 00:00:00','2009-04-22 00:00:00','n','n');
+
+DELETE FROM t2 WHERE `int_key` < 3 LIMIT 1;
+UPDATE t1 SET `int_key` = 3 ORDER BY `pk` LIMIT 4;
+DELETE FROM t2 WHERE `int_key` < 3 LIMIT 1;
+DELETE FROM t2 WHERE `pk` < 6 LIMIT 1;
+UPDATE t1 SET `int_key` = 6 ORDER BY `pk` LIMIT 3;
+DELETE FROM t2 WHERE `pk` < 6 LIMIT 1;
+UPDATE t1 SET `pk` = 6 ORDER BY `int_key` LIMIT 6;
+DELETE FROM t2 WHERE `pk` < 7 LIMIT 1;
+UPDATE t1 SET `int_key` = 4 ORDER BY `pk` LIMIT 6;
+
+--source include/rpl/sync_to_replica.inc
+--echo *** results: t2 must be consistent ****
+
+let $diff_tables= master:t2, slave:t2;
+source include/diff_tables.inc;
+
+--connection master
+DROP TABLE t1, t2;
+
+--enable_abort_on_error
+
+--echo EOF OF TESTS
+
+#
+# BUG#40004: Replication failure with no PK + no indexes
+#
+
+# The test cases are taken from the bug report. It is difficult to
+# produce a test case that generates a HA_ERR_RECORD_DELETED, so we go
+# with the test cases we have.
+
+connection master;
+
+eval CREATE TABLE t1 (a int) ENGINE=$type;
+
+INSERT IGNORE INTO t1 VALUES (NULL);
+INSERT INTO t1 ( a ) VALUES ( 0 );
+INSERT INTO t1 ( a ) VALUES ( 9 );
+INSERT INTO t1 ( a ) VALUES ( 2 );
+INSERT INTO t1 ( a ) VALUES ( 9 );
+INSERT INTO t1 ( a ) VALUES ( 5 );
+
+UPDATE t1 SET a = 5 WHERE a = 9;
+DELETE FROM t1 WHERE a < 6;
+UPDATE t1 SET a = 9 WHERE a < 3;
+INSERT INTO t1 ( a ) VALUES ( 3 );
+UPDATE t1 SET a = 0 WHERE a < 4;
+UPDATE t1 SET a = 8 WHERE a < 5;
+
+--source include/rpl/sync_to_replica.inc
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1;
+--source include/rpl/sync_to_replica.inc
+
+#
+# Bug #39752: Replication failure on RBR + MyISAM + no PK
+#
+
+# The test cases are taken from the bug report. It is difficult to
+# produce a test case that generates a HA_ERR_RECORD_DELETED, so we go
+# with the test cases we have.
+
+connection master;
+
+# Since t1 contain a bit field, we have to do this trick to handle InnoDB
+if (`select char_length('$bit_field_special') > 0`) {
+  connection slave;
+  SET @saved_replica_type_conversions = @@REPLICA_TYPE_CONVERSIONS;
+  eval SET GLOBAL REPLICA_TYPE_CONVERSIONS = '$bit_field_special';
+}
+
+--disable_warnings
+connection master;
+eval CREATE TABLE t1 (a bit) ENGINE=$type;
+INSERT IGNORE INTO t1 VALUES (NULL);
+INSERT INTO t1 ( a ) VALUES ( 0 );
+UPDATE t1 SET a = 0 WHERE a = 1 LIMIT 3;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 5 );
+DELETE FROM t1 WHERE a < 2 LIMIT 4;
+DELETE FROM t1 WHERE a < 9 LIMIT 4;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 9 );
+UPDATE t1 SET a = 8 WHERE a = 0 LIMIT 6;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 8 );
+UPDATE t1 SET a = 0 WHERE a < 6 LIMIT 0;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 4 );
+INSERT IGNORE INTO t1 ( a ) VALUES ( 3 );
+UPDATE t1 SET a = 0 WHERE a = 7 LIMIT 6;
+DELETE FROM t1 WHERE a = 4 LIMIT 7;
+UPDATE IGNORE t1 SET a = 9 WHERE a < 2 LIMIT 9;
+UPDATE t1 SET a = 0 WHERE a < 9 LIMIT 2;
+DELETE FROM t1 WHERE a < 0 LIMIT 5;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 5 );
+UPDATE IGNORE t1 SET a = 4 WHERE a < 6 LIMIT 4;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 5 );
+UPDATE IGNORE t1 SET a = 9 WHERE a < 5 LIMIT 8;
+DELETE FROM t1 WHERE a < 8 LIMIT 8;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 6 );
+DELETE FROM t1 WHERE a < 6 LIMIT 7;
+UPDATE t1 SET a = 7 WHERE a = 3 LIMIT 7;
+UPDATE t1 SET a = 8 WHERE a = 0 LIMIT 6;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 7 );
+DELETE FROM t1 WHERE a < 9 LIMIT 4;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 7 );
+INSERT IGNORE INTO t1 ( a ) VALUES ( 6 );
+UPDATE t1 SET a = 8 WHERE a = 3 LIMIT 4;
+DELETE FROM t1 WHERE a = 2 LIMIT 9;
+DELETE FROM t1 WHERE a = 1 LIMIT 4;
+UPDATE t1 SET a = 4 WHERE a = 2 LIMIT 7;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 0 );
+DELETE FROM t1 WHERE a < 3 LIMIT 0;
+UPDATE t1 SET a = 8 WHERE a = 5 LIMIT 2;
+INSERT IGNORE INTO t1 ( a ) VALUES ( 1 );
+UPDATE IGNORE t1 SET a = 9 WHERE a < 5 LIMIT 3;
+--enable_warnings
+
+--source include/rpl/sync_to_replica.inc
+
+if (`select char_length('$bit_field_special') > 0`) {
+  connection slave;
+  SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
+}
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1;
+--source include/rpl/sync_to_replica.inc
+

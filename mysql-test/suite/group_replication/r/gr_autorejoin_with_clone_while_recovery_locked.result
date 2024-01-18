@@ -66,9 +66,9 @@ SET GLOBAL group_replication_clone_threshold= 1;
 
 # 9. Expel server3 from the group
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server3]
 
 # 10. Server3 should change is status to ERROR
@@ -85,7 +85,7 @@ include/gr_wait_for_member_state.inc
 [connection server_3]
 UNLOCK TABLES;
 [connection server3]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/assert.inc [Clone must be complete]
 include/gr_wait_for_member_state.inc
 include/diff_tables.inc [server1:test.t1, server2:test.t1, server3:test.t1]
@@ -93,7 +93,7 @@ include/diff_tables.inc [server1:test.t1, server2:test.t1, server3:test.t1]
 # 14. Clean up.
 [connection server1]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/stop_group_replication.inc
 UNINSTALL PLUGIN clone;
 [connection server2]

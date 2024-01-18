@@ -37,7 +37,7 @@ include/assert.inc [The member shall contain a local transaction]
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server2]
 DROP TABLE t2;
 RESET BINARY LOGS AND GTIDS;
@@ -48,7 +48,7 @@ RESET BINARY LOGS AND GTIDS;
 #    Check clone was completed
 SET GLOBAL group_replication_clone_threshold= 1;
 START GROUP_REPLICATION;
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/gr_wait_for_member_state.inc
 include/assert.inc [Clone must be completed]
 include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
@@ -58,7 +58,7 @@ include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
 [connection server1]
 UNINSTALL PLUGIN clone;
 DROP TABLE test.t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 UNINSTALL PLUGIN clone;
 SET GLOBAL group_replication_clone_threshold= 9223372036854775807;

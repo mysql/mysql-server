@@ -14,17 +14,17 @@
 
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET GLOBAL DEBUG="+d,dbug_set_high_prio_sql_thread";
 
 # now applier thread starts with high prio
 # since we are now setting the internal flag
---source include/stop_slave_sql.inc
---source include/start_slave_sql.inc
+--source include/rpl/stop_applier.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 ####### MASTER #######
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -33,11 +33,11 @@ INSERT INTO t1 VALUES (0);
 ####### SIGCON #######
 --let $rpl_connection_name= sigcon
 --let $rpl_server_number= 2
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --echo [connection sigcon]
 --let $sync_slave_connection= sigcon
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 BEGIN;
@@ -46,17 +46,17 @@ SET DEBUG_SYNC='trx_commit_for_mysql_checks_for_aborted WAIT_FOR waiting1';
 --send COMMIT
 
 ####### SLAVE #######
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Wait until sigcon reaches the ha_innobase_update_row_done debug sync point.
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: trx_commit_for_mysql_checks_for_aborted'
 --source include/wait_condition.inc
 
 ####### MASTER #######
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 UPDATE t1 SET c1=1 WHERE c1=0;
 
 ####### SLAVE #######
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --sleep 3
 # Now signal the waiting thread on sigcon to resume
 # and it should end up in an error stating that it
@@ -70,7 +70,7 @@ SET DEBUG_SYNC='now SIGNAL waiting1';
 ####### SIGCON #######
 --echo [connection sigcon]
 --let $rpl_connection_name= sigcon
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --disconnect sigcon
@@ -78,7 +78,7 @@ SET DEBUG_SYNC='now SIGNAL waiting1';
 ####### SLAVE #######
 --connection master
 --let $sync_slave_connection= slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= 'There is a 1 in t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
@@ -95,11 +95,11 @@ SET DEBUG_SYNC='now SIGNAL waiting1';
 # Clean up.
 --connection master
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # resetting the applier thread
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 SET GLOBAL DEBUG="-d,dbug_set_high_prio_sql_thread";
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

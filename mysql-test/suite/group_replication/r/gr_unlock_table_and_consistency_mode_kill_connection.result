@@ -42,7 +42,7 @@ SET @@SESSION.group_replication_consistency= @group_replication_consistency_save
 KILL CONNECTION CONNECTION_ID;
 [connection server2]
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 6. Cleanup
 [connection server1]

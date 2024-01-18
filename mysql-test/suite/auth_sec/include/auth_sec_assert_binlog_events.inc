@@ -23,4 +23,4 @@ if ($invert == 1)
 
 --let $dont_print_pattern= 1
 --let $event_sequence= $gtid_event # $event
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc

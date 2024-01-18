@@ -70,7 +70,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 --connection server2
 --let $server2_connection_args= --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
 --exec $MYSQL_BINLOG $server3_datadir/$server3_binlog_file | $MYSQL $server2_connection_args
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -149,7 +149,7 @@ DROP TABLE t1;
 
 --connection server1
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo

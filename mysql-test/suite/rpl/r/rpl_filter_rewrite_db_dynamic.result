@@ -1,23 +1,23 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
 ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
-include/start_slave.inc
+include/rpl/start_replica.inc
 CREATE DATABASE db1;
 CREATE DATABASE db2;
 USE db1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 values (12);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * from db1.t1;
 ERROR 42S02: Table 'db1.t1' doesn't exist
 include/diff_tables.inc [master:db1.t1, slave:db2.t1]
 DROP DATABASE db1;
 DROP DATABASE db2;
-include/rpl_end.inc
+include/rpl/deinit.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=();

@@ -1,6 +1,6 @@
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
--- source suite/ndb_rpl/ndb_master-slave.inc
+-- source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 #
 # Bug#28170 replicate-ignore-db=mysql should not ignore mysql.ndb_apply_status
@@ -35,7 +35,7 @@ sync_slave_with_master;
 select epoch=@epoch_before_alter from mysql.ndb_apply_status;
 
 --echo # Check again with copying alter table
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 alter table t1 modify b varchar(255);
 
 sync_slave_with_master;
@@ -43,19 +43,19 @@ select epoch=@epoch_before_alter from mysql.ndb_apply_status;
 
 --echo # Check copying alter without any row in ndb_apply_status -> should insert
 --echo # row for source server_id with epoch 0
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 stop replica;
 reset replica;
 select count(*) from mysql.ndb_apply_status;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 reset binary logs and gtids;
 alter table t1 modify b varchar(255);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 start replica;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 sync_slave_with_master;
 select server_id, epoch, log_name from mysql.ndb_apply_status;
 
@@ -92,7 +92,7 @@ select count(1) from mysql.ndb_apply_status;
 
 --connection master
 reset binary logs and gtids;
---source include/rpl_start_slaves.inc
+--source include/rpl/start_all_replicas.inc
 
 --echo *** Test reset replica all ***
 
@@ -116,8 +116,8 @@ select count(1) from mysql.ndb_apply_status;
 reset binary logs and gtids;
 --echo RESET REPLICA ALL zapped Master info - re-set it.
 --let $rpl_unconditional_change_master=1
---source include/rpl_change_topology.inc
---source include/rpl_start_slaves.inc
+--source include/rpl/change_topology.inc
+--source include/rpl/start_all_replicas.inc
 
 --connection slave
 
@@ -147,7 +147,7 @@ delete from mysql.ndb_apply_status;
 
 --connection master
 reset binary logs and gtids;
---source include/rpl_start_slaves.inc
+--source include/rpl/start_all_replicas.inc
 
 --connection master
 
@@ -174,8 +174,8 @@ select count(1) from mysql.ndb_apply_status;
 reset binary logs and gtids;
 --echo RESET REPLICA ALL zapped Master info - re-set it.
 --let $rpl_unconditional_change_master=1
---source include/rpl_change_topology.inc
---source include/rpl_start_slaves.inc
+--source include/rpl/change_topology.inc
+--source include/rpl/start_all_replicas.inc
 
 --connection slave
 set global ndb_clear_apply_status=1;
@@ -186,4 +186,4 @@ drop table test.t1;
 sync_slave_with_master;
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

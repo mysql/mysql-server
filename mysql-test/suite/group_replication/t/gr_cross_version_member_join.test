@@ -31,11 +31,11 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 SET SESSION sql_log_bin=0;
@@ -136,7 +136,7 @@ SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_major_version';
 --echo # 2.2. Make M2 minor version higher and assert read-only is set.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_minor_version';
@@ -149,7 +149,7 @@ SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_minor_version';
 --echo # 2.3. Make M2 patch version higher and assert read-only is set.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
@@ -164,7 +164,7 @@ SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
 --echo
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 

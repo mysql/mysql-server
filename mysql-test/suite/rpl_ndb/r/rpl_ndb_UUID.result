@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -25,7 +25,7 @@ fn1(0)
 0
 create table t2 (a int) engine=NDB;
 insert into t2 values(fn1(2));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -38,4 +38,4 @@ DROP PROCEDURE test.p1;
 DROP FUNCTION test.fn1;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

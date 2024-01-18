@@ -22,15 +22,15 @@
 --source include/have_binlog_format_mixed.inc
 # Separate test script exists for gtid enabled scenario named
 # rpl_gtid_perfschema_applier_xa_status.test
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ####################################################################
---echo # Test Case 1: Simple MASTER-SLAVE setup.
+--echo # Test Case 1: Simple SOURCE-REPLICA setup.
 --echo # Verify that slave displays appropriate XA_STATE in performance
 --echo # schema table, post XA PREPARE AND XA COMMIT command execution.
 --echo ####################################################################
---source extra/rpl_tests/rpl_perfschema_applier_xa_status.test
---source include/rpl_reset.inc
+--source common/rpl/rpl_perfschema_applier_xa_status.test
+--source include/rpl/reset.inc
 
 --echo ####################################################################
 --echo # Test Case 2: Enable Multithreaded Slave with replica_parallel_type as
@@ -38,23 +38,23 @@
 --echo # performance schema table, post XA PREPARE AND XA COMMIT command
 --echo # execution.
 --echo ####################################################################
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Save existing settings.
 SET @save_replica_parallel_workers=@@global.replica_parallel_workers;
 SET @replica_parallel_type=@@global.replica_parallel_type;
 
 # Enable MTS
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL replica_parallel_workers=4;
 SET GLOBAL replica_parallel_type='DATABASE';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Verify
---source extra/rpl_tests/rpl_perfschema_applier_xa_status.test
+--source common/rpl/rpl_perfschema_applier_xa_status.test
 
 # Cleanup
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo ####################################################################
 --echo # Test Case 3: Enable Multithreaded Slave with replica_parallel_type as
@@ -64,20 +64,20 @@ SET GLOBAL replica_parallel_type='DATABASE';
 --echo ####################################################################
 
 # Enable MTS
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL replica_parallel_workers=4;
 SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Verify
---source extra/rpl_tests/rpl_perfschema_applier_xa_status.test
+--source common/rpl/rpl_perfschema_applier_xa_status.test
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Cleanup
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 set @@global.replica_parallel_workers= @save_replica_parallel_workers;
 set @@global.replica_parallel_type= @replica_parallel_type;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

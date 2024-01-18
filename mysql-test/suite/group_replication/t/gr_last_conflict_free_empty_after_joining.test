@@ -42,11 +42,11 @@
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --source include/start_and_bootstrap_group_replication.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 --let $server2_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
@@ -56,9 +56,9 @@
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (a INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 ## Wait for member 2 to report a conflict free transaction to member 1
 --let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
 --source include/wait_condition.inc
@@ -71,13 +71,13 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 ## Wait for member 2 to report a conflict free transaction
 --let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
  FROM performance_schema.replication_group_member_stats gms
@@ -85,7 +85,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
   ON gms.MEMBER_ID=gm.MEMBER_ID
   ORDER BY gm.MEMBER_PORT ASC;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
  FROM performance_schema.replication_group_member_stats gms
@@ -108,12 +108,12 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 ## Wait for member 2 to have an empty conflict free transaction
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server2_uuid' AND LAST_CONFLICT_FREE_TRANSACTION = ''
 --source include/wait_condition.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 ## Wait for member 2 to have an empty conflict free transaction
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server2_uuid' AND LAST_CONFLICT_FREE_TRANSACTION = ''
 --source include/wait_condition.inc
@@ -121,7 +121,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
  FROM performance_schema.replication_group_member_stats gms
@@ -129,7 +129,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
   ON gms.MEMBER_ID=gm.MEMBER_ID
   ORDER BY gm.MEMBER_PORT ASC;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
  FROM performance_schema.replication_group_member_stats gms
@@ -143,7 +143,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo
@@ -154,7 +154,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
 --source include/wait_condition.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
@@ -164,7 +164,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
   ON gms.MEMBER_ID=gm.MEMBER_ID
   ORDER BY gm.MEMBER_PORT ASC;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
 --source include/wait_condition.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
@@ -174,7 +174,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
   ON gms.MEMBER_ID=gm.MEMBER_ID
   ORDER BY gm.MEMBER_PORT ASC;
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
 --source include/wait_condition.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
@@ -190,9 +190,9 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo #########################################################################
@@ -200,23 +200,23 @@ INSERT INTO t1 VALUES (1);
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 ## Wait for every member to report a conflict free transaction
 --let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:2'
 --source include/wait_condition.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 ## Wait for every member to report a conflict free transaction
 --let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:2'
 --source include/wait_condition.inc
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 ## Wait for every member to report a conflict free transaction
 --let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:2'
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
  FROM performance_schema.replication_group_member_stats gms
@@ -224,7 +224,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
   ON gms.MEMBER_ID=gm.MEMBER_ID
   ORDER BY gm.MEMBER_PORT ASC;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
  FROM performance_schema.replication_group_member_stats gms
@@ -232,7 +232,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
   ON gms.MEMBER_ID=gm.MEMBER_ID
   ORDER BY gm.MEMBER_PORT ASC;
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
  FROM performance_schema.replication_group_member_stats gms
@@ -246,7 +246,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 
@@ -256,25 +256,25 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 ## Wait for member 1 to report an empty conflict free transaction
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server1_uuid' AND LAST_CONFLICT_FREE_TRANSACTION = ''
 --source include/wait_condition.inc
 --let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
 --source include/wait_condition.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 ## Wait for member 1 to report an empty conflict free transaction
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server1_uuid' AND LAST_CONFLICT_FREE_TRANSACTION = ''
 --source include/wait_condition.inc
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 ## Wait for member 1 to report an empty conflict free transaction
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server1_uuid' AND LAST_CONFLICT_FREE_TRANSACTION = ''
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
  FROM performance_schema.replication_group_member_stats gms
@@ -282,7 +282,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
   ON gms.MEMBER_ID=gm.MEMBER_ID
   ORDER BY gm.MEMBER_PORT ASC;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
  FROM performance_schema.replication_group_member_stats gms
@@ -290,7 +290,7 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
   ON gms.MEMBER_ID=gm.MEMBER_ID
   ORDER BY gm.MEMBER_PORT ASC;
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
  FROM performance_schema.replication_group_member_stats gms
@@ -304,6 +304,6 @@ SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 --echo #########################################################################
 --echo
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --source include/group_replication_end.inc

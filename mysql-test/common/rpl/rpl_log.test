@@ -1,0 +1,117 @@
+connection master;
+eval create table t1(n int not null auto_increment primary key)ENGINE=$engine_type;
+insert into t1 values (NULL);
+drop table t1;
+let $LOAD_FILE= ../../std_data/words.dat;
+if (!`SELECT length(load_file('$LOAD_FILE'))`){
+  let $LOAD_FILE= ../$LOAD_FILE;
+}
+eval create table t1 (word char(20) not null)ENGINE=$engine_type;
+--replace_result $LOAD_FILE LOAD_FILE
+eval load data infile '$LOAD_FILE' into table t1 ignore 1 lines;
+select count(*) from t1;
+source include/rpl/deprecated/show_binlog_events.inc;
+
+--let $binlog_limit= 2,1
+--source include/rpl/deprecated/show_binlog_events.inc
+
+--let $binlog_limit= 3,6
+--source include/rpl/deprecated/show_binlog_events.inc
+--let $binlog_limit=
+
+flush logs;
+
+# We need an extra update before doing save_master_pos.
+# Otherwise, an unlikely scenario may occur:
+# * When the master's binlog_dump thread reads the end of master-bin.001,
+# it send the rotate event which is at this end, plus a fake rotate event
+# because it's starting to read a new binlog.
+# save_master_pos will record the position of the first of the two rotate
+# (because the fake one is not in the master's binlog anyway).
+# * Later the slave waits for the position of the first rotate event,
+# and it may quickly stop (in 'slave stop') without having received the fake
+# one.
+# So, depending on a few milliseconds, we end up with 2 rotate events in the
+# relay log or one, which influences the output of SHOW REPLICA STATUS, making
+# it not predictable and causing random test failures.
+# To make it predictable, we do a useless update now, but which has the
+# interest of making the slave catch both rotate events.
+
+eval create table t3 (a int)ENGINE=$engine_type;
+
+# Sync slave and force it to start on another binary log
+
+#show rows of t1 on master
+connection master;
+select * from t1 order by 1 asc;
+
+--source include/rpl/sync_to_replica.inc
+
+#check t1 on slave to ensure whether it's identical with on master
+select * from t1 order by 1 asc;
+flush logs;
+source include/rpl/stop_replica.inc;
+source include/rpl/start_replica.inc;
+connection master;
+
+# Create some entries for second log
+
+eval create table t2 (n int)ENGINE=$engine_type;
+insert into t2 values (1);
+source include/rpl/deprecated/show_binlog_events.inc;
+
+let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+source include/rpl/deprecated/show_binlog_events.inc;
+
+--source include/rpl/deprecated/show_binary_logs.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deprecated/show_binary_logs.inc
+
+let $binlog_file=;
+source include/rpl/deprecated/show_binlog_events.inc;
+
+let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+source include/rpl/deprecated/show_binlog_events.inc;
+let $binlog_file=;
+
+source include/rpl/assert_replica_running.inc;
+
+# Need to recode the following
+
+#show new master for slave with Source_Log_File='master-bin.000001' and source_log_pos=4 and  Source_Server_Id=1;
+#show new master for slave with Source_Log_File='master-bin.000001' and source_log_pos=79 and Source_Server_Id=1;
+#show new master for slave with Source_Log_File='master-bin.000001' and source_log_pos=311 and Source_Server_Id=1;
+#show new master for slave with Source_Log_File='master-bin.000002' and source_log_pos=4 and Source_Server_Id=1;
+#show new master for slave with Source_Log_File='master-bin.000002' and source_log_pos=122 and Source_Server_Id=1;
+
+--error 1220
+show binlog events in 'slave-bin.000005' from 4;
+
+connection master;
+
+# The table drops caused Cluster Replication wrapper to fail as event ID would never be the same.# Moving drops here.
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+#
+# Bug #6880: LAST_INSERT_ID() within a statement
+#
+
+# Reset binlog so that show binlog events will not show the tests
+# above.
+source include/rpl/reset.inc;
+connection master;
+
+create table t1(a int auto_increment primary key, b int);
+insert into t1 values (NULL, 1);
+set insert_id=5;
+insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
+source include/rpl/deprecated/show_binlog_events.inc;
+select * from t1;
+drop table t1;
+
+# End of 4.1 tests
+
+--source include/rpl/sync_to_replica.inc

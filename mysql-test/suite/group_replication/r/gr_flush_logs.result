@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server1]
 CREATE TABLE t1 (i INT PRIMARY KEY) engine= innodb;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 # Test if support 'flush error logs' statement.
 flush error logs;
@@ -15,7 +15,7 @@ flush error logs;
 include/assert.inc [Binary log WAS NOT flushed nor rotated]
 include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 # Make sure recovery logs was not flushed after execute 'flush error logs' statement.
 # Make sure applier logs was not flushed after execute 'flush error logs' statement.
@@ -23,12 +23,12 @@ include/rpl_sync.inc
 include/assert.inc [Binary log WAS NOT flushed nor rotated]
 include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 INSERT INTO t1 VALUES(1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 INSERT INTO t1 VALUES(2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/diff_tables.inc [server1:t1, server2:t1]
 [connection server1]
@@ -40,7 +40,7 @@ flush local relay logs;
 include/assert.inc [Binary log WAS NOT flushed nor rotated]
 include/assert.inc [Applier relay log WAS flushed and rotated]
 include/assert.inc [Recovery relay log WAS flushed and rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 # Make sure recovery logs was not flushed after execute 'flush local relay logs' statement.
 # Make sure applier logs was flushed after execute 'flush local relay logs' statement.
@@ -50,9 +50,9 @@ include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
 [connection server1]
 INSERT INTO t1 VALUES(3);
-include/rpl_sync.inc
+include/rpl/sync.inc
 INSERT INTO t1 VALUES(4);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/diff_tables.inc [server1:t1, server2:t1]
 # Test if support 'flush slow logs' statement.
@@ -63,7 +63,7 @@ flush slow logs;
 include/assert.inc [Binary log WAS NOT flushed nor rotated]
 include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 # Make sure recovery logs was not flushed after execute 'flush slow logs' statement.
 # Make sure applier logs was not flushed after execute 'flush slow logs' statement.
@@ -71,12 +71,12 @@ include/rpl_sync.inc
 include/assert.inc [Binary log WAS NOT flushed nor rotated]
 include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 INSERT INTO t1 VALUES(5);
-include/rpl_sync.inc
+include/rpl/sync.inc
 INSERT INTO t1 VALUES(6);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/diff_tables.inc [server1:t1, server2:t1]
 [connection server1]
@@ -88,7 +88,7 @@ flush general logs;
 include/assert.inc [Binary log WAS NOT flushed nor rotated]
 include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 # Make sure recovery logs was not flushed after execute 'flush general logs' statement.
 # Make sure applier logs was not flushed after execute 'flush general logs' statement.
@@ -98,9 +98,9 @@ include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
 [connection server1]
 INSERT INTO t1 VALUES(7);
-include/rpl_sync.inc
+include/rpl/sync.inc
 INSERT INTO t1 VALUES(8);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/diff_tables.inc [server1:t1, server2:t1]
 # Test if support 'flush engine logs' statement.
@@ -111,7 +111,7 @@ flush engine logs;
 include/assert.inc [Binary log WAS NOT flushed nor rotated]
 include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 # Make sure recovery logs was not flushed after execute 'flush engine logs' statement.
 # Make sure applier logs was not flushed after execute 'flush engine logs' statement.
@@ -121,9 +121,9 @@ include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
 [connection server1]
 INSERT INTO t1 VALUES(9);
-include/rpl_sync.inc
+include/rpl/sync.inc
 INSERT INTO t1 VALUES(10);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/diff_tables.inc [server1:t1, server2:t1]
 [connection server1]
@@ -138,7 +138,7 @@ include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
 # Test if it supports 'show binary logs' statement and verify that it shows the correct data
 include/assert.inc [assert that the first binary log name is server-binary-log.000001]
 include/assert.inc [assert that the second binary log name is server-binary-log.000002]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 # Make sure recovery logs was not flushed after execute 'flush binary logs' statement.
 # Make sure applier logs was not flushed after execute 'flush binary logs' statement.
@@ -148,9 +148,9 @@ include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
 [connection server1]
 INSERT INTO t1 VALUES(11);
-include/rpl_sync.inc
+include/rpl/sync.inc
 INSERT INTO t1 VALUES(12);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/diff_tables.inc [server1:t1, server2:t1]
 [connection server1]
@@ -162,7 +162,7 @@ flush local error logs, relay logs;
 include/assert.inc [Binary log WAS NOT flushed nor rotated]
 include/assert.inc [Applier relay log WAS flushed and rotated]
 include/assert.inc [Recovery relay log WAS flushed and rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 # Make sure recovery logs was not flushed after execute 'flush local error logs, relay logs' statement.
 # Make sure applier logs was flushed after execute 'flush local error logs, relay logs' statement.
@@ -170,12 +170,12 @@ include/rpl_sync.inc
 include/assert.inc [Binary log WAS NOT flushed nor rotated]
 include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 INSERT INTO t1 VALUES(13);
-include/rpl_sync.inc
+include/rpl/sync.inc
 INSERT INTO t1 VALUES(14);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/diff_tables.inc [server1:t1, server2:t1]
 [connection server2]
@@ -188,7 +188,7 @@ flush logs;
 include/assert.inc [Binary log WAS flushed and rotated]
 include/assert.inc [Applier relay log WAS flushed and rotated]
 include/assert.inc [Recovery relay log WAS flushed and rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 # Make sure recovery logs was not flushed after execute 'flush logs' statement.
 # Make sure applier logs was not flushed after execute 'flush logs' statement.
@@ -205,7 +205,7 @@ flush logs;
 include/assert.inc [Binary log WAS flushed and rotated]
 include/assert.inc [Applier relay log WAS flushed and rotated]
 include/assert.inc [Recovery relay log WAS flushed and rotated]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 # Make sure recovery logs was not flushed after execute 'flush logs' statement.
 # Make sure applier logs was not flushed after execute 'flush logs' statement.
@@ -215,9 +215,9 @@ include/assert.inc [Applier relay log WAS NOT flushed nor rotated]
 include/assert.inc [Recovery relay log WAS NOT flushed nor rotated]
 [connection server1]
 INSERT INTO t1 VALUES(15);
-include/rpl_sync.inc
+include/rpl/sync.inc
 INSERT INTO t1 VALUES(16);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:t1, server2:t1]
 [connection server1]
 DROP TABLE t1;

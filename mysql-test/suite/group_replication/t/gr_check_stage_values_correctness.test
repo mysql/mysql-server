@@ -23,13 +23,13 @@
 --source include/group_replication.inc
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo # 01. GR Stage events are present when GR is running.
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $assert_text= Group replication applier executing is present in events_stages_current table.
@@ -69,11 +69,11 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --echo #     Recovery channel will have some data on server2.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO test.t1 values (1);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @debug_save_2= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,recovery_thread_start_wait';
 SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_cleanup';

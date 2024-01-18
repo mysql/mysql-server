@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -1201,10 +1201,10 @@ call mtr.add_suppression(".Could not execute.*rows event on table.*");
 call mtr.add_suppression(".*error 1610.*");
 call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 Wait for slave to choke on that event.
-include/wait_for_slave_sql_error.inc [errno=1296]
-include/stop_slave_io.inc
+include/rpl/wait_for_applier_error.inc [errno=1296]
+include/rpl/stop_receiver.inc
 RESET REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Test 8 ********************************************************************************
 * Test that missing timestamp column in before image for delete doesn't cause slave failure
 *******************************************************************************************
@@ -1215,4 +1215,4 @@ drop table t1;
 *** test cleanup
 set global ndb_log_update_as_write= @save_luaw;
 set global ndb_log_updated_only = @save_luo;
-include/rpl_end.inc
+include/rpl/deinit.inc

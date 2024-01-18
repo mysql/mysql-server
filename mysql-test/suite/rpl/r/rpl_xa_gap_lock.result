@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -38,8 +38,8 @@ XA PREPARE 'XA1';
 XA COMMIT 'XA1';
 [connection master]
 XA COMMIT 'XA2';
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 DROP TABLE t2, t1;
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
@@ -50,5 +50,5 @@ include/diff_tables.inc [master:test.t2, slave:test.t2]
 DROP TABLE t2, t1;
 [connection slave]
 SET @@GLOBAL.innodb_limit_optimistic_insert_debug = @saved_innodb_limit_optimistic_insert_debug;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

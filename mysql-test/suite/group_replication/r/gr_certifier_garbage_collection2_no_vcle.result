@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #  1. Create a table on server1.
 CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a));
 INSERT INTO t1 VALUE(1, 1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 #  2. Set a debug sync before broadcast message to group on
@@ -62,7 +62,7 @@ SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
 #     Validate that data and GTIDs are correct.
 [connection server1]
 INSERT INTO t1 VALUE(2, 2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [GTID_EXECUTED must contain 4 transactions]
 [connection server2]
 include/assert.inc [GTID_EXECUTED must contain 4 transactions]

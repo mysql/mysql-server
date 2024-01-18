@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server1]
 CREATE TABLE t1(a int primary key);
-include/rpl_sync.inc
+include/rpl/sync.inc
 CREATE PROCEDURE dml_operations()
 BEGIN
 declare x INT;
@@ -29,14 +29,14 @@ set sql_log_bin=1;
 # killing
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
 # restarting
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server_1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 SET @@GLOBAL.group_replication_force_members= "LOCAL_ADDRESS_SERVER_1";
 [connection server2]
 include/start_group_replication.inc
 [connection server1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:t1, server2:t1]
 drop table t1;
 drop procedure dml_operations;

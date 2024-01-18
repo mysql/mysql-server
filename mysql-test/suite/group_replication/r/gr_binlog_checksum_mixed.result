@@ -25,20 +25,20 @@ include/start_group_replication.inc
 INSERT INTO t1 VALUES (1);
 [connection server2]
 INSERT INTO t1 VALUES (2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc ['There are 2 rows in table t1']
 include/diff_tables.inc [server1:t1, server2:t1]
 ############################################################
 #  4. Validate that server1 binary log has checksums.
 [connection server1]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [binary log have checksums]
 include/stop_group_replication.inc
 
 ############################################################
 #  5. Validate that server2 binary log does not have checksums.
 [connection server2]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [binary log does not have checksums]
 include/stop_group_replication.inc
 
@@ -61,19 +61,19 @@ include/start_group_replication.inc
 INSERT INTO t2 VALUES (1);
 [connection server2]
 INSERT INTO t2 VALUES (2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc ['There are 2 rows in table t2']
 include/diff_tables.inc [server1:t1, server2:t1]
 ############################################################
 #  9. Validate that server1 binary log does not have checksums.
 [connection server1]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [binary log does not have checksums]
 
 ############################################################
 #  10. Validate that server2 binary log has checksums.
 [connection server2]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [binary log have checksums]
 
 ############################################################

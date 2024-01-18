@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -21,7 +21,7 @@ END|
 INSERT INTO t3 VALUES(1, 'AA');
 INSERT INTO t2 VALUES(1, 'AA');
 INSERT INTO t1 VALUES(1, 'AA');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 RENAME TABLE t3 TO t3_bak;
 UPDATE t1 SET b = 'XX' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
@@ -35,7 +35,7 @@ a	b
 1	ZZ
 call mtr.add_suppression("Replica SQL.*Table .test.t3. doesn.t exist.*, Error_code: MY-001146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 SHOW TABLES LIKE 't%';
 Tables_in_test (t%)
 t1
@@ -47,25 +47,25 @@ a	b
 SELECT * FROM t2 ORDER BY a;
 a	b
 1	AA_for_row_or_YY_for_stmt_mixed
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 RENAME TABLE t3_bak TO t3;
-include/start_slave.inc
+include/rpl/start_replica.inc
 TRUNCATE t1;
 TRUNCATE t2;
 TRUNCATE t3;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 *** Test non-transactional group w/ PK ***
 ALTER TABLE t1 ADD PRIMARY KEY (a);
 ALTER TABLE t2 ADD PRIMARY KEY (a);
 ALTER TABLE t3 ADD PRIMARY KEY (a);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 RENAME TABLE t3 TO t3_bak;
 INSERT INTO t3 VALUES(2, 'B');
 INSERT INTO t2 VALUES(2, 'B');
 INSERT INTO t1 VALUES(2, 'B');
 UPDATE t1 SET b = 'X' WHERE a = 2;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
 2	X
@@ -84,26 +84,26 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 SELECT * FROM t2 ORDER BY a;
 a	b
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 RENAME TABLE t3_bak TO t3;
-include/start_slave.inc
+include/rpl/start_replica.inc
 TRUNCATE t1;
 TRUNCATE t2;
 TRUNCATE t3;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 *** Test transactional group w/ PK ***
 ALTER TABLE t1 ENGINE=InnoDB;
 ALTER TABLE t2 ENGINE=InnoDB;
 ALTER TABLE t3 ENGINE=InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 RENAME TABLE t3 TO t3_bak;
 BEGIN;
 INSERT INTO t1 VALUES (3, 'C'), (4, 'D');
 INSERT INTO t2 VALUES (3, 'C'), (4, 'D');
 INSERT INTO t3 VALUES (3, 'C'), (4, 'D');
 COMMIT;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
 3	C
@@ -125,10 +125,10 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 SELECT * FROM t2 ORDER BY a;
 a	b
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 RENAME TABLE t3_bak TO t3;
-include/start_slave.inc
+include/rpl/start_replica.inc
 *** Clean up ***
 DROP TABLE t1,t2,t3;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

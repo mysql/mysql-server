@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,7 +7,7 @@ call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 include/assert.inc [On master, the table should return an empty set.]
 include/assert.inc [On master, the table should return an empty set.]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 
 # Testing on fresh slave.
 
@@ -23,10 +23,10 @@ include/assert.inc [SRS shows Replica_SQL_Running as "Yes". So, Service_State fr
 
 use test;
 create table t(a int primary key);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 drop table t;
 insert into t values(1);
-include/wait_for_slave_sql_error.inc [errno=1146]
+include/rpl/wait_for_applier_error.inc [errno=1146]
 
 # Extract the error related fields from SRS and PS table and compare
 # them for correctness.
@@ -51,7 +51,7 @@ include/assert.inc [SRS shows Replica_SQL_Running as "No". So, Service_State fro
 include/assert.inc [Value returned by SRS and PS table for Last_Error_Number should be same.]
 Value returned by SRS and PS table for Last_Error_Message is same.
 include/assert.inc [Value returned by SRS and PS table for Last_Error_Timestamp should be same.]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 drop table t;
 reset binary logs and gtids;
 RESET REPLICA;
@@ -62,8 +62,8 @@ reset binary logs and gtids;
 # testing for coordinator thread in all scenarios. Testing for one
 # scenario is enough.
 
-include/rpl_restart_server.inc [server_number=1]
-include/rpl_restart_server.inc [server_number=2]
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=2]
 CHANGE REPLICATION SOURCE to
 SOURCE_HOST='127.0.0.1',
 SOURCE_PORT=MASTER_MYPORT,
@@ -74,8 +74,8 @@ Note	###	Storing MySQL user name or password information in the connection metad
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=1;
 set @save.replica_transaction_retries= @@global.replica_transaction_retries;
-include/start_slave.inc
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/start_replica.inc
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [thread_name should should indicate sql thread.]
 include/assert.inc [SRS shows Replica_SQL_Running as "Yes". So, Service_State from this PS table should be "ON".]
 include/assert.inc [Value returned by SRS and PS table for Last_Error_Number should be same.]
@@ -84,8 +84,8 @@ include/assert.inc [Value returned by SRS and PS table for Last_Error_Timestamp 
 
 # Cleanup.
 
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 set @@global.replica_transaction_retries= @save.replica_transaction_retries;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

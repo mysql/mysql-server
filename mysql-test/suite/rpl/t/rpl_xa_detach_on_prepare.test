@@ -36,7 +36,7 @@
 --echo #.
 --let $rpl_server_count= 2
 --let $rpl_topology= 1->2->1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --echo #
 --echo # 1. On server1 enable option `xa_detach_on_prepare` for current session.
@@ -44,7 +44,7 @@
 
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@session.xa_detach_on_prepare=1;
 
 --let $assert_text= The value of xa_detach_on_prepare should be 1
@@ -57,31 +57,31 @@ SET @@session.xa_detach_on_prepare=1;
 --echo #
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #
 --echo # 3. On server1 create and prepare an XA transaction which inserts a value on
 --echo #    the table.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 FLUSH LOGS;
 XA START 'trx1';
 INSERT INTO t1 VALUES (1);
 XA END 'trx1';
 XA PREPARE 'trx1';
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo #
 --echo # 4. On server2 commit the XA transaction.
 --echo #
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 XA COMMIT 'trx1';
 XA RECOVER;
@@ -89,7 +89,7 @@ XA RECOVER;
 --let $wait_condition= SELECT COUNT(*) = 1 FROM t1
 --source include/wait_condition.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo #
@@ -97,7 +97,7 @@ XA RECOVER;
 --echo #
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*) = 1 FROM t1
 --source include/wait_condition.inc
 
@@ -107,15 +107,15 @@ XA RECOVER;
 --echo #
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@session.xa_detach_on_prepare=0;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -21,7 +21,7 @@
 # Related BUGS: Bug #18816897- IGNORE_SERVER_IDS NOT RESETTING POST RESET SLAVE ALL
 #
 
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 source include/have_binlog_format_mixed.inc;
 
 connection slave;
@@ -57,12 +57,12 @@ CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
 let $ignore_list= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 --echo *** ignore master (server 1) queries for a while ***
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 
 #connection slave;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 let $slave_relay_pos0= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1);
 
 connection master;
@@ -72,7 +72,7 @@ let $master_binlog_end= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 connection slave;
 let $slave_param= Exec_Source_Log_Pos;
 let $slave_param_value= $master_binlog_end;
-source include/wait_for_slave_param.inc;
+source include/rpl/wait_for_replica_status.inc;
 --echo *** must be empty as the event is to be filtered out ***
 show tables;
 --echo *** allowing events from master ***
@@ -87,7 +87,7 @@ if (`select $slave_relay_pos1 - $slave_relay_pos0`)
 }
 
 STOP REPLICA;
-source include/wait_for_slave_to_stop.inc;
+source include/rpl/wait_for_replica_to_stop.inc;
 RESET REPLICA;
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
@@ -111,7 +111,7 @@ RESET REPLICA ALL;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $assert_text= RESET REPLICA ALL must empty the list of server-ids.
 --let $assert_cond= "[SHOW REPLICA STATUS, Replicate_Ignore_Server_Ids, 1]" = ""
@@ -120,7 +120,7 @@ eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_M
 connection master;
 
 #connection slave;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo *** must have caught create table ***
 show tables;
 
@@ -128,32 +128,32 @@ show tables;
 connection master;
 drop table t1;
 #connection slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # === Bug#18192817 IGNORE_SERVER_IDS IS SHOWING DUPLICATE SERVER IDS ===
 
 # The bug caused the field Replicate_Ignore_Server_Ids in SHOW REPLICA STATUS
 # show up duplicate values. Verify that the values are NOT duplicated.
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --echo The list should have 0 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --echo
 
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420);
 
 --echo The list should have 4 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --echo
 
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (110,220,330,420);
 
 --echo The list should still have only 4 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --echo
 
 --echo ISSUE WAS HERE: All server ids should be stored and showed only once, while they are set twice or even more.
@@ -161,28 +161,28 @@ CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,220,330,420);
 
 --let $status_items= Replicate_Ignore_Server_Ids
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --echo
 
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,330,420);
 
 --echo The list should have 6 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --echo
 
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,420);
 
 --echo The list should have 7 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --echo
 
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,421);
 
 --echo The list should have 8 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --echo
 
 # Cleanup
@@ -190,9 +190,9 @@ CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 
 --echo The list should have NO elements.
 --let $status_items= Replicate_Ignore_Server_Ids
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 --echo
 
 # Cleanup
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

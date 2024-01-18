@@ -42,7 +42,7 @@
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GTID_NEXT='AUTOMATIC:aa';
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
@@ -56,12 +56,12 @@ INSERT INTO t1 VALUES (3);
 --echo #      variable
 --echo
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $srv_id=2
 while ($srv_id <= $rpl_server_count) {
   --let $rpl_connection_name= server$srv_id
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:aa:1-4"
   --let $assert_text= Verify that executed GTIDs exist in the gtid_executed global variable. T1, pass condition 1
   --source include/assert.inc
@@ -73,7 +73,7 @@ while ($srv_id <= $rpl_server_count) {
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

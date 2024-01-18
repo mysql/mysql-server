@@ -19,7 +19,7 @@
 # 8. Test end.
 #
 
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 --source include/not_have_privilege_checks_user.inc
 --source include/have_group_replication_plugin.inc
 --let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429445
@@ -61,10 +61,10 @@
 --echo # 2. After start Group Replication channels are present
 --echo #    on common replication P_S tables.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $assert_text= 'There is a Group Replication applier channel on performance_schema.replication_connection_configuration table'
@@ -97,16 +97,16 @@
 --echo # 3. Group Replication running channels sample output
 --echo #    on common replication P_S tables.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Execute some transactions on server2 to make server1
 # performance_schema.replication_connection_status.RECEIVED_TRANSACTION_SET
 # not empty.
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait that performance schema update LAST_APPLIED_TRANSACTION so
 # APPLYING_TRANSACTION* columns be 0
@@ -139,9 +139,9 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 4. Clean up data.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -149,10 +149,10 @@ DROP TABLE t1;
 --echo # 5. Stop Group Replication, channels must continue to be
 --echo #    present on common replication P_S tables.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $assert_text= 'There is still a Group Replication applier channel on performance_schema.replication_connection_configuration table'

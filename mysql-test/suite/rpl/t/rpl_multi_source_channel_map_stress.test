@@ -17,9 +17,9 @@
 --source include/not_group_replication_plugin.inc
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 CALL mtr.add_suppression('Replica failed to initialize connection metadata structure from the repository');
 CALL mtr.add_suppression('This operation cannot be performed with a running replica');
@@ -43,7 +43,7 @@ SET @@GLOBAL.event_scheduler= OFF;
 --let $num_channels= 2
 
 # Stop replica for the default channel
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $c= 0
 while ($c <= $num_channels)
@@ -134,8 +134,8 @@ RESET REPLICA ALL;
 SET @@GLOBAL.event_scheduler = @saved_event_scheduler;
 SET @@GLOBAL.relay_log_purge = @saved_relay_log_purge;
 
-# To avoid problems in start_slave.inc and rpl_end.inc
+# To avoid problems in rpl/start_replica.inc and rpl/deinit.inc
 --let $rpl_channel_name=
 --let $_for_channel_clause=
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

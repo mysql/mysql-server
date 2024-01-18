@@ -6,7 +6,7 @@
 #
 # ==== Implementation ====
 #
-# Please see extra/binlog_tests/enforce_gtid_consistency_tmp_violation.test
+# Please see common/binlog/enforce_gtid_consistency_tmp_violation.test
 #
 # ==== References ====
 #
@@ -17,5 +17,5 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_binlog_format_statement.inc
 
---let $test_file= extra/binlog_tests/enforce_gtid_consistency_tmp_violation.test
---source extra/binlog_tests/enforce_gtid_consistency.test
+--let $test_file= common/binlog/enforce_gtid_consistency_tmp_violation.test
+--source common/binlog/enforce_gtid_consistency.test

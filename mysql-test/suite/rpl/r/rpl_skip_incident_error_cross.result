@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
 # enough to accommodate the changes.
 #
 Got one of the listed errors
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Incident	#	#	#1 (LOST_EVENTS)
 master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
@@ -26,10 +26,10 @@ master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
 # Verify that we can skip the incident event by setting
 # --replica-skip-errors=1590 on slave.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 DROP TABLE t1;
 # Removing debug point 'simulate_write_incident_event_into_binlog_directly' from @@GLOBAL.debug
 SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;
-include/rpl_end.inc
+include/rpl/deinit.inc

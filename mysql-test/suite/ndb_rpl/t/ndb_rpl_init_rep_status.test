@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 # Test Slave initialisation of Ndb_slave_max_replicated_epoch status var
 
@@ -18,7 +18,7 @@ insert into t1 values (1,1);
 --connection slave
 --echo Initial state
 select * from mysql.ndb_apply_status;
---source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
+--source suite/ndb_rpl/t/show_replica_max_replicated_epoch.inc
 
 set @slave_server_id:= @@server_id;
 select @slave_server_id;
@@ -29,7 +29,7 @@ START REPLICA;
 --sync_slave_with_master
 --connection slave
 select server_id from mysql.ndb_apply_status order by server_id;
---source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
+--source suite/ndb_rpl/t/show_replica_max_replicated_epoch.inc
 
 --echo Default, load of own serverid from ndb_apply_status, should be 111
 drop table test.t1;
@@ -41,15 +41,15 @@ START REPLICA;
 --sync_slave_with_master
 --connection slave
 select server_id from mysql.ndb_apply_status order by server_id;
---source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
+--source suite/ndb_rpl/t/show_replica_max_replicated_epoch.inc
 
 drop table test.t1;
 
 --echo Check that reset replica resets Ndb_slave_max_replicated_epoch to zero
 STOP REPLICA;
---source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
+--source suite/ndb_rpl/t/show_replica_max_replicated_epoch.inc
 RESET REPLICA;
---source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
+--source suite/ndb_rpl/t/show_replica_max_replicated_epoch.inc
 
 --echo Multiple-channel, load highest of configured serverids, should be 222
 set @other_local_server_id=@slave_server_id+1;
@@ -66,7 +66,7 @@ START REPLICA;
 --sync_slave_with_master
 --connection slave
 select server_id from mysql.ndb_apply_status order by server_id;
---source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
+--source suite/ndb_rpl/t/show_replica_max_replicated_epoch.inc
 
 # Clean up
 STOP REPLICA;
@@ -76,5 +76,5 @@ START REPLICA;
 drop table test.t1;
 sync_slave_with_master;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

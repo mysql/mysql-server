@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -36,12 +36,12 @@ BEGIN
 INSERT INTO t1 VALUES ('MySQL','1993-02-04'),('ROCKS', '1990-08-27'),('Texas', '1999-03-30'),('kyle','2005-1-1');
 END|
 CALL p2();
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CALL p1();
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE t1;
 DROP TABLE t2;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

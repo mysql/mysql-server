@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,7 +20,7 @@ END|
 BEGIN;
 INSERT INTO t2 VALUES (f());
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:test.t1, slave:test.t1]
 include/diff_tables.inc [master:test.t2, slave:test.t2]
 SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
@@ -31,4 +31,4 @@ SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP FUNCTION f;
-include/rpl_end.inc
+include/rpl/deinit.inc

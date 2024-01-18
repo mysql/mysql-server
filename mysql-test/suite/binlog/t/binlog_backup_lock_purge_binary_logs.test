@@ -43,7 +43,7 @@ LOCK INSTANCE FOR BACKUP;
 --echo #
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $binlog_file BINLOG_FILE
 --error ER_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
@@ -57,7 +57,7 @@ PURGE BINARY LOGS BEFORE '2019-04-02 22:46:26';
 --echo #
 
 --let $rpl_connection_name = con1
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK INSTANCE;
 
 --echo #
@@ -65,7 +65,7 @@ UNLOCK INSTANCE;
 --echo #
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $binlog_file BINLOG_FILE
 --eval PURGE BINARY LOGS TO '$binlog_file'
@@ -77,6 +77,6 @@ PURGE BINARY LOGS BEFORE '2019-04-02 22:46:26';
 --echo #
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;

@@ -26,9 +26,9 @@
 --echo # 1. With both members ONLINE. Create a table on M1.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT UNIQUE KEY NOT NULL);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo # 2. Checking the negative case in which there is a conflict.
@@ -56,7 +56,7 @@ CREATE TABLE t1 (c1 INT UNIQUE KEY NOT NULL);
 --echo # 4. Assert table consistency.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Table t1 will contain row after the above execution
 --let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1]" = "1"

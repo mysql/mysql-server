@@ -42,13 +42,13 @@ call mtr.add_suppression("A member is joining the group while a group configurat
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring*");
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring*");
 SET SESSION sql_log_bin = 1;
@@ -63,7 +63,7 @@ SET SESSION sql_log_bin = 1;
 --echo ####
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Elect member 1
 --let $server1_uuid = `SELECT @@server_uuid`
@@ -83,7 +83,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server1_uuid"
 --source include/assert.inc
@@ -96,7 +96,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server1_uuid"
 --source include/assert.inc
@@ -108,32 +108,32 @@ SET SESSION sql_log_bin = 1;
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Elect member 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid = `SELECT @@server_uuid`
 
 --eval SELECT group_replication_switch_to_multi_primary_mode()
@@ -153,7 +153,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server2_uuid"
 --source include/assert.inc
@@ -163,7 +163,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server2_uuid"
 --source include/assert.inc
@@ -173,7 +173,7 @@ SET SESSION sql_log_bin = 1;
 
 # Elect member 3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server3_uuid = `SELECT @@server_uuid`
 
 --eval SELECT group_replication_switch_to_multi_primary_mode()
@@ -193,7 +193,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server3_uuid"
 --source include/assert.inc
@@ -203,7 +203,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server3_uuid"
 --source include/assert.inc
@@ -218,19 +218,19 @@ SET SESSION sql_log_bin = 1;
 --echo
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
@@ -238,17 +238,17 @@ SET SESSION sql_log_bin = 1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SELECT group_replication_set_communication_protocol("8.0.21")
 
@@ -264,7 +264,7 @@ SET SESSION sql_log_bin = 1;
 
 # Elect member 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait until the communication protocol change is effective on this member,
 # only one group action can run at a time.
@@ -294,7 +294,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
 --let $assert_cond = "$num_rows" = "1"
@@ -309,7 +309,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
 --let $assert_cond = "$num_rows" = "1"
@@ -324,7 +324,7 @@ SET SESSION sql_log_bin = 1;
 
 # Elect member 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid = `SELECT @@server_uuid`
 
 --eval SELECT group_replication_switch_to_multi_primary_mode()
@@ -346,7 +346,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
 --let $assert_cond = "$num_rows" = "1"
@@ -358,7 +358,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
 --let $assert_cond = "$num_rows" = "1"
@@ -370,7 +370,7 @@ SET SESSION sql_log_bin = 1;
 
 # Elect member 3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server3_uuid = `SELECT @@server_uuid`
 
 --eval SELECT group_replication_switch_to_multi_primary_mode()
@@ -392,7 +392,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
 --let $assert_cond = "$num_rows" = "1"
@@ -404,7 +404,7 @@ SET SESSION sql_log_bin = 1;
 
 # Verify preferred and active members of member 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
 --let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
 --let $assert_cond = "$num_rows" = "1"
@@ -421,19 +421,19 @@ SET SESSION sql_log_bin = 1;
 --echo
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1

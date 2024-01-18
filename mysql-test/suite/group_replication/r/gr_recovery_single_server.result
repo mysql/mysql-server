@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # are only queued on relay log. Execute some transactions on
 # server1.
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 INSERT INTO t1 VALUES (1);
 

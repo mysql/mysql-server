@@ -12,8 +12,8 @@
 --source include/not_sparc_debug.inc
 --source include/not_ndb_default.inc
 --source include/not_group_replication_plugin.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 # Since this test generates row-based events in the binary log, the
 # slave SQL thread cannot be in STATEMENT mode to execute this test,
@@ -315,7 +315,7 @@ insert delayed into t2 values(@a);
 # rows make it to t2 on the slave. We first call
 # sync_slave_with_master, so that we are sure that t2 has been created
 # on the slave.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 let $wait_condition= SELECT COUNT(*) = 19 FROM mysqltest1.t2;
 --source include/wait_condition.inc
 connection master;
@@ -374,7 +374,7 @@ delimiter ;|
 select f("try_41_");
 # Two operations which compensate each other except that their net
 # effect is that they advance the auto_increment counter of t2 on slave:
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 use mysqltest1;
 insert into t2 values(2,null),(3,null),(4,null);
 delete from t2 where a>=2;
@@ -382,7 +382,7 @@ delete from t2 where a>=2;
 connection master;
 # this is the call which didn't replicate well
 select f("try_42_");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # now use prepared statement and test again, just to see that the RBB
 # mode isn't set at PREPARE but at EXECUTE.
@@ -396,7 +396,7 @@ set @string="try_43_";
 insert into t1 values(null,"try_44_"); # should be SBB
 execute stmt1 using @string; # should be RBB
 deallocate prepare stmt1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # verify that if only one table has auto_inc, it does not trigger RBB
 # (we'll check in binlog further below)
@@ -432,7 +432,7 @@ end|
 delimiter ;|
 select f1("try_46_"),f2("try_47_");
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 insert into t2 values(2,null),(3,null),(4,null);
 delete from t2 where a>=2;
 
@@ -440,7 +440,7 @@ connection master;
 # Test with SELECT and INSERT
 select f1("try_48_"),f2("try_49_");
 insert into t3 values(concat("try_50_",f1("try_51_"),f2("try_52_")));
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # verify that if f2 does only read on an auto_inc table, this does not
 # switch to RBB
@@ -456,7 +456,7 @@ begin
 end|
 delimiter ;|
 select f1("try_53_"),f2("try_54_");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # And now, a normal statement with a trigger (no stored functions)
 
@@ -472,7 +472,7 @@ insert into t1 values(null,"try_56_");
 # and now remove one auto_increment and verify SBB
 alter table t1 modify a int, drop primary key;
 insert into t1 values(null,"try_57_");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Test for BUG#20499 "mixed mode with temporary table breaks binlog"
 # Slave used to have only 2 rows instead of 3.
@@ -485,7 +485,7 @@ insert into t16 values("try_65_");
 drop table t15;
 # we'll verify that this one is done SBB
 insert into t16 values("try_66_");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # and now compare:
 
@@ -513,7 +513,7 @@ if ($you_want_to_test_UDF)
   select count(*) from t9;
 }
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Bug#20863 If binlog format is changed between update and unlock of
@@ -532,7 +532,7 @@ INSERT INTO t11 VALUES('Careful With That Axe, Eugene');
 UNLOCK TABLES;
 
 --query_vertical SELECT * FROM t11
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 USE mysqltest1;
 --query_vertical SELECT * FROM t11
 
@@ -543,7 +543,7 @@ CREATE TABLE t12 (data LONG);
 LOCK TABLES t12 WRITE;
 INSERT INTO t12 VALUES(UUID());
 UNLOCK TABLES;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # BUG#28086: SBR of USER() becomes corrupted on slave
@@ -580,7 +580,7 @@ INSERT INTO t13 VALUES (my_user());
 INSERT INTO t13 VALUES (CURRENT_USER());
 INSERT INTO t13 VALUES (my_current_user());
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # as we're using UUID we don't SELECT but use "diff" like in rpl_row_UUID
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql
@@ -620,7 +620,7 @@ diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_
 }
 
 drop database mysqltest1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 # Restore binlog format setting
@@ -629,5 +629,5 @@ set global binlog_format =@my_binlog_format;
 # Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

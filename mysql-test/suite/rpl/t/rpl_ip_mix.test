@@ -11,19 +11,19 @@
 
 let $IPv6= ::1;
 --echo #################### IP: $IPv6 ###########################
---source include/rpl_ip_mix.inc
+--source common/rpl/ip_mix.inc
 
 let $IPv6= ::1/128;
 #--echo #################### IP: $IPv6 ###########################
-#--source include/rpl_ip_mix.inc
+#--source common/rpl/ip_mix.inc
 
 let $IPv6= 0000:0000:0000:0000:0000:0000:0000:0001;
 --echo #################### IP: $IPv6 ###########################
---source include/rpl_ip_mix.inc
+--source common/rpl/ip_mix.inc
 
 let $IPv6= 0:0:0:0:0:0:0:1;
 --echo #################### IP: $IPv6 ###########################
---source include/rpl_ip_mix.inc
+--source common/rpl/ip_mix.inc
 
 let $IPv6= ::1;
 --echo #################### IP: $IPv6 mix #######################
@@ -34,7 +34,7 @@ connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT);
 --echo connection master;
 connection master;
 reset binary logs and gtids;
-source include/show_master_status.inc;
+source include/rpl/deprecated/show_binary_log_status.inc;
 --echo connection slave;
 connection slave;
 RESET REPLICA;

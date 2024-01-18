@@ -65,7 +65,7 @@ SET sql_log_bin=1;
 --echo #    plugin and join to the group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -84,7 +84,7 @@ SET sql_log_bin=1;
 --echo #    Install and setup clone.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -136,7 +136,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    finishing recovery
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL super_read_only= 1;
 FLUSH TABLES WITH READ LOCK;
 
@@ -144,7 +144,7 @@ FLUSH TABLES WITH READ LOCK;
 --echo # 6. Insert data on group
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO test.t1 VALUES (1, 1);
 INSERT INTO test.t1 VALUES (2, 1);
@@ -154,7 +154,7 @@ INSERT INTO test.t1 VALUES (2, 1);
 --echo #    flush prevent any kind of transaction from executing
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
@@ -175,18 +175,18 @@ SET GLOBAL group_replication_clone_threshold= 1;
 
 # Wait until the group settles on 2 members
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 # Send signal SIGCONT to server 3.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec kill -18 $server_pid
 
 --echo
@@ -219,11 +219,11 @@ SET GLOBAL group_replication_clone_threshold= 1;
 --echo #     Member will restart and rejoin the group.
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Due to concurrency between the completeness of second auto-rejoin attempt
 # and the UNLOCK TABLES, member can successfully rejoin on the second or third
 # attempt, thence the big disconnect_timeout.
@@ -232,7 +232,7 @@ UNLOCK TABLES;
 --let $disconnect_timeout=
 
 --let $rpl_server_number= 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $assert_text= Clone must be complete
 --let $assert_cond= [SELECT state="Completed" FROM performance_schema.clone_status] = 1;
@@ -249,22 +249,22 @@ UNLOCK TABLES;
 --echo
 --echo # 14. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --source include/stop_group_replication.inc
 UNINSTALL PLUGIN clone;
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 UNINSTALL PLUGIN clone;
 
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 UNINSTALL PLUGIN clone;
 

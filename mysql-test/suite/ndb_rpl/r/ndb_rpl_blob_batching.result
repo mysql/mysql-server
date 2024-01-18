@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ set global ndb_blob_read_batch_bytes = @batch_sz;
 set ndb_blob_read_batch_bytes = @batch_sz;
 set @s_replica_workers:=@@replica_parallel_workers;
 set @@GLOBAL.replica_parallel_workers=1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 show variables like 'ndb_log_update_as_write';
 Variable_name	Value
 ndb_log_update_as_write	ON
@@ -245,11 +245,11 @@ set global ndb_blob_write_batch_bytes=@s_blob_write_batch;
 set ndb_blob_write_batch_bytes=@s_blob_write_batch;
 set global ndb_blob_read_batch_bytes=@s_blob_read_batch;
 set ndb_blob_read_batch_bytes=@s_blob_read_batch;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @@GLOBAL.replica_parallel_workers=@s_replica_workers;
-include/start_slave.inc
+include/rpl/start_replica.inc
 drop table tv;
 drop table tsync;
 drop table tb1;
 drop table tb2;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -8,6 +8,6 @@
 let $engine_type2=myisam;
 -- let $saved_concurrent_insert = `SELECT @@GLOBAL.concurrent_insert`
 SET @@GLOBAL.concurrent_insert = 0;
--- source extra/rpl_tests/rpl_auto_increment_myisam.test
+-- source common/rpl/rpl_auto_increment_myisam.test
 -- replace_result $saved_concurrent_insert SAVED_CONCURRENT_INSERT
 -- eval SET @@GLOBAL.concurrent_insert = $saved_concurrent_insert

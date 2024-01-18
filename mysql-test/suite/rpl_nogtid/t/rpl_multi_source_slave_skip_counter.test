@@ -38,11 +38,11 @@
 --echo #.
 --let $rpl_multi_source= 1
 --let $rpl_topology= 1->2,3->2
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 # On slave
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 call mtr.add_suppression("Replica: Could not start replica for channel");
 
 --echo #
@@ -59,8 +59,8 @@ SET GLOBAL sql_replica_skip_counter= 1;
 
 # stop SQL THREAD for all channels
 STOP REPLICA SQL_THREAD;
---let $rpl_source_file= include/wait_for_slave_sql_to_stop.inc
---source include/rpl_for_each_connection.inc
+--let $rpl_source_file= include/rpl/wait_for_applier_to_stop.inc
+--source include/rpl/for_each_connection.inc
 
 --echo #
 --echo # Verify that START REPLICA FOR CHANNEL will copy sql_replica_skip_counter's
@@ -69,11 +69,11 @@ STOP REPLICA SQL_THREAD;
 
 # first stop the channels
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
---source include/stop_slave.inc
+--source include/connection.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_channel_name= 'channel_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $skip_counter= query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'channel_1', Skip_Counter, 1)
 --let $assert_text= check that channel_1's Skip_Counter is 0.
@@ -104,8 +104,8 @@ START REPLICA SQL_THREAD;
 --disable_warnings
 START REPLICA IO_THREAD;
 --enable_warnings
---let $rpl_source_file= include/wait_for_slave_io_to_start.inc
---source include/rpl_for_each_connection.inc
+--let $rpl_source_file= include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/for_each_connection.inc
 
 --let $assert_text= All two IO threads are running after START REPLICA IO_THREAD
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE Service_State="ON"] = 2;
@@ -116,4 +116,4 @@ SET GLOBAL sql_replica_skip_counter= 0;
 # End MSR setup.
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

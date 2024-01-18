@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,21 +9,21 @@ count(*)
 1000
 Restarting mysqld
 # restart
-include/rpl_reconnect.inc
-include/show_binlog_events.inc
+include/rpl/reconnect.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Incident	#	#	#1 (LOST_EVENTS)
 master-bin.000002	#	Rotate	#	#	master-bin.000003;pos=POS
 drop table if exists t1;
 Get IO thread to reconnect to Master
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=13119]
+include/rpl/wait_for_applier_error.inc [errno=13119]
 Last_SQL_Error = 'The incident LOST_EVENTS occurred on the source. Message: mysqld startup'
 Replica_IO_Running = 'Yes'
 Replica_SQL_Running = 'No'
 Last_Errno = '13119'
 Last_Error = 'The incident LOST_EVENTS occurred on the source. Message: mysqld startup'
 drop table if exists t1;
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 RESET REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc

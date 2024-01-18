@@ -1,0 +1,14 @@
+eval CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=$engine_type;
+
+begin;
+insert into t1 values(1);
+flush tables with read lock;
+commit;
+--source include/rpl/sync.inc
+# cleanup
+connection master;
+unlock tables;
+drop table t1;
+--source include/rpl/sync.inc
+
+# End of 4.1 tests

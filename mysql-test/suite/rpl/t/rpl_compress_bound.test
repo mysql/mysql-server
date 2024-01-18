@@ -26,7 +26,7 @@
 
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Initialize ====
 SET @@session.binlog_transaction_compression = 1;
@@ -37,18 +37,18 @@ CREATE TABLE t (info TEXT, data BLOB);
 --echo ==== Test ====
 INSERT INTO t VALUES('compressible', REPEAT('a', 1024));
 INSERT INTO t VALUES('non-compressible', RANDOM_BYTES(1024));
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo ==== Validate ====
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $keep_transaction_payload_events = 1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo ==== Clean up ====
 --let $debug_point = binlog_transaction_compression_max_size_800
 --source include/remove_debug_point.inc
 DROP TABLE t;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

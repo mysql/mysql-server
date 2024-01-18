@@ -3,20 +3,20 @@
 # tables. For further details, please, read WL#2687 and WL#5072.
 ###################################################################################
 --source include/have_binlog_format_statement.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
 let $engine_type=Innodb;
 let $database_name=test;
---source extra/rpl_tests/rpl_mixing_engines.test
+--source common/rpl/rpl_mixing_engines.test
 
 #
 # BUG#49522: Replication problem with mixed MyISAM/InnoDB
 #
 
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 -- connection master
 
 CREATE TABLE `t1` ( 
@@ -27,7 +27,7 @@ CREATE TABLE `t1` (
   `c5` int(10) unsigned DEFAULT NULL, 
   PRIMARY KEY (`c1`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 ALTER TABLE `t1` Engine=InnoDB;
 
 -- connection master
@@ -38,13 +38,13 @@ COMMIT;
 ROLLBACK;
 SET AUTOCOMMIT=1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 -- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 -- connection master
 DROP TABLE `t1`;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

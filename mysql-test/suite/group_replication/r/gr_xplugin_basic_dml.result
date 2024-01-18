@@ -78,7 +78,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 RUN USE test
 
 0 rows affected
@@ -111,7 +111,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 RUN USE test
 
 0 rows affected
@@ -153,7 +153,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 Checking the Value on T1
 RUN SELECT C2 FROM test.T1 WHERE C1=1
 Checking the row_count on T2
@@ -178,7 +178,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 Stopping GR on server 1
 RUN STOP GROUP_REPLICATION;
 

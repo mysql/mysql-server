@@ -36,9 +36,9 @@
 # BUG#28220751: REPLICATION BREAKS ON CREATE/DROP TEMPORARY TABLE OPERATION WITHIN FUNCTION(MBR)
 
 --source include/not_group_replication_plugin.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_binlog_format_mixed.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (a INT);
 
@@ -122,9 +122,9 @@ START TRANSACTION;
 SELECT drop_temp_table_with_dmls();
 ROLLBACK;
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/deprecated/show_binlog_events.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo #
 --echo # Verify that a function call is written to binary log in ROW
@@ -156,9 +156,9 @@ START TRANSACTION;
 SELECT drop_temp_table_with_dmls();
 COMMIT;
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/deprecated/show_binlog_events.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo #
 --echo # Verify that a function call is written to binary log in ROW
@@ -177,9 +177,9 @@ SELECT create_temp_table_with_dmls();
 SELECT dmls_on_temp_and_regular_tables();
 SELECT drop_temp_table_with_dmls();
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/deprecated/show_binlog_events.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo # Verify that CREATE TEMPORARY TABLE with function is written to
 --echo # the binary log in ROW format.
@@ -192,8 +192,8 @@ CREATE TEMPORARY TABLE temp4 SELECT dummy_function() as result FROM temp3;
 --let $assert_text= CREATE TEMPORARY TABLE with function is binlogged in ROW format when binlog_format= ROW/MIXED.
 --let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] = $saved_master_pos
 --source include/assert.inc
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo #
 --echo # Verify that a function invoking another function that has temporary
@@ -225,7 +225,7 @@ DELIMITER ;//
 SELECT call_drop_temp_table_if_exists();
 SELECT call_drop_temp_table_if_exists();
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # case 2: Calling the function call_drop_temp_table_if_exists() once and
 --echo # recreating the function drop_temp_table_if_exists() with a different
@@ -240,7 +240,7 @@ DROP FUNCTION drop_temp_table_if_exists;
 CREATE FUNCTION drop_temp_table_if_exists() RETURNS INT RETURN 2;
 SELECT call_drop_temp_table_if_exists();
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # case 3: prepare the function call call_drop_temp_table_if_exists() once and
 --echo # execute twice. Ensure that in both the executions the function is binlogged
@@ -260,7 +260,7 @@ PREPARE function_call FROM 'SELECT call_drop_temp_table_if_exists()';
 EXECUTE function_call;
 EXECUTE function_call;
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # case 4: prepare the function call call_drop_temp_table_if_exists() once and
 --echo # execute once. Recreate the function drop_temp_table_if_exists() and the
@@ -274,7 +274,7 @@ DROP FUNCTION drop_temp_table_if_exists;
 CREATE FUNCTION drop_temp_table_if_exists() RETURNS INT RETURN 2;
 EXECUTE function_call;
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Verify that a function invoking a procedure that has temporary table DDL is
@@ -302,7 +302,7 @@ DELIMITER ;//
 --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 SELECT call_proc_with_temp_table_ddl();
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Verify that a Event invoking a stored routine that has temporary table DDL
@@ -319,10 +319,10 @@ DELETE FROM t4;
 --let $wait_condition= select count(*) = 1 from t4
 --source include/wait_condition_or_abort.inc
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2, t3, t4;
 DROP TEMPORARY TABLE temp3, temp4, temp5;
 DROP FUNCTION create_temp_table;
@@ -337,5 +337,5 @@ DROP FUNCTION drop_temp_table_if_exists;
 DROP PROCEDURE proc_with_temp_table_ddl;
 DROP FUNCTION call_proc_with_temp_table_ddl;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

@@ -23,7 +23,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("This member joined a group on which all members do not support member actions, as such it did reset its member configuration to the default one.");
 call mtr.add_suppression("Unable to reset to member actions default configuration on member join. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'.");
@@ -40,7 +40,7 @@ SET SESSION sql_log_bin = 1;
 --echo #    not support member actions, thence does not include its
 --echo #    configuration on the exchangeable data.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
@@ -59,7 +59,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_skip_add_member_actions_to_exchangeable
 --echo #    thence will reset its configuration to the default one,
 --echo #    but it will fail to update its configuration.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
 
@@ -101,7 +101,7 @@ SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
 --echo ############################################################
 --echo # 3. Rejoin the group without the failure injection on the joiner.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $assert_text= There must be two member actions
@@ -136,7 +136,7 @@ SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='-d,group_replication_skip_add_member_actions_to_exchangeable_data';
 
 --source include/group_replication_end.inc

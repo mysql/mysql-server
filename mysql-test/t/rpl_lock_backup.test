@@ -1,7 +1,7 @@
 --echo #
 --echo # WL#9451 -- Backup Log
 --echo #
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (a INT);
 
@@ -64,5 +64,5 @@ DROP TABLESPACE testtablespace;
 DROP USER 'testuser1'@'localhost';
 DROP TABLE t1;
 --disable_connect_log
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

@@ -1,6 +1,6 @@
 # Test need anonymous user when connection are made as "zedjzlcsjhd"
 
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 
@@ -52,26 +52,26 @@ connection master;
 CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
 INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Temporary table `t1` open when stop replica is done. So we will have a warning here.
 # But this warning is NOT generated in RBR. So the results will be different in
 # SBR and RBR if we dont disable warnings here.
 --disable_warnings
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --enable_warnings
 
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 connection master;
 INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # cleanup
 
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

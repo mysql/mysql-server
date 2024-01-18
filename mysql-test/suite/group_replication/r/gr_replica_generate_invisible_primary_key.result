@@ -32,7 +32,7 @@ SET GLOBAL sql_generate_invisible_primary_key=true;
 [connection server2]
 SET GLOBAL sql_generate_invisible_primary_key=false;
 CREATE TABLE test.t2 (c1 INT);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/assert.inc [The table only contains one column]
 

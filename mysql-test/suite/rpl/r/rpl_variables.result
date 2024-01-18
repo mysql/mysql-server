@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -37,8 +37,8 @@ SET @@global.sql_mode = 'ALLOW_INVALID_DATES';
 SET @@local.sql_mode = 'ANSI_QUOTES,HIGH_NOT_PRECEDENCE';
 SET @user_num = 10;
 SET @user_text = 'Alunda';
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 SET @@global.init_replica = 'SELECT 1';
 [on master]
 SELECT @@pid_file, @@datadir;
@@ -537,7 +537,7 @@ EXECUTE p61;
 EXECUTE p62;
 EXECUTE p63;
 EXECUTE p64;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ==== Results ====
 SELECT * FROM tstmt ORDER BY id;
 id	truth	num	text
@@ -573,7 +573,7 @@ id	truth	num	text
 30	NULL	30	NULL
 31	NULL	NULL	Bergsbrunna
 32	NULL	NULL	Centrum
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:tstmt, master:tproc, master:tfunc, master:ttrig, master:tprep,  slave:tstmt, slave:tproc, slave:tfunc, slave:ttrig, slave:tprep]
 ==== Clean up ====
 [on master]
@@ -598,5 +598,5 @@ SET @@global.relay_log_purge=      @s_relay_log_purge;
 SET @@global.replica_exec_mode=      @s_replica_exec_mode;
 SET @@global.sql_mode=             @s_sql_mode;
 SET @@global.sync_binlog=          @s_sync_binlog;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

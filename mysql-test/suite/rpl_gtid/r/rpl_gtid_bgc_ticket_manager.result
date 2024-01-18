@@ -1,7 +1,7 @@
 include/only_with_option.inc [GLOBAL.replica_parallel_type = 'LOGICAL_CLOCK']
 include/only_with_option.inc [GLOBAL.replica_parallel_workers != 0]
 include/only_with_option.inc [GLOBAL.binlog_order_commits = 1]
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,7 +13,7 @@ include/save_sysvars.inc [
 ]
 SET @@GLOBAL.replica_preserve_commit_order = 0;
 SET @@GLOBAL.replica_parallel_workers = 4;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 CREATE TABLE t (
 c1 INT NOT NULL PRIMARY KEY,
@@ -21,8 +21,8 @@ c2 INT
 );
 INSERT INTO t VALUES (0, 0);
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-include/sync_slave_sql_with_master.inc
-include/save_binlog_position.inc
+include/rpl/sync_to_replica.inc
+include/rpl/save_binlog_file_position.inc
 [connection master]
 include/execute_to_conditional_timestamp_sync_point.inc [before_assign_session_to_bgc_ticket]
 SET gtid_next = "435aeb3e-cc91-11ec-a715-6ba04eb9487e:1"; INSERT INTO t VALUES (1, 1);
@@ -39,11 +39,11 @@ include/execute_from_conditional_timestamp_sync_point.inc [2@before_wait_on_tick
 include/execute_from_conditional_timestamp_sync_point.inc [3@before_wait_on_ticket]
 [connection master]
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
-include/sync_slave_sql_with_master.inc
-include/assert_binlog_events.inc [Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:2' # !Begin # !Insert # !Commit # Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:3' # !Begin # !Insert # !Commit # Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:1' # !Begin # !Insert # !Commit]
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/assert_binlog_events.inc [Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:2' # !Begin # !Insert # !Commit # Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:3' # !Begin # !Insert # !Commit # Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:1' # !Begin # !Insert # !Commit]
+include/rpl/stop_replica.inc
 include/restore_sysvars.inc
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

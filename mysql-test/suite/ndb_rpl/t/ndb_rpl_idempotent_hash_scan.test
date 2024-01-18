@@ -8,7 +8,7 @@
 
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 connection master;
 --echo **** On Master ****
@@ -30,7 +30,7 @@ INSERT INTO t2 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
 INSERT INTO t3 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
 
 --sleep 1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo **** On Slave ****
 
 set @prior_replica_exec_mode=@@global.replica_exec_mode;
@@ -38,7 +38,7 @@ set @prior_replica_allow_batching=@@global.replica_allow_batching;
 set @@global.replica_exec_mode= 'IDEMPOTENT';
 set @@global.replica_allow_batching = OFF;
 
---source include/restart_slave_sql.inc
+--source include/rpl/restart_applier.inc
 
 # Deletions on slave
 DELETE FROM t1 WHERE C1 = 'L';
@@ -50,8 +50,8 @@ connection master;
 --sleep 1
 DELETE FROM t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/check_slave_is_running.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/assert_replica_running.inc
 --echo **** On Slave ; expect count to be 0 ****
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 
@@ -61,8 +61,8 @@ DELETE FROM t2;
 DELETE FROM t3;
 
 
---source include/sync_slave_sql_with_master.inc
---source include/check_slave_is_running.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/assert_replica_running.inc
 --echo **** On Slave ; expect count to be 0 ****
 SELECT COUNT(*) FROM t2 ORDER BY c1,c2;
 SELECT COUNT(*) FROM t3 ORDER BY c1,c2;
@@ -79,4 +79,4 @@ set @@global.replica_exec_mode= @prior_replica_exec_mode;
 set @@global.replica_allow_batching= @prior_replica_allow_batching;
 call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table test.t.* Error_code: 1032");
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

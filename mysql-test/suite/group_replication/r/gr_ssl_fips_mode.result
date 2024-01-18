@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection server1]
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --ssl-fips-mode=ON
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 SET SESSION sql_log_bin= 0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
@@ -35,7 +35,7 @@ Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not support
 #
 [connection server2]
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --ssl-fips-mode=ON
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 SET @group_replication_recovery_use_ssl_save= @@GLOBAL.group_replication_recovery_use_ssl;
 SET @group_replication_recovery_ssl_ca_save= @@GLOBAL.group_replication_recovery_ssl_ca;
 SET @group_replication_recovery_ssl_cert_save= @@GLOBAL.group_replication_recovery_ssl_cert;

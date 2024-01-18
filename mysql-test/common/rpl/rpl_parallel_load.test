@@ -1,0 +1,270 @@
+#
+# This is a load generator to call from rpl_parallel and rpl_sequential tests
+
+#
+#
+# load volume parameter
+#
+--source include/have_myisam.inc
+
+# The value of iteration is chosen to be rather low to satisfy
+# slow PB environments that are not just Win.
+let $iter = 20;
+let $databases = 16;
+
+connection slave;
+
+call mtr.add_suppression('Replica: Error dropping database'); ## todo: fix
+
+source include/rpl/stop_replica.inc;
+START REPLICA;
+
+connection master;
+
+--disable_query_log
+--disable_result_log
+
+let $i = $databases + 1;
+while($i)
+{
+  let $i1 = $i;
+  dec $i1;
+  
+  eval create database test$i1;
+  eval use test$i1;
+  create table tm_nk (a int, b int, c text) engine=myisam;
+  create table tm_wk (a int auto_increment primary key, b int, c text) engine=myisam;
+  create table ti_nk (a int, b int, c text) engine=innodb;
+  create table ti_wk (a int auto_increment primary key, b int, c text) engine=innodb;
+  
+  # this table is special - just for timing. It's more special on test0 db
+  # where it contains master timing of the load as well.
+  create table benchmark (state text) engine=myisam; # timestamp keep on the slave side
+
+  dec $i;
+}
+
+--enable_result_log
+--enable_query_log
+
+
+--source include/rpl/sync_to_replica.inc
+#connection slave;
+
+--disable_query_log
+--disable_result_log
+
+let $i = $databases + 1;
+while($i)
+{
+  let $i1 = $i;
+  dec $i1;
+  eval use test$i1;
+  alter table benchmark add ts timestamp not null default current_timestamp;
+
+  dec $i;
+}
+--enable_result_log
+--enable_query_log
+
+
+# not gather events into relay log w/o executing yet
+STOP REPLICA sql_thread;
+
+##call p1(1);
+
+connection master;
+
+--disable_query_log
+--disable_result_log
+
+#
+# Load producer
+#
+
+# initial timestamp to record
+
+# the extra ts col on slave is effective only with the STMT format (todo: bug-report)
+set @save.binlog_format= @@session.binlog_format;
+set @@session.binlog_format=STATEMENT;
+let $i = $databases + 1;
+while($i)
+{
+  let $i1 = $i;
+  dec $i1;
+  eval use test$i1;
+
+  insert into benchmark set state='slave takes on load';
+
+  dec $i;
+}
+set @@session.binlog_format= @save.binlog_format;
+
+connection slave;
+
+use test0;
+insert into benchmark set state='master started load';
+
+
+connection master;
+
+while ($iter)
+{
+    let $i = $databases + 1;
+
+    while ($i)
+    {
+	let $i1 = $i;
+	dec $i1;
+
+	eval use test$i1;
+	##call test.one_session(1);
+	eval insert into tm_nk values($iter, $i1, uuid());
+	eval insert into tm_wk values(null,  $i1, uuid());
+	eval insert into ti_nk values($iter, $i1, uuid());
+	eval insert into ti_wk values(null,  $i1, uuid());
+
+	begin;
+  	eval insert into tm_nk values($iter, $i1, repeat('a', round(rand()*10)));
+	eval insert into tm_wk values(null,  $i1, uuid());
+	commit;
+	begin;
+	eval insert into ti_nk values($iter, $i1, uuid());
+	eval insert into ti_wk values(null,  $i1, repeat('a', round(rand()*10)));
+	commit;
+	dec $i;
+    }
+
+    dec $iter;
+}
+
+connection slave;
+
+use test0;
+insert into benchmark set state='master ends load';
+
+connection master;
+
+# terminal timestamp to record
+
+let $i = $databases + 1;
+set @save.binlog_format= @@session.binlog_format;
+set @@session.binlog_format=STATEMENT;
+while($i)
+{
+  let $i1 = $i;
+  dec $i1;
+  eval use test$i1;
+
+  insert into benchmark set state='slave ends load';
+
+  dec $i;
+}
+set @@session.binlog_format= @save.binlog_format;
+
+--enable_result_log
+--enable_query_log
+
+connection slave;
+
+## todo: record start and end time of appying to compare times of
+#  parallel and sequential execution.
+
+--disable_result_log
+
+insert into test0.benchmark set state='slave is processing load';
+
+# todo: replace with another algorithm of measuring time
+# To force filling timestamp cols with the slave local clock values
+# to implement benchmarking.
+
+#set @save.mts_exp_slave_local_timestamp=@@global.mts_exp_slave_local_timestamp;
+#set @@global.mts_exp_slave_local_timestamp=1;
+
+START REPLICA sql_thread;
+
+let $wait_timeout= 600;
+let $wait_condition= SELECT count(*)+sleep(1) = 5 FROM test0.benchmark;
+source include/wait_condition_or_abort.inc;
+
+# cleanup for files that could not be removed in the end of previous invocation.
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_files_wildcard $MYSQLD_DATADIR *.out
+
+use test;
+let $benchmark_file= `select replace(concat("benchmark_",uuid(),".out"),"-","_")`;
+--replace_regex /benchmark_.*.out/benchmark.out/
+eval select * from test0.benchmark into outfile '$benchmark_file';
+select ts from test0.benchmark where state like 'master started load' into @m_0;
+select ts from test0.benchmark where state like 'master ends load' into @m_1;
+select ts from test0.benchmark where state like 'slave takes on load' into @s_0;
+select ts from test0.benchmark where state like 'slave ends load' into @s_1;
+
+let $delta_file= `select replace(concat("delta_",uuid(),".out"),"-","_")`;
+--replace_regex /delta_.*.out/delta.out/
+eval select time_to_sec(@m_1) - time_to_sec(@m_0) as 'delta_m', 
+       time_to_sec(@s_1) - time_to_sec(@s_0) as 'delta_s',
+       time_to_sec(@s_m1) - time_to_sec(@s_m0) as 'delta_sm' into outfile '$delta_file';
+
+#
+# Consistency verification
+#
+let $i = $databases + 1;
+while($i)
+{
+  let $i1 = $i;
+  dec $i1;
+
+  # removing uuid() non-deterministic last collumn with statement format
+  connection master;
+
+  --disable_query_log
+  if (`select @@global.binlog_format like 'statement'`)
+  {
+    eval alter table test$i1.tm_nk drop c;
+    eval alter table test$i1.tm_wk drop c;
+    eval alter table test$i1.ti_nk drop c;
+    eval alter table test$i1.ti_wk drop c;
+  }
+  --disable_query_log
+
+  --source include/rpl/sync_to_replica.inc
+
+
+  let $diff_tables=master:test$i1.tm_nk, slave:test$i1.tm_nk;
+  source include/diff_tables.inc;
+
+  let $diff_tables=master:test$i1.ti_nk, slave:test$i1.ti_nk;
+  source include/diff_tables.inc;
+
+  let $diff_tables=master:test$i1.tm_wk, slave:test$i1.tm_wk;
+  source include/diff_tables.inc;
+
+  let $diff_tables=master:test$i1.ti_wk, slave:test$i1.ti_wk;
+  source include/diff_tables.inc;
+
+  dec $i;
+}
+--enable_result_log
+--enable_query_log
+
+
+connection master;
+
+--disable_query_log
+--disable_result_log
+
+let $i = $databases + 1;
+while($i)
+{
+  let $i1 = $i;
+  dec $i1;
+
+  eval drop database test$i1;
+  dec $i;
+}
+
+--enable_result_log
+--enable_query_log
+
+--source include/rpl/sync_to_replica.inc

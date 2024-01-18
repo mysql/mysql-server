@@ -3,7 +3,7 @@
 #
 # Extra tests for binlog compression
 #
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 #
@@ -12,18 +12,18 @@
 # returns an error
 #
 
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE t2 (c1 INT);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # now lock the table on the slave, so that the slave applier
 # cannot apply the transaction
 LOCK TABLE t2 READ, performance_schema.threads READ;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -32,7 +32,7 @@ COMMIT;
 --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $binlog_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # wait for the applier to block on the lock
 --let $wait_condition = SELECT count(*) = 1 FROM performance_schema.threads WHERE processlist_state = "Waiting for table metadata lock" AND name IN ('thread/sql/replica_sql', "thread/sql/replica_worker")
@@ -67,11 +67,11 @@ UNLOCK TABLE;
 --source include/diff_tables.inc
 
 # clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/reset.inc
 
 # end Test 1
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

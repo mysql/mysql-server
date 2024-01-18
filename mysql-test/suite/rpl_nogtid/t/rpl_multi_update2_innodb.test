@@ -5,7 +5,7 @@
 # Default engine.                                     #
 #######################################################
 --source include/not_ndb_default.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT');
 
 #
@@ -17,11 +17,11 @@ INSERT INTO t1 VALUES (0);
 UPDATE t1, (SELECT 3 as b) AS x SET t1.a = x.b;
 select * from t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 select * from t1;
 
 connection master;
 drop table t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

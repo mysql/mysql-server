@@ -36,7 +36,7 @@
 --let $rpl_skip_group_replication_start = 1
 --source include/group_replication.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Member version is incompatible with the group.");
 SET SESSION sql_log_bin = 1;
@@ -47,7 +47,7 @@ SET SESSION sql_log_bin = 1;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --source include/start_and_bootstrap_group_replication.inc
@@ -58,7 +58,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Save the super_read_only mode, so we can assert the server reverted to it when
 # it failed to join the group
 SET @super_read_only_saved = @@GLOBAL.super_read_only;
@@ -98,7 +98,7 @@ START GROUP_REPLICATION;
 --source include/assert_grep.inc
 # Verify that member 2 didn't join the group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 1
 --source include/gr_wait_for_number_of_members.inc
 
@@ -109,7 +109,7 @@ START GROUP_REPLICATION;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Set the exit state action to ABORT_SERVER
 SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 # We must restart GR to trigger another join
@@ -142,7 +142,7 @@ START GROUP_REPLICATION;
 --source include/assert_grep.inc
 # Verify that member 2 didn't join the group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 1
 --source include/gr_wait_for_number_of_members.inc
 
@@ -160,13 +160,13 @@ SET @@GLOBAL.DEBUG = @debug_saved;
 --source include/stop_group_replication.inc
 --source include/start_and_bootstrap_group_replication.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Start GR on server 2 and verify that the group stabilizes itself
 --source include/start_group_replication.inc
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 
@@ -176,7 +176,7 @@ SET @@GLOBAL.DEBUG = @debug_saved;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_exit_state_action = @exit_state_action_saved;
 
 --source include/group_replication_end.inc

@@ -4,7 +4,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression('Replica can not handle replication events with the checksum that source is configured to log');
 call mtr.add_suppression('Replication event checksum verification failed');
@@ -40,10 +40,10 @@ select @@session.replica_sql_verify_checksum  as 'no session var';
 
 connection master;
 
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 set @@global.binlog_checksum = NONE;
 --echo  *** must be rotations seen ***
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 set @@global.binlog_checksum = default;
 
@@ -90,7 +90,7 @@ flush logs;
 flush logs;
 select count(*) as zero from t1;
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 connection master;
 set @@global.binlog_checksum = CRC32;
@@ -105,7 +105,7 @@ let $slave_io_errno= 13114; # ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
 --let $show_slave_io_error= 1
 # Mask line numbers
 --let $slave_io_error_replace= / at [0-9]*/ at XXX/
-source include/wait_for_slave_io_error.inc;
+source include/rpl/wait_for_receiver_error.inc;
 
 select count(*) as zero from t1;
 
@@ -114,12 +114,12 @@ select count(*) as zero from t1;
 # *always* make sure the slave threads are stopped
 # or in waiting state before updating the global debug
 # variable (see BUG#11765758 for details).
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 set @@global.debug='-d,simulate_replica_unaware_checksum';
 
 
 connection slave;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 #
 # C. checksum failure simulations
@@ -138,7 +138,7 @@ set @@global.source_verify_checksum = default;
 sync_slave_with_master;
 
 connection slave;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 connection master;
 create table t2 (a int);
@@ -147,20 +147,20 @@ let $pos_master= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 connection slave;
 
 # C2. Failure by IO thread
-# instruction to io threadwait_for_slave_param.inc
+# instruction to io threadrpl/wait_for_replica_status.inc
 set @@global.debug='+d,simulate_checksum_test_failure';
 START REPLICA io_thread;
 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 let $slave_io_errno= 13122, 13115;
 --let $show_slave_io_error= 0
-source include/wait_for_slave_io_error.inc;
+source include/rpl/wait_for_receiver_error.inc;
 # no need to stop the IO thread, it is already stopped
 set @@global.debug='-d,simulate_checksum_test_failure';
 
 # to make IO thread re-read it again w/o the failure
 START REPLICA io_thread;
 --connection master
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # C3. Failure by SQL thread
 # instruction to sql thread;
@@ -169,11 +169,11 @@ set @@global.debug='+d,simulate_checksum_test_failure';
 START REPLICA sql_thread;
 let $slave_sql_errno= 13117; # ER_REPLICA_FATAL_ERROR
 --let $show_slave_sql_error= 1
-source include/wait_for_slave_sql_error.inc;
---source include/stop_slave.inc
+source include/rpl/wait_for_applier_error.inc;
+--source include/rpl/stop_replica.inc
 # resuming SQL thread to parse out the event w/o the failure
 set @@global.debug='-d,simulate_checksum_test_failure';
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 connection master;
 sync_slave_with_master;
@@ -201,14 +201,14 @@ flush logs;
 create table t3 (a int, b char(5));
 
 connection slave;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 connection master;
 sync_slave_with_master;
 
 #connection slave;
 select count(*) as 'must be zero' from t3;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
@@ -219,7 +219,7 @@ reset binary logs and gtids;
 insert into t3 value (1, @@global.binlog_checksum);
 
 connection slave;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 flush logs;
 
 connection master;
@@ -266,4 +266,4 @@ sync_slave_with_master;
 set @@global.binlog_checksum = @slave_save_binlog_checksum;
 set @@global.replica_sql_verify_checksum = @save_replica_sql_verify_checksum;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

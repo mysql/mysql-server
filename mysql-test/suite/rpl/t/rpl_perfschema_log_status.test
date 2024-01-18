@@ -29,7 +29,7 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 
 --echo # First step
@@ -44,7 +44,7 @@ CREATE TABLE ils_copy (
 # Table to be listed at FLUSH TABLES <table list> WITH READ LOCK
 CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Create a new channel, so we can test a non-empty channel name on results
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 
@@ -54,7 +54,7 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 {
   --let $use_gtids= 1
 }
---source include/save_master_pos.inc
+--source include/rpl/save_server_position.inc
 
 # Sleep before collecting positions
 --sleep 5
@@ -181,7 +181,7 @@ SELECT COUNT(*) FROM performance_schema.global_variables;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 --query_vertical SELECT * FROM performance_schema.log_status
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --disconnect user1
 DROP USER user1@'%';
 RESET REPLICA ALL FOR CHANNEL 'ch1';
@@ -194,23 +194,23 @@ RESET REPLICA ALL FOR CHANNEL 'ch1';
 # even when MySQL instance is locked for backup and
 # FLUSH TABLES <table list> WITH READ LOCK is in place.
 #
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 LOCK INSTANCE FOR BACKUP;
 FLUSH TABLES test.t1 WITH READ LOCK;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # The content of the result is not important in this step
 --disable_result_log
 SELECT * FROM performance_schema.log_status;
 --enable_result_log
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 UNLOCK TABLES;
 UNLOCK INSTANCE;
 
 
 # Cleanup
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --remove_file $ils_dump
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE ils_copy, t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -22,22 +22,22 @@
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # The following logical timestamps check needs fresh slave server.
 RESET BINARY LOGS AND GTIDS;
 # Set the filter rule to filter out these DDLs and DMls on slave.
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= (test.t1);
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo #
 --echo # Verify that the value of last_committed is not increased,
 --echo # since writeset history is not cleared when applying
@@ -47,15 +47,15 @@ INSERT INTO t1 VALUES (3);
 --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --echo Processing binlog $binlog_file
 --let $source_file= $server_2_datadir/$binlog_file
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= ();
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

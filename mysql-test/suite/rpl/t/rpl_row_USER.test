@@ -11,9 +11,9 @@
 
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
 -- let $rpl_privilege_checks_user_grant_option = 1
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 # Begin clean up test section
 connection master;
@@ -44,7 +44,7 @@ DELIMITER ;|
 CALL mysqltest1.p1();
 connection master;
 SELECT * FROM mysqltest1.t1 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM mysqltest1.t1 ORDER BY a;
 
 connection master;
@@ -58,7 +58,7 @@ REVOKE ALL ON mysqltest1.* FROM ''@'localhost%';
 DROP USER tester@'%';
 DROP USER ''@'localhost%';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Begin clean up test section
 connection master;
@@ -88,7 +88,7 @@ DELIMITER ;|
 CALL mysqltest1.p1();
 connection master;
 SELECT * FROM mysqltest1.t1 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM mysqltest1.t1 ORDER BY a;
 
 connection master;
@@ -99,7 +99,7 @@ DROP DATABASE mysqltest1;
 REVOKE ALL ON mysqltest1.* FROM 'tester1'@'';
 DROP USER tester1@'';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 5.0 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

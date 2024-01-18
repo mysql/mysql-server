@@ -24,23 +24,23 @@
 # Bug#32022794: TIMESTAMP FIELD SHOWS WRONG VALUE FOR COMPRESSED BINLOG PS TABLE
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # 1) Record the start time
 
 --let $start_time = `SELECT UNIX_TIMESTAMP()`
 
 # Truncate the table to remove any data from previous runs
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 
 # 2) Create a table and insert a row
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t(s INT);
 INSERT INTO t VALUES(10);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # 3) Query the values for first and last transaction timestamp and convert them
 #    into unix timestamp style
@@ -68,6 +68,6 @@ INSERT INTO t VALUES(10);
 --source include/assert.inc
 
 # 6) Clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

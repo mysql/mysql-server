@@ -1,4 +1,4 @@
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 create database mysqltest;
 
 create table mysqltest.t1 (n int PRIMARY KEY);
@@ -7,12 +7,12 @@ insert into mysqltest.t1 values (1,2);
 create table mysqltest.t2 (n int PRIMARY KEY);
 insert into mysqltest.t2 values (45);
 rename table mysqltest.t2 to mysqltest.t3, mysqltest.t1 to mysqltest.t2;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 select * from mysqltest.t2;
 select * from mysqltest.t3;
 connection master;
 drop database mysqltest;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # End of 4.1 tests
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

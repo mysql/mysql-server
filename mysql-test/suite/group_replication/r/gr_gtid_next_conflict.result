@@ -16,7 +16,7 @@ set sql_log_bin=0;
 call mtr.add_suppression("The requested GTID .* was already used, the transaction will rollback");
 set sql_log_bin=1;
 CREATE TABLE t1(a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 #############################################################
 # 2. Create a table and set a manual gtid_next equal to next

@@ -176,7 +176,7 @@ while ($i < $ceiling)
   --let $rpl_connection_silent= 1
   --let $rpl_connection_name= server$i
   --echo [Setup XPlugin user on connection '$rpl_connection_name']
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --let $create_user_disable_binlog=1
   --source include/xplugin_create_user.inc
   --inc $i
@@ -223,7 +223,7 @@ while ($i < $ceiling)
 {
   --let $rpl_connection_silent= 1
   --let $rpl_connection_name= server$i
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --source include/xplugin_drop_user.inc
   --inc $i
 }

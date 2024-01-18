@@ -19,7 +19,7 @@ delete from t1;
 alter table t1 add (b_x int);
 
 alter table t1 algorithm=inplace, rename column b_x to b;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 insert into t1 values (3,3),(4,4);
 alter table t1 rename t2;

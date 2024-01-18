@@ -26,7 +26,7 @@
 # If any of the assertions doesn't hold we abort the test and 
 # dump debug information.
 
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 ## Checking CREATE DATABASE
 
@@ -37,16 +37,16 @@ CREATE DATABASE dbx DEFAULT CHARACTER SET=latin1;
 if (!`SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
 {
   -- echo $CONNECTION_NAME : Database 'dbx' not listed on information_schema.SCHEMATA.
-  -- source include/show_rpl_debug_info.inc
+  -- source include/rpl/debug/show_debug_info.inc
   -- die
 }
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 if (!`SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
 {
   -- echo $CONNECTION_NAME : Database 'dbx' not listed on information_schema.SCHEMATA.
-  -- source include/show_rpl_debug_info.inc
+  -- source include/rpl/debug/show_debug_info.inc
   -- die
 }
 
@@ -61,16 +61,16 @@ ALTER DATABASE dbx DEFAULT CHARACTER SET=latin5;
 if (!`SELECT DEFAULT_CHARACTER_SET_NAME='latin5' FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
 {
   -- echo $CONNECTION_NAME : Unexpected default character set for table 'dbx'
-  -- source include/show_rpl_debug_info.inc
+  -- source include/rpl/debug/show_debug_info.inc
   -- die
 }
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 if (!`SELECT DEFAULT_CHARACTER_SET_NAME='latin5' FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
 {
   -- echo $CONNECTION_NAME : Unexpected default character set for table 'dbx'
-  -- source include/show_rpl_debug_info.inc
+  -- source include/rpl/debug/show_debug_info.inc
   -- die
 }
 
@@ -84,17 +84,17 @@ DROP DATABASE dbx;
 if (!`SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
 {
   -- echo $CONNECTION_NAME : Database 'dbx' is still listed on information_schema.SCHEMATA.
-  -- source include/show_rpl_debug_info.inc
+  -- source include/rpl/debug/show_debug_info.inc
   -- die
 }
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 if (!`SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
 {
   -- echo $CONNECTION_NAME : Database 'dbx' is still listed on information_schema.SCHEMATA.
-  -- source include/show_rpl_debug_info.inc
+  -- source include/rpl/debug/show_debug_info.inc
   -- die
 }
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

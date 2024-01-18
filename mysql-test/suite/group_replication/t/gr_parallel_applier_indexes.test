@@ -51,38 +51,38 @@
 --echo # be applied on member 4 through Group Replication applier.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Transactions with empty write set need to be executed sequentially,
 # so last_committed of this and next transaction are incremented.
 # server_id=1, last_committed=4, sequence_number=5
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Since previous transaction didn't have write set, last_committed
 # was incremented.
 # server_id=2, last_committed=5, sequence_number=6
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 INSERT INTO t1 VALUES (1);
 SET GTID_NEXT= AUTOMATIC;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # No dependencies from last transaction, last_committed is the same.
 # server_id=1, last_committed=5, sequence_number=7
 INSERT INTO t1 VALUES (3);
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Dependencies found, last_committed will be updated.
 # server_id=1, last_committed=6, sequence_number=8
 UPDATE t1 SET c1=2 WHERE c1=1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 
@@ -91,7 +91,7 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 --echo # validate its indexes on member 4.
 --echo #
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $dump_file=$MYSQLTEST_VARDIR/tmp/group_replication_parallel_applier_indexes.dump
 --exec $MYSQL_BINLOG --force-if-open $server_4_datadir/server-relay-log-group_replication_applier.000002 > $dump_file
@@ -103,9 +103,9 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 
 --let $binlog_file= server-relay-log-group_replication_applier.000002
 --let $logical_timestamps= 0 0;2 3;2 4;3 5
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 --let $is_relay_log= 1
---source include/assert_transaction_length.inc
+--source include/rpl/assert_transaction_length.inc
 
 
 --echo
@@ -118,47 +118,47 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 --echo #     go through parallel applier.
 --echo #
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 # server_id=2, last_committed=0, sequence_number=0
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # server_id=1, last_committed=0, sequence_number=0
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Server 1: server_id=3, last_committed=1, sequence_number=2
 # Server 2: server_id=3, last_committed=2, sequence_number=3
 INSERT INTO t1 VALUES (4);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # This transaction does not increment server 2 last_committed
 # or sequence_number indexes, but increments them on server 1.
 # Server 1: last_committed=2 sequence_number=3
 # Server 2: No effect
 UPDATE t1 SET c1=5 WHERE c1=4;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # This transaction does not increment server 1 last_committed
 # or sequence_number indexes.
 # Server 1: No effect
 # Server 2: last_committed=2 sequence_number=4
 INSERT INTO t1 VALUES (6);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 # Server 1: server_id=4, last_committed=1, sequence_number=4
 # Server 2: server_id=4, last_committed=4, sequence_number=5
 UPDATE t1 SET c1=7 WHERE c1=6;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -166,32 +166,32 @@ UPDATE t1 SET c1=7 WHERE c1=6;
 --echo # validate its indexes on member 2.
 --echo #
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec $MYSQL_BINLOG --force-if-open $server_2_datadir/server-relay-log-group_replication_applier.000003 > $dump_file
 --replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/ /original_committed_timestamp=[0-9]*/original_committed_timestamp=##:##:##/ /immediate_commit_timestamp=[0-9]*/immediate_commit_timestamp=##:##:##/ /transaction_length=[0-9]*/transaction_length=#/
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
 --let $logical_timestamps= 0 0;2 4;4 5
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 --let $is_relay_log= 1
---source include/assert_transaction_length.inc
+--source include/rpl/assert_transaction_length.inc
 
 --echo
 --echo # Dump Group Replication applier channel relay log and
 --echo # validate its indexes on member 1.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec $MYSQL_BINLOG --force-if-open $server_1_datadir/server-relay-log-group_replication_applier.000003 > $dump_file
 --replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/ /original_committed_timestamp=[0-9]*/original_committed_timestamp=##:##:##/ /immediate_commit_timestamp=[0-9]*/immediate_commit_timestamp=##:##:##/ /transaction_length=[0-9]*/transaction_length=#/
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
 --let $logical_timestamps= 0 0;2 3;1 4
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 --let $is_relay_log= 1
---source include/assert_transaction_length.inc
+--source include/rpl/assert_transaction_length.inc
 
 
 --echo
@@ -199,14 +199,14 @@ UPDATE t1 SET c1=7 WHERE c1=6;
 --echo # 3.  Wait for stable set propagation and certification info
 --echo #     garbage collection on members 1 and 2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 --let $wait_timeout= 180
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE Transactions_committed_all_members = "$_gtid_executed" AND Count_transactions_rows_validating=2 AND member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_timeout= 180
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE Transactions_committed_all_members = "$_gtid_executed" AND Count_transactions_rows_validating=2 AND member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
@@ -218,49 +218,49 @@ UPDATE t1 SET c1=7 WHERE c1=6;
 --echo # sequence_number, even when transactions do not
 --echo # depend on previous transactions.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Server 1: No effect
 # Server 2: server_id=1, last_committed=6, sequence_number=7
 INSERT INTO t1 VALUES (8);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Server 1: server_id=2, last_committed=5, sequence_number=6
 # Server 2: No effect
 INSERT INTO t1 VALUES (9);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo # Dump Group Replication applier channel relay log and
 --echo # validate its indexes on member 2.
 --echo #
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec $MYSQL_BINLOG --force-if-open $server_2_datadir/server-relay-log-group_replication_applier.000003 > $dump_file
 --replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/ /original_committed_timestamp=[0-9]*/original_committed_timestamp=##:##:##/ /immediate_commit_timestamp=[0-9]*/immediate_commit_timestamp=##:##:##/ /transaction_length=[0-9]*/transaction_length=#/
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
 --let $logical_timestamps= 0 0;2 4;4 5;6 7
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 --let $is_relay_log= 1
---source include/assert_transaction_length.inc
+--source include/rpl/assert_transaction_length.inc
 
 --echo
 --echo # Dump Group Replication applier channel relay log and
 --echo # validate its indexes on member 1.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec $MYSQL_BINLOG --force-if-open $server_1_datadir/server-relay-log-group_replication_applier.000003 > $dump_file
 --replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/ /original_committed_timestamp=[0-9]*/original_committed_timestamp=##:##:##/ /immediate_commit_timestamp=[0-9]*/immediate_commit_timestamp=##:##:##/ /transaction_length=[0-9]*/transaction_length=#/
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
 --let $logical_timestamps= 0 0;2 3;1 4;5 6
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 --let $is_relay_log= 1
---source include/assert_transaction_length.inc
+--source include/rpl/assert_transaction_length.inc
 
 
 --echo

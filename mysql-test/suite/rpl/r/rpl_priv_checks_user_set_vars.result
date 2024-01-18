@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,7 +19,7 @@ Grants for u1@localhost
 GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=1227]
+include/rpl/wait_for_applier_error.inc [errno=1227]
 STOP REPLICA;
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
@@ -28,7 +28,7 @@ GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER,SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 START REPLICA;
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t_system, slave:t_system]
 STOP REPLICA;
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM 'u1'@'localhost';
@@ -46,7 +46,7 @@ Grants for u1@localhost
 GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=1227]
+include/rpl/wait_for_applier_error.inc [errno=1227]
 STOP REPLICA;
 GRANT SUPER ON *.* TO 'u1'@'localhost';
 Warnings:
@@ -57,7 +57,7 @@ GRANT INSERT, CREATE, DROP, SUPER ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
 START REPLICA;
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t_super, slave:t_super]
 STOP REPLICA;
 REVOKE SUPER ON *.* FROM 'u1'@'localhost';
@@ -77,7 +77,7 @@ Grants for u1@localhost
 GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=1227]
+include/rpl/wait_for_applier_error.inc [errno=1227]
 STOP REPLICA;
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
@@ -86,7 +86,7 @@ GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 START REPLICA;
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t_session, slave:t_session]
 STOP REPLICA;
 #
@@ -103,7 +103,7 @@ REVOKE SUPER, SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* FROM 'u1'@'l
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=1227]
+include/rpl/wait_for_applier_error.inc [errno=1227]
 STOP REPLICA;
 GRANT SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
@@ -112,7 +112,7 @@ GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO `u1`@`localhost`
 START REPLICA;
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Database new_db exists on slave]
 [connection master]
 DROP TABLE t_system;
@@ -120,4 +120,4 @@ DROP TABLE t_super;
 DROP TABLE t_session;
 DROP DATABASE new_db;
 SET default_table_encryption = OPT_DEFAULT_TABLE_ENCRYPTION;
-include/rpl_end.inc
+include/rpl/deinit.inc

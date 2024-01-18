@@ -36,24 +36,24 @@
 #
 # WL#7374 Performance schema tables to monitor replication lags and queue
 
---source include/not_mts_replica_parallel_workers.inc
+--source include/not_replica_parallel_workers.inc
 # the test is binlog-format agnostic
 --source include/have_binlog_format_row.inc
 --source include/have_debug_sync.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $is_mts= 0
 
---source extra/rpl_tests/rpl_ps_connection_applier_status.inc
+--source common/rpl/ps_connection_applier_status.inc
 
---source extra/rpl_tests/rpl_ps_connection_applier_status_by_worker_failed_trx.inc
+--source common/rpl/ps_connection_applier_status_by_worker_failed_trx.inc
 
 # check if transaction information in the the coordinator ps schema table was
 # reset when restarting an STS slave with MTS enabled.
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL replica_parallel_workers= 4;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $processing_gtid_= query_get_value(SELECT PROCESSING_TRANSACTION FROM performance_schema.replication_applier_status_by_coordinator, PROCESSING_TRANSACTION, 1)
 --let $assert_text= processing_gtid is cleared when a former STS slave restarts with MTS enabled
@@ -66,7 +66,7 @@ SET GLOBAL replica_parallel_workers= 4;
 --source include/assert.inc
 
 #cleanup
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL replica_parallel_workers= 0;
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=none]
+include/rpl/init.inc [topology=none]
 CREATE TABLE t1 (a INT);
 SET @@SESSION.DEBUG_SYNC = 'update_gtid_state_before_global_tsid_lock SIGNAL before_global_tsid_lock WAIT_FOR have_gtid_mode_lock';
 SET @@SESSION.DEBUG_SYNC = 'update_gtid_state_after_global_tsid_lock SIGNAL have_global_tsid_lock';

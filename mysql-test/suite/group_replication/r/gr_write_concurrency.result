@@ -96,7 +96,7 @@ Wait until server2 becomes ONLINE
 include/gr_wait_for_member_state.inc
 SET DEBUG_SYNC= 'RESET';
 CREATE TABLE t2 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 SET SESSION sql_log_bin=0;
 INSERT INTO t2 values(11);
@@ -116,7 +116,7 @@ SET SESSION sql_log_bin=1;
 include/start_group_replication.inc
 DROP TABLE t1;
 DROP TABLE t2;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ###############################################################################
 # 9. Stop GR and try to call group_replication_{get,set}_write_concurrency outside of a group
 [connection server1]

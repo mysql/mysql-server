@@ -33,11 +33,11 @@
 --echo #
 --echo # 1. Bootstrap start a group on M1. Start GR on M2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There are per-channel replication filter.s. configured for group replication channel 'group_replication_applier' which is disallowed. The filter.s. have been discarded.");
@@ -103,7 +103,7 @@ CHANGE REPLICATION FILTER Replicate_Do_DB=(test, db1, db2) FOR CHANNEL 'group_re
 --echo #
 --echo # 3. Execute some DDLs on M1 to check that nothing is filtered out on M2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE DATABASE global_db;
 CREATE DATABASE db1;
 CREATE DATABASE db2;
@@ -135,11 +135,11 @@ SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME IN ('test'
 SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) AS TABNAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
 
 # Sync to the group.
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo # Verify nothing is filtered on M2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo # M2: Should display 4 databases
 SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
 
@@ -152,13 +152,13 @@ SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) AS TABNAME FROM INFORMATION_SCHEMA.TA
 SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --echo #
 --echo # 5. Start GR on M3 and check donor's server_uuid.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
@@ -170,19 +170,19 @@ SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 --echo #
 --echo # 6. Start applier thread on M1 and M2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
 SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
 SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --echo #
 --echo # 7. Allow member M3 to come ONLINE, then verify data.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= ONLINE
 --source include/gr_wait_for_member_state.inc
@@ -199,11 +199,11 @@ SET DEBUG_SYNC = "now SIGNAL signal.continue";
 --echo #
 --echo # 8. Clean up
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'RESET';
 CHANGE REPLICATION FILTER
  Replicate_Rewrite_DB=(),

@@ -2,9 +2,9 @@
 -- source include/not_group_replication_plugin.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 let $type= 'MYISAM' ;
 let $extra_index= ;
--- source extra/rpl_tests/rpl_row_basic.test
---source include/rpl_end.inc
+-- source common/rpl/rpl_row_basic.test
+--source include/rpl/deinit.inc

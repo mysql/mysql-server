@@ -11,9 +11,9 @@
 # checks and provides benchmarking data with load to innodb tables.
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 connection master;
-source extra/rpl_tests/rpl_parallel_load_innodb.test;
+source common/rpl/rpl_parallel_load_innodb.test;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

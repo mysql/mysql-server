@@ -39,7 +39,7 @@ while($i <= $NUM_MYSQLDS)
 --connection mysqld5
 # NOTE! Neither drop of ndb_schema or ndb_schema_result should have a LOST_EVENT
 --echo # Check if a LOST_EVENTS event was written to the binlog
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --connection mysqld1
 ALTER TABLE t1 ADD COLUMN b int not null;

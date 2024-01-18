@@ -18,7 +18,7 @@ INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 4. Cleanup
@@ -26,7 +26,7 @@ include/rpl_sync.inc
 UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';;
 [connection server1]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/group_replication_end.inc
 

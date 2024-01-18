@@ -23,23 +23,23 @@
 --source include/not_group_replication_plugin.inc
 # Test script is independent of binlog format.
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
---source include/install_semisync.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/install_semisync.inc
 --source include/suppress_tls_off.inc
 
 call mtr.add_suppression("Read semi-sync reply network error");
 call mtr.add_suppression("SEMISYNC: Forced shutdown. Some updates might not be replicated.");
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL rpl_semi_sync_source_timeout = 10000000;
 
---source include/rpl_connection_slave.inc
---source include/stop_slave_io.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_receiver.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --send CREATE TABLE t(f INT) ENGINE=INNODB;
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 --let $status_var= rpl_semi_sync_source_wait_sessions
 --let $status_var_value= 1
 --source include/wait_for_status_var.inc
@@ -50,18 +50,18 @@ SET GLOBAL rpl_semi_sync_source_timeout = 10000000;
 --exec $MYSQLADMIN -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT shutdown 2>&1
 --enable_result_log
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --error 0,2013
 --reap
 --let $rpl_server_number=1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
---source include/rpl_connection_slave.inc
---source include/start_slave_io.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/uninstall_semisync.inc
---source include/rpl_end.inc
+--source include/rpl/uninstall_semisync.inc
+--source include/rpl/deinit.inc

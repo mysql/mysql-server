@@ -12,7 +12,7 @@
 # T1.
 #     Test steps:
 #
-#     1-4. Check rpl_gtid_tag.inc
+#     1-4. Check common/rpl/gtid_tag.inc
 #
 #     Test pass conditions:
 #
@@ -36,13 +36,13 @@
 # This test does not depend on binlog format
 --source include/have_binlog_format_row.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --let $server_uuid = `SELECT @@server_uuid`
---source include/install_semisync.inc
+--source include/rpl/install_semisync.inc
 
---source extra/rpl_tests/rpl_gtid_tag.inc
+--source common/rpl/gtid_tag.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $actual=`SELECT variable_value = "ON" FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_source_status'`
 --let $expected=1
@@ -50,7 +50,7 @@
 --let $assert_cond= $actual = $expected
 --source include/assert.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $actual=`SELECT variable_value = "ON" FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_replica_status'`
 --let $expected=1
@@ -64,7 +64,7 @@
 --echo #    specified tag in the gtid_executed global variable
 --echo #
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $assert_cond= [SELECT GTID_SUBSET("11111111-1111-1111-1111-111111111111:aa:1", @@GLOBAL.GTID_EXECUTED)] = 1
 --let $assert_text= Ensure that executed transactions with specified tag and uuid are present in gtid_executed global variable
@@ -100,13 +100,13 @@
 --let $assert_count = 2
 --source include/assert_grep.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --remove_file $output_file
 
 --echo
 --echo # Clean-up
 --echo
 
---source include/rpl_connection_master.inc
---source include/uninstall_semisync.inc
---source include/rpl_end.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/uninstall_semisync.inc
+--source include/rpl/deinit.inc

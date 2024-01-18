@@ -17,7 +17,7 @@
 # - unified all the different files that were part of this test
 
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Initialize ====
 
@@ -26,7 +26,7 @@ FLUSH LOGS;
 CREATE TABLE t2 (a INT);
 DROP TABLE t1;
 DROP TABLE t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ==== Test ====
 
@@ -52,21 +52,21 @@ DROP TABLE t2;
 
 # 1. Test with no LIMIT clause
 --let $binlog_limit=
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 
 # 2. Test with LIMIT COUNT clause
 --let $binlog_limit= 1
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 
 # 3. Test with LIMIT OFFSET, COUNT clause
 --let $binlog_limit= 1,3
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 
 # 4. Test showing default relay log file
 --let $binlog_file=
 --let $binlog_limit=
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 
 --echo ==== Cleanup ====
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

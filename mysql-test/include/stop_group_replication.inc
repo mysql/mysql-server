@@ -38,7 +38,7 @@
 #     See include/wait_condition.inc
 #
 #   $rpl_debug
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 
 --let $include_filename= stop_group_replication.inc
 --source include/begin_include_file.inc

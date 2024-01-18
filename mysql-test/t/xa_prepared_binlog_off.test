@@ -16,5 +16,5 @@ call mtr.add_suppression("You need to use --log-bin to make --log-replica-update
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
 --enable_query_log
 
---source extra/binlog_tests/binlog_xa_prepared.test
+--source common/binlog/binlog_xa_prepared.test
 

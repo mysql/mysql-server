@@ -1641,12 +1641,12 @@ my @tags = (
   [ "include/ndb_no_result_file.inc", "ndb_no_result_file_test", 1 ],
 
   # The tests with below four .inc files are considered to be rpl tests.
-  [ "include/rpl_init.inc",    "rpl_test", 1 ],
-  [ "include/rpl_ip_mix.inc",  "rpl_test", 1 ],
-  [ "include/rpl_ip_mix2.inc", "rpl_test", 1 ],
-  [ "include/rpl_ipv6.inc",    "rpl_test", 1 ],
+  [ "include/rpl/init.inc",    "rpl_test", 1 ],
+  [ "common/rpl/ip_mix.inc",  "rpl_test", 1 ],
+  [ "common/rpl/ip_mix2.inc", "rpl_test", 1 ],
+  [ "common/rpl/ipv6.inc",    "rpl_test", 1 ],
 
-  [ "include/ndb_master-slave.inc", "ndb_test",       1 ],
+  [ "include/ndb_rpl_init_source_replica.inc", "ndb_test",       1 ],
   [ "federated.inc",                "federated_test", 1 ],
   [ "include/not_windows.inc",      "not_windows",    1 ],
   [ "include/not_parallel.inc",     "not_parallel",   1 ],

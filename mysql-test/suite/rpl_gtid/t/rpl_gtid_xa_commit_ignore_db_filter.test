@@ -2,9 +2,9 @@
 # The purpose of this test is to check XA COMMIT are not filtered
 # by ignore-db filters.
 #
-# Check extra/rpl_tests/rpl_gtid_xa_cmd_ignore_db_filter.test
+# Check common/rpl/rpl_gtid_xa_cmd_ignore_db_filter.test
 # for more details.
 #
 
 --let $rpl_use_before_xa_cmd=XA COMMIT
---source extra/rpl_tests/rpl_gtid_xa_cmd_ignore_db_filter.test
+--source common/rpl/rpl_gtid_xa_cmd_ignore_db_filter.test

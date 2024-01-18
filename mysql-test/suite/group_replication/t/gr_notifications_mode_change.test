@@ -44,7 +44,7 @@ SET SQL_LOG_BIN=1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
@@ -63,7 +63,7 @@ SET SQL_LOG_BIN=1;
 --source ../include/assert_notifications.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $expected_notifications= 2,STATE %:2|2,STATE %:1|2,VIEW %:%
 --source ../include/assert_notifications.inc
@@ -81,7 +81,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 --source ../include/assert_notifications.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 # role changed
@@ -94,7 +94,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_switch_to_multi_primary_mode();
 
@@ -104,7 +104,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source ../include/assert_notifications.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_multi_primary_mode.inc
 # role changed
@@ -117,7 +117,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid MEMBER1_UUID
 --eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid");
@@ -128,7 +128,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source ../include/assert_notifications.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 # role changed
@@ -141,7 +141,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER2_UUID
 --eval SELECT group_replication_set_as_primary("$server2_uuid")
@@ -152,7 +152,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source ../include/assert_notifications.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 # role changed
@@ -176,7 +176,7 @@ SET @@GLOBAL.group_replication_member_weight= @member_weight2_save;
 --source include/remove_debug_point.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SQL_LOG_BIN=0;
 DROP TABLE test.gms_listener_example;

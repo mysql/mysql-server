@@ -11,7 +11,7 @@
 #     - relay_log_index
 #
 #   $rpl_debug
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 
 if ($rpl_debug)
 {

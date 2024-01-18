@@ -29,7 +29,7 @@
 
 # Establish the line topology.
 --let $rpl_topology = 1->2, 2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 # transform server version in format AA.BB.CC[-suffix] into AABBCC
 --write_file $MYSQL_TMP_DIR/get_numerical_server_version.inc
@@ -41,7 +41,7 @@
 EOF
 
 --let $rpl_connection_name = server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Scenario 1:
 # force server_1 to write 888888 as its original_server_version to check that
@@ -56,29 +56,29 @@ EOF
 --let $gtid = $server_uuid:1
 
 CREATE TABLE t1 (a INT);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name = server_1
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_1 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_1 = $immediate_server_version
 
 --let $rpl_connection_name = server_2
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_2 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_2 = $immediate_server_version
 --source $MYSQL_TMP_DIR/get_numerical_server_version.inc
 --let $numerical_server_version_2 = $numerical_server_version
 
 --let $rpl_connection_name = server_3
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_3 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_3 = $immediate_server_version
 --source $MYSQL_TMP_DIR/get_numerical_server_version.inc
 --let $numerical_server_version_3 = $numerical_server_version
@@ -112,7 +112,7 @@ CREATE TABLE t1 (a INT);
 # original_server_version is generated and replicated Also check that their
 # immediate_server_versions correspond to their own server version.
 --let $rpl_connection_name = server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server_uuid = query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
 --let $gtid = $server_uuid:1
@@ -122,21 +122,21 @@ INSERT INTO t1 VALUES (1);
 # sync server_3 with server_2
 --let $rpl_channel_name =
 --let $sync_slave_connection = server_3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $sync_slave_connection =
 
 --let $rpl_connection_name = server_2
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_2 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_2 = $immediate_server_version
 
 --let $rpl_connection_name = server_3
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_3 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_3 = $immediate_server_version
 
 --let $assert_text = server_2 original_server_version must be equal its own server version
@@ -157,10 +157,10 @@ INSERT INTO t1 VALUES (1);
 
 # cleanup
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $debug_point = fixed_server_version
 --source include/remove_debug_point.inc
 DROP TABLE t1;
---source include/rpl_sync.inc
---source include/rpl_end.inc
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc
 --remove_file $MYSQL_TMP_DIR/get_numerical_server_version.inc

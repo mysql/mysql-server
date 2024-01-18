@@ -14,7 +14,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
 SET sql_log_bin = 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET sql_log_bin = 1;
 FLUSH BINARY LOGS;
 PURGE BINARY LOGS TO 'CURRENT_BINLOG_FILE';
@@ -48,7 +48,7 @@ SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Cannot replicate to server with server_uuid*");
 SET SESSION sql_log_bin=1;
 DROP TABLE t1;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 UNINSTALL PLUGIN clone;
 include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG='-d,group_replication_version_clone_not_supported';

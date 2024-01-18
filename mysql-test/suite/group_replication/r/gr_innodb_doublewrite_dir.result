@@ -9,7 +9,7 @@ include/start_and_bootstrap_group_replication.inc
 
 [connection server2]
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 [connection server3]
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_DOUBELWRITE";
@@ -35,7 +35,7 @@ SELECT @@innodb_doublewrite_pages;
 SELECT @@innodb_doublewrite_batch_size;
 @@innodb_doublewrite_batch_size
 1
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server3]
 START GROUP_REPLICATION;
@@ -89,7 +89,7 @@ SET GLOBAL innodb_doublewrite_pages=10;
 ERROR HY000: Variable 'innodb_doublewrite_pages' is a read only variable
 SET GLOBAL innodb_doublewrite_batch_size=1;
 ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 #Validating the records in server2
 [connection server2]
@@ -121,6 +121,6 @@ Variable_name	Value
 Innodb_redo_log_enabled	ON
 
 DROP TABLE test.tab;
-include/rpl_sync.inc
+include/rpl/sync.inc
 STOP GROUP_REPLICATION;
 include/group_replication_end.inc

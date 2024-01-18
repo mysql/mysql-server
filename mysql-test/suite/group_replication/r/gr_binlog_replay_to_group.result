@@ -21,11 +21,11 @@ SET GTID_NEXT= 'AUTOMATIC';
 #  2. Setup Group Replication on server 1 and 2.
 include/start_and_bootstrap_group_replication.inc
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 ############################################################
 #  3. Replay server 3 binary log into group (server 2).
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 #  4. Validate data on server 3.
@@ -60,7 +60,7 @@ include/assert.inc ['There is a value 9 in table t1 on server 1']
 #  8. Clean data.
 DROP TABLE t1;
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 #  9. Stop Group Replication on server 1 and 2.

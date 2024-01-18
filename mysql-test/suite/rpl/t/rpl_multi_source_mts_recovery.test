@@ -9,14 +9,14 @@
 # the sourced file.
 --source include/have_binlog_format_row.inc
 --source include/have_replica_parallel_type_logical_clock.inc
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 
 --let $rpl_topology= 1->2
 --let $rpl_multi_source= 1
---source include/rpl_init.inc
---source include/rpl_default_connections.inc
+--source include/rpl/init.inc
+--source include/rpl/default_connections.inc
 
---source extra/rpl_tests/rpl_parallel_recovery_core.test
+--source common/rpl/rpl_parallel_recovery_core.test
 
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

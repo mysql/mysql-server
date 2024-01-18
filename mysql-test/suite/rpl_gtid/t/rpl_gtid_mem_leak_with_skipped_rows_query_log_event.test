@@ -8,7 +8,7 @@
 #
 # Steps to reproduce:
 #
-# 1) Create a gtid enabled master-slave topology.
+# 1) Create a gtid enabled source-replica topology.
 # 2) On master, Set binlog_rows_query_log_events=on
 # 3) Create a sample table on master.
 #
@@ -27,9 +27,9 @@
 --source include/have_binlog_format_row.inc
 
 --echo #
---echo # Step 1) Create a basic master-slave topology.
+--echo # Step 1) Create a basic source-replica topology.
 --echo #
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --let $master_uuid=`SELECT @@SERVER_UUID`
 
 --echo #
@@ -37,10 +37,10 @@
 --echo #
 SET @master_binlog_rows_query_log_events= @@session.binlog_rows_query_log_events;
 SET @@session.binlog_rows_query_log_events=ON;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @slave_binlog_rows_query_log_events= @@session.binlog_rows_query_log_events;
 SET @@session.binlog_rows_query_log_events=ON;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --echo #
 --echo # Step 3) Create a sample table on master.
 --echo #
@@ -51,7 +51,7 @@ CREATE TABLE t1(i INT);
 --echo #         and execute two empty transactions so that the next two events
 --echo #         from master are skipped on slave.
 --echo #
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $master_uuid MASTER_UUID
 --eval SET GTID_NEXT='$master_uuid:2'
 BEGIN;
@@ -66,16 +66,16 @@ SET GTID_NEXT=AUTOMATIC;
 --echo # Step 5) Connect to master, insert two rows and wait till slave is in
 --echo #         sync with master.
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Step 6) Cleanup
 --echo #
 SET @@session.binlog_rows_query_log_events= @slave_binlog_rows_query_log_events;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@session.binlog_rows_query_log_events= @master_binlog_rows_query_log_events;
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

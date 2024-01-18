@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,7 +20,7 @@ PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM
 CHARACTER SET latin1;
 SET @old_slave_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=myisam;
-include/start_slave.inc
+include/rpl/start_replica.inc
 --- Create Table Section ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, 
 b1 INT, 
@@ -422,14 +422,14 @@ TRUNCATE TABLE t1;
 --- Do Cleanup --
 DROP TABLE t1;
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 
 === NDB -> INNODB ===
 
 [connection slave]
 alter table mysql.ndb_apply_status engine=innodb;
 SET @@global.default_storage_engine=innodb;
-include/start_slave.inc
+include/rpl/start_replica.inc
 --- Create Table Section ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, 
 b1 INT, 
@@ -831,9 +831,9 @@ TRUNCATE TABLE t1;
 --- Do Cleanup --
 DROP TABLE t1;
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 [connection slave]
 drop table mysql.ndb_apply_status;
 set @@global.replica_exec_mode= @old_replica_exec_mode;
 SET @@global.default_storage_engine=@old_slave_storage_engine;
-include/rpl_end.inc
+include/rpl/deinit.inc

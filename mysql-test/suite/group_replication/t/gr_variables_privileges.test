@@ -22,7 +22,7 @@
 --echo # 1. Create an user which lacks privileges.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
@@ -50,7 +50,7 @@ INSERT INTO gr_vars (var_name, var_value)
 
 --connect (no_priv_user_con,localhost,no_priv_user,,test,$MASTER_MYPORT,,)
 --let $rpl_connection_name= no_priv_user_con
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # Expect ER_SPECIFIC_ACCESS_DENIED_ERROR for global variables.
@@ -77,11 +77,11 @@ SET SESSION group_replication_consistency = @@SESSION.group_replication_consiste
 --echo #    GROUP_REPLICATION_ADMIN privilege.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 GRANT SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN ON *.* TO 'no_priv_user'@localhost;
 
 --let $rpl_connection_name= no_priv_user_con
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --let $var_id=1
@@ -102,11 +102,11 @@ while ( $var_id <= $count_vars )
 --echo #    group_replication_consistency at global scope succeeds.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'no_priv_user'@localhost;
 
 --let $rpl_connection_name= no_priv_user_con
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_consistency = @@GLOBAL.group_replication_consistency;
 
 --echo
@@ -119,7 +119,7 @@ SET GLOBAL group_replication_consistency = @@GLOBAL.group_replication_consistenc
 --let $var_names=
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE gr_vars;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'no_priv_user'@localhost;

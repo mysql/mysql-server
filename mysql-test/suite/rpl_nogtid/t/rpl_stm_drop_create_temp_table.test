@@ -7,8 +7,8 @@
 ###################################################################################
 --source include/have_binlog_format_statement.inc
 --source include/not_group_replication_plugin.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
---source extra/rpl_tests/rpl_drop_create_temp_table.test
---source include/rpl_end.inc
+--source common/rpl/rpl_drop_create_temp_table.test
+--source include/rpl/deinit.inc

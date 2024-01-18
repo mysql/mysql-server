@@ -45,7 +45,7 @@ INSERT INTO t2 (a) VALUES (REPEAT('a',1));
 
 -- echo # Test the transaction with a log event injected a wrong crc value
 -- echo # will be trimmed from the crashed binlog file
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 DROP TABLE t2;
 

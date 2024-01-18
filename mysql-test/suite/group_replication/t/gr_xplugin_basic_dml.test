@@ -36,15 +36,15 @@
 # Install Mysqlx plugin on all servers.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/xplugin_wait_for_interfaces.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/xplugin_wait_for_interfaces.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/xplugin_wait_for_interfaces.inc
 
 # File for starting GR through X-protocol
@@ -97,7 +97,7 @@ EOF
 
 # Wait for synchronization between the nodes.
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Temp file for performing ddl and dml on server2
 
@@ -119,7 +119,7 @@ EOF
 
 # Wait for synchronization between the nodes.
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Temp file for performing ddl and dml on server3
 
@@ -144,7 +144,7 @@ EOF
 
 # Wait for synchronization between the nodes.
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Asserts for values on each table.
 
@@ -174,7 +174,7 @@ EOF
 
 # Deleting tables.
 --exec $MYSQLXTEST --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Creating temp file to stop GR.
 --write_file $MYSQL_TMP_DIR/stop_group_replication.tmp
@@ -192,19 +192,19 @@ EOF
 
 # Uninstall mysqlx on all servers
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= OFFLINE
 --source include/gr_wait_for_member_state.inc
 --source include/assert_and_disable_read_only.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= OFFLINE
 --source include/gr_wait_for_member_state.inc
 --source include/assert_and_disable_read_only.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= OFFLINE
 --source include/gr_wait_for_member_state.inc
 --source include/assert_and_disable_read_only.inc

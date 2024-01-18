@@ -3,7 +3,7 @@
 #
 #  Bug #50296 Slave reconnects earlier than the prescribed replica_net_timeout value
 #
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 
 # save global env
@@ -19,7 +19,7 @@ set @@global.general_log = ON;
 set @@global.log_output = 'table,file';
 
 connection slave;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 #
 # if heartbeat is disabled then reconnecting to the idle master
 # should happen with `replica_net_timeout' period.
@@ -43,7 +43,7 @@ let $idle_time=`select @@global.replica_net_timeout * 2`;
 
 let $replica_net_timeout = `select @@global.replica_net_timeout`;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --disable_query_log
 --disable_result_log
@@ -88,4 +88,4 @@ TRUNCATE TABLE mysql.general_log;
 connection slave;
 set @@global.replica_net_timeout = @save_replica_net_timeout;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

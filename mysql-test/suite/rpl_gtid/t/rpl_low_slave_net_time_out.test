@@ -15,14 +15,14 @@
 # Problem is reproduced only with gtid auto position protocol
 --let $use_gtids=1
 --let $rpl_skip_start_slave=1;
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # set replica_net_timeout to 10 seconds and then start replica threads
 --connection slave
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=5;
 SET @save_old_replica_net_timeout=@@global.replica_net_timeout;
 SET @@global.replica_net_timeout=10;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 # In order to reproduce the bug with a smaller test data,
 # inject 2 seconds delay after an skipped event.
 --connection master
@@ -42,10 +42,10 @@ CREATE TABLE t1(i INT) engine=innodb;
 INSERT INTO t1 VALUES (1);
 
 # Sync it with Slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Stop the Replication
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # Create another gtid transaction at Master
 --connection master
@@ -53,7 +53,7 @@ DROP TABLE t1;
 
 # Start replica thread
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Now Dump thread-I/O thread communitcation protocol will detect that
 # it does not have recent gtid transaction(drop table) and Master
@@ -64,11 +64,11 @@ DROP TABLE t1;
 # heartbeat event even while it is skipping the events, the below
 # sync should not be timed out after the fix.
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Cleanup
 --connection master
 SET GLOBAL DEBUG=@save_debug;
 --connection slave
 SET @@global.replica_net_timeout=@save_old_replica_net_timeout;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

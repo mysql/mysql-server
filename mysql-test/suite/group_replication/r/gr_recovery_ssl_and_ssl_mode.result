@@ -47,10 +47,10 @@ Occurrences of 'Group communication SSL configuration: group_replication_ssl_mod
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 INSERT INTO t1 VALUES (2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/assert.inc ['There are 2 values on table t1']
 [connection server2]

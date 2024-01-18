@@ -10,7 +10,7 @@
 # * Circular replication
 #
 -- source include/big_test.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 #
 # The test runs long and does not have any specifics to 
 # binlog_format. It is choosen therefore to run with MIXED mode
@@ -27,9 +27,9 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 let $connect_retry= 20;
 
 --echo *** Preparing ***
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
@@ -148,13 +148,13 @@ RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SHOW VARIABLES LIKE 'replica_net_timeout';
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 --connection master
@@ -172,11 +172,11 @@ SET @@global.replica_net_timeout=100;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=20;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select heartbeat_interval from performance_schema.replication_connection_configuration;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 
 --echo
@@ -191,7 +191,7 @@ SET @@global.replica_net_timeout=50;
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=30;
 --let $rpl_server_number= 2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 --echo
@@ -203,13 +203,13 @@ SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=0;
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 select count_received_heartbeats from performance_schema.replication_connection_status;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --sleep 2
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 select count_received_heartbeats from performance_schema.replication_connection_status;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 select count_received_heartbeats from performance_schema.replication_connection_status;
 
@@ -300,15 +300,15 @@ RESET BINARY LOGS AND GTIDS;
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD= $hb_period;
 SELECT unix_timestamp() into @time_0;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $status_col= count_received_heartbeats;
 let $table=replication_connection_status;
 let $status_col_comparsion= >;
---source include/wait_for_rpl_pfs_status.inc
+--source include/wait_for_pfs_status.inc
 SELECT unix_timestamp() into @time_1;
 if (`SELECT @time_1 - @time_0 < $hb_period`)
 {
@@ -320,7 +320,7 @@ if (`SELECT @time_1 - @time_0 < $hb_period`)
 
 # Check received heartbeat events for stopped slave
 --echo *** Stopped slave ***
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD= 0.1;
@@ -334,15 +334,15 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 
 # Check received heartbeat events for started slave
 --echo *** Started slave ***
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
---source include/wait_for_rpl_pfs_status.inc
+--source include/wait_for_pfs_status.inc
 --echo Heartbeat event received
 --echo
 
 # Check received heartbeat events for stopped IO thread
 --echo *** Stopped IO thread ***
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 sleep 2;
 let $rcvd_heartbeats_after= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
@@ -353,15 +353,15 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 # Check received heartbeat events for started IO thread
 --echo *** Started IO thread ***
 START REPLICA IO_THREAD;
---source include/wait_for_slave_io_to_start.inc
+--source include/rpl/wait_for_receiver_to_start.inc
 let $status_var_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
---source include/wait_for_rpl_pfs_status.inc
+--source include/wait_for_pfs_status.inc
 --echo Heartbeat event received
 --echo
 
 # Check received heartbeat events for stopped SQL thread
 --echo *** Stopped SQL thread ***
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 sleep 2;
 let $rcvd_heartbeats_after= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
@@ -372,9 +372,9 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 # Check received heartbeat events for started SQL thread
 --echo *** Started SQL thread ***
 START REPLICA SQL_THREAD;
---source include/wait_for_slave_sql_to_start.inc
+--source include/rpl/wait_for_applier_to_start.inc
 let $status_var_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
---source include/wait_for_rpl_pfs_status.inc
+--source include/wait_for_pfs_status.inc
 --echo Heartbeat event received
 --echo
 
@@ -382,7 +382,7 @@ let $status_var_value= query_get_value(select count_received_heartbeats from per
 --echo *** Stopped SQL thread by error ***
 --connection master
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10), c LONGTEXT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 INSERT INTO t1 VALUES (1, 'on slave', NULL);
 --connection master
 INSERT INTO t1 VALUES (1, 'on master', NULL);
@@ -390,32 +390,32 @@ INSERT INTO t1 VALUES (1, 'on master', NULL);
 call mtr.add_suppression("Replica SQL.*Duplicate entry .1. for key .t1.PRIMARY.. on query.* Error_code: MY-001062");
 call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 let $slave_errno= ER_DUP_ENTRY
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 sleep 2;
 let $rcvd_heartbeats_after= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
 --echo Heartbeat events are received while sql thread stopped (1 means 'yes'): $result
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 DELETE FROM t1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection master
 DROP TABLE t1;
 --echo
 
 # Check received heartbeat events while logs flushed on slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo *** Flush logs on slave ***
 --let $rpl_no_start_slave= 1
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --let $rpl_no_start_slave= 0
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=0.5;
 let $slave_param_comparison= =;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 # Flush logs every 0.1 second during 10 sec
 --disable_query_log
@@ -436,19 +436,19 @@ while ($i) {
 --connection master
 SET @@global.replica_compressed_protocol=1;
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 SET @@global.replica_compressed_protocol=1;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=0.1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $status_col= count_received_heartbeats;
 let $table= replication_connection_status;
 let $status_col_comparsion= >;
---source include/wait_for_rpl_pfs_status.inc
+--source include/wait_for_pfs_status.inc
 --echo Heartbeat event received
 SET @@global.replica_compressed_protocol=0;
 --connection master
@@ -465,12 +465,12 @@ RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=0.1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 --connection master
 RESET BINARY LOGS AND GTIDS;
 --enable_query_log
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --sleep 2
 let $rcvd_heartbeats_after= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
@@ -486,39 +486,39 @@ RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=0.1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 # Wait until slave_received_heartbeats will be incremented
 let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $status_col= count_received_heartbeats;
 let $table=replication_connection_status;
 let $status_col_comparsion= >;
---source include/wait_for_rpl_pfs_status.inc
+--source include/wait_for_pfs_status.inc
 --echo Heartbeat event received
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 # make sure IO thread has re-connected 
 # due to slow valgrind env the following wait_for_status may time out
 --let $rpl_allow_error= 1
---source include/wait_for_slave_io_to_start.inc
+--source include/rpl/wait_for_receiver_to_start.inc
 # Wait until slave_received_heartbeats will be incremented
 let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $status_col= count_received_heartbeats;
 let $table= replication_connection_status;
 let $status_col_comparsion= >;
---source include/wait_for_rpl_pfs_status.inc
+--source include/wait_for_pfs_status.inc
 --echo Heartbeat event received
 --echo
 
 # Circular replication: demonstrating bidirectional hearbeat flow
 --echo *** Circular replication ***
 # Configure circular replication
---source include/rpl_reset.inc
---source include/stop_slave.inc
+--source include/rpl/reset.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_topology= 1->2->1
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 
 #--connection slave
-#--source include/stop_slave.inc
+#--source include/rpl/stop_replica.inc
 #let $slave_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 --connection master
 #--replace_result $SLAVE_MYPORT SLAVE_PORT $slave_binlog SLAVE_BINLOG
@@ -530,7 +530,7 @@ let $status_col_comparsion= >;
 # 1 minute, sometimes timeout before heartbeat arrives.
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Insert data on master and on slave and make sure that it replicated for both directions
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
@@ -540,11 +540,11 @@ INSERT INTO t1 VALUES(1, 'on master');
 ## set slave period 1/10 of master's
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --sync_with_master
 INSERT INTO t1 VALUES(2, 'on slave');
 --let $sync_slave_connection= master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY a;
 let $master_rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 --connection slave
@@ -557,7 +557,7 @@ let $status_col= count_received_heartbeats;
 let $table=replication_connection_status;
 let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $status_col_comparsion= >;
---source include/wait_for_rpl_pfs_status.inc
+--source include/wait_for_pfs_status.inc
 --echo Heartbeat event received on master
 
 # Wait heartbeat events on slave
@@ -566,7 +566,7 @@ let $status_col= count_received_heartbeats;
 let $table= replication_connection_status;
 let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $status_col_comparsion= >;
---source include/wait_for_rpl_pfs_status.inc
+--source include/wait_for_pfs_status.inc
 --echo Heartbeat event received on slave
 let $slave_rcvd_heartbeats= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 
@@ -575,10 +575,10 @@ let $slave_rcvd_heartbeats= query_get_value(select count_received_heartbeats fro
 #
 --echo *** Clean up ***
 --connection master
-#--source include/stop_slave.inc
+#--source include/rpl/stop_replica.inc
 DROP TABLE t1;
 --connection slave
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 
 #--let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

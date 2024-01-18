@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,15 +9,15 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA IO_THREAD;
-include/wait_for_slave_io_to_start.inc
+include/rpl/wait_for_receiver_to_start.inc
 SHOW REPLICAS;
 Server_Id	Host	Port	Source_Id	Replica_UUID
 2		REPLICA_PORT	1	REPLICA_UUID
 3	slave2	REPLICA_PORT	1	REPLICA_UUID
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 CREATE TABLE t1(a int);
 DROP TABLE t1;
 SHOW REPLICAS;
 Server_Id	Host	Port	Source_Id	Replica_UUID
 2		REPLICA_PORT	1	REPLICA_UUID
-include/rpl_end.inc
+include/rpl/deinit.inc

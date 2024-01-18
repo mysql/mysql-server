@@ -49,26 +49,26 @@
 # between source and replica memory regardless of GTIDs.
 --let $ignore_gtids_on_sync= 1
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Create a table on the source and replicate it.
 --echo #    Set the value of sync_source_info to 1 so the repo is always synced
 --echo #    Check the repo shows the same value as SHOW REPLICA STATUS
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Make the info be synced at each event
 --let $sync_source_info_val = `SELECT @@GLOBAL.sync_source_info;`
 SET @@GLOBAL.sync_source_info=1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 INSERT INTO t1 VALUES (1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $srs_source_log_pos = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
 --let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
@@ -89,20 +89,20 @@ INSERT INTO t1 VALUES (1);
 --echo #    Start replication and add some values to the table.
 --echo #    Check the repo shows the old values in relation to SHOW REPLICA STATUS
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, REQUIRE_ROW_FORMAT=1;
 
 --let $table_source_log_pos_orig = `SELECT Master_log_pos FROM mysql.slave_master_info`
 --let $table_source_log_file_orig = `SELECT Master_log_name FROM mysql.slave_master_info`
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (2);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
 --let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
@@ -123,7 +123,7 @@ INSERT INTO t1 VALUES (2);
 --echo # 3. Stop replication
 --echo #    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
 --let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
@@ -144,15 +144,15 @@ INSERT INTO t1 VALUES (2);
 --echo # 4. Start replication again
 --echo #    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 FLUSH LOGS;
 
 INSERT INTO t1 VALUES (3);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
 --let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
@@ -184,7 +184,7 @@ let $receiver_process_id= `SELECT Id FROM information_schema.processlist WHERE S
 --eval KILL $receiver_process_id
 --enable_query_log
 
---source include/wait_for_slave_io_to_stop.inc
+--source include/rpl/wait_for_receiver_to_stop.inc
 
 --let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
 --let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
@@ -210,7 +210,7 @@ let $receiver_process_id= `SELECT Id FROM information_schema.processlist WHERE S
 --echo # 6. Change a replication connection setting with CHANGE REPLICATION SOURCE
 --echo #    Check the repo now has the same value in relation to SHOW REPLICA STATUS
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 10000;
 
@@ -230,13 +230,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 10000;
 --echo # 7. Restart the replica server
 --echo #    Check the repo still shows the old values
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (4);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $table_source_log_pos_orig = `SELECT Master_log_pos FROM mysql.slave_master_info`
 --let $table_source_log_file_orig = `SELECT Master_log_name FROM mysql.slave_master_info`
@@ -248,7 +248,7 @@ INSERT INTO t1 VALUES (4);
 
 --let $rpl_server_parameters= --skip_replica_start=FALSE
 --let $rpl_server_number = 2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
 --let $table_source_log_file = `SELECT Master_log_name FROM mysql.slave_master_info`
@@ -265,11 +265,11 @@ INSERT INTO t1 VALUES (4);
 --echo #    Execute a RESET REPLICA command
 --echo #    Check the repo persisted the reset position
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (5);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
 --let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
@@ -277,7 +277,7 @@ INSERT INTO t1 VALUES (5);
 --let $assert_text= The repository has not persisted
 --source include/assert.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 RESET REPLICA;
 
@@ -294,20 +294,20 @@ RESET REPLICA;
 --echo #
 --echo # 9. Check RESET REPLICA ALL removes all the information
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (6);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
 --let $assert_cond= [ SELECT $table_source_log_pos = 4 ]
 --let $assert_text= The repository still has the reset position
 --source include/assert.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 RESET REPLICA ALL;
 
@@ -320,13 +320,13 @@ RESET REPLICA ALL;
 
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --replace_result $sync_source_info_val SYNC_SOURCE_VAL
 --eval SET @@GLOBAL.sync_source_info=$sync_source_info_val
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

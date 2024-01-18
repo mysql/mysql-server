@@ -5,9 +5,9 @@
 # invoker that has a large hostname (>60 and <256) are replicated.
 #
 
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 
@@ -21,16 +21,16 @@
 --eval CREATE USER 'luis'@'localhost' IDENTIFIED BY 'haha'
 
 CREATE TABLE t1(counter INT);
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --let $debug_point=+d,wl12571_long_invoker_host
 --source include/add_debug_point.inc
 GRANT SELECT, INSERT ON test.t1 TO 'luis'@'localhost';
 --source include/remove_debug_point.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $grantor_hostname= `SELECT SUBSTRING_INDEX(Grantor, '@', -1) FROM mysql.tables_priv WHERE User='luis'`
 --let $assert_cond= "$grantor_hostname" = "$long_hostname"
@@ -40,7 +40,7 @@ GRANT SELECT, INSERT ON test.t1 TO 'luis'@'localhost';
 --let $diff_tables= master:test.t1,slave:test.t1
 --source include/diff_tables.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP USER 'luis'@'localhost';
 DROP TABLE t1;
 
@@ -48,5 +48,5 @@ DROP TABLE t1;
 
 --enable_query_log
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

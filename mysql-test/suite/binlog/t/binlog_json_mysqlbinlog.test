@@ -41,9 +41,9 @@ DROP TABLE t;
 --echo ==== Check output from mysqlbinlog ====
 
 --let $datadir= `SELECT @@GLOBAL.DATADIR`
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 # Not mysqltest's 'replace' because it's slow on big strings
 --let $mysqlbinlog_pipe= | $SED 's/\[1, 1, 1, 1, .*/LONG_JSON/'
 --let $mysqlbinlog_only_decoded_rows= 1
 --let $mysqlbinlog_parameters= $datadir/$binlog_file -v --force-if-open
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc

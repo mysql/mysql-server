@@ -12,7 +12,7 @@
 #
 # For a more detailed list of requirements for the expected state for each
 # of the sync points, check the `Requirements` section for the tests listed
-# in `Related tests` section of `extra/xa_crash_safe_tests/setup.inc`.
+# in `Related tests` section of `common/xa_crash_safe/setup.inc`.
 #
 # ==== Implementation ====
 #
@@ -63,7 +63,7 @@
 # WL#11300: Crash-safe XA + binary log
 #
 # Related tests;
-#   see extra/xa_crash_safe_tests/setup.inc
+#   see common/xa_crash_safe/setup.inc
 #
 --source include/have_binlog_format_row.inc
 --source include/not_valgrind.inc
@@ -75,9 +75,9 @@
 --source include/only_with_option.inc
 
 --let $xid = 'xid0'
---source extra/xa_crash_safe_tests/setup.inc
+--source common/xa_crash_safe/setup.inc
 # Include $exec_xa_transaction_body and $clean_up_xa_transactions
---source extra/xa_crash_safe_tests/utility_functions.inc
+--source common/xa_crash_safe/utility_functions.inc
 
 # 1) Execute several `XA PREPARE` statements up until:
 --let $iteration = 1
@@ -119,16 +119,16 @@ while ($iteration != 5) {
 # 3.a) SE recovery rolled back the transaction executed in 1.a)
 #
 --let $assert_select = Rolling back trx with id %, 1 rows to undo
---source extra/xa_crash_safe_tests/assert_se_recovery_message.inc
+--source common/xa_crash_safe/assert_se_recovery_message.inc
 
 # 3.b) XA recovery rolled back the transaction executed in 1.b)
 # 3.c) XA recovery left in prepared state transaction executed in 1.b) and
 #       1.c)
 --let $assert_select = Successfully rolled back 1, prepared 2 XA transaction
---source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--source common/xa_crash_safe/assert_recovery_message.inc
 
 --let $expected_prepared_xa_count = 2
---source extra/xa_crash_safe_tests/assert_xa_recover.inc
+--source common/xa_crash_safe/assert_xa_recover.inc
 
 # 4) Clean up pending transactions
 #
@@ -178,9 +178,9 @@ while ($iteration != 8) {
 # 7.b) XA recovery committed the transaction executed in 5.c)
 #
 --let $assert_select = Successfully committed 1, prepared 2 XA transaction
---source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--source common/xa_crash_safe/assert_recovery_message.inc
 --let $expected_prepared_xa_count = 2
---source extra/xa_crash_safe_tests/assert_xa_recover.inc
+--source common/xa_crash_safe/assert_xa_recover.inc
 
 # 8) Clean up pending transactions
 #
@@ -230,9 +230,9 @@ while ($iteration != 11) {
 # 11.b) XA recovery rlled back the transaction executed in 9.c)
 #
 --let $assert_select = Successfully rolled back 1, prepared 2 XA transaction
---source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--source common/xa_crash_safe/assert_recovery_message.inc
 --let $expected_prepared_xa_count = 2
---source extra/xa_crash_safe_tests/assert_xa_recover.inc
+--source common/xa_crash_safe/assert_xa_recover.inc
 
 # 12) Clean up pending transactions
 #
@@ -280,16 +280,16 @@ while ($iteration != 14) {
 # 15.a) SE recovery rolled back the transaction executed in 13.a)
 #
 --let $assert_select = Rolling back trx with id %, 1 rows to undo
---source extra/xa_crash_safe_tests/assert_se_recovery_message.inc
+--source common/xa_crash_safe/assert_se_recovery_message.inc
 
 # 15.b) XA recovery rolled back the transaction executed in 13.b)
 # 15.c) XA recovery committed transaction executed in 13.c)
 #
 --let $assert_select =  Successfully committed 1, rolled back 1 XA transaction
---source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--source common/xa_crash_safe/assert_recovery_message.inc
 --let $expected_prepared_xa_count = 0
---source extra/xa_crash_safe_tests/assert_xa_recover.inc
+--source common/xa_crash_safe/assert_xa_recover.inc
 
 --connection default
 DROP TABLE t1;
---source extra/xa_crash_safe_tests/end_utility_functions.inc
+--source common/xa_crash_safe/end_utility_functions.inc

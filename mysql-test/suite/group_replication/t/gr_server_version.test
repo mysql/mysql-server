@@ -43,44 +43,44 @@ EOF
 
 # start first member of the group
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 # this group member is also a slave of server1
 # (server2 was implicitely set up as slave of server1 in include/group_replication.inc)
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # start second member of the group
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # execute a transaction on server2
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1(a INT PRIMARY KEY);
 # sync group
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # execute a transaction on server3, forcing its original_server_version to be
 # 777777 in order to check that the value is replicated unchanged. Also force
 # immediate_server_version to be 777777 to check that it is generated correctly
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $debug_point = gr_fixed_server_version
 --source include/add_debug_point.inc
 DROP TABLE t1;
 # sync group
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # start third member of the group (which will be synced with the group as it joins)
 --let $rpl_connection_name = server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # check if the original_server_version from the CREATE TABLE transaction from
@@ -90,31 +90,31 @@ DROP TABLE t1;
 --let $gtid = $group_replication_group_name:1
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_2 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_2 = $immediate_server_version
 --source $MYSQL_TMP_DIR/get_numerical_server_version.inc
 --let $numerical_server_version_2 = $numerical_server_version
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_3 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_3 = $immediate_server_version
 --let $log_file = $server_3_datadir/server-relay-log-group_replication_applier.000002
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $relay_log_ISV_3 = $immediate_server_version
 --source $MYSQL_TMP_DIR/get_numerical_server_version.inc
 --let $numerical_server_version_3 = $numerical_server_version
 
 --let $rpl_connection_name = server4
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_4 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_4 = $immediate_server_version
 --source $MYSQL_TMP_DIR/get_numerical_server_version.inc
 --let $numerical_server_version_4 = $numerical_server_version
@@ -154,24 +154,24 @@ DROP TABLE t1;
 --let $gtid = $group_replication_group_name:2
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_2 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_2 = $immediate_server_version
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_3 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_3 = $immediate_server_version
 
 --let $rpl_connection_name = server4
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_4 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_4 = $immediate_server_version
 
 --let $assert_text = server3 original_server_version must be equal to 777777
@@ -201,7 +201,7 @@ DROP TABLE t1;
 
 # run transactions on server1
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # force transactions issued by this server to have 888888 has server version
 --let $debug_point = fixed_server_version
@@ -214,48 +214,48 @@ DROP TABLE t2;
 
 # sync server2 with its master, server1
 --let $sync_slave_connection = server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $sync_slave_connection =
 # sync group
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server4
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # check if transactions from outside the group have the expected
 # original_server_version and immediate_server_version
 --let $gtid = $server1_uuid:1
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_1 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_1 = $immediate_server_version
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_2 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_2 = $immediate_server_version
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_3 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_3 = $immediate_server_version
 
 --let $rpl_connection_name = server4
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
+--source include/connection.inc
+--source include/rpl/get_original_server_version.inc
 --let $OSV_4 = $original_server_version
---source include/get_immediate_server_version.inc
+--source include/rpl/get_immediate_server_version.inc
 --let $ISV_4 = $immediate_server_version
 
 --let $assert_text = server1 original_server_version must be equal to 888888
@@ -294,20 +294,20 @@ DROP TABLE t2;
 
 # cleanup
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $debug_point = fixed_server_version
 --source include/remove_debug_point.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $debug_point = gr_fixed_server_version
 --source include/remove_debug_point.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name= 'channel_1'
---source include/stop_slave.inc
---source include/rpl_reset_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/reset_replica.inc
 
 --let $rpl_skip_sync= 1
 --source include/group_replication_end.inc

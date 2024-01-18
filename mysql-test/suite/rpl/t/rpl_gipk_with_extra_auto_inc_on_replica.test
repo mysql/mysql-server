@@ -28,7 +28,7 @@
 --let $option_name = binlog_row_image
 --let $option_value = 'full'
 --source include/only_with_option.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo ##################################################
@@ -36,18 +36,18 @@
 --echo #    With the binary log temporarily disabled, create table t1
 --echo #    Create the same table on the replica with an extra auto inc column at the end
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 CREATE TABLE t1(f1 INT, f2 INT, extra_column INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (extra_column));
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Set at the session level, so no restore needed for MTR
 SET SESSION sql_generate_invisible_primary_key = ON;
 
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 CREATE TABLE t1(f1 INT, f2 INT);
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 
 SET SESSION sql_generate_invisible_primary_key = OFF;
 
@@ -56,17 +56,17 @@ SET SESSION sql_generate_invisible_primary_key = OFF;
 --echo # 2. Add 3 rows to the table on the source
 --echo #    Check the generated values on the replica are the expected
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $sysvars_to_save = [ "GLOBAL.replica_parallel_workers" ]
 --source include/save_sysvars.inc
 
 # Make the applier deterministic by having only 1 thread
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 SET @@GLOBAL.replica_parallel_workers= 1;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (1, 1);
 
@@ -74,7 +74,7 @@ INSERT INTO t1 VALUES (2, 2);
 
 INSERT INTO t1 VALUES (3, 3);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $row_count= `SELECT COUNT(*) FROM t1 WHERE  f1 = 1 AND f2 = 1 AND extra_column = 1;`
 --let $assert_text= The table contains a row with generated key 1
@@ -95,15 +95,15 @@ INSERT INTO t1 VALUES (3, 3);
 --echo ##################################################
 --echo # 3. Update/Delete rows on the source
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 UPDATE t1 SET t1.f2 = 60 WHERE t1.f1=2;
 
 DELETE FROM t1 WHERE t1.f1=1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $row_count= `SELECT COUNT(*) FROM t1;`
 --let $assert_text= The table contains 2 rows
@@ -128,8 +128,8 @@ DELETE FROM t1 WHERE t1.f1=1;
 --source include/restore_sysvars.inc
 --enable_warnings
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

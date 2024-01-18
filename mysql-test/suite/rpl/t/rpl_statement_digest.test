@@ -8,9 +8,9 @@
 #
 #  WL#9637: SQL Function to return DIGEST of given SQL
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --echo # test for statement_digest()
 CREATE TABLE test.t1 (a VARCHAR(1000));
 INSERT INTO test.t1 SELECT statement_digest("SELECT * FROM foo");
@@ -19,9 +19,9 @@ INSERT INTO test.t1 SELECT statement_digest("SELECT * FROM foo");
 CREATE TABLE test.t2 (a VARCHAR(1000));
 
 INSERT INTO test.t2 SELECT statement_digest_text("SELECT * FROM foo");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $diff_tables=master:test.t1,slave:test.t1
 --source include/diff_tables.inc
 
@@ -36,6 +36,6 @@ SELECT * FROM test.t2;
 --echo # Clean up
 DROP TABLE test.t1;
 DROP TABLE test.t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

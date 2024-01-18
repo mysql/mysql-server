@@ -11,7 +11,7 @@
 # case 3 : Set at the Parameter and DDL level different row_format
 # **************************************************************
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # InnoDB doesn't support only 16k as index prefix is 3070 bytes 
 
 connection master;
@@ -33,7 +33,7 @@ INSERT INTO tab VALUES (300,'VISWANATH',200);
 INSERT INTO tab1(a,b) VALUES(1,'Check with max prefix');
 
 # Connect to slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Check Dynamic (default) on slave ide
 SELECT @@innodb_default_row_format;
@@ -63,7 +63,7 @@ ENGINE= InnoDB
 DEFAULT CHARACTER SET latin1;
 
 # Connect to slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Check Default is Compact on slave side
 SELECT @@innodb_default_row_format;
@@ -89,7 +89,7 @@ ALTER TABLE tab ROW_FORMAT=COMPRESSED;
 --source suite/innodb/include/default_row_format_show.inc
 
 # Connect to slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Check Dynamic (default) on slave side
 SELECT @@innodb_default_row_format;
@@ -101,4 +101,4 @@ SELECT @@innodb_default_row_format;
 connection master;
 DROP TABLE tab;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

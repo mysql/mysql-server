@@ -1,4 +1,4 @@
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo # Verify that column statistics are replicated according to the
 --echo # "NO_WRITE_TO_BINLOG"-flag.
@@ -20,7 +20,7 @@ FROM information_schema.COLUMN_STATISTICS;
 
 --echo # Sync slave with master, and verify that we only have column statistics
 --echo # for table 'replicated' on the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection slave
 SELECT schema_name, table_name, column_name,
        JSON_REMOVE(histogram, '$."last-updated"')
@@ -38,4 +38,4 @@ CREATE TABLE foo (col1 INT);
 ANALYZE TABLE foo UPDATE HISTOGRAM ON meh WITH 10 BUCKETS;
 DROP TABLE foo;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

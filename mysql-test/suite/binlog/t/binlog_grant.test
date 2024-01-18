@@ -94,7 +94,7 @@ GRANT SELECT (a) ON b31869146_db.t1 TO b31869146@localhost WITH GRANT OPTION;
 
 --echo # Success must contain SELECT for all of the GRANTS
 --echo # Show binlog events
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 --echo # cleanup
 DROP USER b31869146@localhost;

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,12 +6,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Using MyISAM storage engine
 ## Running the test with the SQL thread stopped
 [connection slave]
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 # Adding debug point 'dbug_disable_relay_log_truncation' to @@GLOBAL.debug
 [connection slave]
 [connection master]
 [connection slave]
-include/gtid_step_reset_on_retrieved.inc
+include/rpl/gtid_step_reset_on_retrieved.inc
 [connection master]
 CREATE TABLE t1 (i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, info VARCHAR(64)) ENGINE=MYISAM;
 CREATE TABLE t2 (i INT) ENGINE=MYISAM;
@@ -22,12 +22,12 @@ INSERT INTO t2 (i) VALUES (-5);
 INSERT INTO t2 (i) VALUES (-4);
 COMMIT;
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection slave]
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 [connection slave]
-include/gtid_step_assert_on_retrieved.inc [count=6, only_count=0]
+include/rpl/gtid_step_assert_on_retrieved.inc [count=6, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t1 (info) VALUE ('Insert data rotating master binlog between two transactions');
@@ -42,17 +42,17 @@ INSERT INTO t2 (i) VALUES (-1);
 INSERT INTO t2 (i) VALUES (0);
 COMMIT;
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection slave]
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 [connection slave]
-include/gtid_step_assert_on_retrieved.inc [count=6, only_count=0]
+include/rpl/gtid_step_assert_on_retrieved.inc [count=6, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_gtid_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_gtid_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -61,22 +61,22 @@ SET @val= 100 * 1 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_gtid_log_event' from @@GLOBAL.debug
-include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 1 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_io_with_master.inc
-include/gtid_step_assert_on_retrieved.inc [count=3, only_count=0]
+include/rpl/sync_to_replica_received.inc
+include/rpl/gtid_step_assert_on_retrieved.inc [count=3, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_query_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_query_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -85,22 +85,22 @@ SET @val= 100 * 2 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_query_log_event' from @@GLOBAL.debug
-include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 2 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_io_with_master.inc
-include/gtid_step_assert_on_retrieved.inc [count=3, only_count=0]
+include/rpl/sync_to_replica_received.inc
+include/rpl/gtid_step_assert_on_retrieved.inc [count=3, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_user_var_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_user_var_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -109,32 +109,32 @@ SET @val= 100 * 3 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_user_var_log_event' from @@GLOBAL.debug
-include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
+include/rpl/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 3 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_io_with_master.inc
-include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
+include/rpl/sync_to_replica_received.inc
+include/rpl/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 # Removing debug point 'dbug_disable_relay_log_truncation' from @@GLOBAL.debug
 [connection master]
 DROP TABLE t1,t2;
 ## Starting and syncing the SQL thread before next round
 [connection slave]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ## Running the test with the SQL thread started
 # Adding debug point 'dbug_disable_relay_log_truncation' to @@GLOBAL.debug
 [connection slave]
 [connection master]
 [connection slave]
-include/gtid_step_reset.inc
+include/rpl/gtid_step_reset.inc
 [connection master]
 CREATE TABLE t1 (i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, info VARCHAR(64)) ENGINE=MYISAM;
 CREATE TABLE t2 (i INT) ENGINE=MYISAM;
@@ -145,13 +145,13 @@ INSERT INTO t2 (i) VALUES (-5);
 INSERT INTO t2 (i) VALUES (-4);
 COMMIT;
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection slave]
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 [connection slave]
-include/gtid_step_assert.inc [count=6, only_count=0]
+include/rpl/gtid_step_assert.inc [count=6, only_count=0]
 [connection master]
 INSERT INTO t1 (info) VALUE ('Insert data rotating master binlog between two transactions');
 BEGIN;
@@ -165,17 +165,17 @@ INSERT INTO t2 (i) VALUES (-1);
 INSERT INTO t2 (i) VALUES (0);
 COMMIT;
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection slave]
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 [connection slave]
-include/gtid_step_assert.inc [count=6, only_count=0]
+include/rpl/gtid_step_assert.inc [count=6, only_count=0]
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_gtid_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_gtid_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -184,21 +184,21 @@ SET @val= 100 * 1 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_gtid_log_event' from @@GLOBAL.debug
-include/sync_slave_sql_with_io.inc
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/sync_with_recieved.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t2 VALUES (100 * 1 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/gtid_step_assert.inc [count=3, only_count=0]
+include/rpl/sync_to_replica.inc
+include/rpl/gtid_step_assert.inc [count=3, only_count=0]
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_query_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_query_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -207,21 +207,21 @@ SET @val= 100 * 2 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_query_log_event' from @@GLOBAL.debug
-include/sync_slave_sql_with_io.inc
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/sync_with_recieved.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t2 VALUES (100 * 2 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/gtid_step_assert.inc [count=3, only_count=0]
+include/rpl/sync_to_replica.inc
+include/rpl/gtid_step_assert.inc [count=3, only_count=0]
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_user_var_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_user_var_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -230,42 +230,42 @@ SET @val= 100 * 3 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_user_var_log_event' from @@GLOBAL.debug
-include/sync_slave_sql_with_io.inc
-include/gtid_step_assert.inc [count=2, only_count=0]
+include/rpl/sync_with_recieved.inc
+include/rpl/gtid_step_assert.inc [count=2, only_count=0]
 [connection master]
 INSERT INTO t2 VALUES (100 * 3 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/gtid_step_assert.inc [count=2, only_count=0]
+include/rpl/sync_to_replica.inc
+include/rpl/gtid_step_assert.inc [count=2, only_count=0]
 # Removing debug point 'dbug_disable_relay_log_truncation' from @@GLOBAL.debug
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1,t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Using MyISAM storage engine without auto positioning
 ## Running the test with the SQL thread stopped
 [connection slave]
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 # Adding debug point 'dbug_disable_relay_log_truncation' to @@GLOBAL.debug
 [connection slave]
 [connection master]
 [connection slave]
-include/gtid_step_reset_on_retrieved.inc
+include/rpl/gtid_step_reset_on_retrieved.inc
 [connection master]
 CREATE TABLE t1 (i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, info VARCHAR(64)) ENGINE=MYISAM;
 CREATE TABLE t2 (i INT) ENGINE=MYISAM;
@@ -276,12 +276,12 @@ INSERT INTO t2 (i) VALUES (-5);
 INSERT INTO t2 (i) VALUES (-4);
 COMMIT;
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection slave]
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 [connection slave]
-include/gtid_step_assert_on_retrieved.inc [count=6, only_count=0]
+include/rpl/gtid_step_assert_on_retrieved.inc [count=6, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t1 (info) VALUE ('Insert data rotating master binlog between two transactions');
@@ -296,17 +296,17 @@ INSERT INTO t2 (i) VALUES (-1);
 INSERT INTO t2 (i) VALUES (0);
 COMMIT;
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection slave]
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 [connection slave]
-include/gtid_step_assert_on_retrieved.inc [count=6, only_count=0]
+include/rpl/gtid_step_assert_on_retrieved.inc [count=6, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_gtid_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_gtid_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -315,22 +315,22 @@ SET @val= 100 * 1 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_gtid_log_event' from @@GLOBAL.debug
-include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 1 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_io_with_master.inc
-include/gtid_step_assert_on_retrieved.inc [count=3, only_count=0]
+include/rpl/sync_to_replica_received.inc
+include/rpl/gtid_step_assert_on_retrieved.inc [count=3, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_query_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_query_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -339,22 +339,22 @@ SET @val= 100 * 2 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_query_log_event' from @@GLOBAL.debug
-include/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert_on_retrieved.inc [count=1, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 2 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_io_with_master.inc
-include/gtid_step_assert_on_retrieved.inc [count=3, only_count=0]
+include/rpl/sync_to_replica_received.inc
+include/rpl/gtid_step_assert_on_retrieved.inc [count=3, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_user_var_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_user_var_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -363,32 +363,32 @@ SET @val= 100 * 3 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_user_var_log_event' from @@GLOBAL.debug
-include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
+include/rpl/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 [connection master]
 INSERT INTO t2 VALUES (100 * 3 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_io_with_master.inc
-include/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
+include/rpl/sync_to_replica_received.inc
+include/rpl/gtid_step_assert_on_retrieved.inc [count=2, only_count=0]
 Asserting based on SHOW REPLICA STATUS(Retrieved_Gtid_Set)
 # Removing debug point 'dbug_disable_relay_log_truncation' from @@GLOBAL.debug
 [connection master]
 DROP TABLE t1,t2;
 ## Starting and syncing the SQL thread before next round
 [connection slave]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ## Running the test with the SQL thread started
 # Adding debug point 'dbug_disable_relay_log_truncation' to @@GLOBAL.debug
 [connection slave]
 [connection master]
 [connection slave]
-include/gtid_step_reset.inc
+include/rpl/gtid_step_reset.inc
 [connection master]
 CREATE TABLE t1 (i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, info VARCHAR(64)) ENGINE=MYISAM;
 CREATE TABLE t2 (i INT) ENGINE=MYISAM;
@@ -399,13 +399,13 @@ INSERT INTO t2 (i) VALUES (-5);
 INSERT INTO t2 (i) VALUES (-4);
 COMMIT;
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection slave]
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 [connection slave]
-include/gtid_step_assert.inc [count=6, only_count=0]
+include/rpl/gtid_step_assert.inc [count=6, only_count=0]
 [connection master]
 INSERT INTO t1 (info) VALUE ('Insert data rotating master binlog between two transactions');
 BEGIN;
@@ -419,17 +419,17 @@ INSERT INTO t2 (i) VALUES (-1);
 INSERT INTO t2 (i) VALUES (0);
 COMMIT;
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection slave]
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 [connection slave]
-include/gtid_step_assert.inc [count=6, only_count=0]
+include/rpl/gtid_step_assert.inc [count=6, only_count=0]
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_gtid_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_gtid_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -438,21 +438,21 @@ SET @val= 100 * 1 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_gtid_log_event' from @@GLOBAL.debug
-include/sync_slave_sql_with_io.inc
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/sync_with_recieved.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t2 VALUES (100 * 1 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/gtid_step_assert.inc [count=3, only_count=0]
+include/rpl/sync_to_replica.inc
+include/rpl/gtid_step_assert.inc [count=3, only_count=0]
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_query_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_query_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -461,21 +461,21 @@ SET @val= 100 * 2 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_query_log_event' from @@GLOBAL.debug
-include/sync_slave_sql_with_io.inc
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/sync_with_recieved.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t2 VALUES (100 * 2 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/gtid_step_assert.inc [count=3, only_count=0]
+include/rpl/sync_to_replica.inc
+include/rpl/gtid_step_assert.inc [count=3, only_count=0]
 [connection slave]
 [connection master]
 INSERT INTO t1 (info) VALUES ('stop_io_after_reading_user_var_log_event');
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Adding debug point 'stop_io_after_reading_user_var_log_event' to @@GLOBAL.debug
 [connection master]
 BEGIN;
@@ -484,26 +484,26 @@ SET @val= 100 * 3 + 2;
 INSERT INTO t2 VALUES (@val);
 COMMIT;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Removing debug point 'stop_io_after_reading_user_var_log_event' from @@GLOBAL.debug
-include/sync_slave_sql_with_io.inc
-include/gtid_step_assert.inc [count=2, only_count=0]
+include/rpl/sync_with_recieved.inc
+include/rpl/gtid_step_assert.inc [count=2, only_count=0]
 [connection master]
 INSERT INTO t2 VALUES (100 * 3 + 3);
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/gtid_step_assert.inc [count=2, only_count=0]
+include/rpl/sync_to_replica.inc
+include/rpl/gtid_step_assert.inc [count=2, only_count=0]
 # Removing debug point 'dbug_disable_relay_log_truncation' from @@GLOBAL.debug
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1,t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

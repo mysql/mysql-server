@@ -46,10 +46,10 @@ set session sql_log_bin=1;
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
@@ -62,7 +62,7 @@ set session sql_log_bin=1;
 --echo #    weight to be chosen as primary on single primary mode
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: The appointed primary for election left the group, this operation will be aborted.*");
@@ -76,7 +76,7 @@ LOCK TABLE t1 READ;
 --echo # 3. Insert a row on a group
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -93,7 +93,7 @@ LOCK TABLE t1 READ;
 --echo #    super_read_only and executing primary election
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/sql/Waiting for global read lock%"
 --source include/wait_condition.inc
@@ -109,7 +109,7 @@ LOCK TABLE t1 READ;
 --source include/assert.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Waiting for members to enable super_read_only%"
 --source include/wait_condition.inc
@@ -128,7 +128,7 @@ LOCK TABLE t1 READ;
 --echo # 6. Stop server 3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -154,7 +154,7 @@ LOCK TABLE t1 READ;
 --echo # 7. Wait group detect exit of server3
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -170,7 +170,7 @@ UNLOCK TABLES;
 --echo # 9. Check that the action finishes
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server3_uuid MEMBER3_UUID
 --reap
@@ -180,7 +180,7 @@ UNLOCK TABLES;
 --echo #     election
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
@@ -188,7 +188,7 @@ UNLOCK TABLES;
 --echo #     update everywhere checks are true
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= group_replication_enforce_update_everywhere_checks is ON
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = "1"
@@ -207,7 +207,7 @@ SET GLOBAL group_replication_single_primary_mode= TRUE;
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,7 +14,7 @@ innodb_undo_001	Undo	active
 innodb_undo_002	Undo	active
 undo_003	Undo	active
 undo_004	Undo	active
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT name,space_type,state
 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -29,7 +29,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1529	Failed to drop UNDO TABLESPACE undo_003
 Error	3120	Tablespace `undo_003` is not empty.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 DROP UNDO TABLESPACE undo_003;
 ERROR HY000: Tablespace undo_003 doesn't exist.
@@ -47,7 +47,7 @@ innodb_undo_001	Undo	empty
 innodb_undo_002	Undo	empty
 undo_003	Undo	active
 undo_004	Undo	active
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT name,space_type,state
 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -73,7 +73,7 @@ CREATE TABLE tab2(c1 int , c2 varchar(10)) Engine=InnoDB;
 INSERT INTO tab2 VALUES(2, 'VISH');
 CREATE INDEX ix1 ON tab1(c2) USING BTREE;
 CREATE INDEX ix2 ON tab2(c2) ;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW CREATE TABLE tab1;
 Table	Create Table
@@ -120,7 +120,7 @@ innodb_undo_001	Undo	empty
 innodb_undo_002	Undo	empty
 undo_003	Undo	active
 undo_004	Undo	active
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 ERROR HY000: Tablespace undo_004 doesn't exist.
@@ -167,7 +167,7 @@ Error	3121	The ADD DATAFILE filepath for an UNDO TABLESPACE cannot be a relative
 Error	3121	The UNDO DATAFILE location must be in a known directory.
 Error	1528	Failed to create UNDO TABLESPACE undo_003
 Error	3121	Incorrect File Name '../undo_003.ibu'.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT name,space_type,state
 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -191,7 +191,7 @@ WHERE space_type = 'Undo';
 name	space_type	state
 innodb_undo_001	Undo	active
 innodb_undo_002	Undo	active
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT name,space_type,state
 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -199,4 +199,4 @@ WHERE space_type = 'Undo';
 name	space_type	state
 innodb_undo_001	Undo	active
 innodb_undo_002	Undo	active
-include/rpl_end.inc
+include/rpl/deinit.inc

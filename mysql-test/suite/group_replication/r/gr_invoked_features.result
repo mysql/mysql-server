@@ -32,12 +32,12 @@ CREATE PROCEDURE p11 (IN x INT, IN y VARCHAR(64))
 BEGIN
 INSERT IGNORE INTO t11 VALUES (x,x,y);
 END|
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 CREATE TABLE t13(a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) engine=InnoDB;
 INSERT INTO t11 VALUES (3,3,'');
 UPDATE t11 SET c='2' WHERE a = 1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 INSERT INTO t11 VALUES(4,4,f1(4));
 INSERT INTO t11 VALUES(7,7,f1(7));
 CALL p11(5, UUID());
@@ -46,7 +46,7 @@ SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL EVENT_SCHEDULER = on;
 ALTER EVENT e1 ENABLE;
 SET GLOBAL EVENT_SCHEDULER = @old_event_scheduler;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 SHOW TABLES LIKE 't%';
 Tables_in_test (t%)
@@ -66,7 +66,7 @@ PROCEDURE	p11
 SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
 EVENT_NAME	STATUS
 e1	DISABLED
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:t11, server2:t11]
 include/diff_tables.inc [server1:t12, server2:t12]
 include/diff_tables.inc [server1:t13, server2:t13]

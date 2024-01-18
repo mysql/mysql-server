@@ -1,5 +1,5 @@
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 SET @@time_zone='+00:00';
 SET @@timestamp=25810.123456;
@@ -24,12 +24,12 @@ INSERT INTO t1 VALUES (@ts, @ts, @ts, @ts, @ts, @ts, @ts);
 INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW(), NOW());
 INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
 --query_vertical SELECT * FROM t1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 --query_vertical SELECT * FROM t1
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 connection master;
@@ -48,12 +48,12 @@ INSERT INTO t1 VALUES (@ts, @ts, @ts, @ts, @ts, @ts, @ts);
 INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW(), NOW());
 INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
 --query_vertical SELECT * FROM t1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 --query_vertical SELECT * FROM t1
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 connection master;
@@ -72,12 +72,12 @@ INSERT INTO t1 VALUES (@t, @t, @t, @t, @t, @t, @t);
 INSERT INTO t1 VALUES (CURTIME(), CURTIME(), CURTIME(), CURTIME(), CURTIME(), CURTIME(), CURTIME());
 INSERT INTO t1 VALUES (CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6));
 --query_vertical SELECT * FROM t1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 --query_vertical SELECT * FROM t1
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

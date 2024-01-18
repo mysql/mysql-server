@@ -37,7 +37,7 @@ SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=1;
 --echo #    gtid_set_mode
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.start_waiting";
 
@@ -50,7 +50,7 @@ SET GLOBAL GTID_MODE=ON;
 SET DEBUG_SYNC= 'now SIGNAL signal.start_continue';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -25,7 +25,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -40,7 +40,7 @@ SELECT func1();
 func1()
 0
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -58,7 +58,7 @@ ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -74,7 +74,7 @@ DELETE FROM trans_table2 WHERE i=func1();
 INSERT INTO non_trans_table2 VALUES (func1());
 UPDATE non_trans_table2 SET i=func1();
 DELETE FROM non_trans_table2 WHERE i=func1();
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (func1())
@@ -106,7 +106,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -123,7 +123,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -140,7 +140,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -157,7 +157,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -174,7 +174,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -191,7 +191,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -208,7 +208,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -225,7 +225,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -242,7 +242,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -259,7 +259,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -276,7 +276,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -293,7 +293,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -313,7 +313,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -328,7 +328,7 @@ SELECT func1();
 func1()
 0
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -346,7 +346,7 @@ ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -362,7 +362,7 @@ DELETE FROM trans_table2 WHERE i=func1();
 INSERT INTO non_trans_table2 VALUES (func1());
 UPDATE non_trans_table2 SET i=func1();
 DELETE FROM non_trans_table2 WHERE i=func1();
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (func1())
@@ -394,7 +394,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -411,7 +411,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -428,7 +428,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -445,7 +445,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -462,7 +462,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -479,7 +479,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -496,7 +496,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -513,7 +513,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -530,7 +530,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -547,7 +547,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -564,7 +564,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -581,7 +581,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -601,7 +601,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -616,7 +616,7 @@ SELECT func1();
 func1()
 0
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -631,7 +631,7 @@ SELECT func1();
 func1()
 0
 ROLLBACK;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
 # into binlog when using the FUNCTION IN INSERT/UPDATE/DELETE QUERY ON
@@ -643,7 +643,7 @@ DELETE FROM trans_table2 WHERE i=func1();
 INSERT INTO non_trans_table2 VALUES (func1());
 UPDATE non_trans_table2 SET i=func1();
 DELETE FROM non_trans_table2 WHERE i=func1();
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (func1())
@@ -675,7 +675,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -692,7 +692,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -709,7 +709,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -726,7 +726,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -743,7 +743,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -760,7 +760,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -777,7 +777,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -794,7 +794,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -811,7 +811,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -828,7 +828,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -845,7 +845,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -862,7 +862,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -882,7 +882,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -897,7 +897,7 @@ SELECT func1();
 func1()
 0
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -915,7 +915,7 @@ ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -931,7 +931,7 @@ DELETE FROM trans_table2 WHERE i=func1();
 INSERT INTO non_trans_table2 VALUES (func1());
 UPDATE non_trans_table2 SET i=func1();
 DELETE FROM non_trans_table2 WHERE i=func1();
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (func1())
@@ -963,7 +963,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -980,7 +980,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -997,7 +997,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -1014,7 +1014,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -1031,7 +1031,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -1048,7 +1048,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -1065,7 +1065,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -1082,7 +1082,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -1099,7 +1099,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -1116,7 +1116,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -1133,7 +1133,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -1150,7 +1150,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -1170,7 +1170,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1185,7 +1185,7 @@ SELECT func1();
 func1()
 0
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1203,7 +1203,7 @@ ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1219,7 +1219,7 @@ DELETE FROM trans_table2 WHERE i=func1();
 INSERT INTO non_trans_table2 VALUES (func1());
 UPDATE non_trans_table2 SET i=func1();
 DELETE FROM non_trans_table2 WHERE i=func1();
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (func1())
@@ -1242,7 +1242,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -1259,7 +1259,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -1276,7 +1276,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -1293,7 +1293,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -1310,7 +1310,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -1327,7 +1327,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -1344,7 +1344,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON non_trans_table2 FOR EACH ROW
@@ -1357,7 +1357,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
@@ -1370,7 +1370,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON non_trans_table2 FOR EACH ROW
@@ -1383,7 +1383,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON non_trans_table2 FOR EACH ROW
@@ -1396,7 +1396,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON non_trans_table2 FOR EACH ROW
@@ -1409,7 +1409,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
 BEGIN
@@ -1425,7 +1425,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1440,7 +1440,7 @@ SELECT func1();
 func1()
 0
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1459,7 +1459,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Warning	1751	The creation of some temporary tables could not be rolled back.
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1475,7 +1475,7 @@ DELETE FROM trans_table2 WHERE i=func1();
 INSERT INTO non_trans_table2 VALUES (func1());
 UPDATE non_trans_table2 SET i=func1();
 DELETE FROM non_trans_table2 WHERE i=func1();
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (func1())
@@ -1498,7 +1498,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON trans_table2 FOR EACH ROW
@@ -1511,7 +1511,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON trans_table2 FOR EACH ROW
@@ -1524,7 +1524,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON trans_table2 FOR EACH ROW
@@ -1537,7 +1537,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON trans_table2 FOR EACH ROW
@@ -1550,7 +1550,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON trans_table2 FOR EACH ROW
@@ -1563,7 +1563,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON non_trans_table2 FOR EACH ROW
@@ -1576,7 +1576,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -1593,7 +1593,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -1610,7 +1610,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -1627,7 +1627,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -1644,7 +1644,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -1661,7 +1661,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -1681,7 +1681,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1696,7 +1696,7 @@ SELECT func1();
 func1()
 0
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1715,7 +1715,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Warning	1751	The creation of some temporary tables could not be rolled back.
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1731,7 +1731,7 @@ DELETE FROM trans_table2 WHERE i=func1();
 INSERT INTO non_trans_table2 VALUES (func1());
 UPDATE non_trans_table2 SET i=func1();
 DELETE FROM non_trans_table2 WHERE i=func1();
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (func1())
@@ -1754,7 +1754,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON trans_table2 FOR EACH ROW
@@ -1767,7 +1767,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON trans_table2 FOR EACH ROW
@@ -1780,7 +1780,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON trans_table2 FOR EACH ROW
@@ -1793,7 +1793,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON trans_table2 FOR EACH ROW
@@ -1806,7 +1806,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON trans_table2 FOR EACH ROW
@@ -1819,7 +1819,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON non_trans_table2 FOR EACH ROW
@@ -1832,7 +1832,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -1849,7 +1849,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO non_trans_table2 VALUES (10)
@@ -1866,7 +1866,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -1883,7 +1883,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE non_trans_table2 SET i=12
@@ -1900,7 +1900,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -1917,7 +1917,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
@@ -1937,7 +1937,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1952,7 +1952,7 @@ SELECT func1();
 func1()
 0
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1970,7 +1970,7 @@ ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`func1`()
@@ -1986,7 +1986,7 @@ DELETE FROM trans_table2 WHERE i=func1();
 INSERT INTO non_trans_table2 VALUES (func1());
 UPDATE non_trans_table2 SET i=func1();
 DELETE FROM non_trans_table2 WHERE i=func1();
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (func1())
@@ -2009,7 +2009,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -2026,7 +2026,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO trans_table2 VALUES (10)
@@ -2043,7 +2043,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -2060,7 +2060,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE trans_table2 SET i=12
@@ -2077,7 +2077,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -2094,7 +2094,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM trans_table2
@@ -2111,7 +2111,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON non_trans_table2 FOR EACH ROW
@@ -2124,7 +2124,7 @@ END;
 # INSERT QUERY ON transactional/non-transactional table.
 #
 INSERT INTO non_trans_table2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
@@ -2137,7 +2137,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON non_trans_table2 FOR EACH ROW
@@ -2150,7 +2150,7 @@ END;
 # UPDATE QUERY ON transactional/non-transactional table.
 #
 UPDATE non_trans_table2 SET i=12;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON non_trans_table2 FOR EACH ROW
@@ -2163,7 +2163,7 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON non_trans_table2 FOR EACH ROW
@@ -2176,9 +2176,9 @@ END;
 # DELETE QUERY ON transactional/non-transactional table.
 #
 DELETE FROM non_trans_table2;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:trans_table1, slave:trans_table1]
 include/diff_tables.inc [master:trans_table2, slave:trans_table2]
@@ -2186,4 +2186,4 @@ include/diff_tables.inc [master:non_trans_table1, slave:non_trans_table1]
 include/diff_tables.inc [master:non_trans_table2, slave:non_trans_table2]
 DROP TABLE trans_table1, trans_table2;
 DROP TABLE non_trans_table1, non_trans_table2;
-include/rpl_end.inc
+include/rpl/deinit.inc

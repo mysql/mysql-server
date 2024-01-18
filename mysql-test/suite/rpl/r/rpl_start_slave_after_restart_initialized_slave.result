@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2,3->2]
+include/rpl/init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,15 +9,15 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CALL mtr.add_suppression("Error during --relay-log-recovery*");
 CALL mtr.add_suppression("Server was not able to find a rotate event*");
 CALL mtr.add_suppression("Recovery from source pos*");
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start=1]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start=1]
 [connection server_2]
-include/start_slave.inc
-include/rpl_reset.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start=1]
+include/rpl/start_replica.inc
+include/rpl/reset.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start=1]
 [connection server_2]
-include/start_slave.inc
-include/rpl_reset.inc
+include/rpl/start_replica.inc
+include/rpl/reset.inc
 include/assert_grep.inc [Found the expected warning line in the error log.]
-include/rpl_end.inc
+include/rpl/deinit.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 RESET REPLICA ALL FOR CHANNEL 'channel_3';

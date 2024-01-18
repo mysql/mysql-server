@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=none]
+include/rpl/init.inc [topology=none]
 #
 # 1) Configuration
 #
@@ -19,7 +19,7 @@ XA PREPARE X'0022';
 #
 # 3) Restart the server
 #
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 #
 # 4) Rollback the transaction to remove XID from prepared state.
 #

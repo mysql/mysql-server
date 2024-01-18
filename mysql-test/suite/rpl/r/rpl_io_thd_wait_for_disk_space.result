@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression("Disk is full writing");
 CALL mtr.add_suppression("Retry in 60 secs");
 CALL mtr.add_suppression("Relay log write failure");
@@ -19,7 +19,7 @@ CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk bef
 [connection master]
 INSERT INTO t1 VALUES(2);
 [connection slave]
-include/wait_for_slave_param.inc [Replica_IO_State]
+include/rpl/wait_for_replica_status.inc [Replica_IO_State]
 include/assert.inc [I/O thread PROCESSLIST_STATE should be Waiting for disk space at performance_schema.threads]
 include/assert.inc [I/O thread STATE should be Waiting for disk space at information_schema.processlist]
 [connection slave1]
@@ -29,13 +29,13 @@ SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
 KILL IO_THREAD;
 [connection slave1]
 [connection slave]
-include/wait_for_slave_io_error.inc [errno=13122]
+include/rpl/wait_for_receiver_error.inc [errno=13122]
 # Removing debug point 'simulate_io_thd_wait_for_disk_space' from @@GLOBAL.debug
 include/assert_grep.inc [Found the disk full error message on the slave]
 include/assert_grep.inc [Found the relay log truncate message on the slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Step 2 - Restart the slave server while I/O thread is waiting for disk space
 #
@@ -49,12 +49,12 @@ INSERT INTO t1 VALUES(7);
 INSERT INTO t1 VALUES(8);
 INSERT INTO t1 VALUES(9);
 [connection slave]
-include/wait_for_slave_param.inc [Replica_IO_State]
-include/stop_slave_sql.inc
-include/rpl_restart_server.inc [server_number=2]
-include/start_slave.inc
+include/rpl/wait_for_replica_status.inc [Replica_IO_State]
+include/rpl/stop_applier.inc
+include/rpl/restart_server.inc [server_number=2]
+include/rpl/start_replica.inc
 include/assert_grep.inc [Found no warning messages about I/O thread waiting before stopping]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

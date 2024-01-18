@@ -17,7 +17,7 @@
 --echo
 --echo ## START MASTER SERVER 1 (SINGLE PRIMARY)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
 SET GLOBAL group_replication_single_primary_mode= 1;
 --source include/start_and_bootstrap_group_replication.inc
@@ -25,7 +25,7 @@ SET GLOBAL group_replication_single_primary_mode= 1;
 --echo
 --echo ## TRY TO START SERVER 2 (INVALID CONFIGURATION 1 - MULTI MASTER + NO ENFORCE CHECK)
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SQL_LOG_BIN=0;
 call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[\\], group configuration option: \\[group_replication_single_primary_mode\\].");
 call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[group_replication_enforce_update_everywhere_checks\\], group configuration option: \\[group_replication_single_primary_mode\\].");
@@ -48,7 +48,7 @@ START GROUP_REPLICATION;
 --echo
 --echo ## TRY TO START SERVER 2 (INVALID CONFIGURATION 2 - MULTI MASTER + ENFORCE CHECK)
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= 1;
 SET GLOBAL group_replication_single_primary_mode= 0;
 --error ER_GROUP_REPLICATION_CONFIGURATION
@@ -57,7 +57,7 @@ START GROUP_REPLICATION;
 --echo
 --echo ## RESTART MASTER SERVER 1 (MULTI MASTER + ENFORCED CHECK)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET GLOBAL group_replication_single_primary_mode= 0;
 SET GLOBAL group_replication_enforce_update_everywhere_checks= 1;
@@ -66,7 +66,7 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= 1;
 --echo
 --echo ## TRY TO START SERVER 2 (INVALID CONFIGURATION 3 - MULTI MASTER + NO ENFORCED CHECK)
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
 SET GLOBAL group_replication_single_primary_mode= 0;
 --error ER_GROUP_REPLICATION_CONFIGURATION
@@ -89,7 +89,7 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= 1;
 --echo
 --echo ## RESTART MASTER SERVER 1 (MULTI MASTER + NO ENFORCED CHECK)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET GLOBAL group_replication_single_primary_mode= 0;
 SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
@@ -98,7 +98,7 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
 --echo
 --echo ## TRY TO START SERVER 2 (INVALID CONFIGURATION 6 - SINGLE MASTER + NO ENFORCED CHECK)
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
 SET GLOBAL group_replication_single_primary_mode= 1;
 --error ER_GROUP_REPLICATION_CONFIGURATION
@@ -107,7 +107,7 @@ START GROUP_REPLICATION;
 --echo
 --echo ## TRY TO START SERVER 2 (INVALID CONFIGURATION 7 - MULTI MASTER + ENFORCE CHECK)
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_single_primary_mode= 0;
 SET GLOBAL group_replication_enforce_update_everywhere_checks= 1;
 --error ER_GROUP_REPLICATION_CONFIGURATION
@@ -116,7 +116,7 @@ START GROUP_REPLICATION;
 --echo
 --echo ## TRY TO START SERVER 2 (VALID CONFIGURATION 8 - MULTI MASTER + NO ENFORCED CHECK)
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
 SET GLOBAL group_replication_single_primary_mode= 0;
 --source include/start_group_replication.inc
@@ -127,7 +127,7 @@ SET GLOBAL group_replication_single_primary_mode= 0;
 while($server_num>0)
 {
   --let $rpl_connection_name= server$server_num
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --source include/stop_group_replication.inc
 
   --dec $server_num

@@ -19,7 +19,7 @@
 #     auto_increment_offset.
 #
 #   $rpl_debug
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 
 --let $include_filename= restore_group_replication_auto_increment.inc
 --source include/begin_include_file.inc

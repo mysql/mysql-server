@@ -55,7 +55,7 @@ SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_ch
 --echo #    that is defined on group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 
@@ -87,7 +87,7 @@ SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_ch
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= GTID_EXECUTED must only contain view changes
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
@@ -101,7 +101,7 @@ SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_ch
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;

@@ -41,7 +41,7 @@ eval INSERT INTO t1 (c1, data) VALUES (1,
        CONCAT($data, $data, $data, $data, $data, $data));
 --enable_query_log
 --let $binlog_start= $start_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 DROP TABLE t1;
 
 exec $MYSQL_BINLOG --start-position=$start_pos $MYSQLD_DATADIR/$master_binlog >$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql;

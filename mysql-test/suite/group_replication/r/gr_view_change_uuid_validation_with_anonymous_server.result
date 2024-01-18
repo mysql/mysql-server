@@ -25,7 +25,7 @@ Warning	1681	'group_replication_view_change_uuid' is deprecated and will be remo
 ############################################################
 #  2. Disable GTIDs on server 3
 [connection server3]
-include/rpl_set_gtid_mode.inc [OFF on servers 3]
+include/rpl/set_gtid_mode.inc [OFF on servers 3]
 
 ############################################################
 #  3. Setup a asynchronous replication connection from
@@ -61,7 +61,7 @@ ERROR HY000: Variable 'group_replication_view_change_uuid' cannot be set to the 
 #       warning for replication initialization
 SET PERSIST_ONLY group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
 # restart:--group-replication-start-on-boot=1 --group-replication-group-name=GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/assert.inc [The value of member_state must be offline]
 include/assert_grep.inc [An error will be generated when GR is started with an UUID already in use by ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS]
 START GROUP_REPLICATION;
@@ -83,7 +83,7 @@ Warning	1681	'group_replication_view_change_uuid' is deprecated and will be remo
 include/start_group_replication.inc
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
-include/start_slave.inc
+include/rpl/start_replica.inc
 
 ###################################################################
 #  5. Execute some transactions on server 3 and sync with server 1
@@ -92,13 +92,13 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
 INSERT INTO t1 VALUES (1);
 UPDATE t1 SET c1=2 WHERE c1=0;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ############################################################
 #  6. Execute a transaction on the group and sync
 [connection server1]
 INSERT INTO t1 VALUES (6);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 #  7. GTID_EXECUTED on server 1 must contain transactions
@@ -121,11 +121,11 @@ include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED from group replicat
 #  9. Cleanup
 [connection server3]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server1]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 [connection server3]
-include/rpl_set_gtid_mode.inc [ON on servers 3]
+include/rpl/set_gtid_mode.inc [ON on servers 3]
 [connection server1]
 include/stop_group_replication.inc
 SET GLOBAL group_replication_view_change_uuid = VIEW_CHANGE_UUID;
@@ -142,7 +142,7 @@ Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server1]
 RESET PERSIST;
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/group_replication_end.inc
 Warnings:
 Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

@@ -1,7 +1,7 @@
 ###########################################################
 # This test case checks output of SHOW REPLICAS using long hostname.
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # same host name as in the slave -opt file
 --let $slave_report_host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890
@@ -11,4 +11,4 @@
 --let $assert_text= Master reports slave's hostname equal to slave's report_host value
 --source include/assert.inc
  
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

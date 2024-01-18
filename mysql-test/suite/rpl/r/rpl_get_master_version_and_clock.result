@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,56 +8,56 @@ call mtr.add_suppression("Replica I/O: .* failed with error: Lost connection to 
 call mtr.add_suppression("Fatal error: The replica I/O thread stops because source and replica have equal MySQL server ids; .*");
 call mtr.add_suppression("Replica I/O thread .* register on source");
 call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on source");
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET @@global.debug= "+d,'debug_lock.before_get_UNIX_TIMESTAMP'";
-include/start_slave.inc
+include/rpl/start_replica.inc
 slave is going to hang in get_master_version_and_clock
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_unix_timestamp';
 Check network error happened here
-include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
+include/rpl/wait_for_receiver_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
 set @@global.debug = "-d,'debug_lock.before_get_UNIX_TIMESTAMP'";
-include/rpl_start_server.inc [server_number=1]
-include/wait_for_slave_param.inc [Replica_IO_Running]
-include/stop_slave.inc
+include/rpl/start_server.inc [server_number=1]
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
+include/rpl/stop_replica.inc
 SET @@global.debug= "+d,'debug_lock.before_get_SERVER_ID'";
-include/start_slave.inc
+include/rpl/start_replica.inc
 slave is going to hang in get_master_version_and_clock
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_server_id';
 Check network error happened here
-include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
+include/rpl/wait_for_receiver_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
 set @@global.debug = "-d,'debug_lock.before_get_SERVER_ID'";
-include/rpl_start_server.inc [server_number=1]
-include/wait_for_slave_param.inc [Replica_IO_Running]
-include/stop_slave.inc
+include/rpl/start_server.inc [server_number=1]
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
+include/rpl/stop_replica.inc
 SET @@global.debug= "+d,'dbug.before_get_SOURCE_UUID'";
-include/start_slave.inc
+include/rpl/start_replica.inc
 slave is going to hang in get_master_version_and_clock
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_source_uuid';
 Check network error happened here
-include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
+include/rpl/wait_for_receiver_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
 set @@global.debug = "-d,'dbug.before_get_SOURCE_UUID'";
-include/rpl_start_server.inc [server_number=1]
-include/wait_for_slave_param.inc [Replica_IO_Running]
+include/rpl/start_server.inc [server_number=1]
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
 reset binary logs and gtids;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to SOURCE_PORT=SLAVE_PORT;
 START REPLICA;
 *** must be having the replicate-same-server-id IO thread error ***
-include/wait_for_slave_io_error.inc [errno=13117]
+include/rpl/wait_for_receiver_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: The replica I/O thread stops because source and replica have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on replica but this does not always make sense; please check the manual before using it).'
 SET DEBUG_SYNC= 'RESET';
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 RESET REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_PORT=SOURCE_PORT;;
 # Adding debug point 'dbug.simulate_no_such_var_server_uuid' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 include/assert.inc [Source_UUID must be empty string]
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 # Removing debug point 'dbug.simulate_no_such_var_server_uuid' from @@GLOBAL.debug
-include/rpl_end.inc
+include/rpl/deinit.inc

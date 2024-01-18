@@ -22,7 +22,7 @@ let $keep_connection= 1;
 # Set up circular ring and new names for servers
 --echo *** Set up circular replication on four servers *** 
 --let $rpl_topology= 1->2->3->4->1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 --echo
 
 #set auto inc variables at each server
@@ -30,7 +30,7 @@ let $keep_connection= 1;
 while ($_rpl_server)
 {
   --let $rpl_connection_name= server_$_rpl_server
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   eval SET auto_increment_increment= $rpl_server_count;
   eval SET auto_increment_offset= $_rpl_server;
 
@@ -41,7 +41,7 @@ while ($_rpl_server)
 --echo *** Preparing data ***
 --connection server_1
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=MyISAM;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --connection server_4
 call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -67,7 +67,7 @@ INSERT INTO t1(b,c) VALUES('C',1);
 --sync_slave_with_master server_4
 INSERT INTO t1(b,c) VALUES('D',1);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server_1
 SELECT 'Master A',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
@@ -94,7 +94,7 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
 --connection server_4
 STOP REPLICA;
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER = 1;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 --connection server_3
 INSERT INTO t1 VALUES(6,'C',2);
 --sync_slave_with_master server_4
@@ -114,7 +114,7 @@ INSERT INTO t1(b,c) VALUES('B',2);
 --connection server_3
 # 1062 = ER_DUP_ENTRY
 --let $slave_sql_errno= 1062
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 --connection server_1
 INSERT INTO t1(b,c) VALUES('A',2);
 --connection server_4
@@ -144,21 +144,21 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
 --echo * Reconfigure replication to schema A->B->D->A *
 # Exclude Master C 
 --connection server_3
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 --let $pos_c= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
 --let $file_c= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1)
 
 --connection server_4
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_topology= 1->2->4->1,2->3
 --let $rpl_source_log_file= 4:$file_c
 --let $rpl_source_log_pos= 4:$pos_c
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 
 #--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $file_c LOG_FILE $pos_c LOG_POS 
 #--eval CHANGE REPLICATION SOURCE TO source_host='127.0.0.1',source_port=$SERVER_MYPORT_2,source_user='root',source_log_file='$file_c',source_log_pos=$pos_c
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 --connection server_2
 --sync_slave_with_master server_4
 --sync_slave_with_master server_1
@@ -185,7 +185,7 @@ INSERT INTO t1(b,c) VALUES('D',3);
 connection server_1;
 
 --let $rpl_only_running_threads= 1
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server_1
 SELECT 'Master A',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
@@ -204,10 +204,10 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
 # distributed to other servers
 --echo * Remove wrong event from C and restore B->C->D *
 --connection server_4
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --connection server_3
 DELETE FROM t1 WHERE a = 6;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection server_2
 --sync_slave_with_master server_3
 RESET BINARY LOGS AND GTIDS;
@@ -218,13 +218,13 @@ RESET REPLICA;
 --let $rpl_topology= 1->2->3->4->1
 --let $rpl_source_log_file= 4:$file_d
 --let $rpl_source_log_pos= 4:$pos_d
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 #--replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3 $file_d LOG_FILE $pos_d LOG_POS 
 #--eval CHANGE REPLICATION SOURCE TO source_host='127.0.0.1',source_port=$SERVER_MYPORT_3,source_user='root',source_log_file='$file_d',source_log_pos=$pos_d
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection server_3
 --sync_slave_with_master server_4
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo * Check data inserted before restoring schema A->B->C->D->A *
@@ -250,7 +250,7 @@ INSERT INTO t1(b,c) VALUES('C',4);
 INSERT INTO t1(b,c) VALUES('D',4);
 --connection server_1
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server_1
 SELECT 'Master A',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
@@ -268,4 +268,4 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
 --connection server_1
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

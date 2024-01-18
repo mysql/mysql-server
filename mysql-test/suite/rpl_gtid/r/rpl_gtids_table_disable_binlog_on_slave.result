@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -40,7 +40,7 @@ SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag
 SOURCE_UUID	1	6	
 SOURCE_UUID	17	18	
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # connection slave
 #
@@ -136,9 +136,9 @@ SET @@SESSION.GTID_NEXT = 'automatic';
 XA ROLLBACK 'xid_1';
 SET @@SESSION.GTID_NEXT = 'automatic';
 DROP TABLE t1, t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t3 (a INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 FLUSH LOGS;
 #
 # Verify that transaction's gtid is not stored into gtid_executed table
@@ -148,9 +148,9 @@ FLUSH LOGS;
 #
 SET @@GLOBAL.DEBUG= '+d,simulate_err_on_write_gtid_into_table';
 INSERT INTO t3 VALUES(1);
-include/wait_for_slave_sql_error.inc [errno=1030]
+include/rpl/wait_for_applier_error.inc [errno=1030]
 SET GLOBAL DEBUG= @debug_save;
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 #
 # Stored gtids SOURCE_UUID:1-15:17-22 in gtid_executed table on slave.
 #
@@ -177,4 +177,4 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 DROP TABLE t3;
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 RESET REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc

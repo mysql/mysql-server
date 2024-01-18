@@ -21,21 +21,21 @@ CREATE TABLE t1 (
 --let $binlog_file= binlog.000001
 
 --let $logical_timestamps= 0 1
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 INSERT INTO t1 VALUES (1);
 
 --echo # Wait for changes to be injected, then check timestamps
 --source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 --let $logical_timestamps= 1 2
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 INSERT INTO t1 VALUES (2);
 
 --echo # Wait for changes to be injected, then check timestamps
 --source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 --let $logical_timestamps= 2 3
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 CREATE TABLE t2 (
   a INT PRIMARY KEY
@@ -49,7 +49,7 @@ COMMIT;
 --echo # Wait for changes to be injected, then check timestamps
 --source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 --let $logical_timestamps= 4 5
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 # Inspect binlog contents
 #--let $datadir= `SELECT @@datadir`
@@ -63,7 +63,7 @@ INSERT INTO t1 VALUES (4);
 --echo # Wait for changes to be injected, then check timestamps
 --source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 --let $logical_timestamps= 0 1
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 BEGIN;
 INSERT INTO t1 VALUES (5);
@@ -73,7 +73,7 @@ COMMIT;
 --echo # Wait for changes to be injected, then check timestamps
 --source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 --let $logical_timestamps= 1 2
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 --echo # Cleanup
 DROP TABLE t1;

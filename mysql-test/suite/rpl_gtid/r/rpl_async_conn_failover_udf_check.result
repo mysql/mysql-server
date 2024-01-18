@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -163,4 +163,4 @@ The UDF asynchronous_connection_failover_reset() executed successfully.
 DROP USER 'async_user';
 include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover']
 RESET REPLICA ALL;
-include/rpl_end.inc
+include/rpl/deinit.inc

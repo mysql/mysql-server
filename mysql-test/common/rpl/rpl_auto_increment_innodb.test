@@ -1,0 +1,155 @@
+#
+# Test of auto_increment with offset
+#
+-- source include/not_ndb_default.inc
+-- source include/rpl/init_source_replica.inc
+
+#
+# Same test with innodb (as the innodb code is a bit different)
+#
+eval create table t1 (a int not null auto_increment, primary key (a)) engine=$engine_type;
+# Insert with 2 insert statements to get better testing of logging
+insert into t1 values (NULL),(5),(NULL);
+insert into t1 values (250),(NULL);
+select * from t1;
+insert into t1 values (1000);
+set @@insert_id=400;
+insert into t1 values(NULL),(NULL);
+select * from t1;
+
+--source include/rpl/sync_to_replica.inc
+select * from t1;
+connection master;
+drop table t1;
+
+
+#
+# BUG#41986 Replication slave does not pick up proper AUTO_INCREMENT value for Innodb tables
+#
+connection master;
+set auto_increment_increment=1;
+set auto_increment_offset=1;
+CREATE TABLE t1 (id MEDIUMINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+show create table t1;
+
+--source include/rpl/sync_to_replica.inc
+show create table t1;
+
+connection master;
+drop table t1;
+
+#
+# BUG#45999 Row based replication fails when auto_increment field = 0.  
+# Store engine of Slaves auto-generates new sequence numbers for
+# auto_increment fields if the values of them are 0. There is an inconsistency
+# between slave and master. When MODE_NO_AUTO_VALUE_ON_ZERO are masters treat 
+#
+source include/rpl/reset.inc;
+
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+eval CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=$engine_type;
+SET SQL_MODE='';
+# Value of the id will be 1;
+INSERT INTO t1 VALUES(NULL);
+SELECT * FROM t1;
+# Value of the id will be 2;
+INSERT INTO t1 VALUES();
+SELECT * FROM t1;
+# Value of the id will be 3. The master treats 0 as NULL or empty because
+# NO_AUTO_VALUE_ON_ZERO is not assign to SQL_MODE.
+INSERT INTO t1 VALUES(0);
+SELECT * FROM t1;
+
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+# Value of the id will be 0. The master does not treat 0 as NULL or empty
+# because NO_AUTO_VALUE_ON_ZERO has assigned to SQL_MODE.
+INSERT INTO t1 VALUES(0);
+SELECT * FROM t1;
+
+INSERT INTO t1 VALUES(4);
+FLUSH LOGS;
+--source include/rpl/sync_to_replica.inc
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+connection master;
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+connection master;
+let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
+# Keep original binlog file
+--copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin-rpl-auto-increment.saved
+# Stop replica
+connection slave;
+source include/rpl/stop_replica.inc;
+RESET REPLICA;
+RESET BINARY LOGS AND GTIDS;
+connection master;
+# Force master to forget used GTIDs
+RESET BINARY LOGS AND GTIDS;
+FLUSH LOGS;
+connection slave;
+source include/rpl/start_replica.inc;
+connection master;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin-rpl-auto-increment.saved | $MYSQL test
+--remove_file $MYSQLD_DATADIR/master-bin-rpl-auto-increment.saved
+--source include/rpl/sync_to_replica.inc
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+
+# End cleanup
+--connection master
+DROP TABLE t1;
+SET SQL_MODE='';
+--source include/rpl/sync_to_replica.inc
+
+#
+# BUG#56662
+# The test verifies if the assertion of "next_insert_id == 0"
+# will fail in ha_external_lock() function.
+#
+connection master;
+CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=innodb;
+
+BEGIN;
+--echo # Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing
+--echo # zero to fill the auto_increment field.
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+INSERT INTO t1(id,data) VALUES(0,2);
+--echo # Resetting sql_mode without NO_AUTO_VALUE_ON_ZERO to
+--echo # affect the execution of the transaction on slave.
+SET SQL_MODE=0;
+COMMIT;
+SELECT * FROM t1;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1;
+
+connection master;
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+#
+# WL#5872 "avoid using global heap memory to remember autoincrement
+# values for statement-based binlog".
+#
+connection master;
+eval create table t1(a int auto_increment primary key) engine=$engine_type;
+insert into t1 values (null),(null),(1025),(null);
+--source include/rpl/sync_to_replica.inc
+select * from t1;
+let $diff_tables= master:t1, slave:t1;
+--source include/diff_tables.inc
+connection master;
+drop table t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

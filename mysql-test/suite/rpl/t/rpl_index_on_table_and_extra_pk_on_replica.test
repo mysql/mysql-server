@@ -30,7 +30,7 @@
 # Bug#34122738: Write_rows apply failure if source table has index and replica an extra PK
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 --echo
@@ -42,7 +42,7 @@
 --echo #    - A table with a non nullable unique key
 --echo #    Create the same tables in the replica with an extra column that is a PK
 
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 
 # Table with an index
 CREATE TABLE st1 (c1 INT, c2 INT, INDEX(c2));
@@ -56,11 +56,11 @@ CREATE TABLE st3 (c1 INT, c2 INT, UNIQUE KEY(c2));
 # Table with a non nullable unique key
 CREATE TABLE st4 (c1 INT, c2 INT NOT NULL, UNIQUE KEY(c2));
 
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 
 CREATE TABLE st1 (c1 INT, c2 INT, c3 INT NOT NULL AUTO_INCREMENT, INDEX(c2), PRIMARY KEY(c3));
 
@@ -70,7 +70,7 @@ CREATE TABLE st3 (c1 INT, c2 INT, c3 INT NOT NULL AUTO_INCREMENT, UNIQUE KEY(c2)
 
 CREATE TABLE st4 (c1 INT, c2 INT NOT NULL, c3 INT NOT NULL AUTO_INCREMENT, UNIQUE KEY(c2), PRIMARY KEY(c3));
 
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 
 --echo
 --echo ##############################################################
@@ -79,7 +79,7 @@ CREATE TABLE st4 (c1 INT, c2 INT NOT NULL, c3 INT NOT NULL AUTO_INCREMENT, UNIQU
 --echo #    Update and delete data, operations that usually would use the indexes (if existent) to locate data on the replica
 --echo #    The update and delete should be replicated and applied correctly
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $table_iter=1
 while ($table_iter <=4)
@@ -97,7 +97,7 @@ while ($table_iter <=4)
   --inc $table_iter
 }
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $table_iter=1
 while ($table_iter <=4)
@@ -121,12 +121,12 @@ while ($table_iter <=4)
 --echo ##############################################################
 --echo # 3. Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE st1;
 DROP TABLE st2;
 DROP TABLE st3;
 DROP TABLE st4;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

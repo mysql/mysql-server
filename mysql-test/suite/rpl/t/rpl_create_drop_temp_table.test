@@ -31,7 +31,7 @@
 # Statement mode is enough (row based temporary
 # tables are not replicated)
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # 1. Create a temporary table
 CREATE TEMPORARY TABLE temp (i INT);
@@ -40,23 +40,23 @@ CREATE TEMPORARY TABLE temp (i INT);
 --sync_slave_with_master
 
 # 3. Stop replica io thread
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 
 # 4. Kill Master so that it does not go through THD::cleanup logic. Hence it does
 # not generate "drop temporary" query for 'temp' table.
 --let $rpl_server_number= 1
 --let $rpl_force_stop=1
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 # 5. Restart Master (generates Format Description event which tells slave to
 # drop all temporary tables)
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
 # 6. Start replica io_thread
 --connection slave
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 --connection master
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # 7. Wait for slave thread to apply all events (including the newly generated
 # FormatDescription event which tells slave SQL thread to drop all temporary
@@ -71,4 +71,4 @@ CREATE TEMPORARY TABLE temp (i INT);
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

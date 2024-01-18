@@ -27,7 +27,7 @@ include/assert.inc [GTID_EXECUTED must be UUID:1-2:110-120]
 [connection server1]
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 include/assert.inc [GTID_EXECUTED must be UUID:1-3:110-120]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 4. Execute a transaction on server 2.
@@ -41,7 +41,7 @@ include/assert.inc [GTID_EXECUTED must be UUID:1-3:102:110-120]
 #    102 interval will continue to be used and will merge
 #    with 110-120 interval.
 include/assert.inc [GTID_EXECUTED must be UUID:1-3:102-123]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 6. Execute a transaction on server 1.
@@ -54,7 +54,7 @@ include/assert.inc [GTID_EXECUTED must be UUID:1-4:102-123]
 #    1-4 interval will continue to be used and will merge
 #    with 102-123 interval.
 include/assert.inc [GTID_EXECUTED must be UUID:1-126]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 8. Execute a transaction on server 2.
@@ -62,7 +62,7 @@ include/rpl_sync.inc
 [connection server2]
 INSERT INTO t1 VALUES (NULL);
 include/assert.inc [GTID_EXECUTED must be UUID:1-126:224]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 9. View changes are always logged with the first available

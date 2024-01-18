@@ -32,7 +32,7 @@
 # This test does not depend on binlog format
 --source include/have_binlog_format_row.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo # T1.1. On the source: generate several transactions, tagged and untagged
@@ -53,14 +53,14 @@ INSERT INTO t1 VALUES(4);
 --echo # T1.2. Synchronize replica with the source, stop replication threads
 --echo
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 --echo
 --echo # T1.3. On the source: reset all GTIDs, re-execute a subset of transactions
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 RESET BINARY LOGS AND GTIDS;
 
@@ -78,12 +78,12 @@ INSERT INTO t1 VALUES(9);
 --echo #       ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 START REPLICA;
 
 --let $slave_io_errno= 13114
 call mtr.add_suppression(".* Got fatal error 1236 from source when reading data from binary log");
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $is_replica_thread_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
 --let $assert_text= "IO thread should be stopped"
@@ -100,13 +100,13 @@ call mtr.add_suppression(".* Got fatal error 1236 from source when reading data 
 --echo # Clean-up
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GTID_NEXT= 'AUTOMATIC:bb';
 INSERT INTO t1 VALUES(8);
 SET GTID_NEXT= 'AUTOMATIC';
 DROP TABLE t1;
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

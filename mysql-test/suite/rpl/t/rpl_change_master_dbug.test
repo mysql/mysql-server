@@ -2,7 +2,7 @@
 # there is no point in running this in more than one binlog format
 -- source include/have_binlog_format_row.inc
 -- source include/have_debug.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 #
 # BUG#44209: MASTER_CONNECT_RETRY and --master-retry-count disconnected from each other
@@ -16,7 +16,7 @@
 ## N was set with CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=N
 
 -- connection slave
--- source include/stop_slave.inc
+-- source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=3, SOURCE_HOST='300.1.1.1', SOURCE_CONNECT_RETRY=1;
 START REPLICA io_thread;
 
@@ -26,11 +26,11 @@ START REPLICA io_thread;
 # get 3 retries (one per second) when the IO thread gives up, ie, 
 # when it stops.
 --let $slave_io_errno= 2005
--- source include/wait_for_slave_io_to_stop.inc
+-- source include/rpl/wait_for_receiver_to_stop.inc
 -- let $error= query_get_value("SHOW REPLICA STATUS", Last_IO_Error, 1)
 if (!`SELECT "$error" LIKE "%attempt 3%"`)
 {
-  -- source include/show_rpl_debug_info.inc
+  -- source include/rpl/debug/show_debug_info.inc
   -- echo Unexpected retry count value! Got: $error
   -- echo Expected number of retries was: 3
   -- die
@@ -41,4 +41,4 @@ RESET REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1';
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

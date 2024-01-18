@@ -34,7 +34,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
 --let $pid_file=`SELECT @@pid_file`
@@ -75,12 +75,12 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 
 # Wait until the group settles on 2 members
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
@@ -91,7 +91,7 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 --echo
 # Send SIGCONT to server, so it can continue (now that he is expelled)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec kill -18 $server_pid
 
 # Verify that the member entered an error state
@@ -101,7 +101,7 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 
 # Then verify that it enabled super_read_only
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= super_read_only should be enabled
 --let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
 --source include/assert.inc
@@ -130,11 +130,11 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --exec kill -19 $server_pid
 # Wait until the group settles on 2 members
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
@@ -145,7 +145,7 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --echo
 # Send SIGCONT to server, so it can continue (now that he is expelled)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec kill -18 $server_pid
 # Wait until the connection is dropped
 --source include/wait_until_disconnected.inc
@@ -157,10 +157,10 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --echo
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $group_seeds_server1 GROUP_SEEDS_SERVER1
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
 --replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1

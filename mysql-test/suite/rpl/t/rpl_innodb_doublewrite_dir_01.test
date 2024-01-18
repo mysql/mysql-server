@@ -6,7 +6,7 @@
 #****************************************************************
 --source include/have_innodb_16k.inc
 --source include/not_valgrind.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo [Connection Master]
 --connection master
@@ -32,7 +32,7 @@ SELECT @@innodb_doublewrite_pages;
 
 SELECT @@innodb_doublewrite_batch_size;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 USE test;
@@ -84,7 +84,7 @@ SET GLOBAL innodb_doublewrite_pages=10;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL innodb_doublewrite_batch_size=1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 USE test;
@@ -111,7 +111,7 @@ USE test;
 
 DROP TABLE tab;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 USE test;
@@ -119,4 +119,4 @@ USE test;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM tab;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

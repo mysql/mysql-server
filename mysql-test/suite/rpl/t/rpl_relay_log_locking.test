@@ -15,26 +15,26 @@
 
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Create one table, populate it, then drop it
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Hold the applier thread executing a new event.
 LOCK TABLES t1 WRITE;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 (c1) VALUES (1);
 
 # Wait until the applier reached the waiting point
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
 --let $condition= = 'Waiting for table metadata lock'
 --source include/wait_show_condition.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $num_inserts= 5
 --echo Populate the table with additional $num_inserts rows
 --disable_query_log
@@ -46,7 +46,7 @@ while ($i < $num_inserts)
 }
 --enable_query_log
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # Add debug instrumentation to hold the receiver thread
 # while writing to the relay log.
@@ -54,11 +54,11 @@ while ($i < $num_inserts)
 --source include/add_debug_point.inc
 
 # Generate a new transaction to make the receiver to work
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
 # Wait until the receiver reached the debug point
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET DEBUG_SYNC='now WAIT_FOR receiver_reached_pause_on_queue_event';
 
 # At this point, we have the receiver thread holding the relay log LOCK_log
@@ -77,11 +77,11 @@ UNLOCK TABLES;
 --let $binlog_limit= 1, 6
 --let $keep_gtid_events= 1
 --let $mask_anonymous_gtid_events= 1
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 
 --let $debug_point=pause_on_queue_event_after_write_buffer
 --source include/remove_debug_point.inc
 SET DEBUG_SYNC='now SIGNAL receiver_continue_queuing_event';
 
 # Cleanup
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

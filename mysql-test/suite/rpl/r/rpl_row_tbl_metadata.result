@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -157,13 +157,13 @@ PRIMARY KEY (`c1`)
 LOCK TABLES `t1` WRITE;
 INSERT INTO `t1`(c2) VALUES ('1');
 FLUSH LOGS;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: the slave replicated event successfully and tables match
 include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE `t1`;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 === Using mysqlbinlog to detect failure. Before the patch mysqlbinlog would find a corrupted event, thence would fail.
-include/rpl_reset.inc
+include/rpl/reset.inc
 ### action: generating several tables with different metadata 
 ###         sizes (resorting to perl)
 ### testing table with 249 field metadata size.
@@ -176,39 +176,39 @@ include/rpl_reset.inc
 ### testing table with 256 field metadata size.
 ### testing table with 257 field metadata size.
 ### testing table with 258 field metadata size.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 FLUSH LOGS;
 ### assertion: the slave replicated event successfully and tables match for t10
 include/diff_tables.inc [master:t10, slave:t10]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: the slave replicated event successfully and tables match for t9
 include/diff_tables.inc [master:t9, slave:t9]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: the slave replicated event successfully and tables match for t8
 include/diff_tables.inc [master:t8, slave:t8]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: the slave replicated event successfully and tables match for t7
 include/diff_tables.inc [master:t7, slave:t7]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: the slave replicated event successfully and tables match for t6
 include/diff_tables.inc [master:t6, slave:t6]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: the slave replicated event successfully and tables match for t5
 include/diff_tables.inc [master:t5, slave:t5]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: the slave replicated event successfully and tables match for t4
 include/diff_tables.inc [master:t4, slave:t4]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: the slave replicated event successfully and tables match for t3
 include/diff_tables.inc [master:t3, slave:t3]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: the slave replicated event successfully and tables match for t2
 include/diff_tables.inc [master:t2, slave:t2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: the slave replicated event successfully and tables match for t1
 include/diff_tables.inc [master:t1, slave:t1]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ### assertion: check that binlog is not corrupt. Using mysqlbinlog to 
 ###            detect failure. Before the patch mysqlbinlog would find 
 ###            a corrupted event, thence would fail.
-include/rpl_end.inc
+include/rpl/deinit.inc
