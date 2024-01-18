@@ -1330,4 +1330,9 @@ FROM t AS t1 LEFT JOIN t AS t2 ON TRUE,
      LATERAL (SELECT DISTINCT t2.a FROM t) AS t3
 WHERE t1.a = t3.a;
 
+SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ COUNT(*)
+FROM t AS t1 LEFT JOIN t AS t2 ON 1,
+     JSON_TABLE(t2.b, '$[*]' COLUMNS(i INT PATH '$[0]')) AS t3
+WHERE t3.i < 10 AND t1.a = t3.i;
+
 DROP TABLE t;

@@ -68,6 +68,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"
 #include "sql/table.h"
+#include "sql/table_function.h"
 #include "template_utils.h"
 
 using hypergraph::Hyperedge;
@@ -3534,12 +3535,16 @@ void FindLateralDependencies(JoinHypergraph *graph) {
   for (JoinHypergraph::Node &node : graph->nodes) {
     assert(node.lateral_dependencies() == 0);  // Not set yet.
     const Table_ref *const table_ref = node.table()->pos_in_table_list;
+    table_map deps = 0;
     if (table_ref->is_derived()) {
-      node.set_lateral_dependencies(GetNodeMapFromTableMap(
-          table_ref->derived_query_expression()->m_lateral_deps &
-              ~PSEUDO_TABLE_BITS,
-          graph->table_num_to_node_num));
+      deps = table_ref->derived_query_expression()->m_lateral_deps;
+    } else if (table_ref->is_table_function()) {
+      deps = table_ref->table_function->used_tables();
+    } else {
+      continue;
     }
+    node.set_lateral_dependencies(GetNodeMapFromTableMap(
+        deps & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num));
   }
 }
 

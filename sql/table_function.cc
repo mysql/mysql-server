@@ -35,7 +35,9 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql-common/json_dom.h"
+#include "sql-common/json_error_handler.h"
 #include "sql-common/json_path.h"
+#include "sql/current_thd.h"
 #include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -756,7 +758,9 @@ bool Table_function_json::print(const THD *thd, String *str,
           str->append(')'));
 }
 
-table_map Table_function_json::used_tables() { return source->used_tables(); }
+table_map Table_function_json::used_tables() const {
+  return source->used_tables();
+}
 
 void Table_function_json::do_cleanup() {
   source->cleanup();

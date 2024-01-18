@@ -3014,9 +3014,8 @@ bool CostingReceiver::ProposeTableScan(
       materialize_path->set_init_once_cost(materialize_path->cost());
       materialize_path->num_output_rows_before_filter = num_output_rows;
 
-      materialize_path->parameter_tables = GetNodeMapFromTableMap(
-          tl->table_function->used_tables() & ~PSEUDO_TABLE_BITS,
-          m_graph->table_num_to_node_num);
+      materialize_path->parameter_tables =
+          m_graph->nodes[node_idx].lateral_dependencies();
       if (Overlaps(tl->table_function->used_tables(),
                    OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)) {
         // Make sure the table function is never hashed, ever.

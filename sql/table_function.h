@@ -131,7 +131,7 @@ class Table_function {
   /**
     Return table_map of tables used by the function
   */
-  virtual table_map used_tables() { return 0; }
+  virtual table_map used_tables() const { return 0; }
   /**
     Print table function
 
@@ -367,7 +367,7 @@ class Table_function_json final : public Table_function {
   /**
     Return table_map of tables used by function's data source
   */
-  table_map used_tables() override;
+  table_map used_tables() const override;
 
   /**
     JSON_TABLE printout

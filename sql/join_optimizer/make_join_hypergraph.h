@@ -180,7 +180,7 @@ struct JoinHypergraph {
     // The lateral dependencies of this table. That is, the set of tables that
     // must be available on the outer side of a nested loop join in which this
     // table is on the inner side. This map may be set for LATERAL derived
-    // tables and derived tables with outer references.
+    // tables and derived tables with outer references, and for table functions.
     hypergraph::NodeMap m_lateral_dependencies{0};
   };
   Mem_root_array<Node> nodes;
