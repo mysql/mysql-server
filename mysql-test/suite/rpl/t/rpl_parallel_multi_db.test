@@ -5,8 +5,8 @@
 # a DML Query modifies multiple databases.
 #
 
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_statement.inc
 --source include/no_valgrind_without_big.inc
 
@@ -17,10 +17,10 @@ let $workers= 4;
 
 connection slave;
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 eval set @@global.replica_parallel_workers= $workers;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 
 let $dbs= 8;
@@ -98,7 +98,7 @@ while ($k)
 --enable_warnings
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc 
+--source include/rpl/sync_to_replica.inc 
 
 #
 # 2. Case of invoked routines
@@ -164,7 +164,7 @@ while ($k)
 
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # B. Triggers
 
@@ -208,7 +208,7 @@ while ($k)
 --enable_query_log
 
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Consistency check
@@ -244,7 +244,7 @@ while ($n)
 
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Over MAX_DBS_IN_QUERY_MTS
@@ -305,7 +305,7 @@ while ($k)
 --enable_warnings
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Todo: to impelement a stress test for sync_slave_with_master
 #       specifically in parallel mode.
@@ -347,11 +347,11 @@ while ($n)
 
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 --enable_warnings
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

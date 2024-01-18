@@ -82,15 +82,15 @@
 --source include/have_binlog_format_mixed_or_row.inc
 
 # MTS does not allow row events outside transactions.
---source include/not_mts_replica_parallel_workers.inc
+--source include/not_replica_parallel_workers.inc
 
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #### Initialize ####
 
 CREATE TABLE t1 (a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression('QUERY.*COMMIT or ROLLBACK.* or XID_LOG_EVENT is not expected in an event stream outside a transaction');
 CALL mtr.add_suppression('An unexpected event sequence was detected by the IO thread while queuing the event received from source');
 
@@ -133,7 +133,7 @@ SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 --echo ---- 1.5. Other stm generates error for NOT_YET_DETERMINED if GTID_MODE=ON ----
 --let $rpl_set_enforce_gtid_consistency= 1
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 eval BINLOG $fd_event;
 SELECT @@SESSION.GTID_NEXT;
@@ -153,7 +153,7 @@ SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 
 --let $rpl_set_enforce_gtid_consistency= 0
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 --echo ---- 1.7.1 Can set AUTOMATIC after NOT_YET_DETERMINED ----
 eval BINLOG $fd_event;
@@ -188,7 +188,7 @@ SET GLOBAL GTID_MODE = OFF;
 --echo #### 2. CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS ####
 
 --connection slave
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 --connection master
 --let $file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $position= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
@@ -202,32 +202,32 @@ INSERT INTO t1 VALUES (1);
 --connection slave
 --replace_result $file FILE $position POSITION
 eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $position;
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #### 3. CHANGE REPLICATION SOURCE TO RELAY_LOG_POS ####
 
 --let $file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 --let $position= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 
 --connection master
 INSERT INTO t1 VALUES (2);
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 --let $position = query_get_value(SHOW RELAYLOG EVENTS IN '$file' FROM $position, Pos, 3)
 
 --replace_result $file FILE $position POSITION
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE = '$file', RELAY_LOG_POS = $position;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #### Clean up ####
 
 --connection master
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

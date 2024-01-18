@@ -138,7 +138,7 @@
 
 # Start replica threads later.
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #### Specify scenarios ####
 
@@ -529,7 +529,7 @@ let $names = {
   if (!$use_prefix) {
     --let $prefixed =
   }
-  # Make show_rpl_debug_info.inc dump the table if the test fails
+  # Make rpl/debug/show_debug_info.inc dump the table if the test fails
   --let $qualified_table = $schema.$table
   if ($schema == '') {
     --let $qualified_table = $table
@@ -577,7 +577,7 @@ let $names = {
           --echo # DEBUG: Observed the following '$version' names:
           eval SELECT t.$column $sql_found_names;
         }
-        # Make show_rpl_debug_info.inc execute the SELECT if the test fails
+        # Make rpl/debug/show_debug_info.inc execute the SELECT if the test fails
         --delimiter |
         let $extra_debug_sql =
           SELECT t.$column $sql_found_names;
@@ -606,10 +606,10 @@ END_OF_PROCEDURE
 
 # Start MTA, so we can observe the 'thread names' in the thread tables.
 --connection server_2
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 SET @save_replica_parallel_workers = @@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers = 4;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 # The source will hang in the middle of the initial replication
 # handshake, for the whole duration of the test.  So we increase the
@@ -626,7 +626,7 @@ CREATE TABLE statement_result (name VARCHAR(256), KEY(name));
 
 # Make 'server_1' connection wait for dump thread to reach the state.
 --connection server_1
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 CREATE TABLE statement_result (name VARCHAR(256), KEY(name));
 --let $debug_point = syncpoint_begin_register_replica
 --source include/add_debug_point.inc
@@ -761,20 +761,20 @@ eval SELECT @@session.terminology_use_previous;
 SET @@session.debug_sync = "now SIGNAL continue_begin_register_replica";
 # Wait for replica to start
 --connection server_2
---source include/wait_for_slave_io_to_start.inc
+--source include/rpl/wait_for_receiver_to_start.inc
 
 --disable_warnings
 SET @@global.replica_parallel_workers = @save_replica_parallel_workers;
 --enable_warnings
 SET @@global.replica_net_timeout = @save_replica_net_timeout;
 --connection server_1
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 --let $debug_point = syncpoint_begin_register_replica
 --source include/remove_debug_point.inc
 DROP TABLE statement_result;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --remove_file $assertions_for_table
 --source include/destroy_json_functions.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

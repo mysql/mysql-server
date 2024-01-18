@@ -12,7 +12,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --echo
 
 #
@@ -38,7 +38,7 @@ INSERT INTO t1 (b) VALUES ('master');
 INSERT INTO t1 (b) VALUES ('master');
 SELECT * FROM t1 ORDER BY a;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
 INSERT INTO t1 (b) VALUES ('slave');
 INSERT INTO t1 (b) VALUES ('slave');
@@ -96,7 +96,7 @@ SHOW CREATE SCHEMA s1;
 CREATE TABLE s1.t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
 SHOW CREATE TABLE s1.t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo [On Slave]
 CREATE SCHEMA s2;
@@ -141,7 +141,7 @@ CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c INT) ENGINE=MyISAM
 INSERT INTO t1 VALUES (1, 'master ', WEEK('2008-01-07'));
 SELECT * FROM t1 ORDER BY a;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 INSERT INTO t1 VALUES (2, 'slave ', WEEK('2008-01-07'));
 SELECT * FROM t1 ORDER BY a;
 
@@ -169,7 +169,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(20), c CHA
 --replace_regex /\'.+\'/'FILE'/
 --eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/words.dat' INTO TABLE t1 (b)
 SELECT COUNT(*) FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_regex /\'.+\'/'FILE2'/
 --error ER_CLIENT_LOCAL_FILES_DISABLED
 --eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/words2.dat' INTO TABLE t1 (b)
@@ -186,7 +186,7 @@ DROP TABLE t1;
 --connection master
 SET @@global.character_set_database=@restore_master_character_set_database;
 SET @@global.collation_server=@restore_master_collation_server;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET @@global.character_set_database=@restore_slave_character_set_database;
 SET @@global.collation_server=@restore_slave_collation_server;
 SET @@global.local_infile= @old_local_infile;
@@ -199,4 +199,4 @@ SET @@global.local_infile= @old_local_infile;
 call mtr.add_suppression("The table 't[12]' is full");
 
 # End of 5.1 test 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

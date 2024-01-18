@@ -21,7 +21,7 @@
 --echo # 1. Start group on server1 with group_replication_preemptive_garbage_collection
 --echo #    enabled.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
 --source include/start_and_bootstrap_group_replication.inc
@@ -36,7 +36,7 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection= OFF;
 --echo #    group_replication_preemptive_garbage_collection disabled.
 --echo #    Server will not be allowed to join.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The member is configured with a group_replication_preemptive_garbage_collection option value '0' different from the group '1'. The member will now exit the group.");
 SET SESSION sql_log_bin = 1;
@@ -60,7 +60,7 @@ START GROUP_REPLICATION;
 --echo ############################################################
 --echo # 3. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
 

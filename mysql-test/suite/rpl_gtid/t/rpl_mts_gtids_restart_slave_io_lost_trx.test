@@ -10,6 +10,6 @@
 # using MTS slave configuration.
 #
 
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 --let $using_mts= 1
---source extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test
+--source common/rpl/rpl_gtids_restart_receiver_lost_trx.test

@@ -72,14 +72,14 @@
 # This test does not depend on binlog format
 --source include/have_binlog_format_row.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo # T1.1. On the replica: Set debug point that will simulate unknown
 --echo #       required fields in the tagged Gtid_log_event
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 let $messages =
 Could not parse relay log event entry
@@ -96,13 +96,13 @@ Relay log write failure: could not queue event from source
 --echo # T1.2. On the source: Execute transactions with tagged GTIDs
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 SET GTID_NEXT= "AUTOMATIC:aa";
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
 DROP TABLE t1;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --echo
 --echo # T1.3. On the replica: Check that SQL thread has stopped
@@ -128,7 +128,7 @@ DROP TABLE t1;
 --let $debug_point = simulate_gtid_tagged_log_event_with_unknown_non_ignorable_fields
 --source include/remove_debug_point.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo
 --echo # T2.1. On the source: Set debug point that will simulate unknown
@@ -155,7 +155,7 @@ DROP TABLE t1;
 --echo # T2.3. On the replica: Check that IO thread has stopped
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $is_io_thread_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
 --let $assert_text= "IO thread should be stopped"
@@ -167,18 +167,18 @@ DROP TABLE t1;
 --echo #
 
 RESET REPLICA;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 RESET BINARY LOGS AND GTIDS;
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo # T3.1. On the source: Set debug point that will simulate unknown
 --echo #       ignorable fields in the tagged Gtid_log_event (debug point set)
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $server_uuid = `SELECT @@server_uuid`
 
 --echo
@@ -195,13 +195,13 @@ DROP TABLE t1;
 
 --let $debug_point = add_unknown_ignorable_fields_to_gtid_log_event
 --source include/remove_debug_point.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # T3.4. On the replica: Check that tagged transactions were replicated
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $assert_cond= [SELECT GTID_SUBSET("$server_uuid:aa:1-2", @@GLOBAL.GTID_EXECUTED)] = 1
 --let $assert_text= Ensure that executed transactions with specified tag and automatic uuid are present in gtid_executed global variable
@@ -211,4 +211,4 @@ DROP TABLE t1;
 --echo # Clean-up
 --echo #
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

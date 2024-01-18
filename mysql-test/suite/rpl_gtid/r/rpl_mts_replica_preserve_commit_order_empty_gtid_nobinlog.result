@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,11 +18,11 @@ Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers= 2;
 SET GLOBAL replica_preserve_commit_order= ON;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 [connection master]
 CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 # Adding debug point 'syncpoint_commit_order_manager_after_wait_100' to @@GLOBAL.debug
 [connection slave]
@@ -53,7 +53,7 @@ SET DEBUG_SYNC= "now SIGNAL continue_commit_order_manager_after_wait_100";;
 [connection slave]
 # Removing debug point 'syncpoint_commit_order_manager_after_wait_100' from @@GLOBAL.debug
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Verify table t1 has data]
 
 # Cleanup
@@ -61,12 +61,12 @@ include/assert.inc [Verify table t1 has data]
 [connection master]
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replica_parallel_type= @save_replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
 SET GLOBAL replica_preserve_commit_order= @save_replica_preserve_commit_order;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

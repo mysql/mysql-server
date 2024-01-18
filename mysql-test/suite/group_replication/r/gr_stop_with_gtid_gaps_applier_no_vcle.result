@@ -5,11 +5,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 ############################################################
@@ -59,12 +59,12 @@ RESET BINARY LOGS AND GTIDS;
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t2 (i INT PRIMARY KEY);
 include/assert.inc [GTID_EXECUTED must contain no holes]
-include/assert_binlog_events.inc [!Gtid_transaction # !Gtid_transaction]
+include/rpl/assert_binlog_events.inc [!Gtid_transaction # !Gtid_transaction]
 [connection server2]
 include/assert.inc [GTID_EXECUTED must be empty]
 include/start_group_replication.inc
 include/assert.inc [GTID_EXECUTED must contain no holes]
-include/assert_binlog_events.inc [!Gtid_transaction # !Gtid_transaction]
+include/rpl/assert_binlog_events.inc [!Gtid_transaction # !Gtid_transaction]
 
 ############################################################
 # 6. Cleanup.
@@ -78,10 +78,10 @@ call mtr.add_suppression("Fatal error during execution on the Applier process of
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 include/group_replication_end.inc

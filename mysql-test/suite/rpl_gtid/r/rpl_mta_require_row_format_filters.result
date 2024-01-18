@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,17 +7,17 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Setup
 #
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression("The query does not comply with variable require_row_format restrictions");
-include/start_slave.inc
+include/rpl/start_replica.inc
 # FR1: Receiver thread does not error on an event that violates
 #      require_row_format when that is not filtered out.
 [connection master]
 CREATE TABLE test.t1 (c1 INT PRIMARY KEY);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 [connection master]
 INSERT INTO t1 VALUES (1);
 SET SESSION binlog_format=STATEMENT;
@@ -30,36 +30,36 @@ SET SESSION binlog_format=ROW;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection slave]
 START REPLICA SQL_THREAD;
-include/wait_for_slave_sql_error.inc [errno=3944]
+include/rpl/wait_for_applier_error.inc [errno=3944]
 # FR2: An empty GTID transaction can be used to skip a transaction
 #      that violates require_row_format
 SET GTID_NEXT='00000000-0000-0000-0000-000000000000:1';
 BEGIN;
 COMMIT;
 SET GTID_NEXT=AUTOMATIC;
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Assert that there is only one row in the replica table]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 # FR3: Applier thread shall not error out if the offending statement
 #      is filtered out
 [connection master]
 CREATE DATABASE ignored_db;
 CREATE TABLE ignored_db.t1 (c1 INT PRIMARY KEY);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = (ignored_db);;
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
 use ignored_db;
 SET SESSION binlog_format=STATEMENT;
@@ -71,27 +71,27 @@ Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 use test;
 [connection slave]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Assert there are no rows in the table as the change was filtered]
 # clean up
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP DATABASE ignored_db;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 # FR4: Applier thread shall not error out if the offending LOAD DATA
 #      statement applies to an ignored database
 [connection master]
 CREATE DATABASE ignored_db;;
 CREATE TABLE ignored_db.tload (c1 TEXT);;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = (ignored_db);
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 USE ignored_db;
 SET SESSION binlog_format=STATEMENT;
@@ -102,24 +102,24 @@ SET SESSION binlog_format=ROW;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 use test;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [table is empty on the secondary]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP DATABASE ignored_db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 # FR5: Applier thread shall not error out if the offending LOAD DATA
 #      statement applies to an ignored table
 [connection master]
 CREATE TABLE tload (c1 TEXT);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = (test.tload);
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 SET SESSION binlog_format=STATEMENT;
 Warnings:
@@ -128,22 +128,22 @@ LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [table is empty on the secondary]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = ();
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE tload;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 # FR6: Applier thread shall not error out if the offending LOAD DATA
 #      statement is skipped on the replica because the transaction is
 #      automatically skipped (GTID had already been processed).
 [connection master]
 CREATE TABLE tload (c1 TEXT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GTID_NEXT='00000000-0000-0000-0000-000000000000:1';
 BEGIN;
 COMMIT;
@@ -158,13 +158,13 @@ SET GTID_NEXT=AUTOMATIC;
 SET SESSION binlog_format=ROW;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [table is empty on the secondary]
 [connection master]
 DROP TABLE tload;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 # FR7: Applier thread shall error out if the offending LOAD DATA
 #      statement is not filtered out nor skipped.
 [connection master]
@@ -177,8 +177,8 @@ SET SESSION binlog_format=ROW;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=3944]
-include/stop_slave.inc
+include/rpl/wait_for_applier_error.inc [errno=3944]
+include/rpl/stop_replica.inc
 [connection slave]
 RESET REPLICA;
 DROP TABLE tload;
@@ -187,9 +187,9 @@ RESET BINARY LOGS AND GTIDS;
 DROP TABLE tload;
 RESET BINARY LOGS AND GTIDS;
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 # Tear down
 [connection master]
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -14,22 +14,22 @@
 # and verify that the SQL thread was properly stopped and left no gaps.
 
 --source include/have_binlog_format_row.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/only_mts_replica_parallel_type_database.inc
---source include/master-slave.inc
+--source include/have_replica_parallel_workers.inc
+--source include/have_replica_parallel_type_database.inc
+--source include/rpl/init_source_replica.inc
 
 --let $slave_stop_wait=5
 
 --echo #### I. Initialize ####
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
 --eval set @@global.innodb_lock_wait_timeout=$slave_stop_wait + 1000
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE DATABASE d1;
 CREATE DATABASE d2;
 CREATE TABLE d1.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
@@ -37,12 +37,12 @@ CREATE TABLE d2.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
 
 --echo #### II. Prepare test scenario ####
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 BEGIN;
 INSERT INTO d2.t VALUES (2, 'Slave local'); # Hold T3
 INSERT INTO d1.t VALUES (3, 'Slave local'); # Hold T6
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO d1.t VALUES (1, 'T1');
 INSERT INTO d2.t VALUES (1, 'T2');
 INSERT INTO d2.t VALUES (2, 'T3'); # This will be a gap when executed on slave
@@ -53,7 +53,7 @@ INSERT INTO d2.t VALUES (4, 'T7'); # This should not be executed after STOP REPL
 INSERT INTO d2.t VALUES (5, 'T8'); # This should not be executed after STOP REPLICA
 INSERT INTO d1.t VALUES (4, 'T9'); # This should not be executed after STOP REPLICA
 
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 --let $table=d2.t
 --let $count=1
 --source include/wait_until_rows_count.inc
@@ -80,7 +80,7 @@ SELECT * FROM d1.t;
 
 --send STOP REPLICA
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Despite time elapsed, the slave should still be running, waiting for the
 # queue to be completed.
 --sleep $slave_stop_wait
@@ -91,7 +91,7 @@ SELECT * FROM d1.t;
 
 --echo # Now coordinator is waiting for the worker to consume its queue.
 ROLLBACK;
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 
 --echo # III. Now all slave threads have stopped. Verify that worker completed its queue:
@@ -104,19 +104,19 @@ ROLLBACK;
 --let $assert_cond= MAX(a)=3 FROM d1.t;
 --let $assert_text= Rows until 2 in d1.t must be replicated now
 --source include/assert.inc
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 --reap
 
 #
 # Cleanup
 #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @@global.innodb_lock_wait_timeout= @save.innodb_lock_wait_timeout;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP DATABASE d1;
 DROP DATABASE d2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

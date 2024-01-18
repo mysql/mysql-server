@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -33,7 +33,7 @@ XA PREPARE '2';
 XA COMMIT '2';
 XA COMMIT '1-row';
 XA COMMIT '1-stmt';
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Found 2 prepared XA transactions' COLLATE 'utf8mb4_0900_ai_ci'))
@@ -63,8 +63,8 @@ master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'32',X'',1
 master-bin.000001	#	Query	#	#	XA COMMIT X'32',X'',1
 master-bin.000001	#	Query	#	#	XA COMMIT X'312d726f77',X'',1
 master-bin.000001	#	Query	#	#	XA COMMIT X'312d73746d74',X'',1
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET @@session.binlog_format= statement;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
@@ -138,9 +138,9 @@ INSERT INTO d1.t VALUES (1);
 INSERT INTO d2.t VALUES (1);
 XA END 'bulk_trx_1';
 XA PREPARE 'bulk_trx_1';
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 XA COMMIT 'bulk_trx_10';
 XA ROLLBACK 'bulk_trx_9';
 XA COMMIT 'bulk_trx_8';
@@ -151,8 +151,8 @@ XA COMMIT 'bulk_trx_4';
 XA ROLLBACK 'bulk_trx_3';
 XA COMMIT 'bulk_trx_2';
 XA ROLLBACK 'bulk_trx_1';
-include/rpl_restart_server.inc [server_number=1]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/start_replica.inc
 *** '3-stmt','3-row' xa-transactions must be in the list ***
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -160,7 +160,7 @@ formatID	gtrid_length	bqual_length	data
 1	6	0	3-stmt
 XA COMMIT '3-stmt';
 XA ROLLBACK '3-row';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 XA START '';
 INSERT INTO d1.t VALUES (4);
 XA END '';
@@ -177,7 +177,7 @@ XA COMMIT '';
 XA COMMIT '0123456789012345678901234567890123456789012345678901234567890124','0123456789012345678901234567890123456789012345678901234567890124',64;
 XA COMMIT X'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',X'00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',0;
 XA COMMIT 'RANDOM XID'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 XA START 'one_phase_10';
 INSERT INTO d1.t VALUES (10);
 INSERT INTO d2.t VALUES (10);
@@ -228,7 +228,7 @@ INSERT INTO d1.t VALUES (1);
 INSERT INTO d2.t VALUES (1);
 XA END 'one_phase_1';
 XA COMMIT 'one_phase_1' ONE PHASE;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:d1.t, slave:d1.t]
 include/diff_tables.inc [master:d2.t, slave:d2.t]
 DELETE FROM d1.t;
@@ -237,5 +237,5 @@ DROP TABLE d1.t, d2.t;
 DROP DATABASE d1;
 DROP DATABASE d2;
 DROP VIEW v_processlist;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -1,6 +1,6 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 ################################################################################
 # Bug#18363515 MULTIPLE THREADED SLAVE MAY BE CRASHED BY STOP SLAVE SQL
 #
@@ -12,10 +12,10 @@
 ################################################################################
 CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @save_debug = @@GLOBAL.debug;
 
 # make the following transactions to have a common commit parent
@@ -36,9 +36,9 @@ COMMIT;
 INSERT INTO t1 VALUES(5);
 
 SET GLOBAL debug = @save_debug;
---source include/save_master_pos.inc
+--source include/rpl/save_server_position.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
@@ -58,9 +58,9 @@ CALL mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 LOCK TABLE t1 WRITE;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
---source include/sync_slave_io.inc
---source include/start_slave_sql.inc
+--source include/connection.inc
+--source include/rpl/sync_received_with_saved.inc
+--source include/rpl/start_applier.inc
 
 # Wait until coordinator already dispatches events to both workers.
 --let $show_statement= SHOW PROCESSLIST
@@ -75,13 +75,13 @@ LOCK TABLE t1 WRITE;
 --source include/wait_show_condition.inc
 
 # Release metadata lock on t1, so workers can go ahead.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 UNLOCK TABLES;
 
 # Workers encounter duplicate error(ER_DUP_ENTRY), rollback signalled
 # (ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR) and abort coordinator
 --let $slave_sql_errno=1062,3030
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --disable_warnings
 SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
@@ -90,9 +90,9 @@ SET GLOBAL replica_parallel_type = @save_replica_parallel_type;
 SET GLOBAL replica_transaction_retries = @save_replica_transaction_retries;
 # Remove the duplicate key from slave's db.
 TRUNCATE t1;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 DROP TABLE t2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

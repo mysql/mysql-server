@@ -23,11 +23,11 @@
 
 # the table performance_schema.replication_applier_status_by_worker can only
 # have one row for this test to work correctly
---source include/not_mts_replica_parallel_workers.inc
+--source include/not_replica_parallel_workers.inc
 # the test is binlog format agnostic
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression(".* Could not execute Write_rows event on table test.*");
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
@@ -35,24 +35,24 @@ SET @@GLOBAL.replica_transaction_retries = 10;
 SET @@GLOBAL.innodb_lock_wait_timeout = 2;
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT UNIQUE);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # start a transaction on the slave that locks t1
 BEGIN;
 INSERT INTO t1 VALUES (1);
 
 # execute a transaction on the master that will be blocked in the slave
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 INSERT INTO t1 VALUES (1);
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # wait for replica_transaction_retries to reach the maximum retry value
 --let $slave_sql_errno = convert_error(ER_LOCK_WAIT_TIMEOUT)
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $assert_cond = [SELECT GTID_SUBSET("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1", @@GLOBAL.GTID_EXECUTED)] = 0
 --let $assert_text = The master transaction should not be in the slave GTID_EXECUTED set
@@ -76,10 +76,10 @@ COMMIT;
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 COMMIT;
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_cond = [SELECT GTID_SUBSET("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1", @@GLOBAL.GTID_EXECUTED)] = 1
 --let $assert_text = The master transaction should be in the slave GTID_EXECUTED set
@@ -134,7 +134,7 @@ SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 # cleanup
 SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET @@GLOBAL.replica_transaction_retries = @saved_replica_transaction_retries;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

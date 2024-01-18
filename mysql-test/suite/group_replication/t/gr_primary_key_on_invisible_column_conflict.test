@@ -24,7 +24,7 @@
 --echo # 1. With both members ONLINE. Create a table on M1.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY INVISIBLE, c2 INT);
 
@@ -32,7 +32,7 @@ SELECT * FROM t1;
 
 SELECT c1, c2 FROM t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -63,7 +63,7 @@ SELECT c1, c2 FROM t1;
 --echo # 4. Assert servers consistency.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Table t1 will contain row after the above execution
 --let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1]" = "1"

@@ -36,17 +36,17 @@
 --echo #    Server1 will be primary and server 2 and server3 secondary.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -54,16 +54,16 @@
 --echo # 2. Create table on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo # 3. Start transaction on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START TRANSACTION;
 INSERT INTO t1 VALUES(1);
@@ -72,7 +72,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 4. At server3 start primary change from server1 to server2.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER2_UUID
 --send_eval SELECT group_replication_set_as_primary("$server2_uuid",30)
@@ -81,7 +81,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 5. Wait for the THD_transaction_monitor thread to start.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
 --source include/wait_condition.inc
@@ -90,7 +90,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 6. Kill and restart server3.
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -104,7 +104,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 7. Wait for server3 to be expelled
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
@@ -121,14 +121,14 @@ INSERT INTO t1 VALUES(1);
 # If wait_until_disconnected can wait for 120 seconds, we can check that first.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_timeout= 120
 --let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME LIKE "thread/group_rpl/THD_transaction_monitor%"
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/wait_until_disconnected.inc
 --source include/wait_until_connected_again.inc
@@ -138,12 +138,12 @@ INSERT INTO t1 VALUES(1);
 --echo #    Assert data is not present on M1 and M2.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
@@ -158,11 +158,11 @@ INSERT INTO t1 VALUES(1);
 --echo # 10. Cleanup
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error CR_SERVER_LOST
 --reap

@@ -36,7 +36,7 @@
 ## 0.1. Store members uuids and set bin logs for required servers.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 SET @debug_group_replication_local_address= @@GLOBAL.group_replication_local_address;
@@ -51,7 +51,7 @@ set session sql_log_bin=1;
 ##      Server1 will work as seed.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_group_name= $member2_uuid
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -68,7 +68,7 @@ set session sql_log_bin=1;
 ## 1.   Restart server2 with group_name as server2_uuid
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -93,7 +93,7 @@ set session sql_log_bin=1;
 ##      Server1 will work as seed.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --let $group_replication_group_name= 8a94f357-aaaa-11aa-22bb-c80aa9421111
 --source include/start_and_bootstrap_group_replication.inc
@@ -108,7 +108,7 @@ set session sql_log_bin=1;
 ## 2.2. Restart server2 with unique group_name.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_start_on_boot=1 --group_replication_group_name=$group_replication_group_name
@@ -152,5 +152,5 @@ SET @@GLOBAL.group_replication_group_seeds= @debug_group_replication_group_seeds
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc

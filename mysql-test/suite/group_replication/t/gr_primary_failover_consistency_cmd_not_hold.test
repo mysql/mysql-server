@@ -32,7 +32,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
 
@@ -43,7 +43,7 @@ SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
 --echo #    hold
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @debug_save= @@GLOBAL.DEBUG;
 # If any command is hold the server will trigger an assert
@@ -159,7 +159,7 @@ RESET PERSIST;
 --echo # 13. Reconnect server1 to group
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '-d,launch_hook_trans_begin_assert_if_hold';
 
@@ -180,7 +180,7 @@ SHUTDOWN;
 
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # 15. Cleanup

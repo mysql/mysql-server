@@ -29,7 +29,7 @@
 # | server1 | ONLINE  | 8.4.1   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -44,7 +44,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
 # | server2 | ONLINE  | 8.4.0   | Primary   | LTS        |
 # +---------+---------+---------+-----------+------------+
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -53,7 +53,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
 --echo # 3. Validate that the group has two primaries and both are
 --echo #    writable.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= There are two primaries on the group
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_members WHERE MEMBER_ROLE="PRIMARY", count, 1] = 2
 --source include/assert.inc
@@ -66,7 +66,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= There are two primaries on the group
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_members WHERE MEMBER_ROLE="PRIMARY", count, 1] = 2
 --source include/assert.inc
@@ -83,7 +83,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_patch_version';
 
 --source include/group_replication_end.inc

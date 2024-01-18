@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1. Create a table on the master and sync it to the slave
 [connection master]
 CREATE TABLE t1 (i INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 2. Set some debug points and vars so:
 #  - The slave thinks the relay-log-space-limit was reached
@@ -33,11 +33,11 @@ SET DEBUG_SYNC= 'now SIGNAL signal.rpl_before_forced_rotate_continue';
 SET @@GLOBAL.DEBUG= '-d,rpl_before_forced_rotate';
 [connection master]
 INSERT INTO t1 VALUES (1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc ['There are 2 values in table t1']
 #
 # 5. Cleanup
 SET @@GLOBAL.replica_checkpoint_period= REPLICA_CHECKPOINT_PERIOD;
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

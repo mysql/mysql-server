@@ -96,7 +96,7 @@ DROP USER 'user2'@'localhost';
 
 --echo # Test for replication slave threads
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 connection slave;
 connection master;
 --echo # Should report 7 root processes
@@ -116,7 +116,7 @@ SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 #Restore back original value
 SET GLOBAL offline_mode = @slave_saved_tmp;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 --connection default
 # Wait until all user have been disconnected (for slow machines)

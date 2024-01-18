@@ -15,22 +15,22 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Initialize ====
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@session.binlog_row_image = 'MINIMAL';
 
 SET @@session.sql_log_bin = 0;
 CREATE TABLE t1 (a INT, b INT, PRIMARY KEY(b));
 SET @@session.sql_log_bin = 1;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CREATE TABLE t1 (a INT, b INT NOT NULL, UNIQUE KEY(b), PRIMARY KEY(a));
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $row_count = 100
 --let $rows = (0, 0)
@@ -43,14 +43,14 @@ while ($i < $row_count) {
 --echo INSERT INTO t1 VALUES [$row_count rows];
 eval INSERT INTO t1 VALUES $rows;
 --enable_query_log
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ==== Test ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DELETE FROM t1 WHERE b != 0 ORDER BY b DESC;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --let $assert_cond = "[SHOW STATUS LIKE \"Replica_rows_last_search_algorithm_used\", Value, 1]" = "INDEX_SCAN"
@@ -58,10 +58,10 @@ DELETE FROM t1 WHERE b != 0 ORDER BY b DESC;
 --source include/assert.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_only_running_threads=1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

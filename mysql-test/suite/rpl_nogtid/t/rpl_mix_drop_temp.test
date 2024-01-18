@@ -1,4 +1,4 @@
 # This test case is specific to binlog_format=mixed
 --source include/have_binlog_format_mixed.inc
 
-source extra/rpl_tests/rpl_drop_temp.test;
+source common/rpl/rpl_drop_temp.test;

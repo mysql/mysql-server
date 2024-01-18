@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # Test case 1 - error on commit
 # Start a transaction on server 1
@@ -20,7 +20,7 @@ BEGIN;
 INSERT INTO t1 VALUES (1);
 [connection server2]
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 COMMIT;
 Got one of the listed errors
@@ -30,10 +30,10 @@ Got one of the listed errors
 #
 [connection server1]
 INSERT INTO t1 VALUES (2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 INSERT INTO t1 VALUES (3);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/assert.inc [On member1, the table t1 should contain 3 rows]
 [connection server2]
@@ -49,7 +49,7 @@ BEGIN;
 INSERT INTO t1 VALUES (11);
 [connection server2]
 INSERT INTO t1 VALUES (11);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 INSERT INTO t1 VALUES (12);
 Got one of the listed errors
@@ -64,10 +64,10 @@ include/assert.inc [On member1, the rolled back transaction is not there]
 include/assert.inc [On member2, the rolled back transaction is not there]
 [connection server1]
 INSERT INTO t1 VALUES (12);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 INSERT INTO t1 VALUES (13);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/assert.inc [On member1, the table t1 should contain 6 rows]
 [connection server2]

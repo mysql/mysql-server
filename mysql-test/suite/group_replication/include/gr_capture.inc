@@ -24,7 +24,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --connection server2
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server1
 BEGIN;
@@ -48,7 +48,7 @@ CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --connection server2
 INSERT INTO t1 VALUES (1000);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server1
 --echo

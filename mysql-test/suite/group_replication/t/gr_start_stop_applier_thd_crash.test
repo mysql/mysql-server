@@ -59,7 +59,7 @@ SET GLOBAL group_replication_bootstrap_group=ON;
 --echo #    group_replication_applier_thread_init_wait debug sync point.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
@@ -80,13 +80,13 @@ SET GLOBAL group_replication_bootstrap_group=ON;
 --echo # 4. Reap the killed command and reset debug point.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error CR_SERVER_LOST
 --reap
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 
 --echo

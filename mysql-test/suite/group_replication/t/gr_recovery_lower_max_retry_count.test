@@ -26,7 +26,7 @@
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE USER 'user_with_no_priv_s1'@'%';
@@ -44,7 +44,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @recovery_reconnect_interval_save= @@GLOBAL.GROUP_REPLICATION_RECOVERY_RECONNECT_INTERVAL;

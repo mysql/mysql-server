@@ -6,7 +6,7 @@
 ##############################################################
 --source include/have_binlog_format_mixed_or_row.inc
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 # On master use NDB as storage engine.
 connection master;
@@ -17,4 +17,4 @@ SET default_storage_engine=ndb;
 --echo
 connection slave;
 --source suite/ndb_rpl/t/ndb_rpl_2multi_basic.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

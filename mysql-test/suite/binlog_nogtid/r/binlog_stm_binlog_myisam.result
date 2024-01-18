@@ -10,7 +10,7 @@ set @b= 14632475938453979136;
 execute stmt using @a, @b;
 deallocate prepare stmt;
 drop table t1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
 binlog.000001	#	Query	#	#	BEGIN
@@ -52,7 +52,7 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 CALL p1();
 c1	c2	c3	d1	d2	d3
 utf8mb3_general_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci	4	0	2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci
 binlog.000001	#	Query	#	#	use `bug39182`; CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8mb3_unicode_ci)
@@ -128,7 +128,7 @@ INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string=
 UPDATE user SET authentication_string='*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WHERE host='localhost' AND user='@#@';
 DELETE FROM user WHERE host='localhost' AND user='@#@';
 use test;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; create table t1 (id tinyint auto_increment primary key)
 binlog.000001	#	Query	#	#	BEGIN
@@ -174,7 +174,7 @@ BINLOG '
 iOtVZRMUAAAAMAAAAMoEAAAAAG8AAAAAAAEABHRlc3QAAnQxAAEDAAABAQCv7yeG
 iOtVZR4UAAAAKAAAAPIEAAAAAG8AAAAAAAEAAgAB/wACAAAAB2NFFg==
 ';
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	#	Query	1	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
 #	#	Query	1	#	BEGIN

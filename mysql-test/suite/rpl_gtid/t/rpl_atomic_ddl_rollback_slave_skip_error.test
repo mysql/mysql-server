@@ -14,10 +14,10 @@
 # This test is binary_log format agnostic so row is chosen.
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
 
 # clear slave datadir
@@ -51,7 +51,7 @@ START REPLICA;
 # wait until slave reads and applies all events from relay log
 --let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
---source include/wait_for_slave_param.inc
+--source include/rpl/wait_for_replica_status.inc
 
 # The failed transactions were rollbacked in the slave when the error was
 # ignored, so we can safely drop t1 and v1 now
@@ -59,7 +59,7 @@ DROP TABLE t1;
 DROP VIEW v1;
 
 # clean up
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

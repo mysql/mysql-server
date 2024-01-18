@@ -1,10 +1,10 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t (name VARCHAR(25) DEFAULT NULL) ENGINE=InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
 call mtr.add_suppression("Replica SQL.*Column 0 of table .test.t. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -15,14 +15,14 @@ INSERT INTO t VALUE ('Amy');
 # Sync should be successful. Slave should not stop with an error
 # ER_REPLICA_CONVERSION_FAILED. It should be up and running in spite
 # of errors as we have set slave_skip_error=all.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE t;
 [connection master]
 UPDATE t SET name='New';
 # Sync should be successful. Slave should not stop with an error
 # ER_NO_SUCH_TABLE. It should be up and running in spite of errors
 # as we have set slave_skip_error=all.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Enable a debug point to simulate failure during rows event cleanup.
 # Adding debug point 'simulate_rows_event_cleanup_failure' to @@GLOBAL.debug
 [connection master]
@@ -32,16 +32,16 @@ UPDATE t SET name='Old';
 # errors that are generated during the execution of an event. The other errors
 # that are generated during commit/rollback failure, which takes place during cleanup
 # cannot be ignored.
-include/wait_for_slave_sql_error.inc [errno=1180]
+include/rpl/wait_for_applier_error.inc [errno=1180]
 include/assert_grep.inc [Found 2 warning in the error log]
 ==== Clean up ====
 # Removing debug point 'simulate_rows_event_cleanup_failure' from @@GLOBAL.debug
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

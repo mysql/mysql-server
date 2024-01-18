@@ -23,8 +23,8 @@
 
 # This test requires row format binlogging.
 --source include/have_binlog_format_row.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/only_mts_replica_parallel_type_logical_clock.inc
+--source include/have_replica_parallel_workers.inc
+--source include/have_replica_parallel_type_logical_clock.inc
 
 # 1) Supress a warning.
 call mtr.add_suppression("using --replicate-same-server-id in conjunction with --log-replica-updates would lead to infinite loops in this server.");

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,10 +13,10 @@ include/save_error_log_position.inc
 CREATE TABLE t1 (
 c1 INT NOT NULL PRIMARY KEY
 );
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert_grep.inc [ER_RPL_MTA_STATISTICS found]
 # Removing debug point 'simulate_log_err_ER_RPL_MTA_STATISTICS' from @@GLOBAL.debug
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc
 include/restore_sysvars.inc

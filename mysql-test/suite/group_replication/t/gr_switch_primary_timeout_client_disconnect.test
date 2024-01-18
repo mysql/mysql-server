@@ -33,7 +33,7 @@
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_group_replication.inc
@@ -42,7 +42,7 @@
 --echo # 2. Add a debug point to block the primary change on validation.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 
@@ -52,7 +52,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --connect(client_disconnect, localhost,root,,,$MASTER_MYPORT)
 
 --let $rpl_connection_name= client_disconnect
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER2_UUID
 --send_eval SELECT group_replication_set_as_primary("$server2_uuid", 60)
@@ -61,7 +61,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --echo # 4. Wait for the THD_transaction_monitor thread to start.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME LIKE "thread/group_rpl/THD_transaction_monitor%"
 --source include/wait_condition.inc
@@ -78,7 +78,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --echo # 6. Check the monitor thread exited.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME LIKE "thread/group_rpl/THD_transaction_monitor%"
 --source include/wait_condition.inc
@@ -86,7 +86,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --source include/gr_assert_secondary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 

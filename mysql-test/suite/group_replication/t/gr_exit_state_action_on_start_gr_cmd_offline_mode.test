@@ -27,7 +27,7 @@
 --let $rpl_skip_group_replication_start = 1
 --source include/group_replication.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Member version is incompatible with the group.");
 SET SESSION sql_log_bin = 1;
@@ -38,7 +38,7 @@ SET SESSION sql_log_bin = 1;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --source include/start_and_bootstrap_group_replication.inc
@@ -49,7 +49,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
 SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
@@ -98,7 +98,7 @@ START GROUP_REPLICATION;
 
 # Verify that member 2 didn't join the group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 1
 --source include/gr_wait_for_number_of_members.inc
 
@@ -109,7 +109,7 @@ START GROUP_REPLICATION;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Restore the debug sysvar to its original state on server 1, so that we may
 # finally join server 2
 SET @@GLOBAL.DEBUG = @debug_saved;
@@ -120,7 +120,7 @@ SET @@GLOBAL.DEBUG = @debug_saved;
 
 # Start GR on server 2 and verify that the group stabilizes itself
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo
@@ -129,7 +129,7 @@ SET @@GLOBAL.DEBUG = @debug_saved;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
 
 --source include/group_replication_end.inc

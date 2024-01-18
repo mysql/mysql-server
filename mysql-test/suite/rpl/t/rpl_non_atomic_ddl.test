@@ -33,17 +33,17 @@
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 ##
 ## Initialization
 ##
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Replica worker thread has failed to apply an event");
 call mtr.add_suppression("Error writing relay log configuration");
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # instructing gtid_step_assert that is called by a sourced file
 # to satisfy to gtid-mode OFF as well.
 --let $gtid_mode_on= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
@@ -51,8 +51,8 @@ call mtr.add_suppression("Error writing relay log configuration");
 --let $gtid_step_gtid_mode_agnostic=`SELECT '$gtid_mode' != 'ON'`
 
 # Leave slave applier stopped
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 
 if (!$crash_commit)
 {
@@ -67,16 +67,16 @@ if (!$crash_commit)
 --let $table_name=tm
 --let $current_query=CREATE TABLE $table_name (a int) ENGINE=MYISAM
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval $current_query
 --let $binlog_pos= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # The receiver thread must be stopped now which
 # crash-safely memorizes the last received event coordinates.
---source include/rpl_connection_slave.inc
---source include/stop_slave_io.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_receiver.inc
 
 # Set up post-commit crash
 --source include/expect_crash.inc
@@ -89,9 +89,9 @@ START REPLICA SQL_THREAD;
 # Server wait for stop and restart
 --source include/wait_until_disconnected.inc
 --let $rpl_server_number= 2
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $assert_text=The table $table_name must be present
 --let $assert_cond=`SELECT count(*) = 0 FROM $table_name`
 --source include/assert.inc
@@ -111,11 +111,11 @@ if (`select @@global.replica_parallel_workers > 0`)
 }
 --source include/assert.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval DROP TABLE $table_name
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -14,7 +14,7 @@ for each row
 BEGIN
 INSERT INTO t2 VALUES (New.a, @value1);
 END|
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 #2. Check that action_order attribute of trigger t1_b is same on both servers.
 include/assert.inc [action_order for trigger t1_b must be 1.]
@@ -29,7 +29,7 @@ for each row PRECEDES t1_b
 BEGIN
 SET @value1:= New.a * 2;
 END|
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 #4. Check that CREATED, ACTION_ORDER attributes are same on both servers.
 include/assert.inc [action_order for trigger t1_a must be 1.]
@@ -46,7 +46,7 @@ DROP TRIGGER test.t1_b;
 INSERT INTO t1 (a) values (3);
 
 #6. Ensure that data is consistent on both the servers.
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:t1,server2:t1]
 include/diff_tables.inc [server1:t2,server2:t2]
 

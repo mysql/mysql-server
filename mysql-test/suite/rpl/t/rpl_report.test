@@ -2,7 +2,7 @@
 # are SHOW-able and SELECT-able FROM performance_schema.global_variables
 
 --source include/not_group_replication_plugin.inc
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 connection slave;
 --disable_warnings
@@ -22,4 +22,4 @@ set @@global.report_host='my.new.address.net';
 
 
 --echo end of tests
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

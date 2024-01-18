@@ -72,10 +72,10 @@ include/start_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 [connection server1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:test.t1,server2:test.t1]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/stop_group_replication.inc
 SET GLOBAL group_replication_ip_allowlist= AUTOMATIC;

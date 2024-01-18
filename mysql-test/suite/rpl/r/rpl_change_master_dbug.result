@@ -1,12 +1,12 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=3, SOURCE_HOST='300.1.1.1', SOURCE_CONNECT_RETRY=1;
 START REPLICA io_thread;
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 RESET REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1';
-include/rpl_end.inc
+include/rpl/deinit.inc

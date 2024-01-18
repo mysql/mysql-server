@@ -19,7 +19,7 @@
 #  WL#6120- Change master without stopping Slave threads.
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_statement.inc
 
 --echo
@@ -27,28 +27,28 @@
 --echo
 
 CREATE TEMPORARY TABLE t1(a int);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # Make sure STOP REPLICA generates a warning.
 --echo
 
 STOP REPLICA;
---source include/wait_for_slave_to_stop.inc
+--source include/rpl/wait_for_replica_to_stop.inc
 
 --echo
 --echo # Make sure STOP REPLICA SQL_THREAD generates a warning.
 --echo
 
 STOP REPLICA SQL_THREAD;
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --echo
 --echo # Make sure STOP REPLICA IO_THREAD generates a warning.
 --echo
 
 STOP REPLICA IO_THREAD;
---source include/wait_for_slave_io_to_stop.inc
+--source include/rpl/wait_for_receiver_to_stop.inc
 
 --echo
 --echo # No warning here since we are changing a configuration parameter only.
@@ -90,8 +90,8 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= $save_autoposition;
 --echo # cleanup
 --echo
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
 DROP TEMPORARY TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

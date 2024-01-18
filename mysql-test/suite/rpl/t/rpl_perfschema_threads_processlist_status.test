@@ -33,7 +33,7 @@
 # Test is binlog_format-agnostic
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Initialize ====
 
@@ -42,7 +42,7 @@
 --let $old_replica_transaction_retries= `SELECT @@GLOBAL.REPLICA_TRANSACTION_RETRIES`
 SET GLOBAL REPLICA_TRANSACTION_RETRIES= 0;
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo ==== Test ====
 
@@ -145,7 +145,7 @@ EOF
 
 --echo ==== Clean up ====
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --disable_warnings
 --replace_result $old_replica_parallel_workers OLD_VALUE
 eval SET GLOBAL REPLICA_PARALLEL_WORKERS= $old_replica_parallel_workers;
@@ -154,4 +154,4 @@ eval SET GLOBAL REPLICA_PARALLEL_WORKERS= $old_replica_parallel_workers;
 eval SET GLOBAL REPLICA_TRANSACTION_RETRIES= $old_replica_transaction_retries;
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

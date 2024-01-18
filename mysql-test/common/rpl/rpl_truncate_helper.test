@@ -1,0 +1,33 @@
+--source include/rpl/reset.inc
+
+--echo **** On Master ****
+connection master;
+eval CREATE TABLE t1 (a INT, b LONG) ENGINE=$engine;
+INSERT INTO t1 VALUES (1,1), (2,2);
+--source include/rpl/sync_to_replica.inc
+--echo **** On Master ****
+connection master;
+eval $trunc_stmt t1;
+--source include/rpl/sync_to_replica.inc
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+--echo ==== Test using a table with delete triggers ====
+--echo **** On Master ****
+connection master;
+SET @count := 1;
+eval CREATE TABLE t2 (a INT, b LONG) ENGINE=$engine;
+CREATE TRIGGER trg1 BEFORE DELETE ON t1 FOR EACH ROW SET @count := @count + 1;
+--source include/rpl/sync_to_replica.inc
+--echo **** On Master ****
+connection master;
+eval $trunc_stmt t1;
+--source include/rpl/sync_to_replica.inc
+
+let $diff_tables= master:t2, slave:t2;
+source include/diff_tables.inc;
+
+connection master;
+DROP TABLE t1,t2;
+--source include/rpl/sync_to_replica.inc

@@ -23,7 +23,7 @@
 #
 # To simulate the slave correctly, we wait until everything up to but
 # not including the XID is replicated. This has to be done with
-# include/sync_slave_io_with_master.inc, not sync_slave_with_master,
+# include/rpl/sync_to_replica_received.inc, not sync_slave_with_master,
 # since the latter waits until the slave *SQL* thread has caught up
 # with the master's position, which it will never do.
 #
@@ -39,9 +39,9 @@
 
 # test adapts simulation of incomplete transaction that MTS does not tolerate
 # when is stopped. So it reacts with an error whereas the single-threaded is fine.
---source include/not_mts_replica_parallel_workers.inc
+--source include/not_replica_parallel_workers.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Initialize ====
 
@@ -73,17 +73,17 @@ SELECT * FROM tinnodb ORDER BY a;
 # Retrieved_Gtid_Set of the slave and, as the last event of the
 # transaction never arrives, syncing with GTIDs won't work.
 --let ignore_gtids_on_sync= 1
-source include/sync_slave_io_with_master.inc;
+source include/rpl/sync_to_replica_received.inc;
 
 # Sync slave's SQL thread.
 sync_with_master 0;
 
 --echo ==== Verify results on slave ====
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 --let $status_items=Replica_IO_State,Last_SQL_Error,Last_IO_Error
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 
 --let $assert_text= Assert that the slave table has no rows
 --let $assert_cond= `SELECT COUNT(*) = 0 FROM tinnodb`
@@ -105,4 +105,4 @@ DROP TABLE tinnodb;
 
 # Warning: do not add more tests here. The binlog is in a bad state.
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

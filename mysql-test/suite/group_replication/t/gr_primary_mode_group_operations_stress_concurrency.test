@@ -24,7 +24,7 @@
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -33,7 +33,7 @@
 --echo # 2. Execute several requests in concurrency
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec $MYSQL_SLAP -uroot -S$MASTER_MYSOCK --query="SELECT group_replication_switch_to_multi_primary_mode(); SELECT SLEEP(1); SELECT group_replication_switch_to_single_primary_mode();" --delimiter=";" --create-schema=test --concurrency=3 --iterations=2 --number-of-queries=250 --silent
 
@@ -47,7 +47,7 @@
 --echo # 3. Cleanup
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # We don't quite know what is the state of the group at the end, so just ensure server 1 is the new primary
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch:%" OR event_name LIKE "%Primary Switch:%" OR event_name LIKE "%Multi-primary Switch:%"

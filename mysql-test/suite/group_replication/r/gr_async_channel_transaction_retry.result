@@ -2,7 +2,7 @@
 ############################################################
 # 01. Setup source-replica
 include/uninstall_group_replication_plugin.inc
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 02. Setup replica as replica-cluster primary
 [connection slave]
 # restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1  --group_replication_single_primary_mode=1 --group_replication_enforce_update_everywhere_checks=0 --skip_slave_start=0
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection slave]
 include/gr_wait_for_member_state.inc
 
@@ -28,9 +28,9 @@ INSERT INTO t1 VALUES
 (5, NULL),
 (6, 6);
 CREATE TABLE t2(a INT PRIMARY KEY);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 set session sql_log_bin=0;
 CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at source log .*, end_log_pos.*Deadlock found when trying to get lock.*");
 CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at source log .*, end_log_pos.*Can not lock user management caches for processing.*");
@@ -46,8 +46,8 @@ SET GLOBAL replica_parallel_workers = 3;
 SET GLOBAL replica_preserve_commit_order = ON;
 SET GLOBAL replica_transaction_retries = REPLICA_TRANSACTION_RETRIES;
 SET GLOBAL innodb_lock_wait_timeout = INNODB_LOCK_WAIT_TIMEOUT;
-include/rpl_connect.inc [creating rpl_slave_connection_2]
-include/rpl_connect.inc [creating rpl_slave_connection_3]
+include/rpl/connect.inc [creating rpl_slave_connection_2]
+include/rpl/connect.inc [creating rpl_slave_connection_3]
 
 ############################################################
 # 04. Generate commit_order_deadlock on replica-cluster
@@ -71,7 +71,7 @@ BEGIN;
 SET GTID_NEXT = "aaaaaaaa-1111-bbbb-2222-cccccccccccc:2";
 BEGIN;
 [connection slave1]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 include/assert.inc [Replica parallel type is LOGICAL_CLOCK]
 include/assert.inc [MTS worker thread count is correct]
 include/assert.inc [Replica preserve commit order is 1]
@@ -90,25 +90,25 @@ SET GTID_NEXT = AUTOMATIC;
 [connection slave1]
 SET GLOBAL read_only = OFF;
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/rpl_diff.inc
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 
 ############################################################
 # 05. Cleanup
 # Kill and restart:--skip_slave_start=0
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection slave]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 Warnings:
 Note	3083	Replication thread(s) for channel '' are already runnning.
 [connection master]
 DROP TABLE t1;
 DROP TABLE t2;
 include/install_group_replication_plugin.inc
-include/rpl_end.inc
+include/rpl/deinit.inc
 [connection slave]
 SET GLOBAL replica_parallel_type = 'SAVED_REPLICA_PARALLEL_TYPE';
 Warnings:

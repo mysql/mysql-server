@@ -14,11 +14,11 @@ include/start_group_replication.inc
 CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
 # sending 200 messages of approx 1MB each
 # sent all 200 messages
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/diff_tables.inc [server1:test.t1,server2:test.t1]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/assert.inc [Assert that we allocated more than 200 entries]
 include/assert.inc [Assert that the cache has not exceeded the cap]

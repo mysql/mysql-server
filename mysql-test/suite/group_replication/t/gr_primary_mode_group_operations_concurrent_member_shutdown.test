@@ -34,7 +34,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -51,7 +51,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --echo # Wait for the server to be back again
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --send_shutdown
@@ -61,13 +61,13 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --source include/wait_until_connected_again.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # 4. Check the action completed correctly
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid MEMBER1_UUID
 --reap
@@ -76,7 +76,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --echo # 5. Cleanup
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations. Server error: 3169. Server error message: Session was killed");
@@ -102,7 +102,7 @@ call mtr.add_suppression("Error running internal SQL query: SET SESSION group_re
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1

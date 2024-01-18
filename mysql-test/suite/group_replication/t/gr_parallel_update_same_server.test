@@ -36,10 +36,10 @@ while($clients_counter > 0)
 --echo ################################################################
 --echo # 2. Create initial data.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 (c1,c2) VALUES (0,0);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -75,7 +75,7 @@ while($updates_counter > 0)
 --echo # 4. Assert that the row has the expected value, the total
 --echo #    number of updates.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Table t1 must have 1 entry
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 1

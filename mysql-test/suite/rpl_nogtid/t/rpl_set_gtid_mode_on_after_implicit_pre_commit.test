@@ -24,8 +24,8 @@
 
 --let $rpl_server_count= 1
 --let $rpl_topology= none
---source include/rpl_init.inc
---source include/rpl_default_connections.inc
+--source include/rpl/init.inc
+--source include/rpl/default_connections.inc
 --source include/have_binlog_format_row.inc
 # Verifying a DEBUG ASSERT
 --source include/have_debug.inc

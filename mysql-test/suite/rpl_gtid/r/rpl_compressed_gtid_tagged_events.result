@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -31,7 +31,7 @@ SET GTID_NEXT='AUTOMATIC';
 # 3. On the replica: Assert that source and replica tables have the same
 #    content
 
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Assert that source and replica tables have the same content]
 
 # 4. On the replica: Check that compressed transaction executed with
@@ -44,4 +44,4 @@ include/assert.inc [Ensure that executed transactions with specified tag and aut
 [connection master]
 DROP TABLE t1;
 SET SESSION binlog_transaction_compression=OFF;
-include/rpl_end.inc
+include/rpl/deinit.inc

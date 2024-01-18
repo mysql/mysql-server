@@ -44,7 +44,7 @@ while ($gno_number > 0)
 --echo ################################################################
 --echo # 2. Set huge GTID_EXECUTED on both servers.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo Set GTID_PURGED to huge gtid executed
 --disable_query_log
 --eval SET GLOBAL GTID_PURGED= "$gtid_executed_huge"
@@ -56,7 +56,7 @@ while ($gno_number > 0)
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo Set GTID_PURGED to huge gtid executed
 --disable_query_log
 --eval SET GLOBAL GTID_PURGED= "$gtid_executed_huge"
@@ -73,11 +73,11 @@ while ($gno_number > 0)
 --echo #    The huge GTID_EXECUTED will be exchanged on distributed
 --echo #    recovery process on server1.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -86,19 +86,19 @@ while ($gno_number > 0)
 --echo # 4. Execute some transactions and check that nothing bad happens.
 --echo #    Validate that data is delivered to both members.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There is a value 1 in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There is a value 1 in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
 --source include/assert.inc
@@ -109,14 +109,14 @@ INSERT INTO t1 VALUES (1);
 --echo # 5. Wait for stable set propagation and certification info
 --echo #    garbage collection.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 --let $wait_timeout= 240
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE Transactions_committed_all_members = "$_gtid_executed" and member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_timeout= 240
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE Transactions_committed_all_members = "$_gtid_executed" and member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
@@ -128,13 +128,13 @@ INSERT INTO t1 VALUES (1);
 --echo #    set propagation and certification info garbage
 --echo #    collection.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'Transactions_committed_all_members must be equal to GTID_EXECUTED'
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "[SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)]"
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'Transactions_committed_all_members must be equal to GTID_EXECUTED'
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "[SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)]"
 --source include/assert.inc

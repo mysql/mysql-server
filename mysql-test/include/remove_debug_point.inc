@@ -9,7 +9,7 @@
 # [--let $debug_point_silent= 1]
 # [--let $debug_type= GLOBAL | SESSION]
 # [--let $debug_if_exists= 1]
-# --source extra/rpl_tests/remove_debug_point.inc
+# --source common/rpl/remove_debug_point.inc
 #
 # Parameters:
 #   $debug_point

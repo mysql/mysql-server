@@ -1,0 +1,117 @@
+# Test of options max_binlog_size and max_relay_log_size and
+# how they act (if max_relay_log_size == 0, use max_binlog_size 
+# for relay logs too).
+# Test of manual relay log rotation with FLUSH LOGS.
+
+# Requires statement logging
+-- source include/rpl/init_source_replica.inc
+
+connection slave;
+STOP REPLICA;
+connection master;
+
+--echo #
+--echo # Generate a big enough master's binlog to cause relay log rotations
+--echo #
+
+create table t1 (a int);
+let $1=800;
+disable_query_log;
+begin;
+while ($1)
+{
+# eval means expand $ expressions
+ eval insert into t1 values( $1 );
+ dec $1;
+}
+enable_query_log;
+drop table t1;
+save_master_pos;
+connection slave;
+RESET REPLICA;
+
+--echo #
+--echo # Test 1
+--echo #
+
+set @my_max_binlog_size= @@global.max_binlog_size;
+set global max_binlog_size=8192;
+set global max_relay_log_size=8192-1; # mapped to 4096
+select @@global.max_relay_log_size;
+START REPLICA;
+sync_with_master;
+--source include/rpl/assert_replica_running.inc
+
+--echo #
+--echo # Test 2
+--echo #
+
+STOP REPLICA;
+RESET REPLICA;
+set global max_relay_log_size=(5*4096);
+query_vertical select @@global.max_relay_log_size;
+START REPLICA;
+sync_with_master;
+--source include/rpl/assert_replica_running.inc
+
+--echo #
+--echo # Test 3: max_relay_log_size = 0
+--echo #
+
+STOP REPLICA;
+RESET REPLICA;
+set global max_relay_log_size=0;
+query_vertical select @@global.max_relay_log_size;
+START REPLICA;
+sync_with_master;
+--source include/rpl/assert_replica_running.inc
+
+--echo #
+--echo # Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
+--echo #
+
+STOP REPLICA;
+RESET REPLICA;
+# test of relay log rotation when the slave is stopped
+# (to make sure it does not crash).
+flush logs;
+
+--echo #
+--echo # Test 5
+--echo #
+
+RESET REPLICA;
+START REPLICA;
+sync_with_master;
+# test of relay log rotation when the slave is started
+flush logs;
+# We have now easy way to be sure that the SQL thread has now deleted the
+# log we just closed. But a trick to achieve this is do an update on the master.
+connection master;
+create table t1 (a int);
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/assert_replica_running.inc
+
+--echo #
+--echo # Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
+--echo #
+
+flush logs;
+connection master;
+drop table t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/assert_replica_running.inc
+
+connection master;
+# test that the absence of relay logs does not make a master crash
+flush logs;
+source include/rpl/deprecated/show_binary_log_status.inc;
+
+# Restore max_binlog_size
+connection slave;
+set global max_binlog_size= @my_max_binlog_size;
+
+--echo #
+--echo # End of 4.1 tests
+--echo # 
+--source include/rpl/deinit.inc

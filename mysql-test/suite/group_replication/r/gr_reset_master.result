@@ -9,12 +9,12 @@ include/start_and_bootstrap_group_replication.inc
 include/start_group_replication.inc
 #Create a table and insert some data
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t1 VALUES (3);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #Both members must have the same GTID set
 include/assert.inc [On member 2, all executed GTID should belong to the group]
 include/assert.inc [On member 1, all executed GTID should belong to the group]
@@ -31,9 +31,9 @@ include/assert.inc [On member 2, there should be no transactions]
 include/assert.inc [On member 1, there should be no transactions]
 #Insert some data to test that the group is still running
 INSERT INTO t1 VALUES (4);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t1 VALUES (5);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [On member 2, the table should exist and have 5 elements]
 include/assert.inc [On member 1, the table should exist and have 5 elements]
 # Run RESET BINARY LOGS AND GTIDS while Group Replication is running must fail

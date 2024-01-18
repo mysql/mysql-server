@@ -38,7 +38,7 @@
 CREATE TABLE t1(a int primary key);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # 2. Set weight on server2 to be the next elected primary and join to
@@ -52,7 +52,7 @@ SET @@GLOBAL.group_replication_member_weight= 90;
 --echo # 3. Add server3 to group
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -60,7 +60,7 @@ SET @@GLOBAL.group_replication_member_weight= 90;
 --echo # 4. Lock table on the new primary (server 2)
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 LOCK TABLE t1 READ;
 
@@ -68,7 +68,7 @@ LOCK TABLE t1 READ;
 --echo # 5. Execute a transaction that will stuck
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1);
 
@@ -81,7 +81,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 7. Server2 will wait for buffered transactions on read only mode
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Primary Election: applying buffered transactions"
 --source include/wait_condition.inc
@@ -93,7 +93,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 8. Unlock table on server2
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
@@ -115,12 +115,12 @@ SET @@SESSION.group_replication_consistency= @group_replication_consistency_save
 --echo # 11. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 DROP TABLE t1;

@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -9,7 +9,7 @@
 --echo # Begin : Tests for DROP ROLE
 
 CREATE ROLE roleX, roleY, roleZ;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Execute DROP ROLE for existing users
 
@@ -20,7 +20,7 @@ SELECT user FROM mysql.user WHERE user LIKE 'role%';
 
 --let $event= !Q(DROP ROLE.*roleX.*roleY.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 2 : Execute DROP ROLE for non-existing users
 
@@ -36,7 +36,7 @@ SELECT user FROM mysql.user WHERE user LIKE 'role%';
 --let $invert= 0
 
 DROP ROLE roleZ;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for DROP ROLE
 
@@ -45,7 +45,7 @@ DROP ROLE roleZ;
 --echo # Begin : Tests for DROP ROLE IF EXISTS
 
 CREATE ROLE roleX, roleY, roleZ;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Execute DROP ROLE IF NOT EXISTS
 
@@ -56,7 +56,7 @@ SELECT user FROM mysql.user WHERE user LIKE 'role%';
 
 --let $event= !Q(DROP ROLE IF EXISTS.*roleX.*roleY.*roleZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # case 2 : Execute DROP ROLE IF NOT EXISTS for non-existing users
 
@@ -65,7 +65,7 @@ DROP ROLE IF EXISTS roleX, roleY, roleZ;
 --let $event= !Q(DROP ROLE IF EXISTS.*roleX.*roleY.*roleZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --echo # End : Tests for DROP ROLE IF EXISTS
 
 --echo # ----------------------------------------------------------------------

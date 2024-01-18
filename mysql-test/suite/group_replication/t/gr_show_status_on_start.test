@@ -25,7 +25,7 @@
 --echo # 1. Enable debug point to block server during the join to
 --echo #    the group.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_before_gcs_join';
 
 
@@ -43,7 +43,7 @@ SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=1;
 --echo # 3. Wait until the server reaches the sync point and do
 --echo #    some SHOW STATUS commands.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.reached_group_replication_wait_on_before_gcs_join";
 
 --disable_result_log
@@ -60,7 +60,7 @@ SHOW GLOBAL STATUS LIKE 'Gr\_%';
 SET DEBUG_SYNC= 'now SIGNAL signal.resume_group_replication_wait_on_before_gcs_join';
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $group_replication_member_state= ONLINE

@@ -72,7 +72,7 @@
 ################################################################################
 --source include/not_windows.inc
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # this test case requires that certain events appear in a given
 # order in the relay log. With compression, only GTID and a
@@ -108,7 +108,7 @@ CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 --echo ==== Part 1 ====
 
 --disable_warnings
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --enable_warnings
 
 --let $i=1
@@ -140,10 +140,10 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   #  1.2 - Makes the slave to retrieve and apply these transactions.
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
   --connection slave
 
   # Check property 1.2 and 2.1.
@@ -163,7 +163,7 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   # Check property 1.3 and 2.2.
   --let $binlog= relaylog
@@ -182,7 +182,7 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   BEGIN;
   INSERT INTO t1 VALUES(1);
@@ -206,7 +206,7 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   #  1.3 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
@@ -241,12 +241,12 @@ while ($i != 5)
 --let $ignore_gtids_on_sync= 1
 
 --disable_warnings
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --enable_warnings
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --disable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --enable_warnings
 
 --connection master
@@ -254,13 +254,13 @@ while ($i != 5)
 BEGIN;
 INSERT INTO t1 VALUES(0);
 COMMIT;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $i=1
 while ($i != 5)
 {
   --echo ---- i=$i ----
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   --let $debug_point= pause_on_queuing_event
   --source include/add_debug_point.inc
 
@@ -275,14 +275,14 @@ while ($i != 5)
   #        So, this part of the test will issue an "FLUSH LOCAL RELAY LOGS"
   #        on the slave right before queuing the fourth event of the
   #        transaction.
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   BEGIN;
   INSERT INTO t1 VALUES(1);
   INSERT INTO t1 VALUES(2);
   COMMIT;
 
   --let $event_counter= 3
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   while ($event_counter > 0)
   {
     --echo Waiting for $event_counter more event(s) before flushing relaylog
@@ -305,8 +305,8 @@ while ($i != 5)
   #  2.2 - Makes the slave to retrieve these transactions and
   #        spread their events into two relay logs. Then apply
   #        the events.
-  --source include/rpl_connection_master.inc
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/connection_source.inc
+  --source include/rpl/sync_to_replica.inc
 
   # Check property 2.2.
   --let $binlog= relaylog
@@ -315,7 +315,7 @@ while ($i != 5)
   --let $gtid_set_end= `SELECT $i`
   --let $gtid_ini=
   --let $gtid_end=
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   #  2.3 - Rotates the binary log on the master.
   --connection master
@@ -343,13 +343,13 @@ while ($i != 5)
 
 --connection slave
 --disable_warnings
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --enable_warnings
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL debug="";
 --disable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --enable_warnings
 
 --let $i=1
@@ -365,7 +365,7 @@ while ($i != 5)
   COMMIT;
 
   #  3.2 - Makes the slave to retrieve and apply these transactions.
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   # Check property 1.2 and 2.1.
   --connection slave
@@ -385,7 +385,7 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   # Check property 1.3 and 2.2.
   --let $binlog= relaylog
@@ -404,15 +404,15 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   #  3.3 - Restarts the slave server to rotate binary and relay logs.
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
   --let $rpl_server_number= 2
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
   --connection slave
   --disable_warnings
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
   --enable_warnings
 
   #  3.4 - Rotates both the binary logs on the slave and master.
@@ -441,7 +441,7 @@ while ($i != 5)
 --echo ==== Part 4 ====
 
 --disable_warnings
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --enable_warnings
 
 --let $i=1
@@ -473,10 +473,10 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   #  4.2 - Makes the slave to retrieve and apply these transactions.
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   # Check property 1.2 and 2.1.
   --connection slave
@@ -496,7 +496,7 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   # Check property 1.3 and 2.2.
   --let $binlog= relaylog
@@ -515,17 +515,17 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   #  4.3 - Stops the slave, restart the master server and starts the
   #        slave.
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
   --connection master
   --let $rpl_server_number= 1
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
   --connection slave
   --disable_warnings
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
   --enable_warnings
 
   #  4.4 - Rotates both the binary logs on the slave and master.
@@ -560,14 +560,14 @@ while ($i != 5)
 
   #  5.1 - Resets the IO Thread's state but not SQL Thread's state.
   --connection slave
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
   RESET REPLICA;
   RESET BINARY LOGS AND GTIDS;
   --connection master
   RESET BINARY LOGS AND GTIDS;
   --connection slave
   --disable_warnings
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
   --enable_warnings
 
   #  5.2 - Generates a set of transactions on the master.
@@ -583,7 +583,7 @@ while ($i != 5)
   COMMIT;
 
   #  5.3 - Makes the slave to retrieve and apply these transactions.
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
   # Check property 1.2, 2.1, 3.1 and 3.2
   --let $binlog= binlog
   --let $server_uuid= $master_uuid
@@ -591,7 +591,7 @@ while ($i != 5)
   --let $gtid_set_end=
   --let $gtid_ini= 1
   --let $gtid_end= 2
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   #  5.4 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
@@ -618,7 +618,7 @@ while ($i != 5)
 --echo ==== Part 6 ====
 
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 --connection master
@@ -628,7 +628,7 @@ RESET BINARY LOGS AND GTIDS;
 --error ER_BAD_REPLICA_AUTO_POSITION
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1, SOURCE_LOG_FILE= 'master-bin.000001', SOURCE_LOG_POS= 4;
 --disable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --enable_warnings
 
 --let $replica_uuid= `SELECT @@GLOBAL.SERVER_UUID`
@@ -689,14 +689,14 @@ while ($i != 5)
   --let $gtid_set_end=
   --let $gtid_ini= `SELECT ($i * 2) - 1`
   --let $gtid_end= `SELECT $i * 2`
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   # 6.3 - Stop and start the slave, call CHANGE REPLICATION SOURCE TO with SOURCE_AUTO_POSITION.
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
   --replace_result $slave_source_host SLAVE_SOURCE_HOST
   --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_source_host', SOURCE_AUTO_POSITION= 1
   --disable_warnings
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
   --enable_warnings
 
   # 6.4 - Rotates the binary log on master by calling FLUSH LOGS.
@@ -720,7 +720,7 @@ while ($i != 5)
 --echo ==== Part 7 ====
 
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 --connection master
@@ -754,8 +754,8 @@ while ($i != 5)
   --disable_warnings
   --eval START REPLICA UNTIL SQL_BEFORE_GTIDS= "$master_uuid:$sequence"
   --enable_warnings
-  --source include/wait_for_slave_sql_to_stop.inc
-  --source include/stop_slave.inc
+  --source include/rpl/wait_for_applier_to_stop.inc
+  --source include/rpl/stop_replica.inc
 
   # Check property 1.2 and 4.1.
   --let $binlog= binlog
@@ -764,7 +764,7 @@ while ($i != 5)
   --let $gtid_set_end=
   --let $gtid_ini= 1
   --let $gtid_end= `SELECT ($i * 2) - 1`
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   # 7.3 - Rotates the binary log on master by calling FLUSH LOGS.
   --connection master
@@ -790,7 +790,7 @@ while ($i != 5)
 --echo ==== Part 8 ====
 
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_source_host', SOURCE_AUTO_POSITION= 0
@@ -798,7 +798,7 @@ RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 --connection slave
 --disable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --enable_warnings
 
 --let $i=1
@@ -814,7 +814,7 @@ while ($i != 5)
   COMMIT;
 
   #  8.2 - Makes the slave to retrieve and apply these transactions.
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   # Check property 1.2 and 2.1.
   --connection slave
@@ -834,7 +834,7 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   # Check property 1.3 and 2.2.
   --let $binlog= relaylog
@@ -855,21 +855,21 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   #  8.3 - Restarts the slave server to rotate binary and relay logs.
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
 
   --let $rpl_server_number= 2
   --let $rpl_server_parameters= --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
   --let $rpl_server_number= 2
    --let $rpl_server_parameters= --relay-log-recovery=1
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
 
   --connection slave
   --disable_warnings
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
   --enable_warnings
   #  8.4 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
@@ -896,7 +896,7 @@ while ($i != 5)
 --echo ==== Part 9 ====
 
 --disable_warnings
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --enable_warnings
 
 --let $i=1
@@ -912,7 +912,7 @@ while ($i != 5)
   COMMIT;
 
   #  9.2 - Makes the slave to retrieve and apply these transactions.
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   # Check property 1.2 and 2.1.
   --connection slave
@@ -932,7 +932,7 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   # Check property 1.3 and 2.2.
   --let $binlog= relaylog
@@ -953,22 +953,22 @@ while ($i != 5)
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
-  --source extra/rpl_tests/rpl_check_gtid.inc
+  --source common/rpl/check_gtid.inc
 
   #  9.3 - Restarts the slave server to rotate binary and relay logs.
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
 
   --let $rpl_server_number= 2
   --let $rpl_server_parameters= --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
 
   --let $rpl_server_number= 2
   --let $rpl_server_parameters= --relay-log-recovery=1
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
 
   --connection slave
   --disable_warnings
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
   --enable_warnings
   #  9.4 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
@@ -979,19 +979,19 @@ while ($i != 5)
 }
 
 --disable_warnings
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --enable_warnings
 
 --connection master
 DROP TABLE t1;
 
 --echo # Failure on creating compression thread
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 call mtr.add_suppression("Can not create thread to compress gtid_executed table .*");
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --debug=d,simulate_create_compress_thread_failure
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --let $assert_text= compression thread is destroied;
 --let $assert_cond= COUNT(*) = 0 FROM performance_schema.threads WHERE NAME LIKE "%compress_gtid_table"
 --source include/assert.inc
@@ -999,7 +999,7 @@ call mtr.add_suppression("Plugin 'InnoDB' will be forced to shutdown");
 call mtr.add_suppression("Plugin 'InnoDB' has ref_count=.* after shutdown");
 --let $rpl_server_parameters=
 # Restart replica server without setting simulate_create_compress_thread_failure
---source include/rpl_restart_server.inc
---source include/start_slave.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

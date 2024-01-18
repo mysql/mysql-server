@@ -52,10 +52,10 @@ CREATE TABLE t1 (a int);
 SELECT @index;
 
 --echo ### assertion: show original binlogs
--- source include/show_binary_logs.inc
+-- source include/rpl/deprecated/show_binary_logs.inc
 
 --echo ### assertion: binlog contents from regular entries
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 # action: copy binlogs to other names and change entries in index file
 -- copy_file $datadir/binlog.000001 $datadir/binlog-b34582.000001
@@ -86,10 +86,10 @@ SELECT @index;
 
 -- echo ### assertion: original binlog content still exists, despite we
 -- echo ###            renamed and changed the index file 
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 -- echo ### assertion: user changed binlog index shows correct entries
--- source include/show_binary_logs.inc
+-- source include/rpl/deprecated/show_binary_logs.inc
 
 DROP TABLE t1;
 
@@ -98,7 +98,7 @@ DROP TABLE t1;
 -- eval PURGE BINARY LOGS TO '$current_binlog'
 
 -- echo ### assertion: show binary logs should only contain latest binlog
--- source include/show_binary_logs.inc
+-- source include/rpl/deprecated/show_binary_logs.inc
 
 -- echo ### assertion: assert that binlog files were indeed purged (using file_exists calls)
 -- error 1

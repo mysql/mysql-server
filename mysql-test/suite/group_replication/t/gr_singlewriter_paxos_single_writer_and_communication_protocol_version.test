@@ -30,7 +30,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("This member is configured with a group_replication_paxos_single_leader option value of 1 and it is trying to join a group with Communication Protocol Version below 8.0.27.*");
@@ -44,12 +44,12 @@ SET SESSION sql_log_bin = 1;
 --echo ##
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 --source include/start_group_replication.inc
 
@@ -66,7 +66,7 @@ SET SESSION sql_log_bin = 1;
 --echo ##
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 # Verify that START fails for group_replication
@@ -82,12 +82,12 @@ START GROUP_REPLICATION;
 --echo ##
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 
@@ -109,7 +109,7 @@ let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_
 --echo ##
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
@@ -136,19 +136,19 @@ START GROUP_REPLICATION;
 --echo ##
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
@@ -156,12 +156,12 @@ START GROUP_REPLICATION;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -170,7 +170,7 @@ START GROUP_REPLICATION;
 --echo ##
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GRP_RPL_UDF_ERROR
 --eval SELECT group_replication_set_communication_protocol("8.0.26")
@@ -180,15 +180,15 @@ START GROUP_REPLICATION;
 --echo ##
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 
 --source include/group_replication_end.inc

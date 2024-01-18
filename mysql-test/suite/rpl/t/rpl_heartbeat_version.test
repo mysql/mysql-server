@@ -35,23 +35,23 @@
 #    old heartbeat event.
 --let $debug_point= use_old_heartbeat_version
 --source include/add_debug_point.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 # 2. Change the heartbeat period on replica
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD = 2;
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t(s int);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # 3. Sleep Sleep long enough to receive heartbeat events, even on slow platforms
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --sleep 2
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 # 4 Verify that the source generated heartbeat related message in the error log
 --let $assert_text = Found heartbeat related message in the error log
@@ -72,10 +72,10 @@ INSERT INTO t VALUES(10);
 --source include/assert_grep.inc
 
 # 6. Verify that replica is working fine
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # 7. Clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

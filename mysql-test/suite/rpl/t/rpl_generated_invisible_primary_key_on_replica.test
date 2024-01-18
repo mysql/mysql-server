@@ -50,9 +50,9 @@
 
 --source include/not_have_privilege_checks_user.inc
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $sysvars_to_save = [ "GLOBAL.sql_generate_invisible_primary_key" ]
 --source include/save_sysvars.inc
@@ -65,17 +65,17 @@ SET SESSION sql_generate_invisible_primary_key = ON;
 --echo # 2. Create a table without a primary key on the source
 --echo #    The table should not have a primary key when replicated
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1(a int); # No primary key
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $column_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t1';`
 --let $assert_text= The table only contains a column
@@ -115,11 +115,11 @@ SHOW CREATE TABLE t2;
 # Store the default value
 --let $_pk_key_check_value = `SELECT require_table_primary_key_check FROM performance_schema.replication_applier_configuration WHERE channel_name=""`
 
- --source include/stop_slave_sql.inc
+ --source include/rpl/stop_applier.inc
 
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
 
- --source include/start_slave_sql.inc
+ --source include/rpl/start_applier.inc
 
 --echo
 --echo ##############################################################
@@ -127,11 +127,11 @@ CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
 --echo #    The table should have a generated primary key on the replica
 --echo #    This still applies if sql_generate_invisible_primary_key = OFF
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t3(a int); # No primary key
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $column_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t3';`
 --let $assert_text= The table only contains an extra column
@@ -147,13 +147,13 @@ CREATE TABLE t3(a int); # No primary key
 
 SET GLOBAL sql_generate_invisible_primary_key = OFF;
 
---source include/restart_slave_sql.inc
+--source include/rpl/restart_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t4(a int); # No primary key
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $column_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t4';`
 --let $assert_text= The table only contains an extra column
@@ -173,18 +173,18 @@ CREATE TABLE t4(a int); # No primary key
 
 # Case 1: A column is renamed to have the same name as the replica GIPK
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 ALTER TABLE t4 RENAME COLUMN a TO my_row_id;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $slave_sql_errno= convert_error(ER_DUP_FIELDNAME)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Case 2: A PK is added in the source for a table that as a GIPK in the replica
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 RESET BINARY LOGS AND GTIDS;
 
@@ -192,54 +192,54 @@ CREATE TABLE t5(a int); # No primary key
 
 ALTER TABLE t5 ADD PRIMARY KEY `k` (a);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 START REPLICA;
 
 --let $slave_sql_errno= convert_error(ER_MULTIPLE_PRI_KEY)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Case 3: A table is created that already has a my_row_id column
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t6 (my_row_id TEXT);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 START REPLICA;
 
 --let $slave_sql_errno= convert_error(ER_GIPK_COLUMN_EXISTS)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo
 --echo ##############################################################
 --echo # 7. Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 RESET BINARY LOGS AND GTIDS;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 RESET BINARY LOGS AND GTIDS;
 
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 
 --replace_result $_pk_key_check_value PRIMARY_KEY_CHECK_VALUE
 --eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --source include/restore_sysvars.inc
 
@@ -260,14 +260,14 @@ Replica: Failed to generate invisible primary key. Column 'my_row_id' already ex
 --let $suppress_on_current_connection = 1
 --source include/suppress_messages.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLE t5;
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 DROP TABLE t6;
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

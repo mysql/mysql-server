@@ -1,0 +1,33 @@
+-- source include/have_log_bin.inc
+
+--character_set cp932
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+set names cp932;
+set character_set_database = cp932;
+
+# Test prepared statement with 0x8300 sequence in parameter while
+# running with cp932 client character set.
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1(f1 blob);
+PREPARE stmt1 FROM 'INSERT INTO t1 VALUES(?)';
+SET @var1= x'8300';
+# TODO: Note that this doesn't actually test the code which was added for
+# bug#11338 because this syntax for prepared statements causes the PS to
+# be replicated differently than if we executed the PS from C or Java.
+# Using this syntax, variable names are inserted into the binlog instead
+# of values. The real goal of this test is to check the code that was
+# added to Item_param::query_val_str() in order to do hex encoding of
+# PS parameters when the client character set is cp932;
+# Bug#11338 has an example java program which can be used to verify this 
+# code (and I have used it to test the fix) until there is some way to
+# exercise this code from mysql-test-run.
+EXECUTE stmt1 USING @var1;
+source include/rpl/deprecated/show_binlog_events.inc;
+SELECT HEX(f1) FROM t1;
+DROP table t1;
+# end test for bug#11338
+
+# End of 4.1 tests

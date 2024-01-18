@@ -13,9 +13,9 @@ SET @@session.binlog_transaction_compression_level_zstd = 1;
 #
 # 4) Save the binlog position before and after inserting the values in table
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t VALUES (LOAD_FILE('../../std_data/mysqldump_57.sql'));
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 #
 # 5) Compute the compressed size for binlog_transaction_compression_level_zstd = 1
 #
@@ -26,9 +26,9 @@ SET @@session.binlog_transaction_compression_level_zstd = 19;
 #
 # 7) Save the binlog position before and after inserting the values in table
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t VALUES (LOAD_FILE('../../std_data/mysqldump_57.sql'));
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 #
 # 8) Compute the compressed size for binlog_transaction_compression_level
 #_zstd = 19

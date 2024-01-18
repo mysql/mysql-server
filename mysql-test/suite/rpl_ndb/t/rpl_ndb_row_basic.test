@@ -1,8 +1,8 @@
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
--- source suite/ndb_rpl/ndb_master-slave.inc
+-- source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 let $type= 'NDB' ;
 let $extra_index= ;
--- source extra/rpl_tests/rpl_row_basic.test
---source include/rpl_end.inc
+-- source common/rpl/rpl_row_basic.test
+--source include/rpl/deinit.inc

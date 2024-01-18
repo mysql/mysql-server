@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,7 +13,7 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO db1.t1 VALUES (40);
 INSERT INTO db2.t1 VALUES (40);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @save_debug = @@GLOBAL.debug;
 SET @save_replica_checkpoint_group= @@GLOBAL.replica_checkpoint_group;
 SET @save_replica_checkpoint_period= @@GLOBAL.replica_checkpoint_period;
@@ -80,26 +80,26 @@ insert into db1.t1 values (2);
 insert into db2.t1 values (2);
 insert into db1.t1 values (1);
 insert into db2.t1 values (1);
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection slave]
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 [connection master]
 BEGIN;
 INSERT INTO db1.t1 VALUES (50);
 COMMIT;
 [connection slave]
 SET global debug="+d,simulate_stop_when_mta_in_group";
-include/start_slave_io.inc
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/start_receiver.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert_grep.inc [Assert that the expected entry is in the error log during STOP REPLICA]
 SET GLOBAL debug=@save_debug;
 SET @@GLOBAL.replica_checkpoint_group= @save_replica_checkpoint_group;
 set @@GLOBAL.replica_checkpoint_period= @save_replica_checkpoint_period;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert_grep.inc [Assert that the expected entry is in the error log during START REPLICA]
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 DROP DATABASE db1;
 DROP DATABASE db2;
-include/rpl_end.inc
+include/rpl/deinit.inc

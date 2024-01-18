@@ -31,9 +31,9 @@ while ($_server_index <= $rpl_server_count)
 {
   --let $rpl_connection_name= server_spm_consistency$_server_index
   --let $rpl_server_number= $_server_index
-  --source include/rpl_connect.inc
+  --source include/rpl/connect.inc
   --let $rpl_connection_name= server_spm_consistency$_server_index
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   let $_this_member_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
   let $_is_member_in_error= `SELECT member_state IN ("ERROR") FROM performance_schema.replication_group_members WHERE member_id="$_this_member_id"`;

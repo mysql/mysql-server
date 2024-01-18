@@ -36,7 +36,7 @@
 
 ## Get server_uuid of server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 set session sql_log_bin=0;
@@ -45,7 +45,7 @@ set session sql_log_bin=1;
 
 ## Get server_uuid of server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 set session sql_log_bin=0;
@@ -61,7 +61,7 @@ set session sql_log_bin=1;
 ## 1.   Bootstrap server1 with server1_uuid as group_name
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @debug_group_replication_start_on_boot= @@GLOBAL.group_replication_start_on_boot;
 
@@ -107,7 +107,7 @@ START GROUP_REPLICATION;
 ## 2.2. Start server2 with server2_uuid as group_name
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name = "$member2_uuid";
@@ -138,7 +138,7 @@ START GROUP_REPLICATION;
 
 ## Reset configurations and start server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_start_on_boot= @debug_group_replication_start_on_boot;
@@ -149,7 +149,7 @@ SET @@GLOBAL.group_replication_start_on_boot= @debug_group_replication_start_on_
 ## 3.1. Start server2 with unique group_name
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 ## 3.2. Assert GR starts on server2.

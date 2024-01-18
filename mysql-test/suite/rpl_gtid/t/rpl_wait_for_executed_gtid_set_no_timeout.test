@@ -8,7 +8,7 @@
 # not waiting incase the timeout is not specified by the user.
 
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection slave
 --let $master_uuid= query_get_value(select SOURCE_UUID from performance_schema.replication_connection_status WHERE service_state = 'ON', SOURCE_UUID, 1)
@@ -41,10 +41,10 @@ INSERT INTO t1 values(2);
 --reap
 
 --let $wait_for_executed_gtid_set=1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # CLEANUP
 --connection master
 DROP TABLE t1;
 DROP USER `ABC`;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -20,7 +20,7 @@
 --source include/install_replication_observers_example.inc
 
 --let $rpl_gtid_utils=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Set up test
@@ -58,7 +58,7 @@ INSERT t1 VALUES(2);
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= GTID_EXECUTED must remain the same
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
@@ -100,7 +100,7 @@ INSERT t1 VALUES(2);
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= GTID_EXECUTED must remain the same
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
@@ -138,7 +138,7 @@ INSERT t1 VALUES(2);
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= GTID_EXECUTED must remain the same
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
@@ -171,7 +171,7 @@ INSERT t1 VALUES(2);
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3"
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= At this point we should have 2 successful operations
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3"
@@ -200,7 +200,7 @@ INSERT t1 VALUES(4);
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1-3,$uuida:1-2")
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= GTID_EXECUTED must contain all GTIDs with the server id and with the fake id
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1-3,$uuida:1-2")
@@ -216,7 +216,7 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 --source include/uninstall_replication_observers_example.inc
 

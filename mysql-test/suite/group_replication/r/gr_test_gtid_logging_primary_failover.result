@@ -26,7 +26,7 @@ include/start_group_replication.inc
 [connection server1]
 INSERT INTO t1 values (2);
 INSERT INTO t1 values (3);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 [connection server1]
@@ -67,7 +67,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 group_replication_switch_to_multi_primary_mode()
 Mode switched to multi-primary successfully.
 DROP table t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
 group_replication_switch_to_single_primary_mode("MEMBER2_UUID")
 Mode switched to single-primary successfully.

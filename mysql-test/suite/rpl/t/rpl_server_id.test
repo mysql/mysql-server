@@ -11,17 +11,17 @@
 
 --let $rpl_topology= 2->2
 --let $rpl_skip_start_slave= 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --connection server_2
 START REPLICA;
 # 13117 = ER_REPLICA_FATAL_ERROR
 --let $slave_io_errno= 13117
 --let $show_slave_io_error= 1
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 RESET REPLICA;
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -12,10 +12,10 @@
 
 # No need to test RBR Since we dont replicate temp tables at slave with RBR
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TEMPORARY TABLE TEMP1 (a int);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # Verify that the innodb table and slave_open_temp_table both indicate
@@ -35,7 +35,7 @@ CREATE TEMPORARY TABLE TEMP1 (a int);
 --echo # both indicate that there is an open temp table at slave.
 --echo
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $innodb_tbl_value= `SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
 --let $var_value= `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= 'REPLICA_OPEN_TEMP_TABLES'`
 
@@ -58,7 +58,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT;
 --let $assert_cond= $innodb_tbl_value = $var_value AND $innodb_tbl_value = 1
 --source include/assert.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo # This is where the mismatch was found in the bug.
@@ -80,4 +80,4 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT;
 --connection master
 DROP TEMPORARY TABLE IF EXISTS TEMP1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

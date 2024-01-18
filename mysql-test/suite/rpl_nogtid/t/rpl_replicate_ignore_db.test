@@ -1,7 +1,7 @@
 # see if --replicate-ignore-db works
 
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --disable_warnings
 drop database if exists mysqltest1;
@@ -13,7 +13,7 @@ create database mysqltest2;
 use mysqltest1;
 create table t1 (a int);
 insert into t1 values(1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --error ER_BAD_DB_ERROR
 select * from mysqltest1.t1;
 
@@ -21,12 +21,12 @@ connection master;
 use mysqltest2;
 create table t1 (a int);
 insert into t1 values(1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from mysqltest2.t1;
 
 # cleanup
 connection master;
 drop database mysqltest1;
 drop database mysqltest2;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

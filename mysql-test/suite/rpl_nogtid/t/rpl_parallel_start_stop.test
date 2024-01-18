@@ -12,7 +12,7 @@
 --source include/have_binlog_format_row.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # sql_replica_skip_counter is not supported with compression
 --source include/not_binlog_transaction_compression_on.inc
@@ -27,12 +27,12 @@ create view worker_proc_list as SELECT id  from Information_Schema.processlist
        where state like 'Waiting for an event from Coordinator';
 create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Replica has read all relay log%';
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 4;
 
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 let $count= `select @@global.replica_parallel_workers`;
 let $table= worker_proc_list;
@@ -49,12 +49,12 @@ let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
 --let $slave_sql_errno= convert_error(ER_MTA_INCONSISTENT_DATA)
-source include/wait_for_slave_sql_to_stop.inc;
+source include/rpl/wait_for_applier_to_stop.inc;
 
 #
 # KILL of the Coordinator stops the pool as well
 #
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 # testing of the poll is up
 
@@ -75,9 +75,9 @@ let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
 let $slave_sql_errno= 1756; # ER_MTA_PARALLEL_INCONSISTENT_DATA
-source include/wait_for_slave_sql_error.inc;
+source include/rpl/wait_for_applier_error.inc;
 
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 ##
 # Errored-out Worker stops the pool and the Coordinator
@@ -94,7 +94,7 @@ CREATE TABLE t1 (a int primary key) engine=innodb;
 
 insert into t1 values (1),(2);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 
 let $count= 2;
@@ -116,16 +116,16 @@ let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
 --let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
-source include/wait_for_slave_sql_to_stop.inc;
+source include/rpl/wait_for_applier_to_stop.inc;
 delete from t1 where a=3;
 
 set @save.replica_transaction_retries= @@global.replica_transaction_retries;
 set @@global.replica_transaction_retries= 10;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 --connection master
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 
 if (`select count(*) != 3 from t1`)
@@ -139,7 +139,7 @@ if (`select count(*) != 3 from t1`)
 --connection master
 delete from t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 
 #
@@ -151,7 +151,7 @@ insert into t1 values (1),(2),(3);
 create table t2m (a int) engine=myisam; # non-trans engine to detect deadlock
 insert into t2m values (1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 
 begin;
@@ -184,7 +184,7 @@ rollback;
 
 # recovery is proved
 #--connection slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Skipping works with Parallel slave
@@ -221,7 +221,7 @@ START REPLICA sql_thread;
 --connection master
 let $a=`select max(a) from t1`;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 
 if (`select $a - max(a) from t1`)
@@ -238,7 +238,7 @@ if (`select $a - max(a) from t1`)
 #
 
 --connection slave
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 --connection master
 create table t2 (a int);
@@ -252,14 +252,14 @@ insert into t2 values (1);
 --replace_regex /SOURCE_LOG_POS=[0-9]+/SOURCE_LOG_POS=SOURCE_LOG_POS/
 eval START REPLICA until SOURCE_LOG_FILE='$source_log_file', SOURCE_LOG_POS=$source_log_pos;
 
-source include/wait_for_slave_sql_to_stop.inc;
+source include/rpl/wait_for_applier_to_stop.inc;
 if (`select count(*) from t2`)
 {
     select count(*) from t2;
     --die Wrong UNTIL condtion handling or a flaw in the test
 }
 
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 ##
 # cleanup
@@ -269,7 +269,7 @@ drop table t1;
 drop table t2m;
 drop table t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 drop view worker_proc_list;
 drop view coord_proc_list;
 
@@ -290,7 +290,7 @@ drop view coord_proc_list;
 # in assumption that it's not yet.
 #
 set @@global.replica_transaction_retries= 0;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 # Show SQL_AFTER_MTS_GAPS is meaningless in combination with coordinates
 # related options
@@ -308,7 +308,7 @@ START REPLICA until sql_after_mts_gaps SQL_BEFORE_GTIDS='dummy';
 call mtr.add_suppression('Replica SQL for channel '': Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock');
 
 # regular start now
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 # set up gaps when slave sql errors out
 --connection master
@@ -322,7 +322,7 @@ insert into d1.t1 values (1),(2),(3);
 insert into d2.t1 values (1),(2),(3);
 insert into d1.t2m values (1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 begin; # the blocker
 # set up a deadlock at the 1st job
@@ -374,7 +374,7 @@ update d1.t1 set a=21 where a=2;
 --let $slave_timeout=`select 2*@@global.innodb_lock_wait_timeout`
 
 let $slave_sql_errno= 1213, 1205;
-source include/wait_for_slave_sql_error.inc;
+source include/rpl/wait_for_applier_error.inc;
 
 rollback; # the blocker
 
@@ -384,7 +384,7 @@ let $exec_pos_0= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1);
 START REPLICA until sql_after_mts_gaps;
 
 # Efficiency of UNTIL proof:
-source include/wait_for_slave_sql_to_stop.inc;
+source include/rpl/wait_for_applier_to_stop.inc;
 
 # Consistency proof:
 
@@ -412,12 +412,12 @@ if (`select $exec_pos_1 - $exec_pos_0 <= 0`)
 --disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 --enable_warnings
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 --connection master
 drop database d1;
 drop database d2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 set @@global.replica_transaction_retries= @save.replica_transaction_retries;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

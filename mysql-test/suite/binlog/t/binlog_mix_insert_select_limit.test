@@ -29,7 +29,7 @@ INSERT INTO employees VALUES (5);
 CREATE TABLE t1 (m INT);
 INSERT INTO t1 VALUES (9);
 INSERT INTO employees SELECT 5 FROM t1 LIMIT 3;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 #Cleanup
 DROP TABLE employees;

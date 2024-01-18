@@ -48,14 +48,14 @@ CREATE TABLE t0(c0 int);
 SET SESSION TRANSACTION READ ONLY;
 
 --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.1/data/*binlog*.0*
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_before_set_checksum = $log_file_max_number
 
 # 3) Execute 'SET GLOBAL BINLOG_CHECKSUM = CRC32' and assert that binary log
 #    was rotated.
 SET GLOBAL BINLOG_CHECKSUM = CRC32;
 
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_after_set_checksum = $log_file_max_number
 --let $assert_text = 'SET GLOBAL BINLOG_CHECKSUM = CRC32' rotated the binlog with 'TRANSACTION READ ONLY'
 --let $assert_cond = $max_log_file_after_set_checksum = $max_log_file_before_set_checksum + 1
@@ -73,7 +73,7 @@ SET SESSION TRANSACTION READ WRITE;
 # This is to create new GTIDs to be written to gtid_executed table.
 INSERT INTO  t0 VALUES(10);
 
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_before_flush = $log_file_max_number
 
 # 6) Set 'SESSION TRANSACTION READ ONLY'
@@ -86,7 +86,7 @@ FLUSH BINARY LOGS;
 --let $wait_condition= SELECT count(*) = 1 FROM mysql.gtid_executed WHERE interval_end = 4
 --source include/wait_condition.inc
 
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_after_flush = $log_file_max_number
 --let $assert_text = 'FLUSH BINARY LOGS' rotated the binlog with 'TRANSACTION READ ONLY'
 --let $assert_cond = $max_log_file_after_flush = $max_log_file_before_flush + 1

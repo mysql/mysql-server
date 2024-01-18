@@ -41,7 +41,7 @@
 --echo ############################################################
 --echo # 01. Boot start server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sysvars_to_save = [ "GLOBAL.group_replication_consistency" ]
 --source include/save_sysvars.inc
 SET GLOBAL group_replication_consistency= 'AFTER';
@@ -51,7 +51,7 @@ SET GLOBAL group_replication_consistency= 'AFTER';
 --echo ############################################################
 --echo # 2. Start server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sysvars_to_save = [ "GLOBAL.group_replication_consistency" ]
 --source include/save_sysvars.inc
 SET GLOBAL group_replication_consistency= 'AFTER';
@@ -61,14 +61,14 @@ SET GLOBAL group_replication_consistency= 'AFTER';
 --echo ############################################################
 --echo # 3. Stop GR on server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --echo
 --echo ############################################################
 --echo # 4. Execute transactions on the new primary
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
@@ -79,7 +79,7 @@ INSERT INTO t1 VALUES (3);
 --echo ############################################################
 --echo # 5. Add debug points in server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,recovery_thread_wait_after_wait_for_applier_module_recovery';
 
 --echo
@@ -106,7 +106,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
 --echo # 8. Commit a transaction on server2 while server1 is
 --echo #    in recovery
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (4);
 
@@ -114,7 +114,7 @@ INSERT INTO t1 VALUES (4);
 --echo # 9. On server1, wait for the transaction to reach debug
 --echo #    sync point
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
 
 --echo ############################################################
@@ -155,7 +155,7 @@ SET DEBUG_SYNC= 'RESET';
 --source include/restore_sysvars.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/restore_sysvars.inc
 DROP TABLE t1;
 

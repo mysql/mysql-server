@@ -2,18 +2,18 @@
 # TC1. Variable `read_only` is ON & rotate the binlog
 #
 SET GLOBAL read_only = ON;
-include/rpl_log_file_max_number.inc
+include/rpl/log_file_max_number.inc
 FLUSH BINARY LOGS;
-include/rpl_log_file_max_number.inc
+include/rpl/log_file_max_number.inc
 include/assert.inc ['FLUSH BINARY LOGS' rotated the binlog with 'read_only=ON']
 SET GLOBAL read_only = INITIAL_OPTION_VALUE;
 #
 # TC2. Variable `super_read_only` is ON & rotate the binlog
 #
 SET GLOBAL super_read_only = ON;
-include/rpl_log_file_max_number.inc
+include/rpl/log_file_max_number.inc
 FLUSH BINARY LOGS;
-include/rpl_log_file_max_number.inc
+include/rpl/log_file_max_number.inc
 include/assert.inc ['FLUSH BINARY LOGS' rotated the binlog with 'super_read_only=ON']
 SET GLOBAL super_read_only = INITIAL_OPTION_VALUE;
 SET GLOBAL read_only = INITIAL_OPTION_VALUE;
@@ -22,12 +22,12 @@ SET GLOBAL super_read_only = INITIAL_OPTION_VALUE;
 # TC3. Variable `read_only` is ON & simulate max binlog size reached
 #
 SET GLOBAL read_only = ON;
-include/rpl_log_file_max_number.inc
+include/rpl/log_file_max_number.inc
 SET DEBUG = "d,simulate_max_binlog_size";
 DROP PROCEDURE IF EXISTS p1;
 Warnings:
 Note	1305	PROCEDURE test.p1 does not exist
-include/rpl_log_file_max_number.inc
+include/rpl/log_file_max_number.inc
 include/assert.inc [Having 'read_only=ON' didnot prevent the binlog of rotating when `max_binlog_size` is reached]
 SET GLOBAL read_only = INITIAL_OPTION_VALUE;
 SET GLOBAL read_only = INITIAL_OPTION_VALUE;

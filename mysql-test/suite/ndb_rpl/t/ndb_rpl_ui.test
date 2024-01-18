@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 #
 # Slave behaviour when replicating unique index operations
@@ -104,7 +104,7 @@ insert into t1 values (7,7,11);
 
 --connection slave
 --let $slave_sql_errno= 1022
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 delete from t1 where c=11;
 start replica;
@@ -118,7 +118,7 @@ update t1 set c=12 where a=2;
 
 --connection slave
 --let $slave_sql_errno= 1022
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 delete from t1 where c=12;
 
@@ -152,7 +152,7 @@ update t2 set b=repeat('GEO', 20000), c=c+10 order by c desc;
 
 --connection slave
 --let $slave_sql_errno= 1022
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 delete from t2 where c=11;
 
@@ -167,4 +167,4 @@ drop table t2;
 --sync_slave_with_master
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

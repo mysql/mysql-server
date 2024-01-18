@@ -9,7 +9,7 @@
 #                                                                                          #
 ############################################################################################
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
@@ -47,7 +47,7 @@ SELECT (vbin1 ^ x'6ac3'), (vbin2 & x'5939') FROM bitwise_table WHERE id = 2;
 INSERT INTO bitwise_table(vbin1, vbin2)
 SELECT (vbin1 & vbin2) , (vbin1 | vbin2) FROM bitwise_table WHERE id = 7;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # check whether table was created and values were inserted on slave
@@ -71,7 +71,7 @@ SELECT HEX(vbin2), HEX(BIT_AND(vbin2)), HEX(BIT_OR(vbin2)), HEX(BIT_XOR(vbin2)),
 UPDATE bitwise_table SET vbin1 = (vbin1 | vbin2) WHERE id <= 6;
 UPDATE bitwise_table SET vbin2 = (vbin1 & vbin2) WHERE id <= 6;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether rows are updated
@@ -87,7 +87,7 @@ SELECT HEX(vbin1), HEX(vbin2) FROM bitwise_table WHERE id <= 6;
 UPDATE bitwise_table SET vbin1 = (vbin1 ^ vbin2) WHERE id <= 6;
 UPDATE bitwise_table SET vbin2 = (~ vbin1) WHERE id <= 6;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether rows are updated
@@ -104,7 +104,7 @@ SELECT HEX(vbin1), HEX(vbin2) FROM bitwise_table WHERE id <= 6;
 
 DELETE FROM bitwise_table WHERE BIT_COUNT(vbin1) <= 8;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # check whether the rows are deleted
@@ -122,7 +122,7 @@ SELECT HEX(vbin1), HEX(vbin2) FROM bitwise_table;
 
 DROP TABLE bitwise_table;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether table is dropped
@@ -130,5 +130,5 @@ DROP TABLE bitwise_table;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM bitwise_table;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

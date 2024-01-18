@@ -50,7 +50,7 @@
 --connection server1
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_AUTO_POSITION=1
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 
 --echo
@@ -74,10 +74,10 @@ SET GTID_NEXT= 'AUTOMATIC';
 --echo #     on group.
 --connection server3
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo
@@ -85,7 +85,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 --echo #  5. Execute a transaction on the group.
 --connection server1
 INSERT INTO t1 VALUES (6);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -153,10 +153,10 @@ INSERT INTO t1 VALUES (6);
 DROP TABLE t1;
 
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo
@@ -164,7 +164,7 @@ DROP TABLE t1;
 --echo # 10. Stop asynchronous replication connection from server 3
 --echo #     into group (server 1)
 --connection server1
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
 
 --echo

@@ -20,4 +20,4 @@
 --source include/have_myisam.inc
 
 --let $engine= MyISAM
---source extra/binlog_tests/binlog_row_kill_create_select.test
+--source common/binlog/binlog_row_kill_create_select.test

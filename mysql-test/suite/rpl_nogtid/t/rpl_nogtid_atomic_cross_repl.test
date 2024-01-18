@@ -20,36 +20,36 @@
 # complete to good.
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
---source include/sync_slave_sql_with_master.inc
-# --source include/rpl_connection_slave.inc
+--source include/rpl/sync_to_replica.inc
+# --source include/rpl/connection_replica.inc
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Query caused different errors on source and replica");
 
 SET @@global.debug="+d,simulate_error_in_ddl";
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1(a int);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $slave_sql_errno= convert_error(ER_INCONSISTENT_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Now the slave is inconsistent as if a non-atomic DDL has failed on it.
 # The table has to be dropped in order to proceed from the error.
 DROP TABLE t1;
 SET @@global.debug="-d,simulate_error_in_ddl";
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

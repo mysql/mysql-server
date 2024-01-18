@@ -10,5 +10,5 @@ INSERT INTO t1 VALUES(2, 1);
 SET DEBUG_SYNC = "now SIGNAL continue_commit_stage";
 UPDATE t1 SET c2 = 2 WHERE c1 = 2;
 SET DEBUG_SYNC = "now SIGNAL insert2_finish";
-include/include/assert_logical_timestamps.inc [3 4]
+include/include/rpl/assert_logical_timestamps.inc [3 4]
 DROP TABLE t1;

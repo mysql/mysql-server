@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 SET @saved_rpco= @@GLOBAL.replica_preserve_commit_order;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replica_preserve_commit_order=OFF;
 #setup the databases and tables
 CREATE DATABASE db1;
@@ -16,31 +16,31 @@ INSERT INTO db1.t values (1),(2),(3);
 SET GLOBAL replica_parallel_type='DATABASE';
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:db1.t,slave:db1.t]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 INSERT INTO db1.t values (1),(2),(3);
 SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:db1.t,slave:db1.t]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 INSERT INTO db1.t values (1),(2),(3);
 SET GLOBAL replica_parallel_type='DATABASE';
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:db1.t,slave:db1.t]
 DROP DATABASE db1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

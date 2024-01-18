@@ -1,7 +1,7 @@
 #
 # set up source server_1 and server_3 with server_2 being a replica.
 #.
-include/rpl_init.inc [topology=1->2,3->2]
+include/rpl/init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -27,8 +27,8 @@ INSERT INTO t3 VALUES(4);
 [connection server_2]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_1_UUID:1-4,SOURCE_3_UUID:1-4" for channel 'channel_1';
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_1_UUID:1-4,SOURCE_3_UUID:1-4" for channel 'channel_3';
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_3']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_1']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_3']
 include/assert.inc [3 rows in t1 must be replicated now]
 include/assert.inc [3 rows in t3 must be replicated now]
 
@@ -37,8 +37,8 @@ include/assert.inc [3 rows in t3 must be replicated now]
 [connection server_2]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_1_UUID:1-2,SOURCE_3_UUID:1-2" for channel 'channel_1';
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_1_UUID:1-2,SOURCE_3_UUID:1-2" for channel 'channel_3';
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_3']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_1']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_3']
 include/assert.inc [3 rows in t1 must be replicated now]
 include/assert.inc [3 rows in t3 must be replicated now]
 
@@ -57,8 +57,8 @@ INSERT INTO t3 VALUES(8);
 [connection server_2]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_1_UUID:7,SOURCE_3_UUID:7" for channel 'channel_1';
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_1_UUID:7,SOURCE_3_UUID:7" for channel 'channel_3';
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_3']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_1']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_3']
 include/assert.inc [Atleast 6 rows in t1 must be replicated now]
 include/assert.inc [Atleast 6 rows in t3 must be replicated now]
 
@@ -71,8 +71,8 @@ INSERT INTO t3 VALUES(9);
 [connection server_2]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_1_UUID:1-8,SOURCE_3_UUID:1-8" for channel 'channel_1';
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_1_UUID:1-8,SOURCE_3_UUID:1-8" for channel 'channel_3';
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_3']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_1']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_3']
 include/assert.inc [Atleast 7 rows in t1 must be replicated now]
 include/assert.inc [Atleast 7 rows in t3 must be replicated now]
 
@@ -86,8 +86,8 @@ INSERT INTO t1 VALUES(10);
 [connection server_3]
 INSERT INTO t3 VALUES(10);
 [connection server_2]
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_3']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_1']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_3']
 include/assert.inc [9 rows in t1 must be replicated now]
 include/assert.inc [9 rows in t3 must be replicated now]
 
@@ -101,8 +101,8 @@ INSERT INTO t1 VALUES(11);
 [connection server_3]
 INSERT INTO t3 VALUES(11);
 [connection server_2]
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_3']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_1']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_3']
 include/assert.inc [10 rows in t1 must be replicated now]
 include/assert.inc [10 rows in t3 must be replicated now]
 
@@ -117,8 +117,8 @@ INSERT INTO t1 VALUES(13);
 INSERT INTO t1 VALUES(14);
 INSERT INTO t1 VALUES(15);
 [connection server_2]
-include/check_slave_is_running.inc [FOR CHANNEL 'channel_1']
-include/check_slave_is_running.inc [FOR CHANNEL 'channel_3']
+include/rpl/assert_replica_running.inc [FOR CHANNEL 'channel_1']
+include/rpl/assert_replica_running.inc [FOR CHANNEL 'channel_3']
 [connection server_1]
 INSERT INTO t1 VALUES(16);
 INSERT INTO t1 VALUES(17);
@@ -126,8 +126,8 @@ INSERT INTO t1 VALUES(18);
 INSERT INTO t1 VALUES(19);
 INSERT INTO t1 VALUES(20);
 [connection server_2]
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_3']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_1']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_3']
 [connection server_2]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_3_UUID:1-20" for channel 'channel_1';
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_3_UUID:1-20" for channel 'channel_3';
@@ -142,8 +142,8 @@ INSERT INTO t3 VALUES(18);
 INSERT INTO t3 VALUES(19);
 INSERT INTO t3 VALUES(20);
 [connection server_2]
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_3']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_1']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_3']
 include/assert.inc [19 rows in t1 must be replicated now]
 include/assert.inc [19 rows in t1 must be replicated now]
 
@@ -156,8 +156,8 @@ DROP TABLE t3;
 [connection server_2]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_1_UUID:21" for channel 'channel_1';
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_3_UUID:21" for channel 'channel_3';
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
-include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_3']
-include/rpl_end.inc
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_1']
+include/rpl/wait_for_applier_to_stop.inc [FOR CHANNEL 'channel_3']
+include/rpl/deinit.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 RESET REPLICA ALL FOR CHANNEL 'channel_3';

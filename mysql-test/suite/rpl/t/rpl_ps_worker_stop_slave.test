@@ -20,16 +20,16 @@
 # the test in binlog format agnostic
 --source include/have_binlog_format_row.inc
 --source include/not_rpl_gtid_only.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET @@GLOBAL.replica_parallel_workers = 0;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Four scenarios are tested:
 # Scenario 1:
@@ -62,9 +62,9 @@ while ($scenario < 5)
     --let $new_replica_parallel_workers = 0
   }
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   --eval INSERT INTO t1 VALUES ($scenario)
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   --let $last_applied_trx_1 = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table, LAST_APPLIED_TRANSACTION, 1)
   --let $last_applied_trx_OCT_1 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
@@ -72,7 +72,7 @@ while ($scenario < 5)
   --let $last_applied_trx_start_apply_1 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
   --let $last_applied_trx_end_apply_1 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP, 1)
 
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
   --eval SET @@GLOBAL.replica_parallel_workers = $new_replica_parallel_workers
 
   --let $last_applied_trx_2 = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table, LAST_APPLIED_TRANSACTION, 1)
@@ -81,7 +81,7 @@ while ($scenario < 5)
   --let $last_applied_trx_start_apply_2 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
   --let $last_applied_trx_end_apply_2 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP, 1)
 
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
 
   --let $last_applied_trx_3 = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table, LAST_APPLIED_TRANSACTION, 1)
   --let $last_applied_trx_OCT_3 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
@@ -173,12 +173,12 @@ while ($scenario < 5)
 }
 
 # cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 --disable_warnings
 SET @@GLOBAL.replica_parallel_workers = @saved_replica_parallel_workers;
 --enable_warnings
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

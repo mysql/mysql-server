@@ -1,0 +1,87 @@
+# ==== Purpose ====
+#
+# Verify that on slave server, appropriate XA_STATE is reported in Performance
+# Schema tables for XA transactions.
+#
+# ==== Implementation ====
+#
+# 1) On Master start one XA transaction named 'xatest' and set the state to
+# 'PREPARED'.
+# 2) On slave wait till the applier thread applies the 'XA PREPARE' statement.
+# 3) Verify that the XA_STATE is reported as 'PREPARED' in performance schema
+# table.
+# 4) On Master COMMIT the XA transaction.
+# 5) On slave verify that the XA_STATE is reported as 'COMMITTED'
+#
+# ==== References ====
+#
+# Bug#25940184: P_S TRANSACTION INSTRUMENTATION DOES NOT WORK PROPERLY FOR
+# XA ON SLAVE
+--source include/rpl/connection_replica.inc
+TRUNCATE TABLE performance_schema.events_transactions_current;
+
+--echo ---- Setup ----
+--source include/rpl/connection_source.inc
+--let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+CREATE TABLE t ( f INT) ENGINE=INNODB;
+
+--echo ---- XA PREPARE ----
+XA START 'xatest';
+INSERT INTO t VALUES (10);
+XA END 'xatest';
+XA PREPARE 'xatest';
+
+# Sync on a different connection, since we can't run queries on a
+# connection that has an XA transaction in PREPARED state.
+--connection default
+--source include/rpl/sync_to_replica.inc
+
+--echo # Wait for XA_STATE to become PREPARED on slave
+# It is not enough to only use rpl/sync_to_replica.inc, because
+# the XA state is updated after the GTID state and the replication
+# positions.  Hence we also *wait* for the XA state to change.
+--let $wait_condition = SELECT COUNT(*) = 1 FROM performance_schema.events_transactions_current WHERE XID_GTRID = 'xatest' AND XA_STATE = 'PREPARED'
+--source include/wait_condition_or_abort.inc
+
+--echo # Expecting one prepared transaction
+XA RECOVER;
+
+if ($gtid_mode == ON)
+{
+  --let $gno_0 = 2
+  --let $expected_gtid = $master_uuid:$gno_0
+  --echo Waiting until gtid is Source_UUID:$gno_0
+  --let $wait_condition = SELECT GTID = '$expected_gtid' FROM performance_schema.events_transactions_current where XID_GTRID = 'xatest' AND XA_STATE = 'PREPARED'
+  --source include/wait_condition_or_abort.inc
+}
+
+--echo ---- XA COMMIT ----
+--source include/rpl/connection_source.inc
+XA COMMIT 'xatest';
+--source include/rpl/sync_to_replica.inc
+
+--echo # Wait for XA_STATE to become COMMITTED on slave
+--let $wait_condition = SELECT COUNT(*) = 1 FROM performance_schema.events_transactions_current WHERE XID_GTRID = 'xatest' AND XA_STATE = 'COMMITTED'
+--source include/wait_condition_or_abort.inc
+
+--echo # Expecting no prepared transactions
+XA RECOVER;
+
+if ($gtid_mode == ON)
+{
+  --let $gno_0 = 3
+  --let $expected_gtid = $master_uuid:$gno_0
+  --echo Waiting until gtid is Source_UUID:$gno_0
+  # We need the "XA_STATE='COMMITTED'" condition, since there
+  # can be multiple rows having XID_GTRID='xatest' in case XA PREPARE
+  # and XA COMMIT were handled by different applier worker threads.
+  --let $wait_condition = SELECT GTID = '$expected_gtid' FROM performance_schema.events_transactions_current where XID_GTRID = 'xatest' AND XA_STATE = 'COMMITTED'
+  --source include/wait_condition_or_abort.inc
+}
+
+--let $diff_tables=master:t,slave:t
+--source include/diff_tables.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t;
+--source include/rpl/sync_to_replica.inc

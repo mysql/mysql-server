@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # Setup
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Creating manifest file for current MySQL server instance
 [connection master]
 # ----------------------------------------------------------------------
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 # Force the server to fail storing new master key index
 Try to restart the master enabling the option with debug instrumentation
 include/assert_grep.inc [Server reported: Failed to store key]
@@ -29,7 +29,7 @@ include/assert_grep.inc [Server reported: Failed to store key]
 include/assert_grep.inc [Server failed to initialize binlog encryption]
 include/assert_grep.inc [Server aborted to start]
 Restart the master enabling the option
-include/rpl_start_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
 include/assert.inc [binlog_encryption option shall be ON]
 include/assert.inc [Binary log rotated]
 include/assert.inc [2th binary log is encrypted on master]
@@ -39,7 +39,7 @@ INSERT INTO t1 (c1) VALUES (4),(5),(6);
 [connection slave]
 include/assert.inc [1st binary log is not encrypted on slave]
 Restart the slave with keyring installed
-include/rpl_restart_server.inc [server_number=2]
+include/rpl/restart_server.inc [server_number=2]
 include/assert.inc [binlog_encryption option shall be OFF]
 include/assert.inc [2nd binary log is not encrypted on slave]
 # Force the server to fail storing new master key index
@@ -60,11 +60,11 @@ include/assert.inc [Binary log did not rotated]
 SET GLOBAL binlog_encryption = ON;
 include/assert.inc [Binary log rotated]
 include/assert.inc [5th binary log is encrypted on slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 SET GLOBAL binlog_encryption = OFF;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GLOBAL binlog_encryption = OFF;
 [connection master]
 # ----------------------------------------------------------------------
@@ -75,6 +75,6 @@ SET GLOBAL binlog_encryption = OFF;
 # Removing local keyring file for keyring component: component_keyring_file
 # Removing local configuration file for keyring component: component_keyring_file
 # Removing local configuration file for keyring component: component_keyring_file
-include/rpl_end.inc
+include/rpl/deinit.inc
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------

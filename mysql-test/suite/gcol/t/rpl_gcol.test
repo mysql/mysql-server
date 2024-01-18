@@ -34,7 +34,7 @@ SET @@session.default_storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 connection master;
 create table t1 (a int, b int generated always as (a+1) virtual);
@@ -76,7 +76,7 @@ SELECT * FROM gtable ORDER BY gtext;
 UPDATE gtable SET doc= NULL WHERE JSON_EXTRACT(doc, "$.id") = 4;
 SELECT * FROM gtable ORDER BY gtext;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SHOW CREATE TABLE gtable;
 --echo # Connection:slave - Row with value 3 is expected on slave.
 SELECT * FROM gtable ORDER BY gtext;
@@ -88,7 +88,7 @@ SELECT * FROM gtable ORDER BY gtext;
 --connection master
 DROP TABLE gtable;
 ## Postamble
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #------------------------------------------------------------------------------#
 # Execute storage engine specific tests
@@ -97,4 +97,4 @@ DROP TABLE gtable;
 #------------------------------------------------------------------------------#
 # Cleanup
 --source suite/gcol/inc/gcol_cleanup.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

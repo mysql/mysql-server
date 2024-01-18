@@ -28,4 +28,4 @@ let $engine_type=MyISAM;
 --source include/not_binlog_transaction_compression_on.inc
 
 
---source extra/binlog_tests/mysqlbinlog_row_engine.inc
+--source common/binlog/mysqlbinlog_row_engine.inc

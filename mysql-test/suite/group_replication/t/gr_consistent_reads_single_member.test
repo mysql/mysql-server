@@ -17,7 +17,7 @@
 --echo ############################################################
 --echo # 01. Start a single member group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 
@@ -40,7 +40,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --echo ############################################################
 --echo # 03. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;

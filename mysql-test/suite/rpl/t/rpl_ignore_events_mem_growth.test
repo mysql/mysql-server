@@ -53,7 +53,7 @@
 --echo # Step-1) Create M1<->M2 replication topology
 --echo #
 --let $rpl_topology= 1->2->1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --echo #
 --echo # Step-2) Create a sample table to create ignored/skipped
@@ -62,18 +62,18 @@
 --echo #         in bytes used will not be counted.
 --echo #
 --let $rpl_connection_name=server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1(i INT);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name=server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
 --let $rpl_connection_name=server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (3);
 INSERT INTO t1 VALUES (4);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #
 --echo # Step-3) If gtid_mode is OFF, set sql_replica_skip_counter to 50 on
@@ -83,8 +83,8 @@ INSERT INTO t1 VALUES (4);
 --echo #         M2 node, so that 50 transactions from M1 will be skipped.
 --echo #
 --let $rpl_connection_name=server_2
---source include/rpl_connection.inc
---source include/stop_slave_sql.inc
+--source include/connection.inc
+--source include/rpl/stop_applier.inc
 --disable_query_log
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
@@ -104,19 +104,19 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
   SET GTID_NEXT='AUTOMATIC';
 }
 --enable_query_log
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --echo #
 --echo # Step-4) Record thd::main_mem_root usage values on both servers before
 --echo #         starting the experiment.
 --echo #
 --let $rpl_connection_name=server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $thd_mem_root_usage_on_M1_before_experiment=`$perf_query`
 
 --let $rpl_connection_name=server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $thd_mem_root_usage_on_M2_before_experiment=`$perf_query`
 
 --echo #
@@ -127,7 +127,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 --echo #         because they were originated on M1 node.
 --echo #
 --let $rpl_connection_name=server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 --let $i=0
 while ($i < 100)
@@ -136,7 +136,7 @@ while ($i < 100)
   --inc $i
 }
 --enable_query_log
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 # Wait for all the events from M2 reach M1 back (they will be ignored but we
 # should wait till all the events reach M1 to verify our experiment).
 # Simple sync will not work in case of GTIDs, as the GTID_EXECUTED already contains
@@ -144,9 +144,9 @@ while ($i < 100)
 # So to achieve what we wanted, execute a sample query on M2 that will *not* be ignored
 # by M1, and wait till M1 executes that particular query (i.e., a query and then sync).
 --let $rpl_connection_name=server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (100);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #
 --echo # Step-6) Record thd::main_mem_root usage value on M1 after
@@ -154,7 +154,7 @@ INSERT INTO t1 VALUES (100);
 --echo #         did not increased.
 --echo #
 --let $rpl_connection_name=server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $thd_mem_root_usage_on_M1_after_experiment=`$perf_query`
 --let $assert_text= thd::main_mem_root on M1 should be the same value as before experiment value.
 # Tolerate up to 1M change. The usage value is converted to MB earlier by
@@ -172,7 +172,7 @@ INSERT INTO t1 VALUES (100);
 --echo #         did not increased.
 --echo #
 --let $rpl_connection_name=server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $thd_mem_root_usage_on_M2_after_experiment=`$perf_query`
 --let $assert_text= thd::main_mem_root on M2 should be the same value as before experiment value.
 # Tolerate up to 1M change.
@@ -183,4 +183,4 @@ INSERT INTO t1 VALUES (100);
 --echo # Step-8) Cleanup.
 --echo #
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -17,7 +17,7 @@
 
 CREATE TABLE t1 (a INT AUTO_INCREMENT, PRIMARY KEY (a)) engine=innodb;
 INSERT INTO t1 VALUES(1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Perform 49 insert to get parallely to better test the auto_increment
 # behavior.
@@ -41,16 +41,16 @@ while($temp > 1)
 
 # sync server1, server2
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(a)=99 FROM t1
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(a)=99 FROM t1
 --source include/wait_condition.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables= server1:t1, server2:t1
 --source include/diff_tables.inc

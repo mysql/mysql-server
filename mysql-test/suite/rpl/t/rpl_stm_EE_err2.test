@@ -8,4 +8,4 @@
 --source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 let $engine_type=myisam;
--- source extra/rpl_tests/rpl_stm_EE_err2.test
+-- source common/rpl/rpl_stm_EE_err2.test

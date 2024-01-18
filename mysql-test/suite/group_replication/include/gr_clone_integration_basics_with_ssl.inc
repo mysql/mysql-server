@@ -32,7 +32,7 @@
 --echo # 1. Install clone plugin on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -71,7 +71,7 @@ INSERT INTO t1 VALUES (2);
 --echo # 4. Restart server 2 with a monitoring process (mysqld_safe) if needed
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin=0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
@@ -138,7 +138,7 @@ START GROUP_REPLICATION;
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $group_replication_member_state=ONLINE
 --source include/gr_wait_for_member_state.inc
@@ -175,7 +175,7 @@ RESET PERSIST IF EXISTS group_replication_recovery_ssl_key;
 
 DROP TABLE t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");

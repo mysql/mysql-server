@@ -28,12 +28,12 @@
 --echo # 1. Create table t1 and setup group of M1(primary), M2(secondary).
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $connection_id= `SELECT CONNECTION_ID()`
 
@@ -43,7 +43,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo # 2. Lock table t1 on M2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL super_read_only= FALSE;
 LOCK TABLE t1 WRITE;
@@ -55,7 +55,7 @@ SET GLOBAL super_read_only= TRUE;
 --echo #    M2 will wait for pending transaction due to LOCK.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1);
 
@@ -68,7 +68,7 @@ INSERT INTO t1 VALUES (1);
 --echo #    BEFORE_ON_PRIMARY_FAILOVER
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Primary Election: applying buffered transactions"
 --source include/wait_condition.inc
@@ -82,7 +82,7 @@ INSERT INTO t1 VALUES (1);
 --echo #    KILL QUERY to release the UNLOCK with consistency set to EVENTUAL.
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
@@ -96,7 +96,7 @@ SET @@SESSION.group_replication_consistency= @group_replication_consistency_save
 --eval KILL QUERY $connection_id
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GR_HOLD_KILLED
 --reap
@@ -118,12 +118,12 @@ SET @@SESSION.group_replication_consistency= @group_replication_consistency_save
 --echo # 7. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

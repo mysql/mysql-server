@@ -1,5 +1,5 @@
 --source include/not_group_replication_plugin.inc
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 #
 # Test of init_replica variable
 #
@@ -7,28 +7,28 @@ source include/master-slave.inc;
 set global max_connections=151;
 
 connection slave;
-source include/stop_slave.inc;
-source include/start_slave.inc;
+source include/rpl/stop_replica.inc;
+source include/rpl/start_replica.inc;
 
 connection master;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 show variables like 'init_replica';
 show variables like 'max_connections';
 reset binary logs and gtids;
 connection master;
 show variables like 'init_replica';
 show variables like 'max_connections';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Save variable value
 set @my_global_init_connect= @@global.init_connect;
 set global init_connect="set @c=1";
 show variables like 'init_connect';
 connection master;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Restore changed global variable
 set global init_connect= @my_global_init_connect;
 set global max_connections= default;
 
 # End of 4.1 tests
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

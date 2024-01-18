@@ -37,7 +37,7 @@ include/assert.inc ['There should be 1 entry corresponding to the consistent_tra
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 4. Lock table t1 on server2 to block a future update.

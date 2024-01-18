@@ -21,27 +21,27 @@
 --source include/have_group_replication_plugin.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member4_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member5_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo ############################################################
@@ -49,7 +49,7 @@
 --let $rpl_server_count= 5
 --source include/group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ############################################################
@@ -60,19 +60,19 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 # Since the servers loose its GCS configuration they will not rejoin
 # the group.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.4.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.5.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
@@ -85,7 +85,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 # server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $i=5
 while($i>2)
@@ -116,7 +116,7 @@ while($i>2)
 # server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $i=5
 while($i>2)
@@ -150,7 +150,7 @@ while($i>2)
 # This transaction will be blocked since group lost its majority.
 # Though it needs to be delivered to the group when unblocked.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --send INSERT INTO t1 VALUES (2)
 
@@ -159,7 +159,7 @@ while($i>2)
 --echo ############################################################
 --echo # 3. Unblock the group with the alive members: server 1 and 2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 
 --disable_query_log
@@ -175,7 +175,7 @@ while($i>2)
 --echo # 4. Assert that group has 2 members: server 1 and 2.
 # Server 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
@@ -196,7 +196,7 @@ while($i>2)
 # Server 2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
@@ -221,16 +221,16 @@ while($i>2)
 --echo #    assert that the blocked transaction was replicated in
 --echo #    the new configuration.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
-# We cannot use rpl_sync.inc because it will include servers 3, 4 and 5
-# which are dead and will make rpl_sync.inc to fail.
+# We cannot use rpl/sync.inc because it will include servers 3, 4 and 5
+# which are dead and will make rpl/sync.inc to fail.
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= 'There are two values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
@@ -244,34 +244,34 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 6. Clean up.
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_server_number= 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $assert_text= 'There are no values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
 --source include/assert.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server_4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_server_number= 4
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $assert_text= 'There are no values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
 --source include/assert.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server_5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_server_number= 5
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $assert_text= 'There are no values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
 --source include/assert.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 set session sql_log_bin=0;
@@ -280,7 +280,7 @@ call mtr.add_suppression("The member resumed contact with a majority of the memb
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
@@ -288,9 +288,9 @@ call mtr.add_suppression("The member resumed contact with a majority of the memb
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/group_replication_end.inc

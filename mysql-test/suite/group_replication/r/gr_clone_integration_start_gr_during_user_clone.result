@@ -43,7 +43,7 @@ ERROR HY000: The START GROUP_REPLICATION command encountered a failure. This ser
 # 6. Resume clone.
 SET DEBUG_SYNC = 'now SIGNAL resume_clone';
 [connection server_2]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 ############################################################
 # 7. Start GR on server2.
 include/start_group_replication.inc
@@ -57,7 +57,7 @@ RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_communication_stack;
 DROP TABLE test.t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");

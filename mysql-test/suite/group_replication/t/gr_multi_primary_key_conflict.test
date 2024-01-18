@@ -48,10 +48,10 @@
 --echo ############################################################
 --echo # 1. Create a table on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a, b));
 INSERT INTO t1 VALUE(1, 2);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ############################################################
@@ -59,7 +59,7 @@ INSERT INTO t1 VALUE(1, 2);
 --echo #    connection server_1.
 --echo #    Commit a transaction that will be block before broadcast.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
 BEGIN;
@@ -71,7 +71,7 @@ UPDATE t1 SET a=3 AND b=5 WHERE a=1;
 --echo # 3. Wait until server_1 connection reaches the
 --echo # group_replication_before_message_broadcast debug sync point.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
@@ -80,14 +80,14 @@ UPDATE t1 SET a=3 AND b=5 WHERE a=1;
 --echo # 4. Execute a transaction on server2, that will reach first
 --echo #    certification, since server_1 is blocked before broadcast.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 UPDATE t1 SET a=4 AND b=5 WHERE b=2;
 
 --echo
 --echo ############################################################
 --echo # 5. Signal the waiting thread on server_1 to resume.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
 SET @@GLOBAL.DEBUG= @debug_save;
 
@@ -97,12 +97,12 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo #    since transactions are conflicting and server2 was
 --echo #    ordered first.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
 --reap
 
@@ -111,7 +111,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo # 7. Assert that number of certified transactions are the
 --echo #    expected ones.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_Checked, 1)
 --let $assert_text= The value of Count_Transactions_Checked should be 4 after starting group replication
@@ -133,7 +133,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo #    connection server_1.
 --echo #    Commit a transaction that will be block before broadcast.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
 BEGIN;
 INSERT INTO t1 VALUE(10, 11);
@@ -144,7 +144,7 @@ INSERT INTO t1 VALUE(10, 11);
 --echo # 2. Wait until server_1 connection reaches the
 --echo # group_replication_before_message_broadcast debug sync point.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
@@ -153,16 +153,16 @@ INSERT INTO t1 VALUE(10, 11);
 --echo # 3. Execute a transaction on server2, that will reach first
 --echo #    certification, since server_1 is blocked before broadcast.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUE(12, 13);
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo ############################################################
 --echo # 4. Signal the waiting thread on server_1 to resume.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
 SET @@GLOBAL.DEBUG= @debug_save;
 
@@ -171,16 +171,16 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo # 5. It will execute without error as the conflicting transactions have
 --echo #    been removed.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo
 --echo ############################################################
 --echo # 6. Assert that number of certified transactions are the
 --echo #    expected ones.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Table t1 will contain row after the above execution
 --let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 0 AND t1.b = 2, count, 1]" = "1"

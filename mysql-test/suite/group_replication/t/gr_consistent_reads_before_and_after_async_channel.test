@@ -36,7 +36,7 @@
 --echo # 1. Create 2 tables on server1, which will be a outside source
 --echo #    to a group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 CREATE TABLE t1(c1 INT PRIMARY KEY);
 CREATE TABLE t2(c1 INT PRIMARY KEY);
@@ -49,43 +49,43 @@ CREATE TABLE t2(c1 INT PRIMARY KEY);
 --echo #    Add server3 to the group.
 --echo #    Configure server2 to be a replica of server1.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_consistency= 'BEFORE_AND_AFTER';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_warnings
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_1 FOR CHANNEL 'ch1'
 --enable_warnings
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 # Wait until all data is replicated from server1 to the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server2
 --let $rpl_channel_name=ch1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo
 --echo ############################################################
 --echo # 3. Lock table t2 on server2 to block a future update.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 LOCK table t2 READ;
 
 
@@ -95,14 +95,14 @@ LOCK table t2 READ;
 --echo #    tables t1 and t2.
 --echo #    On server2, it will wait until t2 is released.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 BEGIN;
 INSERT INTO t1 VALUES (3);
 INSERT INTO t2 VALUES (3);
 COMMIT;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked=3 AND count_transactions_remote_in_applier_queue=1
 --source include/wait_condition.inc
@@ -113,11 +113,11 @@ COMMIT;
 --echo # 5. Execute a transaction on server1, once it is replicated
 --echo #    to server2 it will wait for transaction T1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Executing hook on transaction begin.' AND info='BEGIN'
 --source include/wait_condition.inc
 
@@ -130,7 +130,7 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 6. Unblock T1 on server2.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 
@@ -140,19 +140,19 @@ UNLOCK TABLES;
 --echo #    Ensure that asynchronous replication and group replication
 --echo #    are working.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server2
 --let $rpl_channel_name=ch1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_channel_name=
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
 --let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name=\'ch1\' AND source_uuid=\'$server1_uuid\', SERVICE_STATE, 1]" = "ON"
 --source include/assert.inc
@@ -170,26 +170,26 @@ UNLOCK TABLES;
 --echo ############################################################
 --echo # 8. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 DROP TABLE t2;
 
 --let $sync_slave_connection= server2
 --let $rpl_channel_name=ch1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_channel_name=
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --source include/stop_group_replication.inc
 RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name=
 RESET REPLICA ALL FOR CHANNEL 'ch1';
 
@@ -198,7 +198,7 @@ SET @@GLOBAL.group_replication_consistency= DEFAULT;
 RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 RESET BINARY LOGS AND GTIDS;
 
 --source include/group_replication_end.inc

@@ -8,7 +8,7 @@
 --source include/have_binlog_format_mixed_or_row.inc
 
 let $rpl_skip_start_slave= 1; # Don't START REPLICA automatically
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 # On master use NDB as storage engine.
 SET default_storage_engine=ndb;
@@ -16,7 +16,7 @@ SET default_storage_engine=ndb;
 --echo
 --echo === NDB -> MYISAM ===
 --echo
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 set @old_replica_exec_mode= @@global.replica_exec_mode;
 set @@global.replica_exec_mode= 'IDEMPOTENT';
@@ -37,7 +37,7 @@ CREATE TABLE mysql.ndb_apply_status
 SET @old_slave_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=myisam;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Check if log-replica-updates and replica-preserve-commit-order
 # have been turned off
@@ -53,29 +53,29 @@ if (`select @@replica_preserve_commit_order`)
 }
 
 --source suite/ndb_rpl/t/ndb_rpl_2multi_basic.inc
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 
 --echo
 --echo === NDB -> INNODB ===
 --echo
 
 # Reconfigure slave to use Innodb as default engine
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 alter table mysql.ndb_apply_status engine=innodb;
 SET @@global.default_storage_engine=innodb;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --source suite/ndb_rpl/t/ndb_rpl_2multi_basic.inc
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 
 # Cleanup
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 drop table mysql.ndb_apply_status;
 set @@global.replica_exec_mode= @old_replica_exec_mode;
 SET @@global.default_storage_engine=@old_slave_storage_engine;
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

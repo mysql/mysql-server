@@ -1,12 +1,12 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE DATABASE d1 CHARACTER SET UTF8MB4;
 CREATE TABLE d1.t1 (a INT NOT NULL, b VARCHAR(10));
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
@@ -23,10 +23,10 @@ INSERT INTO d1.t1 VALUES(1, "");
 ALTER TABLE d1.t1 ADD PRIMARY KEY (a);
 ALTER DATABASE d1 DEFAULT CHARACTER SET = 'latin1';
 FLUSH TABLES;
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
-include/include/assert_logical_timestamps.inc [3 4]
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
+include/include/rpl/assert_logical_timestamps.inc [3 4]
+include/rpl/stop_replica.inc
 include/assert.inc ['ALTER DATABASE runs successfully.']
 include/assert.inc ['ALTER TABLE runs successfully.']
 DROP TABLE d1.t1;
@@ -37,6 +37,6 @@ Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a fu
 SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
 SET @@GLOBAL.replica_preserve_commit_order= @saved_replica_preserve_commit_order;
 SET @@GLOBAL.debug= @saved_debug;
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

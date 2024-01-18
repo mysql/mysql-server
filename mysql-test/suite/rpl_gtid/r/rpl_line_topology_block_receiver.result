@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2,2->3]
+include/rpl/init.inc [topology=1->2,2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,9 +9,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 [connection server_2]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Adding debug point 'updating_received_transaction_set' to @@GLOBAL.debug
 [connection server_1]
 INSERT INTO t1 VALUES(2);
@@ -22,15 +22,15 @@ INSERT INTO t1 VALUES(3);
 SET GTID_NEXT= AUTOMATIC;
 include/assert.inc [Insert on master2/slave1 is successful]
 [connection server_3]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection server_2]
 sync server_3 with server_2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_2]
 # Removing debug point 'updating_received_transaction_set' from @@GLOBAL.debug
 SET DEBUG_SYNC="now SIGNAL continue_updating_received_transaction_set";
 sync server_3 with server_2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_1]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

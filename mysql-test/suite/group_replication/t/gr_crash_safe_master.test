@@ -69,14 +69,14 @@ COMMIT;
 --exec echo "restart:--group_replication_local_address=$_group_replication_local_address_server1 --group_replication_group_seeds=$_group_replication_group_seeds_server1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $assert_cond= `SELECT COUNT(*) = 0 FROM t1`
 --let $assert_text= On server1, test the data will be rolled back after restart.
 --source include/assert.inc
 
 # Sync the second member with the first one.
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo # On the second member, test replication will work fine, and the data
 --echo # is not replicated
@@ -86,7 +86,7 @@ COMMIT;
 # Wait until group has only 1 member, that is, server1 crash is detected by
 # the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member1_uuid
@@ -104,24 +104,24 @@ COMMIT;
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Check if the group is still working
 CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
 INSERT INTO temp VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server2
 INSERT INTO temp VALUES (2);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables= server1:test.temp, server2:test.temp
 --source include/diff_tables.inc
 
 DROP TABLE t1;
 DROP TABLE temp;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo # Test case2: Set DEBUG POINT after binlog, and before the data
@@ -153,7 +153,7 @@ COMMIT;
 --exec echo "restart:--group_replication_local_address=$_group_replication_local_address_server1 --group_replication_group_seeds=$_group_replication_group_seeds_server1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $assert_cond= `SELECT COUNT(*) = 3 FROM t1`
 --let $assert_text= On server1, test the data will be recovered after the server1 restart.
@@ -167,7 +167,7 @@ COMMIT;
 # Wait until group has only 1 member, that is, server1 crash is detected by
 # the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member1_uuid
@@ -185,24 +185,24 @@ COMMIT;
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Check if the group is still working
 CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
 INSERT INTO temp VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server2
 INSERT INTO temp VALUES (2);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables= server1:test.temp, server2:test.temp
 --source include/diff_tables.inc
 
 DROP TABLE t1;
 DROP TABLE temp;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 # Test transaction with large data inserted
@@ -233,7 +233,7 @@ COMMIT;
 --exec echo "restart:--group_replication_local_address=$_group_replication_local_address_server1 --group_replication_group_seeds=$_group_replication_group_seeds_server1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo # Test the data will not be recovered successfully
 --echo # after the crashed first member restarts.
@@ -245,7 +245,7 @@ COMMIT;
 # Wait until group has only 1 member, that is, server1 crash is detected by
 # the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member1_uuid
@@ -263,7 +263,7 @@ COMMIT;
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # On restarting group replication on the first member it will be getting the transactions
@@ -282,11 +282,11 @@ COMMIT;
 
 CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
 INSERT INTO temp VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server2
 INSERT INTO temp VALUES (2);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables= server1:test.temp, server2:test.temp
 --source include/diff_tables.inc

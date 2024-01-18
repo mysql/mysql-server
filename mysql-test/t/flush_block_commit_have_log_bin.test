@@ -24,14 +24,14 @@ SELECT 1;
 --echo # Switch to connection con2
 connection con2;
 FLUSH TABLES WITH READ LOCK;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --echo # Switch to connection con1
 connection con1;
 send INSERT INTO t1 VALUES (1);
 --echo # Switch to connection con2
 connection con2;
 sleep 1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 UNLOCK TABLES;
 --echo # Switch to connection con1
 connection con1;

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ Variable_name	Value
 Innodb_redo_log_enabled	ON
 CREATE TABLE tab1(c1 int,c2 text);
 INSERT INTO tab1 VALUES(1,'Test');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
 VARIABLE_NAME	VARIABLE_VALUE
@@ -36,7 +36,7 @@ SELECT innodb_redo_log_archive_start('label1');
 ERROR HY000: Cannot perform operation as InnoDB redo logging is disabled. Please retry after enabling redo log with ALTER INSTANCE
 CREATE TABLE tab2(c1 int,c2 text);
 INSERT INTO tab2 VALUES(1,'Test');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
 VARIABLE_NAME	VARIABLE_VALUE
@@ -78,7 +78,7 @@ Variable_name	Value
 Innodb_redo_log_enabled	ON
 # Set Default value on master side
 SET @@global.innodb_redo_log_archive_dirs = '';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 ALTER INSTANCE ENABLE INNODB REDO_LOG;
 SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
@@ -89,4 +89,4 @@ Variable_name	Value
 Innodb_redo_log_enabled	ON
 # Set Default value on master side
 SET @@global.innodb_redo_log_archive_dirs = '';
-include/rpl_end.inc
+include/rpl/deinit.inc

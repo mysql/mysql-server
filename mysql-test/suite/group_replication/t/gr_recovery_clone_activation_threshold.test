@@ -43,7 +43,7 @@ SET SESSION sql_log_bin = 1;
 --echo ############################################################
 --echo # Start server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SET GLOBAL gtid_purged = CONCAT('$dummy_server_id1:1-', (1 << 63) - 10)
 --eval SET GLOBAL gtid_purged = CONCAT('+$dummy_server_id2:1-', (1 << 63) - 10)
@@ -54,7 +54,7 @@ SET SESSION sql_log_bin = 1;
 --echo ############################################################
 --echo # Start server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Plugin group_replication reported.*");

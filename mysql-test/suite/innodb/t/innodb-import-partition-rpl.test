@@ -1,6 +1,6 @@
 # Testcase for import/export partition table with replication for InnoDB
 # Only hash partition table is used for sanity check
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -25,7 +25,7 @@ CREATE TABLE t2 ( i INT ) ENGINE = InnoDB  PARTITION BY KEY(i) PARTITIONS 3;
 INSERT INTO t1 VALUES (1),(111),(321);
 INSERT INTO t2 VALUES (0),(1),(2);
 FLUSH TABLES t1,t2 FOR EXPORT;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # set MYSQLD_DATADIR with master datadir to copy idb and cfg files
 LET MYSQLD_DATADIR = $MYSQLD_MASTER_DATA_DIR;
@@ -46,9 +46,9 @@ SELECT * FROM t2;
 connection master;
 UNLOCK TABLES;
 ALTER TABLE t1 DISCARD TABLESPACE;
-#--source include/sync_slave_sql_with_master.inc
+#--source include/rpl/sync_to_replica.inc
 ALTER TABLE t2 DISCARD PARTITION p0,p1 TABLESPACE;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Copy back ibd and cfg files on master
 LET MYSQLD_DATADIR = $MYSQLD_MASTER_DATA_DIR;
@@ -78,7 +78,7 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT * FROM t1;
 ALTER TABLE t2 IMPORT PARTITION p0,p1 TABLESPACE;
 SELECT * FROM t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # On slave
 --echo # Verify table data on slave
@@ -95,7 +95,7 @@ connection master;
 eval set global innodb_file_per_table = $master_per_table;
 DROP TABLE t1;
 DROP TABLE t2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 call mtr.add_suppression("Got error -1 when reading table '.*'");
 call mtr.add_suppression("Error: tablespace id and flags in file '.*'.*");

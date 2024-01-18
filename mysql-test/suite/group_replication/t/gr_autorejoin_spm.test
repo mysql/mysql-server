@@ -54,12 +54,12 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -69,7 +69,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # First, enable auto-rejoin
 SET GLOBAL group_replication_autorejoin_tries = 1;
@@ -86,19 +86,19 @@ SET GLOBAL group_replication_autorejoin_tries = 1;
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
 
 # Wait for the group to stabilize and find a new primary
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
@@ -110,7 +110,7 @@ if (!$group_replication_found_primary_out_var)
 }
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Verify that auto-rejoin is currently running
 --let $assert_text = Auto-rejoin should be running
@@ -145,13 +145,13 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 3
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 3
 --source include/gr_wait_for_number_of_members.inc
@@ -162,7 +162,7 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 

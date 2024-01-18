@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -16,7 +16,7 @@ PRIMARY KEY (`id`),
 KEY `v1_idx` (`v1_gcol`),
 KEY `s1_idx` (`s1_gcol`)
 ) ENGINE = InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ALTER TABLE
 `log_data`
 MODIFY
@@ -87,20 +87,20 @@ rand(),
 FROM
 sequence
 ) AS F;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Stored columns not NULL count is 10]
 include/assert.inc [Stored columns with series equal to 4 count is 10]
 include/assert.inc [Stored columns with series equal to 0 count is 10]
 [connection master]
 UPDATE `log_data` SET `tm_ts` = "20210101", `series` = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Stored columns with s_date equal to 2021-01-01 count is 10]
 include/assert.inc [Stored columns with series equal to 5 count is 10]
 include/assert.inc [Stored columns with series equal to 1 count is 10]
 [connection master]
 DELETE FROM `log_data` WHERE `id` < 11;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Count is 0]
 [connection master]
 DROP TABLE `log_data`;
-include/rpl_end.inc
+include/rpl/deinit.inc

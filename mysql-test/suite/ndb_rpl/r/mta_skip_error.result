@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,7 +13,7 @@ insert into t1 values(1000, 1000, 1000);
 insert into t1 values(999, 999, 999);
 insert into t1 values(998, 998, 998);
 insert into t1 values(997, 997, 997);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select count(*) from t1;
 count(*)
 4
@@ -33,7 +33,7 @@ insert into t1 values (1002,1002,1002);
 # Show the binlog events that will cause error. All the Write_rows events
 # will be batched and not send to NDB until the final Query_log_event
 # containing the COMMIT, that's when the error should be skipped
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -42,18 +42,18 @@ master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 # Sync with master, will succeed
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Show that row change was skipped on replica
 select * from t1 where a=1002;
 a	b	c
 # Show that subsequent changes are replicated
 [connection master]
 insert into t1 values (3001,3001,3001);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 where a=3001;
 a	b	c
 3001	3001	3001
 set global ndb_applier_allow_skip_epoch=0;
 [connection master]
 drop table t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -270,7 +270,7 @@ while ($unsafe_type < 8) {
     --let $CRC_ARG_sel_sidef= $sel_sidef_0
     --let $CRC_ARG_sel_retval= $sel_retval_0
     --let $CRC_ARG_desc= $desc_0
-    --source extra/rpl_tests/create_recursive_construct.inc
+    --source common/rpl/create_recursive_construct.inc
     --let $stmt_sidef_1= $CRC_RET_stmt_sidef
     --let $value_1= $CRC_RET_value
     --let $sel_sidef_1= $CRC_RET_sel_sidef
@@ -301,7 +301,7 @@ while ($unsafe_type < 8) {
         --let $CRC_ARG_sel_sidef= $sel_sidef_1
         --let $CRC_ARG_sel_retval= $sel_retval_1
         --let $CRC_ARG_desc= $desc_1
-        --source extra/rpl_tests/create_recursive_construct.inc
+        --source common/rpl/create_recursive_construct.inc
         --let $stmt_sidef_2= $CRC_RET_stmt_sidef
         --let $value_2= $CRC_RET_value
         --let $sel_sidef_2= $CRC_RET_sel_sidef
@@ -330,7 +330,7 @@ while ($unsafe_type < 8) {
             --let $CRC_ARG_sel_sidef= $sel_sidef_2
             --let $CRC_ARG_sel_retval= $sel_retval_2
             --let $CRC_ARG_desc= $desc_2
-            --source extra/rpl_tests/create_recursive_construct.inc
+            --source common/rpl/create_recursive_construct.inc
 
             # Drop created object.
             if ($drop_3) {
@@ -578,7 +578,7 @@ END|
 RESET BINARY LOGS AND GTIDS;
 SELECT func_limit();
 --let $mask_binlog_commit_events= 1
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 --let $mask_binlog_commit_events= 0
 
 SET @@session.binlog_format = @old_binlog_format;
@@ -618,7 +618,7 @@ SET SESSION binlog_format = MIXED;
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 INSERT INTO t2 SET a = func_modify_t1();
 --let $mask_binlog_commit_events= 1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --let $mask_binlog_commit_events= 0
 
 # clean up
@@ -651,7 +651,7 @@ SET SESSION binlog_format = MIXED;
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 INSERT INTO t1 SET a = 2;
 --let $mask_binlog_commit_events= 1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --let $mask_binlog_commit_events= 0
 
 # clean up

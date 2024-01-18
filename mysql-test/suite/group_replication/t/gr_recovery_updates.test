@@ -157,7 +157,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 INSERT INTO t1 VALUES (2);
 
 #sync the servers
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server4
 --echo server4

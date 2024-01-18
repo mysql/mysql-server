@@ -12,4 +12,4 @@
 # statements will not have table map. This results in an assert on slave.
 ###############################################################################
 --source include/have_binlog_format_row.inc
---source extra/rpl_tests/rpl_rollback_to_savepoint.inc
+--source common/rpl/rollback_to_savepoint.inc

@@ -23,7 +23,7 @@
 #               IN A GROUP
 #
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # Test should run only on debug build
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
@@ -40,16 +40,16 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 --enable_query_log
 
 --echo # Initial setup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 
 --echo # Sync slave with master and setup debug sync point
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET @save_debug=@@global.debug;
 SET GLOBAL DEBUG='+d,stop_io_after_reading_write_rows_log_event';
 
 --echo # Insert the data in the master
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let iterations= 2
 --let $inserts= 0
@@ -63,12 +63,12 @@ COMMIT;
 
 --echo # Restart the IO thread keeping SQL thread running until last relay log split
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $restarts= $iterations
 
 while ($restarts)
 {
-  --source include/wait_for_slave_io_to_stop.inc
+  --source include/rpl/wait_for_receiver_to_stop.inc
   --dec $restarts
   if ($restarts)
   {
@@ -78,23 +78,23 @@ while ($restarts)
 
 --echo # Stop the SQL thread (it should be in the middle of the transaction/group)
 --let $slave_sql_errno= convert_error(ER_MTA_INCONSISTENT_DATA)
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 
 --echo # Remove the debug point and restart the both threads
 SET GLOBAL DEBUG= @save_debug;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo # Do one more insert on master and then sync slave with master
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval INSERT INTO t1 (c1) VALUES ($inserts)
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Now compare master and slave's t1 table data
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
 
 --echo # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

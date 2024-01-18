@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,14 +9,14 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    and end the transaction with 'XA COMMIT ONE PHASE'.
 #
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 XA START 'trx';
 XA END 'trx';
 XA COMMIT 'trx' ONE PHASE;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 include/assert.inc [Empty transaction, binlog position is the same]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 #
 # 2) Start with a GTID_NEXT value set manually,
@@ -29,6 +29,6 @@ XA END 'trx';
 XA COMMIT 'trx' ONE PHASE;
 SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 include/assert.inc [Transaction is present in GTID_EXECUTED]
-include/assert_binlog_events.inc [Gtid/SET.* # Query/BEGIN # Query/COMMIT]
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/assert_binlog_events.inc [Gtid/SET.* # Query/BEGIN # Query/COMMIT]
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

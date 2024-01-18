@@ -3,7 +3,7 @@
 
 # Skipping the test when binlog_format=STATEMENT due to unsafe statements:
 # unsafe auto-increment column, LIMIT clause.
---source include/not_binlog_format_statement.inc
+--source include/rpl/deprecated/not_binlog_format_statement.inc
 
 ################################################################################
 # t/gcol_keys_myisam.test                                                      #

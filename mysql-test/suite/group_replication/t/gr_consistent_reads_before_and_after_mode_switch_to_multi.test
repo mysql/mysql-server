@@ -29,7 +29,7 @@
 --echo # 01. Bootstrap group with M1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -44,7 +44,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 03. Join M2 to group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -55,7 +55,7 @@ INSERT INTO t1 VALUES (1);
 --echo #     BEFORE_AND_AFTER
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= group_replication_wait_on_observer_trans
 --source include/add_debug_point.inc
@@ -71,7 +71,7 @@ SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
 --echo # 06. Wait for execution reach debug point
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
@@ -79,7 +79,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_wa
 --echo # 07. Execute switch to multi primary mode
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER_UUID
 --eval SELECT group_replication_switch_to_multi_primary_mode();
@@ -88,7 +88,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_wa
 --echo # 08. Assert server2 is primary and read only = 0
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_multi_primary_mode.inc
 
@@ -101,7 +101,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo # 10. Reap pending transaction
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
@@ -109,7 +109,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo # 11. Clean up
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= group_replication_wait_on_observer_trans
 --source include/remove_debug_point.inc

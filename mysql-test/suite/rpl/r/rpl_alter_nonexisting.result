@@ -8,13 +8,13 @@
 # databases will cause an early exit prior to writing binlog.
 #
 # Test written by Matthias Leich.
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ALTER DATABASE does_not_exist CHARACTER SET  utf8;
 ERROR 42Y07: Database 'does_not_exist' doesn't exist
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

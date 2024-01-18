@@ -30,7 +30,7 @@
 --source include/have_binlog_format_statement.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression("Query caused different errors on source and replica."
                          " Error on master:");
@@ -53,17 +53,17 @@ DROP TABLE t1;
 CREATE TABLE t2(s INT);
 INSERT INTO t2 VALUES(10);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Show that replication is working fine.
 --let $diff_tables=master:t2,slave:t2
 --source include/diff_tables.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t2;
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 --let $rpl_only_running_threads= 1
 
@@ -73,4 +73,4 @@ RESET REPLICA;
 
 --let $assert_text= Found the expected information about the ER_INCONSISTENT_ERROR being skipped.
 --source include/assert_grep.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

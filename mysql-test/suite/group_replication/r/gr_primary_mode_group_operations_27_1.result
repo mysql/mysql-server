@@ -9,7 +9,7 @@ set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
 set session sql_log_bin=1;
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server3]
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
@@ -49,7 +49,7 @@ include/assert.inc [The single primary mode should be 0 here.]
 
 # 7. Wait group detect exit of server3
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 8. Unblock table on member that is blocked
 UNLOCK TABLES;

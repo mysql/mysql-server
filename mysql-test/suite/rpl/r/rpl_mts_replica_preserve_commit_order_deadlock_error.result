@@ -1,5 +1,5 @@
 include/only_with_option.inc [GLOBAL.replica_parallel_workers > 1]
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,14 +9,14 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 2. Initial setup on Slave.
 #
 # 2.1. Enable replica_preserve_commit_order on slave for Commit order
 #      deadlock to occur.
 #
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 SET @saved_replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
 SET GLOBAL replica_preserve_commit_order = ON;
 #
@@ -80,7 +80,7 @@ INSERT INTO t2 VALUES(1);
 #
 # 3.7 Start SQL thread, let Transaction-1 & 2 reach SQL workers
 #
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 #
 # 3.8 Wait till the worker threads pick up those transacations
 #     (Transaction 1 and Transaction 2). They will wait for locks due
@@ -108,7 +108,7 @@ COMMIT;
 #      to fail with 'ER_DUP_ENTRY' error (after the worker2
 #      detected the 'commit order deadlock').
 #
-include/wait_for_slave_sql_error.inc [errno=1062,3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR]
+include/rpl/wait_for_applier_error.inc [errno=1062,3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR]
 #
 # 3.13 Check that worker 2 did not *retry* transaction-2
 #      before throwing ER_DUP_ENTRY error (non-temporary error).
@@ -122,7 +122,7 @@ include/assert_grep.inc [Found 'Duplicate entry' error only once time which prov
 #
 # 4.2 Clean the data on Slave.
 #
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 RESET REPLICA;
 DROP TABLE t1, t2;
 #
@@ -139,4 +139,4 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 # 4.5 Clean the data on Master.
 #
 DROP TABLE t1, t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

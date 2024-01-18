@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2->1]
+include/rpl/init.inc [topology=1->2->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,10 +6,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 create table t1 (n int);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 create table t2 (n int);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 show tables;
 Tables_in_test
 t1
@@ -25,7 +25,7 @@ insert into t3 values(4);
 START REPLICA until SOURCE_LOG_FILE="SOURCE_LOG_FILE",SOURCE_LOG_POS=SOURCE_LOG_POS;
 Warnings:
 Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 show tables;
 Tables_in_test
 t1
@@ -33,25 +33,25 @@ t2
 START REPLICA until SOURCE_LOG_FILE="SOURCE_LOG_FILE",SOURCE_LOG_POS=SOURCE_LOG_POS;
 Warnings:
 Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 select * from t3;
 n
 1
 START REPLICA until SOURCE_LOG_FILE="SOURCE_LOG_FILE",SOURCE_LOG_POS=SOURCE_LOG_POS;
 Warnings:
 Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 select * from t3;
 n
 1
 2
 3
-include/start_slave.inc
+include/rpl/start_replica.inc
 create table t4 (n int);
 create table t5 (n int);
 create table t6 (n int);
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
+include/rpl/sync_to_replica.inc
 show tables;
 Tables_in_test
 t1
@@ -61,4 +61,4 @@ t4
 t5
 t6
 drop table t1, t2, t3, t4, t5, t6;
-include/rpl_end.inc
+include/rpl/deinit.inc

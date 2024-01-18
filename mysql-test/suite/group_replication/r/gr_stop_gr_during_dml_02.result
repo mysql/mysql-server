@@ -9,7 +9,7 @@ call mtr.add_suppression("Transaction cannot be executed while Group Replication
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 SET SESSION sql_log_bin= 1;
 CREATE TABLE test.t1 ( a int primary key);
-include/rpl_sync.inc
+include/rpl/sync.inc
 USE test;
 CREATE PROCEDURE insert_into_t1()
 BEGIN
@@ -20,7 +20,7 @@ insert into t1 values (x);
 set x=x+1;
 end  while;
 end$$
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server_1_1]
 ----call procedure----
@@ -43,7 +43,7 @@ include/start_group_replication.inc
 
 [connection server1]
 CREATE TABLE test.t2 ( a int primary key);
-include/rpl_sync.inc
+include/rpl/sync.inc
 # Validating the records in server1 #
 include/assert.inc ['Checking the number of records in test.t1']
 include/assert.inc ['Checking the number of records in test.t2']

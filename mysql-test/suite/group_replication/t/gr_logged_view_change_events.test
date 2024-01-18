@@ -49,7 +49,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 
 # View change (received from s1) # Create table # View change (written by s2)
 --let $event_sequence= $vcle_seq # !Gtid_transaction # $vcle_seq
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --echo #
 --echo # Make server 2 leave and enter generating one more view change event
@@ -62,14 +62,14 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 
 # No event should be written in the binlog
 --let $event_sequence= $event_sequence
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --source include/start_group_replication.inc
 
 # One more event after joining:
 # Previous events # View change (s2 joined)
 --let $event_sequence= $event_sequence # $vcle_seq
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --echo #
 --echo # Make server 3 join and leave while server 2 was away
@@ -93,7 +93,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 
 # Previous events # View change (3 joined) # View change (2 joined)
 --let $event_sequence= $event_sequence # $vcle_seq # $vcle_seq
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --echo #
 --echo # Cleaning up

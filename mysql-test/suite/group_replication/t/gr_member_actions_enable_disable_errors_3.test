@@ -27,7 +27,7 @@
 --echo # 1. Bootstrap a group with 2 members.
 --echo #    server1 will be the primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
@@ -37,7 +37,7 @@ SET SESSION sql_log_bin = 1;
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 --source include/gr_assert_secondary_member.inc
 
@@ -46,18 +46,18 @@ SET SESSION sql_log_bin = 1;
 --echo ############################################################
 --echo # 2. Kill server2, server1 will lose group majority.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 
 --echo
 --echo ############################################################
 --echo # 3. Check that server1 sees server2 UNREACHABLE.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
@@ -69,7 +69,7 @@ let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_
 --echo # 4. Try change member actions configuration.
 --echo #    It will not be allowed.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GRP_RPL_UDF_ERROR
 SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");

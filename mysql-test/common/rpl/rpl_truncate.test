@@ -1,0 +1,14 @@
+# Test to check for the different version of truncating a table.
+# The statements are "TRUNCATE tbl" and "DELETE FROM tbl". We check
+# the behaviour of each possible value for BINLOG_FORMAT.
+
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
+
+let $trunc_stmt = TRUNCATE TABLE;
+--source common/rpl/rpl_truncate_helper.test
+
+let $trunc_stmt   = DELETE FROM;
+--source common/rpl/rpl_truncate_helper.test
+
+--source include/rpl/deinit.inc

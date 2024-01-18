@@ -22,7 +22,7 @@
 
 --source include/not_group_replication_plugin.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # The following steps are performed below.
 #
@@ -41,15 +41,15 @@
 #
 
 # The slave is clean
---source include/rpl_connection_slave.inc
---source include/gtid_utils.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/gtid_utils.inc
 --let $rpl_only_running_threads= 1
 --let $rpl_no_start_slave=1
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 # Step 1, dump
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 RESET BINARY LOGS AND GTIDS;
 
 # Dump's data
@@ -66,7 +66,7 @@ SHOW WARNINGS;
 
 # Step 2, restore.
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Make the slave to execute some gtids
 SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
@@ -79,19 +79,19 @@ SET @@GTID_NEXT=AUTOMATIC;
 
 # Step 3, replication part.
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP DATABASE db;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Conclusion:
 # Executed and Purged on the master and the slave are equal
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Sync with the slave that earlier executed this following trx:
 SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
@@ -99,14 +99,14 @@ BEGIN;
 COMMIT;
 SET @@GTID_NEXT=AUTOMATIC;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $master_gtid_purged=`SELECT @@GLOBAL.gtid_purged`
 --let $master_gtid_executed=`SELECT @@GLOBAL.gtid_executed`
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $is_equal= `SELECT GTID_IS_EQUAL('$master_gtid_purged', @@GLOBAL.gtid_purged)`
 --let $assert_text= The slave's GTID_PURGED must be equal to the master's one
@@ -118,8 +118,8 @@ SET @@GTID_NEXT=AUTOMATIC;
 --let $assert_cond= $is_equal
 --source include/assert.inc
 
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 
 # Cleanup: is already done
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

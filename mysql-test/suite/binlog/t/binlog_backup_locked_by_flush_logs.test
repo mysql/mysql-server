@@ -38,7 +38,7 @@ SHOW BINARY LOGS;
 --echo #
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $statement_connection = con1
 --let $statement = FLUSH BINARY LOGS
@@ -72,6 +72,6 @@ UNLOCK INSTANCE;
 --echo #
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;

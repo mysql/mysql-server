@@ -1,19 +1,19 @@
-include/rpl_init.inc [topology=none]
+include/rpl/init.inc [topology=none]
 *** Configuring connections ***
-include/rpl_connect.inc [creating srv_master]
-include/rpl_connect.inc [creating srv_master1]
-include/rpl_connect.inc [creating srv_master2]
-include/rpl_connect.inc [creating srv_slave]
-include/rpl_connect.inc [creating srv_slave1]
-include/rpl_connect.inc [creating srv_slave2]
+include/rpl/connect.inc [creating srv_master]
+include/rpl/connect.inc [creating srv_master1]
+include/rpl/connect.inc [creating srv_master2]
+include/rpl/connect.inc [creating srv_slave]
+include/rpl/connect.inc [creating srv_slave1]
+include/rpl/connect.inc [creating srv_slave2]
 *** Waiting for each cluster to startup ***
 *** Configuring replication via Slave ***
 [connection srv_slave]
-include/rpl_change_topology.inc [new topology=1->4]
+include/rpl/change_topology.inc [new topology=1->4]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 *** Generating slave cluster originated binloggable changes ***
 CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
 INSERT INTO bug_45756_slave_logged_1 VALUES (1);
@@ -80,7 +80,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	OFF
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
@@ -160,7 +160,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	OFF
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
@@ -240,7 +240,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	OFF
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
@@ -305,7 +305,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	ON
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
@@ -405,14 +405,14 @@ server id 6    Write_rows:
 server id 1    Write_rows:  flags: STMT_END_F
 server id 6    Query
 server id 1    Query
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 *** Configuring replication via Slave1 ***
 [connection srv_slave1]
-include/rpl_change_topology.inc [new topology=1->4,1->5]
+include/rpl/change_topology.inc [new topology=1->4,1->5]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 *** Generating slave cluster originated binloggable changes ***
 CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
 INSERT INTO bug_45756_slave_logged_1 VALUES (1);
@@ -479,7 +479,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	OFF
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
@@ -559,7 +559,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	OFF
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
@@ -639,7 +639,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	OFF
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
@@ -704,7 +704,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	ON
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
@@ -804,14 +804,14 @@ server id 6    Write_rows:
 server id 1    Write_rows:  flags: STMT_END_F
 server id 6    Query
 server id 1    Query
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 *** Configuring replication via Slave2 ***
 [connection srv_slave2]
-include/rpl_change_topology.inc [new topology=1->4,1->5,1->6]
+include/rpl/change_topology.inc [new topology=1->4,1->5,1->6]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 *** Generating slave cluster originated binloggable changes ***
 CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
 INSERT INTO bug_45756_slave_logged_1 VALUES (1);
@@ -878,7 +878,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	OFF
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
@@ -958,7 +958,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	OFF
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
@@ -1038,7 +1038,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	OFF
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
@@ -1103,7 +1103,7 @@ log_bin	ON
 show variables like 'log_replica_updates';
 Variable_name	Value
 log_replica_updates	ON
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
@@ -1203,6 +1203,6 @@ server id 6    Write_rows:
 server id 1    Write_rows:  flags: STMT_END_F
 server id 6    Query
 server id 1    Query
-include/stop_slave.inc
-include/rpl_change_topology.inc [new topology=none]
-include/rpl_end.inc
+include/rpl/stop_replica.inc
+include/rpl/change_topology.inc [new topology=none]
+include/rpl/deinit.inc

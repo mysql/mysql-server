@@ -1,12 +1,12 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 4;
-include/start_slave.inc
+include/rpl/start_replica.inc
 create database d8;
 create table d8.t8 (a int);
 select round(rand()*8) into @var;
@@ -207,9 +207,9 @@ insert into d1.t2 values (@var);
 create table d1.t1 (a int);
 select round(rand()*8) into @var;
 insert into d1.t1 values (@var);
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
+include/rpl/sync_to_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:d8.t8, slave:d8.t8]
 include/diff_tables.inc [master:d8.t7, slave:d8.t7]
 include/diff_tables.inc [master:d8.t6, slave:d8.t6]
@@ -274,7 +274,7 @@ include/diff_tables.inc [master:d1.t4, slave:d1.t4]
 include/diff_tables.inc [master:d1.t3, slave:d1.t3]
 include/diff_tables.inc [master:d1.t2, slave:d1.t2]
 include/diff_tables.inc [master:d1.t1, slave:d1.t1]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create database d20;
 create table d20.t1 (a int);
 select round(rand()*8) into @var;
@@ -355,7 +355,7 @@ create database d1;
 create table d1.t1 (a int);
 select round(rand()*8) into @var;
 insert into d1.t1 values (@var);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:d20.t1, slave:d20.t1]
 include/diff_tables.inc [master:d19.t1, slave:d19.t1]
 include/diff_tables.inc [master:d18.t1, slave:d18.t1]
@@ -376,6 +376,6 @@ include/diff_tables.inc [master:d4.t1, slave:d4.t1]
 include/diff_tables.inc [master:d3.t1, slave:d3.t1]
 include/diff_tables.inc [master:d2.t1, slave:d2.t1]
 include/diff_tables.inc [master:d1.t1, slave:d1.t1]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
-include/rpl_end.inc
+include/rpl/deinit.inc

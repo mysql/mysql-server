@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 #
 # Currently test only works with NDB since it retrieves "old"
@@ -61,7 +61,7 @@ SELECT * FROM t1 ORDER BY c3;
 --sync_slave_with_master
 SELECT * FROM t1 ORDER BY c3;
 
-source include/check_slave_is_running.inc;
+source include/rpl/assert_replica_running.inc;
 
 # stop replica and reset position to before the last changes
 STOP REPLICA;
@@ -73,7 +73,7 @@ eval CHANGE REPLICATION SOURCE TO
 --enable_result_log
 --enable_query_log
 
-source include/check_slave_no_error.inc;
+source include/rpl/assert_replica_no_error.inc;
 
 --disable_query_log
 call mtr.add_suppression("Replica: At SQL thread start applying epoch .*");
@@ -127,7 +127,7 @@ COMMIT;
 --sync_slave_with_master
 --connection slave
 SELECT * FROM t1;
-source include/check_slave_is_running.inc;
+source include/rpl/assert_replica_running.inc;
 
 connection master;
 DROP TABLE IF EXISTS t1;
@@ -190,7 +190,7 @@ commit;
 --sync_slave_with_master
 
 --connection slave
-source include/check_slave_is_running.inc;
+source include/rpl/assert_replica_running.inc;
 
 --echo   # Stop replica and reset position to start of the applied epoch
 STOP REPLICA;
@@ -204,7 +204,7 @@ eval CHANGE REPLICATION SOURCE TO
 --enable_result_log
 --enable_query_log
 
-source include/check_slave_no_error.inc;
+source include/rpl/assert_replica_no_error.inc;
 
 # Add a suppression for the warning that will appear in the
 # replicas's .err file
@@ -216,7 +216,7 @@ START REPLICA;
 --let $slave_sql_errno= 1050
 # Don't show error message, it varies for replica worker
 --let $show_slave_sql_error=0
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 # Check that expected error message can be found
 SELECT COUNT(*) as FOUND_ERROR_MESSAGE
   FROM performance_schema.replication_applier_status_by_worker
@@ -239,4 +239,4 @@ DROP TABLE t2;
 
 --sync_slave_with_master
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -7,28 +7,28 @@ server1
 include/start_and_bootstrap_group_replication.inc
 server2
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_3_PORT, SOURCE_AUTO_POSITION=1 FOR CHANNEL "channel_1";
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc ['The group replication applier channel is present']
 include/assert.inc ['The created slave channel is present']
 include/assert.inc ['The group replication applier channel is ON']
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 include/assert.inc ['The group replication applier channel is still ON']
 include/assert.inc ['The created slave channel is OFF']
 include/stop_group_replication.inc
 include/assert.inc ['The group replication applier channel is OFF']
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc ['The group replication applier channel is still OFF']
 include/assert.inc ['The created slave channel is ON']
 # restart
-include/rpl_reconnect.inc
-include/wait_for_slave_to_start.inc [FOR CHANNEL 'channel_1']
+include/rpl/reconnect.inc
+include/rpl/wait_for_replica_to_start.inc [FOR CHANNEL 'channel_1']
 include/assert.inc ['The group replication applier channel is still OFF']
 include/assert.inc ['The created slave channel is ON']
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "channel_1";
 include/group_replication_end.inc

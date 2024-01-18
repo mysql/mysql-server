@@ -1,10 +1,10 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 STOP REPLICA;
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 Source_Host = '127.0.0.1' (expected '127.0.0.1')
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="";
 ERROR HY000: Incorrect arguments to SOURCE_HOST
@@ -14,5 +14,5 @@ Source_Host = 'foo' (expected 'foo')
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1";
 Source_Host = '127.0.0.1' (expected '127.0.0.1')
 START REPLICA;
-include/wait_for_slave_to_start.inc
-include/rpl_end.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/deinit.inc

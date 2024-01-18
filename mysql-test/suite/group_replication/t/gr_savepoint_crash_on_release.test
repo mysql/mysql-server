@@ -27,24 +27,24 @@
 SET @debug_save= @@GLOBAL.DEBUG;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #1. Create table t1 on M1
 CREATE TABLE table1(a int primary key);
 # Insert some values
 INSERT INTO table1 values (1),(2);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #2. Start a transaction t1 on M1, crash the server when 'release savepoint' in progress
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 connect(server1_1,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_1);
 --echo [connection M1]
@@ -63,7 +63,7 @@ SAVEPOINT s2;
 
 # Crash server
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
@@ -74,11 +74,11 @@ SAVEPOINT s2;
 #reconnect clients
 --disconnect server1_1
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # unblock group
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member1_uuid
@@ -89,7 +89,7 @@ eval SET GLOBAL group_replication_force_members= "$member2_group_replication_loc
 
 # rejoin M1 to group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Upon start wait until server M1 comes online.

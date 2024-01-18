@@ -66,12 +66,12 @@ SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -81,7 +81,7 @@ SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # First, enable auto-rejoin
 SET GLOBAL group_replication_autorejoin_tries = 3;

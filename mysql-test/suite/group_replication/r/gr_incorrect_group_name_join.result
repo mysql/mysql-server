@@ -23,5 +23,5 @@ START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 include/assert.inc [Server 2 is OFFLINE]
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/group_replication_end.inc

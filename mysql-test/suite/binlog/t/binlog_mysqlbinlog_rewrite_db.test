@@ -27,7 +27,7 @@
 # filter fails to rewrite the databases.
 #
 # mysqlbinlog should be debug compiled.
---source include/mysqlbinlog_have_debug.inc
+--source include/have_mysqlbinlog_debug.inc
 --source include/have_binlog_format_row.inc
 
 RESET BINARY LOGS AND GTIDS;

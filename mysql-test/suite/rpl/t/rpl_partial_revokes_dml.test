@@ -10,9 +10,9 @@
 #                                                                             #
 ###############################################################################
 
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --let $TEST_MODE = RPL
 --source ../../auth_sec/include/partial_revokes_dml.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

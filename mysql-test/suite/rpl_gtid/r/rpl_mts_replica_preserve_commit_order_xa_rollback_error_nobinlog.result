@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 [connection slave]
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 CALL mtr.add_suppression(".*replica coordinator and worker threads are stopped.*");
 CALL mtr.add_suppression("Could not execute Write_rows event on table test.*");
@@ -26,11 +26,11 @@ Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers= 2;
 SET GLOBAL replica_preserve_commit_order= ON;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 [connection master]
 CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Block slave sql applier threads
 
@@ -92,7 +92,7 @@ COMMIT;
 # XA transaction.
 
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=1105 # ER_UNKNOWN_ERROR]
+include/rpl/wait_for_applier_error.inc [errno=1105 # ER_UNKNOWN_ERROR]
 include/assert.inc [Verify table t1 has two rows]
 include/assert.inc [No additional transaction is added on slave]
 
@@ -103,9 +103,9 @@ include/assert.inc [No additional transaction is added on slave]
 SET DEBUG_SYNC= 'now SIGNAL continue_commit_order_manager_after_wait_100';
 # Removing debug point 'syncpoint_commit_order_manager_after_wait_100' from @@GLOBAL.debug
 # Removing debug point 'rpl_fake_commit_order_deadlock_for_timestamp_100' from @@GLOBAL.debug
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Verify table t1 has six rows]
 
 # Cleanup
@@ -113,13 +113,13 @@ include/assert.inc [Verify table t1 has six rows]
 [connection master]
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replica_parallel_type= @save_replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
 SET GLOBAL replica_preserve_commit_order= @save_replica_preserve_commit_order;
-include/start_slave.inc
-include/gtid_utils_end.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/gtid_utils_end.inc
+include/rpl/deinit.inc

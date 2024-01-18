@@ -59,7 +59,7 @@
 --let $rpl_topology = 1->2, 3->2, 4->2, 5->2
 --let $rpl_multi_source=1
 --let $rpl_skip_start_slave= 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --echo
 --echo # T1.1. On the source 1: Execute N transaction with automatic UUID and
@@ -67,7 +67,7 @@
 --echo
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GTID_NEXT='AUTOMATIC:tag_1';
 
@@ -81,7 +81,7 @@ INSERT INTO t1 VALUES (2);
 --echo
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GTID_NEXT='AUTOMATIC:tag_1';
 
@@ -105,7 +105,7 @@ INSERT INTO t3 VALUES (5);
 --echo
 
 --let $rpl_connection_name= server_4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_3:1';
 CREATE TABLE t4 (c1 INT) ENGINE=InnoDB;
@@ -133,7 +133,7 @@ INSERT INTO t4 VALUES (5);
 --echo
 
 --let $rpl_connection_name= server_5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GTID_NEXT='11111111-1111-1111-1111-111111111112:tag_3:1';
 CREATE TABLE t5 (c1 INT) ENGINE=InnoDB;
@@ -159,36 +159,36 @@ INSERT INTO t5 VALUES (5);
 --echo
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo # Synchronizing servers
 --echo
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection=server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection=server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection=server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection=server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # Checking GTID executed set on the replica
@@ -252,30 +252,30 @@ INSERT INTO t5 VALUES (5);
 --echo
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 --let $sync_slave_connection=server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t3;
 --let $sync_slave_connection=server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_4
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GTID_NEXT='AUTOMATIC';
 DROP TABLE t4;
 --let $sync_slave_connection=server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_5
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GTID_NEXT='AUTOMATIC';
 DROP TABLE t5;
 --let $sync_slave_connection=server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_skip_sync=1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

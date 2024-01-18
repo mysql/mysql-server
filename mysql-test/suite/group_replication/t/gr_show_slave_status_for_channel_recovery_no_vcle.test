@@ -38,7 +38,7 @@ SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 # wait for the recovery channel to actually be created
 # otherwise there is a chance that there is a race
 # between the START GROUP_REPLICATION and the
-# wait_for_slave_param script below as the channel may
+# wait_for_replica_status script below as the channel may
 # not show up in SHOW REPLICA STATUS before that script
 # is run.
 #
@@ -51,7 +51,7 @@ SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 --let $slave_param= Until_Condition
 --let $slave_param_value= SQL_AFTER_GTIDS
 --let $rpl_channel_name= 'group_replication_recovery'
---source include/wait_for_slave_param.inc
+--source include/rpl/wait_for_replica_status.inc
 
 # Cleanup
 --connection server1

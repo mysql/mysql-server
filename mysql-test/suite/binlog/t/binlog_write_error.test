@@ -44,7 +44,7 @@ enable_warnings;
 --echo #
 
 let $query= CREATE TABLE t1 (a INT);
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 --echo # The above CREATE TABLE should be rolled back.
 --echo # Now we check this fact and create table for real.
@@ -55,20 +55,20 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 
 let $query= INSERT INTO t1 VALUES (4),(5),(6);
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 let $query= UPDATE t1 set a=a+1;
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 let $query= DELETE FROM t1;
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 --echo # Check that the above DML statements were rolled back and
 --echo # had no effect on t1.
 SELECT * FROM t1;
 
 let $query= CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t1 VALUES (new.a + 100);
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 # The statements CREATE/DROP TRIGGER fails in case error happen during write to binlog.
 # Since the previous statement CREATE TRIGGER failed with error ER_ERROR_ON_WRITE
@@ -77,27 +77,27 @@ source include/binlog_inject_error.inc;
 SHOW CREATE TRIGGER tr1;
 
 let $query= ALTER TABLE t1 ADD (b INT);
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 --echo # The above ALTER TABLE was rolled back. Check this.
 SHOW CREATE TABLE t1;
 
 let $query= CREATE VIEW v1 AS SELECT a FROM t1;
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 --echo # The above CREATE VIEW was rolled back. Check this.
 --error ER_NO_SUCH_TABLE
 SHOW CREATE VIEW v1;
 
 let $query= CREATE PROCEDURE p1(OUT `rows` INT) SELECT count(*) INTO `rows` FROM t1;
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 --echo # The above CREATE Procedure was rolled back. Check this.
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE PROCEDURE p1;
 
 let $query= DROP TABLE t1;
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 --echo # The above DROP TABLE was rolled back. Delete it for real
 --echo # this also checks that table was not deleted by the above
@@ -105,14 +105,14 @@ source include/binlog_inject_error.inc;
 DROP TABLE t1;
 
 let $query= CREATE FUNCTION f1() RETURNS INT return 1;
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 --echo # The above CREATE Procedure was rolled back. Check this.
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE FUNCTION f1;
 
 let $query= CREATE USER user1;
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 --echo # Since the previous CREATE USER is failed due to an error while writing
 --echo # to binlog and changes made by the statement has been rolled back
@@ -120,10 +120,10 @@ source include/binlog_inject_error.inc;
 CREATE USER user1;
 
 let $query= REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 let $query= DROP USER user1;
-source include/binlog_inject_error.inc;
+source include/rpl/deprecated/binlog_inject_error.inc;
 
 --echo # Since the previous DROP USER is failed we have to do a clean up explicitly.
 DROP USER user1;

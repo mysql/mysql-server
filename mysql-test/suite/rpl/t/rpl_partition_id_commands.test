@@ -24,10 +24,10 @@
 --let $rpl_skip_start_slave=1
 --let $rpl_skip_change_master=1
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 RESET BINARY LOGS AND GTIDS;
 #--let $rpl_connection_name= server_1
-#--source include/rpl_connection.inc
+#--source include/connection.inc
 
 # This table will be used to test all the above mentioned thing except COALESCE PARTITION, that will be tested at the end of this test
 # with PARTITION BY HASH
@@ -142,7 +142,7 @@ CREATE TABLE employees (id INT NOT NULL, store_id INT NOT NULL);
 ALTER TABLE employees PARTITION BY RANGE (store_id) (PARTITION p0 VALUES LESS THAN (6), PARTITION p1 VALUES LESS THAN (11), PARTITION p2 VALUES LESS THAN (16));
 --let $SERVER1_MYSQLD_DATADIR= `SELECT @@DATADIR`
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE employees (id INT NOT NULL, store_id INT NOT NULL);
 --let $SERVER2_MYSQLD_DATADIR= `SELECT @@DATADIR`
@@ -150,27 +150,27 @@ ALTER TABLE employees PARTITION BY RANGE (store_id) (PARTITION p0 VALUES LESS TH
 ALTER TABLE employees DISCARD PARTITION p0 TABLESPACE;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 FLUSH TABLES employees FOR EXPORT;
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --copy_file $SERVER1_MYSQLD_DATADIR/test/employees#p#p0.cfg $SERVER2_MYSQLD_DATADIR/test/employees#p#p0.cfg
 --copy_file $SERVER1_MYSQLD_DATADIR/test/employees#p#p0.ibd $SERVER2_MYSQLD_DATADIR/test/employees#p#p0.ibd
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 UNLOCK TABLES;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 ALTER TABLE employees IMPORT PARTITION p0 TABLESPACE;
 
 DROP TABLE employees;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE employees;
 
 # The below table and partition type will be used for testing the following
@@ -196,4 +196,4 @@ let $after_count = `SELECT  COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_S
 DROP TABLE employees;
 --let $rpl_only_running_threads= 1
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

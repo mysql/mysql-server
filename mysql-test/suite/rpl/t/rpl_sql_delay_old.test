@@ -1,7 +1,7 @@
 #
 # ==== Purpose ====
 #
-# This test checks if the sql delay is being applied in a simple master-slave
+# This test checks if the sql delay is being applied in a simple source-replica
 # topology.
 #
 # ==== Implementation ====
@@ -21,14 +21,14 @@
 --source include/have_debug.inc
 
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $delay= 7
 --let $slave_sleep= 2
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY= $delay
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 # Verify that the DESIRED_DELAY in replication_applier_configuration table
 # of performance_schema and SQL_Delay field of show replica status has the
@@ -49,39 +49,39 @@ source include/start_slave.inc;
 --let $debug_point= sql_delay_without_timestamps
 --source include/add_debug_point.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # $time_1 is collected in the same server as $time_2
 # Since the delay is relative to the master's clock, we collect the time in
 # master
 --let $time_1= `SELECT SYSDATE(6)`
 CREATE TABLE t1 (a INT);
---source extra/rpl_tests/check_slave_delay_old.inc
+--source common/rpl/check_replica_delay_old.inc
 
 INSERT INTO t1 VALUES (1);
---source extra/rpl_tests/check_slave_delay_old.inc
+--source common/rpl/check_replica_delay_old.inc
 
 UPDATE t1 SET a=2;
---source extra/rpl_tests/check_slave_delay_old.inc
+--source common/rpl/check_replica_delay_old.inc
 
 DELETE FROM t1 WHERE a=2;
---source extra/rpl_tests/check_slave_delay_old.inc
+--source common/rpl/check_replica_delay_old.inc
 
 START TRANSACTION;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 COMMIT;
---source extra/rpl_tests/check_slave_delay_old.inc
+--source common/rpl/check_replica_delay_old.inc
 
 DROP TABLE t1;
---source extra/rpl_tests/check_slave_delay_old.inc
+--source common/rpl/check_replica_delay_old.inc
 
 # Cleanup
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --source include/remove_debug_point.inc
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
---source include/rpl_end.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
 # TBF - difference in row level logging
 # Temp tables are not replicated in rbr or mixed, but it is still good to hit rbr with everthing
 -- source include/have_binlog_format_mixed_or_row.inc
--- source extra/rpl_tests/rpl_reset_slave.test
+-- source common/rpl/rpl_reset_replica.test

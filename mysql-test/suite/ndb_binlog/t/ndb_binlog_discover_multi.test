@@ -66,11 +66,11 @@ show create table test_db.t1;
 -- connection server2
 insert into t1 (b) values('String to find');
 --echo # Wait for the row to be committed to binlog
---source include/wait_for_ndb_committed_to_binlog.inc
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
 
 insert into test_db.t1 values (1);
 --echo # Wait for the row to be committed to binlog
---source include/wait_for_ndb_committed_to_binlog.inc
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
 
 --connection server1
 --echo # check that data went in ok
@@ -85,7 +85,7 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 
 --echo # View binlog to verify that INSERTS were written properly
 --let $binlog_file=$MYSQLD_DATADIR/binlog.000003
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Cleanup
 drop database test_db;

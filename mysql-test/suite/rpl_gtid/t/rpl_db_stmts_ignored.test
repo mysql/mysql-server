@@ -25,7 +25,7 @@
 # Bug#27308751 FILTERED REPLICATION LEAVES GTID HOLES WITH CREATE DATABASE
 #
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Test replicate-ignore-db=db1 filter
@@ -38,8 +38,8 @@
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 1
 --let $rpl_server_parameters=--replicate-ignore-db=db1 --skip_replica_start=FALSE
---source include/rpl_restart_server.inc
---source extra/rpl_tests/rpl_db_stmts_ignored.inc
+--source include/rpl/restart_server.inc
+--source common/rpl/db_stmts_ignored.inc
 
 --echo #
 --echo # Test replicate-do-db=db2 filter
@@ -52,8 +52,8 @@
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 1
 --let $rpl_server_parameters=--replicate-do-db=db2 --skip_replica_start=FALSE
---source include/rpl_restart_server.inc
---source extra/rpl_tests/rpl_db_stmts_ignored.inc
+--source include/rpl/restart_server.inc
+--source common/rpl/db_stmts_ignored.inc
 
 --echo #
 --echo # Test replicate-wild-ignore-table=db1.% filter
@@ -66,8 +66,8 @@
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 1
 --let $rpl_server_parameters=--replicate-wild-ignore-table=db1.% --skip_replica_start=FALSE
---source include/rpl_restart_server.inc
---source extra/rpl_tests/rpl_db_stmts_ignored.inc
+--source include/rpl/restart_server.inc
+--source common/rpl/db_stmts_ignored.inc
 
 --echo #
 --echo # Test replicate-wild-ignore-table=db1.% and --replicate-do-db=db2
@@ -80,11 +80,11 @@
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 1
 --let $rpl_server_parameters= --replicate-do-db=db2 --replicate-wild-ignore-table=db1.t% --skip_replica_start=FALSE
---source include/rpl_restart_server.inc
---source extra/rpl_tests/rpl_db_stmts_ignored.inc
+--source include/rpl/restart_server.inc
+--source common/rpl/db_stmts_ignored.inc
 
 --echo #
 --echo # Cleanup
 --echo #
 --source include/force_restart.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

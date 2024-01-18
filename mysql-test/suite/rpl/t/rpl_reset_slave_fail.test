@@ -15,24 +15,24 @@
 # because it is different on Unix and Windows systems.
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 (c1) VALUES (1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
---source include/stop_slave_sql.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
 --let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Generate more relay logs on slave.
 FLUSH LOGS;
 FLUSH LOGS;
 INSERT INTO t1 (c1) VALUES (2);
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 call mtr.add_suppression("File '.*slave-relay-bin.");
 call mtr.add_suppression("Could not open log file");
 call mtr.add_suppression("Failed to open the relay log");
@@ -46,7 +46,7 @@ call mtr.add_suppression("Error counting relay log space");
 
 # Stop replica
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 # Delete file(s)
 --echo # Removing $remove_pattern file(s)
@@ -55,7 +55,7 @@ call mtr.add_suppression("Error counting relay log space");
 
 # Start replica
 --let $rpl_server_number= 2
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
 # Start replica must fail because of the removed file(s).
 --error ER_REPLICA_AM_INIT_REPOSITORY
@@ -78,16 +78,16 @@ RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
 # Start replica.
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 # Check consistency.
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

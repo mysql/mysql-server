@@ -64,7 +64,7 @@
 #                  as table in source.                                             #
 ####################################################################################
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
 
@@ -79,21 +79,21 @@ INSERT INTO t1 VALUES (1, 10), (2, 20);
 --echo # Check that t1 exists and has generated invisible primary key definition in
 --echo # source and replica.
 --let $rpl_diff_statement= SHOW CREATE TABLE t1;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
 --echo # Check that t1 has same column values in source and replica.
 --let $rpl_diff_statement= SELECT my_row_id, t1.* FROM t1
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo # Case 2: Test case to verify replication of a table with generated
 --echo #         invisible primary key when susyem variable 
 --echo #         show_gipk_in_create_table_and_information_schema = OFF.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @saved_session_show_gipk_in_create_table_and_information_schema =
        @@session.show_gipk_in_create_table_and_information_schema;
 SET SESSION show_gipk_in_create_table_and_information_schema = OFF;
@@ -104,22 +104,22 @@ INSERT INTO t1 VALUES (1, 10), (2, 20);
 --echo # Check that t1 exists and has generated invisible primary key definition in
 --echo # source and replica.
 --let $rpl_diff_statement= SHOW CREATE TABLE t1;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 --echo # Check that t1 has same column values in source and replica.
 --let $rpl_diff_statement= SELECT my_row_id, t1.* FROM t1
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 SET SESSION show_gipk_in_create_table_and_information_schema =
               @saved_session_show_gipk_in_create_table_and_information_schema;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo # Case 3: Test case to verify replication of a table created with
 --echo #         generated invisible primary key using stored procedure and
 --echo #         prepared statement.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELIMITER $;
 CREATE PROCEDURE p1() BEGIN
   CREATE TABLE t1(f1 INT, f2 INT);
@@ -136,23 +136,23 @@ INSERT INTO t2 VALUES(8, 4);
 --echo # Check that t1 exists and has generated invisible primary key definition
 --echo # in source and replica.
 --let $rpl_diff_statement= SHOW CREATE TABLE t1;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 --echo # Check that t1 hase same column values in source and replica.
 --let $rpl_diff_statement= SELECT my_row_id, t1.* FROM t1
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
 --echo # Check that t2 exists and has generated invisible primary key definition
 --echo # in source and replica.
 --let $rpl_diff_statement= SHOW CREATE TABLE t2;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 --echo # Check that t2 hase same column values in source and replica.
 --let $rpl_diff_statement= SELECT my_row_id, t2.* FROM t2
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 CALL p1();
 EXECUTE stmt1;
 INSERT INTO t2 VALUES(8, 4);
@@ -160,32 +160,32 @@ INSERT INTO t2 VALUES(8, 4);
 --echo # Check that t1 exists and has generated invisible primary key definition
 --echo # in source and replica.
 --let $rpl_diff_statement= SHOW CREATE TABLE t1;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
 --echo # Check that t1 hase same column values in source and replica.
 --let $rpl_diff_statement= SELECT my_row_id, t1.* FROM t1
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
 --echo # Check that t2 exists and has generated invisible primary key definition
 --echo # in source and replica.
 --let $rpl_diff_statement= SHOW CREATE TABLE t2;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
 --echo # Check that t2 hase same column values in source and replica.
 --let $rpl_diff_statement= SELECT my_row_id, t2.* FROM t2
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2;
 DROP PROCEDURE p1;
 DROP PREPARE stmt1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo # Case 4: Verify replication of CREATE TABLE ... SELECT with explicitly
 --echo # specified primary key similar to generated invisible primary key.
 --echo # Table t2 is created as primary key is explicitly specified.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1(f1 INT, f2 INT);
 INSERT INTO t1 VALUES (1, 10), (2, 20);
 # Following statement is marked as unsafe statement when BINLOG_FORMAT = STATEMENT.
@@ -199,7 +199,7 @@ CREATE TABLE t2 (my_row_id BIGINT UNSIGNED INVISIBLE AUTO_INCREMENT PRIMARY KEY)
 
 --echo # check that t2 exists in source and replica.
 --let $rpl_diff_statement= SHOW CREATE TABLE t2;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
 
 --echo # Case 5: Verify replication of CREATE TABLE ... SELECT using temporary source
@@ -216,15 +216,15 @@ CREATE TABLE t4(my_row_id BIGINT UNSIGNED INVISIBLE AUTO_INCREMENT PRIMARY KEY)
 --enable_warnings
 
 --echo # check that t4 exists in source and replica.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_diff_statement= SHOW CREATE TABLE t4
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 --let $rpl_diff_statement= SELECT * FROM t4;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2, t3, t4;
 
 SET SESSION sql_generate_invisible_primary_key =
               @saved_session_sql_generate_invisible_primary_key;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

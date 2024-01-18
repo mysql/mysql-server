@@ -45,7 +45,7 @@ show binlog events;
 --enable_result_log
 --enable_query_log
 reset binary logs and gtids;
-#--source include/show_binlog_events.inc
+#--source include/rpl/deprecated/show_binlog_events.inc
 select count(1), sum(inserts), sum(updates), sum(deletes) from mysql.ndb_binlog_index;
 
 --echo Reorg table to use new nodes
@@ -62,7 +62,7 @@ let ndb_table=t1;
 show binlog events;
 --enable_result_log
 --enable_query_log
-#--source include/show_binlog_events.inc
+#--source include/rpl/deprecated/show_binlog_events.inc
 select count(1), sum(inserts), sum(updates), sum(deletes) from mysql.ndb_binlog_index;
 
 --echo Cleanup
@@ -110,7 +110,7 @@ show binlog events;
 
 reset binary logs and gtids;
 --echo Show empty binlog prior to test
-#--source include/show_binlog_events.inc
+#--source include/rpl/deprecated/show_binlog_events.inc
 select count(1), sum(inserts), sum(updates), sum(deletes) from mysql.ndb_binlog_index;
 
 --echo Request reorg starting in 2 seconds
@@ -163,7 +163,7 @@ show binlog events;
 --enable_result_log
 --enable_query_log
 
-#--source include/show_binlog_events.inc
+#--source include/rpl/deprecated/show_binlog_events.inc
 select count(epoch) > 100,  
        sum(inserts) > 1000, 
        sum(updates) > 1000, 

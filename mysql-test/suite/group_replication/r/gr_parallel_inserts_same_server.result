@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 CREATE TABLE t1 (a INT AUTO_INCREMENT, PRIMARY KEY (a), b int) engine=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # Creating several entries in parallel in the same table
 #

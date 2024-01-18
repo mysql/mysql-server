@@ -14,14 +14,14 @@
 # WL#7374 Performance schema tables to monitor replication lags and queue
 
 # there is a specific test for mts
---source include/not_mts_replica_parallel_workers.inc
+--source include/not_replica_parallel_workers.inc
 # the test is binlog-format agnostic
 --source include/have_binlog_format_row.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $is_mts= 0
 
---source extra/rpl_tests/rpl_check_ps_applier_status_by_worker_slave_skip_counter.inc
+--source common/rpl/check_ps_applier_status_by_worker_replica_skip_counter.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

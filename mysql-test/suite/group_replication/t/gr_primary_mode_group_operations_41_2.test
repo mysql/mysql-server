@@ -46,7 +46,7 @@
 CREATE TABLE t1(a int primary key);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo
@@ -57,7 +57,7 @@ CREATE TABLE t1(a int primary key);
 --echo # On the secondaries the stage reports waiting for a step completion
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
 BEGIN;
@@ -65,7 +65,7 @@ INSERT INTO t1 VALUES (1);
 --send COMMIT
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
@@ -74,12 +74,12 @@ BEGIN;
 INSERT INTO t1 VALUES (2);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --send SELECT group_replication_switch_to_multi_primary_mode()
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Sleep so the select query is not included in the waiting numbers
 --sleep 2
@@ -103,7 +103,7 @@ INSERT INTO t1 VALUES (2);
 --source include/assert.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -124,13 +124,13 @@ INSERT INTO t1 VALUES (2);
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC='now SIGNAL waiting';
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap;
 
@@ -158,18 +158,18 @@ SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 --echo # On the locked server the stage is: applying buffered transactions
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.read_only= 0;
 LOCK TABLE t1 READ;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 COMMIT;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: applying buffered %"
 --source include/wait_condition.inc
@@ -198,12 +198,12 @@ COMMIT;
 SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 UNLOCK TABLES;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: waiting for%" and work_completed=1
 --source include/wait_condition.inc
@@ -224,7 +224,7 @@ UNLOCK TABLES;
 --source include/assert.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: waiting for%" and work_completed=1
 --source include/wait_condition.inc
@@ -252,7 +252,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
@@ -266,7 +266,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= There is no stage present

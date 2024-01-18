@@ -47,7 +47,7 @@
 #   several errors to be caught in a single run.
 #
 # $extra_debug_info, $extra_debug_eval
-#   See include/show_rpl_debug_info.inc
+#   See include/rpl/debug/show_debug_info.inc
 
 
 --let $include_filename= assert.inc [$assert_text]
@@ -80,7 +80,7 @@ if (!$eval_result)
   --let $assert_result = $eval_result
   if ($show_rpl_debug_info)
   {
-    --source include/show_rpl_debug_info.inc
+    --source include/rpl/debug/show_debug_info.inc
   }
   if ($assert_no_stop) {
     if (!$show_rpl_debug_info) {

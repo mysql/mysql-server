@@ -13,27 +13,27 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --echo #### Create a table using CREATE..SELECT clause #####
 
 CREATE TABLE store (store_id INT) PARTITION BY RANGE (store_id) ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO store VALUES (5);
 INSERT INTO store VALUES (12);
 
 # Check if the partition_id is correctly logged for this event.
 --let $expected_partition_id = 0;1
---source suite/rpl/include/rpl_partition_info.inc
+--source common/rpl/partition_info.inc
 
 # Create the table using CREATE..SELECT based on a partitioned table
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 CREATE TABLE emp (m INT) PARTITION BY RANGE (store_id) ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))
 SELECT store_id FROM store;
 
 #Check if the rows inserted in table emp from table store has the correct partition_id info
 --let $expected_partition_id = 0;1
---source suite/rpl/include/rpl_partition_info.inc
+--source common/rpl/partition_info.inc
 
 --let $store_table_count = `SELECT COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'store'`
 --let $emp_table_count = `SELECT COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'emp'`
@@ -49,20 +49,20 @@ let $wait_condition = SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PARTITIONS WHE
 --source include/wait_condition_or_abort.inc
 
 # Check if the partition_id is correctly logged for this event.
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO emp values (3, 12);
 
 --let $expected_partition_id = 1
---source suite/rpl/include/rpl_partition_info.inc
+--source common/rpl/partition_info.inc
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO emp values (4, 6), (5, 13) ;
 
 # Check if the partition_id is correctly logged for this event.
 --let $expected_partition_id = 0;1
---source suite/rpl/include/rpl_partition_info.inc
+--source common/rpl/partition_info.inc
 
 DROP TABLE store;
 DROP TABLE emp;
 RESET BINARY LOGS AND GTIDS;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

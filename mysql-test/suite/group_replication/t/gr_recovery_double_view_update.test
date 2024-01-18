@@ -128,7 +128,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 
 
 INSERT INTO t1 VALUES (1);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $assert_text= The table should contain 1 elements
 --let $assert_cond= [SELECT COUNT(*) FROM t1] = 1;

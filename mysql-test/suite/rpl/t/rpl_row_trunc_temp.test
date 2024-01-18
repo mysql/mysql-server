@@ -7,12 +7,12 @@
 #
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #This statement is not binlogged in RBR.
 CREATE TEMPORARY TABLE t1(c1 INTEGER);
 CREATE TABLE t2(c1 INTEGER);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 CREATE TABLE t1(c1 INTEGER);
 INSERT INTO t1 VALUES(1), (2);
@@ -23,7 +23,7 @@ SELECT * FROM t2;
 connection master;
 TRUNCATE t1;
 TRUNCATE t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # t1 will have nothing, if 'TRUNCATE t1' has been replicate from master to
 # slave.
 SELECT * FROM t1;
@@ -32,4 +32,4 @@ SELECT * FROM t2;
 DROP TABLE t1;
 connection master;
 DROP TABLE t2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

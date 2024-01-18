@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,15 +18,15 @@ INSERT INTO t VALUES(2);
 # 2. Start replication
 #    Check SOURCE_POS_WAIT does not time out when giving it a valid positioning info
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The function did not time out]
 #
 # 3. Restart the server so positions become invalid
 #    Use relay log recovery so the new relay log contains no source info when the applier starts
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=1 --relay-log-recovery=1]
-include/start_slave_sql.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_slave_start=1 --relay-log-recovery=1]
+include/rpl/start_applier.inc
 include/assert.inc [The source log file name in the applier is invalid]
 include/assert.inc [The source log file position in the applier is 0]
 #
@@ -40,7 +40,7 @@ include/assert.inc [The function timed out]
 CREATE TABLE query_result(res INT);
 INSERT INTO query_result SELECT SOURCE_POS_WAIT('LOG_FILE_ON_SOURCE', LOG_POS_ON_SOURCE, 100);;
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
 INSERT INTO t VALUES(3);
 [connection server_2]
@@ -51,11 +51,11 @@ include/assert.inc [The function did not time out]
 include/assert.inc [The function did not time out]
 #
 # 7. Cleanup
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0;
-include/start_slave.inc
+include/rpl/start_replica.inc
 CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 DROP TABLE query_result;
 [connection master]
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

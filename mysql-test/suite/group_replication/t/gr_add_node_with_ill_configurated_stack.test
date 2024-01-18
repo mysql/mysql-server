@@ -30,17 +30,17 @@
 
 --echo # 2. Start and bootstrap the group with server 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo # 3. Start server 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo # 4. Change server 3 communication stack and local address to MySQL
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server_3_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $server_3_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`

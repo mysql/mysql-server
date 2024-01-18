@@ -42,7 +42,7 @@
 #          - binary log is not updated
 #
 # Usage:
-#         --source include/save_binlog_position.inc
+#         --source include/rpl/save_binlog_file_position.inc
 #         --let $before_binlog_position = $binlog_position
 #         --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 #
@@ -83,7 +83,7 @@ SET SESSION gtid_next = 'AUTOMATIC';
 --source include/assert.inc
 
 # Binary log has not been updated
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $assert_text = Binary log has not been updated
 --let $assert_cond = "$before_binlog_position" = "$binlog_position"
 --source include/assert.inc
@@ -101,7 +101,7 @@ END_OF_PROCEDURE
 #          - binary log is updated
 #
 # Usage:
-#         --source include/save_binlog_position.inc
+#         --source include/rpl/save_binlog_file_position.inc
 #         --let $before_binlog_position = $binlog_position
 #         --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 #
@@ -146,7 +146,7 @@ SET SESSION gtid_next = 'AUTOMATIC';
 XA COMMIT '1';
 
 # Binary log has been updated
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $assert_text = Binary log has been updated
 --let $assert_cond = "$before_binlog_position" <> "$binlog_position"
 --source include/assert.inc
@@ -164,7 +164,7 @@ END_OF_PROCEDURE
 #          - binary log is updated
 #
 # Usage:
-#         --source include/save_binlog_position.inc
+#         --source include/rpl/save_binlog_file_position.inc
 #         --let $before_binlog_position = $binlog_position
 #         --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 #
@@ -209,7 +209,7 @@ SET SESSION gtid_next = 'AUTOMATIC';
 XA COMMIT '1';
 
 # Binary log has been updated
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $assert_text = Binary log has been updated
 --let $assert_cond = "$before_binlog_position" <> "$binlog_position"
 --source include/assert.inc
@@ -237,7 +237,7 @@ XA PREPARE '1';
 
 --echo # 1.2. Commit results in error
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $before_binlog_position = $binlog_position
 --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 
@@ -256,7 +256,7 @@ XA COMMIT '1';
 
 --echo # 1.4. Now the commit should succeed
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $before_binlog_position = $binlog_position
 --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 
@@ -299,7 +299,7 @@ XA PREPARE '1';
 
 --echo # 2.2. Execute commit with failure
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $before_binlog_position = $binlog_position
 --let $before_gtid_executed =  `SELECT @@GLOBAL.gtid_executed`
 
@@ -318,7 +318,7 @@ XA COMMIT '1';
 
 --echo # 2.4. Execute commit without failure
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $before_binlog_position = $binlog_position
 --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 
@@ -342,7 +342,7 @@ XA PREPARE '1';
 
 --echo # 3.2. Commit results in error and rollback is possible
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $before_binlog_position = $binlog_position
 --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 
@@ -360,7 +360,7 @@ XA COMMIT '1';
 
 --echo # 3.4. Rollback transaction
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $before_binlog_position = $binlog_position
 --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 
@@ -390,7 +390,7 @@ XA PREPARE '1';
 --replace_result $server_uuid UUID
 --eval SET SESSION gtid_next = '$server_uuid:106'
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $before_binlog_position = $binlog_position
 --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 
@@ -408,7 +408,7 @@ XA COMMIT '1';
 
 --echo # 4.4. Rollback transaction
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $before_binlog_position = $binlog_position
 --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 

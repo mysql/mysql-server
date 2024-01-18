@@ -1,6 +1,6 @@
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 --echo # Goals: test CTEs in prepared statements, in stored routines,
 --echo # and if those are replicated correctly.
@@ -8,10 +8,10 @@ source include/master-slave.inc;
 
 --echo # In-memory tmp tables
 set big_tables=0;
---source suite/rpl/include/rpl_with.inc
+--source common/rpl/with.inc
 
 --echo # On-disk tmp tables
 set big_tables=1;
---source suite/rpl/include/rpl_with.inc
+--source common/rpl/with.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

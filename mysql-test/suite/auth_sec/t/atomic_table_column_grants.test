@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -11,7 +11,7 @@
 CREATE USER userX, userY, userZ;
 CREATE DATABASE db1;
 CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Valid grants to multiple users
 GRANT SELECT ON db1.table1 TO userX, userY, userZ;
@@ -23,7 +23,7 @@ SHOW GRANTS FOR userZ;
 
 --let $event= !Q(GRANT SELECT ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Update existing grant
 GRANT INSERT , UPDATE ON db1.table1 TO userX, userY, userZ;
@@ -35,13 +35,13 @@ SHOW GRANTS FOR userZ;
 
 --let $event= !Q(GRANT INSERT, UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 6 : Create new user with an account without CREATE USER privilege
 
 CREATE USER userA, userB;
 GRANT SELECT ON db1.table1 to userX WITH GRANT OPTION;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 SHOW GRANTS FOR userY;
 SHOW GRANTS FOR userZ;
@@ -76,7 +76,7 @@ SHOW GRANTS FOR userB;
 DROP USER userX, userY, userZ, userA, userB;
 DROP TABLE db1.table1;
 DROP DATABASE db1;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --echo # End : Tests for GRANT : Table grants
 
 --echo # ----------------------------------------------------------------------
@@ -86,7 +86,7 @@ DROP DATABASE db1;
 CREATE USER userX, userY, userZ;
 CREATE DATABASE db1;
 CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Valid grants to multiple users
 GRANT SELECT(c1, c2) ON db1.table1 TO userX, userY, userZ;
@@ -98,7 +98,7 @@ SHOW GRANTS FOR userZ;
 
 --let $event= !Q(GRANT SELECT(.*c1.*c2.*) ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Update existing grant
 GRANT INSERT(c1, c3), UPDATE(c2, c3) ON db1.table1 TO userX, userY, userZ;
@@ -110,13 +110,13 @@ SHOW GRANTS FOR userZ;
 
 --let $event= !Q(GRANT INSERT (.*), UPDATE (.*) ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 6 : Create new user with an account without CREATE USER privilege
 
 CREATE USER userA, userB;
 GRANT SELECT(c1, c3) ON db1.table1 to userX WITH GRANT OPTION;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 SHOW GRANTS FOR userY;
 SHOW GRANTS FOR userZ;
@@ -151,7 +151,7 @@ SHOW GRANTS FOR userB;
 DROP USER userX, userY, userZ, userA, userB;
 DROP TABLE db1.table1;
 DROP DATABASE db1;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --echo # End : Tests for GRANT : Column grants
 
 --echo # ----------------------------------------------------------------------
@@ -161,7 +161,7 @@ DROP DATABASE db1;
 CREATE USER userX, userY, userZ;
 CREATE DATABASE db1;
 CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Valid grants to multiple users
 GRANT SELECT ON db1.table1 TO userX, userY, userZ;
@@ -173,7 +173,7 @@ SHOW GRANTS FOR userZ;
 
 --let $event= !Q(GRANT SELECT ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Update existing grant
 GRANT INSERT(c1, c3) , UPDATE ON db1.table1 TO userX, userY, userZ;
@@ -185,13 +185,13 @@ SHOW GRANTS FOR userZ;
 
 --let $event= !Q(GRANT INSERT (.*), UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 6 : Create new user with an account without CREATE USER privilege
 
 CREATE USER userA, userB;
 GRANT SELECT(c1, c3), INSERT ON db1.table1 to userX WITH GRANT OPTION;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 SHOW GRANTS FOR userY;
 SHOW GRANTS FOR userZ;
@@ -226,7 +226,7 @@ SHOW GRANTS FOR userB;
 DROP USER userX, userY, userZ, userA, userB;
 DROP TABLE db1.table1;
 DROP DATABASE db1;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --echo # End : Tests for GRANT : Table and Column grants
 
 --echo # ----------------------------------------------------------------------

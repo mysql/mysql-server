@@ -27,7 +27,7 @@
 --source include/have_binlog_format_row.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
@@ -57,15 +57,15 @@ eval INSERT INTO t1 (c1, data) VALUES (1,
 --enable_query_log
 --let $keep_gtid_events= 1
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --echo #
 --echo # Wait for the error 'ER_REPLICA_INCIDENT' caused by applying incident
 --echo # event on slave and then stop the slave sql thread.
 --echo #
 --let $slave_sql_errno= convert_error(ER_REPLICA_INCIDENT)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 --echo #
 --echo # Prepare the slave to skip the incident event by its GTID.
 --echo #
@@ -74,14 +74,14 @@ eval INSERT INTO t1 (c1, data) VALUES (1,
 BEGIN;
 COMMIT;
 SET GTID_NEXT=AUTOMATIC;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 --replace_result $old_max_binlog_stmt_cache_size ORIGINAL_VALUE
 --eval SET GLOBAL max_binlog_stmt_cache_size= $old_max_binlog_stmt_cache_size
 --replace_result $old_binlog_stmt_cache_size ORIGINAL_VALUE
 --eval SET GLOBAL binlog_stmt_cache_size= $old_binlog_stmt_cache_size
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

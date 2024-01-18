@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -62,7 +62,7 @@ skipped_err_count
 Now try re-positioning after RESET REPLICA
 STOP REPLICA;
 RESET REPLICA;
-include/rpl_start_slaves.inc
+include/rpl/start_all_replicas.inc
 Any slave positioning warnings?
 Should be two, e.g. no extras after the RESET REPLICA
 This avoids warnings when slave context has been explicitly reset
@@ -91,7 +91,7 @@ insert into test.t1 values (3 + 6, repeat('E', 1000));
 insert into test.t1 values (2 + 6, repeat('E', 1000));
 insert into test.t1 values (1 + 6, repeat('E', 1000));
 Check that slave stopped with an error
-include/wait_for_slave_sql_error.inc [errno=1296]
+include/rpl/wait_for_applier_error.inc [errno=1296]
 Let's look at the warnings and errors now...
 lower_warn_count
 2
@@ -136,7 +136,7 @@ insert into test.t1 values (3, repeat('E', 1000));
 insert into test.t1 values (2, repeat('E', 1000));
 insert into test.t1 values (1, repeat('E', 1000));
 Check that slave stopped with an error
-include/wait_for_slave_sql_error.inc [errno=1296]
+include/rpl/wait_for_applier_error.inc [errno=1296]
 Let's look at the warnings and errors now...
 Should be increase in repeat error count.
 lower_warn_count
@@ -180,7 +180,7 @@ insert into test.t1 values (3, repeat('E', 1000));
 insert into test.t1 values (2, repeat('E', 1000));
 insert into test.t1 values (1, repeat('E', 1000));
 Check that slave stopped with an error
-include/wait_for_slave_sql_error.inc [errno=1296]
+include/rpl/wait_for_applier_error.inc [errno=1296]
 Let's look at the warnings and errors now...
 Should be increase in repeat error count.
 lower_warn_count
@@ -210,4 +210,4 @@ skipped_err_count
 1
 drop table test.server_error_log;
 drop table test.t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

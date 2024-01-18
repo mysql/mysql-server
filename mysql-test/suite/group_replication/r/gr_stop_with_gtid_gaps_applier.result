@@ -5,11 +5,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 ############################################################
@@ -60,13 +60,13 @@ RESET BINARY LOGS AND GTIDS;
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [GTID_EXECUTED must contain no holes]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 include/assert.inc [gtid received set must contain no holes]
 [connection server2]
 include/assert.inc [GTID_EXECUTED must be empty]
 include/start_group_replication.inc
 include/assert.inc [GTID_EXECUTED must contain no holes]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 
 ############################################################
 # 6. Cleanup.
@@ -80,11 +80,11 @@ call mtr.add_suppression("Fatal error during execution on the Applier process of
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 include/group_replication_end.inc

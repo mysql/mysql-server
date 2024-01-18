@@ -17,5 +17,5 @@ INSERT INTO t1 VALUES (4);
 DROP TABLE t1;
 WAIT_FOR_EXECUTED_GTID_SET('GROUP_NAME:1-6', 10000)
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/group_replication_end.inc

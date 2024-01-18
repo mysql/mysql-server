@@ -5,4 +5,4 @@
 
 # Requires statement logging
 -- source include/have_binlog_format_mixed_or_statement.inc
--- source extra/rpl_tests/rpl_max_relay_size.test
+-- source common/rpl/rpl_max_relay_size.test

@@ -32,7 +32,7 @@
 --echo # 1. Bootstrap a GROUP on M1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_and_bootstrap_group_replication.inc
@@ -48,7 +48,7 @@
 --echo # 2. Set debug point to crash M1 before recovery metadata send.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET @@GLOBAL.DEBUG='+d,gr_crash_before_recovery_metadata_send';
@@ -58,7 +58,7 @@ SET @@GLOBAL.DEBUG='+d,gr_crash_before_recovery_metadata_send';
 --echo # 3. Start server2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Error fetching AFTER_GTIDS from Recovery Metadata by Recovery thread. The Recovery thread timeout after waiting for 300 seconds. The Recovery will be terminated.");
@@ -78,13 +78,13 @@ SET SESSION sql_log_bin= 1;
 --echo # 4. Wait for M1 crash before message send.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/wait_until_disconnected.inc
 # Inform MTR that it should restart the aborted member
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --source include/wait_until_connected_again.inc
 SET @@GLOBAL.DEBUG='-d,gr_crash_before_recovery_metadata_send';
 
@@ -94,7 +94,7 @@ SET @@GLOBAL.DEBUG='-d,gr_crash_before_recovery_metadata_send';
 --echo #    M1 had recovery metadata but it left group.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_timeout= 360
 --let $group_replication_member_state = ERROR
@@ -106,7 +106,7 @@ SET @@GLOBAL.DEBUG='-d,gr_crash_before_recovery_metadata_send';
 --echo # 6. Cleanup.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

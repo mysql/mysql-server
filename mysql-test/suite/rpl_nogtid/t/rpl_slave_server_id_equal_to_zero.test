@@ -28,10 +28,10 @@
 # This test case is binlog format agnostic
 --source include/have_binlog_format_row.inc
 # This test case does not depend on GTID
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Assert that the slave was started with server_id > 0
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression('Server id not set, will not start replica');
 CALL mtr.add_suppression('Replica is not configured or failed to initialize properly');
 --let $assert_text= slave's server_id was greater than 0 at startup
@@ -40,16 +40,16 @@ CALL mtr.add_suppression('Replica is not configured or failed to initialize prop
 --let $original_slave_server_id= `SELECT @@GLOBAL.server_id`
 
 # Replication runs fine
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 ##
 ## Part One: Server initialized slave at startup (server_id > 0)
 ##
 
 # Change slave @@GLOBAL.server_id to 0
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET @@GLOBAL.server_id= 0;
 
 # Start replica should fail
@@ -91,9 +91,9 @@ DROP TABLE t1;
 
 # Restore slave's server_id and start replica again
 --eval SET @@GLOBAL.server_id= $original_slave_server_id
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 ##
 ## Part Two: Server didn't initialized slave at startup (server_id = 0)
@@ -102,10 +102,10 @@ DROP TABLE t1;
 # Restart the slave with server_id=0
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --server-id=0
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # Assert that the slave was started with server_id=0
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $assert_text= slave's server_id was 0 at startup
 --let $assert_cond= [ SELECT @@GLOBAL.server_id = 0 ]
 --source include/assert.inc
@@ -151,15 +151,15 @@ SET PERSIST server_id=2;
 # Restart the server with server_id=0
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --server-id=0 --skip_replica_start=0
---source include/rpl_restart_server.inc
---source include/check_slave_is_running.inc
---source include/check_slave_no_error.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/assert_replica_running.inc
+--source include/rpl/assert_replica_no_error.inc
 
 ##
 ## Cleanup
 ##
 
 # Master cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

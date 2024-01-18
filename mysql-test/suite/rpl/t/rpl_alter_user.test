@@ -17,7 +17,7 @@
 # REPLACE clause is never replicated to the binlog
 
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_debug.inc
 
 #Scenario 1:
@@ -42,12 +42,12 @@ if (`SELECT @@session.binlog_transaction_compression = TRUE`)
 {
   --let $binlog_limit= 3
 }
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 # Check the binlog contents on the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # slave's GTID log events are 7 bytes larger than the same events on master
 --let $binlog_start= `SELECT $saved_master_pos + 7`
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 # Reset the flag
 --connection master
 SET GLOBAL DEBUG= '-d,force_hash_string_with_quote';
@@ -59,7 +59,7 @@ SET GLOBAL DEBUG= '-d,force_hash_string_with_quote';
 # may not contain a single quote within it.
 --connection master
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret1';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connect(con1, localhost, user1,'auth_secret1',,,,SSL)
 SELECT USER();
 disconnect con1;
@@ -82,12 +82,12 @@ if (`SELECT @@session.binlog_transaction_compression = TRUE`)
 {
   --let $binlog_limit= 3
 }
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 # Check the binlog contents on the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # slave's GTID log events are 7 bytes larger than the same events on master
 --let $binlog_start= `SELECT $saved_master_pos + 21`
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 # Reset the flag
 --connection master
 SET GLOBAL DEBUG= '-d,force_hash_string_with_quote';
@@ -98,7 +98,7 @@ SET GLOBAL DEBUG= '-d,force_hash_string_with_quote';
 # mode is set on both master and slave. This scenario will generate
 # the hash string which may or may not contain a single quote.
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret2';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connect(con1, localhost, user1,'auth_secret2',,,,SSL)
 SELECT USER();
 disconnect con1;
@@ -156,16 +156,16 @@ disconnect 11544_u1_con_master;
 --let $binlog_start= $saved_master_pos
 --let $binlog_limit= 100
 --let $mask_user_password_events=1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --let $mask_user_password_events=0
 
 --echo # Check the binlog contents on the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [connection slave]
 --let $binlog_start= $saved_master_relay_pos
 --let $binlog_limit= 100
 --let $mask_user_password_events=1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --let $mask_user_password_events=0
 
 --echo # Check that we are successfully able to login to the slave from
@@ -187,7 +187,7 @@ DROP USER '11544_u1'@'localhost';
 --echo * Create a new user with random password
 --let $sql= "CREATE USER u1@localhost IDENTIFIED BY RANDOM PASSWORD"
 --let $passwd= query_get_value( $sql, "generated password", 1)
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connect(slave_con1, localhost, u1, $passwd, test, $SLAVE_MYPORT,,SSL)
 --echo [connection slave]
 SELECT CURRENT_USER();
@@ -197,7 +197,7 @@ SELECT CURRENT_USER();
 --echo * Set random password using SET PASSWORD
 --let $sql= "SET PASSWORD FOR u1@localhost TO RANDOM"
 --let $passwd= query_get_value($sql, "generated password", 1)
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connect(slave_con1, localhost, u1, $passwd, test, $SLAVE_MYPORT,,SSL)
 --echo [connection slave]
 SELECT CURRENT_USER();
@@ -207,7 +207,7 @@ SELECT CURRENT_USER();
 --echo * Set random password using ALTER USER
 --let $sql= "ALTER USER u1@localhost IDENTIFIED BY RANDOM PASSWORD"
 --let $passwd= query_get_value($sql, "generated password", 1)
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connect(slave_con1, localhost, u1, $passwd, test, $SLAVE_MYPORT,, SSL)
 --echo [connection slave]
 SELECT CURRENT_USER();
@@ -220,7 +220,7 @@ DROP USER u1@localhost;
 --let $binlog_start= $saved_master_pos
 --let $binlog_limit= 100
 --let $mask_user_password_events=1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --let $mask_user_password_events=0
 
 
@@ -232,7 +232,7 @@ DROP USER u1@localhost;
 --echo * Create a new user with an arbitrary attribute
 CREATE USER u1@localhost IDENTIFIED BY 'foo' ATTRIBUTE '{"trackingId": "12345"}';
 CREATE USER u2@localhost COMMENT 'This is account is used by my private LAMP project';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connect(slave_con1, localhost, root,, test, $SLAVE_MYPORT,,SSL)
 --echo [connection slave]
 SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1' OR USER = 'u2';
@@ -240,7 +240,7 @@ SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1' OR USER = 'u2
 --echo [connection master]
 --disconnect slave_con1
 ALTER USER u1@localhost COMMENT 'TODO: Delete this user';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connect(slave_con1, localhost, root,, test, $SLAVE_MYPORT,,SSL)
 --echo [connection slave]
 SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1';
@@ -258,7 +258,7 @@ SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1';
 --disconnect slave_con1
 ALTER USER u2@localhost ATTRIBUTE '{ "code": "red" }';
 ALTER USER u2@localhost COMMENT 'Change of mind';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connect(slave_con1, localhost, root,, test, $SLAVE_MYPORT,, SSL)
 --echo [connection slave]
 SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u2';
@@ -282,7 +282,7 @@ DROP USER u2@localhost;
 --let $binlog_start= $saved_master_pos
 --let $binlog_limit= 100
 --let $mask_user_password_events=1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --let $mask_user_password_events=0
 
 #Restore the old sql_mode at the master and the slave
@@ -294,4 +294,4 @@ SET @@session.sql_mode= @old_sql_mode_master;
 #cleanup
 DROP USER 'user1'@'localhost';
 #--let $rpl_debug= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

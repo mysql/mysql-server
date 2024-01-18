@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -114,7 +114,7 @@ include/assert_grep.inc [Check for SOURCE_LOG_POS]
 # Test application of dumps
 # Old terminology is no longer accepted
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 [connection master]
 INSERT INTO mysqldump_test_db.t1 VALUES (3);
 [connection slave]
@@ -125,4 +125,4 @@ Warnings:
 Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
 [connection master]
 DROP DATABASE mysqldump_test_db;
-include/rpl_end.inc
+include/rpl/deinit.inc

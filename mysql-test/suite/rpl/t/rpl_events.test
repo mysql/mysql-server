@@ -5,8 +5,8 @@
 ##################################################################
 
 --source include/not_group_replication_plugin.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 SET @old_event_scheduler = @@global.event_scheduler;
 set global event_scheduler=1;
@@ -28,7 +28,7 @@ DELIMITER ;|
 
 ALTER EVENT event1 RENAME TO event2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 
@@ -78,7 +78,7 @@ select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
 select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
   where EVENT_NAME='event44331_4';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 --echo #on slave
 select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
@@ -98,7 +98,7 @@ DROP EVENT event44331_1;
 DROP EVENT event44331_2;
 DROP EVENT event44331_3;
 DROP EVENT event44331_4;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Bug#21229951 VARIABLES IN ALTER EVENT NOT REPLICATED PROPERLY
 connection master;
@@ -121,7 +121,7 @@ END \\
 DELIMITER ;\\
 
 CALL proc1();
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Cleanup
 connection master;
@@ -154,4 +154,4 @@ STARTS sysdate() |
 DROP EVENT EVENT_WITH_SYSDATE_AND_VARIABLES |
 --enable_warnings
 DELIMITER ;|
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

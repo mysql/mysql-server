@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 [connection master]
 [connection slave]
 set @restore_replica_net_timeout= @@global.replica_net_timeout;
@@ -71,18 +71,18 @@ HEARTBEAT_INTERVAL	0.500
 START REPLICA;
 [connection master]
 create table t1 (f1 int);
-include/sync_slave_sql_with_master.inc
-include/check_slave_param.inc [Relay_Log_File]
+include/rpl/sync_to_replica.inc
+include/rpl/assert_replica_status.inc [Relay_Log_File]
 SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
 HEARTBEAT_INTERVAL	0.500
 A heartbeat has been received by the slave
 include/assert.inc [last_heartbeat_timestamp should not be empty]
 [connection master]
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set @@global.replica_net_timeout= @restore_replica_net_timeout;
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= 10;
 include/assert.inc [HEARTBEAT_INTERVAL should be 10.000]
 
@@ -92,66 +92,66 @@ include/assert.inc [HEARTBEAT_INTERVAL should be 10.000]
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 3;
 include/assert.inc [HEARTBEAT_INTERVAL should be 10.000]
 include/assert.inc [COUNT_RECEIVED_HEARTBEATS should NOT be set to 0]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [HEARTBEAT_INTERVAL should still be 10.000 after RESET REPLICA.]
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost', SOURCE_PORT= SOURCE_PORT;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [HEARTBEAT_INTERVAL should reset to default.]
 #
 # Change from default to make sure changing HOST resets heartbeat_interval
 # to default.
 #
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD = 10;
-include/start_slave.inc
+include/rpl/start_replica.inc
 DROP TABLE IF EXISTS t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1';
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [heartbeat_interval should reset to default on changing host.]
 DROP TABLE IF EXISTS t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Change from default to make sure changing PORT resets heartbeat_interval
 # to default.
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD = 10;
-include/start_slave.inc
+include/rpl/start_replica.inc
 DROP TABLE IF EXISTS t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= SOURCE_PORT;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [heartbeat_interval should reset to default on changing port.]
 DROP TABLE IF EXISTS t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Change from default to make sure changing HOST and PORT resets
 # heartbeat_period to default.
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= SOURCE_PORT;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [heartbeat_interval should reset to default on changing host and port.]
 DROP TABLE IF EXISTS t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 include/assert.inc [heartbeat_interval should reset to zero by RESET REPLICA ALL.]
 CHANGE REPLICATION SOURCE to SOURCE_HOST= '127.0.0.1', SOURCE_PORT= SOURCE_PORT, SOURCE_USER= 'root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 DROP TABLE IF EXISTS t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

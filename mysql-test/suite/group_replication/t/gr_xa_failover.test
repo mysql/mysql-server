@@ -35,7 +35,7 @@
 --echo ############################################################
 --echo # 1. Bootstrap a group with server1 as the primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
@@ -44,7 +44,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo ############################################################
 --echo # 2. Join server2 to the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -52,13 +52,13 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo ############################################################
 --echo # 3. Do the XA PREPARE on the initial primary (server1)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 FLUSH LOGS;
 XA START '1';
 INSERT INTO t1 VALUES (1);
 XA END '1';
 XA PREPARE '1';
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -68,7 +68,7 @@ XA PREPARE '1';
 --echo #    The client session that did the XA PREPARE will remain
 --echo #    active.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 
@@ -78,7 +78,7 @@ XA PREPARE '1';
 --echo #    resumed on it.
 --echo #    This mimics a load balancer behavior.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 XA COMMIT '1';
 
 --let $assert_text= 'There is a value 1 in table t1'
@@ -91,7 +91,7 @@ XA COMMIT '1';
 --echo # 6. server1 rejoins the group, now as a secondary, it will
 --echo #    receive the XA COMMIT through distributed recovery.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $assert_text= 'There is a value 1 in table t1'
@@ -103,7 +103,7 @@ XA COMMIT '1';
 --echo ############################################################
 --echo # 7. Clean up.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --source include/group_replication_end.inc

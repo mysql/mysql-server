@@ -51,7 +51,7 @@ SET SESSION sql_log_bin= 1;
 
 #####################################################################
 # 2.3 Wait until server2 had left the group to move to the next phase
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 #######################
 # 3. I/O thread testing
@@ -59,7 +59,7 @@ include/rpl_gr_wait_for_number_of_members.inc
 ############################################################################
 # 3.1 Rotate and purge the binary log on server1 to make recovery unfeasible
 FLUSH BINARY LOGS;
-include/stop_dump_threads.inc
+include/rpl/stop_dump_threads.inc
 PURGE BINARY LOGS TO 'CURRENT_BINLOG_FILE';
 SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression("Cannot replicate to server with server_uuid*");
@@ -96,6 +96,6 @@ SET @@GLOBAL.group_replication_recovery_retry_count= @saved_retry_count;
 
 ################################################################
 # 4. Wait until server1 be alone in the group to do the clean up
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 DROP TABLE t1;
 include/group_replication_end.inc

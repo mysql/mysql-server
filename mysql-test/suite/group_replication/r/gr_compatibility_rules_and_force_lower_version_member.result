@@ -40,7 +40,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 #
 SET @@GLOBAL.DEBUG= @debug2_save;
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
 Warnings:
 Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
@@ -48,7 +48,7 @@ include/start_group_replication.inc
 Warnings:
 Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # Check all is fine
 #

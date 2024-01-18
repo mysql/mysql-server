@@ -40,17 +40,17 @@
 # Restart master and slave with keyring
 
 --let $rpl_server_number= 1
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_start_server.inc
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/start_server.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
 # Executes CREATE DATABASE or CREATE TABLESPACE,
 # verifies that binlog contains default_table_encryption if expected,
@@ -86,12 +86,12 @@
   --echo ==== $statement [master_session:$master_session master_global:$master_global slave_global:$slave_global] ====
   --echo # $desc
   # Restart replica threads to force them take the global value.
-  --source include/rpl_connection_slave.inc
-  --source include/stop_slave_sql.inc
-  --source include/start_slave_sql.inc
+  --source include/rpl/connection_replica.inc
+  --source include/rpl/stop_applier.inc
+  --source include/rpl/start_applier.inc
   # Execute statement on master.
-  --source include/rpl_connection_master.inc
-  --source include/save_binlog_position.inc
+  --source include/rpl/connection_source.inc
+  --source include/rpl/save_binlog_file_position.inc
   eval $statement;
   # Verify that the binary log contains the expected value
   --echo # Assert that binlog is as expected
@@ -117,7 +117,7 @@
   --let $result = `SELECT "$output" LIKE "$expect"`
   # Verify that the definition is as expected on slave.
   if ($result) {
-    --source include/sync_slave_sql_with_master.inc
+    --source include/rpl/sync_to_replica.inc
     --echo # Assert that object on slave is "$expect"
     --let $output = `$check_statement`
     --let $result = `SELECT "$output" LIKE "$expect"`
@@ -125,7 +125,7 @@
   # Print error
   if (!$result) {
     --let $connection = $CURRENT_CONNECTION
-    --source include/show_rpl_debug_info.inc
+    --source include/rpl/debug/show_debug_info.inc
     --echo master_global='$master_global'
     --echo slave_global='$slave_global'
     --echo master_session='$master_session'
@@ -138,20 +138,20 @@
     --die Error: the created object did not have the expected encryptedness on slave
   }
   # Clean up.
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   if ($drop_statement != '') {
     eval $drop_statement;
   }
-  --source include/sync_slave_sql_with_master.inc
-  --source include/rpl_connection_master.inc
+  --source include/rpl/sync_to_replica.inc
+  --source include/rpl/connection_source.inc
 EOF
 
 
 --echo #### SETUP ####
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @default_table_encryption_save = @@global.default_table_encryption;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET @default_table_encryption_save = @@global.default_table_encryption;
 
 # Loops to try all possible values of
@@ -164,18 +164,18 @@ SET @default_table_encryption_save = @@global.default_table_encryption;
 
 --let $master_global = 0
 while ($master_global <= 1) {
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   eval SET @@global.default_table_encryption = $master_global;
 
   --let $slave_global = 0
   while ($slave_global <= 1) {
-    --source include/rpl_connection_slave.inc
+    --source include/rpl/connection_replica.inc
     eval SET @@global.default_table_encryption = $slave_global;
 
     --let $master_session = 0
     --let $letter = N
     while ($master_session <= 1) {
-      --source include/rpl_connection_master.inc
+      --source include/rpl/connection_source.inc
       eval SET @@session.default_table_encryption = $master_session;
 
       --let $check_statement = SHOW CREATE DATABASE db
@@ -253,9 +253,9 @@ while ($master_global <= 1) {
 
 --echo #### CLEANUP ####
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@global.default_table_encryption = @default_table_encryption_save;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @@global.default_table_encryption = @default_table_encryption_save;
 
 --remove_file $script_dir/check_encryption.inc

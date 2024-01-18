@@ -28,17 +28,17 @@
 --echo ############################################################
 --echo # 01. Create two tables on the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
 --echo ############################################################
 --echo # 02. Lock table t1 on server2 to block a future update.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Assert consistency options metrics.
 --let $assert_text= 'There were 0 transactions with group_replication_consistency=BEFORE'
@@ -57,7 +57,7 @@ LOCK table t1 READ;
 --echo # 03. Execute transaction T1, the transaction will block on
 --echo #     server2 due to the table lock.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 BEGIN;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (100);
@@ -68,7 +68,7 @@ COMMIT;
 --echo ############################################################
 --echo # 04. Wait until T1 is delivered to server2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked=3 AND count_transactions_remote_in_applier_queue=1
 --source include/wait_condition.inc
@@ -80,12 +80,12 @@ COMMIT;
 --echo #     group_replication_consistency= 'BEFORE' , it will wait
 --echo #     for T1 commit.
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.group_replication_consistency= 'BEFORE';
 --send SELECT COUNT(*) AS count FROM t2 WHERE c1 >= 99
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state='Executing hook on transaction begin.' AND info='SELECT COUNT(*) AS count FROM t2 WHERE c1 >= 99'
 --source include/wait_condition.inc
 
@@ -96,12 +96,12 @@ SET @@SESSION.group_replication_consistency= 'BEFORE';
 --echo #     group_replication_consistency= 'BEFORE' , it will wait
 --echo #     for T1 commit.
 --let $rpl_connection_name= slave
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@SESSION.group_replication_consistency= 'BEFORE';
 --send UPDATE t2 SET c1=99 WHERE c1=100
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state='Executing hook on transaction begin.' AND info='UPDATE t2 SET c1=99 WHERE c1=100'
 --source include/wait_condition.inc
 
@@ -115,7 +115,7 @@ SET @@SESSION.group_replication_consistency= 'BEFORE';
 --echo #     or single thread applier which will make T2 be
 --echo #     committed after the UPDATE.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t2 VALUES (2);
 
 --let $assert_text= 'There is a 2 in table t2'
@@ -123,7 +123,7 @@ INSERT INTO t2 VALUES (2);
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM t2 WHERE c1=2
 --source include/wait_condition.inc
 
@@ -132,16 +132,16 @@ INSERT INTO t2 VALUES (2);
 --echo ############################################################
 --echo # 08. Unblock T1 on server2.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 SET @@SESSION.group_replication_consistency= DEFAULT;
 
 --let $rpl_connection_name= slave
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 SET @@SESSION.group_replication_consistency= DEFAULT;
 
@@ -150,7 +150,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --echo ############################################################
 --echo # 09. Validate data.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There is a 1 in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
 --source include/assert.inc
@@ -160,9 +160,9 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --source include/assert.inc
 
 # Ensure that T2 is already committed on server2.
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There is a 2 in table t2'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t2 WHERE c1=2, count, 1] = 1
 --source include/assert.inc
@@ -182,7 +182,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There is a 1 in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
 --source include/assert.inc
@@ -209,7 +209,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There is a 1 in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
 --source include/assert.inc
@@ -246,7 +246,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --echo ############################################################
 --echo # 10. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 DROP TABLE t2;
 

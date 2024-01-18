@@ -41,9 +41,9 @@
 --echo ############################################################
 --echo # Create a table on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, KEY `c2` (`c2`));
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $local_server_connection1=server1
 --let $local_server_connection2=server_1

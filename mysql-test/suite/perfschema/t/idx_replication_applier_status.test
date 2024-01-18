@@ -4,16 +4,16 @@ let $select_column = REMAINING_DELAY;
 let $table = performance_schema.replication_applier_status;
 
 --disable_warnings
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection slave
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 RESET REPLICA ALL;
 --disable_query_log
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_DELAY=2 FOR CHANNEL 'channel_1';
 --enable_query_log
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 --enable_warnings
 
 ###########################################################################
@@ -27,14 +27,14 @@ let $col1_act = "channel_1";
 --source ../include/idx_explain_test.inc
 
 # Cleanup
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 RESET REPLICA ALL;
 --disable_warnings
 --disable_query_log
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
 --enable_query_log
 --enable_warnings
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 --connection master
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

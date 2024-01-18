@@ -16,10 +16,10 @@
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 CREATE TABLE t1(i INT, t LONGTEXT);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 let $slave_rpl_read_size= `SELECT @@GLOBAL.rpl_read_size`;
 # Here we are going to check the read count of relay log
 # for two different inputs given to rpl_read_size.
@@ -29,17 +29,17 @@ while ($case < 2)
 {
   # This is done to ensure that count_read is calculated
   # for the new relay log file.
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   INSERT INTO t1 VALUES (1, 'start');
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   # Avoid reading relay log file while receiving events
-  --source include/stop_slave_sql.inc
+  --source include/rpl/stop_applier.inc
 
   # Move to the next relay log. This will ensure that the count_read
   # variable will only contains the read done by belows INSERT query.
    --let $count_read_start= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' ORDER BY file_name, count_read, 2)
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
   --let $counter= 0
   --disable_query_log
@@ -53,12 +53,12 @@ while ($case < 2)
   --enable_query_log
   # Wait until all workload was replicated
   --let $ignore_gtids_on_sync=1
-  --source include/sync_slave_io_with_master.inc
+  --source include/rpl/sync_to_replica_received.inc
   # Start reading from the relay log file
   START REPLICA SQL_THREAD;
   # Wait until all workload was read and applied
   --let $ignore_gtids_on_sync=1
-  --source include/sync_slave_sql_with_io.inc
+  --source include/rpl/sync_with_recieved.inc
 
   --let $count_read_end= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' ORDER BY file_name, count_read, 2)
 
@@ -75,8 +75,8 @@ while ($case < 2)
   # change the read size for the next run.
   eval SET @@GLOBAL.rpl_read_size= 1048576;
 
-  --source include/stop_slave.inc
-  --source include/start_slave.inc
+  --source include/rpl/stop_replica.inc
+  --source include/rpl/start_replica.inc
   --inc $case
 }
 
@@ -89,12 +89,12 @@ SET @@GLOBAL.rpl_read_size = 1048576;
 SELECT @@GLOBAL.rpl_read_size;
 
 FLUSH RELAY LOGS;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (0, "");
 INSERT INTO t1 VALUES (1, lpad("foo", 7000, "bar"));
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Verify the contents of table t1 on slave.
 # Should be same as contents in master.
 
@@ -104,6 +104,6 @@ INSERT INTO t1 VALUES (1, lpad("foo", 7000, "bar"));
 
 #Cleanup
 eval SET @@GLOBAL.rpl_read_size= $slave_rpl_read_size;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

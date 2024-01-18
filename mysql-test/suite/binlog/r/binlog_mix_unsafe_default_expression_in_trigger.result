@@ -6,55 +6,55 @@ CREATE TABLE t3 (y DOUBLE DEFAULT (PI()));
 # Test R1.
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1 VALUES ();
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid]
 DROP TRIGGER t2_trigger;
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1(a) VALUES (1);
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid]
 DROP TRIGGER t2_trigger;
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1(b) VALUES (DEFAULT);
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid]
 DROP TRIGGER t2_trigger;
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1(b) VALUES (1);
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid]
 DROP TRIGGER t2_trigger;
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW UPDATE t1 SET a = DEFAULT;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Update_rows # Xid]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Update_rows # Xid]
 DROP TRIGGER t2_trigger;
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW UPDATE t1 SET b = DEFAULT;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Update_rows # Xid]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Update_rows # Xid]
 DROP TRIGGER t2_trigger;
 # Test R2.
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t3 VALUES ();
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Xid]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Xid]
 DROP TRIGGER t2_trigger;
 # Test R3.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t1 VALUES ();
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t1 (b) VALUES (DEFAULT);
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
+include/rpl/save_binlog_file_position.inc
 INSERT INTO t1 (b) VALUES (1);
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Xid]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Xid]
 DROP TABLE t1, t2, t3;

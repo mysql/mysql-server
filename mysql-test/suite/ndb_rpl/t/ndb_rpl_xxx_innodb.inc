@@ -56,7 +56,7 @@
 # and for running transactions against DB.
 ##############################################
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 create table t1 (a int key, b int) engine innodb;
 create table t2 (a int key, b int) engine innodb;
@@ -66,7 +66,7 @@ let $source_server_id = `select @@server_id`;
 
 --echo
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 alter table t1 engine ndb;
 alter table t2 engine ndb;
 
@@ -75,7 +75,7 @@ alter table t2 engine ndb;
 --echo
 
 # check binlog position without begin
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 let $source_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 let $source_start_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
@@ -87,15 +87,15 @@ let $source_end_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 # Show the binlog events recorded for above change
 let $binlog_file = $source_file;
 let $binlog_start = $source_start_pos;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --source suite/ndb_rpl/t/select_ndb_apply_status.inc
 
 --echo
 --echo *** Test 1B ***
 --echo
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 let $source_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 let $source_start_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
@@ -111,15 +111,15 @@ let $source_end_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 # Show the binlog events recorded for above change
 let $binlog_file = $source_file;
 let $binlog_start = $source_start_pos;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --source suite/ndb_rpl/t/select_ndb_apply_status.inc
 
 # Cleanup after test 1 and test 2
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE test.t1, test.t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SHOW TABLES;
 
 --echo
@@ -129,13 +129,13 @@ SHOW TABLES;
 # Run in some transactions using stored procedures
 # and ensure that the ndb_apply_status table is
 # updated to show the transactions
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Create database/tables and stored procdures
 --source include/tpcb.inc
 
 # Switch tables on slave to use NDB 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 USE tpcb;
 ALTER TABLE account ENGINE NDB;
 ALTER TABLE branch ENGINE NDB;
@@ -143,7 +143,7 @@ ALTER TABLE teller ENGINE NDB;
 ALTER TABLE history ENGINE NDB;
 
 # Load DB tpcb and run some transactions
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --disable_query_log
 CALL tpcb.load();
@@ -179,9 +179,9 @@ let $source_end_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 let $binlog_file = $source_file;
 let $binlog_start = $source_start_pos;
 let $binlog_limit = $off_set, 1; # Show only the last COMMIT event in group
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --source suite/ndb_rpl/t/select_ndb_apply_status.inc
 
 --echo
@@ -192,7 +192,7 @@ let $binlog_limit = $off_set, 1; # Show only the last COMMIT event in group
 # Transaction to a new binlog and ensure
 # that the ndb_apply_status table is updated
 # to show the use of the new binlog.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Flush logs on source which should force it
 # to switch to binlog #2
@@ -234,9 +234,9 @@ let $source_end_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 let $binlog_file = $source_file;
 let $binlog_start = $source_start_pos;
 let $binlog_limit = $off_set, 1; # Show only the last COMMIT event in group
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --source suite/ndb_rpl/t/select_ndb_apply_status.inc
 
 --echo
@@ -248,16 +248,16 @@ let $binlog_limit = $off_set, 1; # Show only the last COMMIT event in group
 # that the ndb_apply_status is updated
 # correctly
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Reset both slave and source
 # This should reset binlog to #1
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo
 
 # Run in some transactions and check
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --disable_query_log
 SET AUTOCOMMIT=0;
 let $run= 5;
@@ -290,9 +290,9 @@ let $source_end_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 let $binlog_file = $source_file;
 let $binlog_start = $source_start_pos;
 let $binlog_limit = $off_set, 1; # Show only the last COMMIT event  in group
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --source suite/ndb_rpl/t/select_ndb_apply_status.inc
 
 # Since we are doing replication, it is a good
@@ -311,7 +311,7 @@ let $binlog_limit = $off_set, 1; # Show only the last COMMIT event  in group
 --let $diff_tables= tpcb.history, master:tpcb.history
 --source include/diff_tables.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP DATABASE tpcb;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc

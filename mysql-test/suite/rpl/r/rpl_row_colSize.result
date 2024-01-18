@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 **** Testing WL#3228 changes. ****
 *** Create "wider" table on slave ***
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 Checking MYSQL_TYPE_NEWDECIMAL fields
 DROP TABLE IF EXISTS t1;
 Warnings:
@@ -13,102 +13,102 @@ Note	1051	Unknown table 'test.t1'
 STOP REPLICA;
 CREATE TABLE t1 (a DECIMAL(5,2));
 CREATE TABLE t1 (a DECIMAL(20, 10));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES (901251.90125);
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a DECIMAL(27, 9));
 CREATE TABLE t1 (a DECIMAL(27, 18));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES (901251.90125);
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a NUMERIC(5,2));
 CREATE TABLE t1 (a NUMERIC(20, 10));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES (901251.90125);
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 Checking MYSQL_TYPE_FLOAT fields
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a FLOAT(20));
 CREATE TABLE t1 (a FLOAT(47));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES (901251.90125);
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 Checking MYSQL_TYPE_BIT fields
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a BIT(5));
 CREATE TABLE t1 (a BIT(64));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES (B'10101');
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a BIT(11));
 CREATE TABLE t1 (a BIT(12));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES (B'10101');
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 Checking MYSQL_TYPE_SET fields
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a SET('4'));
 CREATE TABLE t1 (a SET('1','2','3','4','5','6','7','8','9'));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES ('4');
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 Checking MYSQL_TYPE_STRING fields
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a CHAR(10));
 CREATE TABLE t1 (a CHAR(20));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 Checking MYSQL_TYPE_ENUM fields
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
@@ -145,68 +145,68 @@ CREATE TABLE t1 (a ENUM(
 '281','282','283','284','285','286','287','288','289',
 '291','292','293','294','295','296','297','298','299'
             ));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES ('44');
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 Checking MYSQL_TYPE_VARCHAR fields
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a VARCHAR(100));
 CREATE TABLE t1 (a VARCHAR(2000));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a VARCHAR(10));
 CREATE TABLE t1 (a VARCHAR(200));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a VARCHAR(1000));
 CREATE TABLE t1 (a VARCHAR(2000));
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 Checking MYSQL_TYPE_BLOB fields
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 CREATE TABLE t1 (a TINYBLOB);
 CREATE TABLE t1 (a LONGBLOB);
-include/rpl_reset.inc
+include/rpl/reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column 0 ...e mismatch.* Error_code: MY-001535");
 call mtr.add_suppression("Replica SQL.*Column 0 of table .test.t1. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 *** Cleanup  ***
 DROP TABLE IF EXISTS t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

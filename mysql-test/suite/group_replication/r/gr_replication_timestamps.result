@@ -5,18 +5,18 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server2]
 include/start_and_bootstrap_group_replication.inc
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection server3]
 include/start_group_replication.inc
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server3]
 include/assert.inc [QUEUEING_TRANSACTION was cleared in the group_replication_recovery channel after the member is online]
 include/assert.inc [LAST_QUEUED_TRANSACTION was cleared in the group_replication_recovery channel after the member is online]
 include/assert.inc [LAST_APPLIED_TRANSACTION is cleared because channel group_replication_recovery does not have view change log events for joining the group]
 [connection server4]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SERVER_MYPORT_2, SOURCE_USER='root', SOURCE_AUTO_POSITION=1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection server1]
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(a INT PRIMARY KEY);
@@ -25,11 +25,11 @@ UPDATE db1.t1 SET a= 2;
 DELETE FROM db1.t1 WHERE a= 1;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server2]
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(a INT PRIMARY KEY);
@@ -39,9 +39,9 @@ DELETE FROM db1.t1 WHERE a= 1;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server5]
 include/start_group_replication.inc
 # 1. Save both timestamps (original/immediate) on all servers.
@@ -434,10 +434,10 @@ include/assert.inc [Assert that the OCT is the same on server2 and server5.]
 include/assert.inc [Assert that OCT is smaller than ICT on server2]
 include/assert.inc [Assert that OCT is smaller than ICT on server5]
 [connection server2]
-include/stop_slave.inc [FOR CHANNEL 'channel_1']
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_1']
+include/rpl/reset_replica.inc
 [connection server4]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 include/group_replication_end.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';

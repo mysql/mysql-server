@@ -9,12 +9,12 @@
 # ==== Implementation ====
 #
 # Please check the test description in the file:
-# extra/rpl_tests/rpl_ps_table_worker_retry.inc
+# common/rpl/ps_table_worker_retry.inc
 #
 # ==== References ====
 #
 # WL#9131 Add RETRIES field to replication_applier_status_by_worker P_S table
 
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 --let $is_mts = 1
---source extra/rpl_tests/rpl_ps_table_worker_retry.inc
+--source common/rpl/ps_table_worker_retry.inc

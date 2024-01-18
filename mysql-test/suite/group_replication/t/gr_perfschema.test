@@ -102,7 +102,7 @@
 # not empty.
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server1
 
@@ -145,7 +145,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 4. Clean up data.
 --connection server2
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo

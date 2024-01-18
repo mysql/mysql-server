@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 create table t1 (
   a int not null,
@@ -14,7 +14,7 @@ insert into t1 values(999, 999, 999);
 insert into t1 values(998, 998, 998);
 insert into t1 values(997, 997, 997);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select count(*) from t1;
 
 # Supress warnings from ndbcluster epoch sequence checking
@@ -32,7 +32,7 @@ SELECT @@GLOBAL.replica_skip_errors;
 --echo # Configure the ndbcluster plugin to not verify epoch sequence
 set global ndb_applier_allow_skip_epoch = 1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --echo # Cause a conflict
 insert into t1 values (1002,1002,1002); # Will conflict on c=1002
 
@@ -40,25 +40,25 @@ insert into t1 values (1002,1002,1002); # Will conflict on c=1002
 --echo # will be batched and not send to NDB until the final Query_log_event
 --echo # containing the COMMIT, that's when the error should be skipped
 --let $binlog_limit= 10, 7
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # Sync with master, will succeed
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Show that row change was skipped on replica
 select * from t1 where a=1002;
 
 --echo # Show that subsequent changes are replicated
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 insert into t1 values (3001,3001,3001);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t1 where a=3001;
 
 set global ndb_applier_allow_skip_epoch=0;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 drop table t1;
 
 # Cleanup Replication
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

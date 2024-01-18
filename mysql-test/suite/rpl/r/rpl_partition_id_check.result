@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,25 +19,25 @@ BEGIN
 DELETE FROM func WHERE id=100;
 RETURN (SELECT COUNT(*) FROM func);
 END//
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 SELECT insert_data();
 insert_data()
 1
 COMMIT;
-include/rpl_partition_info.inc
+include/rpl/partition_info.inc
 BEGIN;
 SELECT update_data();
 update_data()
 1
 COMMIT;
-include/rpl_partition_info_update.inc
+include/rpl/partition_info_update.inc
 BEGIN;
 SELECT delete_data();
 delete_data()
 0
 COMMIT;
-include/rpl_partition_info.inc
+include/rpl/partition_info.inc
 CREATE TABLE proc(id INT, age INT) PARTITION BY RANGE(age) (PARTITION P0 VALUES LESS THAN (35), PARTITION P1 VALUES LESS THAN (60));
 CREATE PROCEDURE insert_data()
 BEGIN
@@ -51,21 +51,21 @@ CREATE PROCEDURE delete_data()
 BEGIN
 DELETE FROM proc WHERE id=100;
 END//
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 CALL insert_data();
 COMMIT;
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 CALL update_data();
 COMMIT;
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 CALL delete_data();
 COMMIT;
-include/rpl_partition_info.inc
+include/rpl/partition_info.inc
 CREATE TABLE t1(a INT);
 CREATE TABLE trigg(id INT, age INT) PARTITION BY RANGE(age) (PARTITION P0 VALUES LESS THAN (25), PARTITION P1 VALUES LESS THAN (60));
 CREATE TRIGGER insert_data AFTER INSERT ON t1 FOR EACH ROW
@@ -80,21 +80,21 @@ CREATE TRIGGER delete_data AFTER DELETE ON t1 FOR EACH ROW
 BEGIN
 DELETE FROM trigg WHERE id=100;
 END//
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 INSERT INTO t1 VALUES(1);
 COMMIT;
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 UPDATE t1 SET a=a+10;
 COMMIT;
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 DELETE FROM t1;
 COMMIT;
-include/rpl_partition_info.inc
+include/rpl/partition_info.inc
 CREATE TABLE trans(id INT, age INT) PARTITION BY RANGE(age) SUBPARTITION BY KEY(id)
 (
 PARTITION P0 VALUES LESS THAN (30)
@@ -103,37 +103,37 @@ PARTITION P0 VALUES LESS THAN (30)
 PARTITION P1 VALUES LESS THAN (60)
 (SUBPARTITION P1A, SUBPARTITION P1B)
 );
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 INSERT INTO trans VALUES(100,46);
 COMMIT;
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 UPDATE trans SET age=age-20 WHERE id=100;
 COMMIT;
-include/rpl_partition_info_update.inc
-include/save_binlog_position.inc
+include/rpl/partition_info_update.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 DELETE FROM trans WHERE id=100;
 COMMIT;
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 INSERT INTO trans VALUES(1,55),(1,55);
 UPDATE trans SET id=id+10;
 DELETE FROM trans WHERE id=11;
 COMMIT;
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 INSERT INTO trans VALUES(101,46),(102,23);
 UPDATE trans SET id=id+100;
 DELETE FROM trans WHERE id=201;
 COMMIT;
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 CREATE TABLE t2(a INT);
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 INSERT INTO trans VALUES(301,55),(301,55);
 INSERT INTO t2 VALUES(10);
@@ -142,8 +142,8 @@ UPDATE t2 SET a=a+10;
 DELETE FROM trans WHERE id=11;
 DELETE FROM t2 WHERE a=20;
 COMMIT;
-include/assert_binlog_events.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:trans, slave:trans]
 include/diff_tables.inc [master:func, slave:func]
 include/diff_tables.inc [master:proc, slave:proc]
@@ -163,5 +163,5 @@ DROP TABLE proc;
 DROP TABLE trigg;
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

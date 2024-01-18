@@ -12,13 +12,13 @@ include/start_group_replication.inc
 # Crash the primary server
 [connection server1]
 include/gr_wait_primary_member_uuid.inc
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server_2]
 # wait for number of alive members to be 2
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server_3]
 # wait for number of alive members to be 2
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server_1]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER1";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER1";

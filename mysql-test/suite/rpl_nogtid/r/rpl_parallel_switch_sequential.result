@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,8 +9,8 @@ SET @@global.default_storage_engine='innodb';
 SET GLOBAL replica_parallel_workers= 4;
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Request to stop replica SQL Thread received while applying a group that has non-transactional changes");
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 SET @save_default_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine='innodb';
 SET @@session.default_storage_engine='innodb';
@@ -35,7 +35,7 @@ CREATE DATABASE test_2;
 CREATE TABLE test_2.t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(20), c BLOB, d INT NOT NULL DEFAULT 0);
 CREATE DATABASE test_1;
 CREATE TABLE test_1.t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(20), c BLOB, d INT NOT NULL DEFAULT 0);
-include/start_slave.inc
+include/rpl/start_replica.inc
 DROP DATABASE test_10;
 DROP DATABASE test_9;
 DROP DATABASE test_8;
@@ -49,4 +49,4 @@ DROP DATABASE test_1;
 SET @@global.default_storage_engine= @save_default_storage_engine;
 SET @@global.default_storage_engine= @save_default_storage_engine;
 SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -61,7 +61,7 @@ START GROUP_REPLICATION;
 
 --disconnect alpha_con
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Enable 'gr_user' ROLE for USER 'alpha'
 ALTER USER alpha DEFAULT ROLE 'gr_user';
@@ -88,7 +88,7 @@ START GROUP_REPLICATION;
 --disconnect alpha_con
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'gr_user';
 
@@ -100,7 +100,7 @@ SET GLOBAL group_replication_bootstrap_group= 0;
 --disconnect alpha_con
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo # Wait until server1 is ONLINE
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_members WHERE member_state='ONLINE'
 --source include/wait_condition_or_abort.inc
@@ -108,7 +108,7 @@ SET GLOBAL group_replication_bootstrap_group= 0;
 # Test 3 : Verify that ROLES on replication users used in 'CHANGE REPLICATION SOURCE TO' work
 #          as expected for GR.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_recovery_retry_count_save= @@GLOBAL.group_replication_recovery_retry_count;
 SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
@@ -128,10 +128,10 @@ set sql_log_bin=1;
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Execute CRS where Source_User='alpha'
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
@@ -164,7 +164,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='alpha', SOURCE_PASSWORD='alpha' FOR CH
 # Test 4 : Verify that Activating the role by 'ALTER USER' is successful on
 #          all GR members.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Enable 'REPLICATION_SLAVE_ADMIN' for 'alpha'
 GRANT gr_recovery_user TO alpha;
 ALTER USER alpha DEFAULT ROLE ALL;
@@ -187,11 +187,11 @@ CREATE DATABASE newtest;
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (2);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_start_member_state= ONLINE
 --source include/start_group_replication.inc
 
@@ -210,11 +210,11 @@ DELETE FROM t1;
 
 # Cleanup
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_recovery_retry_count= @group_replication_recovery_retry_count_save;
 SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;

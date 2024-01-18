@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #### INITIALIZE ####
 call mtr.add_suppression("Transaction is tagged with inconsistent logical timestamps");
 call mtr.add_suppression("Cannot execute the current event group in the parallel mode.");
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
@@ -89,7 +89,7 @@ Drop table and flush logs to force binlog to rotate
 DROP TABLE t1;
 Processing binlog master-bin.000002
 FLUSH LOGS;
-include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;3 5;3 6;4 7;7 8;6 9;9 10]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;3 5;3 6;4 7;7 8;6 9;9 10]
 #### STEP 1.2 TEST Writeset+DDL ####
 SELECT @@binlog_transaction_dependency_history_size;
 @@binlog_transaction_dependency_history_size
@@ -151,7 +151,7 @@ Drop table and flush logs to force binlog to rotate
 DROP TABLE t1;
 Processing binlog master-bin.000003
 FLUSH LOGS;
-include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;4 5;5 6;6 7;7 8;7 9;7 10;10 11;9 12;12 13]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;4 5;5 6;6 7;7 8;7 9;7 10;10 11;9 12;12 13]
 #### STEP 1.3 TEST Writeset+rotation ####
 SELECT @@binlog_transaction_dependency_history_size;
 @@binlog_transaction_dependency_history_size
@@ -211,7 +211,7 @@ Drop table and flush logs to force binlog to rotate
 DROP TABLE t1;
 Processing binlog master-bin.000005
 FLUSH LOGS;
-include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;3 4;2 5;5 6]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;1 3;3 4;2 5;5 6]
 #### STEP 1.4 TEST Writeset+history ####
 History size reduced to 5 to test when it becomes full
 SET GLOBAL binlog_transaction_dependency_history_size=5;
@@ -271,7 +271,7 @@ Drop table and flush logs to force binlog to rotate
 DROP TABLE t1;
 Processing binlog master-bin.000006
 FLUSH LOGS;
-include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;4 5;4 6;4 7;7 8;7 9;9 10]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;4 5;4 6;4 7;7 8;7 9;9 10]
 SET GLOBAL binlog_transaction_dependency_history_size= 1;
 ######## 2. WRITESET with binlog_transaction_dependency_history_size= 1 ########
 #### STEP 2.1 TEST Commit_order ####
@@ -331,7 +331,7 @@ Drop table and flush logs to force binlog to rotate
 DROP TABLE t1;
 Processing binlog master-bin.000007
 FLUSH LOGS;
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10]
 #### STEP 2.2 TEST Commit_order+DDL ####
 SELECT @@binlog_transaction_dependency_history_size;
 @@binlog_transaction_dependency_history_size
@@ -393,7 +393,7 @@ Drop table and flush logs to force binlog to rotate
 DROP TABLE t1;
 Processing binlog master-bin.000008
 FLUSH LOGS;
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13]
 #### STEP 2.3 TEST Commit_order+rotation ####
 SELECT @@binlog_transaction_dependency_history_size;
 @@binlog_transaction_dependency_history_size
@@ -453,7 +453,7 @@ Drop table and flush logs to force binlog to rotate
 DROP TABLE t1;
 Processing binlog master-bin.000010
 FLUSH LOGS;
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6]
 #### STEP 2.4 TEST Commit_order+history ####
 SELECT @@binlog_transaction_dependency_history_size;
 @@binlog_transaction_dependency_history_size
@@ -511,14 +511,14 @@ Drop table and flush logs to force binlog to rotate
 DROP TABLE t1;
 Processing binlog master-bin.000011
 FLUSH LOGS;
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10]
 
 #### Verify that replication was correct ####
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:test.tests, slave:test.tests]
 DROP TABLE `tests`;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GLOBAL binlog_transaction_dependency_history_size= DEFAULT;
 FLUSH LOGS;
 
@@ -532,7 +532,7 @@ DELETE FROM t1 WHERE c1=1 AND c2='a';
 INSERT INTO t1 VALUES (1, 'A');
 # Wait for ndb_binlog thread...
 Processing binlog master-bin.000013
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4]
 DROP TABLE t1;
 FLUSH LOGS;
 
@@ -550,7 +550,7 @@ INSERT INTO t1 VALUES ('b');
 INSERT INTO t1 VALUES ('B');
 # Wait for ndb_binlog thread...
 Processing binlog master-bin.000014
-include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;1 5]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;1 5]
 DROP TABLE t1;
 FLUSH LOGS;
 
@@ -570,7 +570,7 @@ INSERT INTO t2 VALUES ('\0');
 INSERT INTO t2 VALUES ('a ');
 # Wait for ndb_binlog thread...
 Processing binlog master-bin.000015
-include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;3 4;4 5;4 6;4 7;4 8]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;1 3;3 4;4 5;4 6;4 7;4 8]
 DROP TABLE t1;
 DROP TABLE t2;
 FLUSH LOGS;
@@ -586,18 +586,18 @@ INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES ('á');
 # Wait for ndb_binlog thread...
 Processing binlog master-bin.000016
-include/include/assert_logical_timestamps.inc [0 1;1 2;1 3]
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;1 3]
 DROP TABLE t1;
 FLUSH LOGS;
 
 #### CLEANUP ####
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
 SET @@GLOBAL.replica_transaction_retries= @save_replica_transaction_retries;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET @@GLOBAL.binlog_transaction_dependency_history_size= @save_binlog_transaction_dependency_history_size;
-include/rpl_end.inc
+include/rpl/deinit.inc

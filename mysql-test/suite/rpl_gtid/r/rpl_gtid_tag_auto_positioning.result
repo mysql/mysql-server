@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,8 +18,8 @@ SET GTID_NEXT='AUTOMATIC';
 
 # T1.2. Reconnect replica to the source (new COM_BINLOG_DUMP_GTIDS)
 
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 
 # T1.3. On the source: Commit three transactions with specified,
 #       tagged GTIDs - GTID_1, GTID_2, GTID_3
@@ -32,7 +32,7 @@ INSERT INTO t1 VALUES(1);
 SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:3';
 INSERT INTO t1 VALUES(2);
 SET GTID_NEXT='AUTOMATIC';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # T1.4. On the replica: Observe that transactions with GTID_1,
 #       GTID_2 and GTID_3 were not received by the replica
@@ -43,5 +43,5 @@ include/assert_grep.inc [Observe that transactions with GTID_1, GTID_2 and GTID_
 
 # Clean-up after T1
 
-include/rpl_end.inc
+include/rpl/deinit.inc
 DROP TABLE t1;

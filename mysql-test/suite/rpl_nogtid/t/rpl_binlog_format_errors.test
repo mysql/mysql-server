@@ -203,14 +203,14 @@
 --source include/have_binlog_format_row.inc
 # Disable multi threaded slave since an error in a worker slave leads to an
 # upper-level error in the coordinator
---source include/not_mts_replica_parallel_workers.inc
+--source include/not_replica_parallel_workers.inc
 # The test does not support group replication plugin since binlog_format is
 # not equal to 'ROW' for some test cases
 --source include/not_group_replication_plugin.inc
 # The test requires MyISAM engine
 --source include/have_myisam.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since binlog_format = STATEMENT");
@@ -220,13 +220,13 @@ CALL mtr.add_suppression("Cannot execute statement: impossible to write to binar
 --echo ==== Initialize ====
 
 --echo [on slave]
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 SET @old_binlog_format= @@global.binlog_format;
 INSTALL PLUGIN example SONAME 'ha_example.so';
 
 --echo [on master]
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 SET @old_binlog_format= @@global.binlog_format;
 INSTALL PLUGIN example SONAME 'ha_example.so';
@@ -247,13 +247,13 @@ CREATE DATABASE other;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 DROP TABLE t_slave_stmt;
 CREATE TABLE t_slave_stmt (a INT) ENGINE = EXAMPLE;
 
 --echo [on master]
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # This is a format description event.  It is needed because any BINLOG
 # statement containing a row event must be preceded by a BINLOG
@@ -285,16 +285,16 @@ SELECT * FROM t_stmt /* should be empty */;
 --echo * TC3: Row injection and stmt-only table: in slave sql thread
 INSERT INTO t_slave_stmt VALUES (1);
 --echo [on slave]
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # 1664 = ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
 --let $slave_sql_errno= 1664
 --let $show_slave_sql_error= 1
---source include/wait_for_slave_sql_error_and_skip.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/wait_for_applier_error_and_skip.inc
+--source include/rpl/connection_replica.inc
 SELECT * FROM t_slave_stmt /* should be empty */;
 
 --echo [on master]
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --echo * TC4: Row injection and stmt-only table: use BINLOG statement
 # This is a Table_map_event and a Write_rows_event. Together, they are
 # equivalent to 'INSERT INTO t_stmt VALUES (1)'
@@ -309,12 +309,12 @@ SELECT * FROM t_stmt /* should be empty */;
 --echo ---- binlog_format=mixed ----
 
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 SET @@global.binlog_format = MIXED;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --echo [on master]
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@global.binlog_format = MIXED;
 SET @@session.binlog_format = MIXED;
 
@@ -334,12 +334,12 @@ SELECT * FROM t_double_autoinc; /* should be empty */;
 --echo ---- binlog_format=statement ----
 
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 SET @@global.binlog_format = STATEMENT;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --echo [on master]
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@global.binlog_format = STATEMENT;
 SET @@session.binlog_format = STATEMENT;
 
@@ -414,15 +414,15 @@ SET @@session.binlog_format = MIXED;
 --echo * TC15: Row injection and binlog_format=statement: in slave sql thread
 INSERT INTO t VALUES (COALESCE(1, UUID()));
 --echo [on slave]
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # 1666 = ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
 --let $slave_sql_errno= 1666
 --let $show_sql_error= 1
---source include/wait_for_slave_sql_error_and_skip.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/wait_for_applier_error_and_skip.inc
+--source include/rpl/connection_replica.inc
 SELECT * FROM t /* should be empty */;
 --echo [on master]
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 
 --echo ==== Clean up ====
@@ -435,11 +435,11 @@ SET @@global.binlog_format = @old_binlog_format;
 SET @@session.binlog_format = @old_binlog_format;
 UNINSTALL PLUGIN example;
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 SET @@global.binlog_format = @old_binlog_format;
 SET @@session.binlog_format = @old_binlog_format;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 UNINSTALL PLUGIN example;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

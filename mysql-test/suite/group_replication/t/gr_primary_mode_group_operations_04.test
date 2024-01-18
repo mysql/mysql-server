@@ -41,10 +41,10 @@
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # 2. Pause transactions on server2 to monitor
@@ -60,7 +60,7 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --echo #    It won't be committed on server2 due to paused transactions
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval INSERT INTO t1 VALUES (1)
 
@@ -69,7 +69,7 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --echo #    with server2 as primary member
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER2_UUID
 --send_eval SELECT group_replication_switch_to_single_primary_mode("$server2_uuid")
@@ -78,7 +78,7 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --echo # 5. Confirm stages on server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
@@ -121,13 +121,13 @@ SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo # 9. Confirm server2 is the group primary member.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER2_UUID
 --reap
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # 10. server2 after update all queued transactions will disable
@@ -140,7 +140,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo # 11. The secondary member shall have the super_read_only enable
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -148,7 +148,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo # 12. Cleanup
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= 'RESET';
 

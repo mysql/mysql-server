@@ -16,28 +16,28 @@
 ###############################################################################
 --source include/have_debug_sync.inc
 --let rpl_skip_start_slave=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Step-1 Set sync debug point to calculate sbm exactly after fake
 #  rotate log event.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @save_global_debug=@@GLOBAL.DEBUG;
 # This debug point internally fake that IO thread is started 3 minutes ago.
 SET @@GLOBAL.DEBUG= '+d,dbug.calculate_sbm_after_fake_rotate_log_event';
 # Start replica threads after enabling the debug point.
 --disable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --enable_warnings
 
 # Step-2 Flush logs on master which will generate a fake rotate event.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 FLUSH LOGS;
 
 # Step-3 There will be two fake rotate events (first one while the initial setup
-# in master-slave.inc and second one due to FLUSH LOGS execution on master).
+# in rpl/init_source_replica.inc and second one due to FLUSH LOGS execution on master).
 # The following will test SBM calculation while both events are getting
 # executed.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $iter=0
 while ($iter < 2)
 {
@@ -58,4 +58,4 @@ SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 # Step-5: Cleanup
 SET @@GLOBAL.DEBUG=@save_global_debug;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

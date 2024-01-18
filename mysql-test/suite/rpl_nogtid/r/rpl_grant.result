@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,7 +14,7 @@ dummy2	localhost
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
 COUNT(*)
 3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user like 'dummy%';
 user	host
@@ -35,7 +35,7 @@ user	host
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
 COUNT(*)
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user like 'dummy%';
 user	host
@@ -45,7 +45,7 @@ COUNT(*)
 ##########
 ########## setup (PART I)
 ##########
-include/rpl_reset.inc
+include/rpl/reset.inc
 CREATE DATABASE b54866 ;
 use b54866;
 CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
@@ -62,14 +62,14 @@ Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO `b54866_user`@`localhost`
 GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
 *************************************************************
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ****** Checking grants on the master for user: b54866_user ******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO `b54866_user`@`localhost`
 GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
 *************************************************************
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -87,7 +87,7 @@ GRANT USAGE ON *.* TO `b54866_user`@`localhost`
 GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
 GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
 *************************************************************
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -104,7 +104,7 @@ GRANT USAGE ON *.* TO `b54866_user`@`localhost`
 GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
 GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
 *************************************************************
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -128,7 +128,7 @@ GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
 GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
 GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
 *************************************************************
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -153,7 +153,7 @@ GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
 GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
 GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
 *************************************************************
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -177,7 +177,7 @@ GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
 GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
 GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
 *************************************************************
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -196,7 +196,7 @@ REVOKE EXECUTE ON FUNCTION b54866_f FROM 'fake_user'@'localhost';
 ERROR 42000: There is no such grant defined for user 'fake_user' on host 'localhost' on routine 'b54866_f'
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'fake_user'@'localhost';
 ERROR HY000: Can't revoke all privileges for one or more of the requested users
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ##########
 ########## Cleanup
 ##########
@@ -204,11 +204,11 @@ DROP PROCEDURE b54866_p;
 DROP FUNCTION b54866_f;
 DROP USER 'b54866_user'@'localhost';
 DROP DATABASE b54866;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 CREATE USER foo IDENTIFIED WITH 'my_plugin';
 ERROR HY000: Plugin 'my_plugin' is not loaded
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Search for occurrences of CREATE USER in the output from mysqlbinlog
 - Occurrences: 0
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -32,17 +32,17 @@
 -- source include/have_binlog_format_row.inc
 -- source include/not_crashrep.inc
 -- source include/not_have_privilege_checks_user.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 # Reset source
 connection slave;
---source include/stop_slave.inc 
+--source include/rpl/stop_replica.inc 
 
 connection master;
 RESET BINARY LOGS AND GTIDS;
 
 connection slave;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 call mtr.add_suppression("Attempting backtrace");
@@ -61,8 +61,8 @@ CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 -- echo # Lets stop the slave IO thread first, so that it does not timeout on
 -- echo # reconnection while the master is down (it happened before on some
 -- echo # slow hosts).
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_io.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_receiver.inc
 --connection master
 
 BEGIN;
@@ -87,7 +87,7 @@ COMMIT;
 -- source include/wait_until_connected_again.inc 
 
 -- echo # Test the transaction statements will not be binlogged
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 --let $assert_cond= `SELECT COUNT(*) = 0 FROM t1`
 --let $assert_text= On master, test the data will be rolled back after restart.
@@ -96,10 +96,10 @@ COMMIT;
 --connection slave
 --echo # lets restart the slave io thread and check that
 --echo # the slave gets synchronized again
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 --connection master
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- echo # On slave, test replication will work fine, and the data 
 -- echo #           is not replicated
 --let $diff_tables= master:test.t1, slave:test.t1
@@ -114,8 +114,8 @@ connection master;
 -- echo # Lets stop the slave IO thread first, so that it does not timeout on
 -- echo # reconnection while the master is down (it happened before on some
 -- echo # slow hosts).
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_io.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_receiver.inc
 --connection master
 
 BEGIN;
@@ -140,7 +140,7 @@ COMMIT;
 -- source include/wait_until_connected_again.inc
 
 -- echo # Test the transaction statements will be binlogged
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 --let $assert_cond= `SELECT COUNT(*) = 3 FROM t1`
 --let $assert_text= On master, test the data will be recovered after the master restart.
@@ -149,18 +149,18 @@ COMMIT;
 --connection slave
 --echo # lets restart the slave io thread and check that
 --echo # the slave gets synchronized again
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 --connection master
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- echo # On slave, test replication will work fine, and the data is replicated
 --let $diff_tables= master:test.t1, slave:test.t1
 --source include/diff_tables.inc
 
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
--- source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+-- source include/rpl/stop_replica.inc
 
 connection master;
 -- let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
@@ -193,7 +193,7 @@ COMMIT;
 
 -- echo # Test the halfly binlogged transaction will be trimmed
 -- echo # from the crashed binlog file
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 -- echo # Test the data will not be recovered successfully
 -- echo # after the master restart.

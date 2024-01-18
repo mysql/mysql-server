@@ -1,8 +1,8 @@
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # ----------------------------------------------------------------------
 # Begin : Tests for DROP ROLE
 CREATE ROLE roleX, roleY, roleZ;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # Case 1 : Execute DROP ROLE for existing users
 DROP ROLE roleX, roleY;
 # Must show roleZ
@@ -10,8 +10,8 @@ SELECT user FROM mysql.user WHERE user LIKE 'role%';
 user
 roleZ
 # This event sequence pattern MUST be present in binlog: !Q(DROP ROLE.*roleX.*roleY.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # Case 2 : Execute DROP ROLE for non-existing users
 DROP ROLE roleZ, roleX;
 ERROR HY000: Operation DROP ROLE failed for 'roleX'@'%'
@@ -20,22 +20,22 @@ SELECT user FROM mysql.user WHERE user LIKE 'role%';
 user
 roleZ
 # This event sequence pattern MUST NOT be present in binlog: !Q(DROP ROLE.*roleZ.*roleX.*)
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 DROP ROLE roleZ;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # End : Tests for DROP ROLE
 # ----------------------------------------------------------------------
 # Begin : Tests for DROP ROLE IF EXISTS
 CREATE ROLE roleX, roleY, roleZ;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # Case 1 : Execute DROP ROLE IF NOT EXISTS
 DROP ROLE IF EXISTS roleX, roleY, roleZ;
 # Must not show entries for roleX, roleY, roleZ
 SELECT user FROM mysql.user WHERE user LIKE 'role%';
 user
 # This event sequence pattern MUST be present in binlog: !Q(DROP ROLE IF EXISTS.*roleX.*roleY.*roleZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # case 2 : Execute DROP ROLE IF NOT EXISTS for non-existing users
 DROP ROLE IF EXISTS roleX, roleY, roleZ;
 Warnings:
@@ -43,7 +43,7 @@ Note	3162	Authorization ID 'roleX'@'%' does not exist.
 Note	3162	Authorization ID 'roleY'@'%' does not exist.
 Note	3162	Authorization ID 'roleZ'@'%' does not exist.
 # This event sequence pattern MUST be present in binlog: !Q(DROP ROLE IF EXISTS.*roleX.*roleY.*roleZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 # End : Tests for DROP ROLE IF EXISTS
 # ----------------------------------------------------------------------

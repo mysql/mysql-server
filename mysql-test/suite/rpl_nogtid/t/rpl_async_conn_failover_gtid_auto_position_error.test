@@ -22,14 +22,14 @@
 #
 --source include/have_gtid_mode_off.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Verify Asynchronous Replication Connection Failover and gtid_mode is
 --echo #    initially disabled.
 --echo #
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= gtid_mode is OFF
 --let $assert_cond= "[SELECT @@GLOBAL.gtid_mode]" = "OFF"
@@ -127,4 +127,4 @@ SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

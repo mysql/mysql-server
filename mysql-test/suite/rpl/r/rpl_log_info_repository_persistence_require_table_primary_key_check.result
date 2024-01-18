@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -62,21 +62,21 @@ STOP REPLICA;
 #       2. A group_replication channel (group_replication_recovery)
 #       3. A channel with a privileged user (default channel)
 #     REQUIRE_TABLE_PRIMARY_KEY_CHECK is set to STREAM for all channels
-include/rpl_set_gtid_mode.inc
+include/rpl/set_gtid_mode.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_check;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --upgrade=FORCE]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start --upgrade=FORCE]
 include/assert.inc [Check the number of channels with REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM]
 include/assert.inc [Check that mysql.slave_relay_log_info entries all have REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM]
 RESET REPLICA ALL FOR CHANNEL "ch1";
-include/rpl_set_gtid_mode.inc
+include/rpl/set_gtid_mode.inc
 
 # 3. Error scenario: Test when the stored configuration for a GR channel is invalid
 UPDATE mysql.slave_relay_log_info SET Require_table_primary_key_check='GENERATE' WHERE Channel_name="group_replication_recovery";
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start]
 RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
 # 4.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
@@ -87,7 +87,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 RESET REPLICA;
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 
 # 4.2. Execute a RESET REPLICA ALL command.
@@ -118,4 +118,4 @@ CALL mtr.add_suppression("Replication configuration appears to be corrupted. On 
 CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel 'group_replication_recovery'*");
 CALL mtr.add_suppression("Error writing relay log configuration.");
 START REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc

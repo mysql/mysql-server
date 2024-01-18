@@ -34,7 +34,7 @@
 #
 -- source include/have_binlog_format_mixed_or_row.inc
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --let $engines= InnoDB, MyISAM, NDB
 
@@ -124,4 +124,4 @@ while ($engines)
   --sync_slave_with_master
 }
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -32,9 +32,9 @@ SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row3	C	3
 row4	D	4
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 STOP REPLICA;
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 START REPLICA;
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
@@ -60,7 +60,7 @@ COMMIT;
 SELECT * FROM t1;
 c1	c2	c3
 row2	new on slave	2
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
 RESET BINARY LOGS AND GTIDS;
@@ -90,14 +90,14 @@ create table t2 (a int primary key) engine=ndb;
 begin;
 insert into t2 values (1), (2), (3);
 commit;
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 # Stop replica and reset position to start of the applied epoch
 STOP REPLICA;
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 call mtr.add_suppression("Table \'t2\' already exists.*");
 call mtr.add_suppression("Worker 1 failed executing transaction.*");
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=1050]
+include/rpl/wait_for_applier_error.inc [errno=1050]
 SELECT COUNT(*) as FOUND_ERROR_MESSAGE
 FROM performance_schema.replication_applier_status_by_worker
 WHERE LAST_ERROR_NUMBER=1050 AND channel_name = ''  AND
@@ -110,4 +110,4 @@ RESET REPLICA;
 START REPLICA;
 DROP TABLE t1;
 DROP TABLE t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Check all the GTID functions defined in the auxiliary test script
-# include/gtid_utils.inc.
+# include/rpl/gtid_utils.inc.
 #
 # ==== Implementation ====
 #
@@ -16,7 +16,7 @@ call mtr.add_suppression("option 'thread_stack':");
 # Thread stack overrun in debug mode on sparc
 --source include/not_sparc_debug.inc
 
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 
 --echo #### NULL values for built-in functions ####
 eval SELECT GTID_SUBSET('$uuida:1', NULL);
@@ -133,4 +133,4 @@ eval SELECT GTID_COMPARE('$uuida:1', '$uuida:+2', '$uuida:1-3');
 eval SELECT GTID_COMPARE('$uuida:1-2', '$uuida:+2,$uuida:+3', '$uuida:1-5');
 eval SELECT GTID_COMPARE('', '$uuida:+2', '$uuida:1-2');
 
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc

@@ -14,10 +14,10 @@
 --source include/have_debug_sync.inc
 # Testing it in one mode is enough
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 
 --let $orig_master_uuid= query_get_value(select source_uuid from performance_schema.replication_connection_status, source_uuid, 1)
 
@@ -44,7 +44,7 @@ SET GLOBAL debug= '+d,dbug.return_null_SOURCE_UUID';
 --echo # START REPLICA will return a NULL for Source_UUID now as per our debug behaviour.
 --echo #
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo #
 --echo # We dont have a Source_UUID now, so should see an empty output as the Source_UUID value.
@@ -64,8 +64,8 @@ SET GLOBAL debug= @save_debug;
 --echo # After de-activating, the Source_UUID value should be there.
 --echo #
 
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 
 --echo #
 --echo # Verify that we have the Source_UUID now.
@@ -76,4 +76,4 @@ SET GLOBAL debug= @save_debug;
 
 --let $wait_condition=
 --let $orig_master_uuid=
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

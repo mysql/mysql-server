@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,14 +6,14 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 (c1) VALUES (1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 [connection master]
 FLUSH LOGS;
 FLUSH LOGS;
 INSERT INTO t1 (c1) VALUES (2);
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 call mtr.add_suppression("File '.*slave-relay-bin.");
 call mtr.add_suppression("Could not open log file");
 call mtr.add_suppression("Failed to open the relay log");
@@ -24,9 +24,9 @@ call mtr.add_suppression("Failed to initialize the connection metadata structure
 call mtr.add_suppression("Failed to create or recover replication info repositories");
 call mtr.add_suppression("listed in the index, but failed to stat");
 call mtr.add_suppression("Error counting relay log space");
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 # Removing  file(s)
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 START REPLICA;
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 START REPLICA;
@@ -34,11 +34,11 @@ ERROR HY000: Replica failed to initialize applier metadata structure from the re
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

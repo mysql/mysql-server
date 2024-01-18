@@ -37,7 +37,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Unable to update the member actions configuration with the one sent by the primary. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'.");
 call mtr.add_suppression("A message sent through the Group Replication message deliver service was not delivered successfully. The server will now leave the group.*");
@@ -55,7 +55,7 @@ SET SESSION sql_log_bin = 1;
 --echo #      group_replication_disable_member_action.
 --echo #    server that is not member of a group will throw ER_UDF_ERROR.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,force_error_on_configuration_table_close';
 
@@ -80,15 +80,15 @@ SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
 --echo #      group_replication_disable_member_action.
 --echo #    server that is a member of a group will throw ER_UDF_ERROR.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='+d,force_error_on_configuration_table_close';
 
 --error ER_GRP_RPL_UDF_ERROR
@@ -104,7 +104,7 @@ SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= The version of replication_group_member_actions must be 1
 --let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 1
 --source include/assert.inc
@@ -118,12 +118,12 @@ SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
 --echo #    The secondary will move into ERROR state and follow the
 --echo #    --group_replication_exit_state_action option.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,force_error_on_configuration_table_close';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
 
 --let $assert_text= The version of replication_group_member_actions must be 2
@@ -138,7 +138,7 @@ SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
@@ -189,7 +189,7 @@ SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
 --echo #    Propagation will fail but the configuration will be
 --echo #    stored on the primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,group_replication_force_error_on_member_actions_propagation';
 
@@ -207,7 +207,7 @@ SET @@GLOBAL.DEBUG='-d,group_replication_force_error_on_member_actions_propagati
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= The version of replication_group_member_actions must be 2
 --let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 2
@@ -223,7 +223,7 @@ SET @@GLOBAL.DEBUG='-d,group_replication_force_error_on_member_actions_propagati
 --echo # 5. UDFs can be executed multiple times, which will resend
 --echo #    the configuration.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
 
@@ -236,7 +236,7 @@ SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version WHERE name="replication_group_member_actions" AND version=4;
 --source include/wait_condition.inc
@@ -250,7 +250,7 @@ SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_
 --echo ############################################################
 --echo # 6. Inject a error while resetting the configuration.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 SET @@GLOBAL.DEBUG='+d,force_error_on_configuration_table_close';

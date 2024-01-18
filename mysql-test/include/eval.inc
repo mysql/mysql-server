@@ -126,7 +126,7 @@ while ($_eval_rbracket)
       --echo # debug: connection='$_eval_connection' sub-statement=$_eval_substmt
     }
     --let $rpl_connection_name= $_eval_connection
-    --source include/rpl_connection.inc
+    --source include/connection.inc
   }
   if (!$_eval_connection)
   {
@@ -154,7 +154,7 @@ while ($_eval_rbracket)
   if ($_eval_connection)
   {
     --let $rpl_connection_name= $_eval_old_connection
-    --source include/rpl_connection.inc
+    --source include/connection.inc
   }
 
   if ($rpl_debug)

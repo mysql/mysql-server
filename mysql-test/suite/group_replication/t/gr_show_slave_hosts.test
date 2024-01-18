@@ -21,7 +21,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 
@@ -36,7 +36,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # save the value of replica_net_timeout
 SET @restore_replica_net_timeout=@@global.replica_net_timeout;
@@ -53,7 +53,7 @@ SET @@global.replica_net_timeout=20;
 # Wait until show replicas on M2 shows M1 as it will be
 # connected as slave during recovery
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 let $wait_timeout= 60;
 let $show_statement= SHOW REPLICAS;
@@ -81,11 +81,11 @@ let $condition= = 'No such row';
 
 # Clean up
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Restore the value of replica_net_timeout
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;

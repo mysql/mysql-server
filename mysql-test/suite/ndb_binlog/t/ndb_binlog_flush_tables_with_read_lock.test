@@ -43,12 +43,12 @@ create table test.myisamt3s2 (a int primary key, b int) engine=myisam;
 insert into ndbt1 values (1,1);
 
 --echo Show + reset Binlog contents on Server 1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 reset binary logs and gtids;
 
 --echo Show + reset Binlog contents on Server 2
 --connection server2
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 reset binary logs and gtids;
 
 --echo Now perform MyIsam table change followed by 
@@ -60,7 +60,7 @@ FLUSH TABLES WITH READ LOCK;
 
 --echo The MyIsam change definitely will be in the local
 --echo binlog as it occurred 'before' the lock
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo Show that Ndb and local tables are still 
 --echo Read-Write from Server2
@@ -70,20 +70,20 @@ insert into ndbt1 values (4,4);
 
 --echo Look at the Binlog events on Server 2 - contains
 --echo rows written at Server2
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 insert into myisamt3s2 values (5,5);
 
 --echo Look at the Binlog events on Server 2 - contains
 --echo rows written at Server2
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo Now look at the Binlog events on Server 1
 --connection server1
 # Note that this will not block waiting for binlog
 # sync as the latest ndb transaction from the p.o.v
 # of Server 1 is already in the binlog.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo Now remove the read lock at server 1
 unlock tables;
@@ -95,7 +95,7 @@ insert into ndbt1 values (6,6);
 
 --echo Show that server 1 binlog now contains all the relevant
 --echo events.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo Reset both binlogs;
 --connection server1

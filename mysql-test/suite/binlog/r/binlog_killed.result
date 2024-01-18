@@ -95,7 +95,7 @@ select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 @b
 1
 must have the update query event on the 4th line
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	User var	#	#	@`b`=0
@@ -137,7 +137,7 @@ select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 @b
 1
 must have the delete query event on the 4th line
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	User var	#	#	@`b`=0

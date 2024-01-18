@@ -6,7 +6,7 @@
 #
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --echo Setup circular replication
 --echo The circle is setup between Primary and Secondary
@@ -847,7 +847,7 @@ update test.t1 set c="Loafing" where k=1;
 --echo Conflicting change on Secondary
 update test.t1 set c="Idling" where k=1;
 
---source include/wait_for_ndb_committed_to_binlog.inc
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
 
 --echo Add some epochs after the conflicting modification
 
@@ -856,7 +856,7 @@ while ($e_count)
 {
   eval insert into t1 values ($e_count + 10, 10, "Sequencing");
   dec $e_count;
-  --source include/wait_for_ndb_committed_to_binlog.inc
+  --source include/rpl/wait_for_ndb_committed_to_binlog.inc
 }
 
 --echo Now look at Secondary values, should have
@@ -965,4 +965,4 @@ drop table test.t1$EX;
 drop table mysql.ndb_replication;
 --sync_slave_with_master slave
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

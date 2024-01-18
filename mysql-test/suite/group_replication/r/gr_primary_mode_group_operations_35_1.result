@@ -20,7 +20,7 @@ include/start_group_replication.inc
 # 1. Begin a transaction on server 1 but do not commit it
 [connection server_1_1]
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 BEGIN;
 INSERT INTO t1 VALUES (1);
 
@@ -39,7 +39,7 @@ KILL QUERY CONNECTION_ID;
 # 4. Commit transaction and member will finish the UDF
 [connection server_1_1]
 COMMIT;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 group_replication_switch_to_multi_primary_mode()
 Mode switched to multi-primary successfully.

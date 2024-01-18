@@ -110,7 +110,7 @@ SELECT RELEASE_LOCK('Bug#34306');
 --echo # default
 
 --echo # Show binlog events
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 DROP TABLE t1;
 DROP TABLE t2;

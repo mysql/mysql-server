@@ -8,7 +8,7 @@
 # reached (the "sync_with_master 1"), logically.
 
 --source include/have_binlog_format_statement.inc
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -51,5 +51,5 @@ connection master2;
 
 drop table if exists t1,t2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 # End of 4.1 tests

@@ -12,13 +12,13 @@ DROP TABLE t1;
 FLUSH LOGS;
 #
 # 1.1 Check mysqlbinlog errors out (T1)
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog]
 include/assert_grep.inc [The INSERT query is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The INSERT query is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [The INSERT query is written without --require_row_format]
 RESET BINARY LOGS AND GTIDS;
 #
@@ -29,13 +29,13 @@ DROP TABLE tload;
 FLUSH LOGS;
 #
 # 2.1 Check mysqlbinlog errors out (T2)
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog]
 include/assert_grep.inc [The LOAD DATA event is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The LOAD DATA event is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [The LOAD DATA event is written without --require_row_format]
 RESET BINARY LOGS AND GTIDS;
 #
@@ -46,13 +46,13 @@ INSERT INTO t1 VALUES (@v);
 FLUSH LOGS;
 #
 # 3.1 Check mysqlbinlog errors out (T2)
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog]
 include/assert_grep.inc [The USER_VAR event is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The USER_VAR event is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [The USER_VAR event is written without --require_row_format]
 RESET BINARY LOGS AND GTIDS;
 #
@@ -64,13 +64,13 @@ DROP TABLE t1;
 FLUSH LOGS;
 #
 # 4.1 Check mysqlbinlog errors out (T2)
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog]
 include/assert_grep.inc [The RAND event is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The RAND event is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [The RAND event is written without --require_row_format]
 RESET BINARY LOGS AND GTIDS;
 #
@@ -81,13 +81,13 @@ DROP TABLE t2;
 FLUSH LOGS;
 #
 # 5.1 Check mysqlbinlog errors out (T2)
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog]
 include/assert_grep.inc [The INTVAR event is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The INTVAR event is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [The INTVAR event is written without --require_row_format]
 RESET BINARY LOGS AND GTIDS;
 #
@@ -96,13 +96,13 @@ CREATE TEMPORARY TABLE t1 (k INT PRIMARY KEY);
 FLUSH LOGS;
 #
 # 6.1 Check mysqlbinlog errors out (T3)
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog]
 include/assert_grep.inc [The CREATE TEMPORARY TABLE is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The CREATE TEMPORARY TABLE is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [The CREATE TEMPORARY TABLE is written without --require_row_format]
 RESET BINARY LOGS AND GTIDS;
 #
@@ -111,13 +111,13 @@ DROP TEMPORARY TABLE t1;
 FLUSH LOGS;
 #
 # 7.1 Check mysqlbinlog errors out (T3)
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog]
 include/assert_grep.inc [The DROP TEMPORARY TABLE is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The DROP TEMPORARY TABLE is not written with --require_row_format]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [The DROP TEMPORARY TABLE is written without --require_row_format]
 RESET BINARY LOGS AND GTIDS;
 #

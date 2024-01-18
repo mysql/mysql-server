@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -17,7 +17,7 @@ select * from t1 where b<3 order by a;
 a	b
 1	2
 MySQL	1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 where b<3 order by a;
 a	b
 1	2
@@ -30,8 +30,8 @@ drop table t1, t2;
 set @@session.sql_mode=default;
 create table t1(a int auto_increment primary key);
 create table t2(b int, a int);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 set @sav.sql_auto_is_null=@@session.sql_auto_is_null;
 set @@session.sql_auto_is_null=1;
 insert into t1 values(null);
@@ -50,8 +50,8 @@ set @@session.last_insert_id=last_insert_id();
 insert into t2 select 1,a from t1 where a is null;
 include/assert.inc [set @@session.last_insert_id must *not* be found in results of the insert..select]
 set @@session.sql_auto_is_null= @sav.sql_auto_is_null;
-include/start_slave_sql.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_applier.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t2, slave:t2]
 delete from t1;
 delete from t2;
@@ -64,8 +64,8 @@ set @@session.sql_auto_is_null= @sav.sql_auto_is_null;
 flush logs;
 delete from t2;
 include/assert.inc [set @@session.last_insert_id must be found in binlog results of the insert..select]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t2, slave:t2]
 drop table t1,t2;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

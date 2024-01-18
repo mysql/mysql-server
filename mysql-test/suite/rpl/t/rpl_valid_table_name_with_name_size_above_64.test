@@ -17,7 +17,7 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Create a database and table on the source with a size above 64
@@ -36,7 +36,7 @@ INSERT INTO test.测试测试测试测试测试测试测试测试测试测试测
 SHOW BINLOG EVENTS;
 --enable_result_log
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 2. Check the data was replicated
@@ -54,11 +54,11 @@ SHOW BINLOG EVENTS;
 --echo #
 --echo # 3. Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE 试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测.t1;
 DROP DATABASE 试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测;
 
 DROP TABLE test.测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

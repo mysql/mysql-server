@@ -48,7 +48,7 @@
 # WL#11300: Crash-safe XA + binary log
 #
 # Related tests;
-#   see extra/xa_crash_safe_tests/setup.inc
+#   see common/xa_crash_safe/setup.inc
 #
 --source include/have_binlog_format_row.inc
 --source include/not_valgrind.inc
@@ -63,7 +63,7 @@ let $messages = .*Crash recovery finished in InnoDB engine. Failed to.*
 --source include/suppress_messages.inc
 
 --let $xid = 'xid0'
---source extra/xa_crash_safe_tests/setup.inc
+--source common/xa_crash_safe/setup.inc
 
 let $xa_errors = [
   "XAER_ASYNC",
@@ -80,7 +80,7 @@ let $xa_errors = [
 
 # Include $error_on_recovery_for_normal_transaction and
 # $error_on_recovery_for_xa_transaction procedures
---source extra/xa_crash_safe_tests/utility_functions.inc
+--source common/xa_crash_safe/utility_functions.inc
 
 --let $nth_iteration = 3
 
@@ -117,5 +117,5 @@ let $xa_errors = [
 
 --connection default
 DROP TABLE t1;
---source extra/xa_crash_safe_tests/end_utility_functions.inc
+--source common/xa_crash_safe/end_utility_functions.inc
 --source include/destroy_json_functions.inc

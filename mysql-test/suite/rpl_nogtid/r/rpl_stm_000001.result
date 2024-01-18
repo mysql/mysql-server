@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,14 +20,14 @@ abandoned
 abandoning
 abandonment
 abandons
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 STOP REPLICA;
 set password for root@"localhost" = 'foo';
 START REPLICA;
 set password for root@"localhost" = '';
 create table t3(n int);
 insert into t3 values(1),(2);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t3;
 n
 1
@@ -36,16 +36,16 @@ select sum(length(word)) from t1;
 sum(length(word))
 1022
 drop table t1,t3;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create table t1 (n int) engine=myisam;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 reset binary logs and gtids;
 STOP REPLICA;
 RESET REPLICA;
 include/assert.inc [We should have generated greater than 16 KB relay log]
 lock tables t1 read;
 START REPLICA;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 unlock tables;
 create table t2(id int);
 insert into t2 values(connection_id());
@@ -61,9 +61,9 @@ kill @id;
 drop table t2;
 drop temporary table if exists t3;
 Got one of the listed errors
-include/wait_for_slave_sql_error.inc [errno=3001]
+include/rpl/wait_for_applier_error.inc [errno=3001]
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER=1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 select count(*) from t1;
 count(*)
 100
@@ -78,7 +78,7 @@ update mysql.user set Select_priv = "Y" where User= _binary"blafasel2";
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 select_priv	user
 Y	blafasel2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select n from t1;
 n
 3456
@@ -88,5 +88,5 @@ Y	blafasel2
 drop table t1;
 delete from mysql.user where user="blafasel2";
 # mysql.user table restored to original values.
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -4,18 +4,18 @@
 # slave binlog enabled for OPTIMIZE TABLE query.
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t (a INT);
 
 # execute OPTIMIZE TABLE query
 OPTIMIZE TABLE t;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

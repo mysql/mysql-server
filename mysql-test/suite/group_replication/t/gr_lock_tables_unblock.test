@@ -24,7 +24,7 @@
 
 --connection server2
 CREATE TABLE t1 (i INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server1
 --source include/stop_group_replication.inc
@@ -46,7 +46,7 @@ LOCK TABLE t1 WRITE;
 --echo # Ensure that the server is actually blocked while setting the
 --echo # super_read_only mode.
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = 'thread/group_rpl/THD_mysql_thread_handler_read_only_mode' AND PROCESSLIST_STATE = 'Waiting for global read lock'
 --source include/wait_condition.inc
 

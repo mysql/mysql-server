@@ -35,12 +35,12 @@
 --let $rpl_multi_source= 1
 # Test will take care of starting slave threads.
 --let $rpl_skip_start_slave= 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 # Test case will corrupt the channel and will execute few basic commands
 # on the corrupted channel. Add necessary suppressions.
 --let $rpl_connection_name= server_$rpl_number_of_servers
---source include/rpl_connection.inc
+--source include/connection.inc
 CALL mtr.add_suppression("Failed to open the relay log");
 CALL mtr.add_suppression("Could not find target log file mentioned in applier metadata in the index file");
 CALL mtr.add_suppression(".*Failed to initialize the connection metadata structure for channel.*");
@@ -56,7 +56,7 @@ while ($iter < $rpl_number_of_servers)
   #######################
   # Create MSR channels
   #######################
-  --source extra/rpl_tests/rpl_create_msr_channels.inc
+  --source common/rpl/create_msr_channels.inc
 
   ##############################################################################
   # Stop the server, corrupt one channel(rpl_corrupt_channel_name),
@@ -69,7 +69,7 @@ while ($iter < $rpl_number_of_servers)
   {
     --let $rpl_corrupt_channel_name=''
   }
-  --source extra/rpl_tests/rpl_multi_source_corrupt_repository.inc
+  --source common/rpl/multi_source_corrupt_repository.inc
 
   --inc $iter
 }
@@ -78,4 +78,4 @@ while ($iter < $rpl_number_of_servers)
 --let $rpl_skip_delete_channels= 1
 --let $rpl_skip_stop_slave= 1
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

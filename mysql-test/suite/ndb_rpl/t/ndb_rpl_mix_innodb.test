@@ -6,11 +6,11 @@
 #############################################
 
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 SET binlog_format = MIXED;
 let $off_set = 10;
 let $rpl_format = 'MIX';
 --source suite/ndb_rpl/t/ndb_rpl_xxx_innodb.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

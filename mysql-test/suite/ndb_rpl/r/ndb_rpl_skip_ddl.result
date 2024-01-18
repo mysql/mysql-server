@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -52,7 +52,7 @@ Warnings:
 Warning	1831	Duplicate index 'yale' defined on the table 'test.t5'. This is deprecated and will be disallowed in a future release.
 #Drop index from table which does not exist on replica table
 alter table t5 drop index chubb;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 show tables;
 Tables_in_test
@@ -95,4 +95,4 @@ drop table t1;
 drop table t3;
 drop table t4;
 drop table t5;
-include/rpl_end.inc
+include/rpl/deinit.inc

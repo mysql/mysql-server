@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # Setup
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,16 +12,16 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Creating manifest file for current MySQL server instance
 [connection master]
 # ----------------------------------------------------------------------
-include/rpl_stop_server.inc [server_number=1]
-include/rpl_start_server.inc [server_number=1]
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 #### SETUP ####
 [connection master]
 SET @default_table_encryption_save = @@global.default_table_encryption;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @default_table_encryption_save = @@global.default_table_encryption;
 #### TEST ####
 [connection master]
@@ -33,284 +33,284 @@ SET @@session.default_table_encryption = 0;
 ==== CREATE DATABASE db [master_session:0 master_global:0 slave_global:0] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=0]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-0;
 ==== ALTER DATABASE db CHARACTER SET = utf8mb3 [master_session:0 master_global:0 slave_global:0] ====
 # ALTER: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER DATABASE db CHARACTER SET = utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 0;
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'n' [master_session:0 master_global:0 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'y' [master_session:0 master_global:0 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts [master_session:0 master_global:0 slave_global:0] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=0]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-0;
 ==== ALTER TABLESPACE ts RENAME TO ts2 [master_session:0 master_global:0 slave_global:0] ====
 # ALTER should not include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER TABLESPACE ts RENAME TO ts2;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 0;
 ==== CREATE TABLESPACE ts ENCRYPTION = 'y' [master_session:0 master_global:0 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts ENCRYPTION = 'n' [master_session:0 master_global:0 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE DATABASE db [master_session:1 master_global:0 slave_global:0] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=1]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-1;
 ==== ALTER DATABASE db CHARACTER SET = utf8mb3 [master_session:1 master_global:0 slave_global:0] ====
 # ALTER: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER DATABASE db CHARACTER SET = utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'n' [master_session:1 master_global:0 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'y' [master_session:1 master_global:0 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts [master_session:1 master_global:0 slave_global:0] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=1]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-1;
 ==== ALTER TABLESPACE ts RENAME TO ts2 [master_session:1 master_global:0 slave_global:0] ====
 # ALTER should not include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER TABLESPACE ts RENAME TO ts2;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE TABLESPACE ts ENCRYPTION = 'y' [master_session:1 master_global:0 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts ENCRYPTION = 'n' [master_session:1 master_global:0 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection slave]
 SET @@global.default_table_encryption = 1;
@@ -319,284 +319,284 @@ SET @@session.default_table_encryption = 0;
 ==== CREATE DATABASE db [master_session:0 master_global:0 slave_global:1] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=0]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-0;
 ==== ALTER DATABASE db CHARACTER SET = utf8mb3 [master_session:0 master_global:0 slave_global:1] ====
 # ALTER: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER DATABASE db CHARACTER SET = utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 0;
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'n' [master_session:0 master_global:0 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'y' [master_session:0 master_global:0 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts [master_session:0 master_global:0 slave_global:1] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=0]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-0;
 ==== ALTER TABLESPACE ts RENAME TO ts2 [master_session:0 master_global:0 slave_global:1] ====
 # ALTER should not include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER TABLESPACE ts RENAME TO ts2;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 0;
 ==== CREATE TABLESPACE ts ENCRYPTION = 'y' [master_session:0 master_global:0 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts ENCRYPTION = 'n' [master_session:0 master_global:0 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE DATABASE db [master_session:1 master_global:0 slave_global:1] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=1]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-1;
 ==== ALTER DATABASE db CHARACTER SET = utf8mb3 [master_session:1 master_global:0 slave_global:1] ====
 # ALTER: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER DATABASE db CHARACTER SET = utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'n' [master_session:1 master_global:0 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'y' [master_session:1 master_global:0 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts [master_session:1 master_global:0 slave_global:1] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=1]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-1;
 ==== ALTER TABLESPACE ts RENAME TO ts2 [master_session:1 master_global:0 slave_global:1] ====
 # ALTER should not include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER TABLESPACE ts RENAME TO ts2;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE TABLESPACE ts ENCRYPTION = 'y' [master_session:1 master_global:0 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts ENCRYPTION = 'n' [master_session:1 master_global:0 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection master]
 SET @@global.default_table_encryption = 1;
@@ -607,284 +607,284 @@ SET @@session.default_table_encryption = 0;
 ==== CREATE DATABASE db [master_session:0 master_global:1 slave_global:0] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=0]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-0;
 ==== ALTER DATABASE db CHARACTER SET = utf8mb3 [master_session:0 master_global:1 slave_global:0] ====
 # ALTER: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER DATABASE db CHARACTER SET = utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 0;
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'n' [master_session:0 master_global:1 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'y' [master_session:0 master_global:1 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts [master_session:0 master_global:1 slave_global:0] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=0]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-0;
 ==== ALTER TABLESPACE ts RENAME TO ts2 [master_session:0 master_global:1 slave_global:0] ====
 # ALTER should not include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER TABLESPACE ts RENAME TO ts2;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 0;
 ==== CREATE TABLESPACE ts ENCRYPTION = 'y' [master_session:0 master_global:1 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts ENCRYPTION = 'n' [master_session:0 master_global:1 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE DATABASE db [master_session:1 master_global:1 slave_global:0] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=1]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-1;
 ==== ALTER DATABASE db CHARACTER SET = utf8mb3 [master_session:1 master_global:1 slave_global:0] ====
 # ALTER: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER DATABASE db CHARACTER SET = utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'n' [master_session:1 master_global:1 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'y' [master_session:1 master_global:1 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts [master_session:1 master_global:1 slave_global:0] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=1]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-1;
 ==== ALTER TABLESPACE ts RENAME TO ts2 [master_session:1 master_global:1 slave_global:0] ====
 # ALTER should not include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER TABLESPACE ts RENAME TO ts2;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE TABLESPACE ts ENCRYPTION = 'y' [master_session:1 master_global:1 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts ENCRYPTION = 'n' [master_session:1 master_global:1 slave_global:0] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection slave]
 SET @@global.default_table_encryption = 1;
@@ -893,284 +893,284 @@ SET @@session.default_table_encryption = 0;
 ==== CREATE DATABASE db [master_session:0 master_global:1 slave_global:1] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=0]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-0;
 ==== ALTER DATABASE db CHARACTER SET = utf8mb3 [master_session:0 master_global:1 slave_global:1] ====
 # ALTER: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER DATABASE db CHARACTER SET = utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 0;
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'n' [master_session:0 master_global:1 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'y' [master_session:0 master_global:1 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts [master_session:0 master_global:1 slave_global:1] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=0]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-0;
 ==== ALTER TABLESPACE ts RENAME TO ts2 [master_session:0 master_global:1 slave_global:1] ====
 # ALTER should not include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER TABLESPACE ts RENAME TO ts2;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 0;
 ==== CREATE TABLESPACE ts ENCRYPTION = 'y' [master_session:0 master_global:1 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts ENCRYPTION = 'n' [master_session:0 master_global:1 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE DATABASE db [master_session:1 master_global:1 slave_global:1] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=1]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-1;
 ==== ALTER DATABASE db CHARACTER SET = utf8mb3 [master_session:1 master_global:1 slave_global:1] ====
 # ALTER: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER DATABASE db CHARACTER SET = utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'n' [master_session:1 master_global:1 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='N'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='N'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE DATABASE db DEFAULT ENCRYPTION = 'y' [master_session:1 master_global:1 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE DATABASE db DEFAULT ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "%ENCRYPTION='Y'%"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "%ENCRYPTION='Y'%"
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts [master_session:1 master_global:1 slave_global:1] ====
 # CREATE without ENCRYPTION: include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should contain default_table_encryption=1]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1-1;
 ==== ALTER TABLESPACE ts RENAME TO ts2 [master_session:1 master_global:1 slave_global:1] ====
 # ALTER should not include the variable in the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 ALTER TABLESPACE ts RENAME TO ts2;
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.default_table_encryption = 1;
 ==== CREATE TABLESPACE ts ENCRYPTION = 'y' [master_session:1 master_global:1 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'y';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "Y"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "Y"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== CREATE TABLESPACE ts ENCRYPTION = 'n' [master_session:1 master_global:1 slave_global:1] ====
 # CREATE with ENCRYPTION: exclude the variable from the binlog
 [connection slave]
-include/stop_slave_sql.inc
-include/start_slave_sql.inc
+include/rpl/stop_applier.inc
+include/rpl/start_applier.inc
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLESPACE ts ENCRYPTION = 'n';
 # Assert that binlog is as expected
 include/assert_grep.inc [Binlog should not contain default_table_encryption]
 # Assert that object on master is "N"
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Assert that object on slave is "N"
 [connection master]
 DROP TABLESPACE ts;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 #### CLEANUP ####
 [connection master]
@@ -1185,6 +1185,6 @@ SET @@global.default_table_encryption = @default_table_encryption_save;
 # Removing local keyring file for keyring component: component_keyring_file
 # Removing local configuration file for keyring component: component_keyring_file
 # Removing local configuration file for keyring component: component_keyring_file
-include/rpl_end.inc
+include/rpl/deinit.inc
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------

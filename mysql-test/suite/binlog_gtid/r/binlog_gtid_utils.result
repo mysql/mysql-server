@@ -1,5 +1,5 @@
 call mtr.add_suppression("option 'thread_stack':");
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 #### NULL values for built-in functions ####
 SELECT GTID_SUBSET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', NULL);
 GTID_SUBSET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', NULL)
@@ -227,4 +227,4 @@ GTID_COMPARE('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2', 'aaaaaaaa-aaaa-aaaa-aaa
 SELECT GTID_COMPARE('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:+2', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2');
 GTID_COMPARE('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:+2', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2')
 1
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc

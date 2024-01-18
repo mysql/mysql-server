@@ -46,7 +46,7 @@ SET @saved_value= @@GLOBAL.read_only;
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1);
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Test-1: Execute only noop UPDATE in the transaction
 connect (con1,localhost,root,,test);
@@ -82,7 +82,7 @@ connection con1;
 CREATE TEMPORARY TABLE t2 (a INT ) ENGINE=INNODB;
 
 connection default;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 connection con1;
 BEGIN;
@@ -109,7 +109,7 @@ SET GLOBAL READ_ONLY=0;
 # READ_ONLY does nothing to SUPER users so we setup a non-SUPER user.
 CREATE USER test@localhost;
 GRANT CREATE TEMPORARY TABLES, UPDATE, DROP ON *.* TO test@localhost;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 connect (con2,localhost,test,,test);
 
@@ -138,7 +138,7 @@ connection con2;
 CREATE TEMPORARY TABLE t2 (a INT) ENGINE=INNODB;
 
 connection default;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 connection con2;
 BEGIN;

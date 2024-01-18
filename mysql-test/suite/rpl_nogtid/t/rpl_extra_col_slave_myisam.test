@@ -1,10 +1,10 @@
 -- source include/no_valgrind_without_big.inc
 -- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 CALL mtr.add_suppression("Replica: .*Duplicate column name");
 
 let $engine_type = 'MyISAM';
--- source extra/rpl_tests/rpl_extra_col_slave.test
---source include/rpl_end.inc
+-- source common/rpl/rpl_extra_col_replica.test
+--source include/rpl/deinit.inc

@@ -47,7 +47,7 @@ reap;
 --echo # binlog.000001    1073    Query    1    1169    use `test`; DROP TRIGGER trigger_1
 --echo # That is, two statements CREATE TRIGGER trigger_t1 follows one
 --echo # after another then DROP TRIGGER.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 DROP TABLE t1,t2;
 

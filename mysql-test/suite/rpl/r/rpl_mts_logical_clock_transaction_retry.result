@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,7 +14,7 @@ CREATE TABLE db2.t1(c1 INT PRIMARY KEY, c2 VARCHAR(4096)) ENGINE=InnoDB;
 INSERT INTO db1.t1 VALUES(1, NULL), (10, NULL), (100, NULL);
 INSERT INTO db1.t2 VALUES(1, NULL), (10, NULL), (100, NULL);
 INSERT INTO db2.t1 VALUES(1, NULL), (10, NULL), (100, NULL);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression("Replica SQL for channel '':.*Lock wait timeout exceeded.*");
 CALL mtr.add_suppression("Replica SQL for channel '': Worker . failed executing transaction.*");
 CALL mtr.add_suppression("Replica SQL for channel '': .*Error_code: MY-001756");
@@ -29,11 +29,11 @@ SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET GLOBAL innodb_lock_wait_timeout = 1;
 SET GLOBAL replica_parallel_workers = 2;
 SET GLOBAL max_relay_log_size = 4096;
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 SET GLOBAL replica_parallel_type = "LOGICAL_CLOCK";
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 #
 # Case 1: slave will stop if replica_transaction_retries is 0
 #
@@ -48,9 +48,9 @@ c1
 SET DEBUG = "+d,set_commit_parent_100";
 INSERT INTO db1.t1 VALUES(2, NULL);
 INSERT INTO db2.t1 VALUES(2, NULL);
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=1205]
+include/rpl/wait_for_applier_error.inc [errno=1205]
 include/assert.inc [Value 2 is not in db1.t1.]
 ROLLBACK;
 #
@@ -58,8 +58,8 @@ ROLLBACK;
 #         replica_transaction_retries times.
 #
 SET GLOBAL replica_transaction_retries = 2;
-include/start_slave_sql.inc
-include/sync_slave_sql.inc
+include/rpl/start_applier.inc
+include/rpl/sync_with_saved.inc
 BEGIN;
 SELECT c1 FROM db1.t2 FOR UPDATE;
 c1
@@ -72,9 +72,9 @@ INSERT INTO db1.t1 VALUES(20, NULL);
 INSERT INTO db1.t2 VALUES(20, NULL);
 COMMIT;
 INSERT INTO db2.t1 VALUES(20, NULL);
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=1205]
+include/rpl/wait_for_applier_error.inc [errno=1205]
 include/assert.inc [Value 20 is not in db1.t1.]
 ROLLBACK;
 #
@@ -82,9 +82,9 @@ ROLLBACK;
 #         sucessfully.
 #
 SET GLOBAL replica_transaction_retries = 10;
-include/start_slave_sql.inc
-include/sync_slave_sql.inc
-include/check_slave_no_error.inc
+include/rpl/start_applier.inc
+include/rpl/sync_with_saved.inc
+include/rpl/assert_replica_no_error.inc
 BEGIN;
 SELECT c1 FROM db1.t2 FOR UPDATE;
 c1
@@ -100,32 +100,32 @@ SET @str= 'abc';
 INSERT INTO db1.t2 VALUES(30, @str);
 COMMIT;
 INSERT INTO db2.t1 VALUES(30, NULL);
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 ROLLBACK;
-include/sync_slave_sql.inc
-include/check_slave_no_error.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
+include/rpl/sync_with_saved.inc
+include/rpl/assert_replica_no_error.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
 [connection master]
 INSERT INTO db1.t1 VALUES(40, NULL);
 INSERT INTO db2.t1 VALUES(40, NULL);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Case 4: Non-temporary error will stop replica workers without retrying
 #
 INSERT INTO db1.t1 VALUES(50, NULL);
 [connection master]
 INSERT INTO db1.t1 VALUES(50, NULL);
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=1062]
+include/rpl/wait_for_applier_error.inc [errno=1062]
 include/assert.inc [count_transactions_retries should not increase]
 DELETE FROM db1.t1 WHERE c1 = 50;
-include/start_slave_sql.inc
-include/sync_slave_sql.inc
+include/rpl/start_applier.inc
+include/rpl/sync_with_saved.inc
 #
 # Cleanup
 #
@@ -133,13 +133,13 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
 SET GLOBAL max_relay_log_size = @saved_max_relay_log_size;
 SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 SET GLOBAL replica_parallel_type= @saved_replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
 SET DEBUG = "-d,set_commit_parent_100";
 DROP DATABASE db1;
 DROP DATABASE db2;
-include/rpl_end.inc
+include/rpl/deinit.inc

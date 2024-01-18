@@ -1,16 +1,16 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CREATE USER u1;
 GRANT replication_applier ON *.* TO u1;
 GRANT session_variables_admin ON *.* TO u1;
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1';
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET @@SESSION.GTID_NEXT='SERVER_UUID:2';
 COMMIT;
 SET @@SESSION.GTID_NEXT='AUTOMATIC';
@@ -24,15 +24,15 @@ SET @@SESSION.GTID_NEXT='AUTOMATIC';
 SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
 DROP USER 'u1';
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/rpl_reset.inc
-include/rpl_end.inc
+include/rpl/reset.inc
+include/rpl/deinit.inc

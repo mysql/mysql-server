@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,8 +6,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 SET @save_debug=@@global.debug;
 SET GLOBAL DEBUG='+d,before_dump_thread_acquires_current_mutex,processlist_acquiring_dump_threads_LOCK_thd_data';
 FLUSH LOGS;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 "Wait_for dump_thread_signal"
 SET DEBUG_SYNC='now WAIT_FOR dump_thread_signal';
 SET DEBUG_SYNC='show_binlogs_after_lock_log_before_lock_index SIGNAL parked1 WAIT_FOR go_parked1';
@@ -28,8 +28,8 @@ SET DEBUG_SYNC='now SIGNAL go_parked1';
 SET DEBUG_SYNC='now SIGNAL go_parked2';
 SET DEBUG_SYNC='now SIGNAL go_parked3';
 FLUSH LOGS;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 "Wait_for dump_thread_signal"
 SET DEBUG_SYNC='now WAIT_FOR dump_thread_signal';
 SET DEBUG_SYNC='show_binlogs_after_lock_log_before_lock_index SIGNAL parked1 WAIT_FOR go_parked1';
@@ -52,4 +52,4 @@ SET DEBUG_SYNC='now SIGNAL go_parked3';
 "Cleanup"
 SET DEBUG_SYNC='RESET';
 SET GLOBAL DEBUG=@save_debug;
-include/rpl_end.inc
+include/rpl/deinit.inc

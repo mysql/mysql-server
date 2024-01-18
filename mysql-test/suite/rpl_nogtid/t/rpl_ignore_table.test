@@ -1,7 +1,7 @@
 --source include/not_group_replication_plugin.inc
-source include/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
 let $rpl_privilege_checks_user_grant_option = 1;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 #
 # BUG#16487
@@ -187,5 +187,5 @@ connection master;
 DROP TABLE t5;
 sync_slave_with_master;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --source include/force_restart.inc

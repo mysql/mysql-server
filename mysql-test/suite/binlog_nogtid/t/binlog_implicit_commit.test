@@ -3,4 +3,4 @@
 # the transaction cache.
 
 --source include/have_log_bin.inc
---source extra/binlog_tests/binlog_implicit_commit.inc
+--source common/binlog/implicit_commit.inc

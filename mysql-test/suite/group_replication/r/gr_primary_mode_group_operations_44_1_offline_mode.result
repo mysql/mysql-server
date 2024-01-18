@@ -36,7 +36,7 @@ include/stop_group_replication.inc
 
 # 6. Server2 will fail (applier thread stopped) and must leave the group
 [connection server3]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 # 7. Server3 is the new primary
 include/gr_assert_primary_member.inc
 

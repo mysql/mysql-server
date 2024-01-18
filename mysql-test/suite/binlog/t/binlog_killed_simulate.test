@@ -50,7 +50,7 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t2 /* will be "kil
 # a proof the query is binlogged with an error
 --let $binlog_load_data= query_get_value(SHOW BINLOG EVENTS, Pos, 3)
 --let $binlog_end=       query_get_value(SHOW BINLOG EVENTS, Pos, 4)
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 
 --mkdir $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571

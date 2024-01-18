@@ -23,7 +23,7 @@
 --echo ############################################################
 --echo # Create a table on server1 and insert 71000 rows on it.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1(id INT PRIMARY KEY, balance INT);
 
 --let $trx= 71000
@@ -37,7 +37,7 @@ while($trx)
 COMMIT;
 --enable_query_log
 --let $slave_timeout= 1800
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -59,7 +59,7 @@ COMMIT;
 --echo # Assert that the remote transaction was the applied on both
 --echo # members.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There are 0 rows with value 1000 in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.balance=1000, count, 1] = 0

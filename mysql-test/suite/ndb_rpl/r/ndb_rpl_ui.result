@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -92,12 +92,12 @@ call mtr.add_suppression(".*duplicate value in unique index.*");
 call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 Single insert
 insert into t1 values (7,7,11);
-include/wait_for_slave_sql_error.inc [errno=1022]
+include/rpl/wait_for_applier_error.inc [errno=1022]
 delete from t1 where c=11;
 start replica;
 Single update
 update t1 set c=12 where a=2;
-include/wait_for_slave_sql_error.inc [errno=1022]
+include/rpl/wait_for_applier_error.inc [errno=1022]
 delete from t1 where c=12;
 start replica;
 Check blob handling
@@ -113,9 +113,9 @@ insert into t2 values (8, repeat('VRA', 10000),8);
 insert into t2 values (9, repeat('VRA', 10000),9);
 insert into t2 values (11, repeat('VRA', 10000), 11);
 update t2 set b=repeat('GEO', 20000), c=c+10 order by c desc;
-include/wait_for_slave_sql_error.inc [errno=1022]
+include/rpl/wait_for_applier_error.inc [errno=1022]
 delete from t2 where c=11;
 start replica;
 drop table t1;
 drop table t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

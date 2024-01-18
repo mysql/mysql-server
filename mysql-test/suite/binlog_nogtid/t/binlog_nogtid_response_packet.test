@@ -11,4 +11,4 @@
 --source include/have_debug.inc
 
 # the actual negative test
---source suite/binlog/include/binlog_gtid_response_packet.inc
+--source common/binlog/gtid_response_packet.inc

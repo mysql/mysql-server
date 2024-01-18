@@ -31,7 +31,7 @@
 --source include/big_test.inc
 --source include/not_windows.inc
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Configure ====
 
@@ -45,7 +45,7 @@
 
 --enable_connect_log
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --delimiter |
 CREATE PROCEDURE show_slave_status ()

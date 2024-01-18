@@ -2,37 +2,37 @@
 
 # setup replication 1->2->3
 --let $rpl_topology= 1->2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 # create connections to first mysqld in each cluster
 --let $rpl_connection_name= cluster1
 --let $rpl_server_number= 1
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= cluster2
 --let $rpl_server_number= 2
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= cluster3
 --let $rpl_server_number= 3
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= cluster1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $CLUSTER1_SERVER_ID= `select @@server_id`;
 echo CLUSTER1_SERVER_ID: $CLUSTER1_SERVER_ID;
 
 --let $rpl_connection_name= cluster2
---source include/rpl_connection.inc
+--source include/connection.inc
 show variables like 'server_id';
 
 --let $rpl_connection_name= cluster3
---source include/rpl_connection.inc
+--source include/connection.inc
 show variables like 'server_id';
 
 --echo First show replication 1->2->3
 --let $rpl_connection_name= cluster1
---source include/rpl_connection.inc
+--source include/connection.inc
 use test;
 create table t1(a int primary key, b varchar(50)) engine=ndb;
 
@@ -46,13 +46,13 @@ select * from mysql.ndb_apply_status order by server_id;
 select * from test.t1;
 
 # Wait for replicated changes to be binlogged
---source include/wait_for_ndb_committed_to_binlog.inc
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
 
 # Show the binlog on cluster2, include server_id in output
 # since it's interesting to see how those are propagated
 --let $show_binlog_events_verbose = 1
 --let $show_binlog_events_mask_columns = 2,5
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --sync_slave_with_master cluster3
 --echo Cluster3 has insert and apply_status from Cluster1+2
@@ -63,13 +63,13 @@ select * from test.t1;
 
 --echo Break Cluster3's link with Cluster2
 --let $rpl_connection_name= cluster3
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --echo Make further changes on Cluster1
 --let $rpl_connection_name= cluster1
---source include/rpl_connection.inc
+--source include/connection.inc
 insert into test.t1 values (2, "The cotton is high");
 insert into test.t1 values (3, "Daddys rich");
 
@@ -79,7 +79,7 @@ select * from test.t1 order by a;
 
 --echo Check data on Cluster3
 --let $rpl_connection_name= cluster3
---source include/rpl_connection.inc
+--source include/connection.inc
 select * from test.t1 order by a;
 
 --echo Now change Cluster3 to skip-over Cluster2 and get binlog direct from Cluster1
@@ -98,25 +98,25 @@ RESET REPLICA;
 --let $rpl_topology= 1->2, 1->3
 --let $rpl_source_log_file= 3:$CLUSTER1_LOG_FILE
 --let $rpl_source_log_pos= 3:$CLUSTER1_LOG_POS
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_connection_name= cluster1
---source include/rpl_connection.inc
+--source include/connection.inc
 --sync_slave_with_master cluster3
 
 --echo Now show that cluster 3 is successfully replicating from Cluster1
 --let $rpl_connection_name= cluster3
---source include/rpl_connection.inc
+--source include/connection.inc
 select * from test.t1 order by a;
 
 --echo Clean up
 --let $rpl_connection_name= cluster1
---source include/rpl_connection.inc
+--source include/connection.inc
 drop table test.t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 
 

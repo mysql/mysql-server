@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 01. Create one table on the group.
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 02. Force that there is a lower version member.
@@ -38,7 +38,7 @@ ERROR 40000: Plugin instructed the server to rollback the current transaction.
 # 06. Validate data.
 SET @@SESSION.group_replication_consistency= DEFAULT;
 INSERT INTO t1 VALUES (0);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/assert.inc ['1 exists in table t1']
 include/assert.inc ['2 does not exist in table t1']

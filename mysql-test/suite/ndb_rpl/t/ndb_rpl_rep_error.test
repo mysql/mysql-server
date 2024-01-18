@@ -4,7 +4,7 @@
 #
 --source include/have_multi_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 # Need suppressions on all servers where warnings/errors can be seen.
 --disable_query_log
@@ -451,5 +451,5 @@ drop database ussouth;
 # cleanup
 --disable_query_log
 drop table mysql.ndb_replication;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --enable_query_log

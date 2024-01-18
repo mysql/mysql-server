@@ -9,7 +9,7 @@
 #
 # GTIDs are expected in binlog when events are indexed by query_get_value below
 --source include/have_binlog_format_mixed.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Logic of the test is as the following.
 # Configure MTS with few workers and LOGICAL_CLOCK scheduler.
@@ -19,13 +19,13 @@
 # a GTID specific error).
 # Restart replica threads and observe the SQL applier has processed events.
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression("Either event.*is from an old source");
 # The transaction boundary parser will log the following two warning messages:
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
@@ -34,35 +34,35 @@ SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
 SET GLOBAL replica_parallel_workers = 2;
 SET GLOBAL replica_transaction_retries = 0;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1(a INT);
 INSERT INTO t1 SET a=1;
 --let $binlog_file= query_get_value("SHOW BINARY LOG STATUS", File, 1)
 --let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM 4, Info, 7)
 --let $query_pos= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM 4, End_log_pos,7)
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 --replace_result $query_pos QUERY_POS
 --eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$query_pos, SOURCE_AUTO_POSITION=0
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 START REPLICA SQL_THREAD;
 
 #
 # Cleanup
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 --disable_warnings
 SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
 --enable_warnings
 SET GLOBAL replica_parallel_type = @save_replica_parallel_type;
 SET GLOBAL replica_transaction_retries = @save_replica_transaction_retries;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

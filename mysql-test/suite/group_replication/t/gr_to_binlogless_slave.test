@@ -31,21 +31,21 @@
 
 # Start the first member here
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # Start the second node. Add some data and sync it in the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 CREATE TABLE t1 (i INT PRIMARY KEY);
 INSERT INTO t1 VALUES(1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Establish an async connection between the third server and member 1 of
 # the group.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("You need to use --log-bin to make");
@@ -57,13 +57,13 @@ SET SESSION sql_log_bin=1;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --enable_warnings
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # On the slave (server3), test that the data is properly replicated
 --echo # after the start replica is complete.
@@ -72,7 +72,7 @@ SET SESSION sql_log_bin=1;
 
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Get the binlog file
 --let $server2_datadir= `SELECT @@DATADIR`
@@ -80,7 +80,7 @@ SET SESSION sql_log_bin=1;
 
 --echo
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 # Restore the backup onto a server outside the GR group
 set sql_log_bin=0;
 call mtr.add_suppression("\\[ERROR\\] \\[MY-[^]]*\\] \\[Repl\\] Plugin group_replication reported: 'Binlog must be enabled for Group Replication'");
@@ -108,15 +108,15 @@ START GROUP_REPLICATION;
 DROP TABLE t1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/stop_slave.inc
---source include/rpl_reset_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/reset_replica.inc
 
 --source include/group_replication_end.inc

@@ -3,7 +3,7 @@
 ########################################################
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 connection slave;
 --source suite/ndb/include/turn_off_ndb_read_backup.inc
@@ -11,11 +11,11 @@ connection master;
 --source suite/ndb/include/turn_off_ndb_read_backup.inc
 
 let $engine_type=NDB;
---source extra/rpl_tests/rpl_row_UUID.test
+--source common/rpl/rpl_row_UUID.test
 
 connection slave;
 --source suite/ndb/include/restore_ndb_read_backup.inc
 connection master;
 --source suite/ndb/include/restore_ndb_read_backup.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

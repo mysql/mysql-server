@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # Setup
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,12 +12,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Creating manifest file for current MySQL server instance
 [connection master]
 # ----------------------------------------------------------------------
-include/rpl_stop_server.inc [server_number=1]
-include/rpl_start_server.inc [server_number=1]
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 CREATE TABLE t1 (c1 TEXT) ENGINE=INNODB;
 # Adding debug point 'ensure_binlog_cache_temporary_file_is_encrypted' to @@GLOBAL.debug
@@ -37,11 +37,11 @@ BEGIN;
 INSERT INTO t1 VALUES ("789");
 ROLLBACK;
 # Removing debug point 'ensure_binlog_cache_is_reset' from @@GLOBAL.debug
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1,slave:t1]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET GLOBAL binlog_encryption= OFF;
 [connection slave]
@@ -55,6 +55,6 @@ SET GLOBAL keyring_operations= ON;
 # Removing local keyring file for keyring component: component_keyring_file
 # Removing local configuration file for keyring component: component_keyring_file
 # Removing local configuration file for keyring component: component_keyring_file
-include/rpl_end.inc
+include/rpl/deinit.inc
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------

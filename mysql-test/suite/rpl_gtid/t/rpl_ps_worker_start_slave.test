@@ -24,10 +24,10 @@
 
 # the test is binlog format agnostic
 --source include/have_binlog_format_row.inc
---source include/only_mts_replica_parallel_type_logical_clock.inc
---source include/master-slave.inc
+--source include/have_replica_parallel_type_logical_clock.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression(".*worker thread retried transaction 5 time.*");
 call mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 
@@ -37,9 +37,9 @@ SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET GLOBAL replica_transaction_retries = 5;
 SET GLOBAL innodb_lock_wait_timeout = 2;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT UNIQUE);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Scenario 1: single-threaded slave
 # Scenario 2: multi-threaded slave
@@ -52,13 +52,13 @@ while ($scenario < 3)
   --eval INSERT INTO t1 VALUES ($scenario);
 
   # execute a transaction on the master that will be blocked in the slave
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   --eval INSERT INTO t1 VALUES ($scenario);
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   # wait for replica_transaction_retries to reach the maximum retry value
   --let $slave_sql_errno = convert_error(ER_LOCK_WAIT_TIMEOUT)
-  --source include/wait_for_slave_sql_to_stop.inc
+  --source include/rpl/wait_for_applier_to_stop.inc
 
 
   --let $applying_trx_before = query_get_value(SELECT APPLYING_TRANSACTION FROM $ps_table, APPLYING_TRANSACTION, 1)
@@ -66,9 +66,9 @@ while ($scenario < 3)
 
   ROLLBACK;
 
-  --source include/start_slave_sql.inc
-  --source include/rpl_connection_master.inc
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/start_applier.inc
+  --source include/rpl/connection_source.inc
+  --source include/rpl/sync_to_replica.inc
 
   --let $last_applied_trx_after = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table, LAST_APPLIED_TRANSACTION, 1)
   --let $last_applied_trx_start_apply_after = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
@@ -83,21 +83,21 @@ while ($scenario < 3)
   --let $assert_cond = $unix_ts_after > $unix_ts_before
   --source include/assert.inc
 
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
   SET GLOBAL replica_parallel_workers = 1;
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
   --inc $scenario
 }
 
 # cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 --disable_warnings
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
 --enable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -74,12 +74,12 @@
 
 --echo #Bootstrap and start GR on M1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo #Start GR on M2
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression(".*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
@@ -95,27 +95,27 @@ SET SESSION sql_log_bin = 1;
 
 --echo #Start GR on M3
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 --let $member3_uuid = query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 #### FR-22: The status variable Gr_empty_consensus_proposals_count shall report the sum of all empty proposal rounds that were initiated  and terminated in this node.
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text = 'Gr_empty_consensus_proposals_count Value should be 0'
 --let $assert_cond = [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_empty_consensus_proposals_count", VARIABLE_VALUE, 1] = 0
 --source include/assert.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Retreiving values of Gr_consensus_bytes_received_sum for later use in the test.
 --let $consensus_bytes_received_sum =`SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_consensus_bytes_received_sum"`
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Collect metrics value
 --let $func = GETPARAM
@@ -137,7 +137,7 @@ SET SESSION sql_log_bin = 1;
 
 --echo #Create table on M1
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO test.t1 values(1);
 
@@ -148,7 +148,7 @@ INSERT INTO test.t1 values(1);
 #### FR-29: The status variable Gr_last_consensus_end_timestamp shall report, in a TIMESTAMP, the time in which our last consensus proposal was approved This will account if the system has come to an halt or if it is making progress.
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_regex /[0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+.[0-9]+/DATE_TIME/
 SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_last_consensus_end_timestamp";
 
@@ -168,7 +168,7 @@ DROP TABLE test.t1;
 
 --echo #Gr_data_messages_sent_* Metrics values should not increase on M2 and M3.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $func = RESET
 --source ../mysql-test/suite/group_replication/include/check_metrics.inc
 --let $Gr_all_consensus_proposals_count_2=`SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_proposals_count"`
@@ -180,7 +180,7 @@ DROP TABLE test.t1;
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $func = RESET
 --source ../mysql-test/suite/group_replication/include/check_metrics.inc
 --let $Gr_all_consensus_proposals_count_3=`SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_proposals_count"`
@@ -188,7 +188,7 @@ DROP TABLE test.t1;
 #### FR-21: The status variable Gr_all_consensus_proposals_count shall report the sum of all proposals that were initiated and terminated in this node.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Gr_all_consensus_proposals_count will be greater on M1 with values of M2, M3.
 --let $func = COMPARECOUNT
@@ -199,7 +199,7 @@ DROP TABLE test.t1;
 #### waiting after sending control messages and receiving the confirmation them had been received by a majority.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Collect metrics value
 --let $func = GETPREV
@@ -214,7 +214,7 @@ DROP TABLE test.t1;
 
 --echo #Gr_data_messages_* Metrics value should not increase on M1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $func = DATACOUNTEQUAL
 --source ../mysql-test/suite/group_replication/include/check_metrics.inc
 
@@ -224,7 +224,7 @@ DROP TABLE test.t1;
 
 --echo #Gr_data_messages_* Metrics value should not increase on M2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $func = RESET
 --source ../mysql-test/suite/group_replication/include/check_metrics.inc
 
@@ -234,7 +234,7 @@ DROP TABLE test.t1;
 #       serialized and therefore is the on-the-wire size.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Collect metrics value
 --let $func = GETPREV
@@ -273,7 +273,7 @@ while($i)
 
 --echo #Gr_data_messages_* Metrics value should not increase on M3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $func = RESET
 --source ../mysql-test/suite/group_replication/include/check_metrics.inc
 
@@ -282,7 +282,7 @@ while($i)
 
 --echo #Make server3 UNREACHABLE.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL super_read_only = 0;
 SET GLOBAL group_replication_member_expel_timeout = 3000;
 SET GLOBAL super_read_only = 1;
@@ -292,13 +292,13 @@ SET GLOBAL super_read_only = 1;
 --replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/kill_and_restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number = 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # Verify state of server3
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition = SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE = "ONLINE";
 --source include/wait_condition.inc
 let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE = "UNREACHABLE";
@@ -317,7 +317,7 @@ INSERT INTO t1 VALUES (10002);
 
 # Revert group_replication_member_expel_timeout to the default value which will cause server3 to be expelled.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members
@@ -325,7 +325,7 @@ SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 
 --echo ##Add data to t1 on m2 with set sql_log_bin=1;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 INSERT INTO t1 VALUES (10001);
@@ -336,21 +336,21 @@ SET SESSION sql_log_bin= 1;
 --source ../mysql-test/suite/group_replication/include/check_metrics.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #Add same value to t1 on M1.
 INSERT INTO t1 VALUES (10001);
 
 #Verify M2 goes to ERROR state.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
 
 --echo #Verify metrics remain constant
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $func = DATACOUNTEQUAL
 --source ../mysql-test/suite/group_replication/include/check_metrics.inc
 --source include/stop_group_replication.inc
@@ -360,7 +360,7 @@ DELETE FROM t1;
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Collect metrics value
@@ -388,7 +388,7 @@ SET DEBUG_SYNC = "now SIGNAL signal.recovery_end";
 --source ../mysql-test/suite/group_replication/include/check_metrics.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo ####

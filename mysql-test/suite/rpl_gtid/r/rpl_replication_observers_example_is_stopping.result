@@ -1,5 +1,5 @@
 include/have_replication_observers_example_plugin.inc
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -50,12 +50,12 @@ INSERT INTO t1 VALUES (0);
 # 4.2 Wait until SQL thread failed trying to apply events
 [connection slave]
 SET DEBUG_SYNC='now WAIT_FOR reached_sql_thread_started';
-include/wait_for_slave_sql_error.inc [errno=1050 FOR CHANNEL 'example_channel']
+include/rpl/wait_for_applier_error.inc [errno=1050 FOR CHANNEL 'example_channel']
 # Removing debug point 'pause_after_sql_thread_stop_hook' from @@GLOBAL.debug
 # Removing debug point 'validate_replication_observers_plugin_server_is_sql_stopping' from @@GLOBAL.debug
 [connection slave1]
 SET SESSION sql_log_bin= 1;
-include/stop_slave.inc [FOR CHANNEL 'example_channel']
+include/rpl/stop_replica.inc [FOR CHANNEL 'example_channel']
 RESET REPLICA FOR CHANNEL 'example_channel';
 
 #######################
@@ -65,7 +65,7 @@ RESET REPLICA FOR CHANNEL 'example_channel';
 # 5.1 Rotate and purge the binary log on master to make I/O thread to fail
 [connection master]
 FLUSH BINARY LOGS;
-include/stop_dump_threads.inc
+include/rpl/stop_dump_threads.inc
 
 #################################################
 # 5.2 Prepare I/O thread to fail after started up
@@ -80,7 +80,7 @@ INSERT INTO t1 VALUES (1);
 # 5.3 Wait until I/O thread failed to replicate from master
 [connection slave]
 SET DEBUG_SYNC='now WAIT_FOR reached_io_thread_started';
-include/wait_for_slave_io_error.inc [errno=13114 FOR CHANNEL 'example_channel']
+include/rpl/wait_for_receiver_error.inc [errno=13114 FOR CHANNEL 'example_channel']
 # Removing debug point 'pause_after_io_thread_stop_hook' from @@GLOBAL.debug
 # Removing debug point 'validate_replication_observers_plugin_server_is_io_stopping' from @@GLOBAL.debug
 [connection slave1]
@@ -96,5 +96,5 @@ include/uninstall_replication_observers_example.inc
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
 [connection slave]
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

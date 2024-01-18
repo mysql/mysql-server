@@ -1,10 +1,10 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 INT, c2 TEXT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression("Disk is full writing");
 CALL mtr.add_suppression("Retry in 60 secs");
 CALL mtr.add_suppression("Relay log write failure");
@@ -23,8 +23,8 @@ CALL mtr.add_suppression("Failed to flush connection metadata repository");
 [connection slave]
 # Removing debug point 'simulate_random_io_thd_wait_for_disk_space' from @@GLOBAL.debug
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

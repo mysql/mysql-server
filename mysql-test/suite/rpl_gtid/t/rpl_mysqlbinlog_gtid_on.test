@@ -39,11 +39,11 @@
 
 # Output from mysqlbinlog is replayed on the slave server.
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --connection master
 ### Generate some data on the master  ###

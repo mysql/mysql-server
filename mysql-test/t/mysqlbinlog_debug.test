@@ -2,8 +2,8 @@
 #  which can be executed only against debug compiled mysqlbinlog
 #  tool.
 --source include/have_log_bin.inc
---source include/mysqlbinlog_have_debug.inc
---source include/force_binlog_format_statement.inc
+--source include/have_mysqlbinlog_debug.inc
+--source include/rpl/force_binlog_format_statement.inc
 
 --echo #
 --echo # Bug#18742916 : MYSQLBINLOG --RAW DOES NOT CHECK FOR ERRORS
@@ -45,4 +45,4 @@ DROP TABLE T1;
 --echo
 --echo End of tests
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

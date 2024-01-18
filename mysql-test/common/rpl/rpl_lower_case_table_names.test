@@ -1,0 +1,142 @@
+# BUG#37656
+#
+#  This test aims at checking whether lower_case_table_names=1 option works
+#  for database names and table names.
+#
+#  This test checks the following (when lower_case_table_names=1 is set on slave):
+#    (i) creating a database on upper case on master results in lower case
+#        database name on slave
+#   (ii) creating tables with upper case names on master results in lower case
+#        table names on slave
+#  (iii) loading data infile into capitalized table name on master replicates to
+#        lower case table name on slave
+#   (iv) Propagating changes from upper case table names on into correspondent 
+#        lower case table names on slave works.
+
+
+# setup: create database and tables
+-- echo ******** [ MASTER ] ********
+-- let $dbname_upper= BUG_37656
+-- let $dbname_lower= `SELECT LOWER('$dbname_upper')`
+-- eval CREATE DATABASE $dbname_upper
+-- eval use $dbname_upper
+
+# assert: database names are in upper case in master and lower
+#         case in slave
+-- eval show databases like '$dbname_upper'
+sync_slave_with_master;
+-- echo ******** [ SLAVE ] ********
+CALL mtr.add_suppression("The source\'s UUID has changed*");
+--eval show databases like '$dbname_lower'
+
+-- connection master
+-- echo ******** [ MASTER ] ********
+CREATE TABLE T1 (a int);
+-- eval CREATE TABLE T2 (b int) ENGINE=$engine
+CREATE TABLE T3 (txt TEXT);
+
+# assert: that tables exist on master with upper case names
+# this fixes result mismatches for MacOSX
+--replace_result Tables_in_bug_37656 Tables_in_BUG_37656
+show tables;
+
+# assert: that tables exist on slave but with lower case names
+-- sync_slave_with_master
+-- echo ******** [ SLAVE ] ********
+-- eval use $dbname_lower
+show tables;
+
+# action: lets create t1 for asserting below that t1 does not get changes
+#         from master (slave configured with --replicate-ignore-db=$dbname_lower.t1)
+CREATE TABLE t1 (a INT);
+
+# action: fill data into tables
+-- connection master
+-- echo ******** [ MASTER ] ********
+-- eval use $dbname_upper
+INSERT INTO T1 VALUES (1);
+INSERT INTO T2 VALUES (1);
+if (`SELECT @@session.binlog_format != 'ROW'`)
+{
+  -- eval LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE $dbname_upper.T3
+}
+
+if  (`SELECT @@session.binlog_format = 'ROW'`)
+{
+  use test;
+  -- eval INSERT INTO $dbname_upper.T1 VALUES (2)
+  -- eval INSERT INTO $dbname_upper.T2 VALUES (2)
+  -- eval LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE $dbname_upper.T3
+}
+# assert: lower case tables on lower case database on slave
+#         get updates from upper case tables on upper case
+#         database on master
+-- sync_slave_with_master
+-- echo ******** [ SLAVE ] ********
+
+# assert: changes for slave's t1 were filterd out
+if (`SELECT count(*) != 0 FROM t1`)
+{
+  -- echo UNEXPECTED DATA on $dbname_lower.t1 as table is filtered by replicate-ignore-table rules
+}
+
+-- let $diff_tables= master:$dbname_upper.T2, slave:$dbname_lower.t2
+-- source include/diff_tables.inc
+
+-- let $diff_tables= master:$dbname_upper.T3, slave:$dbname_lower.t3
+-- source include/diff_tables.inc
+
+# clean up
+-- connection master
+-- echo ******** [ MASTER ] ********
+-- eval DROP DATABASE $dbname_upper
+
+
+# 
+# BUG#50653: drop procedure implicitely treats db name in a case sensitive way
+#
+
+-- source include/rpl/reset.inc
+-- connection master
+
+-- let $dbname= B50653
+-- let $procname= b50653_proc
+
+-- eval CREATE DATABASE $dbname
+-- eval USE $dbname
+-- eval CREATE PROCEDURE $procname() BEGIN SELECT 1; END
+
+if (`SELECT count(*) = 1 FROM information_schema.routines WHERE routine_name like '$dbname'`)
+{
+  -- die Procedure not created on MASTER
+}
+
+-- sync_slave_with_master
+if (`SELECT count(*) = 1 FROM information_schema.routines WHERE routine_name like '$dbname'`)
+{
+  -- die Procedure not created on SLAVE
+}
+
+-- connection master
+-- eval DROP PROCEDURE $procname
+
+if (`SELECT count(*) = 1 FROM information_schema.routines WHERE routine_name like '$dbname'`)
+{
+  -- die Procedure not dropped on MASTER
+}
+
+-- sync_slave_with_master
+if (`SELECT count(*) = 1 FROM information_schema.routines WHERE routine_name like '$dbname'`)
+{
+  -- die Procedure not dropped on SLAVE
+}
+
+-- let $last_error = query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1)
+if ($last_error)
+{
+  -- die UNEXPECTED SLAVE SQL error: $last_error
+}
+
+-- connection master
+-- eval DROP DATABASE $dbname
+-- sync_slave_with_master

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -34,7 +34,7 @@ C3BF
 C3BF
 D0AA
 D0AA
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select hex(a) from t1;
 hex(a)
 C3BF
@@ -45,7 +45,7 @@ C3BF
 D0AA
 D0AA
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 -------------test bug#45516------------------
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest CHARSET utf8mb3;
@@ -107,4 +107,4 @@ E4B880E4BA8CE4B889
 E59B9BE4BA94E585AD
 E4B883E585ABE4B99D0A
 DROP DATABASE mysqltest;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,6 +1,6 @@
 ## BUG#35199996 table map entry for certain table were logged in to the
 ## binlogs even though the log_replica_updates is disabled
-include/rpl_init.inc [topology=1->2->3->1]
+include/rpl/init.inc [topology=1->2->3->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,11 +10,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/rpl_connect.inc [creating server.1]
-include/rpl_connect.inc [creating server.2]
+include/rpl/connect.inc [creating server.1]
+include/rpl/connect.inc [creating server.2]
 [connection server.2]
-include/save_binlog_position.inc
-include/rpl_connect.inc [creating server.3]
+include/rpl/save_binlog_file_position.inc
+include/rpl/connect.inc [creating server.3]
 [connection server.1]
 # Insert some data
 CREATE TABLE t1 (a INT PRIMARY KEY, b BLOB) ENGINE = NDB;
@@ -38,13 +38,13 @@ a	b
 4	AAAAAAAA
 5	AAAAAAAA
 # server.2 binary log does NOT contain t1 Table_map
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 # server.2 relay log contains t1 Table_map
-include/assert_binlog_events.inc
+include/rpl/assert_binlog_events.inc
 # server.3 should not have t1
 SELECT * FROM t1 ORDER BY a;
 ERROR 42S02: Table 'test.t1' doesn't exist
 Cleanup
 [connection server.1]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,11 +11,11 @@ FLUSH LOCAL BINARY LOGS;
 INSERT INTO t1 VALUES (1);
 DROP TABLE t1;
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_io_with_master.inc
-include/rpl_restart_server.inc [server_number=2]
+include/rpl/sync_to_replica_received.inc
+include/rpl/restart_server.inc [server_number=2]
 include/assert_grep.inc [Found no lines about reading events on the relay log.]
 [connection slave]
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

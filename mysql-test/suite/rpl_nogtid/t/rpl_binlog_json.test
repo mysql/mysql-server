@@ -14,7 +14,7 @@
 --echo #
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # this test prints the output of mysqlbinlog
 --source include/not_binlog_transaction_compression_on.inc
@@ -23,32 +23,32 @@ connection master;
 CREATE TABLE tab1 (json_col1 JSON);
 INSERT INTO tab1 (json_col1) VALUES ('{"key": "value", "key2": [1, 2, 3]}');
 SELECT json_col1 FROM tab1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 connection master;
 UPDATE tab1 SET json_col1 = JSON_SET(json_col1, '$.key3', 'abc');
 SELECT json_col1 FROM tab1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 connection master;
 UPDATE tab1 SET json_col1 = NULL;
 SELECT json_col1 FROM tab1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 connection master;
 UPDATE tab1 SET json_col1 = '[ 1, { "k" : "v" } ]' WHERE json_col1 IS NULL;
 SELECT json_col1 FROM tab1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 connection master;
 INSERT INTO tab1 VALUES (NULL);
 SELECT json_col1 FROM tab1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 connection master;
 DELETE FROM tab1;
 SELECT json_col1 FROM tab1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT json_col1 FROM tab1;
 connection master;
 DROP TABLE tab1;
@@ -57,6 +57,6 @@ FLUSH LOGS;
 
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $mysqlbinlog_parameters= --base64-output=decode-rows --verbose $MYSQLD_DATADIR/master-bin.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

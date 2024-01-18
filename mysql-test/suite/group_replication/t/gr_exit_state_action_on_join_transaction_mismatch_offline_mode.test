@@ -40,12 +40,12 @@
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t3(a INT PRIMARY KEY);
 INSERT INTO t3 VALUES (2);
 --source include/start_and_bootstrap_group_replication.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $errand_transaction_uuid= aaaaaaaa-bbbb-aaaa-bbbb-aaaaaaaaaaaa
 # Advance GTID_NEXT so that we have a transaction that will cause a
 # GTID mismatch with group and disallow server2 to join the group
@@ -60,7 +60,7 @@ SET GTID_NEXT= "AUTOMATIC";
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $error_file = $MYSQLTEST_VARDIR/tmp/gr_exit_state_action_on_join_transaction_mismatch_offline_mode.2.err
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
@@ -79,13 +79,13 @@ SET GTID_NEXT= "AUTOMATIC";
 --echo
 # Wait for server 1 to see that server 2 didn't join
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 1
 --source include/gr_wait_for_number_of_members.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Verify that super_read_only mode is reverted to its original value
 --let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
@@ -111,7 +111,7 @@ SET GTID_NEXT= "AUTOMATIC";
 # Delete all transations on server 2's binary log, so that we may join the group
 # finally
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t2;
 RESET BINARY LOGS AND GTIDS;
 
@@ -123,7 +123,7 @@ SET @@GLOBAL.group_replication_exit_state_action = DEFAULT;
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
 
@@ -133,7 +133,7 @@ SET @@GLOBAL.group_replication_exit_state_action = DEFAULT;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t3;
 
 --source include/group_replication_end.inc

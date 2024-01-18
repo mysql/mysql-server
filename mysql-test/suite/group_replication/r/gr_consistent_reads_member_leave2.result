@@ -73,7 +73,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier
 # 09. Wait until server3 is removed from the group. T1 will
 #     commit on server 1 and 2.
 [connection server_1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 include/assert.inc ['There is 1 value in table t1']
 [connection server2]

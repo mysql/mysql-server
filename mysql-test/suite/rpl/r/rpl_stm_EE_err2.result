@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,8 +13,8 @@ drop table t1;
 call mtr.add_suppression("Replica SQL.*Query caused different errors on source and replica.*Error on source:.* error code=1062.*Error on replica:.* Error_code: MY-013113");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 (expect different error codes on master and slave)
-include/wait_for_slave_sql_error.inc [errno=13113]
+include/rpl/wait_for_applier_error.inc [errno=13113]
 drop table t1;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc

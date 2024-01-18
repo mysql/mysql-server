@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,9 +7,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 0. Restart the server, so that the default channel is created and
 # configured from repository during server startup.
 #
-include/rpl_restart_server.inc [server_number=2 parameters: --replicate-do-db=:test --replicate-do-db=:my_db2 --replicate-do-db=:my_db3 --replicate-ignore-db=:db1 --replicate-ignore-db=:db11 --replicate-ignore-db=:my_db6 --replicate-do-table=:test.t1 --replicate-do-table=:test.t2 --replicate-ignore-table=:test.t11 --replicate-ignore-table=:test.t22 --replicate-wild-do-table=:test.t% --replicate-wild-do-table=:test.s% --replicate-wild-ignore-table=:test.m% --replicate-wild-ignore-table=:test.n% --replicate-rewrite-db=:my_db7->rewrite_db7 --replicate-rewrite-db=:my_db8->rewrite_db8 --replicate-do-db=global_test --replicate-ignore-db=global_db1 --replicate-do-table=global_test.t1 --replicate-ignore-table=global_test.t11 --replicate-wild-do-table=global_test.t% --replicate-wild-ignore-table=global_test.m% --replicate-rewrite-db=global_my_db7->global_rewrite_db7]
+include/rpl/restart_server.inc [server_number=2 parameters: --replicate-do-db=:test --replicate-do-db=:my_db2 --replicate-do-db=:my_db3 --replicate-ignore-db=:db1 --replicate-ignore-db=:db11 --replicate-ignore-db=:my_db6 --replicate-do-table=:test.t1 --replicate-do-table=:test.t2 --replicate-ignore-table=:test.t11 --replicate-ignore-table=:test.t22 --replicate-wild-do-table=:test.t% --replicate-wild-do-table=:test.s% --replicate-wild-ignore-table=:test.m% --replicate-wild-ignore-table=:test.n% --replicate-rewrite-db=:my_db7->rewrite_db7 --replicate-rewrite-db=:my_db8->rewrite_db8 --replicate-do-db=global_test --replicate-ignore-db=global_db1 --replicate-do-table=global_test.t1 --replicate-ignore-table=global_test.t11 --replicate-wild-do-table=global_test.t% --replicate-wild-ignore-table=global_test.m% --replicate-rewrite-db=global_my_db7->global_rewrite_db7]
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 #
 # 1. On the configured default channel, verify that per-channel
 # replication filters can be configured with startup options:
@@ -56,7 +56,7 @@ INSERT INTO test.t1 VALUES (1);
 INSERT INTO test.t2 VALUES (1);
 CREATE DATABASE db1;
 CREATE DATABASE db11;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Check that database test is replicated and both db1 and db11
 # are filtered out on default channel with the the following
@@ -89,7 +89,7 @@ test
 #
 # Stop replica.
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.initfilet3) FOR CHANNEL '';
 CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('te%.t%') FOR CHANNEL '';
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`,`db,3`),
@@ -137,11 +137,11 @@ CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=() FOR CHANNEL '';
 CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=() FOR CHANNEL '';
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(),REPLICATE_DO_DB = (),
 REPLICATE_IGNORE_DB = () FOR CHANNEL '';
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET sql_log_bin=0;
 DROP DATABASE db1;
 DROP DATABASE db11;
 SET sql_log_bin=1;
 DROP TABLE t1,t2;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

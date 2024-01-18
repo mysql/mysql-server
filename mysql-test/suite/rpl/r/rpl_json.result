@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -1170,12 +1170,12 @@ i	j	j2	j3
 28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"abc": {"type": "Point", "coordinates": [1.0, 1.0]}}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	{"abc": []}	[]
 30	"base64:type15:yv66vg=="	{"abc": "base64:type15:yv66vg=="}	"base64:type15:yv66vg=="
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t5, slave:t5]
 [Connection Master]
 DROP TABLE t1, t2, t3, t4, t5;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # WL#7987: JSON AGGREGATION FUNCTIONS
 #
@@ -1196,7 +1196,7 @@ INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(gcol) FROM data_table;
 INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(num , vcol) FROM data_table;
 INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(pkey , txt) FROM data_table;
 INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(pkey) FROM data_table;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether tables were created on the slave
 SELECT * FROM json_data;
@@ -1217,7 +1217,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 [Connection Master]
 # Update values in the table
 UPDATE json_data SET jcol= (SELECT JSON_ARRAYAGG(vcol) FROM data_table) WHERE nkey = 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM json_data WHERE nkey = 1;
 nkey	jcol
@@ -1226,7 +1226,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 [Connection Master]
 # Delete values from the table
 DELETE FROM json_data WHERE jcol  = (SELECT JSON_ARRAYAGG(pkey) FROM data_table);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM json_data;
 nkey	jcol
@@ -1239,7 +1239,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 [Connection Master]
 DROP TABLE data_table;
 DROP TABLE json_data;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # WL#9191: ADD JSON_PRETTY FUNCTION
 #
@@ -1262,7 +1262,7 @@ INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_PRETTY(gcol2)) FROM data;
 INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECT(num , vcol)) FROM data;
 INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey , txt)) FROM data;
 INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAY(gcol)) FROM data;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether tables were created on the slave
 SELECT * FROM json_data;
@@ -1394,7 +1394,7 @@ include/diff_tables.inc [master:data, slave:data]
 # Update values in the table
 UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_ARRAYAGG(gcol2)) FROM data) WHERE pk= 2;
 UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_OBJECTAGG(pk,gcol)) FROM data) WHERE pk = 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM json_data;
 pk	jcol	jgcol
@@ -1528,7 +1528,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 [Connection Master]
 # Delete values from the table
 DELETE FROM json_data WHERE JSON_PRETTY(jgcol)  = (SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey,txt)) FROM data);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM json_data;
 pk	jcol	jgcol
@@ -1649,7 +1649,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 [Connection Master]
 DROP TABLE data;
 DROP TABLE json_data;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # WL#8963: SUPPORT FOR PARTIAL UPDATE OF JSON IN THE OPTIMIZER
 # WL#9192: ADD JSON_STORAGE_SIZE / JSON_STORAGE_FREE FUNCTIONS
@@ -1670,7 +1670,7 @@ INSERT INTO json_data(id,jd,td) VALUES(10, '{"a":1}', 'characters'),
 (30, '[{"a":"abc"},{"b":"abcd"}]', 'words'),
 (40, '{"key":["array", "of", "strings"]}', 'letters'),
 (50, '{"key":[{"key":"value"},{"key":"value2"}]}', 'strings');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether table was created on the slave
 SELECT * FROM json_data;
@@ -1684,7 +1684,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 [Connection Master]
 # Update values in the table
 UPDATE json_data SET jd = JSON_REPLACE(jd, '$[0].a',"a");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether values were updated
 SELECT * FROM json_data;
@@ -1712,7 +1712,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 [Connection Master]
 # Update more values in the table
 UPDATE json_data SET jd = JSON_SET(jd, '$.key[0]', "ar");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether values were updated
 SELECT * FROM json_data;
@@ -1740,7 +1740,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 [Connection Master]
 # Update values again
 UPDATE json_data SET jd = JSON_REPLACE(jd, '$.key', "hello");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether values were updated
 SELECT * FROM json_data;
@@ -1768,7 +1768,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 [Connection Master]
 # Update values such that they can fill up the "free" space
 UPDATE json_data SET jd= JSON_SET(jd, '$.key', '["h","e","l","l","o"]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether values were updated
 SELECT * FROM json_data;
@@ -1797,7 +1797,7 @@ JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
 CREATE VIEW json_data_view AS SELECT * FROM json_data;
 UPDATE json_data_view SET jd = JSON_SET(jd, '$.key', '[]'),
 jd = JSON_REMOVE(jd, '$[0].a');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether values were updated
 SELECT * FROM json_data;
@@ -1826,7 +1826,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 # Clean up
 DROP VIEW json_data_view;
 DROP TABLE json_data;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # WL#9831: RANGES IN JSON PATH EXPRESSIONS
 #
@@ -1855,7 +1855,7 @@ INSERT INTO json_data(id,jd,td) VALUES(10, '["abc", "def", "ghi", "jkl", "mno"]'
 (50, '[{"key":[{"key":"value"},{"key":"value2"}]},
                                              {"key":[{"key":"value3"},{"key":"value4"}]}]',
 '["N", "U", "L", "L"]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether table was created on the slave
 SELECT * FROM json_data;
@@ -1870,7 +1870,7 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 # Update values in the table
 UPDATE json_data SET jd = JSON_SET(jd, '$[1]', "replaced") WHERE
 JSON_CONTAINS(JSON_EXTRACT(jd, '$[0 to last]'), '[10, 20, 30, 40, 50]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether values were updated
 SELECT * FROM json_data;
@@ -1890,7 +1890,7 @@ JSON_EXTRACT(td, '$[0 to last]')
 [Connection Master]
 # Clean up
 DROP TABLE json_data;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # WL#9692: ADD JSON_MERGE_PATCH, RENAME JSON_MERGE TO JSON_MERGE_PRESERVE
 #
@@ -1908,7 +1908,7 @@ INSERT INTO json_data(id,jd,td) VALUES(10,'["a","b","c","d","e"]', "pink"),
 (30,'{"a":["ears","nose","eyes"]}', "megadeth"),
 (40,'[null,null,"null",0,1]', "def"),
 (50,'{"a":null}', "leppard");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether table was created on the slave
 SELECT * FROM json_data;
@@ -1933,7 +1933,7 @@ CREATE TABLE json_data4(field1 JSON);
 INSERT INTO json_data4
 SELECT JSON_MERGE_PATCH(JSON_OBJECT(id, jd), JSON_ARRAY(gcol))
 FROM json_data;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether the tables were created on the slave
 SELECT * FROM json_data2;
@@ -1962,7 +1962,7 @@ JSON_MERGE_PRESERVE(t1.field1, t2.field1)
 [Connection Master]
 # Update values in the table
 UPDATE json_data SET jd = JSON_SET(jd, '$[1]', JSON_MERGE_PATCH(JSON_ARRAY(pk),JSON_ARRAY(td))) WHERE id IN (10,40);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:json_data, slave:json_data]
 # Check whether values were updated
@@ -1976,7 +1976,7 @@ pk	id	jd	td	gcol
 [Connection Master]
 # Clean up
 DROP TABLE json_data, json_data2, json_data3, json_data4;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # WL#8867: ADD JSON TABLE FUNCTIONS
 #
@@ -1990,7 +1990,7 @@ INSERT INTO json_data VALUES('{"a":4, "b":"bikes", "c":{"a":[1,2]}, "d":"hearing
 INSERT INTO json_data VALUES('{"a":5, "b":"mopeds", "c":["one", "two", "three"], "d":"touch", "e":"56-12-07", "f":"12:12:12"}');
 CREATE TABLE data(i INT, v VARCHAR(10), j JSON, b BLOB, d DATE, t TIME, n JSON);
 INSERT INTO data SELECT jint, jchar, jjson, jblob, jdate, jtime, njson FROM json_data,JSON_TABLE(j, '$' COLUMNS(o FOR ORDINALITY, jexst INT EXISTS PATH '$.g', jint INT PATH '$.a', jchar VARCHAR(10) PATH '$.b', jjson JSON PATH '$.c', jblob BLOB PATH '$.d', jdate DATE PATH '$.e', jtime TIME PATH '$.f', NESTED PATH '$.c' COLUMNS(njson JSON PATH '$[0]' DEFAULT '{"json":"json_val"}' ON EMPTY ))) AS alias;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether the table was created on the slave
 SELECT * FROM data;
@@ -2005,7 +2005,7 @@ include/diff_tables.inc [master:data, slave:data]
 # Update values in the table with data obtained from JSON_TABLE
 UPDATE data SET j = (SELECT ucol FROM json_data,JSON_TABLE(j, '$' COLUMNS(ucol JSON PATH '$', ucol2 INT PATH '$.a')) AS alias WHERE ucol2 = 2) WHERE i = 2;
 UPDATE data SET v = (SELECT ucol FROM JSON_TABLE('{"key":["update"]}', '$' COLUMNS(ucol VARCHAR(10) PATH '$.key[0]')) AS alias) WHERE i = 4;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether the values were updated
 SELECT j,v FROM data;
@@ -2019,7 +2019,7 @@ include/diff_tables.inc [master:data, slave:data]
 [Connection Master]
 # Delete values from the table
 DELETE FROM data WHERE i = (SELECT dcol FROM JSON_TABLE('{"key":["delete",1,"2"]}', '$' COLUMNS(dcol INT PATH '$.key[1]')) AS alias);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether the row was deleted
 SELECT * FROM data;
@@ -2032,14 +2032,14 @@ include/diff_tables.inc [master:data, slave:data]
 [Connection Master]
 # cleanup
 DROP TABLE data,json_data;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Bug#26177130: SLAVE CAN'T FIND ROW USING HASH_SCAN
 #               IF JSON HAS DIFFERENT BINARY FORMAT
 #
 [connection slave]
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 [connection master]
 CREATE TABLE t (j JSON);
 SET SQL_LOG_BIN = 0;
@@ -2049,7 +2049,7 @@ SET SQL_LOG_BIN = 1;
 SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
 ["a", "abcdefghij"]	26	2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t VALUES ('["a", "abcdefghij"]');
 SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
@@ -2062,8 +2062,8 @@ DELETE FROM t;
 # Verify that the slave and the master are in sync after the DELETE.
 # Before the fix, the slave could not locate the row due with
 # HASH_SCAN because of the difference in the representation.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Clean up
 [connection master]
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

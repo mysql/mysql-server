@@ -26,7 +26,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $member1_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
@@ -35,7 +35,7 @@ call mtr.add_suppression("Old incarnation found while trying to add node*.*");
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $member2_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $member2_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -52,15 +52,15 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 1. Crash server 2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
 --source include/wait_until_connected_again.inc
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member2_uuid
@@ -72,13 +72,13 @@ SET SESSION sql_log_bin= 1;
 --echo # 2. Execute a transaction on server 1, which will block
 --echo #    since the group does not have majority.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 # This transaction will be blocked since group lost its majority.
 # Though it needs to be delivered to the group when unblocked.
 --send CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY)
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT PROCESSLIST_STATE="waiting for handler commit" FROM performance_schema.threads WHERE processlist_INFO LIKE "CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY)"
 --source include/wait_condition.inc
 
@@ -99,7 +99,7 @@ SET SESSION sql_log_bin= 1;
 --echo # 4. Restart server 2 with group_replication_start_on_boot=ON,
 --echo #    server 2 will be refused to join the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $restart_parameters=restart:--group_replication_local_address=$member2_group_replication_local_address --group_replication_group_seeds=$member2_group_replication_group_seeds --group_replication_start_on_boot=ON --group-replication-group-name=$group_replication_group_name
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $member2_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $member2_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/kill_and_restart_mysqld.inc
@@ -108,12 +108,12 @@ SET SESSION sql_log_bin= 1;
 --sleep 75
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --let $group_replication_member_state= OFFLINE
 --source include/gr_wait_for_member_state.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= server 2 is marked as unreachable
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_id="$member2_uuid" AND member_state="UNREACHABLE"] = 1
 --source include/assert.inc
@@ -132,11 +132,11 @@ SET SESSION sql_log_bin= 1;
 --echo # 6. Check that statement did unblock and was applied on
 --echo #    server1.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE TABLE_SCHEMA="test" AND TABLE_NAME="t1";
 --source include/wait_condition.inc
 
@@ -145,7 +145,7 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 7. Rejoin server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Ensure that GR is already stopped on server2.
 --let $skip_assert_read_only= 1
 --source include/stop_group_replication.inc
@@ -156,34 +156,34 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 8. Execute a transaction on both members.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (2);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
 --echo ############################################################
 --echo # 9. Validate data.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There are two values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
 --source include/assert.inc
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There are two values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
 --source include/assert.inc
 
 --let $binlog_file= LAST
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --let $diff_tables= server1:test.t1, server2:test.t1
 --source include/diff_tables.inc

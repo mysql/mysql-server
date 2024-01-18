@@ -15,7 +15,7 @@
 #     all the auto_increment values at the end to fetch and reset.
 #
 #   $rpl_debug
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 
 --let $include_filename= store_group_replication_auto_increment.inc
 --source include/begin_include_file.inc

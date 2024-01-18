@@ -33,7 +33,7 @@
 #  WL#6841: PERFORMANCE SCHEMA to show Group Replication kernel stats
 #
 source include/not_valgrind.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 source include/have_binlog_format_mixed.inc;
 
 --let $assert_text= On master, the table should return an empty set.
@@ -104,7 +104,7 @@ let $assert_text= Value returned by PS table for Last_Error_Timestamp should be 
 let $assert_cond= "$ps_value" = "0000-00-00 00:00:00.000000";
 source include/assert.inc;
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 --echo
 --echo # heartbeat count and last heartbeat timestamp are indeterministic so we
@@ -117,7 +117,7 @@ CHANGE REPLICATION SOURCE to SOURCE_HEARTBEAT_PERIOD= 0.5;
 set @restore_replica_net_timeout= @@global.replica_net_timeout;
 set @@global.replica_net_timeout= 10;
 
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 # there is an explicit sleep lasting longer than replica_net_timeout
 # to ensure that nothing will come to slave from master for that period.
@@ -172,7 +172,7 @@ set @@global.replica_net_timeout= @restore_replica_net_timeout;
 
 # Cause an error in IO thread.
 --connection slave
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
 replace_column 2 ####;
 eval CHANGE REPLICATION SOURCE to
@@ -182,7 +182,7 @@ eval CHANGE REPLICATION SOURCE to
 START REPLICA io_thread;
 let $slave_param= Last_IO_Errno;
 let $slave_param_value= 1045;
-source include/wait_for_slave_param.inc;
+source include/rpl/wait_for_replica_status.inc;
 
 --echo
 --echo # Extract the error related fields from SRS and PS table and compare
@@ -244,7 +244,7 @@ source include/assert.inc;
 --echo
 
 --let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 --echo
 --echo # 1. Verify that thread_id changes to NULL and service_state to "off" on
@@ -330,25 +330,25 @@ source include/assert.inc;
 
 let $rpl_server_number= 1;
 let $rpl_start_with_gtids= 1;
-source include/rpl_restart_server.inc;
+source include/rpl/restart_server.inc;
 
 let $rpl_server_number= 2;
 let $rpl_start_with_gtids= 1;
-source include/rpl_restart_server.inc;
+source include/rpl/restart_server.inc;
 
 --connection slave
 replace_column 2 ####;
 CHANGE REPLICATION SOURCE to
  SOURCE_USER = 'root',
  SOURCE_AUTO_POSITION= 1;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 --connection master
 use test;
 create table t(a int);
 insert into t values(1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 let $sss_value= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1);
 let $ps_value= query_get_value(select Received_Transaction_Set from performance_schema.replication_connection_status, Received_Transaction_Set, 1);
@@ -361,7 +361,7 @@ source include/assert.inc;
 --echo # after STOP REPLICA.
 --echo
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $old_ps_value= $ps_value
 --let $assert_text= Received_Transaction_Set should not have changed after STOP REPLICA
 --let $assert_cond= "$ps_value" = "$old_ps_value";
@@ -377,14 +377,14 @@ RESET REPLICA;
 --let $assert_text= Received_Transaction_Set should be empty after RESET REPLICA
 --source include/assert.inc
 
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 --connection master
 drop table t;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 let $rpl_only_running_threads= 1;
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --connection slave
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL '';
 # Reset the gtid mode if the test started with gtid_mode=OFF
@@ -393,6 +393,6 @@ if ($gtid_mode_on == 0) {
   --let $rpl_set_enforce_gtid_consistency = 0
 }
 --let $no_extra_info = 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

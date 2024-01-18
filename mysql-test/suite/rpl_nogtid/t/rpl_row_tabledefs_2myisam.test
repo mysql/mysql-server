@@ -1,11 +1,11 @@
 
 -- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 
 let $engine_type = 'MyISAM';
--- source extra/rpl_tests/rpl_row_tabledefs.test
+-- source common/rpl/rpl_row_tabledefs.test
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

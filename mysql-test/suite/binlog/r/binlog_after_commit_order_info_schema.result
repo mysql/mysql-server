@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=none]
+include/rpl/init.inc [topology=none]
 CREATE TABLE t1 (a INT);
 [connection server_1_1]
 SET DEBUG_SYNC= 'bgc_after_enrolling_for_after_commit_stage SIGNAL signal.after_commit_reached WAIT_FOR signal.after_commit_unblocked';
@@ -15,4 +15,4 @@ SET DEBUG_SYNC= "now SIGNAL signal.after_commit_unblocked";
 [connection server_1_2]
 [connection server_1]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

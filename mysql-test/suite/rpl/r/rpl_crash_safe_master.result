@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
-include/start_slave.inc
+include/rpl/start_replica.inc
 call mtr.add_suppression("Attempting backtrace");
 call mtr.add_suppression("allocated tablespace *., old maximum was 0");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
@@ -16,8 +16,8 @@ CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 # Lets stop the slave IO thread first, so that it does not timeout on
 # reconnection while the master is down (it happened before on some
 # slow hosts).
-include/sync_slave_sql_with_master.inc
-include/stop_slave_io.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_receiver.inc
 BEGIN;
 INSERT INTO t1 (a) VALUES (REPEAT('a',2));
 INSERT INTO t1 (a) VALUES (REPEAT('a',2));
@@ -26,14 +26,14 @@ COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server
 # Test the transaction statements will not be binlogged
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB
 include/assert.inc [On master, test the data will be rolled back after restart.]
 # lets restart the slave io thread and check that
 # the slave gets synchronized again
-include/start_slave_io.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica.inc
 # On slave, test replication will work fine, and the data 
 #           is not replicated
 include/diff_tables.inc [master:test.t1, slave:test.t1]
@@ -42,8 +42,8 @@ include/diff_tables.inc [master:test.t1, slave:test.t1]
 # Lets stop the slave IO thread first, so that it does not timeout on
 # reconnection while the master is down (it happened before on some
 # slow hosts).
-include/sync_slave_sql_with_master.inc
-include/stop_slave_io.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_receiver.inc
 BEGIN;
 INSERT INTO t1 (a) VALUES (REPEAT('a',2));
 INSERT INTO t1 (a) VALUES (REPEAT('a',2));
@@ -52,7 +52,7 @@ COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server
 # Test the transaction statements will be binlogged
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	#	#	BEGIN
 master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
@@ -65,13 +65,13 @@ master-bin.000002	#	Xid	#	#	COMMIT /* XID */
 include/assert.inc [On master, test the data will be recovered after the master restart.]
 # lets restart the slave io thread and check that
 # the slave gets synchronized again
-include/start_slave_io.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica.inc
 # On slave, test replication will work fine, and the data is replicated
 include/diff_tables.inc [master:test.t1, slave:test.t1]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 # Test case3: Set DEBUG POINT in the middle of binlog to
 #             make the master crash for transaction.
@@ -105,7 +105,7 @@ ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server
 # Test the halfly binlogged transaction will be trimmed
 # from the crashed binlog file
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB
 # Test the data will not be recovered successfully

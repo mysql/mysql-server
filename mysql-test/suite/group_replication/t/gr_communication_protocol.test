@@ -34,7 +34,7 @@ SET SQL_LOG_BIN=1;
 --echo ###############################################################################
 --echo # 2. Decrease communication_protocol.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $gr_new_protocol= 5.7.14
 
@@ -51,7 +51,7 @@ SET SQL_LOG_BIN=1;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $gr_protocol= `SELECT group_replication_get_communication_protocol()`
 --let $assert_text= communication_protocol is supposed to be $gr_new_protocol
@@ -68,7 +68,7 @@ SET SQL_LOG_BIN=1;
 --let $gr_new_protocol= 8.0.16
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SELECT group_replication_set_communication_protocol("$gr_new_protocol")
 
@@ -83,7 +83,7 @@ SET SQL_LOG_BIN=1;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $gr_protocol= `SELECT group_replication_get_communication_protocol()`
 --let $assert_text= communication_protocol is supposed to be $gr_new_protocol
@@ -98,7 +98,7 @@ SET SQL_LOG_BIN=1;
 --echo ###############################################################################
 --echo # 4. Confirm invalid calls to group_replication_get_communication_protocol
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_get_communication_protocol(1);
@@ -186,13 +186,13 @@ SELECT group_replication_set_communication_protocol(s) FROM test.t1 WHERE i=7;
 
 # Stop GR on server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --echo ###############################################################################
 --echo # 6. Stop GR and try to call UDFs outside of a group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Cleanup.
 SET SQL_LOG_BIN=0;

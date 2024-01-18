@@ -1,15 +1,15 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ==== Initialize ====
 SET @old_relay_log_purge= @@global.relay_log_purge;
-include/setup_fake_relay_log.inc
+include/rpl/setup_fake_relay_log.inc
 Setting up fake replication from MYSQL_TEST_DIR/std_data/bug33029-slave-relay-bin.000001
 ==== Test ====
 START REPLICA sql_thread;
-include/wait_for_slave_param.inc [Exec_Source_Log_Pos]
+include/rpl/wait_for_replica_status.inc [Exec_Source_Log_Pos]
 # Result on slave
 SELECT * FROM t1;
 id
@@ -39,10 +39,10 @@ id
 19
 ==== Clean up ====
 STOP REPLICA sql_thread;
-include/cleanup_fake_relay_log.inc
+include/rpl/cleanup_fake_relay_log.inc
 DROP TABLE t1, t2;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP FUNCTION f1;
 SET @@global.relay_log_purge= @old_relay_log_purge;
-include/rpl_end.inc
+include/rpl/deinit.inc

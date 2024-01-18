@@ -17,7 +17,7 @@ SET PERSIST group_replication_recovery_get_public_key= ON;
 ############################################################
 # 2. Restart server1, it must bootstrap the group.
 # restart
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/gr_wait_for_member_state.inc
 SELECT variable_name, variable_source FROM performance_schema.variables_info WHERE variable_source IN ('PERSISTED');
 variable_name	variable_source
@@ -41,9 +41,9 @@ SET PERSIST group_replication_recovery_get_public_key= ON;
 ############################################################
 # 4. Restart server2, it must join the group.
 # restart
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/gr_wait_for_member_state.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 SELECT variable_name, variable_source FROM performance_schema.variables_info WHERE variable_source IN ('PERSISTED');
 variable_name	variable_source
 group_replication_group_name	PERSISTED

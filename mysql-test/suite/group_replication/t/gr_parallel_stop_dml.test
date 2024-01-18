@@ -22,20 +22,20 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Transaction cannot be executed while Group Replication is stopping.");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 SET SESSION sql_log_bin= 1;
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Adding debug point to block the stop group_replication after recovery module termination.
 
 --echo # Add a debug sync point in the code.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= @debug_save;
 SET @@GLOBAL.DEBUG= 'd,group_replication_after_recovery_module_terminated';
 
@@ -44,7 +44,7 @@ SET @@GLOBAL.DEBUG= 'd,group_replication_after_recovery_module_terminated';
 # Execute a DML to check if it crashes.
 --echo # Inserting the DML which was causing crash.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
@@ -52,13 +52,13 @@ SET @@GLOBAL.DEBUG= 'd,group_replication_after_recovery_module_terminated';
 
 # Signal the waiting thread on stop group_replication.
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo # Signal the waiting thread on connection server_1 to resume.
 SET DEBUG_SYNC= "now SIGNAL signal.termination_continue";
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --echo # Asserting that the member here is offline.
@@ -70,12 +70,12 @@ SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo # Asserting that only 1 member exists in the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_RUN_HOOK_ERROR, ER_OPTION_PREVENTS_STATEMENT
 --reap
 
@@ -86,14 +86,14 @@ SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo # Asserting that no row exist in table t1 on server2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= The table should have 0 row inserted.
 --let $assert_cond= `SELECT COUNT(*)=0 FROM t1`
 --source include/assert.inc
 
 # Rejoin server 1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Check for consistency on the two servers.

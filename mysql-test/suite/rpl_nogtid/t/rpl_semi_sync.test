@@ -16,7 +16,7 @@
 --source include/big_test.inc
 
 source include/have_semisync_plugin.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 let $engine_type= InnoDB;
 
@@ -32,7 +32,7 @@ call mtr.add_suppression("Semi-sync replica .* reply");
 call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression(".*Got an error reading communication packets.*");
 enable_query_log;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # After fix of BUG#45848, semi-sync slave should not create any extra
 # connections on source, save the count of connections before start
@@ -44,7 +44,7 @@ let $_connections_normal_slave= query_get_value(SHOW STATUS LIKE 'Threads_connec
 --echo # Uninstall semi-sync plugins on source and replica
 --echo #
 connection slave;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 disable_warnings;
 error 0,1305;
 UNINSTALL PLUGIN rpl_semi_sync_replica;
@@ -61,14 +61,14 @@ UNINSTALL PLUGIN rpl_semi_sync_source;
 enable_warnings;
 --let $rpl_only_running_threads= 1
 --let $rpl_no_start_slave= 1
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --let $rpl_only_running_threads= 0
 
 --echo #
 --echo # Main test of semi-sync replication starts here
 --echo #
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 let $value = query_get_value(show variables like 'rpl_semi_sync_source_enabled', Value, 1);
 if ($value == No such row)
 {
@@ -129,14 +129,14 @@ if ($rpl_test_optimize_for_static_plugin_config == 1)
 # reset binary logs and gtids and replica so the following test starts in a clean environment
 --let $rpl_only_running_threads= 1
 --let $rpl_no_start_slave= 1
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --let $rpl_only_running_threads= 0
 
 --echo #
 --echo # INSTALL PLUGIN semi-sync on replica
 --echo #
 
-source include/rpl_connection_slave.inc;
+source include/rpl/connection_replica.inc;
 let $value= query_get_value(show variables like 'rpl_semi_sync_replica_enabled', Value, 1);
 if ($value == No such row)
 {
@@ -151,9 +151,9 @@ show variables like 'rpl_semi_sync_replica_enabled';
 echo [ enable semi-sync on replica ];
 set global rpl_semi_sync_replica_enabled = 1;
 show variables like 'rpl_semi_sync_replica_enabled';
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 # NOTE: Rpl_semi_sync_source_clients will only be updated when
 # semi-sync replica has started binlog dump request
 let $status_var= Rpl_semi_sync_source_clients;
@@ -216,7 +216,7 @@ show status like 'Rpl_semi_sync_source_status';
 show status like 'Rpl_semi_sync_source_no_tx';
 show status like 'Rpl_semi_sync_source_yes_tx';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 echo [ on replica ];
 
 echo [ replica status after replicated inserts ];
@@ -231,10 +231,10 @@ select max(a) from t1;
 --echo # semi-sync replication crashes when replicating a transaction which
 --echo # include 'CREATE TEMPORARY TABLE `MyISAM_t` SELECT * FROM `Innodb_t` ;
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 SET SESSION AUTOCOMMIT= 0;
 CREATE TABLE t2(c1 INT) ENGINE=innodb;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 BEGIN;
@@ -257,7 +257,7 @@ SET SESSION AUTOCOMMIT= 1;
 # in different Rpl_semi_sync_source_yes_tx values in statement vs row/mixed. Reset it.
 FLUSH STATUS;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo #
@@ -265,11 +265,11 @@ FLUSH STATUS;
 --echo # timeout waiting for replica reply.
 --echo #
 connection slave;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 # Kill the dump thread(s) on source for previous replica connection
-source include/stop_dump_threads.inc;
+source include/rpl/stop_dump_threads.inc;
 # Rpl_semi_sync_source_clients should be 0, once the dump thread(s) have exited.
 let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 0;
@@ -323,10 +323,10 @@ show status like 'Rpl_semi_sync_source_yes_tx';
 # Save the source position for later use.
 save_master_pos;
 
-source include/rpl_connection_slave.inc;
+source include/rpl/connection_replica.inc;
 echo [ replica status should be OFF ];
 show status like 'Rpl_semi_sync_replica_status';
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 sync_with_master;
 
 echo [ replica status should be ON ];
@@ -336,7 +336,7 @@ select count(distinct a) from t1;
 select min(a) from t1;
 select max(a) from t1;
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 # Wait until source semi-sync status is on again after replica catches up
 # to avoid test failures on slow platforms.
 let $status_var= Rpl_semi_sync_source_status;
@@ -354,10 +354,10 @@ show status like 'Rpl_semi_sync_source_clients';
 --echo #
 
 drop table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 echo [ on replica ];
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 --echo #
 --echo # Flush status
@@ -373,8 +373,8 @@ echo [ Semi-sync source status variables after FLUSH STATUS ];
 SHOW STATUS LIKE 'Rpl_semi_sync_source_no_tx';
 SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx';
 
-source include/rpl_connection_master.inc;
-source include/show_master_logs.inc;
+source include/rpl/connection_source.inc;
+source include/rpl/deprecated/show_binary_logs_vertical.inc;
 show variables like 'rpl_semi_sync_source_enabled';
 
 echo [ disable semi-sync on the fly ];
@@ -391,20 +391,20 @@ show status like 'Rpl_semi_sync_source_status';
 --echo # Test RESET BINARY LOGS AND GTIDS/REPLICA
 --echo #
 
-source include/rpl_connection_slave.inc;
-source include/start_slave.inc;
+source include/rpl/connection_replica.inc;
+source include/rpl/start_replica.inc;
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 replace_result $engine_type ENGINE_TYPE;
 eval create table t1 (a int) engine = $engine_type;
 drop table t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_column 2 #
 show status like 'Rpl_relay%';
 
 echo [ test reset binary logs and gtids ];
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 
 reset binary logs and gtids;
 
@@ -412,23 +412,23 @@ show status like 'Rpl_semi_sync_source_status';
 show status like 'Rpl_semi_sync_source_no_tx';
 show status like 'Rpl_semi_sync_source_yes_tx';
 
-source include/rpl_connection_slave.inc;
-source include/stop_slave.inc;
+source include/rpl/connection_replica.inc;
+source include/rpl/stop_replica.inc;
 reset replica;
 reset binary logs and gtids;
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 # Kill the dump thread(s) on source for previous replica connection
-source include/stop_dump_threads.inc;
+source include/rpl/stop_dump_threads.inc;
 # Rpl_semi_sync_source_clients should be 0, once the dump thread(s) have exited.
 let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 0;
 source include/wait_for_status_var.inc;
 
 connection slave;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 # Wait for dump thread to start, Rpl_semi_sync_source_clients should be
 # 1 after dump thread started.
 let $status_var= Rpl_semi_sync_source_clients;
@@ -440,11 +440,11 @@ eval create table t1 (a int) engine = $engine_type;
 insert into t1 values (1);
 insert into t1 values (2), (3);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 echo [ on replica ];
 select * from t1;
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 # Wait until source semi-sync status is on again after replica catches up
 # to avoid test failures on slow platforms.
 let $status_var= Rpl_semi_sync_source_status;
@@ -460,11 +460,11 @@ show status like 'Rpl_semi_sync_source_yes_tx';
 --echo #
 --echo # Start semi-sync replication without SUPER privilege
 --echo #
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 # Kill the dump thread on source for previous replica connection
-source include/stop_dump_threads.inc;
+source include/rpl/stop_dump_threads.inc;
 # Rpl_semi_sync_source_clients should be 0, once dump thread(s) have exited
 let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 0;
@@ -482,22 +482,22 @@ set sql_log_bin=1;
 # alone must suffice to successful connecting even with show handler
 # not compatible to 5.6.
 
-source include/rpl_connection_slave.inc;
+source include/rpl/connection_replica.inc;
 create user rpl@127.0.0.1 identified by 'rpl';
 grant replication slave on *.* to rpl@127.0.0.1;
 flush privileges;
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='rpl',SOURCE_PASSWORD='rpl', GET_SOURCE_PUBLIC_KEY=1;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 show status like 'Rpl_semi_sync_replica_status';
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 
 # bug#77732 related: reconnecting to the source while the show handler
 # is compatible with 5.6
---source include/rpl_connection_slave.inc
-source include/stop_slave.inc;
+--source include/rpl/connection_replica.inc
+source include/rpl/stop_replica.inc;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Added for Bug#19372027: rpl_semi_sync fails sporadically on trunk
 # To ensure that source knows that the replica is stopped
 Insert into t1 values (4);
@@ -508,11 +508,11 @@ source include/wait_for_status_var.inc;
 show status like 'Rpl_semi_sync_source_status';
 show status like 'Rpl_semi_sync_source_clients';
 
-source include/rpl_connection_slave.inc;
-source include/start_slave.inc;
+source include/rpl/connection_replica.inc;
+source include/rpl/start_replica.inc;
 show status like 'Rpl_semi_sync_replica_status';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # bug#77732 cleanup
 # Added for Bug#19372027:rpl_semi_sync fails sporadically on trunk
 let $status_var= Rpl_semi_sync_source_status;
@@ -552,14 +552,14 @@ select subsystem, error_code
 --echo #
 
 # Disable semi-sync on source
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 echo [ on replica ];
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 # Kill the dump thread(s) on source for previous replica connection
-source include/stop_dump_threads.inc;
+source include/rpl/stop_dump_threads.inc;
 # Rpl_semi_sync_source_clients should be 0, once dump thread(s) have exited
 let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 0;
@@ -570,11 +570,11 @@ show status like 'Rpl_semi_sync_source_clients';
 show status like 'Rpl_semi_sync_source_status';
 set global rpl_semi_sync_source_enabled= 0;
 
-source include/rpl_connection_slave.inc;
+source include/rpl/connection_replica.inc;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 insert into t1 values (8);
 let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 1;
@@ -582,16 +582,16 @@ source include/wait_for_status_var.inc;
 echo [ source semi-sync clients should be 1, status should be OFF ];
 show status like 'Rpl_semi_sync_source_clients';
 show status like 'Rpl_semi_sync_source_status';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 echo [ on replica ];
 show status like 'Rpl_semi_sync_replica_status';
 
 # Uninstall semi-sync plugin on source
 connection slave;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 connection master;
 echo [ on source ];
---source include/stop_dump_threads.inc
+--source include/rpl/stop_dump_threads.inc
 if ($rpl_test_optimize_for_static_plugin_config == 1)
 {
   SET GLOBAL replication_optimize_for_static_plugin_config = 0;
@@ -600,13 +600,13 @@ UNINSTALL PLUGIN rpl_semi_sync_source;
 enable_query_log;
 SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
 
-source include/rpl_connection_slave.inc;
+source include/rpl/connection_replica.inc;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
-source include/rpl_connection_master.inc;
+source include/rpl/connection_source.inc;
 insert into t1 values (10);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 echo [ on replica ];
 SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 
@@ -624,16 +624,16 @@ if ($rpl_test_optimize_for_static_plugin_config == 1)
 set global rpl_semi_sync_source_timeout= 60000; /* 60s */
 set global rpl_semi_sync_source_enabled= 1;
 
-source include/rpl_connection_slave.inc;
-source include/stop_slave.inc;
+source include/rpl/connection_replica.inc;
+source include/rpl/stop_replica.inc;
 SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 
 echo [ uninstall semi-sync replica plugin ];
 UNINSTALL PLUGIN rpl_semi_sync_replica;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 echo [ reinstall semi-sync replica plugin and disable semi-sync ];
 replace_result $SEMISYNC_REPLICA_PLUGIN SEMISYNC_REPLICA_PLUGIN;
@@ -641,7 +641,7 @@ eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
 set global rpl_semi_sync_replica_enabled= 0;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 
 --echo #
@@ -652,19 +652,19 @@ if ($rpl_test_optimize_for_static_plugin_config == 1)
   connection master;
   SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 }
---source include/uninstall_semisync.inc
+--source include/rpl/uninstall_semisync.inc
 
 connection slave;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='root',SOURCE_PASSWORD='', GET_SOURCE_PUBLIC_KEY=0;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 connection master;
 drop table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 drop user rpl@127.0.0.1;
 flush privileges;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

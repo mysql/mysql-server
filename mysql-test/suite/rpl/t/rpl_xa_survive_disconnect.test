@@ -16,8 +16,8 @@
 # has completed a necessary part of its cleanup.
 # Selecting from P_S.threads provides a method to learn that.
 #
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 --connection master
 call mtr.add_suppression("Found 2 prepared XA transactions");
@@ -66,11 +66,11 @@ XA COMMIT '2';
 
 XA COMMIT '1-row';
 XA COMMIT '1-stmt';
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 # the proof: slave is in sync with the table updated by the prepared transactions.
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 #
 # Recover with Master server restart
@@ -139,10 +139,10 @@ while($i > 0)
 # upon its restart.
 #
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 --connection master
 --let $i = $bulk_trx_num
@@ -158,10 +158,10 @@ while($i > 0)
 }
 
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 --echo *** '3-stmt','3-row' xa-transactions must be in the list ***
@@ -170,7 +170,7 @@ XA RECOVER;
 XA COMMIT '3-stmt';
 XA ROLLBACK '3-row';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Testing replication with marginal XID values and in two formats.
@@ -260,7 +260,7 @@ connect (master_conn4, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 --eval XA COMMIT X'$gtrid_rand',X'$bqual_rand',$formt_rand
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Testing ONE PHASE
@@ -282,7 +282,7 @@ while($i > 0)
   --dec $i
 }
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Overall consistency check
@@ -303,6 +303,6 @@ DROP DATABASE d1;
 DROP DATABASE d2;
 DROP VIEW v_processlist;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

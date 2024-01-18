@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,9 +6,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 
 ==== Test ====
 CREATE USER IF NOT EXISTS 'user1'@'%' IDENTIFIED WITH 'mysql_native_password';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ==== Clean up ====
 [connection master]
 DROP USER IF EXISTS 'user1'@'%';
-include/rpl_end.inc
+include/rpl/deinit.inc

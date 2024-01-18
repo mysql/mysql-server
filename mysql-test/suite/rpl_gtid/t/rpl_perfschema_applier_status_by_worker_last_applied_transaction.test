@@ -17,10 +17,10 @@
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Cleanup the slave information
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 RESET REPLICA ALL;
 
 # Setup the default replication channel again

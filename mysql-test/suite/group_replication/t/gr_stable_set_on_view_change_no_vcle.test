@@ -25,7 +25,7 @@
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
 
@@ -52,7 +52,7 @@ INSERT INTO t1 VALUES (1);
 --echo #
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -61,7 +61,7 @@ INSERT INTO t1 VALUES (1);
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # The Stable set update happens before the execution of the View Change event
 --let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = "6d387320-185d-11e6-bdf4-0800200c9a66:1-2"

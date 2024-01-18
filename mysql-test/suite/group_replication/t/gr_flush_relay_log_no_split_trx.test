@@ -48,31 +48,31 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (i INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # 1) Add a debug sync point that holds and makes the applier thread to wait, in
 #    the middle of a transaction - `signal.rpl_requested_for_a_flush` in
 #    `rpl_replica.cc:queue_event`.
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL debug = '+d,wait_in_the_middle_of_trx,deferred_flush_relay_log';
 
 # 2) Execute some statements in the master.
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # 3) Retrieve the number of the relay log file with the highest index number.
 --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.2/data/*relay*.*
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_before_flush = $log_file_max_number
 
 # 5) Execute `FLUSH RELAY LOG` in the slave.
@@ -85,7 +85,7 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_broadcasted_rotate_end";
 # 8) Retrieve the number of the relay log file with the highest index number and
 #    assert that the highest index number before the `FLUSH RELAY LOG` execution
 #    is lower than the highest index number after.
---source include/rpl_log_file_max_number.inc
+--source include/rpl/log_file_max_number.inc
 --let $max_log_file_after_flush = $log_file_max_number
 
 --let $assert_text = 'FLUSH RELAY LOGS' rotated properly
@@ -106,8 +106,8 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_broadcasted_rotate_end";
 --source include/assert_grep.inc
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
---source include/rpl_sync.inc
+--source include/connection.inc
+--source include/rpl/sync.inc
 
 # 10) Ensure that all statements were executed on the slave.
 --let $diff_tables = server1:t1, server2:t1
@@ -115,13 +115,13 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_broadcasted_rotate_end";
 
 # Clean up
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC = "reset";
 SET GLOBAL debug = '-d,wait_in_the_middle_of_trx,deferred_flush_relay_log';
 
 --remove_file $relay_log_dump
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 --source include/group_replication_end.inc

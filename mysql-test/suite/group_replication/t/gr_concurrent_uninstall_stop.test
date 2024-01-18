@@ -22,7 +22,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Group Replication plugin is not installed.");
@@ -37,7 +37,7 @@ SET SESSION sql_log_bin= 1;
 --send UNINSTALL PLUGIN group_replication
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo #
 --echo # STOP GROUP_REPLICATION in parallel.
 --echo #
@@ -47,7 +47,7 @@ SET SESSION sql_log_bin= 1;
 STOP GROUP_REPLICATION;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --enable_warnings

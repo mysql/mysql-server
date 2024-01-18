@@ -60,7 +60,7 @@ if ($sync_point_timeout)
 
 # On $statement_connection, setup sync point and begin execute statement.
 --let $rpl_connection_name= $statement_connection
---source include/rpl_connection.inc
+--source include/connection.inc
 
 eval SET @@SESSION.DEBUG_SYNC = '$sync_point SIGNAL _esp_parked_$sync_point$underscore$statement_connection WAIT_FOR _esp_go_$sync_point$underscore$statement_connection $_esp_timeout';
 
@@ -78,7 +78,7 @@ if ($rpl_debug)
   --echo waiting for debug sync point _esp_parked_$sync_point$underscore$statement_connection $_esp_timeout
 }
 --let $rpl_connection_name= $_esp_auxiliary_connection
---source include/rpl_connection.inc
+--source include/connection.inc
 
 eval SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR _esp_parked_$sync_point$underscore$statement_connection $_esp_timeout';
 

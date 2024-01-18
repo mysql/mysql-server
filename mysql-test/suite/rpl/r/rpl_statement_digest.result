@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,7 +10,7 @@ INSERT INTO test.t1 SELECT statement_digest("SELECT * FROM foo");
 # test for statement_digest_text()
 CREATE TABLE test.t2 (a VARCHAR(1000));
 INSERT INTO test.t2 SELECT statement_digest_text("SELECT * FROM foo");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:test.t1,slave:test.t1]
 include/diff_tables.inc [master:test.t2,slave:test.t2]
@@ -23,5 +23,5 @@ SELECT * FROM `foo`
 # Clean up
 DROP TABLE test.t1;
 DROP TABLE test.t2;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

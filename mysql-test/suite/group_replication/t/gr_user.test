@@ -19,7 +19,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression(".*The group replication user is not present in the server *.*");
@@ -30,7 +30,7 @@ SET SESSION sql_log_bin= 1;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= The group replication user should exist in this member
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="mysql.session"] = 1;
@@ -74,9 +74,9 @@ START GROUP_REPLICATION;
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 

@@ -30,7 +30,7 @@
 ###############################################################################
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 connect(master2,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect(master3,127.0.0.1,root,,test,$MASTER_MYPORT,);
@@ -47,8 +47,8 @@ while ($iter)
   # logs command do not hit the DEBUG_SYNC points.
   FLUSH LOGS;
   --connection slave
-  --source include/stop_slave.inc
-  --source include/start_slave.inc
+  --source include/rpl/stop_replica.inc
+  --source include/rpl/start_replica.inc
   # Thread 1
   --connection master
   --echo "Wait_for dump_thread_signal"
@@ -117,4 +117,4 @@ while ($iter)
 --connection master
 SET DEBUG_SYNC='RESET';
 SET GLOBAL DEBUG=@save_debug;
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

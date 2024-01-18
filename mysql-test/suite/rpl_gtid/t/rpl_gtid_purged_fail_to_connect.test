@@ -6,7 +6,7 @@
 #
 # ==== Implementation ====
 #
-# 1) Create a master-slave setup.
+# 1) Create a source-replica setup.
 # 2) Create a table on master, sync it, stop the slave threads and dump thread
 #    on master.
 # 3) On master, generate a transaction, flush the binary log and execute PURGE
@@ -32,9 +32,9 @@
 --let $rpl_gtid_utils= 1
 
 --echo #
---echo # 1) Create a master-slave setup.
+--echo # 1) Create a source-replica setup.
 --echo #
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $master_uuid= `SELECT @@SERVER_UUID`
 
@@ -43,15 +43,15 @@
 --echo #    thread on master.
 --echo #
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Need to kill the dump thread explicitly: stop replica does not do
 # that, and if the dump thread is slow, it will still be reading from
 # the old binlog at the time we do PURGE BINARY LOGS below. That would
 # prevent PURGE BINARY LOGS from purging the log.
---source include/stop_dump_threads.inc
+--source include/rpl/stop_dump_threads.inc
 
 --echo #
 --echo # 3) On master, generate a transaction, flush the binary log and execute
@@ -76,7 +76,7 @@ INSERT INTO t1 VALUES (2);
 --echo # 4) Verify that the slave fails if it tries to connect using CHANGE
 --echo #    REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1.
 --echo #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 
 START REPLICA;
@@ -84,22 +84,22 @@ START REPLICA;
 # BUG#13727933 causes this test to fail sporadically on the following line
 # apparently the binlog is not always purged on the master (?)
 --let $slave_io_errno= 13114 # ER_SOURCE_FATAL_ERROR_READING_BINLOG
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 
 # Testing with long set of gtids
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @saved_debug= @@GLOBAL.DEBUG;
 SET GLOBAL DEBUG= '+d,simulate_long_missing_gtids';
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 START REPLICA;
 
 --let $slave_io_errno= 13114 # ER_SOURCE_FATAL_ERROR_READING_BINLOG
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
---source include/rpl_connection_master.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL DEBUG= @saved_debug;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --echo #
 --echo # 5) Verify that appropriate messages are logged into master's and slave's
@@ -120,13 +120,13 @@ SET GLOBAL DEBUG= @saved_debug;
 --replace_result $master_file MASTER_FILE $master_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = '$master_file', SOURCE_LOG_POS = $master_pos, SOURCE_AUTO_POSITION = 0;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --sync_with_master
 
 --let $assert_text= t1 should contain only one row with the value 2
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "1" AND "[SELECT * FROM t1]" = "2"
 --source include/assert.inc
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # Verify that warning about the missing transactions are logged into the master's error log.
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -143,24 +143,24 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = '$master_file', SOURCE_LOG_P
 --source include/assert_grep.inc
 
 # Suppress the error on master.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CALL mtr.add_suppression("Cannot replicate to server.*server has purged required binary logs.*");
 
 # Suppress the error on slave.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Got fatal error 1236 from source.*Replicate the missing transactions from elsewhere");
 
 --echo #
 --echo # 7) Cleanup.
 --echo #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 RESET BINARY LOGS AND GTIDS;
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

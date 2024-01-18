@@ -5,11 +5,11 @@
 #
 
 --let $$use_gtids=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 # plain async replication
---source extra/rpl_tests/binlog_transaction_compression.inc
+--source common/rpl/binlog_transaction_compression.inc
 
 # end the test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

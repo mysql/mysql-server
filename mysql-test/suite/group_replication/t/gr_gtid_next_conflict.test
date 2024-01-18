@@ -22,7 +22,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 set sql_log_bin=0;
 call mtr.add_suppression("The requested GTID .* was already used, the transaction will rollback");
 set sql_log_bin=1;
@@ -33,14 +33,14 @@ set sql_log_bin=1;
 --echo # transactions in parallel.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set sql_log_bin=0;
 call mtr.add_suppression("The requested GTID .* was already used, the transaction will rollback");
 set sql_log_bin=1;
 
 CREATE TABLE t1(a INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo #############################################################
@@ -60,7 +60,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 3. Using the other connection execute a transaction.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (2);
 
 --echo
@@ -69,7 +69,7 @@ INSERT INTO t1 VALUES (2);
 --echo # Server will  rollback it due to already used gtid.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = 'c3b5927f-2a51-11e7-94b3-0010e0734796:1-2'
 --source include/wait_condition.inc

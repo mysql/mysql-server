@@ -46,17 +46,17 @@ include/assert.inc [super_read_only should be enabled]
 [connection server1]
 include/stop_group_replication.inc
 include/start_and_bootstrap_group_replication.inc
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server2]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER2";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER2";
 include/start_group_replication.inc
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server3]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER3";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER3";
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 
@@ -77,22 +77,22 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 # 5) Relaunch all members.
 #########################################################################
 
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server1]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER1";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER1";
 include/start_and_bootstrap_group_replication.inc
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server2]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER2";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER2";
 include/start_group_replication.inc
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server3]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER3";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER3";
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 #########################################################################
 # 6) Cleanup.

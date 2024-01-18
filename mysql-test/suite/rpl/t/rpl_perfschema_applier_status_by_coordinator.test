@@ -44,7 +44,7 @@
 #  WL#3656: PERFORMANCE SCHEMA table for SHOW SLAVE STATUS
 #
 
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 source include/have_binlog_format_mixed.inc;
 
 call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
@@ -62,7 +62,7 @@ source include/assert.inc;
 
 --let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
-source include/wait_for_slave_param.inc;
+source include/rpl/wait_for_replica_status.inc;
 
 --echo
 --echo # Testing on fresh slave.
@@ -134,13 +134,13 @@ source include/assert.inc;
 --connection master
 use test;
 create table t(a int primary key);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 drop table t;
 --connection master
 insert into t values(1);
 --connection slave
 let $slave_sql_errno=1146;
-source include/wait_for_slave_sql_error.inc;
+source include/rpl/wait_for_applier_error.inc;
 
 --echo
 --echo # Extract the error related fields from SRS and PS table and compare
@@ -350,7 +350,7 @@ let $assert_text= Value returned by SRS and PS table for Last_Error_Timestamp sh
 let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --connection master
 drop table t;
 reset binary logs and gtids;
@@ -367,10 +367,10 @@ reset binary logs and gtids;
 --echo
 
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $rpl_server_number= 2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --connection slave
 replace_result $MASTER_MYPORT MASTER_MYPORT;
@@ -383,11 +383,11 @@ SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=1;
 # to avoid warnings
 set @save.replica_transaction_retries= @@global.replica_transaction_retries;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 --let $slave_param= Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
-source include/wait_for_slave_param.inc;
+source include/rpl/wait_for_replica_status.inc;
 
 # To verify the correctness of thread_id field, we check for the name of
 # the thread.
@@ -424,11 +424,11 @@ source include/assert.inc;
 --echo # Cleanup.
 --echo
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 --enable_warnings
 set @@global.replica_transaction_retries= @save.replica_transaction_retries;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -27,11 +27,11 @@ INSERT INTO t VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t, slave:t]
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one of the columns in the master, with binlog_row_image equal to
 # FULL and aditional columns props equal to ''
@@ -52,11 +52,11 @@ INSERT INTO t VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t, slave:t]
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one of the columns in the slave, with binlog_row_image equal to
 # FULL and aditional columns props equal to 'PRIMARY KEY'
@@ -77,11 +77,11 @@ INSERT INTO t VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t, slave:t]
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one of the columns in the slave, with binlog_row_image equal to
 # FULL and aditional columns props equal to ''
@@ -102,11 +102,11 @@ INSERT INTO t VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t, slave:t]
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @@global.binlog_row_image = MINIMAL;
 #
 # Add one of the columns in the master, with binlog_row_image equal to
@@ -128,11 +128,11 @@ INSERT INTO t VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t, slave:t]
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one of the columns in the master, with binlog_row_image equal to
 # MINIMAL and aditional columns props equal to ''
@@ -153,11 +153,11 @@ INSERT INTO t VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t, slave:t]
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one of the columns in the slave, with binlog_row_image equal to
 # MINIMAL and aditional columns props equal to 'PRIMARY KEY'
@@ -178,11 +178,11 @@ INSERT INTO t VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t, slave:t]
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one of the columns in the slave, with binlog_row_image equal to
 # MINIMAL and aditional columns props equal to ''
@@ -203,11 +203,11 @@ INSERT INTO t VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t, slave:t]
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # TC2. Add one extra column with `ALTER TABLE`
 #
@@ -219,7 +219,7 @@ SET @@global.binlog_row_image = FULL;
 [connection master]
 CREATE TABLE t (a INT PRIMARY KEY, b INT,
 INDEX ((a+1)), KEY ((a+10)));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.sql_log_bin = 0;
 ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
@@ -229,10 +229,10 @@ INSERT INTO t (a, b) VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t (a, b) VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/rpl_diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one extra column in the master, with binlog_row_image equal to
 # FULL and aditional columns props equal to ''
@@ -240,7 +240,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 CREATE TABLE t (a INT , b INT,
 INDEX ((a+1)), KEY ((a+10)));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.sql_log_bin = 0;
 ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
@@ -250,10 +250,10 @@ INSERT INTO t (a, b) VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t (a, b) VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/rpl_diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one extra column in the slave, with binlog_row_image equal to
 # FULL and aditional columns props equal to 'PRIMARY KEY'
@@ -261,7 +261,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 CREATE TABLE t (a INT PRIMARY KEY, b INT,
 INDEX ((a+1)), KEY ((a+10)));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SET @@session.sql_log_bin = 0;
 ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
@@ -271,10 +271,10 @@ INSERT INTO t (a, b) VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t (a, b) VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/rpl_diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one extra column in the slave, with binlog_row_image equal to
 # FULL and aditional columns props equal to ''
@@ -282,7 +282,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 CREATE TABLE t (a INT , b INT,
 INDEX ((a+1)), KEY ((a+10)));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SET @@session.sql_log_bin = 0;
 ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
@@ -292,10 +292,10 @@ INSERT INTO t (a, b) VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t (a, b) VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/rpl_diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @@global.binlog_row_image = MINIMAL;
 #
 # Add one extra column in the master, with binlog_row_image equal to
@@ -304,7 +304,7 @@ SET @@global.binlog_row_image = MINIMAL;
 [connection master]
 CREATE TABLE t (a INT PRIMARY KEY, b INT,
 INDEX ((a+1)), KEY ((a+10)));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.sql_log_bin = 0;
 ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
@@ -314,10 +314,10 @@ INSERT INTO t (a, b) VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t (a, b) VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/rpl_diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one extra column in the master, with binlog_row_image equal to
 # MINIMAL and aditional columns props equal to ''
@@ -325,7 +325,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 CREATE TABLE t (a INT , b INT,
 INDEX ((a+1)), KEY ((a+10)));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@session.sql_log_bin = 0;
 ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
@@ -335,10 +335,10 @@ INSERT INTO t (a, b) VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t (a, b) VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/rpl_diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one extra column in the slave, with binlog_row_image equal to
 # MINIMAL and aditional columns props equal to 'PRIMARY KEY'
@@ -346,7 +346,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 CREATE TABLE t (a INT PRIMARY KEY, b INT,
 INDEX ((a+1)), KEY ((a+10)));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SET @@session.sql_log_bin = 0;
 ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
@@ -356,10 +356,10 @@ INSERT INTO t (a, b) VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t (a, b) VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/rpl_diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Add one extra column in the slave, with binlog_row_image equal to
 # MINIMAL and aditional columns props equal to ''
@@ -367,7 +367,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 CREATE TABLE t (a INT , b INT,
 INDEX ((a+1)), KEY ((a+10)));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SET @@session.sql_log_bin = 0;
 ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
@@ -377,9 +377,9 @@ INSERT INTO t (a, b) VALUES (1, 2);
 UPDATE t SET b = 1 WHERE a = 1;
 INSERT INTO t (a, b) VALUES (2, 2);
 DELETE FROM t WHERE b = 2;
-include/rpl_diff.inc
+include/rpl/diff.inc
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @@global.binlog_row_image = INITIAL_ROW_IMAGE;
-include/rpl_end.inc
+include/rpl/deinit.inc

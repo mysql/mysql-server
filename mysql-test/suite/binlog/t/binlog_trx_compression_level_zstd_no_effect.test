@@ -58,12 +58,12 @@ SET @@session.binlog_transaction_compression_level_zstd = 1;
 --echo # 4) Save the binlog position before and after inserting the values in table
 --echo #
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $binlog_start_1 = $binlog_position
 
 INSERT INTO t VALUES (LOAD_FILE('../../std_data/mysqldump_57.sql'));
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $binlog_end_1 = $binlog_position
 
 --echo #
@@ -83,12 +83,12 @@ SET @@session.binlog_transaction_compression_level_zstd = 19;
 --echo # 7) Save the binlog position before and after inserting the values in table
 --echo #
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $binlog_start_2 = $binlog_position
 
 INSERT INTO t VALUES (LOAD_FILE('../../std_data/mysqldump_57.sql'));
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $binlog_end_2 = $binlog_position
 
 --echo #

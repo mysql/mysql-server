@@ -28,8 +28,8 @@
 #
 
 --source include/not_group_replication_plugin.inc
-source include/set_privilege_checks_user_as_system_user.inc;
-source include/master-slave.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/init_source_replica.inc;
 
 disable_warnings;
 DROP DATABASE IF EXISTS mysqltest;
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS t2 SELECT * FROM t;
 CREATE EVENT IF NOT EXISTS e 
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
 DO SELECT now();
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection slave;
 #DROP database from slave.
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS t2 SELECT * FROM t;
 CREATE EVENT IF NOT EXISTS e 
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
 DO SELECT now(); 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection slave;
 SHOW TABLES in mysqltest;
@@ -105,7 +105,7 @@ CREATE TABLE t2(c1 INTEGER) SELECT c1 FROM t3;
 # value '1' in them.  The records of t2 are not inserted into them.  
 SELECT * FROM t1; 
 SELECT * FROM t2; 
---source include/sync_slave_sql_with_master.inc 
+--source include/rpl/sync_to_replica.inc 
 
 # In these two statements, t1 and t2 are the base table. The recoreds of t2
 # are inserted into it when CREATE TABLE ...  SELECT was executed.  
@@ -128,7 +128,7 @@ DROP TABLE t3;
 --echo # After the worklog, it will insert nothing and the statement will not be
 --echo # binlogged if the table already exists.
 --echo # After the worklog, some bugs will disappear automotically.
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo
 --echo # Case 1: BUG#47132
@@ -143,7 +143,7 @@ INSERT INTO t2 VALUES (2), (2);
 CREATE VIEW v1 AS SELECT id FROM t2;
 --let binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id FROM t1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 SHOW CREATE TABLE v1;
 SELECT * FROM t2;
@@ -157,7 +157,7 @@ CREATE TEMPORARY TABLE tt1 AS SELECT id FROM t2;
 
 --let binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 CREATE TEMPORARY TABLE IF NOT EXISTS tt1(a int, b int) SELECT id, id FROM t1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 SELECT * FROM t2;
 SELECT * FROM tt1;
 DROP TEMPORARY TABLE tt1;
@@ -168,8 +168,8 @@ DROP TEMPORARY TABLE tt1;
 CREATE VIEW v1 AS SELECT 1 as a;
 --let binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 CREATE TABLE IF NOT EXISTS v1 SELECT 2 as a;
---source include/show_binlog_events.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/deprecated/show_binlog_events.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 DROP VIEW v1;
@@ -189,8 +189,8 @@ CREATE TABLE IF NOT EXISTS t2 LIKE t1;
 CREATE TABLE IF NOT EXISTS t2 LIKE t1;
 --echo # Clean-up.
 DROP TABLE t1, t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

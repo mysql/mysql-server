@@ -26,7 +26,7 @@
 --echo ############################################################
 --echo # 1. Verify that metrics are 0.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_%';
 
 
@@ -52,7 +52,7 @@ SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_%';
 --echo ############################################################
 --echo # 3. Join server2 to the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -61,7 +61,7 @@ SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_%';
 --echo # 4. Execute transactions on server1 and validate data metrics
 --echo #    on both servers.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 INSERT INTO t1 VALUES (1);
@@ -108,7 +108,7 @@ DROP TABLE t1;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There were 0 data messages sent'
 --let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 0
@@ -148,7 +148,7 @@ DROP TABLE t1;
 --echo ############################################################
 --echo # 5. Validate that GCS metrics are greater than 0.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Gr_all_consensus_proposals_count is greater than 0'
 --let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_proposals_count", VARIABLE_VALUE, 1] > 0
@@ -175,7 +175,7 @@ DROP TABLE t1;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Gr_all_consensus_proposals_count is greater than 0'
 --let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_proposals_count", VARIABLE_VALUE, 1] > 0
@@ -209,7 +209,7 @@ DROP TABLE t1;
 # Only transaction related metrics are shown since those are the
 # ones that do not change due to background tasks.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_count' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%\_count';
 --source include/stop_group_replication.inc
 SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_count' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%\_count';
@@ -240,7 +240,7 @@ SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_dat
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
 --source include/stop_group_replication.inc
 SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
@@ -276,12 +276,12 @@ SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_dat
 --echo # 7. Restart Stop Group Replication and validate that metrics were
 --echo #    reset.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
 

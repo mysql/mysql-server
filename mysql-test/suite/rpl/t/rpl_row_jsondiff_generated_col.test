@@ -11,27 +11,27 @@
 #   on generated columns.
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ######## Configure ########
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @old_binlog_row_image= @@SESSION.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@SESSION.BINLOG_ROW_VALUE_OPTIONS;
 SET @@SESSION.BINLOG_ROW_IMAGE= MINIMAL;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= MINIMAL;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 
 --echo ######## Initialize ########
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t (i INT, j JSON,
                 v VARCHAR(256) AS (JSON_PRETTY(j)) VIRTUAL,
@@ -42,29 +42,29 @@ INSERT INTO t (j) VALUES ('[{"a":"abc"},{"b":"abcd"}]'),
 
 --echo ######## Test ########
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 --let $diff_tables= master:t, slave:t
 --source include/diff_tables.inc
 
 UPDATE t SET j= JSON_REPLACE(j, '$[0].a',"a");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $diff_tables= master:t, slave:t
 --source include/diff_tables.inc
 
 UPDATE t SET j= JSON_SET(j, '$.key[0]', "a");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $diff_tables= master:t, slave:t
 --source include/diff_tables.inc
 
 UPDATE t SET j= JSON_REMOVE(j, '$.key[0].key');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $diff_tables= master:t, slave:t
 --source include/diff_tables.inc
 
@@ -74,8 +74,8 @@ DROP TABLE t;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

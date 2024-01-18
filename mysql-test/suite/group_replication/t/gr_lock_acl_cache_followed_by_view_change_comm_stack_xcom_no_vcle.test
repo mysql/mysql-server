@@ -33,12 +33,12 @@
 --echo ############################################################
 --echo # 1. Deploy a group in single-primary mode with 2 members.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -48,17 +48,17 @@
 --echo #    to the group. The ACL_CACHE lock is acquired by the
 --echo #    ACL statement.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_pause_on_before_commit_hook';
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --send CREATE USER 'user'
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE User="root" AND State="waiting for handler commit" AND Info="CREATE USER 'user'@'%'"
 --source include/wait_condition.inc
 
@@ -71,7 +71,7 @@ SET GLOBAL DEBUG= @debug_save;
 --echo #    BUG: the view install on server1 will be blocked by the
 --echo #         ACL statement.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");
@@ -93,12 +93,12 @@ SET SESSION sql_log_bin = 1;
 --echo #    server3 may be in RECOVERING state but it will be part of
 --echo #    the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 3
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 
@@ -106,47 +106,47 @@ SET SESSION sql_log_bin = 1;
 --echo ############################################################
 --echo # 5. Verify that all members data is equal.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state = ONLINE
 --source include/gr_wait_for_member_state.inc
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text = GTID_EXECUTED must contain 1 transaction
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1";
 --source include/assert.inc
 
 --let $event_sequence= Gtid # !Q(CREATE.*)
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text = GTID_EXECUTED must contain 1 transaction
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1";
 --source include/assert.inc
 
 --let $event_sequence= Gtid # !Q(CREATE.*)
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text = GTID_EXECUTED must contain 1 transaction
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1";
 --source include/assert.inc
 
 --let $event_sequence= Gtid # !Q(CREATE.*)
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 
 --echo
 --echo ############################################################
 --echo # 6. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP USER 'user';
 
 --source include/group_replication_end.inc

@@ -22,7 +22,7 @@
 
 --source include/have_group_replication_xcom_communication_stack.inc
 --source include/big_test.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -32,7 +32,7 @@
 --echo ############################################################
 --echo # 1. Bootstrap group on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE USER 'u1_caching_sha2_password'@'127.0.0.1' IDENTIFIED WITH 'caching_sha2_password' BY 'pwd';
 GRANT REPLICATION SLAVE ON *.* TO 'u1_caching_sha2_password'@'127.0.0.1';
@@ -46,7 +46,7 @@ FLUSH PRIVILEGES;
 --echo # 2. Prepare server2 configuration to force public key
 --echo #    authentication.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_recovery_get_public_key= @@GLOBAL.group_replication_recovery_get_public_key;
 SET @group_replication_recovery_public_key_path= @@GLOBAL.group_replication_recovery_public_key_path;
 
@@ -80,7 +80,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    public key, recovery must fail and the member status must
 --echo #    change to ERROR.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_recovery_get_public_key= FALSE;
 SET GLOBAL group_replication_recovery_public_key_path= "";
 
@@ -96,7 +96,7 @@ SET GLOBAL group_replication_recovery_public_key_path= "";
 --echo #    public key, recovery must fail and the member status must
 --echo #    change to ERROR.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_recovery_get_public_key= FALSE;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --eval SET GLOBAL group_replication_recovery_public_key_path= "$MYSQL_TEST_DIR/std_data/invalid_rsa_public_key.pem"
@@ -113,7 +113,7 @@ SET GLOBAL group_replication_recovery_get_public_key= FALSE;
 --echo #    public key, recovery must succeed and the member status
 --echo #    must change to ONLINE.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_recovery_get_public_key= FALSE;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --eval SET GLOBAL group_replication_recovery_public_key_path= "$MYSQL_TEST_DIR/std_data/rsa_public_key.pem"
@@ -126,11 +126,11 @@ SET GLOBAL group_replication_recovery_get_public_key= FALSE;
 --echo ############################################################
 --echo # 6. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP USER 'u1_caching_sha2_password'@'127.0.0.1';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_recovery_use_ssl= @group_replication_recovery_use_ssl;
 SET GLOBAL group_replication_recovery_retry_count= @group_replication_recovery_retry_count;
 

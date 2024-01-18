@@ -1,0 +1,17 @@
+# Test to see if a DELETE which triggers a fast deletion of all rows
+# (not internally row-per-row but more like a TRUNCATE, MyISAM
+# supports that), is replicated (BUG#13576).
+
+eval create table t1 (a int, b int) engine=$engine_type;
+insert into t1 values(1,1);
+--source include/rpl/sync_to_replica.inc
+select * from t1;
+connection master;
+delete from t1;
+--source include/rpl/sync_to_replica.inc
+select * from t1;
+
+# cleanup
+connection master;
+drop table t1;
+--source include/rpl/sync_to_replica.inc

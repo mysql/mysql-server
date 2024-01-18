@@ -149,7 +149,7 @@ RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin=0;
 DROP USER 'rec_ssl_user';

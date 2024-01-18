@@ -1,6 +1,6 @@
 --source include/have_multi_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 # note: server2 is another "master" connected to the master cluster
 
@@ -49,7 +49,7 @@ connection server2;
 # update is actually in the server2 binlog
 set SQL_LOG_BIN=0;
 insert into t2 values (1);
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 set SQL_LOG_BIN=1;
 --replace_result $the_epoch <the_epoch>
 --disable_query_log
@@ -105,4 +105,4 @@ eval CHANGE REPLICATION SOURCE TO
 
 # Stop the binlog dump threads in server2
 --connection server2
---source include/stop_dump_threads.inc
+--source include/rpl/stop_dump_threads.inc

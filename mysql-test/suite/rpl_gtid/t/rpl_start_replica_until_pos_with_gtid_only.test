@@ -34,7 +34,7 @@
 
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Setup:
@@ -42,11 +42,11 @@
 --echo #     Add some info in the source and replicate it
 --echo #     Record the source positions to wait later on
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t(s INT);
 
@@ -61,12 +61,12 @@ INSERT INTO t VALUES(2);
 --echo # 2. Start replication
 --echo #    Check START REPLICA UNTIL SOURCE_LOS_POS works as intended
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $log_file_on_source SOURCE_LOG_FILE $log_pos_on_source SOURCE_LOG_POS
 --eval START REPLICA UNTIL SOURCE_LOG_FILE='$log_file_on_source', SOURCE_LOG_POS=$log_pos_on_source
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $table_count=`SELECT COUNT(*) FROM t`
 --let $assert_cond= [ SELECT "$table_count" = "1" ]
@@ -78,26 +78,26 @@ INSERT INTO t VALUES(2);
 --echo #    Retrieve the relay log position for the transaction we want
 --echo #    Check START REPLICA UNTIL RELAY_LOG_POS works as intended
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t VALUES(3);
 
-# used on get_relay_log_pos.inc
+# used on rpl/convert_binlog_position_to_relay_log_position.inc
 --let $source_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 INSERT INTO t VALUES(4);
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 --let $replica_local_infile_value = `SELECT @@global.local_infile`
 SET @@GLOBAL.local_infile= true;
 --let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File,1)
---source include/get_relay_log_pos.inc
+--source include/rpl/convert_binlog_position_to_relay_log_position.inc
 
 --replace_result $relay_log_file RELAY_LOG_FILE $relay_log_pos RELAY_LOG_POS
 --eval START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE='$relay_log_file', RELAY_LOG_POS=$relay_log_pos
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $table_count=`SELECT COUNT(*) FROM t`
 --let $assert_cond= [ SELECT "$table_count" = "3" ]
@@ -112,14 +112,14 @@ SET @@GLOBAL.local_infile= true;
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_slave_start=1
 --let $explicit_default_wait_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $applier_source_log_file=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Source_Log_File, 1)
 --let $assert_cond= [ SELECT "$applier_source_log_file" = "INVALID" ]
 --let $assert_text= The source log file name in the applier is invalid
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t VALUES(5);
 
@@ -128,12 +128,12 @@ INSERT INTO t VALUES(5);
 
 INSERT INTO t VALUES(6);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $log_file_on_source SOURCE_LOG_FILE $log_pos_on_source SOURCE_LOG_POS
 --eval START REPLICA UNTIL SOURCE_LOG_FILE='$log_file_on_source', SOURCE_LOG_POS=$log_pos_on_source
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $table_count=`SELECT COUNT(*) FROM t`
 --let $assert_cond= [ SELECT "$table_count" = "5" ]
@@ -145,26 +145,26 @@ INSERT INTO t VALUES(6);
 --echo #    Restart the server so positions become invalid
 --echo #    Check START REPLICA UNTIL RELAY_LOG_POS works as intended
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t VALUES(7);
 
-# used on get_relay_log_pos.inc
+# used on rpl/convert_binlog_position_to_relay_log_position.inc
 --let $source_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 INSERT INTO t VALUES(8);
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 --let $replica_local_infile_value = `SELECT @@global.local_infile`
 SET @@GLOBAL.local_infile= true;
 --let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File,1)
---source include/get_relay_log_pos.inc
+--source include/rpl/convert_binlog_position_to_relay_log_position.inc
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_slave_start=1
 --let $explicit_default_wait_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $applier_source_log_file=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Source_Log_File, 1)
 --let $assert_cond= [ SELECT "$applier_source_log_file" = "INVALID" ]
@@ -174,7 +174,7 @@ SET @@GLOBAL.local_infile= true;
 --replace_result $relay_log_file RELAY_LOG_FILE $relay_log_pos RELAY_LOG_POS
 --eval START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE='$relay_log_file', RELAY_LOG_POS=$relay_log_pos
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $table_count=`SELECT COUNT(*) FROM t`
 --let $assert_cond= [ SELECT "$table_count" = "7" ]
@@ -187,14 +187,14 @@ SET @@GLOBAL.local_infile= true;
 --replace_result $replica_local_infile_value REPLICA_LOCAL_INFILE
 --eval SET @@GLOBAL.local_infile= $replica_local_infile_value
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

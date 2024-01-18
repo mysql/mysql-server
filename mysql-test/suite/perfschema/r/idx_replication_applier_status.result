@@ -1,8 +1,8 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 [connection master]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA ALL;
-include/start_slave.inc
+include/rpl/start_replica.inc
 
 ====================================================================
 Testing index for columns CHANNEL_NAME
@@ -39,7 +39,7 @@ where CHANNEL_NAME = "channel_1";
 REMAINING_DELAY
 #
 OK: handler_read_key incremented
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA ALL;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

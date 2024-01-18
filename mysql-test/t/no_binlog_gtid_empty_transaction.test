@@ -10,12 +10,12 @@
 
 # Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 
 # Clean gtid_executed so that test can execute after other tests
 RESET BINARY LOGS AND GTIDS;
 
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 eval SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 COMMIT;
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
@@ -23,7 +23,7 @@ SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 # Verify exactly one GTID was generated
 --let $gtid_step_count= 1
 --let $gtid_step_only_count= 1
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
 CREATE TABLE t1 (a INT);
 
@@ -41,18 +41,18 @@ END|
 
 delimiter ;|
 
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 CALL p1();
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 
 # Verify exactly two GTIDs were generated
 --let $gtid_step_count= 2
 --let $gtid_step_only_count= 1
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 --let $gtid_step_only_count= 0
 
 DROP TABLE t1;
 DROP PROCEDURE IF EXISTS p1;
 
 # Cleanup
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc

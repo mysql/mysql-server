@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -15,7 +15,7 @@ GRANT SUPER ON *.* TO userX, userA;
 GRANT SELECT ON db1.* TO userX, userA;
 GRANT PROXY ON userY TO userX, userA;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Initial set of grants for userX
 SHOW GRANTS FOR userX;
@@ -70,13 +70,13 @@ REVOKE SUPER ON *.* FROM userX, userA;
 
 --let $event= !Q(REVOKE SUPER ON *.* FROM.*userX.*userA.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 REVOKE SELECT ON db1.* FROM userX, userA;
 
 --let $event= !Q(REVOKE SELECT ON .*db1.*FROM.*userX.*userA.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 REVOKE PROXY ON userY FROM userX, userA;
 
@@ -102,7 +102,7 @@ CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
 GRANT SELECT ON db1.table1 TO userX, userA;
 GRANT INSERT(c1, c2) ON db1.table1 TO userX, userA;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Initial set of grants for userX
 SHOW GRANTS FOR userX;
@@ -151,7 +151,7 @@ REVOKE SELECT ON db1.table1 FROM userX, userA;
 
 --let $event= !Q(REVOKE SELECT ON.*db1.*table1.*FROM.*userX.*userA.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 REVOKE INSERT(c1, c2) ON db1.table1 FROM userX, userA;
 
@@ -164,7 +164,7 @@ SHOW GRANTS FOR userX;
 DROP USER userX, userY, userA;
 DROP TABLE db1.table1;
 DROP DATABASE db1;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for REVOKE on table and column privileges
 
@@ -182,7 +182,7 @@ END ||
 DELIMITER ;||
 
 GRANT EXECUTE ON PROCEDURE db1.proc1 to userX, userA;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Initial set of grants for userX
 SHOW GRANTS FOR userX;
@@ -226,7 +226,7 @@ SHOW GRANTS FOR userX;
 DROP USER userX, userY, userA;
 DROP PROCEDURE db1.proc1;
 DROP DATABASE db1;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for REVOKE on procedures privileges
 
@@ -237,7 +237,7 @@ DROP DATABASE db1;
 CREATE USER userX, userY, userA;
 CREATE ROLE roleA, roleB;
 GRANT roleA, roleB TO userX, userA;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Initial set of grants for userX
 SHOW GRANTS FOR userX;
@@ -267,7 +267,7 @@ SHOW GRANTS FOR userX;
 
 DROP USER userX, userY, userA;
 DROP ROLE roleA, roleB;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for REVOKE on roles
 
@@ -294,7 +294,7 @@ GRANT INSERT(c1, c2) ON db1.table1 TO userX, userA;
 GRANT EXECUTE ON PROCEDURE db1.proc1 to userX, userA;
 GRANT roleA, roleB TO userX, userA;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Initial set of grants for userX
 SHOW GRANTS FOR userX;
@@ -327,7 +327,7 @@ DROP ROLE roleA, roleB;
 DROP TABLE db1.table1;
 DROP PROCEDURE db1.proc1;
 DROP DATABASE db1;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for REVOKE ALL
 

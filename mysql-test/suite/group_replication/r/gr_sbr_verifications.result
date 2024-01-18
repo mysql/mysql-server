@@ -16,7 +16,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch2_1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch2_1']
 
 # Set binlog format on server2.
 [connection server2]
@@ -34,7 +34,7 @@ SET GTID_NEXT= AUTOMATIC;
 # Verify insert doesn't gets executed as table
 # doesn't have a primary key.
 [connection server1]
-include/wait_for_slave_sql_error_and_restart.inc [errno=3098 FOR CHANNEL 'ch2_1']
+include/rpl/wait_for_applier_error_and_restart.inc [errno=3098 FOR CHANNEL 'ch2_1']
 Pattern found.
 Occurrences of '.* \[ERROR\].*The table does not comply with the requirements by an external plugin.*' in the input file: 1
 
@@ -49,7 +49,7 @@ SET GTID_NEXT= AUTOMATIC;
 # Verify insert doesn't gets executed as table
 # doesn't have the innodb storage engine.
 [connection server1]
-include/wait_for_slave_sql_error_and_restart.inc [errno=3098 FOR CHANNEL 'ch2_1']
+include/rpl/wait_for_applier_error_and_restart.inc [errno=3098 FOR CHANNEL 'ch2_1']
 Pattern found.
 Pattern found.
 Occurrences of '.* \[ERROR\].*The table does not comply with the requirements by an external plugin.*' in the input file: 2
@@ -67,7 +67,7 @@ SET GTID_NEXT= AUTOMATIC;
 # Verify insert doesn't gets executed as table
 # has a foreign key with CASCADE clause.
 [connection server1]
-include/wait_for_slave_sql_error_and_restart.inc [errno=3098 FOR CHANNEL 'ch2_1']
+include/rpl/wait_for_applier_error_and_restart.inc [errno=3098 FOR CHANNEL 'ch2_1']
 Pattern found.
 Occurrences of '.* \[ERROR\].*The table does not comply with the requirements by an external plugin.*' in the input file: 3
 
@@ -80,8 +80,8 @@ drop table tp3;
 SET SESSION BINLOG_FORMAT= DEFAULT;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch2_1']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'ch2_1']
 [connection server1]
-include/stop_slave.inc [FOR CHANNEL 'ch2_1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch2_1']
 RESET REPLICA ALL FOR CHANNEL 'ch2_1';
 include/group_replication_end.inc

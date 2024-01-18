@@ -1,19 +1,19 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TEMPORARY TABLE t1 (a INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Replica_open_temp_tables is correctly set to 1 after creating a temp table]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 include/assert.inc [Replica_open_temp_tables is correctly set to 1 after stopping the replication thread]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TEMPORARY TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Replica_open_temp_tables is correctly set to 0 after dropping the temporary table]
-include/stop_slave.inc
-include/rpl_end.inc
+include/rpl/stop_replica.inc
+include/rpl/deinit.inc

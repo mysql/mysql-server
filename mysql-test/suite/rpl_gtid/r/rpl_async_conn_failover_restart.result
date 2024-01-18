@@ -1,4 +1,4 @@
-include/master-slave.inc [rpl_server_count=3]
+include/rpl/init_source_replica.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server_1]
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_2]
 include/assert.inc ['There is one row on replica']
 #
@@ -24,9 +24,9 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #    performance_schema.replication_connection_configuration.
 #
 # Adding debug point 'async_conn_failover_disable_weight_check' to @@GLOBAL.debug
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 #
 # 4. Add asynchronous connection failover server. Verify that they are
@@ -42,11 +42,11 @@ include/assert.inc ['There are three rows in performance_schema.replication_asyn
 #    server 1. The initialized dbug sync point will crash server 2.
 #    Reconnect to server 2 and start replica on it.
 #
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 # Adding debug point 'async_conn_failover_crash' to @@GLOBAL.debug
-include/rpl_stop_server.inc [server_number=1]
-include/rpl_reconnect.inc
-include/start_slave.inc
+include/rpl/stop_server.inc [server_number=1]
+include/rpl/reconnect.inc
+include/rpl/start_replica.inc
 #
 # 6. Verify that asynchronous replication channel gets connected to
 #    server 3 and also verify that asynchronous replication tries
@@ -57,13 +57,13 @@ include/assert_grep.inc [Assert that the IO thread tried five times connecting t
 # 7. Clean up
 #
 [connection server_2]
-include/stop_slave.inc
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/reset_replica.inc
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '');;
 asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
 DROP TABLE t1;
 [connection server_1]
-include/rpl_start_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

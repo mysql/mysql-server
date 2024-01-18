@@ -27,7 +27,7 @@
 --source include/have_debug.inc
 --source include/have_group_replication_xcom_communication_stack.inc
 --let $group_replication_group_name= b5eb4110-a3a2-11e3-a5e2-0800200c9a66
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
 --source include/have_group_replication_plugin.inc
 
@@ -149,7 +149,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 --echo # Verify that the show replica status shows specific IO_error
 --let $rpl_channel_name= 'group_replication_recovery'
 --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --source include/stop_group_replication.inc
 

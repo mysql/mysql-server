@@ -14,7 +14,7 @@
 #                                                                                           #
 #############################################################################################
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 
 --echo # Create table with columns of binary data types and insert uuid values
@@ -56,7 +56,7 @@ INSERT INTO uuid_table(bin) VALUES ( UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2e6-a0b
 --error ER_WRONG_VALUE_FOR_TYPE
 INSERT INTO uuid_table(bin) VALUES ( UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d}5c7'));
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # check whether table was created and uuids were inserted on slave
@@ -85,7 +85,7 @@ WHERE pkey <= 3;
 UPDATE uuid_table SET bin = (UUID_TO_BIN('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7', IS_UUID('12345678-1234-5678-1234-567812345678')))
 WHERE pkey = 1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether value is updated on slave
@@ -104,7 +104,7 @@ WHERE pkey = 1;
 
 DELETE FROM uuid_table WHERE blb = UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}');
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether row has been deleted
@@ -128,7 +128,7 @@ INSERT into invalid_uuid VALUES ( NULL, '1234567812345678123456781234567' ),
                       ( NULL, '{123456781234567812345678123456}78' );
 
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether table has been created on slave
@@ -151,7 +151,7 @@ INSERT INTO uuid_gencol (col1) VALUES
 ('12345679123456781234567812345678'),
 ('12345670-1234-5678-1234-567812345678');
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether table is created
@@ -175,7 +175,7 @@ DROP TABLE invalid_uuid;
 DROP TABLE uuid_gencol;
 
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether table is dropped
@@ -183,5 +183,5 @@ DROP TABLE uuid_gencol;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM uuid_table;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

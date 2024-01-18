@@ -1,30 +1,30 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 FLUSH BINARY LOGS;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # We now stop the IO thread and ensure that the relaylog files
 # are not deleted on doing a CHANGE REPLICATION SOURCE with a running SQL thread.
 
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= 10;
 include/assert.inc [The relaylog file should not change if change replication source command was executed while SQL thread was running.]
 
 # We now stop the SQL thread and ensure that the relaylog files
 # are not deleted on doing a CHANGE REPLICATION SOURCE with a running IO thread.
 
-include/stop_slave_sql.inc
-include/start_slave_io.inc
+include/rpl/stop_applier.inc
+include/rpl/start_receiver.inc
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 20;
 include/assert.inc [The relaylog file should not change if change replication source command was executed while IO thread was running.]
 
 If the relay_log_file and relay_log_pos options are used, we dont purge
 relaylogs.
 
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 CHANGE REPLICATION SOURCE TO RELAY_LOG_POS= RELAY_LOG_POS;
 include/assert.inc [The relaylog file should not change if change replication source command contained relay_log_file or relay_log_pos option.]
@@ -37,5 +37,5 @@ include/assert.inc [With both the threads stopped and no use of relay_log_file o
 
 cleanup
 
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

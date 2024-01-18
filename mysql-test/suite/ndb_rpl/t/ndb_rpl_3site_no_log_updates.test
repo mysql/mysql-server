@@ -12,27 +12,27 @@
 # set up circular replication
 --let $rpl_server_count= 3
 --let $rpl_topology= 1->2->3->1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server.1
 --let $rpl_server_number= 1
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= server.2
 --let $rpl_server_number= 2
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 --let $rpl_connection_name= server.2
---source include/rpl_connection.inc
---source include/save_binlog_position.inc
+--source include/connection.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $relaylog_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 --let $relaylog_position= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
 
 --let $rpl_connection_name= server.3
 --let $rpl_server_number= 3
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= server.1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Insert some data
 CREATE TABLE t1 (a INT PRIMARY KEY, b BLOB) ENGINE = NDB;
@@ -52,14 +52,14 @@ SELECT * FROM t1 ORDER BY a;
 
 --echo # server.2 binary log does NOT contain t1 Table_map
 --let $invert= 1
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --echo # server.2 relay log contains t1 Table_map
 --let $binlog_position= $relaylog_position
 --let $binlog_file= $relaylog_file
 --let $invert= 0
 --let $relay_log= 1
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --sync_slave_with_master server.3
 --echo # server.3 should not have t1
@@ -68,6 +68,6 @@ SELECT * FROM t1 ORDER BY a;
 
 --echo Cleanup
 --let $rpl_connection_name= server.1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

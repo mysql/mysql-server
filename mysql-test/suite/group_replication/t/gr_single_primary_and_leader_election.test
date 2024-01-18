@@ -47,7 +47,7 @@
 while ($i < $ceiling)
 {
   --let $rpl_connection_name= server$i
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   # This assert can be turned into something that enforces
   # super read only to RW. The point is to verify that the
@@ -103,7 +103,7 @@ while ($i < $ceiling)
   if ($group_replication_found_primary_out_var)
   {
     --let $rpl_connection_name= $group_replication_primary_connection_out_var
-    --source include/rpl_connection.inc
+    --source include/connection.inc
   }
   if (!$group_replication_found_primary_out_var)
   {
@@ -141,7 +141,7 @@ while($i < $ceiling)
   if ($group_replication_found_primary_out_var)
   {
     --let $rpl_connection_name= $group_replication_primary_connection_out_var
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     --let $primary_server_id=`SELECT @@server_id`
   }
 
@@ -164,7 +164,7 @@ while($i < $ceiling)
     while ($i_next_server < $ceiling)
     {
       --let $rpl_connection_name= server$i_next_server
-      --source include/rpl_connection.inc
+      --source include/connection.inc
 
       --let $member_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
       let $is_online=`SELECT COUNT(*)=1
@@ -202,7 +202,7 @@ while($i < $ceiling)
     if ($group_replication_found_primary_out_var)
     {
       --let $rpl_connection_name= $group_replication_primary_connection_out_var
-      --source include/rpl_connection.inc
+      --source include/connection.inc
     }
     if (!$group_replication_found_primary_out_var)
     {

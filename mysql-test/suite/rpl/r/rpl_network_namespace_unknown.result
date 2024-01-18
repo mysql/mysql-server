@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -25,7 +25,7 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA FOR CHANNEL 'ch1';
-include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch1']
+include/rpl/wait_for_receiver_error.inc [errno=13117 FOR CHANNEL 'ch1']
 SELECT CHANNEL_NAME, SERVICE_STATE, LAST_ERROR_NUMBER FROM performance_schema.replication_connection_status where CHANNEL_NAME='ch1';
 CHANNEL_NAME	ch1
 SERVICE_STATE	OFF
@@ -33,6 +33,6 @@ LAST_ERROR_NUMBER	13117
 
 ############################################################
 # 3. Clean up.
-include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
 RESET REPLICA ALL FOR CHANNEL 'ch1';
-include/rpl_end.inc
+include/rpl/deinit.inc

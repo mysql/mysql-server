@@ -10,7 +10,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
 --source include/not_ndb_default.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 connection master;
 
 let $maybe_ro_var = @@BINLOG_FORMAT;
@@ -46,11 +46,11 @@ CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255),
 SHOW CREATE TABLE t1;
 
 --echo --- On slave --
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 connection master;
 # Check that simple Alter statements are replicated correctly
@@ -61,12 +61,12 @@ ALTER TABLE t1 MODIFY vc TEXT;
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 # Perform basic operation on master and ensure replicated correctly
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 connection master;
 DROP TABLE IF EXISTS t1;
@@ -98,12 +98,12 @@ CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255),
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 # Perform basic operation on master and ensure replicated correctly
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 connection master;
 # Check that simple Alter statements are replicated correctly ---
@@ -114,12 +114,12 @@ ALTER TABLE t1 MODIFY vc TEXT;
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 # Perform basic operation on master and ensure replicated correctly
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 connection master;
 DROP TABLE IF EXISTS t1;
@@ -147,11 +147,11 @@ CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255),
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 # Check that simple Alter statements are replicated correctly
 ALTER TABLE t1 MODIFY vc TEXT;
@@ -161,11 +161,11 @@ ALTER TABLE t1 MODIFY vc TEXT;
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 connection master;
 DROP TABLE IF EXISTS t1;
@@ -192,11 +192,11 @@ CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255),
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 connection master;
 # Check that simple Alter statements are replicated correctly
@@ -207,11 +207,11 @@ ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(id, total);
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 connection master;
 # Check that simple Alter statements are replicated correctly
@@ -222,13 +222,13 @@ ALTER TABLE t1 MODIFY vc TEXT;
 SHOW CREATE TABLE t1;
 
 --echo --- On slave ---
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
---source include/rpl_multi_engine3.inc
+--source common/rpl/multi_engine3.inc
 
 DROP TABLE IF EXISTS t1;
 
 # End of 5.1 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

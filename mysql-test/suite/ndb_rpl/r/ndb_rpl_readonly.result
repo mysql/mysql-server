@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,14 +7,14 @@ Setup replication and CREATE DATABASE
 [connection master]
 CREATE DATABASE test_readonly;
 Replicate CREATE DATABASE and set read_only on replica
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set global read_only=1;
 Time delay from CREATE to DROP lets the NDB metadata change monitor lock the schema
 [connection master]
 DROP DATABASE test_readonly;
 Sync DROP statement. If OK, it won't timeout
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 Cleanup
 [connection slave]
 set global read_only=0;
-include/rpl_end.inc
+include/rpl/deinit.inc

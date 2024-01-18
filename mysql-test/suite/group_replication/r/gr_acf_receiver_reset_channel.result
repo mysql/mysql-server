@@ -29,7 +29,7 @@ Note	1760	Storing MySQL user name or password information in the connection meta
 SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '', 50);;
 asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '', 50)
 The UDF asynchronous_connection_failover_add_source() executed successfully.
-include/start_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1']
 
 ############################################################
 # 3. Validate server1 and server2 configuration.
@@ -50,10 +50,10 @@ include/assert.inc [Verify replica_monitor thread is not running]
 ############################################################
 # 4. Stop and delete channel 'ch1' on server1 and server2.
 [connection server2]
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 [connection server1]
-include/stop_slave.inc [FOR CHANNEL 'ch1']
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
+include/rpl/reset_replica.inc
 SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '');;
 asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.

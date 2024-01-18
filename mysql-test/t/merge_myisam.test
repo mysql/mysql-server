@@ -7,7 +7,7 @@
 
 # Skip the test when log-bin is enabled and binlog_format=STATEMENT due to
 # presence of many unsafe statements.
---source include/not_binlog_format_statement.inc
+--source include/rpl/deprecated/not_binlog_format_statement.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc

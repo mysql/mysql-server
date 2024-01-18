@@ -23,23 +23,23 @@
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member2_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #1. Create table t1 on M1
 CREATE TABLE table1(a int primary key);
 # Insert some values
 INSERT INTO table1 values (1),(2);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #2. Start transaction t1, crash server M1 post savepoint
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Transaction t1.
 BEGIN;
@@ -50,18 +50,18 @@ SAVEPOINT s2;
 
 # Crash server
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $restart_parameters=restart:--group_replication_local_address=$member1_group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
 --replace_result $member1_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS1 $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # unblock group
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member1_uuid
@@ -72,7 +72,7 @@ eval SET GLOBAL group_replication_force_members= "$member2_group_replication_loc
 
 # rejoin M1 to group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Upon start wait until server M1 comes online.
@@ -88,7 +88,7 @@ let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group
 DROP TABLE table1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");

@@ -44,35 +44,35 @@
 # WL#11300: Crash-safe XA + binary log
 #
 # Related tests:
-#   see extra/xa_crash_safe_tests/setup.inc
+#   see common/xa_crash_safe/setup.inc
 #
 --source include/have_binlog_format_row.inc
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # 1. Setup scenario: create table and insert some records on the source.
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $xid_data = xid1
 --let $xid = `SELECT CONCAT("X'", LOWER(HEX('$xid_data')), "',X'',1")`
---source extra/xa_crash_safe_tests/setup.inc
+--source common/xa_crash_safe/setup.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # 2. Start and execute, on the source, an XA transaction containing an
 #    insert until before `XA COMMIT ... ONE PHASE`.
 #
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 --eval XA START $xid
 INSERT INTO t1 VALUES (1);
 --eval XA END $xid
 
 # 3. Take the `GTID_EXECUTED` state on the replica.
 #
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
 
 # 4. Crash the replica during `XA COMMIT ... ONE PHASE` execution, just
@@ -84,32 +84,32 @@ INSERT INTO t1 VALUES (1);
 --let $sync_point = before_prepare_in_engines
 --source include/execute_to_conditional_timestamp_sync_point.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --source include/kill_mysqld.inc
 
 # 5. Restart the replica server and check that server for:
 #
 --let $restart_parameters=restart:--skip-replica-start
 --source include/start_mysqld.inc
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # 5.a. Error log for messages stating that SE recovery process rolled back
 #      a pending transaction.
 #
 --let $assert_select = Rolling back trx with id %, 1 rows to undo
---source extra/xa_crash_safe_tests/assert_se_recovery_message.inc
+--source common/xa_crash_safe/assert_se_recovery_message.inc
 
 # 5.b. Error log for messages stating that XA recovery process didn't find
 #       any transaction needing recovery.
 #
 --let $assert_select = in InnoDB engine. No attempts to commit, rollback or prepare any transactions.
---source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--source common/xa_crash_safe/assert_recovery_message.inc
 
 # 5.c. The `XA COMMIT ... ONE PHASE` wasn't logged to the binary log.
 #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $event_sequence = $empty_event_sequence
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 # 5.d. There aren't any changes to GTID_EXECUTED.
 #
@@ -122,25 +122,25 @@ INSERT INTO t1 VALUES (1);
 #       RECOVER`.
 #
 --let $expected_prepared_xa_count = 0
---source extra/xa_crash_safe_tests/assert_xa_recover.inc
+--source common/xa_crash_safe/assert_xa_recover.inc
 
 # 5.f. There aren't changes to the table.
 #
 --let $expected_row_count = 1
---source extra/xa_crash_safe_tests/assert_row_count.inc
+--source common/xa_crash_safe/assert_row_count.inc
 
 # 6. Start replica.
 #
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # 7. Check that the `XA COMMIT ... ONE PHASE` was properly replicated back,
 #    after replica catches up with the source.
 #
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let $expected_row_count = 2
---source extra/xa_crash_safe_tests/assert_row_count.inc
+--source common/xa_crash_safe/assert_row_count.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

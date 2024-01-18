@@ -23,11 +23,11 @@ include/start_and_bootstrap_group_replication.inc
 include/start_group_replication.inc
 [connection server2]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_1_PORT FOR CHANNEL 'ch1';
-include/start_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1']
 [connection server1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL ch1]
+include/rpl/sync_to_replica.inc [FOR CHANNEL ch1]
 [connection server1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL ch1]
+include/rpl/sync_to_replica.inc [FOR CHANNEL ch1]
 
 ############################################################
 # 3. Lock table t2 on server2 to block a future update.
@@ -63,9 +63,9 @@ UNLOCK TABLES;
 #    Ensure that asynchronous replication and group replication
 #    are working.
 [connection server1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL ch1]
+include/rpl/sync_to_replica.inc [FOR CHANNEL ch1]
 [connection server1]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server2]
 include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server1]
 include/assert.inc [Assert 2 servers are ONLINE]
@@ -76,13 +76,13 @@ include/assert.inc ['There is a 1 in table t1']
 [connection server1]
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL ch1]
+include/rpl/sync_to_replica.inc [FOR CHANNEL ch1]
 [connection server1]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/stop_group_replication.inc
 RESET BINARY LOGS AND GTIDS;
 [connection server2]
-include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
 RESET REPLICA ALL FOR CHANNEL 'ch1';
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_consistency= DEFAULT;

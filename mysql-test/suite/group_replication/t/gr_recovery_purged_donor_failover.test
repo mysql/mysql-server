@@ -68,7 +68,7 @@ FLUSH BINARY LOGS;
 # the lingering dump thread could still clinging on
 # to it.
 #
---source include/stop_dump_threads.inc
+--source include/rpl/stop_dump_threads.inc
 
 #
 # And just to make sure that the file is indeed not

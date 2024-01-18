@@ -13,7 +13,7 @@
 --echo #
 --echo # #######################################################################
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection master
 --echo [On MASTER]
@@ -51,4 +51,4 @@ DROP TABLESPACE ts1;
 SET GTID_NEXT= @saved_gtid_next;
 --echo # "STOP REPLICA" and verify that the SQL thread was properly stopped and
 --echo # left no gaps.
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

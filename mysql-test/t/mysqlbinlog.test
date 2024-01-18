@@ -51,28 +51,28 @@ select "--- Local --" as "";
 #
 let $MYSQLD_DATADIR= `select @@datadir`;
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/binlog.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # this should not fail but shouldn't produce any working statements
 --echo --- Broken LOAD DATA --
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/binlog.000002 2> /dev/null
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 --echo --- Broken LOAD DATA with streaming input --
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ - 2> /dev/null < $MYSQLD_DATADIR/binlog.000002
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # this should show almost nothing
 --echo --- --database --
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --database=nottest $MYSQLD_DATADIR/binlog.000001 2> /dev/null
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # this test for start-position option
 --echo --- --start-position --
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$binlog_start_pos $MYSQLD_DATADIR/binlog.000002
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 --echo --- --start-position with streaming input --
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$binlog_start_pos - < $MYSQLD_DATADIR/binlog.000002
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -81,32 +81,32 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 # This is broken now
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT binlog.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # This is broken too
 --echo --- Broken LOAD DATA --
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT binlog.000002 2> /dev/null
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # And this too ! (altough it is documented)
 --echo --- --database --
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --database=nottest binlog.000001 2> /dev/null
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # Strangely but this works
 --echo --- --start-position --
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=$binlog_start_pos --user=root --host=127.0.0.1 --port=$MASTER_MYPORT binlog.000002
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # Bug#7853 mysqlbinlog does not accept input from stdin
 --echo --- reading stdin --
 --let $mysqlbinlog_parameters= --short-form - < $MYSQL_TEST_DIR/std_data/master-bin.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # postion is constant to correspond to an event in pre-recorded binlog
 --let $binlog_start_pos=123
 --let $mysqlbinlog_parameters= --short-form --start-position=$binlog_start_pos - < $MYSQL_TEST_DIR/std_data/master-bin.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 drop table t1,t2;
 
@@ -178,7 +178,7 @@ drop procedure p1;
 --error ER_SP_DOES_NOT_EXIST
 call p1();
 --let $mysqlbinlog_parameters= --short-form $MYSQLD_DATADIR/binlog.000008
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 --exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/binlog.000008 | $MYSQL
 call p1();
 drop procedure p1;
@@ -214,7 +214,7 @@ drop table t1;
 flush logs;
 
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/binlog.000010
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 #
 # Bug#28293 missed '#' sign in the hex dump when the dump length
@@ -435,20 +435,20 @@ FLUSH LOGS;
 --echo #
 --echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified exists
 --let $mysqlbinlog_parameters= --database=test --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 --echo #
 --echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified does not exist
 --let $mysqlbinlog_parameters= --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --echo #
 --echo # Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified exists
 --let $mysqlbinlog_parameters= --database=db1 --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 --echo #
 --echo # Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified does not exist
 --let $mysqlbinlog_parameters= --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 
 --echo End of 5.0 tests
@@ -525,7 +525,7 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog | $MYSQL test 2>&1;
 
 let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 #
 # BUG#11766427 BUG#59530: Filter by server id in mysqlbinlog fails
@@ -553,7 +553,7 @@ eval SET GLOBAL SERVER_ID = $old_server_id;
 --echo #
 
 --let $mysqlbinlog_parameters= -uroot --password="" std_data/master-bin.000001 2>&1
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 #
 # WL#9632: mysqlbinlog: generate deprecation warning for --short-form

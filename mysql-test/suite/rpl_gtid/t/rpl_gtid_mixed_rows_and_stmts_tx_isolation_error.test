@@ -25,19 +25,19 @@
 --source include/have_debug.inc
 # The test case only make sense for MIXED
 --source include/have_binlog_format_mixed.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression('transaction isolation level was updated to READ_COMMITTED');
 
 --echo # Testing without XA transactions
 --let $use_xa= 0
---source extra/rpl_tests/rpl_gtid_mixed_rows_and_stmts_tx_isolation_error.inc
+--source common/rpl/gtid_mixed_rows_and_stmts_tx_isolation_error.inc
 
 # The XA part of this test case will fail until BUG#25741071 be fixed.
 # Please uncomment the following three lines after fixing BUG#25741071.
 #--echo # Testing with XA transactions
 #--let $use_xa= 1
-#--source extra/rpl_tests/rpl_gtid_mixed_rows_and_stmts_tx_isolation_error.inc
+#--source common/rpl/gtid_mixed_rows_and_stmts_tx_isolation_error.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

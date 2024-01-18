@@ -5,7 +5,7 @@ Wait to get out of read-only mode
 
 Check that the binlog was rotated:
 There should be a 'LOST EVENT', then 'Rotate ... binlog.000002'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Incident	#	#	#1 (LOST_EVENTS)
 binlog.000001	#	Rotate	#	#	binlog.000002;pos=POS
@@ -19,7 +19,7 @@ Wait to get out of read-only mode
 
 Check that the binlog was rotated:
 There should be a 'LOST EVENT', then 'Rotate ... binlog.000002'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Incident	#	#	#1 (LOST_EVENTS)
 binlog.000001	#	Rotate	#	#	binlog.000002;pos=POS

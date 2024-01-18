@@ -2,7 +2,7 @@
 # work the same way under statement based as under row based.
 
 --source include/not_group_replication_plugin.inc
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 # Add suppression for expected warning(s) in slaves error log
 call mtr.add_suppression("Replica SQL.*Can.t find record in .t[12].* Error_code: 1032");
@@ -15,7 +15,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (-1),(-2),(-3);
 INSERT INTO t2 VALUES (-1),(-2),(-3);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SET @old_replica_exec_mode= @@global.replica_exec_mode;
 SET @@global.replica_exec_mode= IDEMPOTENT;
@@ -33,10 +33,10 @@ DELETE FROM t1 WHERE a = -2;
 DELETE FROM t2 WHERE a = -2;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
---source include/check_slave_no_error.inc
+--source include/rpl/assert_replica_no_error.inc
 
 # An insert of a row that already exists. Since we are replacing the
 # row if it already exists, the most apropriate representation is
@@ -47,9 +47,9 @@ INSERT IGNORE INTO t1 VALUES (-2);
 connection master;
 INSERT IGNORE INTO t1 VALUES (-2);
 SELECT * FROM t1 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY a;
---source include/check_slave_no_error.inc
+--source include/rpl/assert_replica_no_error.inc
 
 
 # BUG#19958: RBR idempotency issue for UPDATE and DELETE
@@ -71,15 +71,15 @@ UPDATE t1 SET a = 1 WHERE a = -1;
 UPDATE t2 SET a = 1 WHERE a = -1;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
---source include/check_slave_no_error.inc
+--source include/rpl/assert_replica_no_error.inc
 
 connection master;
 DROP TABLE t1, t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SET @@global.replica_exec_mode= @old_replica_exec_mode;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,0 +1,160 @@
+# ==== Purpose ====
+#
+# Verify that we permit replication operations with super_read_only=ON.
+#
+# ==== Implementation ====
+#
+# 1) SET GLOBAL super_read_only to 1 on slave
+# 2) Execute 'STOP REPLICA' command
+# 3) Execute 'CHANGE REPLICATION FILTER' command
+# 4) Execute 'CHANGE REPLICATION SOURCE TO' command
+# 5) Execute 'RESET REPLICA FOR CHANNEL <channel_name>' command
+# 7) Execute 'RESET REPLICA ALL FOR CHANNEL <channel_name>' command
+# 8) Execute 'RESET REPLICA' command
+# 9) Execute 'START REPLICA' command
+# 10) Execute 'RESET BINARY LOGS AND GTIDS' command (with GTID_MODE=ON will assert)
+# 11) Execute 'FLUSH BINARY LOGS' command (with GTID_MODE=ON will assert)
+# 12) Execute 'SET GLOBAL gtid_purged='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1''
+# command
+# 13) Restart Replica and verify that slave_master_info table is updated during
+#     shutdown.
+# 14) Check that replication works fine
+# 15) Restore GLOBAL super_read_only to 0
+#
+# ==== References ====
+#
+# Bug#22097534: SUPER_READ_ONLY ABORTS STOP SLAVE IF
+#               RELAY_LOG_INFO_REPOSITORY=TABLE, DBG CRASH
+# Bug#22857926: ASSERTION `! IS_SET()' AT SQL_ERROR.CC:38 IN READ_ONLY MODE FOR
+#               MANY RPL CMDS.
+# Bug#26414532: MYSQLRPLSYNC ERRORS OUT BECAUSE SLAVE IS USING --SUPER-READ-ONLY
+#               OPTION
+# Bug#27675107: SUPER_READ_ONLY WITH MASTER_INFO_REPOSITORY=TABLE BREAKS
+#               REPLICATION ON RESTART
+
+if (!$autocommit_opt)
+{
+    --die !!!ERROR IN TEST: you must set $autocommit_opt
+}
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--let $saved_value_super= `SELECT @@GLOBAL.super_read_only`
+--let $saved_value= `SELECT @@GLOBAL.read_only`
+--let $saved_autocommit= `SELECT @@GLOBAL.autocommit`
+SET GLOBAL super_read_only= 1;
+--eval SET AUTOCOMMIT= $autocommit_opt
+SHOW VARIABLES like '%autocommit%';
+
+--echo ####################################################################
+--echo # Test Case1: STOP REPLICA command
+--echo ####################################################################
+--source include/rpl/stop_replica.inc
+
+--echo ####################################################################
+--echo # Test Case2: CHANGE REPLICATION FILTER command
+--echo ####################################################################
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
+
+--echo ####################################################################
+--echo # Test Case3: CHANGE REPLICATION SOURCE command
+--echo ####################################################################
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
+
+--echo ####################################################################
+--echo # Test Case4: RESET REPLICA FOR CHANNEL/RESET REPLICA ALL/RESET REPLICA
+--echo # commands
+--echo ####################################################################
+RESET REPLICA FOR CHANNEL 'aaa';
+RESET REPLICA ALL FOR CHANNEL 'aaa';
+RESET REPLICA;
+
+--echo ####################################################################
+--echo # Test Case5: START REPLICA command
+--echo ####################################################################
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+# After wl#9211, GTID is persisted periodically by background thread and
+# mysql.gtid_executed table is not necessarily empty. Commenting check/assert.
+#--let $assert_text= mysql.gtid_executed table must have zero records
+#--let $assert_cond= [SELECT count(*) FROM mysql.gtid_executed] = 0
+#--source include/assert.inc
+
+--echo ####################################################################
+--echo # Test Case6: FLUSH BINARY LOGS command
+--echo ####################################################################
+# FLUSH BINARY LOGS asserts when it is trying to update gtid_executed table
+# during binary log rotation.
+FLUSH BINARY LOGS;
+
+# Check that an entry is updated in gtid_executed table without causing any
+# assert.
+--disable_query_log
+if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
+{
+    --let $table=mysql.gtid_executed
+    --let $count=1
+    --source include/wait_until_rows_count.inc
+}
+--enable_query_log
+
+--echo ####################################################################
+--echo # Test Case7: RESET BINARY LOGS AND GTIDS command
+--echo ####################################################################
+RESET BINARY LOGS AND GTIDS;
+
+--echo ####################################################################
+--echo # Test Case8: SET GLOBAL GTID_PURGED command
+--echo ####################################################################
+--let $master_uuid=`SELECT @@SERVER_UUID`
+--replace_result $master_uuid MASTER_UUID
+--eval SET GLOBAL gtid_purged= '$master_uuid:1'
+
+--echo ####################################################################
+--echo # Test Case9: Server Restart
+--echo ####################################################################
+
+# Restart Replica and verify that slave_master_info table is updated during shutdown.
+--let $io_pos_before_restart = query_get_value("SHOW REPLICA STATUS", Read_Source_Log_Pos, 1)
+--let $rpl_server_number = 2
+--source include/rpl/restart_server.inc
+--let $io_pos_after_restart = query_get_value("SHOW REPLICA STATUS", Read_Source_Log_Pos, 1)
+
+# Assert that IO thread Read_Source_Log_Pos before and after restart are same.
+--let $assert_text= Read_Source_Log_Pos before and after restart are same.
+--let $assert_cond= $io_pos_before_restart = $io_pos_after_restart
+--source include/assert.inc
+
+# Restart replica threads
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--echo "Clean up"
+# Reset replica to clean state
+--replace_result $saved_autocommit SAVED_AUTOCOMMIT
+--eval SET AUTOCOMMIT= $saved_autocommit
+--replace_result $saved_value_super SAVED_SUPER_READ_ONLY
+--eval SET GLOBAL super_read_only= $saved_value_super
+--replace_result $saved_value SAVED_READ_ONLY
+--eval SET GLOBAL read_only= $saved_value
+
+# Start fresh slave
+--source include/rpl/stop_replica.inc
+--replace_result $MASTER_MYPORT SOURCE_PORT
+--replace_column 2 ####
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/reset.inc

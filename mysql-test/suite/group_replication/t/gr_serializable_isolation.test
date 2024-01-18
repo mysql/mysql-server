@@ -11,7 +11,7 @@
 # 6. Clean-up
 ################################################################################
 
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 --echo #
@@ -21,7 +21,7 @@
 # serializable isolation mode.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression("Transaction isolation level \\(tx_isolation\\) is set to SERIALIZABLE, which is not compatible with Group Replication");

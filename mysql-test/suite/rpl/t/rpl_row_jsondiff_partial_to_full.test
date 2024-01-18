@@ -10,21 +10,21 @@
 
 --source include/have_binlog_format_row.inc
 --let $rpl_topology=1->2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t (i INT, j JSON);
 
 INSERT INTO t VALUES (1, '{"name": "strawberry", "price": 1}');
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 UPDATE t SET j= JSON_REPLACE(j, '$.name', "apple");
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables= server_1:test.t, server_2:test.t, server_3:test.t
 --source include/diff_tables.inc
 
 DROP TABLE t;
---source include/rpl_sync.inc
---source include/rpl_end.inc
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

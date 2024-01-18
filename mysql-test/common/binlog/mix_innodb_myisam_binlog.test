@@ -1,0 +1,676 @@
+# Check that binlog is ok when a transaction mixes updates to InnoDB and
+# MyISAM.
+# It would be nice to make this a replication test, but in 4.0 the
+# slave is always with --skip-innodb in the testsuite. I (Guilhem) however
+# did some tests manually on a slave; tables are replicated fine and
+# Exec_Source_Log_Pos advances as expected.
+
+-- source include/have_log_bin.inc
+-- source include/have_myisam.inc
+
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
+
+reset binary logs and gtids;
+
+begin;
+insert into t1 values(1);
+insert into t2 select * from t1;
+commit;
+
+source include/rpl/deprecated/show_binlog_events.inc;
+
+delete from t1;
+delete from t2;
+reset binary logs and gtids;
+
+begin;
+insert into t1 values(2);
+insert into t2 select * from t1;
+# should say some changes to non-transact1onal tables couldn't be rolled back
+rollback;
+
+source include/rpl/deprecated/show_binlog_events.inc;
+
+delete from t1;
+delete from t2;
+reset binary logs and gtids;
+
+begin;
+insert into t1 values(3);
+savepoint my_savepoint;
+insert into t1 values(4);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+commit;
+
+source include/rpl/deprecated/show_binlog_events.inc;
+
+delete from t1;
+delete from t2;
+reset binary logs and gtids;
+
+begin;
+insert into t1 values(5);
+savepoint my_savepoint;
+insert into t1 values(6);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+insert into t1 values(7);
+commit;
+select a from t1 order by a; # check that savepoints work :)
+
+source include/rpl/deprecated/show_binlog_events.inc;
+
+# and when ROLLBACK is not explicit?
+delete from t1;
+delete from t2;
+reset binary logs and gtids;
+
+select get_lock("a",10);
+begin;
+insert into t1 values(8);
+insert into t2 select * from t1;
+disconnect con1;
+
+connection con2;
+# We want to SHOW BINLOG EVENTS, to know what was logged. But there is no
+# guarantee that logging of the terminated con1 has been done yet (it may not
+# even be started, so con1 may have not even attempted to lock the binlog yet;
+# so SHOW BINLOG EVENTS may come before con1 does the loggin. To be sure that
+# logging has been done, we use a user lock.
+select get_lock("a",10);
+source include/rpl/deprecated/show_binlog_events.inc;
+
+# and when not in a transact1on?
+delete from t1;
+delete from t2;
+reset binary logs and gtids;
+
+insert into t1 values(9);
+insert into t2 select * from t1;
+
+source include/rpl/deprecated/show_binlog_events.inc;
+
+# Check that when the query updat1ng the MyISAM table is the first in the
+# transaction, we log it immediately.
+delete from t1;
+delete from t2;
+reset binary logs and gtids;
+
+insert into t1 values(10); # first make t1 non-empty
+begin;
+insert into t2 select * from t1;
+source include/rpl/deprecated/show_binlog_events.inc;
+insert into t1 values(11);
+commit;
+
+source include/rpl/deprecated/show_binlog_events.inc;
+
+# Check that things work like before this BEGIN/ROLLBACK code was added,
+# when t2 is INNODB 
+
+alter table t2 engine=INNODB;
+
+delete from t1;
+delete from t2;
+reset binary logs and gtids;
+
+begin;
+insert into t1 values(12);
+insert into t2 select * from t1;
+commit;
+
+source include/rpl/deprecated/show_binlog_events.inc;
+
+delete from t1;
+delete from t2;
+reset binary logs and gtids;
+
+begin;
+insert into t1 values(13);
+insert into t2 select * from t1;
+rollback;
+
+source include/rpl/deprecated/show_binlog_events.inc;
+
+delete from t1;
+delete from t2;
+reset binary logs and gtids;
+
+begin;
+insert into t1 values(14);
+savepoint my_savepoint;
+insert into t1 values(15);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+commit;
+
+source include/rpl/deprecated/show_binlog_events.inc;
+
+delete from t1;
+delete from t2;
+reset binary logs and gtids;
+
+begin;
+insert into t1 values(16);
+savepoint my_savepoint;
+insert into t1 values(17);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+insert into t1 values(18);
+commit;
+select a from t1 order by a; # check that savepoints work :)
+
+source include/rpl/deprecated/show_binlog_events.inc;
+
+# Test for BUG#5714, where a MyISAM update in the transaction used to
+# release row-level locks in InnoDB
+
+connect (con3,localhost,root,,);
+
+connection con3;
+delete from t1;
+delete from t2;
+--disable_warnings
+alter table t2 engine=MyISAM;
+--enable_warnings
+insert into t1 values (1);
+begin;
+select * from t1 for update;
+
+connection con2;
+select (@before:=unix_timestamp())*0; # always give repeatable output
+begin;
+send select * from t1 for update;
+
+connection con3;
+insert into t2 values (20);
+
+connection con2;
+--error 1205
+reap;
+select (@after:=unix_timestamp())*0; # always give repeatable output
+# verify that innodb_lock_wait_timeout was exceeded. When there was
+# the bug, the reap would return immediately after the insert into t2.
+select (@after-@before) >= 2;
+
+connection con3;
+commit;
+
+connection con2;
+drop table t1,t2;
+commit;
+
+# test for BUG#7947 - DO RELEASE_LOCK() not written to binlog on rollback in
+# the middle of a transaction
+
+connection con2;
+begin;
+create temporary table ti (a int) engine=innodb;
+--replace_column 2 #
+rollback;
+insert into ti values(1);
+set autocommit=0;
+create temporary table t1 (a int) engine=myisam; 
+commit;
+insert t1 values (1); 
+rollback;
+create table t0 (n int);
+insert t0 select * from t1;
+set autocommit=1;
+insert into t0 select GET_LOCK("lock1",null);
+set autocommit=0;
+create table t2 (n int) engine=innodb;
+insert into t2 values (3);
+# Saving the binlog filename and position
+--source include/rpl/save_binlog_file_position.inc
+disconnect con2;
+# Wait until con2 disconnects
+--source include/wait_until_disconnected.inc
+connection con3;
+if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
+{
+  # Bug #22084462 - MYSQL TEST BINLOG.BINLOG_ROW_MIX_INNODB_MYISAM FAILS
+  # Wait to ensure that drop temporary tables events
+  # are present in binary log.
+  --let $event_sequence= (Anonymous_)?Gtid # !Q(DROP.*TEMPORARY.*) # (Anonymous_)?Gtid # !Q(DROP.*TEMPORARY.*)
+  --let $limit= 0,4
+  if (`SELECT @@session.binlog_transaction_compression = TRUE`)
+  {
+    --let $limit= 0,6
+  }
+  --let $wait_for_binlog_events= 1
+  --source include/rpl/assert_binlog_events.inc
+  --let $dont_print_pattern= 0
+}
+select get_lock("lock1",60);
+source include/rpl/deprecated/show_binlog_events.inc;
+do release_lock("lock1");
+drop table t0,t2;
+
+# End of 4.1 tests
+
+#
+# Test behaviour of CREATE ... SELECT when mixing MyISAM and InnoDB tables
+#
+
+set autocommit=0;
+CREATE TABLE t1 (a int, b int) engine=myisam;
+reset binary logs and gtids;
+INSERT INTO t1 values (1,1),(1,2);
+--error ER_DUP_ENTRY
+CREATE TABLE t2 (primary key (a)) engine=innodb select * from t1;
+# This should give warning
+DROP TABLE if exists t2;
+INSERT INTO t1 values (3,3);
+--error ER_DUP_ENTRY
+CREATE TEMPORARY TABLE t2 (primary key (a)) engine=innodb select * from t1;
+ROLLBACK;
+# This should give warning
+DROP TABLE IF EXISTS t2;
+
+CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb;
+INSERT INTO t1 VALUES (4,4);
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+SELECT * from t2;
+TRUNCATE table t2;
+INSERT INTO t1 VALUES (5,5);
+--error ER_DUP_ENTRY
+INSERT INTO t2 select * from t1;
+SELECT * FROM t2;
+DROP TABLE t2;
+
+INSERT INTO t1 values (6,6);
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb ;
+INSERT INTO t1 values (7,7);
+--replace_column 2 #
+ROLLBACK;
+INSERT INTO t1 values (8,8);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+COMMIT;
+INSERT INTO t1 values (9,9);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ROLLBACK;
+SELECT * from t2;
+TRUNCATE table t2;
+INSERT INTO t1 values (10,10);
+--error ER_DUP_ENTRY
+INSERT INTO t2 select * from t1;
+SELECT * from t1;
+INSERT INTO t2 values (100,100);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+COMMIT;
+INSERT INTO t2 values (101,101);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ROLLBACK;
+SELECT * from t2;
+DROP TABLE t1,t2;
+source include/rpl/deprecated/show_binlog_events.inc;
+
+# Test for BUG#16559 (ROLLBACK should always have a zero error code in
+# binlog). Has to be here and not earlier, as the SELECTs influence
+# XIDs differently between normal and ps-protocol (and SHOW BINLOG
+# EVENTS above read XIDs).
+
+connect (con4,localhost,root,,);
+connection con3;
+reset binary logs and gtids;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
+select get_lock("a",10);
+begin;
+insert into t1 values(8);
+insert into t2 select * from t1;
+
+disconnect con3;
+
+connection con4;
+select get_lock("a",10); # wait for rollback to finish
+if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
+{
+  --let $statement= SHOW BINLOG EVENTS
+  --let $column= Pos
+  --source include/get_row_count.inc
+  --let $binlog_rollback_position= query_get_value(SHOW BINLOG EVENTS, Pos, $row_count)
+  --let $assert_cond= "[SHOW BINLOG EVENTS, Info, $row_count]" = "ROLLBACK"
+  --let $assert_text= Last event of binlog should be ROLLBACK.
+  --source include/assert.inc
+}
+flush logs;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+# we check that the error code of the "ROLLBACK" event is 0 and not
+# ER_SERVER_SHUTDOWN (i.e. disconnection just rolls back transaction
+# and does not make slave to stop)
+if (`select @@binlog_format = 'ROW'`)
+{
+  --echo There is nothing to roll back; transactional changes are removed from the trans cache.
+}
+
+if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
+{
+  --exec $MYSQL_BINLOG --start-position=$binlog_rollback_position $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+
+  --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  eval select
+  (@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
+  is not null AS Loaded;
+  --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+  eval select
+  @a like "%#%error_code=0%ROLLBACK\\n/*!*/;%" OR
+  @a like "%#%error_code=0%ROLLBACK\\r\\n/*!*/;%",
+  @a not like "%#%error_code=%error_code=%";
+}
+drop table t1, t2;
+
+#
+# Bug #27417  	thd->no_trans_update.stmt lost value inside of SF-exec-stack
+# bug #28960    non-trans temp table changes with insert .. select
+#               not binlogged after rollback
+#
+# testing appearence of insert into temp_table in binlog.
+# There are two branches of execution that require different setup.
+
+## send_eof() branch
+
+# prepare
+
+create temporary table tt (a int unique);
+create table ti (a int) engine=innodb;
+reset binary logs and gtids;
+
+# action
+
+begin; 
+insert into ti values (1); 
+insert into ti values (2) ;
+# This is SAFE because --binlog-direct-non-transactional-updates=FALSE
+insert into tt select * from ti;
+rollback;
+
+# check
+
+select count(*) from tt /* 2 */;
+source include/rpl/deprecated/show_binlog_events.inc;
+select count(*) from ti /* zero */;
+insert into ti select * from tt;
+select * from ti /* that is what slave would miss - a bug */;
+
+
+## send_error() branch
+delete from ti;
+delete from tt where a=1;
+reset binary logs and gtids;
+
+# action
+
+begin; 
+insert into ti values (1); 
+insert into ti values (2) /* to make the dup error in the following */; 
+--error ER_DUP_ENTRY
+insert into tt select * from ti /* one affected and error */;
+rollback;
+
+# check
+
+source include/rpl/deprecated/show_binlog_events.inc;
+select count(*) from ti /* zero */;
+insert into ti select * from tt;
+select * from tt /* that is what otherwise slave missed - the bug */;
+
+drop table ti, tt;
+
+
+#
+# Bug #27417 thd->no_trans_update.stmt lost value inside of SF-exec-stack
+#
+# Testing asserts: if there is a side effect of modifying non-transactional
+# table thd->no_trans_update.stmt must be TRUE;
+# the assert is active with debug build
+#
+
+--disable_warnings
+drop function if exists bug27417;
+drop table if exists t1,t2;
+--enable_warnings
+# side effect table
+CREATE TABLE t1 (a int NOT NULL auto_increment primary key) ENGINE=MyISAM;
+# target tables
+CREATE TABLE t2 (a int NOT NULL auto_increment, PRIMARY KEY (a));
+
+delimiter |;
+create function bug27417(n int)
+RETURNS int(11)
+begin
+  insert into t1 values (null);
+  return n;
+end|
+delimiter ;|
+
+reset binary logs and gtids;
+
+# execute
+
+insert into t2 values (bug27417(1));
+insert into t2 select bug27417(2);
+reset binary logs and gtids;
+
+--error ER_DUP_ENTRY
+insert into t2 values (bug27417(2)); 
+source include/rpl/deprecated/show_binlog_events.inc; /* only (!) with fixes for #23333 will show there is the query */;
+select count(*) from t1 /* must be 3 */;
+
+reset binary logs and gtids;
+select count(*) from t2;
+delete from t2 where a=bug27417(3);
+select count(*) from t2 /* nothing got deleted */; 
+source include/rpl/deprecated/show_binlog_events.inc; /* the query must be in regardless of #23333 */;
+select count(*) from t1 /* must be 5 */;
+
+--enable_info
+delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
+--disable_info
+select count(*) from t1 /* must be 7 */;
+
+# function bug27417 remains for the following testing of bug#23333
+drop table t1,t2;
+
+#
+# Bug#23333 using the patch (and the test) for bug#27471
+#
+# throughout the bug tests 
+# t1 - non-trans side effects gatherer;
+# t2 - transactional table;
+#
+
+CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM;
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique) ENGINE=MyISAM;
+CREATE TABLE t4 (a int, PRIMARY KEY (a), b int unique) ENGINE=Innodb;
+CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+
+
+#
+# INSERT
+#
+
+# prepare
+  
+ insert into t2 values (1);
+ reset binary logs and gtids;
+
+# execute
+
+ --error ER_DUP_ENTRY
+ insert into t2 values (bug27417(1)); 
+  
+# check
+
+ source include/rpl/deprecated/show_binlog_events.inc; /* the output must denote there is the query */;
+ select count(*) from t1 /* must be 1 */;
+
+#
+# INSERT SELECT
+#
+
+# prepare
+ delete from t1;
+ delete from t2;
+ insert into t2 values (2);
+ reset binary logs and gtids;
+
+# execute
+
+ --error ER_DUP_ENTRY
+ insert into t2 select bug27417(1) union select bug27417(2); 
+  
+# check
+
+ source include/rpl/deprecated/show_binlog_events.inc; /* the output must denote there is the query */;
+ select count(*) from t1 /* must be 2 */;
+
+#
+# UPDATE inc multi-update
+#
+
+# prepare
+ delete from t1;
+ insert into t3 values (1,1),(2,3),(3,4);
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ update t3 set b=b+bug27417(1);
+
+# check
+ source include/rpl/deprecated/show_binlog_events.inc; /* the output must denote there is the query */;
+ select count(*) from t1 /* must be 2 */;
+
+## multi_update::send_eof() branch
+
+# prepare
+ delete from t3;
+ delete from t4;
+ insert into t3 values (1,1);
+ insert into t4 values (1,1),(2,2);
+
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
+
+# check
+ source include/rpl/deprecated/show_binlog_events.inc; /* the output must denote there is the query */;
+ select count(*) from t1 /* must be 4 */;
+
+## send_error() branch of multi_update
+
+# prepare
+ delete from t1;
+ delete from t3;
+ delete from t4;
+ insert into t3 values (1,1),(2,2);
+ insert into t4 values (1,1),(2,2);
+
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
+
+# check
+ select count(*) from t1 /* must be 1 */;
+
+# cleanup
+ drop table t4;
+
+
+#
+# DELETE incl multi-delete
+#
+
+# prepare
+ delete from t1;
+ delete from t2;
+ delete from t3;
+ insert into t2 values (1);
+ insert into t3 values (1,1);
+ create trigger trg_del before delete on t2 for each row 
+   insert into t3 values (bug27417(1), 2);
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ delete from t2;
+# check
+ source include/rpl/deprecated/show_binlog_events.inc; /* the output must denote there is the query */;
+ select count(*) from t1 /* must be 1 */;
+
+# cleanup
+ drop trigger trg_del;
+
+# prepare
+ delete from t1;
+ delete from t2;
+ delete from t5;
+ create trigger trg_del_t2 after  delete on t2 for each row
+   insert into t1 values (1);
+ insert into t2 values (2),(3);
+ insert into t5 values (1),(2);
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ delete t2.* from t2,t5 where t2.a=t5.a + 1;
+
+# check
+ source include/rpl/deprecated/show_binlog_events.inc; /* the output must denote there is the query */;
+ select count(*) from t1 /* must be 1 */;
+
+
+#
+# LOAD DATA
+#
+
+# prepare
+ delete from t1;
+ create table t4 (a int default 0, b int primary key) engine=innodb;
+ insert into t4 values (0, 17);
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
+# check
+ select * from t4;
+ select count(*) from t1 /* must be 2 */;
+ source include/rpl/deprecated/show_binlog_events.inc; /* the output must denote there is the query */;
+
+#
+# bug#23333 cleanup
+#
+
+
+drop trigger trg_del_t2;
+drop table t1,t2,t3,t4,t5;
+drop function bug27417;
+if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`) {
+  --remove_file $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+}
+
+
+--echo end of tests
+

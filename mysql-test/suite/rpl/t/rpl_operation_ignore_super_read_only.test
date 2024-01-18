@@ -29,12 +29,12 @@
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
 --source include/not_rpl_gtid_only.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $autocommit_opt= ON
---source extra/rpl_tests/rpl_ignore_super_read_only.test
+--source common/rpl/rpl_ignore_super_read_only.test
 
 --let $autocommit_opt= OFF
---source extra/rpl_tests/rpl_ignore_super_read_only.test
+--source common/rpl/rpl_ignore_super_read_only.test
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

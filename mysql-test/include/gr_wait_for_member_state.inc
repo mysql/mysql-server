@@ -27,7 +27,7 @@
 #     See include/wait_condition.inc
 #
 #   $rpl_debug
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 
 --let $include_filename= gr_wait_for_member_state.inc
 --source include/begin_include_file.inc

@@ -32,7 +32,7 @@
 --echo #    This does not affect multi-primary mode, but we need to
 --echo #    disable it to test the switch to single-primary mode.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
@@ -51,7 +51,7 @@ SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if
 --echo # 2. Despite the action `mysql_disable_super_read_only_if_primary`
 --echo #    is disabled it has not effect on multi-primary mode.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $assert_text= The super_read_only mode must be 0
@@ -63,7 +63,7 @@ SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $assert_text= The super_read_only mode must be 0
@@ -88,7 +88,7 @@ SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if
 --echo # 3. Make server2 leave the group and increase the value of
 --echo #    `replication_group_member_actions` configuration.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
@@ -119,7 +119,7 @@ SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_
 --echo #    server1 configuration will override the configuration of the
 --echo #    group (server2).
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid MEMBER1_UUID
 --eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
@@ -152,7 +152,7 @@ SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -185,7 +185,7 @@ SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_
 --echo # 5. Switch back to multi-primary mode, servers will be
 --echo #    writable.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SELECT group_replication_switch_to_multi_primary_mode();
 
 --let $assert_text= The super_read_only mode must be 0
@@ -197,7 +197,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= The super_read_only mode must be 0
 --let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;

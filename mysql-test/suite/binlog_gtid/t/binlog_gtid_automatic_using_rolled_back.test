@@ -30,7 +30,7 @@ RESET BINARY LOGS AND GTIDS;
 --connect (conn1,127.0.0.1,root,,test,$MASTER_MYPORT,)
 
 --let $rpl_connection_name= conn1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --let $session_id= `SELECT CONCAT("#", CONNECTION_ID())`
 --replace_result $uuid MASTER_UUID
@@ -38,7 +38,7 @@ eval SET @@SESSION.GTID_NEXT = '$uuid:2';
 BEGIN;
 
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (a INT); #uuid:1
 INSERT INTO t1 VALUES (1); #uuid:3
 
@@ -46,11 +46,11 @@ INSERT INTO t1 VALUES (1); #uuid:3
 SELECT @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_OWNED;
 
 --let $rpl_connection_name= conn1
---source include/rpl_connection.inc
+--source include/connection.inc
 ROLLBACK;
 
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1); #uuid:2
 --replace_result $uuid MASTER_UUID
 SELECT @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_OWNED;

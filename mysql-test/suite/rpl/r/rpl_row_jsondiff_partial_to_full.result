@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2->3]
+include/rpl/init.inc [topology=1->2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,10 +8,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server_1]
 CREATE TABLE t (i INT, j JSON);
 INSERT INTO t VALUES (1, '{"name": "strawberry", "price": 1}');
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET j= JSON_REPLACE(j, '$.name', "apple");
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
-include/rpl_end.inc
+include/rpl/sync.inc
+include/rpl/deinit.inc

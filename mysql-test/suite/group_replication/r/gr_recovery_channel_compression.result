@@ -16,7 +16,7 @@ call mtr.add_suppression("Plugin group_replication reported: 'Fatal error during
 call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.");
 SET SESSION sql_log_bin= 1;
 CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 2. Test invalid algorithm and level values.

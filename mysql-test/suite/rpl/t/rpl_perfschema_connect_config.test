@@ -34,8 +34,8 @@
 #           for multi-source monitoring
 
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/set_privilege_checks_user_as_system_user.inc
-source include/master-slave.inc;
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+source include/rpl/init_source_replica.inc;
 source include/have_binlog_format_mixed.inc;
 
 call mtr.add_suppression("Source command COM_REGISTER_REPLICA failed.");
@@ -160,10 +160,10 @@ source include/assert.inc;
 --connection master
 create user replssl@localhost require ssl;
 grant replication slave on *.* to replssl@localhost;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Setup slave to use SSL for connection to master
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
 replace_column 2 ####;
 eval CHANGE REPLICATION SOURCE to
@@ -253,11 +253,11 @@ source include/assert.inc;
 
 let $rpl_server_number= 1;
 let $rpl_start_with_gtids= 1;
-source include/rpl_restart_server.inc;
+source include/rpl/restart_server.inc;
 
 let $rpl_server_number= 2;
 let $rpl_start_with_gtids= 1;
-source include/rpl_restart_server.inc;
+source include/rpl/restart_server.inc;
 
 --connection slave
 
@@ -306,7 +306,7 @@ eval CHANGE REPLICATION SOURCE to
  --let $rpl_set_enforce_gtid_consistency= 0
 }
 --let $no_extra_info= 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 
 --connection master
@@ -314,4 +314,4 @@ drop user replssl@localhost;
 --connection slave
 drop user replssl@localhost;
 
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

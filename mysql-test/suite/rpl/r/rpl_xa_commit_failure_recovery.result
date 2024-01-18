@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=none]
+include/rpl/init.inc [topology=none]
 #
 # Initialization
 #
@@ -21,7 +21,7 @@ ERROR HY000: The resource manager is not able to commit the transaction branch a
 [connection server_1]
 include/assert.inc [Transaction is not committed thus the table is empty.]
 [connection default]
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 include/assert.inc [1 XA transaction(s) in PREPARED state]
 include/assert.inc [XA transaction  is in PREPARED state]
 XA COMMIT '1';
@@ -45,7 +45,7 @@ ERROR HY000: The resource manager is not able to commit the transaction branch a
 [connection server_1]
 include/assert.inc [Transaction is not committed thus the table is empty.]
 [connection default]
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 include/assert.inc [1 XA transaction(s) in PREPARED state]
 include/assert.inc [XA transaction  is in PREPARED state]
 XA COMMIT '1';
@@ -69,7 +69,7 @@ ERROR HY000: The resource manager is not able to commit the transaction branch a
 [connection server_1]
 include/assert.inc [Transaction is not committed thus the table is empty.]
 [connection default]
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 include/assert.inc [1 XA transaction(s) in PREPARED state]
 include/assert.inc [XA transaction  is in PREPARED state]
 XA COMMIT '1';
@@ -93,7 +93,7 @@ ERROR HY000: The resource manager is not able to commit the transaction branch a
 [connection server_1]
 include/assert.inc [Transaction is not committed thus the table is empty.]
 [connection default]
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 include/assert.inc [1 XA transaction(s) in PREPARED state]
 include/assert.inc [XA transaction  is in PREPARED state]
 XA COMMIT '1';

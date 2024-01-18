@@ -4,7 +4,7 @@
 
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_statement.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 connection slave;
 --error ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP
@@ -13,7 +13,7 @@ CHANGE REPLICATION FILTER replicate_do_db=(db1);
 CHANGE REPLICATION FILTER replicate_ignore_db=(db2);
 
 connection slave;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 #Bug19711674: Set the values to empty initially
 CHANGE REPLICATION FILTER replicate_do_db=();
 CHANGE REPLICATION FILTER replicate_ignore_db=();
@@ -21,7 +21,7 @@ CHANGE REPLICATION FILTER replicate_ignore_db=();
 
 CHANGE REPLICATION FILTER replicate_do_db=(db1);
 CHANGE REPLICATION FILTER replicate_ignore_db=(db2);
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 connection master;
 
 CREATE DATABASE db1;
@@ -64,7 +64,7 @@ echo [on master];
 DROP DATABASE IF EXISTS db1;
 DROP DATABASE IF EXISTS db2;
 DROP DATABASE IF EXISTS db3;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 connection slave;
 CHANGE REPLICATION FILTER replicate_do_db=();

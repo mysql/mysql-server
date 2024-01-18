@@ -23,7 +23,7 @@
 --echo ############################################################
 --echo # 1. Bootstrap group on server1, which will be the primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 CREATE TABLE tp1 (c1 char(10) NOT NULL PRIMARY KEY);
@@ -35,7 +35,7 @@ CREATE TABLE tc1 (c1 char(10) NOT NULL PRIMARY KEY,
 --echo ############################################################
 --echo # 2. Add a second member to the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -43,7 +43,7 @@ CREATE TABLE tc1 (c1 char(10) NOT NULL PRIMARY KEY,
 --echo ############################################################
 --echo # 3. Start a transaction that has cascading FK on the primary.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 BEGIN;
 INSERT INTO tp1 VALUES('a');
 INSERT INTO tp1 VALUES('b');
@@ -55,11 +55,11 @@ UPDATE tc1 SET c1 = 'b';
 --echo ############################################################
 --echo # 4. Start group mode change to multi-primary on the primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --send SELECT group_replication_switch_to_multi_primary_mode()
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Wait until the mode change starts waiting for ongoing transactions
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: waiting for pending transactions to finish"
 --source include/wait_condition.inc
@@ -71,7 +71,7 @@ UPDATE tc1 SET c1 = 'b';
 --echo #    changed group_replication_enforce_update_everywhere_checks
 --echo #    but has super_read_only enabled.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: waiting on another member step completion"
 --source include/wait_condition.inc
 
@@ -88,7 +88,7 @@ UPDATE tc1 SET c1 = 'b';
 --echo ############################################################
 --echo # 6. Complete the ongoing transaction.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 COMMIT;
 
 
@@ -96,15 +96,15 @@ COMMIT;
 --echo ############################################################
 --echo # 7. Successful termination of the group change.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 --source include/gr_assert_multi_primary_mode.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_multi_primary_mode.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables=server1:tp1, server2:tp1
 --source include/diff_tables.inc

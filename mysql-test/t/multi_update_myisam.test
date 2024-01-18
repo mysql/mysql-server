@@ -114,7 +114,7 @@ reset binary logs and gtids;
 UPDATE t2,t1 SET t2.a=t1.a+2;
 # check
 select * from t2 /* must be (3,1), (4,4) */;
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 # B. testing multi_update::send_error() ineffective update
 # (as there is a policy described at mysql_update() still go to binlog)
@@ -125,7 +125,7 @@ insert into t2 values (1,2),(3,4),(4,4);
 reset binary logs and gtids;
 --error ER_DUP_ENTRY
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 # cleanup
 drop table t1, t2;

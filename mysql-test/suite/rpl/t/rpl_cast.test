@@ -9,7 +9,7 @@
 #                                                                   #
 #####################################################################
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
@@ -37,7 +37,7 @@ INSERT INTO wl529_insert SELECT CAST(bt AS FLOAT), CAST(vt AS FLOAT), CAST(tt AS
 INSERT INTO wl529_insert SELECT CAST(bt AS DOUBLE), CAST(vt AS DOUBLE), CAST(tt AS DOUBLE), CAST(ft AS DOUBLE), CAST(it AS DOUBLE), CAST(itu AS DOUBLE), CAST(jt AS DOUBLE), CAST(dt AS DOUBLE), CAST(dc AS DOUBLE), CAST(dat AS DOUBLE), CAST(yt AS DOUBLE) FROM wl529;
 INSERT INTO wl529_insert SELECT CAST(bt AS REAL), CAST(vt AS REAL), CAST(tt AS REAL), CAST(ft AS REAL), CAST(it AS REAL), CAST(itu AS REAL), CAST(jt AS REAL), CAST(dt AS REAL), CAST(dc AS REAL), CAST(dat AS REAL), CAST(yt AS REAL) FROM wl529;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether table was created and values were inserted on slave
@@ -57,7 +57,7 @@ UPDATE wl529 SET dt = CAST(vt AS DOUBLE) WHERE id = 2;
 UPDATE wl529 SET dt = CAST(vt AS REAL) WHERE id = 3;
 
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether rows are updated
@@ -73,7 +73,7 @@ SELECT * FROM wl529 WHERE id < 4;
 
 DELETE FROM wl529 WHERE CAST(vt AS DOUBLE) = dt;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether the rows are deleted
@@ -91,8 +91,8 @@ SELECT * FROM wl529;
 
 DROP TABLE wl529, wl529_insert;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

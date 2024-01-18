@@ -1,19 +1,19 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ---- GTID_NEXT=AUTOMATIC -----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
 CREATE TABLE t1 (a INT) SELECT 1;
-include/assert_binlog_events.inc [Anonymous_Gtid # !Begin # !Q(CREATE.*) # Table_map # Write_rows # !Commit]
+include/rpl/assert_binlog_events.inc [Anonymous_Gtid # !Begin # !Q(CREATE.*) # Table_map # Write_rows # !Commit]
 ---- GTID_NEXT=non-automatic -----
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 CREATE TABLE t2 (a INT) SELECT 1;
-include/assert_binlog_events.inc [Anonymous_Gtid # !Begin # !Q(CREATE.*) # Table_map # Write_rows # !Commit]
+include/rpl/assert_binlog_events.inc [Anonymous_Gtid # !Begin # !Q(CREATE.*) # Table_map # Write_rows # !Commit]
 ---- Clean up ----
 DROP TABLE t1;
 DROP TABLE t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

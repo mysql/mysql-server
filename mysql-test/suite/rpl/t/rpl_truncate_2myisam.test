@@ -3,4 +3,4 @@
 --source include/have_myisam.inc
 --source include/force_myisam_default.inc
 let $engine=MyISAM;
---source extra/rpl_tests/rpl_truncate.test
+--source common/rpl/rpl_truncate.test

@@ -40,7 +40,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_sql_service_force_error';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -49,7 +49,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_sql_service_force_error';
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= @debug_save;
 --source include/group_replication_end.inc

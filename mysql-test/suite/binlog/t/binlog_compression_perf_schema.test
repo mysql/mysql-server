@@ -19,14 +19,14 @@
 # Bug#35290223 Memory used by binlog compression is not instrumented
 #
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Initialization
 --echo #
 
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT @@global.binlog_transaction_compression;
 
@@ -70,7 +70,7 @@ SELECT @@global.binlog_transaction_compression;
 --echo #
 
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

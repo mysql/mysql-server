@@ -9,8 +9,8 @@
 # we disable the ps-protocol for this statement.
 --disable_ps_protocol
 
--- source extra/binlog_tests/mix_innodb_myisam_binlog.test
+-- source common/binlog/mix_innodb_myisam_binlog.test
 
 --enable_ps_protocol
 
--- source  extra/binlog_tests/mix_innodb_myisam_side_effects.test
+-- source  common/binlog/mix_innodb_myisam_side_effects.test

@@ -12,12 +12,12 @@
 --source include/have_myisam.inc
 --source include/not_group_replication_plugin.inc
 
-# required by extra/rpl_tests/rpl_xa_gtid_next.inc
+# required by common/rpl/xa_gtid_next.inc
 
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
@@ -79,7 +79,7 @@ FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
 
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo #
 --echo # connection slave
 --echo #
@@ -175,20 +175,20 @@ DROP TABLE t3;
 --let $conclude_as = COMMIT
 --let $gtid_phase1 =
 --let $gtid_phase2 =
---source extra/rpl_tests/rpl_xa_gtid_next.inc
+--source common/rpl/xa_gtid_next.inc
 
 --let $gno_0 = `SELECT $gno_0 + 2`
 --let $conclude_as = ROLLBACK
 --let $gtid_phase1 =
 --let $gtid_phase2 =
---source extra/rpl_tests/rpl_xa_gtid_next.inc
+--source common/rpl/xa_gtid_next.inc
 
 --let $gno_0 = `SELECT $gno_0 + 1`
 --inc $gno_2
 --let $conclude_as = ROLLBACK
 --let $gtid_phase1 =
 --let $gtid_phase2 = $master_uuid:$gno_2
---source extra/rpl_tests/rpl_xa_gtid_next.inc
+--source common/rpl/xa_gtid_next.inc
 
 --let $gno_0 = `SELECT $gno_0 + 1`
 --inc $gno_2
@@ -197,17 +197,17 @@ DROP TABLE t3;
 --let $gtid_phase2 =
 # Error to run set @@gtid_next prior to XA $conclude_as is simulated
 --let $xa_error_simul = 1
---source extra/rpl_tests/rpl_xa_gtid_next.inc
+--source common/rpl/xa_gtid_next.inc
 
 # Three more GTIDs are generated in what follows, two of them from DROP
 # TABLE.
 --let $gno_0 = `SELECT $gno_0 + 3`
 DROP TABLE t1, t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --connection master
 CREATE TABLE t3 (a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # simulate_err_on_write_gtid_into_table would disable gtid background.
 FLUSH LOGS;
 --echo #
@@ -221,9 +221,9 @@ SET @@GLOBAL.DEBUG= '+d,simulate_err_on_write_gtid_into_table';
 INSERT INTO t3 VALUES(1);
 --connection slave
 --let $slave_sql_errno= convert_error(ER_GET_ERRNO)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 SET GLOBAL DEBUG= @debug_save;
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 # two queries contributed to the rhs
 --let $gno_root = 1-$gno_0
 --let $expected_gtid_root= $master_uuid:$gno_root
@@ -273,4 +273,4 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 RESET REPLICA;
 --let $rpl_only_running_threads= 1
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

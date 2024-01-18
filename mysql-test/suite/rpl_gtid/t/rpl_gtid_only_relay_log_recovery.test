@@ -23,41 +23,41 @@
 
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Make the channel use GTID_ONLY=1
 --echo #    Create a table on the source and replicate it.
 --echo #    Add some data making the binlog and relay rotate so the info on the repos is stale
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, REQUIRE_ROW_FORMAT=1;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 let $i=3;
 while($i)
 {
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
    --eval INSERT INTO t1 VALUES ($i)
 
    FLUSH LOGS;
 
-   --source include/sync_slave_sql_with_master.inc
+   --source include/rpl/sync_to_replica.inc
 
-   --source include/stop_slave.inc
+   --source include/rpl/stop_replica.inc
 
-   --source include/start_slave.inc
+   --source include/rpl/start_replica.inc
 
   --dec $i
 }
@@ -68,13 +68,13 @@ while($i)
 
 --let $rpl_server_parameters= --skip_replica_start=FALSE --relay_log_recovery=1
 --let $rpl_server_number = 2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES(4);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $local_gtid_set= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
 
@@ -91,13 +91,13 @@ INSERT INTO t1 VALUES(4);
 --echo #
 --echo # 3. Cleanup
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT=0;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 
 let $messages =
 Relay log recovery on channel with GTID_ONLY=1. The channel will switch to a new relay log and the GTID protocol will be used to replicate unapplied transactions.
@@ -105,8 +105,8 @@ Relay log recovery on channel with GTID_ONLY=1. The channel will switch to a new
 --source include/suppress_messages.inc
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

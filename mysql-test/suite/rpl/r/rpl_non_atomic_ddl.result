@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,22 +8,22 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 call mtr.add_suppression("Replica worker thread has failed to apply an event");
 call mtr.add_suppression("Error writing relay log configuration");
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 [connection master]
 CREATE TABLE tm (a int) ENGINE=MYISAM;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection slave]
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 *** Query: 'CREATE TABLE tm (a int) ENGINE=MYISAM'. Crash right after the non-atomic DDL's event has updated slave relay log info. ***
 SET @@GLOBAL.debug="+d,replica_crash_after_commit_no_atomic_ddl";
 START REPLICA SQL_THREAD;
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 [connection slave]
 include/assert.inc [The table tm must be present]
 include/assert.inc [The executed coordinates must be as after the crashing 'CREATE TABLE tm (a int) ENGINE=MYISAM']
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE tm;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -97,7 +97,7 @@ while ($server_count)
 INSERT INTO t1 VALUES (4);
 INSERT INTO t1 VALUES (5);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #Stop the member 2
 --source include/stop_group_replication.inc

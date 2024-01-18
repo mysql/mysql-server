@@ -40,7 +40,7 @@ mysqladmin: [Warning] Using a password on the command line interface can be inse
 ############################################################
 # 7. Restart server2 using the backup folder
 # restart
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 ############################################################
 # 8. Cleanup

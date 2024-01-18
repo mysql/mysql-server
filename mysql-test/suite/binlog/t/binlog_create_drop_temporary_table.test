@@ -28,7 +28,7 @@ SELECT @@session.binlog_format;
 CREATE TABLE t1(a INT) ENGINE=InnoDB;
 
 --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
---source extra/binlog_tests/create_drop_temporary_table.test
+--source common/binlog/create_drop_temporary_table.test
 --let $assert_text= CREATE/DROP TEMPORARY TABLE is not written into binlog when @@session.binlog_format= MIXED.
 --let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] = $saved_master_pos
 --source include/assert.inc
@@ -36,7 +36,7 @@ CREATE TABLE t1(a INT) ENGINE=InnoDB;
 SET @@session.binlog_format= ROW;
 SELECT @@session.binlog_format;
 --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
---source extra/binlog_tests/create_drop_temporary_table.test
+--source common/binlog/create_drop_temporary_table.test
 --let $assert_text= CREATE/DROP TEMPORARY TABLE is not written into binlog when @@session.binlog_format= ROW.
 --let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] = $saved_master_pos
 --source include/assert.inc

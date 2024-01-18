@@ -21,11 +21,11 @@
 
 
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Create temporary table.
 CREATE TEMPORARY TABLE t1 (a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $status= SHOW STATUS LIKE 'Replica_open_temp_tables'
 --let $num_open_tables= query_get_value($status, Value, 1)
@@ -37,17 +37,17 @@ CREATE TEMPORARY TABLE t1 (a INT);
 # Stopping the replication thread does not delete tables and does not
 # affect the status variable. It also generates a warning because there
 # are open temporary tables in the slave.
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $num_open_tables= query_get_value($status, Value, 1)
 --let $assert_cond= $correct_num_open_tables = $num_open_tables
 --let $assert_text= Replica_open_temp_tables is correctly set to $correct_num_open_tables after stopping the replication thread
 --source include/assert.inc
 
 # Dropping the table that is still open will decrease the value to zero.
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 DROP TEMPORARY TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $num_open_tables= query_get_value($status, Value, 1)
 --let $correct_num_open_tables= 0
 --let $assert_cond= $correct_num_open_tables = $num_open_tables
@@ -55,6 +55,6 @@ DROP TEMPORARY TABLE t1;
 --source include/assert.inc
 
 # Stopping the slave will not generate a warning because there are no open tables.
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

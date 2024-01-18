@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,7 +10,7 @@ insert into mysqltest.t1 values (1,2);
 create table mysqltest.t2 (n int PRIMARY KEY);
 insert into mysqltest.t2 values (45);
 rename table mysqltest.t2 to mysqltest.t3, mysqltest.t1 to mysqltest.t2;
-include/rpl_sync.inc
+include/rpl/sync.inc
 select * from mysqltest.t2;
 n	m
 1	2
@@ -18,5 +18,5 @@ select * from mysqltest.t3;
 n
 45
 drop database mysqltest;
-include/rpl_sync.inc
-include/rpl_end.inc
+include/rpl/sync.inc
+include/rpl/deinit.inc

@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1. Members in Multi Primary Mode, create two tables and rpl_sync
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 CREATE TABLE test.t2 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 2. On a member server2  that will be secondary lock a table t1
 [connection server2]
@@ -52,11 +52,11 @@ UNLOCK TABLES;
 # 10. Kill the new primary server1
 [connection server1]
 # Kill and restart:--group-replication-start-on-boot=0 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 11. Check that the action finishes
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 12. Check server2 was able to insert value
 [connection server_2_1]

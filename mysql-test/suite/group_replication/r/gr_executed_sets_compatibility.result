@@ -38,7 +38,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 DROP TABLE t2;
 RESET BINARY LOGS AND GTIDS;
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 #
 # Test case 2: Try to add a member with more group transactions
 # The start group replication command shall fail
@@ -56,7 +56,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 # Test case 2 cleanup
 # Put server 1 back in the group
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/stop_group_replication.inc
 RESET BINARY LOGS AND GTIDS;
 [connection server1]
@@ -68,7 +68,7 @@ include/start_group_replication.inc
 #
 [connection server1]
 INSERT INTO t1 VALUES (2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc ['There are two values in table t1']
 [connection server2]
 include/assert.inc ['There are two values in table t1']

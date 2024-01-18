@@ -5,8 +5,8 @@
 #          Features for Replication.
 #########################################
 
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 # Needed since test uses CREATE TABLE ... SELECT
 
 disable_query_log;
@@ -157,7 +157,7 @@ SELECT a,b FROM t13 ORDER BY a;
 SELECT a,b FROM v11 ORDER BY a;
 
 --let $sync_slave_connection= slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Check replicated objects
 --echo
@@ -195,7 +195,7 @@ UPDATE t13 SET c='';
 ALTER TABLE t13 ORDER BY a;
 
 --let $sync_slave_connection= slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Compare a data from master and slave
 --echo
@@ -224,7 +224,7 @@ DROP FUNCTION IF EXISTS f2;
 DROP EVENT IF EXISTS e11;
 
 --let $sync_slave_connection= slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End 5.1 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

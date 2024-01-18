@@ -13,7 +13,7 @@
 --source include/have_example_plugin.inc
 
 # Initialize replication.
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --echo Verify that example engine is not installed.
 SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 --echo Get binlog position before install plugin.
@@ -30,7 +30,7 @@ eval SELECT $after_pos - $before_pos AS Delta;
 --echo Verify that example engine is installed.
 SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 # Wait for slave to catch up with master.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #
     --echo connection slave: Verify that example engine is not installed.
     connection slave;
@@ -51,8 +51,8 @@ eval SELECT $after_pos - $before_pos AS Delta;
 --echo Verify that example engine is not installed.
 SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 # Wait for slave to catch up with master.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #
 # Cleanup
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --echo End of test

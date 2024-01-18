@@ -14,9 +14,9 @@
 
 # server_1 is master, others are slaves.
 --let $rpl_topology= 1->2, 1->3, 1->4
---source include/rpl_init.inc
+--source include/rpl/init.inc
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Suppress warning:
 # "Semi-sync master failed on net_flush() before waiting for replica reply"
 CALL mtr.add_suppression("Semi-sync source failed on net_flush().*");
@@ -27,7 +27,7 @@ CALL mtr.add_suppression("Semi-sync source failed on net_flush().*");
 --echo # more than once without problems.
 --echo ####################################################################
 --let $semisync_source_enabled= OFF
---source include/install_semisync_source.inc
+--source include/rpl/install_semisync_source.inc
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 SET GLOBAL rpl_semi_sync_source_enabled= OFF;
@@ -38,77 +38,77 @@ SET GLOBAL rpl_semi_sync_source_enabled= OFF;
 --echo # before semisync master enabled.
 --echo ####################################################################
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
---source include/install_semisync_replica.inc
+--source include/connection.inc
+--source include/rpl/install_semisync_replica.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
---source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+--source common/rpl/semi_sync_ack_thread.inc
 
 --echo ####################################################################
 --echo # Test Case: Semisync should work when more than one semisync slaves
 --echo # connectted.
 --echo ####################################################################
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
---source include/install_semisync_replica.inc
---source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+--source include/connection.inc
+--source include/rpl/install_semisync_replica.inc
+--source common/rpl/semi_sync_ack_thread.inc
 
 --let $rpl_connection_name= server_4
---source include/rpl_connection.inc
---source include/install_semisync_replica.inc
+--source include/connection.inc
+--source include/rpl/install_semisync_replica.inc
 
---source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+--source common/rpl/semi_sync_ack_thread.inc
 
 --echo ###################################################################
 --echo # Test Case: Semisync should work after semisync master is disabled
 --echo # and enabled again.
 --echo ###################################################################
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL rpl_semi_sync_source_enabled= OFF;
 INSERT INTO t1 VALUES(0);
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
---source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+--source common/rpl/semi_sync_ack_thread.inc
 
 --echo ###################################################################
 --echo # Test Case: Semisync should still work after some semisync slaves
 --echo # reconnected
 --echo ###################################################################
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
---source include/stop_slave_io.inc
---source include/start_slave_io.inc
+--source include/connection.inc
+--source include/rpl/stop_receiver.inc
+--source include/rpl/start_receiver.inc
 
---source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+--source common/rpl/semi_sync_ack_thread.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
---source include/stop_slave_io.inc
---source include/start_slave_io.inc
+--source include/connection.inc
+--source include/rpl/stop_receiver.inc
+--source include/rpl/start_receiver.inc
 
---source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+--source common/rpl/semi_sync_ack_thread.inc
 
 --echo ###################################################################
 --echo # Test Case: Semisync should still work after some semisync slaves
 --echo # disconnected
 --echo ###################################################################
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
---source include/uninstall_semisync_replica.inc
+--source include/connection.inc
+--source include/rpl/uninstall_semisync_replica.inc
 
---source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+--source common/rpl/semi_sync_ack_thread.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
---source include/uninstall_semisync_replica.inc
+--source include/connection.inc
+--source include/rpl/uninstall_semisync_replica.inc
 
---source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+--source common/rpl/semi_sync_ack_thread.inc
 
 --echo #####################################################################
 --echo # Test Case: PS threads table includes ACK thread's status correctly.
@@ -123,7 +123,7 @@ SET GLOBAL rpl_semi_sync_source_enabled= ON;
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SELECT name, type, processlist_state FROM performance_schema.threads
   WHERE name LIKE "%Ack_receiver";
 
@@ -147,22 +147,22 @@ SET GLOBAL debug = @save_debug;
 --echo # Status: Waiting for semisync slave to connect
 --echo #
 --let $rpl_connection_name= server_4
---source include/rpl_connection.inc
---source include/uninstall_semisync_replica.inc
+--source include/connection.inc
+--source include/rpl/uninstall_semisync_replica.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 # It guarantees semisync slave 5 is alrealdy unregistered from semisync master
 CALL mtr.add_suppression("Timeout waiting for reply of binlog.*");
 INSERT INTO t1 VALUES(1);
 --save_master_pos
 
 --let $rpl_connection_name= server_4
---source include/rpl_connection.inc
+--source include/connection.inc
 --sync_with_master
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SELECT name, type, processlist_state FROM performance_schema.threads
   WHERE name LIKE "%Ack_receiver";
 
@@ -225,8 +225,8 @@ SET GLOBAL debug= '+d,rpl_semisync_simulate_add_replica_failure';
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
---source include/stop_slave.inc
+--source include/connection.inc
+--source include/rpl/stop_replica.inc
 --let $save_retry_count= query_get_value(SHOW REPLICA STATUS, Source_Retry_Count, 1)
 --let $save_retry_time= query_get_value(SHOW REPLICA STATUS, Connect_Retry, 1)
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 1, SOURCE_CONNECT_RETRY = 5;
@@ -235,26 +235,26 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 1, SOURCE_CONNECT_RETRY = 5;
 # stopped by add_slave_failure
 SET @save_debug= @@GLOBAL.debug;
 SET GLOBAL debug= '+d,dbug.before_get_SOURCE_UUID';
---source include/install_semisync_replica.inc
+--source include/rpl/install_semisync_replica.inc
 
 # Clear the debug point and signal IO thread to resume
 SET GLOBAL debug= @save_debug;
 SET debug_sync= 'now SIGNAL signal.get_source_uuid';
 
 # It should be stopped by add_slave failure
---source include/wait_for_slave_io_to_stop.inc
+--source include/rpl/wait_for_receiver_to_stop.inc
 
 eval CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = $save_retry_count,
                       SOURCE_CONNECT_RETRY = $save_retry_time;
 
---source include/uninstall_semisync_replica.inc
---source include/start_slave_sql.inc
+--source include/rpl/uninstall_semisync_replica.inc
+--source include/rpl/start_applier.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 SET GLOBAL debug= @save_debug;
---source include/uninstall_semisync_source.inc
---source include/rpl_end.inc
+--source include/rpl/uninstall_semisync_source.inc
+--source include/rpl/deinit.inc

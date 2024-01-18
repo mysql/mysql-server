@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -27,7 +27,7 @@ a
 SELECT * FROM t2;
 a
 22
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # connection slave
 # Check tablespace on slave
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -57,7 +57,7 @@ t2	CREATE TABLE `t2` (
 USE test;
 DROP TABLE t1,t2;
 DROP TABLESPACE s_1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # connection slave
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -68,4 +68,4 @@ mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 # connection master
 USE test;
 DROP TABLESPACE s_2;
-include/rpl_end.inc
+include/rpl/deinit.inc

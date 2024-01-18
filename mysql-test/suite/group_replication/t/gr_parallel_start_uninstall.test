@@ -21,7 +21,7 @@
 --echo # 1. Bootstrap M1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
@@ -30,7 +30,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo # 2. Set parameters for server 2 for start gr.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
 
@@ -48,10 +48,10 @@ SET @debug_save= @@GLOBAL.DEBUG;
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,group_replication_wait_on_start';
 SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
@@ -59,14 +59,14 @@ SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 --send START GROUP_REPLICATION USER='root' , PASSWORD='';
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC='now wait_for signal.start_waiting';
 
 --send UNINSTALL PLUGIN group_replication;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC='now signal signal.start_continue';
 
@@ -75,17 +75,17 @@ SET DEBUG_SYNC='now signal signal.start_continue';
 SET DEBUG_SYNC='now signal signal.resume_stop_before_leave_the_group';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= group_replication plugin is uninstalled
 --let $assert_cond= [SELECT COUNT(*) AS count FROM information_schema.plugins WHERE PLUGIN_NAME="group_replication" AND PLUGIN_STATUS="ACTIVE", count, 1] = 0
@@ -97,10 +97,10 @@ SET DEBUG_SYNC='now signal signal.resume_stop_before_leave_the_group';
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (2);
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC = "reset";
@@ -132,17 +132,17 @@ SET @@GLOBAL.group_replication_recovery_retry_count = @saved_gr_recovery_retry_c
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (3);
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 
 --send UNINSTALL PLUGIN group_replication;
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_result_log
 --error 0, ER_GROUP_REPLICATION_CONFIGURATION, ER_GROUP_REPLICATION_COMMAND_FAILURE
@@ -152,7 +152,7 @@ START GROUP_REPLICATION USER='root' , PASSWORD='';
 SET DEBUG_SYNC='now signal signal.resume_stop_before_leave_the_group';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Uninstall may emit warning plugin is busy
 --disable_result_log
@@ -190,7 +190,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_r
 DROP TABLE t1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --source include/group_replication_end.inc

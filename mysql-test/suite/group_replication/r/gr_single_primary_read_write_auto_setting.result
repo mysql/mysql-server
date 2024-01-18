@@ -29,7 +29,7 @@ CREATE TABLE test1(`id` INT PRIMARY KEY AUTO_INCREMENT, `name` VARCHAR(255) NOT 
 INSERT INTO test1(`name`) VALUES("First ROW"), ("Second ROW"), ("Third ROW");;
 INSERT INTO test1(`name`) VALUES("First ROW created in second query"), ("Second ROW created in second query");;
 UPDATE test1 SET `name`="2 ROW" WHERE `name` LIKE '%Second%';;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 CREATE TABLE test2(`id` INT PRIMARY KEY AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL);;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
@@ -39,7 +39,7 @@ INSERT INTO test2(`name`) VALUES("First ROW created in second query"), ("Second 
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
 UPDATE test2 SET `name`="2 ROW" WHERE `name` LIKE '%Second%';;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server3]
 CREATE TABLE test3(`id` INT PRIMARY KEY AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL);;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
@@ -49,7 +49,7 @@ INSERT INTO test3(`name`) VALUES("First ROW created in second query"), ("Second 
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
 UPDATE test3 SET `name`="2 ROW" WHERE `name` LIKE '%Second%';;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server4]
 CREATE TABLE test4(`id` INT PRIMARY KEY AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL);;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
@@ -59,7 +59,7 @@ INSERT INTO test4(`name`) VALUES("First ROW created in second query"), ("Second 
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
 UPDATE test4 SET `name`="2 ROW" WHERE `name` LIKE '%Second%';;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ## STOP SERVER 1 AND START IT AGAIN (MAKE IT TO SECONDARY NODE)
 [connection server1]
@@ -72,7 +72,7 @@ INSERT INTO test1(`name`) VALUES("First ROW created in third query"), ("Second R
 INSERT INTO test1(`name`) VALUES("First ROW created in fourth query"), ("Second ROW created in fourth query");
 UPDATE test1 SET `name`="3 query" WHERE `name` LIKE '%third query%';
 UPDATE test1 SET `name`="Second ROW" WHERE `name` LIKE '%2 ROW%';
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ## CHECK SECONDARY SERVERS THAT ARE SET IN READ ONLY MODE
 TRUNCATE TABLE `test1`;
@@ -107,5 +107,5 @@ include/assert.inc ['Number of tables in current schema should be equal 1, it sh
 
 ## CLEANUP
 DROP TABLE `test1`;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

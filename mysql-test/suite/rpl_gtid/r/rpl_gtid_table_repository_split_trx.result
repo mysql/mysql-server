@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,12 +6,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1 (c1 INT) ENGINE= InnoDB;
 INSERT INTO t1 VALUES (1);
 [connection slave]
-include/rpl_receive_event_count.inc [flush after 2 Gtid events]
+include/rpl/receive_event_count.inc [flush after 2 Gtid events]
 [connection master]
-include/sync_slave_io_with_master.inc
-include/start_slave_sql.inc
+include/rpl/sync_to_replica_received.inc
+include/rpl/start_applier.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

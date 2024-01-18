@@ -7,7 +7,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # Leave and rejoin the group
 #
@@ -27,7 +27,7 @@ START GROUP_REPLICATION;
 #
 # Restart server_2
 #
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 #
 # Verify no crash happens
 #

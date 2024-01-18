@@ -9,11 +9,11 @@
 
 --source include/no_valgrind_without_big.inc
 --let $variable= binlog_direct_non_transactional_updates
---source include/begin_replace_gtid_combination.inc
+--source include/rpl/begin_replace_gtid_combination.inc
 
---let $test_file= extra/binlog_tests/enforce_gtid_consistency_trx_nontrx_consistent.test
---source extra/binlog_tests/enforce_gtid_consistency.test
+--let $test_file= common/binlog/enforce_gtid_consistency_trx_nontrx_consistent.test
+--source common/binlog/enforce_gtid_consistency.test
 
 --let $variable= binlog_direct_non_transactional_updates
---source include/end_replace_gtid_combination.inc
+--source include/rpl/end_replace_gtid_combination.inc
 

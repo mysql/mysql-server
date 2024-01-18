@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ SET debug_sync = "begin_source_pos_wait SIGNAL wait_func_begin WAIT_FOR wait_fun
 SELECT source_pos_wait("master-bin.000001", 10000);;
 [connection slave1]
 SET debug_sync = "now WAIT_FOR wait_func_begin";
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 [connection server_2]
 SET debug_sync = "now signal wait_func_continue";
@@ -22,7 +22,7 @@ source_pos_wait("master-bin.000001", 10000)
 NULL
 SET debug_sync = 'RESET';
 [connection master]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = "BINLOG_FILE",
 SOURCE_LOG_POS = BINLOG_POS, SOURCE_USER='root',
@@ -30,4 +30,4 @@ SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/rpl_end.inc
+include/rpl/deinit.inc

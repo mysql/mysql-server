@@ -26,7 +26,7 @@
 
 -- source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 # sql_replica_skip_counter is not supported with compression
 --source include/not_binlog_transaction_compression_on.inc
@@ -52,7 +52,7 @@ SET sql_mode = default;
 -- connection master
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (1), (2), (3);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 DELETE FROM t1;
 
 # try to change the order of the rows in the engine.
@@ -60,7 +60,7 @@ INSERT INTO t1 VALUES (2), (1), (3), (1);
 
 -- connection master
 UPDATE t1 SET a=1000 WHERE a=1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables= master:test.t1, slave:test.t1
 -- source include/diff_tables.inc
@@ -68,7 +68,7 @@ UPDATE t1 SET a=1000 WHERE a=1;
 -- connection master
 DELETE FROM t1 WHERE a=1000;
 DELETE FROM t1 WHERE a=2 OR a=3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables= master:test.t1, slave:test.t1
 -- source include/diff_tables.inc
@@ -76,9 +76,9 @@ DELETE FROM t1 WHERE a=2 OR a=3;
 #cleanup for case#1
 --connection master
 DROP TABLE  t1; 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 
 # CASE #2: entries generating the same key for the slave internal
 #          hashtable because master table has more columns than the
@@ -100,22 +100,22 @@ INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1 SET a=1000 WHERE a=1;
 
 SELECT * FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 
 -- connection master
 DELETE FROM t1 WHERE a=1000;
 DELETE FROM t1 WHERE a=2;
 SELECT * FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 
 #cleanup for case#2
 --connection master
 DROP TABLE  t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 
 #
 # CASE #3: The master updates and deletes some row that the slave does
@@ -128,23 +128,23 @@ DROP TABLE  t1;
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (1), (2), (3);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 DELETE FROM t1 WHERE a=1;
 DELETE FROM t1 WHERE a=2;
 
 -- connection master
 UPDATE t1 SET a=1000 WHERE a=1;
 -- let $slave_sql_errno= 1032
--- source include/wait_for_slave_sql_error_and_skip.inc
+-- source include/rpl/wait_for_applier_error_and_skip.inc
 
 -- connection master
 DELETE FROM t1 WHERE a=2;
 -- let $slave_sql_errno= 1032
--- source include/wait_for_slave_sql_error_and_skip.inc
+-- source include/rpl/wait_for_applier_error_and_skip.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 
 #
 # CASE #4: covers the case of tables that have blobs in them.
@@ -157,14 +157,14 @@ CREATE TABLE t1 (a INT, b TINYBLOB);
 INSERT INTO t1 VALUES (1,'a'), (1, 'b'), (2,'aa'), (2, 'aa');
 
 UPDATE t1 SET b='c' WHERE a=1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:test.t1, slave:test.t1
 -- source include/diff_tables.inc
 
 -- connection master
 
 UPDATE t1 SET a=10000 WHERE b='aa';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables= master:test.t1, slave:test.t1
 -- source include/diff_tables.inc
@@ -172,7 +172,7 @@ UPDATE t1 SET a=10000 WHERE b='aa';
 -- connection master
 
 UPDATE t1 SET b='c' WHERE b='aa';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables= master:test.t1, slave:test.t1
 -- source include/diff_tables.inc
@@ -180,7 +180,7 @@ UPDATE t1 SET b='c' WHERE b='aa';
 -- connection master
 
 DELETE FROM t1 WHERE b='c';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables= master:test.t1, slave:test.t1
 -- source include/diff_tables.inc
@@ -188,9 +188,9 @@ DELETE FROM t1 WHERE b='c';
 #cleanup for case#4
 --connection master
 DROP TABLE  t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 
 #
 # CASE #5: covers the case in which the table has only blobs in it.
@@ -205,7 +205,7 @@ CREATE TABLE t1 (a TINYBLOB, b TINYBLOB);
 INSERT INTO t1 VALUES ('a','a'), ('b', 'b'), ('a','aa'), ('a', 'aa');
 
 UPDATE t1 SET b='c' WHERE b='aa';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables= master:test.t1, slave:test.t1
 -- source include/diff_tables.inc
@@ -213,7 +213,7 @@ UPDATE t1 SET b='c' WHERE b='aa';
 -- connection master
 
 DELETE FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let  $diff_tables= master:test.t1, slave:test.t1
 -- source include/diff_tables.inc
@@ -222,11 +222,11 @@ DELETE FROM t1;
 INSERT INTO t1 VALUES (NULL,NULL), (NULL, NULL);
 DELETE FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:test.t1, slave:test.t1
 -- source include/diff_tables.inc
 
 #cleanup for case#5
 --connection master
 DROP TABLE  t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

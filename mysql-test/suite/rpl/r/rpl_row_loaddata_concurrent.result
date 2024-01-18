@@ -13,7 +13,7 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 DROP TABLE t1;
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 [connection master]
 select last_insert_id();
 last_insert_id()
@@ -42,27 +42,27 @@ drop table t3;
 create table t1(a int, b int, unique(b));
 insert into t1 values(1,10);
 load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
-include/wait_for_slave_sql_error_and_skip.inc [errno=1062]
-include/check_slave_no_error.inc
+include/rpl/wait_for_applier_error_and_skip.inc [errno=1062]
+include/rpl/assert_replica_no_error.inc
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
 load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
-include/wait_for_slave_sql_error.inc [errno=1062]
-include/stop_slave_io.inc
+include/rpl/wait_for_applier_error.inc [errno=1062]
+include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='test';
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 set global sql_replica_skip_counter=1;
 START REPLICA;
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
 load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
-include/wait_for_slave_sql_error.inc [errno=1062]
+include/rpl/wait_for_applier_error.inc [errno=1062]
 STOP REPLICA;
 RESET REPLICA;
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 reset binary logs and gtids;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=MyISAM;
@@ -90,7 +90,7 @@ CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
 LOAD DATA CONCURRENT INFILE "../../std_data/words.dat" INTO TABLE t1;
 ERROR 23000: Duplicate entry 'Aarhus' for key 'PRIMARY'
 DROP TABLE t1;
-include/rpl_reset.inc
+include/rpl/reset.inc
 drop database if exists b48297_db1;
 drop database if exists b42897_db2;
 create database b48297_db1;
@@ -114,7 +114,7 @@ use b48297_db1;
 include/diff_tables.inc [master:b48297_db1.t1, slave:b48297_db1.t1]
 DROP DATABASE b48297_db1;
 DROP DATABASE b42897_db2;
-include/rpl_reset.inc
+include/rpl/reset.inc
 use test;
 CREATE TABLE t1 (`key` TEXT, `text` TEXT);
 LOAD DATA INFILE '../../std_data/loaddata2.dat' REPLACE INTO TABLE `t1` FIELDS TERMINATED BY ',';
@@ -126,4 +126,4 @@ Field 3	'Field 4'
 'Field 5' 	'Field 6'
 Field 6	 'Field 7'
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

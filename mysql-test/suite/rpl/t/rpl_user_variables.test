@@ -4,8 +4,8 @@
 #
 ###################################
 -- source include/not_group_replication_plugin.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -26,13 +26,13 @@ enable_query_log;
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
 # (otherwise RESET BINARY LOGS AND GTIDS may come too early).
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Save slave's GTID_EXECUTED before issuing a reset binary logs and gtids on it.
 --let $old_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 
 reset binary logs and gtids;
 connection slave;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
 
 # As the master have a GTID for the suppression added in the beginning of the
@@ -47,7 +47,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 }
 --enable_query_log
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 connection master;
 
 create table t1(n char(30)) CHARACTER SET latin1;
@@ -72,7 +72,7 @@ select * from t1 where n = '<nonexistant>';
 connection master1; # see if variable is reset in binlog when thread changes
 insert into t1 values (@a),(@a),(@a*5);
 SELECT * FROM t1 ORDER BY n;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY n;
 connection master;
 insert into t1 select * FROM (select @var1 union  select @var2) AS t2;
@@ -131,7 +131,7 @@ CREATE TRIGGER test.insert_bi BEFORE INSERT
     END|
 DELIMITER ;|
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 
 # Set @var and call the procedure, repeat with different values
@@ -146,7 +146,7 @@ CALL test.insert();
 SELECT * FROM t20;
 SELECT * FROM t21;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo On slave: Check the tables for correct data and it matches master
 
@@ -192,7 +192,7 @@ INSERT INTO t1 VALUES (square());
 
 SELECT * FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo On slave: Retrieve the values from the table and verify they are the same as on master
 
@@ -236,7 +236,7 @@ CREATE FUNCTION f2() returns int deterministic BEGIN
 END |
 DELIMITER ;|
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 
 # Set an @var to a value and insert data into a table using the first function.
@@ -250,7 +250,7 @@ INSERT INTO t1 values(f2());
 
 --echo On master: Retrieve the values from the table
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 
 SELECT * from t1;
@@ -293,7 +293,7 @@ CREATE trigger t1_bi before INSERT on t1 for each row BEGIN
 END |
 DELIMITER ;|
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 
 # Set the @var to a value then insert data into first table.
@@ -306,7 +306,7 @@ INSERT INTO t1 values (5);
 SELECT * from t1;
 SELECT * from t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo On slave: Check the tables for correct data and it matches master
 
@@ -324,7 +324,7 @@ create table t1(a int, b int);
 prepare s1 from 'insert into t1 values (@x:=@x+1, ?)';
 set @x=1; execute s1 using @x;
 select * from t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 select * from t1;
 connection master;
@@ -349,7 +349,7 @@ set @x=CAST(1 AS UNSIGNED);
 execute s1 using @x;
 --enable_warnings
 select * from t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 select * from t1;
 connection master;
@@ -380,7 +380,7 @@ FUNCTION f2() RETURNS INT BEGIN
 END|
 DELIMITER ;|
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 
 # Set the variable and execute the functions.
@@ -393,7 +393,7 @@ SELECT f1(), f2();
 INSERT INTO t1 VALUES(f1());
 SELECT * FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo On slave: Check the table for correct data and it matches master
 
@@ -407,6 +407,6 @@ DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

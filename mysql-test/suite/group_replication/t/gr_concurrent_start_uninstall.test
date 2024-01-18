@@ -22,7 +22,7 @@
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_bootstrap_group=ON;
 SET GLOBAL group_replication_group_name = '8a94f357-bbbb-22aa-33bb-cccaaa420000';
@@ -43,7 +43,7 @@ SET @@GLOBAL.DEBUG= 'd,group_replication_wait_on_start';
 --echo # 3. Execute UNINSTALL PLUGIN GR from second connection.
 --echo
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Wait for the debug sync to be reached.
 SET DEBUG_SYNC= "now WAIT_FOR signal.start_waiting";
 
@@ -59,7 +59,7 @@ UNINSTALL PLUGIN group_replication;
 SET DEBUG_SYNC= 'now SIGNAL signal.start_continue';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --echo

@@ -1,7 +1,7 @@
 #
 # 1. Create a chain replication between server 1, 2, 3 and 4.
 #.
-include/rpl_init.inc [topology=1->2->3->4]
+include/rpl/init.inc [topology=1->2->3->4]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server_1]
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_4]
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression(".*The Monitor IO thread encountered an error while executing the query to check connection to the source server. Error: Can't connect to MySQL server.*");
@@ -37,14 +37,14 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #    count and retry time to 2 and verify its enabled in
 #    performance_schema.replication_connection_configuration.
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 #
 # 5. Stop server 3.
 #
-include/rpl_stop_server.inc [server_number=3]
+include/rpl/stop_server.inc [server_number=3]
 #
 # 6. Verify that asynchronous replication fails with error
 #    ER_RPL_ASYNC_RECONNECT_FAIL_NO_SOURCE as there is no source
@@ -53,7 +53,7 @@ include/rpl_stop_server.inc [server_number=3]
 #    connect.
 #
 [connection server_4]
-include/wait_for_slave_io_error.inc [errno=2003]
+include/rpl/wait_for_receiver_error.inc [errno=2003]
 #
 # 7. Verify that asynchronous replication tries connecting to server 3
 #    two (retry_count=2) times before it fails.
@@ -78,7 +78,7 @@ include/assert.inc ['There are three rows in performance_schema.replication_asyn
 # 9. Restart replica IO so asynchronous replication connection failover
 #    can execute and connect to new sender/source.
 #
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 #
 # 10. Verify that asynchronous replication channel gets connected to
 #     server 2 and also verify that asynchronous replication tries
@@ -95,7 +95,7 @@ INSERT INTO t1 VALUES (2);
 #
 # 12. Stop server 2.
 #
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 #
 # 13. Verify that asynchronous replication channel gets connected to
 #     server 1 and also verify that asynchronous replication tries
@@ -115,7 +115,7 @@ INSERT INTO t1 VALUES (3);
 #
 [connection server_4]
 SET GLOBAL debug = '+d,replica_retry_count_exceed';
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 #
 # 16. Even after all source are stopped the replica IO thread keeps
 #     on re-trying to connect with all logged source in
@@ -140,7 +140,7 @@ SET DEBUG_SYNC= 'RESET';
 #
 # 17. Stop replica IO
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 #
 # 18. Clean up
 #
@@ -154,16 +154,16 @@ The UDF asynchronous_connection_failover_delete_source() executed successfully.
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '');;
 asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
-include/rpl_start_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
 [connection server_2]
-include/rpl_start_server.inc [server_number=2]
-include/start_slave.inc
+include/rpl/start_server.inc [server_number=2]
+include/rpl/start_replica.inc
 [connection server_3]
-include/rpl_start_server.inc [server_number=3]
-include/start_slave.inc
+include/rpl/start_server.inc [server_number=3]
+include/rpl/start_replica.inc
 [connection server_4]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection server_1]
 DROP TABLE t1;
-include/rpl_sync.inc
-include/rpl_end.inc
+include/rpl/sync.inc
+include/rpl/deinit.inc

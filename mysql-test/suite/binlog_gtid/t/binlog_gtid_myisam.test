@@ -27,7 +27,7 @@ UPDATE t2,t1 SET t2.a=t1.a+2;
 # check
 select * from t2 /* must be (3,1), (4,4) */;
 --echo # There must no UPDATE in binlog;
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 # B. testing multi_update::send_error() execution branch
 delete from t1;
@@ -38,7 +38,7 @@ reset binary logs and gtids;
 --error ER_DUP_ENTRY
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 --echo # There must be no UPDATE query event;
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 # cleanup bug#27716
 drop table t1, t2;

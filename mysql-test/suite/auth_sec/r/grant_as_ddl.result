@@ -188,7 +188,7 @@ REVOKE INSERT ON db1.* FROM r3;
 GRANT r3 TO r4;
 GRANT r2, r4 TO foo;
 ALTER USER foo DEFAULT ROLE ALL;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 GRANT SELECT, INSERT ON *.* TO bar AS foo WITH ROLE ALL;
 GRANT SELECT, INSERT ON *.* TO bar AS foo WITH ROLE NONE;
 GRANT SELECT, INSERT ON *.* TO bar AS foo WITH ROLE ALL EXCEPT r2;
@@ -204,7 +204,7 @@ GRANT SELECT, INSERT ON *.* TO foo AS foo WITH ROLE ALL EXCEPT r2;
 GRANT SELECT, INSERT ON *.* TO foo AS foo WITH ROLE DEFAULT;
 GRANT SELECT, INSERT ON *.* TO foo AS foo WITH ROLE r2, r4;
 GRANT SELECT, INSERT ON *.* TO bar;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT ON *.* TO 'bar'@'%' AS 'foo'@'%' WITH ROLE ALL
 binlog.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT ON *.* TO 'bar'@'%' AS 'foo'@'%' WITH ROLE NONE
@@ -223,9 +223,9 @@ binlog.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT ON *.* TO 'foo'@'%' A
 binlog.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT ON *.* TO 'bar'@'%' AS 'foo'@'%' WITH ROLE 'r2'@'%','r4'@'%'
 GRANT SELECT, INSERT ON *.* TO foo;
 REVOKE SELECT, INSERT ON db1.* FROM foo;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 GRANT SELECT, INSERT ON *.* TO bar AS foo;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT ON *.* TO 'bar'@'%' AS 'foo'@'%' WITH ROLE NONE
 DROP DATABASE db1;

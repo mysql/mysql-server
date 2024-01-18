@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -38,7 +38,7 @@ Warning	3129	Please do not modify the gtid_executed table. This is a mysql inter
 #
 SELECT * FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 source_uuid	interval_start	interval_end	gtid_tag
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 call mtr.add_suppression("You need to use --log-bin to make "
                          "--binlog-format work");
 call mtr.add_suppression("The transaction owned GTID is already in the "
@@ -76,4 +76,4 @@ SELECT @@GLOBAL.GTID_EXECUTED;
 @@GLOBAL.GTID_EXECUTED
 aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2
 [connection master]
-include/rpl_end.inc
+include/rpl/deinit.inc

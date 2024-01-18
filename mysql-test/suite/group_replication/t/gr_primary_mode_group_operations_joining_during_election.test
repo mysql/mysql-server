@@ -34,7 +34,7 @@
 --echo #    Server 3 has a user for recovery, so he is the only valid donor
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed*");
@@ -55,7 +55,7 @@ SET sql_log_bin=1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_member_weight= 90;
 
@@ -68,7 +68,7 @@ SET sql_log_bin=1;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Server 3 has a user for recovery to ensure this server
 # is the donor in the upcoming recovery of server 1
@@ -86,7 +86,7 @@ SET sql_log_bin=1;
 --echo # 2. Lock a table so the election gets stuck
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 LOCK TABLE t1 READ;
 
@@ -94,7 +94,7 @@ LOCK TABLE t1 READ;
 --echo # 3. Execute a query and cause an election
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1);
 
@@ -113,7 +113,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='recovery_user', SOURCE_PASSWORD='rpl' 
 --echo # 5. Check the election is running on server 2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Election: applying buffered transactions%"
 --source include/wait_condition.inc
@@ -127,7 +127,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='recovery_user', SOURCE_PASSWORD='rpl' 
 --echo # 6. Check no election is running on server 1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= There is no stage present
@@ -138,7 +138,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='recovery_user', SOURCE_PASSWORD='rpl' 
 --echo # 7. Check we can't execute actions on server 1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GRP_RPL_UDF_ERROR
 SELECT group_replication_switch_to_multi_primary_mode();
@@ -147,7 +147,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 8. Unlock the table to unblock the election
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
@@ -164,12 +164,12 @@ SET @@SESSION.group_replication_consistency= @group_replication_consistency_save
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -177,19 +177,19 @@ SET @@SESSION.group_replication_consistency= @group_replication_consistency_save
 --echo # 10. Check that actions can now be executed on the joiner
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_switch_to_multi_primary_mode();
 
 --source include/gr_assert_multi_primary_mode.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_multi_primary_mode.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_multi_primary_mode.inc
 
@@ -197,7 +197,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 11. Cleanup
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 DROP USER recovery_user;
@@ -206,7 +206,7 @@ SET sql_log_bin=1;
 DROP TABLE t1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 DROP USER recovery_user;
@@ -218,7 +218,7 @@ SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 --let $rpl_group_replication_reset_persistent_vars=1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 DROP USER recovery_user;

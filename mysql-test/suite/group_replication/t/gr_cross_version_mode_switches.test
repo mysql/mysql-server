@@ -47,7 +47,7 @@
 --echo #    Start GR on M2 with higher weight and patch version.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
@@ -55,7 +55,7 @@ SET SESSION sql_log_bin=1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
@@ -115,7 +115,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 SELECT group_replication_switch_to_multi_primary_mode();
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @member_weight3_save= @@GLOBAL.group_replication_member_weight;
 --let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -230,7 +230,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 SELECT group_replication_switch_to_multi_primary_mode();
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SET GLOBAL group_replication_member_weight= 60
 
@@ -252,7 +252,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 SET @@GLOBAL.group_replication_member_weight = @member_weight3_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_switch_to_multi_primary_mode();
 # Stop GR because version is different.

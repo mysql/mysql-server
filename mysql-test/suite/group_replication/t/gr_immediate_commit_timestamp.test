@@ -43,25 +43,25 @@
 
 # Boostrap start GR on server1 (Primary)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # Start GR on server2 (Secondary)
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo ############################################################
 --echo # 2. Add some data to S1 and S4
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
@@ -69,21 +69,21 @@ CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo # 3. Create and start new channel ch1_3: S3(REPLICA), S1(SOURCE)
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_1 for channel 'ch1_3'
 
 --let $rpl_channel_name='ch1_3'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1_3'
 --let $sync_slave_connection=server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_channel_name=
 
 --echo ############################################################
@@ -93,7 +93,7 @@ CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo #    S1 `group_replication_applier` relay log.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME="group_replication_applier" AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP) > 0 AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP) > 0, count, 1] = 1
@@ -104,7 +104,7 @@ CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME="ch1_3" AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP) > 0 AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP) > 0, count, 1] = 1
@@ -118,17 +118,17 @@ CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo # 5. Run a transaction while complete setup is ON.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO test.t1 values (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1_3'
 --let $sync_slave_connection=server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_channel_name=
 
 --echo ############################################################
@@ -138,7 +138,7 @@ INSERT INTO test.t1 values (1);
 --echo #    S2 `group_replication_applier` relay log.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME="group_replication_applier" AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP) > 0 AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP) > 0, count, 1] = 1
@@ -149,7 +149,7 @@ INSERT INTO test.t1 values (1);
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME="ch1_3" AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP) > 0 AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP) > 0, count, 1] = 1
@@ -164,29 +164,29 @@ INSERT INTO test.t1 values (1);
 --echo #    Existing transactions will be replicated.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_4 SERVER_4_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_4 for channel 'ch4_1'
 
 --let $rpl_channel_name='ch4_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch4_1'
 --let $sync_slave_connection=server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_channel_name=
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1_3'
 --let $sync_slave_connection=server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_channel_name=
 
 --echo ############################################################
@@ -196,7 +196,7 @@ INSERT INTO test.t1 values (1);
 --echo #    S1 `group_replication_applier` relay log.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME="group_replication_applier" AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP) > 0 AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP) > 0, count, 1] = 1
@@ -207,7 +207,7 @@ INSERT INTO test.t1 values (1);
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME="ch1_3" AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP) > 0 AND UNIX_TIMESTAMP(LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP) > 0, count, 1] = 1
@@ -222,7 +222,7 @@ INSERT INTO test.t1 values (1);
 --echo # 9. Clean Up
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 STOP REPLICA FOR CHANNEL 'ch1_3';
 RESET REPLICA ALL FOR CHANNEL 'ch1_3';
 
@@ -230,7 +230,7 @@ DROP TABLE test.t1;
 DROP TABLE test.t2;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE test.t1;
 DROP TABLE test.t2;
@@ -238,7 +238,7 @@ STOP REPLICA FOR CHANNEL 'ch4_1';
 RESET REPLICA ALL FOR CHANNEL 'ch4_1';
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE test.t2;
 

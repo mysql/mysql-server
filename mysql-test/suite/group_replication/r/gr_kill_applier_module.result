@@ -15,7 +15,7 @@ call mtr.add_suppression("Error writing relay log configuration.");
 call mtr.add_suppression("Failed to stop the group replication applier thread.");
 SET sql_log_bin=1;
 CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 2. Kill the "Group replication applier module" thread on

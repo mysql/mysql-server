@@ -5,9 +5,9 @@
 # existed specific rpl_ignore_grant test case (BUG#980)
 
 --source include/not_group_replication_plugin.inc
-source include/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
 let $rpl_privilege_checks_user_grant_option = 1;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 ###  CLEAN-UP: create an account and manually duplicate it on the slave
 
@@ -17,7 +17,7 @@ grant select on *.* to 'user_foo'@'%';
 revoke select on *.* from 'user_foo'@'%';
 select select_priv from mysql.user where user='user_foo' /* master:must be N */;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 create user 'user_foo'@'%' identified by 'user_foopass';
 grant select on *.* to 'user_foo'@'%';
@@ -35,7 +35,7 @@ connection master;
 revoke select on *.* from 'user_foo';
 select select_priv from mysql.user where user='user_foo' /* master:must be N */;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 select select_priv from mysql.user where user='user_foo' /* slave:must get Y */;
 
@@ -48,9 +48,9 @@ revoke select on *.* FROM 'user_foo';
 
 connection master;
 delete from mysql.user where user="user_foo";
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Since changes to mysql.* are ignored, the revoke need to
 # be done on slave as well
 delete from mysql.user where user="user_foo";
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

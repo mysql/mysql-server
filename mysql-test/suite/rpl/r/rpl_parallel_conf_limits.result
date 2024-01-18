@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,22 +6,22 @@ Note	####	Storing MySQL user name or password information in the connection meta
 create view coord_wait_list as
 SELECT id from Information_Schema.processlist
 where state like 'Waiting for Replica Worker%';
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 4;
 create view worker_wait_list as
 SELECT id from Information_Schema.processlist
 where state like 'Waiting for an event from Coordinator';
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 set @save_replica_pending_jobs_size_max = @@global.replica_pending_jobs_size_max;
 set @@global.replica_pending_jobs_size_max= 1024;
-include/start_slave.inc
+include/rpl/start_replica.inc
 Configured number of Workers is started.
 create database d0;
 create table d0.t0 (a int auto_increment primary key, b text null) engine=innodb;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 begin;
 insert into d0.t0 set a= 1;
 begin;
@@ -30,8 +30,8 @@ commit;
 rollback;
 set @@global.replica_pending_jobs_size_max= @save_replica_pending_jobs_size_max;
 drop database d0;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 drop view coord_wait_list;
 drop view worker_wait_list;
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
-include/rpl_end.inc
+include/rpl/deinit.inc

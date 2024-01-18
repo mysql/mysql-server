@@ -16,12 +16,12 @@
 # WL#15755: MAKE SQL_AFTER_GTIDS WORK WITH MTS
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $source_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 CREATE TABLE t1(c1 INTEGER PRIMARY KEY);
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 let $messages =
 Worker .* failed executing transaction
@@ -45,21 +45,21 @@ Replica SQL for channel '': Could not execute Write_rows event on table test.t1*
 --echo ##############################################################
 --echo # 1. Check general data failures are handled correctly.
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET sql_log_bin=0;
 INSERT INTO t1 VALUES(2);
 SET sql_log_bin=1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(2);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $source_uuid SOURCE_UUID
 --eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:2"
 
 --let $slave_sql_errno=1317,13121,1062
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo
 --echo ##############################################################
@@ -70,10 +70,10 @@ INSERT INTO t1 VALUES(2);
 LOCK TABLE t1 WRITE;
 
 # Add 1 more transaction in the queue, this will not be applied
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(3);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $source_uuid SOURCE_UUID
 --eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:2"
@@ -86,7 +86,7 @@ INSERT INTO t1 VALUES(3);
 UNLOCK TABLES;
 
 --let $slave_sql_errno=1317,13121,1062
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo
 --echo ##############################################################
@@ -96,8 +96,8 @@ SET sql_log_bin=0;
 DELETE FROM t1 WHERE C1 = 2;
 SET sql_log_bin=1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_connection_slave.inc
---source include/start_slave_sql.inc
---source include/rpl_end.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/deinit.inc

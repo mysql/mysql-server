@@ -24,7 +24,7 @@
 --echo # 1. Setup the members with a recovery user that does
 --echo #    require SSL.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin=0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
@@ -33,7 +33,7 @@ FLUSH PRIVILEGES;
 SET SESSION sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin=0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
@@ -52,7 +52,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_repli
 --echo # 2. Start Group Replication on both members and assert that
 --echo #    GCS SSL is enabled.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_recovery_ssl_and_ssl_mode.1.err
@@ -61,7 +61,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_repli
 --source include/grep_pattern.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_recovery_ssl_and_ssl_mode.2.err
@@ -74,7 +74,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_repli
 --echo # 3. Stop and start Group Replication on member 2 to stress
 --echo #    SSL destroy and initialization procedures
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 
@@ -89,24 +89,24 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_repli
 --echo # 4. Execute some transactions to validate that group is
 --echo #    properly working.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (2);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There are 2 values on table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There are 2 values on table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
 --source include/assert.inc
@@ -116,7 +116,7 @@ INSERT INTO t1 VALUES (2);
 --echo ############################################################
 --echo # 5. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 SET SESSION sql_log_bin=0;
@@ -124,7 +124,7 @@ DROP USER 'rec_ssl_user';
 SET SESSION sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin=0;
 DROP USER 'rec_ssl_user';

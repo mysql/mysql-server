@@ -10,7 +10,7 @@
 #
 # Tests that are independent of GTID_MODE
 #
---source extra/binlog_tests/logical_timestamping.inc
+--source common/binlog/logical_timestamping.inc
 
 
 #
@@ -64,7 +64,7 @@ START TRANSACTION;
 COMMIT;
 --let $binlog_file= binlog.000001
 --let $logical_timestamps= 0 1;1 2
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 RESET BINARY LOGS AND GTIDS;
 # transaction that mixes transactional and nontransactional tables and rolls back
@@ -74,7 +74,7 @@ START TRANSACTION;
 ROLLBACK;
 
 --let $logical_timestamps= 0 1
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 RESET BINARY LOGS AND GTIDS;
 # One query gets logged to as multiple transactions, due to both mixed
@@ -83,14 +83,14 @@ RESET BINARY LOGS AND GTIDS;
 CALL p1();
 
 --let $logical_timestamps= 0 1;1 2;2 3
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 RESET BINARY LOGS AND GTIDS;
 # few regular transactions logged with one query
 CALL p2();
 
 --let $logical_timestamps= 0 1;1 2;2 3
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;

@@ -9,13 +9,13 @@ include/start_and_bootstrap_group_replication.inc
 
 [connection server2]
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 [connection server3]
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
 [connection server1]
 CREATE TABLE test.t1 ( a int primary key);
-include/rpl_sync.inc
+include/rpl/sync.inc
 USE test;
 CREATE PROCEDURE insert_into_t1()
 BEGIN
@@ -40,7 +40,7 @@ START GROUP_REPLICATION;
 
 #Validating the records in server3#
 [connection server3]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 #Validating the records in server2#
 [connection server2]

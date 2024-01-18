@@ -31,7 +31,7 @@ DROP TABLE t1;
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 [connection server3]
 CREATE DATABASE db1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 3. Dump Group Replication applier channel relay log and
@@ -46,7 +46,7 @@ Matching lines are:
 #time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 #time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=6	sequence_number=7	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 Occurrences of 'last_committed' in the input file: 6
-include/include/assert_logical_timestamps.inc [0 0;2 3;3 4;4 5;5 6;6 7]
+include/include/rpl/assert_logical_timestamps.inc [0 0;2 3;3 4;4 5;5 6;6 7]
 Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000002'
 Inspected 5 transactions, all with correct transaction length.
 

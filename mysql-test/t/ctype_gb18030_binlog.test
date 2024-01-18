@@ -1,7 +1,7 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
--- source include/force_binlog_format_statement.inc
+-- source include/rpl/force_binlog_format_statement.inc
 
 RESET BINARY LOGS AND GTIDS;
 SET NAMES gb18030;
@@ -42,4 +42,4 @@ DROP TABLE t1;
 DROP TABLE t2;
 --remove_file $MYSQLD_DATADIR/binlog-gb18030.saved
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

@@ -28,7 +28,7 @@ disconnect con1;
 # binlog.000001    1073    Query    1    1169    use `test`; DROP TRIGGER trigger_1
 # That is, two statements CREATE TRIGGER trigger_t1 follows one
 # after another then DROP TRIGGER.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 connection default;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)

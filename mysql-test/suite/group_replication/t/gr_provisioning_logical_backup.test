@@ -20,12 +20,12 @@
 
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Make sure number of servers in the group is 2
@@ -46,7 +46,7 @@ UPDATE t1 SET c1=2 WHERE c1=0;
 # Restore the backup onto a 3rd server outside the GR group
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Setting the arguments to connect to server3#
 --let $server3_connection_args= --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_3
 # Restoring the backup file on server3 using mysqlbinlog client and the connection arguments set above
@@ -73,19 +73,19 @@ CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t2 VALUES (0);
 INSERT INTO t2 VALUES (1);
 UPDATE t2 SET c1=2 WHERE c1=0;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # See if data has been successfully replicated across the group
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'Checking the number of records in test.t2'
 --let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 2
 --source include/assert.inc
 
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'Checking the number of records in test.t2'
 --let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 2
 --source include/assert.inc

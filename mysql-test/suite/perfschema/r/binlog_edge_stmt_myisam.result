@@ -70,7 +70,7 @@ drop table if exists marker_end;
 Warnings:
 Note	1051	Unknown table 'test.marker_end'
 drop database my_replicated_db;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	drop database if exists my_replicated_db
 binlog.000001	#	Query	#	#	BEGIN

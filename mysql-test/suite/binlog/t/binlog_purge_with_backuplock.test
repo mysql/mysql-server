@@ -39,7 +39,7 @@ RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # 1. Save current binlog file name
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $first_binlog_file = $binlog_file
 
 --echo #
@@ -55,7 +55,7 @@ LOCK INSTANCE FOR BACKUP;
 
 --echo #
 --echo # 3.2 Purge binlogs
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 FLUSH BINARY LOGS;
 

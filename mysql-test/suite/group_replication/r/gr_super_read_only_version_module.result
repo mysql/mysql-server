@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # of two members is running.
 include/start_and_bootstrap_group_replication.inc
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 # Add the debug point on the third member to ensure that the major
 # version of that node is higher than that of the group. It should be able to
 # join the group but in read only mode.
@@ -18,7 +18,7 @@ SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Member version is read compatible with the group.");
 SET SESSION sql_log_bin=1;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 # Verify that the server 3 joining the group is in super_read_only mode
 # and cannot execute writes.
 CREATE TABLE t1 (i INT PRIMARY KEY NOT NULL);

@@ -21,7 +21,7 @@
 
 --echo # 1. Set max_connections to the value of current connections.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @max_connections_saved = @@GLOBAL.max_connections;
 
 --source include/count_sessions.inc

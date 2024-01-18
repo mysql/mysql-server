@@ -10,7 +10,7 @@ include/start_group_replication.inc
 # 1. Create table t1 and sync on group
 [connection server1]
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 2. Start a transaction on the old primary (server1) and don't commit
 [connection server_1_1]
@@ -26,7 +26,7 @@ SELECT group_replication_set_as_primary("MEMBER2_UUID");
 #    on boot
 [connection server1]
 # Kill and restart:--group-replication-start-on-boot=0 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 5. Wait for members be unreachable
 [connection server_2]

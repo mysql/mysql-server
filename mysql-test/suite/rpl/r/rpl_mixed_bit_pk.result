@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -28,7 +28,7 @@ INSERT INTO `t7` ( `bit` ) VALUES ( 0 );
 DELETE FROM `t7` WHERE `bit` < 2 LIMIT 4;
 INSERT INTO `t8` ( `bit` ) VALUES ( 0 );
 DELETE FROM `t8` WHERE `bit` < 2 LIMIT 4;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

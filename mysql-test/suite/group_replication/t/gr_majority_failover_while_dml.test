@@ -22,18 +22,18 @@
 --source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/force_restart.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Save the local address of server1
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 CREATE TABLE t1(a int primary key);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Create a procedure to perform the dml operations.
 delimiter $$;
@@ -56,7 +56,7 @@ delimiter ;$$
 --echo
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set sql_log_bin=0;
 call mtr.add_suppression(".*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
@@ -78,12 +78,12 @@ set sql_log_bin=1;
 --source include/kill_and_restart_mysqld.inc
 --echo # restarting
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Verify that there are still two members in the group
 --let $group_replication_number_of_members= 2
@@ -101,19 +101,19 @@ let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Start group replication on server2
 --let $wait_timeout=300
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Obtain the result of send command
 reap;
 
 # Sync all the servers.
 --let $slave_timeout= 100
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Verify that table t1 has same data on both the servers.
 --let $diff_tables=server1:t1, server2:t1

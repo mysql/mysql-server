@@ -25,7 +25,7 @@
 # WL#2955: RBR replication of partial JSON updates
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Initialize ====
 
@@ -36,7 +36,7 @@ INSERT INTO t VALUES (1);
 --let $binlog_position_master= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $binlog_file_slave= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $binlog_position_slave= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
@@ -44,7 +44,7 @@ SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @binlog_row_image_save= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= 'MINIMAL';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo ==== Generate binary logs on master and slave ====
 
@@ -58,12 +58,12 @@ SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 UPDATE t SET a= 3;
 
 --echo * switch slave to partial format
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo 3. master full, slave partial
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= '';
@@ -84,25 +84,25 @@ UPDATE t SET a= 3;
 --let $event_sequence= $full # $partial # $full # $partial
 --let $binlog_file= $binlog_file_master
 --let $binlog_position= $binlog_position_master
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Assert that slave's binlog is written according to slave's option
 --let $event_sequence= $full # $full # $partial # $partial
 --let $binlog_file= $binlog_file_slave
 --let $binlog_position= $binlog_position_slave
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --let $diff_tables= master:test.t, slave:test.t
 --source include/diff_tables.inc
 
 --echo ==== Clean up ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @binlog_row_value_options_save;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @binlog_row_image_save;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

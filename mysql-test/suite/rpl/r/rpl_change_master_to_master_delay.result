@@ -1,23 +1,23 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 int);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 [connection master]
 INSERT INTO t1 VALUES (1);
-include/sync_slave_io_with_master.inc
-include/stop_slave_io.inc
+include/rpl/sync_to_replica_received.inc
+include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY=1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Assert that the $inserted_value is equal to 1]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY=0;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

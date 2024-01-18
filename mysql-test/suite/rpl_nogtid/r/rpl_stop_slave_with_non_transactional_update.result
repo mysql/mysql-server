@@ -1,12 +1,12 @@
 #
 # 1. Create source-replica topology and initial setup.
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 call mtr.add_suppression("Replica SQL for channel.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 # Adding debug point 'wait_after_do_update_pos' to @@GLOBAL.debug
 #
@@ -33,7 +33,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.after_do_update_pos_continue';
 [connection slave]
 #
 # 2.6 Execute 'start replica sql_thread'.
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 #
 # 2.1 Execute a statement on source.
 [connection master]
@@ -56,9 +56,9 @@ SET DEBUG_SYNC= 'now SIGNAL signal.after_do_update_pos_continue';
 # Removing debug point 'wait_after_do_update_pos' from @@GLOBAL.debug
 #
 # 2.6 Execute 'start replica sql_thread'.
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 #
 # 3. Cleanup.
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

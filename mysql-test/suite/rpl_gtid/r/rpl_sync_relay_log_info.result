@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -16,180 +16,180 @@ SET @@GLOBAL.sync_relay_log_info= 0;
 Warnings:
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/gtid_step_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/gtid_step_reset.inc
 [connection master]
 [connection slave]
 Wait until (INNODB, sync_rli=0, step=1) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=1) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
-include/start_slave.inc
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/start_replica.inc
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=2) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=2) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (1);
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=3) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=3) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 FLUSH LOCAL BINARY LOGS;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=4) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=4) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=5) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=5) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
-include/stop_slave.inc
-include/start_slave_sql.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/stop_replica.inc
+include/rpl/start_applier.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=6) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=6) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
 [connection slave]
-include/rpl_receive_event_count.inc [hang after 1 Gtid event]
+include/rpl/receive_event_count.inc [hang after 1 Gtid event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=0, step=7) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=0, step=7) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=0, step=8) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=0, step=8) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=9) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=9) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
-include/stop_slave.inc
-include/start_slave_sql.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/stop_replica.inc
+include/rpl/start_applier.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=10) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=10) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (2);
 [connection slave]
-include/rpl_receive_event_count.inc [hang after 1 Gtid event]
+include/rpl/receive_event_count.inc [hang after 1 Gtid event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=0, step=11) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=0, step=11) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=0, step=12) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=0, step=12) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=13) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=13) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
-include/stop_slave.inc
-include/start_slave_sql.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/stop_replica.inc
+include/rpl/start_applier.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=14) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=14) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 SET @v=3;
 INSERT INTO t1 VALUES (@v);
 [connection slave]
-include/rpl_receive_event_count.inc [hang after 1 User var event]
+include/rpl/receive_event_count.inc [hang after 1 User var event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=0, step=15) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=0, step=15) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=0, step=16) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=0, step=16) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=17) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=17) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=18) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=18) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=19) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=19) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
-include/stop_slave.inc
-include/start_slave_sql.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/stop_replica.inc
+include/rpl/start_applier.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=20) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=20) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -197,52 +197,52 @@ SET @v=2;
 INSERT INTO t1 VALUES (@v);
 COMMIT;
 [connection slave]
-include/rpl_receive_event_count.inc [hang after 1 User var event]
+include/rpl/receive_event_count.inc [hang after 1 User var event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=0, step=21) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=0, step=21) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=0, step=22) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=0, step=22) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 include/assert.inc [(INNODB, sync_rli=0, step=22) Multi statement DML was not partially committed]
 INSERT INTO t1 VALUES (2);
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 [connection master]
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=1062]
+include/rpl/sync_to_replica_received.inc
+include/rpl/wait_for_applier_error.inc [errno=1062]
 [connection master]
 [connection slave]
 include/assert.inc [(INNODB, sync_rli=0, step=23) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=0, step=23) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 DELETE FROM t1 WHERE c1 = 2;
-include/gtid_step_assert.inc [count=1, only_count=0]
-include/start_slave_sql.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/start_applier.inc
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=24) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=24) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=0, step=25) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=0, step=25) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 #
 # sync_relay_log_info= 1, transactional (InnoDB) storage engine
 #
@@ -250,180 +250,180 @@ SET @@GLOBAL.sync_relay_log_info= 1;
 Warnings:
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/gtid_step_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/gtid_step_reset.inc
 [connection master]
 [connection slave]
 Wait until (INNODB, sync_rli=1, step=1) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=1) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
-include/start_slave.inc
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/start_replica.inc
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=2) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=2) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (1);
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=3) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=3) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 FLUSH LOCAL BINARY LOGS;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=4) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=4) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=5) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=5) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
-include/stop_slave.inc
-include/start_slave_sql.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/stop_replica.inc
+include/rpl/start_applier.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=6) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=6) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
 [connection slave]
-include/rpl_receive_event_count.inc [hang after 1 Gtid event]
+include/rpl/receive_event_count.inc [hang after 1 Gtid event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=1, step=7) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=1, step=7) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=1, step=8) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=1, step=8) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=9) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=9) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
-include/stop_slave.inc
-include/start_slave_sql.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/stop_replica.inc
+include/rpl/start_applier.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=10) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=10) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (2);
 [connection slave]
-include/rpl_receive_event_count.inc [hang after 1 Gtid event]
+include/rpl/receive_event_count.inc [hang after 1 Gtid event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=1, step=11) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=1, step=11) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=1, step=12) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=1, step=12) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=13) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=13) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
-include/stop_slave.inc
-include/start_slave_sql.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/stop_replica.inc
+include/rpl/start_applier.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=14) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=14) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 SET @v=3;
 INSERT INTO t1 VALUES (@v);
 [connection slave]
-include/rpl_receive_event_count.inc [hang after 1 User var event]
+include/rpl/receive_event_count.inc [hang after 1 User var event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=1, step=15) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=1, step=15) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=1, step=16) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=1, step=16) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=17) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=17) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=18) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=18) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=19) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=19) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
-include/stop_slave.inc
-include/start_slave_sql.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/stop_replica.inc
+include/rpl/start_applier.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=20) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=20) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -431,54 +431,54 @@ SET @v=2;
 INSERT INTO t1 VALUES (@v);
 COMMIT;
 [connection slave]
-include/rpl_receive_event_count.inc [hang after 1 User var event]
+include/rpl/receive_event_count.inc [hang after 1 User var event]
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=1, step=21) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=1, step=21) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 include/assert.inc [(INNODB, sync_rli=1, step=22) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=1, step=22) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 include/assert.inc [(INNODB, sync_rli=1, step=22) Multi statement DML was not partially committed]
 INSERT INTO t1 VALUES (2);
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 [connection master]
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=1062]
+include/rpl/sync_to_replica_received.inc
+include/rpl/wait_for_applier_error.inc [errno=1062]
 [connection master]
 [connection slave]
 include/assert.inc [(INNODB, sync_rli=1, step=23) SQL thread did not synced master binlog file]
 include/assert.inc [(INNODB, sync_rli=1, step=23) SQL thread did not synced master binlog position]
-include/gtid_step_assert.inc [count=0, only_count=0]
+include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 DELETE FROM t1 WHERE c1 = 2;
-include/gtid_step_assert.inc [count=1, only_count=0]
-include/start_slave_sql.inc
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/start_applier.inc
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=24) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=24) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 [connection slave]
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 Wait until (INNODB, sync_rli=1, step=25) SQL thread synced master binlog file
 Wait until (INNODB, sync_rli=1, step=25) SQL thread synced master binlog position
-include/gtid_step_assert.inc [count=1, only_count=0]
+include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 [connection slave]
 SET @@GLOBAL.sync_relay_log_info= @saved_sync_relay_log_info;
 Warnings:
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -22,17 +22,17 @@
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_extra_connections_per_server = 2
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Add some data to the source so replica workers have some stats
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1(a INT PRIMARY KEY);
 INSERT INTO t1 VALUES(1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 2. Make the performance schema query block
@@ -42,7 +42,7 @@ SET @@SESSION.debug_sync = "rpl_pfs_replication_applier_status_by_worker_after_d
 --send SELECT * FROM performance_schema.replication_applier_status_by_worker
 
 --let $rpl_connection_name = server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_pfs_query_running";
 
@@ -52,7 +52,7 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_pfs_query_running";
 --send STOP REPLICA;
 
 --let $rpl_connection_name = server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text = 'The performance_schema query is holding the relay log data lock'
 --let $assert_cond = "[SELECT COUNT(*) FROM performance_schema.mutex_instances WHERE Name=\"wait/synch/mutex/sql/Relay_log_info::data_lock\" AND Locked_by_thread_id != \"NULL\"]" = 1
@@ -74,11 +74,11 @@ SET DEBUG_SYNC = "now SIGNAL signal.rpl_stop_reset_issued";
 SET DEBUG_SYNC = 'RESET';
 
 --let $rpl_connection_name = server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --disable_result_log
 --reap
@@ -92,7 +92,7 @@ SET @@SESSION.debug_sync = "rpl_pfs_replication_applier_status_by_worker_after_d
 --send SELECT * FROM performance_schema.replication_applier_status_by_worker
 
 --let $rpl_connection_name = server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_pfs_query_running";
 
@@ -102,7 +102,7 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_pfs_query_running";
 --send RESET REPLICA ALL;
 
 --let $rpl_connection_name = server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text = 'The performance_schema query is holding the relay log data lock'
 --let $assert_cond = "[SELECT COUNT(*) FROM performance_schema.mutex_instances WHERE Name=\"wait/synch/mutex/sql/Relay_log_info::data_lock\" AND Locked_by_thread_id != \"NULL\"]" = 1
@@ -124,11 +124,11 @@ SET DEBUG_SYNC = "now SIGNAL signal.rpl_stop_reset_issued";
 SET DEBUG_SYNC = 'RESET';
 
 --let $rpl_connection_name = server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --disable_result_log
 --reap
@@ -137,20 +137,20 @@ SET DEBUG_SYNC = 'RESET';
 --echo #
 --echo # 8. Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 RESET BINARY LOGS AND GTIDS;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 RESET BINARY LOGS AND GTIDS;
 
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

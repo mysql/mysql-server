@@ -1,13 +1,13 @@
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_debug.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression('.*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*');
 SET SESSION sql_log_bin= 1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 FLUSH LOGS;
 
@@ -18,15 +18,15 @@ CREATE TABLE t1 (id INT, c INT, j JSON NOT NULL,
   UNIQUE INDEX i1((CAST(CAST(j AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
 --echo # Test nullable MV index
@@ -35,15 +35,15 @@ CREATE TABLE t1 (id INT, c INT, j JSON,
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 INSERT INTO t1 VALUES (3, 3, NULL);
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
 --echo # Test non-unique MV index
@@ -52,15 +52,15 @@ CREATE TABLE t1 (id INT, c INT, j JSON NOT NULL,
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
 --echo # Test composite MV index
@@ -69,17 +69,17 @@ CREATE TABLE t1 (id INT, c INT, j JSON NOT NULL,
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
 FLUSH LOGS;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

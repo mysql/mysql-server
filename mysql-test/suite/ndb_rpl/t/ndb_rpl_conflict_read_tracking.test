@@ -5,7 +5,7 @@
 #
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
 --echo Setup circular replication
@@ -773,4 +773,4 @@ flush logs;
 --sync_slave_with_master master
 stop replica;
 reset replica;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

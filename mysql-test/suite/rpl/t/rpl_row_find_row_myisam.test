@@ -13,19 +13,19 @@
 -- source include/have_binlog_format_row.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 #
 # Case #1: master has key, slave also has one,
 #           but it gets disabled sometime.
 #          Replication does not break anymore.
 #
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 -- connection master
 
 CREATE TABLE t (a int, b int, c int, key(b)) ENGINE=MyISAM;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 ALTER TABLE t DISABLE KEYS;
 
@@ -35,17 +35,17 @@ INSERT INTO t VALUES (1,2,4);
 INSERT INTO t VALUES (4,3,4);
 DELETE FROM t;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 -- connection master
 DROP TABLE t;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # BUG#53889: slaves stops with 1032; handler error HA_ERR_KEY_NOT_FOUND
 #
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 -- connection master
 
 CREATE TABLE t2 (col4 CHAR(25) DEFAULT NULL,
@@ -57,14 +57,14 @@ CREATE TABLE t2 (col4 CHAR(25) DEFAULT NULL,
 ALTER TABLE t2 ADD INDEX idx1 ( col4 ) , ADD UNIQUE INDEX idx2 ( col5 );
 INSERT INTO t2 ( col4 , col2 ) VALUES ( 'Hello', -77 ) ;
 UPDATE t2 SET col1 = 13 WHERE col2 = -77;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 -- let $diff_tables= master:t2, slave:t2
 -- source include/diff_tables.inc
 
 -- connection master
 DROP TABLE t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

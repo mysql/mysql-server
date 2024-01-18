@@ -54,7 +54,7 @@ CREATE TABLE t2 (c1 INT, KEY `c1` (`c1`)) ENGINE=InnoDB;
 #Wrong table with unique key with null value.
 CREATE TABLE t3 (c1 INT UNIQUE NULL) ENGINE=InnoDB;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 #
 # The tests begin here.
@@ -82,7 +82,7 @@ while ($wrong_tables_count)
 }
 
 #This will sync data among all group members
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo # Now, lets repeat all the tests with group replication stopped.
 --source include/stop_group_replication.inc

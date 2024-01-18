@@ -11,7 +11,7 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 server2
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
-include/wait_for_slave_param.inc [Until_Condition FOR CHANNEL 'group_replication_recovery']
+include/rpl/wait_for_replica_status.inc [Until_Condition FOR CHANNEL 'group_replication_recovery']
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";

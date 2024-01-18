@@ -1,19 +1,19 @@
 # WL#11250 Support Instant Add Column
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo # Scenario 1:
 --echo # Create a small table, add some columns instantly
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $old_table_id_on_slave=`SELECT table_id FROM information_schema.innodb_tables WHERE name='test/t1';`
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # ADD COLUMN INT
 let $new_cols = 1;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
@@ -24,13 +24,13 @@ INSERT INTO t1(a, c1) VALUES(6, 1);
 SELECT count(*) = max(a) FROM t1 WHERE c1 IS NULL;
 SELECT c1 FROM t1 WHERE c1 = 1;
 SHOW CREATE TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $new_table_id_on_slave=`SELECT table_id FROM information_schema.innodb_tables WHERE name='test/t1';`
 SELECT name, default_value FROM information_schema.innodb_columns WHERE name = 'c1' AND has_default = 1;
 SHOW CREATE TABLE t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $diff_tables=master:test.t1,slave:test.t1
 --source include/diff_tables.inc
 
@@ -44,23 +44,23 @@ if($old_table_id_on_slave != $new_table_id_on_slave)
    --echo # Table id changed on slave
 }
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo # Scenario 2:
 --echo # Create a small table, add some virtual columns instantly
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $old_table_id_on_slave=`SELECT table_id FROM information_schema.innodb_tables WHERE name='test/t1';`
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # ADD VIRTUAL COLUMN
 let $new_cols = 1;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 INT, ADD COLUMN c2 FLOAT GENERATED ALWAYS AS ((1.4 * 2.8)) VIRTUAL, ALGORITHM=INSTANT;
@@ -69,13 +69,13 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 INT, ADD COLUMN c2 FLOAT 
 INSERT INTO t1(a, c1) VALUES(6, 1);
 SELECT * FROM t1;
 SHOW CREATE TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $new_table_id_on_slave=`SELECT table_id FROM information_schema.innodb_tables WHERE name='test/t1';`
 SELECT name, default_value FROM information_schema.innodb_columns WHERE name = 'c1' AND has_default = 1;
 SHOW CREATE TABLE t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $diff_tables=master:test.t1,slave:test.t1
 --source include/diff_tables.inc
 
@@ -89,9 +89,9 @@ if($old_table_id_on_slave != $new_table_id_on_slave)
    --echo # Table id changed on slave
 }
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo # Scenario 3:
@@ -99,7 +99,7 @@ DROP TABLE t1;
 --echo # and add INSTANT column
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT)
   PARTITION BY RANGE (a)
   SUBPARTITION BY HASH (a)
@@ -109,11 +109,11 @@ CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT)
   PARTITION p3 values less than maxvalue);
 INSERT INTO t1 VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22), (26, 26), (27, 27);
 --let $old_table_id_on_master=`SELECT GROUP_CONCAT(table_id) FROM information_schema.innodb_tables WHERE name='test/t1';`
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $old_table_id_on_slave=`SELECT GROUP_CONCAT(table_id) FROM information_schema.innodb_tables WHERE name='test/t1';`
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # ADD VIRTUAL COLUMN
 let $new_cols = 1;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
@@ -121,13 +121,13 @@ INSERT INTO t1(a, b) VALUES(5, 5), (6, 6), (28, 28);
 SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 --let $new_table_id_on_master=`SELECT GROUP_CONCAT(table_id) FROM information_schema.innodb_tables WHERE name='test/t1';`
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $new_table_id_on_slave=`SELECT GROUP_CONCAT(table_id) FROM information_schema.innodb_tables WHERE name='test/t1';`
 SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $diff_tables=master:test.t1,slave:test.t1
 --source include/diff_tables.inc
 
@@ -152,16 +152,16 @@ if($old_table_id_on_master != $new_table_id_on_master)
    --echo # Table id changed on master
 }
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo # Scenario 4:
 --echo # Create a small table and add TIMESTAMP columns instantly
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @start_session_value = @@session.explicit_defaults_for_timestamp;
 
 # SET explicit_defaults_for_timestamp to OFF
@@ -169,11 +169,11 @@ SET @@session.explicit_defaults_for_timestamp=OFF;
 SELECT @@session.explicit_defaults_for_timestamp;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1 VALUES(1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $old_table_id_on_slave=`SELECT table_id FROM information_schema.innodb_tables WHERE name='test/t1';`
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # ADD VIRTUAL COLUMN
 let $new_cols = 3;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 TIMESTAMP, ADD COLUMN c2 TIMESTAMP NULL, ADD COLUMN c3 TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ALGORITHM=INSTANT;
@@ -183,14 +183,14 @@ INSERT INTO t1 VALUES(2,NULL,NULL,NULL);
 SHOW CREATE TABLE t1;
 --replace_column 2 # 4 #
 SELECT * FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $new_table_id_on_slave=`SELECT table_id FROM information_schema.innodb_tables WHERE name='test/t1';`
 --replace_column 2 # 4 #
 SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $diff_tables=master:test.t1,slave:test.t1
 --source include/diff_tables.inc
 
@@ -205,19 +205,19 @@ if($old_table_id_on_slave != $new_table_id_on_slave)
 }
 
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # SET explicit_defaults_for_timestamp to ON
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@session.explicit_defaults_for_timestamp=ON;
 SELECT @@session.explicit_defaults_for_timestamp;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1 VALUES(1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $old_table_id_on_slave=`SELECT table_id FROM information_schema.innodb_tables WHERE name='test/t1';`
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # ADD VIRTUAL COLUMN
 let $new_cols = 3;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 TIMESTAMP, ADD COLUMN c2 TIMESTAMP NOT NULL, ADD COLUMN c3 TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ALGORITHM=INSTANT;
@@ -227,14 +227,14 @@ INSERT INTO t1 VALUES(2,NULL,'2001-01-01 00:00:00',NULL);
 SHOW CREATE TABLE t1;
 --replace_column 2 # 4 #
 SELECT * FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $new_table_id_on_slave=`SELECT table_id FROM information_schema.innodb_tables WHERE name='test/t1';`
 --replace_column 2 # 4 #
 SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $diff_tables=master:test.t1,slave:test.t1
 --source include/diff_tables.inc
 
@@ -249,10 +249,10 @@ if($old_table_id_on_slave != $new_table_id_on_slave)
 }
 
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@session.explicit_defaults_for_timestamp = @start_session_value;
 SELECT @@session.explicit_defaults_for_timestamp;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

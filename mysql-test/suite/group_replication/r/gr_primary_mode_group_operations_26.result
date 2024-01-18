@@ -28,7 +28,7 @@ include/assert.inc [stage/group_rpl/Single-primary Switch: checking group pre-co
 # 1.4. Kill and restart server1
 [connection server_1]
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 1.5. Reap action to switch to single primary and it returns error as
 #      server1 was killed
@@ -79,7 +79,7 @@ include/assert.inc [The completed work is 0]
 # 2.6. Kill and restart server2, it would be the new primary
 [connection server2]
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 2.7. Verify the action executed on server1 failed, server selected
 #      exited from the group

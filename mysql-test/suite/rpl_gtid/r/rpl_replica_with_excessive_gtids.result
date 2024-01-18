@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,8 +18,8 @@ INSERT INTO t1 VALUES(4);
 
 # T1.2. Synchronize replica with the source, stop replication threads
 
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 
 # T1.3. On the source: reset all GTIDs, re-execute a subset of transactions
 
@@ -40,7 +40,7 @@ INSERT INTO t1 VALUES(9);
 [connection slave]
 START REPLICA;
 call mtr.add_suppression(".* Got fatal error 1236 from source when reading data from binary log");
-include/wait_for_slave_io_error.inc [errno=13114]
+include/rpl/wait_for_receiver_error.inc [errno=13114]
 include/assert.inc ["IO thread should be stopped"]
 include/assert.inc ["Error message is as expected"]
 
@@ -52,5 +52,5 @@ INSERT INTO t1 VALUES(8);
 SET GTID_NEXT= 'AUTOMATIC';
 DROP TABLE t1;
 [connection slave]
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

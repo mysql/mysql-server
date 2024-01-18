@@ -70,14 +70,14 @@ SET SESSION sql_log_bin= 1;
 --echo
 --echo # Start GR on server 2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 
 --echo
 --echo # Start GR on server 3.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
@@ -102,7 +102,7 @@ SET SESSION sql_log_bin= 1;
 --echo
 --echo # Start GR on server 4.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # Get server 4 pid.
@@ -134,7 +134,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    servers 1, 2 and 4, which should all be ONLINE.
 --echo #    Server 3 should still be in the group but UNREACHABLE.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
@@ -158,7 +158,7 @@ let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_
 --echo #    Servers 3 and 4 should still be in the group but
 --echo #    UNREACHABLE.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
@@ -180,7 +180,7 @@ let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_
 --echo #    servers 1, 2 and 4, which should all be ONLINE.
 --echo #    Server 3 should still be in the group but UNREACHABLE.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
@@ -191,7 +191,7 @@ let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_
 --echo ############################################################
 --echo # 8. Wait until the group evicts server 3.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members;
@@ -206,14 +206,14 @@ let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_
 --exec kill -18 $server3_pid
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members;
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ERROR";
 --source include/wait_condition.inc
 

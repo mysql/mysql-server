@@ -3,5 +3,5 @@
 #
 RESET BINARY LOGS AND GTIDS;
 CREATE TEMPORARY TABLE temp_non_trx(a INT) ENGINE=MyISAM;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

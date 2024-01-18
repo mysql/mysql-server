@@ -22,11 +22,11 @@
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,gr_server_gtid_executed_extraction_error';
@@ -50,7 +50,7 @@ START GROUP_REPLICATION;
 # Cleanup
 SET @@GLOBAL.DEBUG= @debug_save;
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 STOP GROUP_REPLICATION;
 
 --source include/group_replication_end.inc

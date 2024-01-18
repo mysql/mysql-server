@@ -5,17 +5,17 @@
 --source include/not_group_replication_plugin.inc
 
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection slave
 START REPLICA;
 #Error Code:12 (EE_DIR) Can't read dir is expected
 call mtr.add_suppression("Replica SQL.*Unable to use replica.s temporary directory.* Error_code: MY-000012");
 --let $slave_sql_errno= 12
-source include/wait_for_slave_sql_error.inc;
---source include/wait_for_slave_io_to_start.inc
---source include/stop_slave_io.inc
+source include/rpl/wait_for_applier_error.inc;
+--source include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/stop_receiver.inc
 RESET REPLICA;
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -9,7 +9,7 @@ SYS_default
 USR_default
 u1
 DROP RESOURCE GROUP u1 FORCE;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT RESOURCE_GROUP_NAME FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;
 RESOURCE_GROUP_NAME

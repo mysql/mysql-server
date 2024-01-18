@@ -38,7 +38,7 @@
 --source include/big_test.inc
 --source include/have_binlog_format_row.inc
 --source include/skip_config_rpl_gtid_only.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo # 0.Create a test auxiliary include file to avoid step repetition.
@@ -50,7 +50,7 @@
 #  $gtid_only_expected_value: the value for GTID_ONLY the file should contain
 #
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Error writing source configuration.");
 
 --write_file $MYSQL_TMP_DIR/check_gtid_only_value.inc END_OF_PROCEDURE
@@ -91,7 +91,7 @@ END_OF_PROCEDURE
 --echo #      Check the performance_schema table and connection metadata
 --echo #      repository are correct
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, GTID_ONLY = 1;
 
@@ -121,7 +121,7 @@ ALTER TABLE mysql.slave_master_info DROP COLUMN Gtid_only;
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_slave_start  --upgrade=FORCE
 --let $explicit_default_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # We cannot use performance schema to check this table
 --let $assert_text= 'GTID_ONLY is enabled for group replication'
@@ -140,4 +140,4 @@ RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 --remove_file $MYSQL_TMP_DIR/check_gtid_only_value.inc
 
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

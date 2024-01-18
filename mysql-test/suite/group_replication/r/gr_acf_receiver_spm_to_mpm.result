@@ -30,7 +30,7 @@ Note	1760	Storing MySQL user name or password information in the connection meta
 SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_3, '', 50);;
 asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_3, '', 50)
 The UDF asynchronous_connection_failover_add_source() executed successfully.
-include/start_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1']
 include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover']
 include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
 include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
@@ -62,7 +62,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 group_replication_switch_to_multi_primary_mode()
 Mode switched to multi-primary successfully.
 include/gr_assert_multi_primary_mode.inc
-include/check_slave_is_running.inc [FOR CHANNEL 'ch1']
+include/rpl/assert_replica_running.inc [FOR CHANNEL 'ch1']
 [connection server2]
 include/gr_assert_multi_primary_mode.inc
 
@@ -74,9 +74,9 @@ include/gr_assert_multi_primary_mode.inc
 SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '', 50);;
 asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '', 50)
 The UDF asynchronous_connection_failover_add_source() executed successfully.
-include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0 FOR CHANNEL 'ch1';
-include/start_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1']
 include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
 CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
@@ -118,7 +118,7 @@ include/assert.inc [Verify replica_monitor thread is not running]
 # 7. Clean up.
 [connection server2]
 include/stop_group_replication.inc
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 [connection server1]
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 include/group_replication_end.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -44,7 +44,7 @@ Warnings:
 Level	Warning
 Code	1287
 Message	'@@binlog_format' is deprecated and will be removed in a future release.
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL binlog_format = 'ROW';
 Warnings:
 Level	Warning
@@ -65,7 +65,7 @@ Message	'@@binlog_format' is deprecated and will be removed in a future release.
 Level	Warning
 Code	1287
 Message	'@@binlog_format' is deprecated and will be removed in a future release.
-include/start_slave.inc
+include/rpl/start_replica.inc
 [on master]
 CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
@@ -190,7 +190,7 @@ SUBPARTITIONS 2
  PARTITION pa9 VALUES LESS THAN (90) ENGINE = InnoDB,
  PARTITION pa10 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 SELECT count(*) "Slave norm" FROM t1;
 Slave norm	500
 SELECT count(*) "Slave bykey" FROM t2;
@@ -212,7 +212,7 @@ DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 [on slave]
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 set @@global.binlog_format=  @old_global_binlog_format;
 Warnings:
 Level	Warning
@@ -223,4 +223,4 @@ Warnings:
 Level	Warning
 Code	1287
 Message	'@@binlog_format' is deprecated and will be removed in a future release.
-include/rpl_end.inc
+include/rpl/deinit.inc

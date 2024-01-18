@@ -7,8 +7,8 @@
 ########################################################
 -- source include/not_ndb_default.inc
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 let $engine_type=INNODB;
--- source extra/rpl_tests/rpl_row_func003.test
---source include/rpl_end.inc
+-- source common/rpl/rpl_row_func003.test
+--source include/rpl/deinit.inc

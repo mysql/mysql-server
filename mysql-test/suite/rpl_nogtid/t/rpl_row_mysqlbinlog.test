@@ -15,7 +15,7 @@
 # to work will not be created
 --source include/not_binlog_transaction_compression_on.inc
 
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 # Setup Section
 # we need this for getting fixed timestamps inside of this test
@@ -129,7 +129,7 @@ sync_slave_with_master;
 #(the server was started with skip-replica-start)
 --disable_warnings
 STOP REPLICA;
---source include/wait_for_slave_to_stop.inc
+--source include/rpl/wait_for_replica_to_stop.inc
 --enable_warnings
 connection master;
 reset binary logs and gtids;
@@ -137,7 +137,7 @@ connection slave;
 RESET REPLICA;
 reset binary logs and gtids;
 START REPLICA;
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 connection master;
 
 # We should be clean at this point, now we will run in the file from above.
@@ -179,7 +179,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/master.sql;
 select "--- Test 2 position test --" as "";
 let $MYSQLD_DATADIR= `select @@datadir;`;
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$position --stop-position=$stop_position $MYSQLD_DATADIR/master-bin.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -189,7 +189,7 @@ select "--- Test 3 First Remote test --" as "";
 
 # This is broken now
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=$stop_position --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --disable_query_log ONCE
 select "--- Test 4 Second Remote test --" as "";
@@ -211,7 +211,7 @@ sync_slave_with_master;
 
 --disable_warnings
 STOP REPLICA;
---source include/wait_for_slave_to_stop.inc
+--source include/rpl/wait_for_replica_to_stop.inc
 --enable_warnings
 connection master;
 reset binary logs and gtids;
@@ -219,7 +219,7 @@ connection slave;
 RESET REPLICA;
 reset binary logs and gtids;
 START REPLICA;
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 connection master;
 
 # We should be clean at this point, now we will run in the file from above.
@@ -261,7 +261,7 @@ connection master;
 --disable_query_log ONCE
 select "--- Test 5 LOAD DATA --" as "";
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=$binlog_start_pos --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 # Bug#7853 (mysqlbinlog does not accept input from stdin)
 
@@ -271,13 +271,13 @@ select "--- Test 5 LOAD DATA --" as "";
 select "--- Test 6 reading stdin --" as "";
 let $MYSQLD_DATADIR= `select @@datadir;`;
 --let $mysqlbinlog_parameters= --short-form --stop-position=$stop_position1 - < $MYSQLD_DATADIR/master-bin.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --disable_query_log ONCE
 select "--- Test 7 reading stdin w/position --" as "";
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --let $mysqlbinlog_parameters= --short-form --start-position=$position --stop-position=$stop_position - < $MYSQLD_DATADIR/master-bin.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --let $mysqlbinlog_allow_error= 0
        
@@ -291,7 +291,7 @@ sync_slave_with_master;
 
 --disable_warnings
 STOP REPLICA;
---source include/wait_for_slave_to_stop.inc
+--source include/rpl/wait_for_replica_to_stop.inc
 --enable_warnings
 connection master;
 reset binary logs and gtids;
@@ -299,7 +299,7 @@ connection slave;
 RESET REPLICA;
 reset binary logs and gtids;
 START REPLICA;
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 connection master;
 
 create table t4 (f text character set utf8);
@@ -362,4 +362,4 @@ DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5;
 sync_slave_with_master;
 
 # End of 4.1 tests
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

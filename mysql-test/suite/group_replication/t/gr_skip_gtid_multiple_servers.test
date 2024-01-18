@@ -27,19 +27,19 @@
 --let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= GTID_EXECUTED must contain 0 transactions, view change events are not logged.
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"")
 --source include/assert.inc
@@ -50,20 +50,20 @@ SET SESSION sql_log_bin= 1;
 CREATE TABLE t1 (i INT PRIMARY KEY);
 SET GTID_NEXT='AUTOMATIC';
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $assert_text= GTID_EXECUTED must contain one transactions, 0 from view change and other being the create.
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:3")
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Insert a transaction here to generate the next gtid automatically. This
 # should skip the last gtid generated and use the next available value. i.e.
 # UUID_GROUP:4.
 INSERT INTO t1 VALUES(1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Checking the GTID_EXECUTED on the server2. This should be UUID_GROUP:1-2
 --let $assert_text= GTID_EXECUTED must contain two transactions, 0 from view change, 1 create and 1 insert.
@@ -72,17 +72,17 @@ INSERT INTO t1 VALUES(1);
 
 # View change (s1) # View change (s2) # Create table # Insert table
 --let $event_sequence= Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # View change (s1) # View change (s2) # Create table # Insert table
 --let $event_sequence= Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Checking the GTID_EXECUTED on the server1. This should be UUID_GROUP:1:3
 --let $assert_text= GTID_EXECUTED must contain two transactions, 0 from view change, 1 create and 1 insert.
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1:3")
@@ -91,15 +91,15 @@ INSERT INTO t1 VALUES(1);
 # Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 
 DROP TABLE t1;

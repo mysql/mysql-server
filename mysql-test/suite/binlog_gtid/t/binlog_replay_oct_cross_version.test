@@ -18,7 +18,7 @@
 # BUG#25316086 MYSQL 8.0 ASSUME TRX BEING APPLIED WITH 5.7- MYSQLBINLOG DUMP AS
 #              ORIGINAL
 
---source include/mysqlbinlog_have_debug.inc
+--source include/have_mysqlbinlog_debug.inc
 --source include/have_debug.inc
 --source include/have_log_bin.inc
 
@@ -50,7 +50,7 @@ RESET BINARY LOGS AND GTIDS;
 while ($i < 3)
 {
   --let $gtid= $uuid:$i
-  --source include/get_original_commit_timestamp.inc
+  --source include/rpl/get_original_commit_timestamp.inc
 
   --let $assert_text= The OCT is zero for GTID $uuid:$i
   --let $assert_cond= $original_commit_timestamp = 0

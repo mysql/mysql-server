@@ -10,7 +10,7 @@
 -- let $saved_concurrent_insert = `SELECT @@GLOBAL.concurrent_insert`
 SET @@GLOBAL.concurrent_insert = 0;
 
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 ## Setup user variables for several numeric types, so that we get
 ## coverage on the User_var_log_event different val types
@@ -44,7 +44,7 @@ CREATE TABLE t1 (`tinyint` TINYINT,
 -- echo #########################################
 -- echo #### [ on master ]
 -- query_vertical SELECT * FROM t1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- echo #### [ on slave ]
 -- query_vertical SELECT * FROM t1
 -- echo #########################################
@@ -74,7 +74,7 @@ INSERT IGNORE INTO t1 VALUES (@positive,
 -- echo #########################################
 -- echo #### [ on master ]
 -- query_vertical SELECT * FROM t1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- echo #### [ on slave ]
 -- query_vertical SELECT * FROM t1
 -- echo #########################################
@@ -93,7 +93,7 @@ TRUNCATE t1;
 -- echo #########################################
 -- echo #### [ on master ]
 -- query_vertical SELECT * FROM t1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- echo #### [ on slave ]
 -- query_vertical SELECT * FROM t1
 -- echo #########################################
@@ -123,7 +123,7 @@ INSERT IGNORE INTO t1 VALUES (@negative,
 -- echo #########################################
 -- echo #### [ on master ]
 -- query_vertical SELECT * FROM t1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 -- echo #### [ on slave ]
 -- query_vertical SELECT * FROM t1
 -- echo #########################################
@@ -141,14 +141,14 @@ TRUNCATE t1;
 ## cleanup
 -- connection master
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #####################################################################
 #
 # BUG#51426
 #
 #####################################################################
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 -- connection master
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -164,7 +164,7 @@ SET @aux1= @aux;
 -- error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (@aux) , (@aux1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 -- echo ## assertion: master and slave tables are in sync
 -- let $diff_tables=master:t1,slave:t1
@@ -179,5 +179,5 @@ SET sql_mode = default;
 -- replace_result $saved_concurrent_insert SAVED_CONCURRENT_INSERT
 -- eval SET @@GLOBAL.concurrent_insert = $saved_concurrent_insert
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

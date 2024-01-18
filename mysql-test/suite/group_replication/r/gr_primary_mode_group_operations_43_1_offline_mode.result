@@ -33,7 +33,7 @@ Mode switched to multi-primary successfully.
 
 # 4. Server2 must leave the group.
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 5. Server2 must change to ERROR state and enable offline_mode
 [connection server2]

@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 # WL#15070 Configure replica specific batch_size
 
@@ -54,7 +54,7 @@ create table t4 (a int primary key, b varchar(7000))
 --echo
 
 --connection slave
---source ndb_slave_exec_info_init.inc
+--source ndb_replica_exec_info_init.inc
 
 --connection master
 
@@ -90,7 +90,7 @@ SET @start_exec_count = @init_wait_exec_complete_count_slave;
 SET @start_pk_op_count = @init_pk_op_count_slave;
 --enable_query_log
 
---source ndb_slave_exec_info_init.inc
+--source ndb_replica_exec_info_init.inc
 
 --disable_query_log
 SET @low_batch_exec_count = @init_wait_exec_complete_count_slave - @start_exec_count;
@@ -112,7 +112,7 @@ delete from t4;
 --connection slave
 # Should be 2MB
 set @@GLOBAL.ndb_replica_batch_size = DEFAULT;
---source ndb_slave_exec_info_init.inc
+--source ndb_replica_exec_info_init.inc
 
 --connection master
 
@@ -143,7 +143,7 @@ SET @large_batch_start_exec_count = @init_wait_exec_complete_count_slave;
 SET @large_batch_start_pk_op_count = @init_pk_op_count_slave;
 --enable_query_log
 
---source ndb_slave_exec_info_init.inc
+--source ndb_replica_exec_info_init.inc
 
 --disable_query_log
 SET @large_batch_exec_count = @init_wait_exec_complete_count_slave - @large_batch_start_exec_count;
@@ -172,4 +172,4 @@ drop table t4;
 set global ndb_replica_batch_size = DEFAULT;
 set global replica_allow_batching = DEFAULT;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -12,4 +12,4 @@
 # this test requires large events
 --source include/not_binlog_transaction_compression_on.inc
 
---source extra/rpl_tests/rpl_row_event_max_size.inc
+--source common/rpl/row_event_max_size.inc

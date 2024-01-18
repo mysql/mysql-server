@@ -153,9 +153,9 @@
 --source include/have_debug_sync.inc
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
---source include/not_mts_replica_parallel_workers.inc
+--source include/not_replica_parallel_workers.inc
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Number of channel config entries in mysql.slave_relay_log_info and
 # performance_schema.replication_applier_configuration. Before each usage,
@@ -217,7 +217,7 @@ END_OF_PROCEDURE
     --let $rpl_server_parameters =  --skip_replica_start
   }
   --let $explicit_default_wait_counter = 15000
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
 
   --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME=$channel AND PRIVILEGE_CHECKS_USER="<INVALID>"`
   --let $assert_text = Check entry for channel $channel in performance_schema.replication_applier_configuration
@@ -225,7 +225,7 @@ END_OF_PROCEDURE
   --source include/assert.inc
 END_OF_PROCEDURE
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Prerequisites:
 #   1. add mtr suppression statement for errors on various error test cases for
@@ -257,7 +257,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 --let $rpl_server_number = 2
 --let $rpl_server_parameters =  --debug=d,simulate_priv_check_user_nullptr_t
 --let $explicit_default_wait_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # verify (privilege_checks_username, privilege_checks_hostname), and
 # privilege_checks_user for default channel in mysql.slave_relay_log_info,
@@ -306,7 +306,7 @@ FLUSH RELAY LOGS FOR CHANNEL "ch2";
 --let $rpl_server_number = 2
 --let $rpl_server_parameters =
 --let $explicit_default_wait_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 #   2. verify that there are three channel entries in both pfs and
 #      slave_relay_log_info tables.
 --let $num_channels = 3
@@ -498,12 +498,12 @@ DROP USER 'replication_applier'@'localhost';
 --remove_file $MYSQL_TMP_DIR/assert_channel_config_with_table_repo.inc
 --remove_file $MYSQL_TMP_DIR/assert_channel_invalid_config_update_of_table_repo_entry.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 --connection slave
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST="127.0.0.1", SOURCE_PORT=$MASTER_MYPORT;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 --let $rpl_skip_sync= 1
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,11 +8,11 @@ INSERT /*+ SET_VAR(auto_increment_increment=10)  SET_VAR(tmp_table_size=1024)*/
 INTO t1 VALUES (NULL, @@tmp_table_size), (NULL, @@tmp_table_size);
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 f1	f2
 1	16777216
 11	16777216
 DROP TABLE t1;
-include/rpl_sync.inc
-include/rpl_end.inc
+include/rpl/sync.inc
+include/rpl/deinit.inc

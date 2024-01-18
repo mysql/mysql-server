@@ -14,13 +14,13 @@
 --echo #    It will be disallowed.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Force server1 to use MURMUR32 write set extraction algorithm.
 SET @@GLOBAL.DEBUG= '+d,group_replication_write_set_extraction_algorithm_murmur32';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
@@ -40,7 +40,7 @@ START GROUP_REPLICATION;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_write_set_extraction_algorithm_murmur32';

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,9 +19,9 @@ SELECT * FROM tinnodb ORDER BY a;
 a
 1
 [on slave]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 ==== Verify results on slave ====
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Replica_IO_State = ''
 Last_SQL_Error = ''
 Last_IO_Error = ''
@@ -32,4 +32,4 @@ DROP TABLE tinnodb;
 set @@debug= @old_debug;
 [on slave]
 DROP TABLE tinnodb;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -21,7 +21,7 @@ UPDATE t1 SET f3=10905 WHERE f1 =3 AND f2 = 10;
 DROP TABLE t1;
 FLUSH LOGS;
 SET @@session.binlog_row_image = @start_row_image_value;
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 ### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1

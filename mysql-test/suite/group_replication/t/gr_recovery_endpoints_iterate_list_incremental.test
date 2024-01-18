@@ -30,7 +30,7 @@
 --source include/check_plugin_dir.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Suppress the expected errors
 set session sql_log_bin=0;
@@ -40,7 +40,7 @@ set session sql_log_bin=1;
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Suppress the expected errors
 set session sql_log_bin=0;
@@ -81,7 +81,7 @@ INSERT INTO test.t1 (b) VALUES (2);
 --echo # 4. Change the user of recovery channel for the joiner
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin = 0;
 --eval CREATE USER 'rpl_user'@'%'
@@ -151,15 +151,15 @@ SET GLOBAL group_replication_recovery_retry_count= 2;
 --echo # 9. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE test.t1;
 SET @@GLOBAL.group_replication_advertise_recovery_endpoints = DEFAULT;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
@@ -170,7 +170,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_r
 --eval DROP USER 'rpl_user'@'%'
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval DROP USER 'rpl_user'@'%'
 

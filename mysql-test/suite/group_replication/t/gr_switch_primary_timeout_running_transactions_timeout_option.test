@@ -34,14 +34,14 @@
 --echo # 1. Setup group of 2 servers, M1(primary) and M2(secondary).
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -111,7 +111,7 @@ SELECT group_replication_set_as_primary();
 --echo # 4. Create a table to test the functions with SQL outputs
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT, b INT);
 --disable_query_log
@@ -155,12 +155,12 @@ INSERT INTO test.t1 VALUES (6, 3600);      # Valid M2 uuid.
 --eval SELECT group_replication_set_as_primary("$server1_uuid", b) FROM test.t1 WHERE a=6
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -168,6 +168,6 @@ INSERT INTO test.t1 VALUES (6, 3600);      # Valid M2 uuid.
 --echo # 6. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE test.t1;
 --source include/group_replication_end.inc

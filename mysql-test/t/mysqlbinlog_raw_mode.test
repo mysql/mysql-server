@@ -2,7 +2,7 @@
 --source include/have_log_bin.inc
 --source include/not_windows.inc
 
--- source include/mysqlbinlog_raw_mode.inc
+-- source include/rpl/mysqlbinlog_raw_mode.inc
 
 # Test --stop-never
 # If exit code is good or bad then entry in raw_mode_exit table will be created

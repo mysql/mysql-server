@@ -8,8 +8,8 @@
 
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 
 # Begin clean up test section
@@ -47,7 +47,7 @@ delimiter ;|
 
 INSERT INTO mysqltest1.t1 SET n = NULL, a = now();
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 
@@ -71,6 +71,6 @@ diff_files $MYSQLTEST_VARDIR/tmp/NOW_master.sql $MYSQLTEST_VARDIR/tmp/NOW_slave.
 --remove_file $MYSQLTEST_VARDIR/tmp/NOW_master.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/NOW_slave.sql
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # End of 5.1 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

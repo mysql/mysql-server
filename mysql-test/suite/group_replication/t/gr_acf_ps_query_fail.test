@@ -34,7 +34,7 @@
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE USER 'rpl_user' IDENTIFIED BY '';
@@ -45,7 +45,7 @@ SET sql_log_bin=1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE USER 'rpl_user' IDENTIFIED BY '';
@@ -62,11 +62,11 @@ SET sql_log_bin=1;
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $_tmp_gr_group_name1= `SELECT @@GLOBAL.group_replication_group_name`
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1 $_tmp_gr_group_name1 GROUP_NAME
 --eval SELECT asynchronous_connection_failover_add_managed('ch1_3', 'GroupReplication', '$_tmp_gr_group_name1', '127.0.0.1', $SERVER_MYPORT_1, '', 70, 60);
 
@@ -79,12 +79,12 @@ SET sql_log_bin=1;
 --echo #    and verify channel ch1_3 IO and SQL THREADS are ON.
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='rpl_user' , SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=2 for channel 'ch1_3'
 --let $rpl_channel_name='ch1_3'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $assert_text= Verify channel ch1_3 IO_THREAD is ON
@@ -101,7 +101,7 @@ SET sql_log_bin=1;
 --echo
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover;
 --source include/wait_condition.inc
@@ -115,7 +115,7 @@ SET sql_log_bin=1;
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -124,7 +124,7 @@ SET sql_log_bin=1;
 --echo
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Managed channel is unable to connect to server2, as such
 # replication_asynchronous_connection_failover is not updated.
@@ -141,32 +141,32 @@ SET sql_log_bin=1;
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 DROP USER 'rpl_user';
 SET sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 DROP USER 'rpl_user';
 SET sql_log_bin=1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1_3'
 --let $slave_error_param= Last_IO_Errno
 --let $slave_io_errno=1045
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $slave_error_param=
 --let $slave_io_errno=
 
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=

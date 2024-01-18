@@ -15,7 +15,7 @@
 
 -- source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 #
 # Case #1: master has key, but slave has not. 
@@ -36,12 +36,12 @@ INSERT INTO t VALUES (1,2,4);
 INSERT INTO t VALUES (4,3,4);
 DELETE FROM t;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 -- connection master
 DROP TABLE t;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # BUG#53893: RBR: nullable unique key can lead to out-of-sync slave
@@ -55,14 +55,14 @@ DROP TABLE t;
 # As a consquence, the wrong row would be updated.
 #
 
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 -- connection master
 
 CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NOT NULL, c3 INT, UNIQUE KEY(c1,c3), KEY(c2));
 INSERT INTO t1(c1,c2) VALUES(1,1);
 INSERT INTO t1(c1,c2) VALUES(1,2);
 UPDATE t1 SET c1=1000 WHERE c2=2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 -- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
@@ -78,14 +78,14 @@ DROP TABLE t1;
 CREATE TABLE t1 ( id INT, KEY idx_id(id) );
 
 INSERT INTO t1 VALUES (1), (2), (3);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Alter idx_id index on slave to invisible.
 ALTER TABLE t1 ALTER INDEX idx_id INVISIBLE;
 
 --connection master
 DELETE FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # check whether invisible attribute is respected
 SELECT table_name, index_name, is_visible
@@ -112,4 +112,4 @@ WHERE index_name = 'idx_id';
 --connection master
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

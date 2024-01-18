@@ -14,7 +14,7 @@ include/start_group_replication.inc
 [connection server2]
 include/stop_group_replication.inc
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/group_replication_end.inc

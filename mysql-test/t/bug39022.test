@@ -1,5 +1,5 @@
 -- source include/have_log_bin.inc
--- source include/not_binlog_format_row.inc
+-- source include/rpl/deprecated/not_binlog_format_row.inc
 
 --echo #
 --echo # Bug #39022: Mysql randomly crashing in lock_sec_rec_cons_read_sees

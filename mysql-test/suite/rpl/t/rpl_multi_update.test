@@ -3,4 +3,4 @@
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 let $engine_type=MyISAM;
--- source extra/rpl_tests/rpl_multi_update.test
+-- source common/rpl/rpl_multi_update.test

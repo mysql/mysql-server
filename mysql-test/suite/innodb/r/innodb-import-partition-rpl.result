@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,7 +14,7 @@ CREATE TABLE t2 ( i INT ) ENGINE = InnoDB  PARTITION BY KEY(i) PARTITIONS 3;
 INSERT INTO t1 VALUES (1),(111),(321);
 INSERT INTO t2 VALUES (0),(1),(2);
 FLUSH TABLES t1,t2 FOR EXPORT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # set MYSQLD_DATADIR with master datadir to copy idb and cfg files
 backup: t1#p#p0
 backup: t1#p#p1
@@ -38,7 +38,7 @@ i
 UNLOCK TABLES;
 ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t2 DISCARD PARTITION p0,p1 TABLESPACE;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Copy back ibd and cfg files on master
 restore: t1#p#p0 .ibd and .cfg files
 restore: t1#p#p1 .ibd and .cfg files
@@ -64,7 +64,7 @@ i
 0
 1
 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # On slave
 # Verify table data on slave
 SELECT * FROM t1;
@@ -81,7 +81,7 @@ set global innodb_file_per_table = 1;
 set global innodb_file_per_table = 1;
 DROP TABLE t1;
 DROP TABLE t2;
-include/rpl_end.inc
+include/rpl/deinit.inc
 call mtr.add_suppression("Got error -1 when reading table '.*'");
 call mtr.add_suppression("Error: tablespace id and flags in file '.*'.*");
 call mtr.add_suppression("The table .* doesn't have a corresponding tablespace, it was discarded");

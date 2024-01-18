@@ -26,12 +26,12 @@
 #
 ###############################################################################
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Generate events to be replicated to the slave
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Those errors will only happen in the slave
 CALL mtr.add_suppression("Disk is full writing");
@@ -52,15 +52,15 @@ CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk bef
 --source include/add_debug_point.inc
 
 # Generate events to be replicated to the slave
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(2);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Wait until IO thread is waiting for disk space
 # Notice that this is performed by querying SHOW REPLICA STATUS
 --let $slave_param= Replica_IO_State
 --let $slave_param_value= Waiting for disk space
---source include/wait_for_slave_param.inc
+--source include/rpl/wait_for_replica_status.inc
 
 # performance_schema.threads and information_schema.processlist checks
 --let $io_state=`SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
@@ -77,21 +77,21 @@ INSERT INTO t1 VALUES(2);
 --let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 
 # STOP REPLICA IO_THREAD should be blocked
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 --send STOP REPLICA IO_THREAD
 
 # But the KILL on it should unblock it
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
 --replace_result $io_id IO_THREAD
 --eval KILL $io_id
 
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 --reap
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 # Restore the debug options to "simulate" freed space on disk
 --source include/remove_debug_point.inc
@@ -117,9 +117,9 @@ SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
 --source include/assert_grep.inc
 
 # Start the I/O thread to let the slave to sync
---source include/start_slave_io.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Step 2 - Restart the slave server while I/O thread is waiting for disk space
@@ -130,7 +130,7 @@ SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
 --source include/add_debug_point.inc
 
 # Generate events to be replicated to the slave
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(3);
 INSERT INTO t1 VALUES(4);
 INSERT INTO t1 VALUES(5);
@@ -139,19 +139,19 @@ INSERT INTO t1 VALUES(7);
 INSERT INTO t1 VALUES(8);
 INSERT INTO t1 VALUES(9);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Wait until IO thread is waiting for disk space
 # Notice that this is performed by querying SHOW REPLICA STATUS
 --let $slave_param= Replica_IO_State
 --let $slave_param_value= Waiting for disk space
---source include/wait_for_slave_param.inc
+--source include/rpl/wait_for_replica_status.inc
 
 # Restart the slave (relay log recovery is turned on and log error verbosity is 3)
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 --let $rpl_server_number= 2
 --let $rpl_server_parameters=
---source include/rpl_restart_server.inc
---source include/start_slave.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
 
 # There should not be a message in the error log of the slave stating
 # that it was waiting for space to stop the I/O thread.
@@ -164,7 +164,7 @@ INSERT INTO t1 VALUES(9);
 --source include/assert_grep.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

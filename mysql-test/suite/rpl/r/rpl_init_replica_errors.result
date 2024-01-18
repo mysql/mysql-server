@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,21 +8,21 @@ RESET REPLICA;
 # Adding debug point 'simulate_io_replica_error_on_init' to @@GLOBAL.debug
 # Adding debug point 'simulate_sql_replica_error_on_init' to @@GLOBAL.debug
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=13117]
+include/rpl/wait_for_applier_error.inc [errno=13117]
 Last_SQL_Error = 'Fatal error: Failed during replica thread initialization'
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Failed during replica.* thread initialization");
 SET SESSION sql_log_bin= 1;
-include/wait_for_slave_io_error.inc [errno=13117]
+include/rpl/wait_for_receiver_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: Failed during replica I/O thread initialization '
 # Removing debug point 'simulate_io_replica_error_on_init' from @@GLOBAL.debug
 # Removing debug point 'simulate_sql_replica_error_on_init' from @@GLOBAL.debug
 RESET REPLICA;
 SET GLOBAL init_replica= "garbage";
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=13145]
+include/rpl/wait_for_applier_error.inc [errno=13145]
 Last_SQL_Error = 'Replica SQL thread aborted. Can't execute init_replica query, MY-001064 - 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1''
 SET GLOBAL init_replica= "";
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 RESET REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc

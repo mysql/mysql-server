@@ -2,7 +2,7 @@
 
 --source ../include/have_component_test_sys_var_service.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression("duplicate variable name");
 --echo # Simple load test
@@ -118,4 +118,4 @@ connection master;
 UNINSTALL COMPONENT "file://component_test_sys_var_service";
 
 sync_slave_with_master;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -10,7 +10,7 @@
 ################################################################################
 
 --source include/big_test.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 3
@@ -20,12 +20,12 @@
 
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -36,15 +36,15 @@
 # Make 3rd member ready for starting GR
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
 # Connect to server1, create a table and also define a procedure to insert data
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE test.t1 ( a int primary key);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 USE test;
 delimiter $$;
 CREATE PROCEDURE insert_into_t1()
@@ -67,19 +67,19 @@ delimiter ;$$
 # Add 3rd member parallely while the insertion is in progress
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication_command.inc
 
 # Reap the insert call
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 # Make sure that all the servers in the group are ONLINE
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_timeout= 600
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
@@ -87,16 +87,16 @@ let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_
 --echo
 --echo #Validating the records in server3#
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=100 FROM test.t1;
 --source include/wait_condition.inc
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Verify the consistency of number of records on all the servers
 --echo
 --echo #Validating the records in server2#
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'Checking the number of records in test.t1'
 --let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 100
 --source include/assert.inc

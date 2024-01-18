@@ -29,7 +29,7 @@
 #
 #   $suppress_on_current_connection
 #     By default, the script executes as follows:
-#     - if rpl_init.inc has been sourced, adds the suppressions on every
+#     - if rpl/init.inc has been sourced, adds the suppressions on every
 #       node in the toplogy (on the server_N connection).
 #     - otherwise, adds the suppressions only on the current connection.
 #     If this parameter is set, it adds the suppression only on the current
@@ -105,9 +105,9 @@ if ($rpl_inited) {
 while ($_sm_server_number <= $_sm_last_server_number) {
   if ($_sm_change_connection) {
     --let $rpl_connection_name = server_$_sm_server_number
-    --source include/rpl_connection.inc
+    --source include/connection.inc
   }
-  --source include/disable_binlog.inc
+  --source include/rpl/disable_binlog.inc
 
   --let $_sm_message_tail = $_sm_message_list
   while ($_sm_message_tail) {
@@ -131,7 +131,7 @@ while ($_sm_server_number <= $_sm_last_server_number) {
     --let $_sm_message_tail = escape(\',$_sm_message_tail)
   }
 
-  --source include/restore_binlog.inc
+  --source include/rpl/restore_binlog.inc
 
   --inc $_sm_server_number
 }

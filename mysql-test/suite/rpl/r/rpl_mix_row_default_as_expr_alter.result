@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,4 +9,4 @@ ALTER TABLE t1 ADD COLUMN a char(36) DEFAULT (PI());
 ALTER TABLE t1 ADD COLUMN b char(36) DEFAULT (RAND());
 ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the replica.
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

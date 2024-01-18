@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,26 +10,26 @@ CREATE TABLE t1(i INT);
 DROP TABLE t1;
 SET GLOBAL GTID_PURGED = "master_uuid:1";
 START REPLICA IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=13114]
+include/rpl/wait_for_receiver_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'Cannot replicate because the source purged required binary logs. Replicate the missing transactions from elsewhere, or provision a new replica from backup. Consider increasing the source's binary log expiration period. The GTID set sent by the replica is 'MASTER_UUID:1', and the missing transactions are 'MASTER_UUID:2'''
 SET GLOBAL GTID_PURGED= "master_uuid:1-2";
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Slave should be able to get GTID-3 and 4 now.]
 include/assert_grep.inc [Found warning continaining lost GTIDs]
-include/rpl_reset.inc
+include/rpl/reset.inc
 CREATE TABLE t1(i INT);
 DROP TABLE t1;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 FLUSH LOGS;
 DELETE FROM mysql.gtid_executed;
 Warnings:
 Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 START REPLICA IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=13114]
+include/rpl/wait_for_receiver_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'Replica has more GTIDs than the source has, using the source's SERVER_UUID. This may indicate that the the last binary log file was truncated or lost, e.g., after a power failure when sync_binlog != 1. The source may have rolled back transactions that were already replicated to the replica. Replicate any transactions that source has rolled back from replica to source, and/or commit empty transactions on source to account for transactions that have been committed on source but are not included in GTID_EXECU''
 call mtr.add_suppression(".*Replica has more GTIDs than the source has.*");
 SET GLOBAL GTID_PURGED= "master_uuid:1-2";
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

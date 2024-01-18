@@ -27,7 +27,7 @@
 
 # Testing it in one mode is enough
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 SET @save_sync_binlog = @@GLOBAL.sync_binlog;
 SET GLOBAL sync_binlog = 1;
@@ -39,20 +39,20 @@ SET DEBUG_SYNC = 'bgc_between_flush_and_sync SIGNAL parked_in_sync WAIT_FOR cont
 --send INSERT INTO t1 VALUES (10);
 
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC = "now WAIT_FOR parked_in_sync";
 FLUSH LOGS;
 SET DEBUG_SYNC = "now SIGNAL continue";
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --reap
 INSERT INTO t1 VALUES (10);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let diff_tables=master:t1, slave:t1
 --source include/diff_tables.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET DEBUG_SYNC = 'RESET';
 SET GLOBAL sync_binlog = @save_sync_binlog;
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

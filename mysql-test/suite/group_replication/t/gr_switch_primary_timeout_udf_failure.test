@@ -33,7 +33,7 @@ SET @debug_save_m1= @@GLOBAL.DEBUG;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an issue on the primary election process: Could not wait for the execution of local transactions. The member will now leave the group.");
@@ -51,7 +51,7 @@ set session sql_log_bin=1;
 --echo # 2. Fake a stopped applier on server2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
@@ -59,7 +59,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 --echo # 3. Start a primary change on server1 and block the operation at validation.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 
@@ -70,7 +70,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --echo # 4. Wait for the THD_transaction_monitor thread to start and unblock the operation.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME LIKE "thread/group_rpl/THD_transaction_monitor%"
 --source include/wait_condition.inc
@@ -82,7 +82,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --echo # 5. Allow the primary change operation to continue.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GRP_RPL_UDF_ERROR
 --reap
@@ -91,7 +91,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --echo # 6. Check the monitor thread exited.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME LIKE "thread/group_rpl/THD_transaction_monitor%"
 --source include/wait_condition.inc
@@ -99,7 +99,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 ## Note: Server1 is in ERROR state so it's primary status cannot be checked
 --let $group_replication_member_state=ERROR
@@ -111,11 +111,11 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 --echo # 7. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL DEBUG= @debug_save_m1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/group_replication_end.inc

@@ -28,14 +28,14 @@ Warning	1681	'group_replication_view_change_uuid' is deprecated and will be remo
 #     transaction to the group
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 #  3. Insert data into table on server 2 that will add one
 #     transaction to the group
 [connection server2]
 INSERT INTO t1 VALUES (0);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 #  4. Remove and rejoin server 2, that will generate a new
@@ -51,7 +51,7 @@ Warning	1681	'group_replication_view_change_uuid' is deprecated and will be remo
 #  5. Insert data into table on server 2 that will add one
 #     transaction to the group
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 #  6. Transactions are added to the correct intervals and

@@ -22,12 +22,12 @@
 # This test case uses debug_sync
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (i INT);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 SET GLOBAL debug='+d,wait_in_purge_index_entry';
 
 # Create a new relay log so the START REPLICA SQL_THREAD tries
@@ -38,9 +38,9 @@ SET DEBUG_SYNC="now WAIT_FOR in_purge_index_entry";
 
 # Do a DML on master so that IO thread calls queue_event and
 # updates rli->relay_log_space_total.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES (1);
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Wait until IO thread tries to take a log_space_lock.
 --let $io_thread_id = `SELECT THREAD_ID FROM performance_schema.threads WHERE NAME like '%replica_io%'`
@@ -56,9 +56,9 @@ INSERT INTO t1 VALUES (1);
 SET DEBUG_SYNC="now SIGNAL go_ahead_sql";
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET GLOBAL debug='-d,wait_in_purge_index_entry';
 SET DEBUG_SYNC="RESET";
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

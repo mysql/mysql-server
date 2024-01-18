@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,10 +6,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CALL mtr.add_suppression("Failed to open log");
 FLUSH LOGS;
 CREATE TABLE t1(c1 INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 FLUSH LOGS;
 call mtr.add_suppression('Got fatal error 1236 from source when reading data from binary log: .*could not find next log');
-include/wait_for_slave_io_error.inc [errno=13114]
+include/rpl/wait_for_receiver_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'could not find next log; the first event '' at XXX, the last event read from './master-bin.000002' at XXX, the last byte read from './master-bin.000002' at XXX.''
 CREATE TABLE t2(c1 INT);
 FLUSH LOGS;
@@ -17,8 +17,8 @@ CREATE TABLE t3(c1 INT);
 FLUSH LOGS;
 CREATE TABLE t4(c1 INT);
 START REPLICA IO_THREAD;
-include/wait_for_slave_io_to_start.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/sync_to_replica.inc
 SHOW TABLES;
 Tables_in_test
 t1
@@ -26,14 +26,14 @@ t2
 t3
 t4
 DROP TABLE t1, t2, t3, t4;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # BUG#21437 server_errno=29 error message flood mysqld error log
 # --------------------------------------------------------------------------
 # This test verifies if the ER_SOURCE_FATAL_ERROR_READING_BINLOG which
 # insteads of EE_FILENOTFOUND error is sent to slave, so that the slave
 # I/O thread stops immediately.
-include/rpl_reset.inc
+include/rpl/reset.inc
 [ on master ]
 call mtr.add_suppression("Got fatal error 1236 from source when reading data from binary log:");
 CREATE TABLE t1(c1 int);
@@ -41,9 +41,9 @@ DROP TABLE t1;
 FLUSH LOGS;
 CREATE TABLE t2(c1 int);
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [ on slave ]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 [ on master ]
 # This operation will result in error EE_FILENOTFOUND which happens
 # when slave IO thread is connecting to master.
@@ -54,7 +54,7 @@ Warning	3023	CHANGE REPLICATION SOURCE TO with a SOURCE_LOG_FILE clause but no S
 START REPLICA IO_THREAD;
 # Instead of EE_FILENOTFOUND, ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
 # and the specific information are sent to slave.
-include/wait_for_slave_io_error.inc [errno=13114]
+include/rpl/wait_for_receiver_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'Could not open log file''
 [ on master ]
 # Restore master-bin.000001 file
@@ -62,12 +62,12 @@ Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='master-bin.000002';
 Warnings:
 Warning	3023	CHANGE REPLICATION SOURCE TO with a SOURCE_LOG_FILE clause but no SOURCE_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
-include/start_slave.inc
+include/rpl/start_replica.inc
 [ on master ]
 CREATE TABLE t1(c1 INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [ on slave ]
 SELECT * FROM t1;
 c1
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

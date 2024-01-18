@@ -39,7 +39,7 @@
 #
 
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Checks for add managed sender configuration UDF
 # i.e. asynchronous_connection_failover_add_managed()
@@ -380,7 +380,7 @@ SELECT * FROM mysql.replication_asynchronous_connection_failover_managed;
 --echo #     asynchronous_connection_failover_delete_source UDF.
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 GRANT REPLICATION_SLAVE_ADMIN ON *.* TO 'async_user';
 
@@ -407,7 +407,7 @@ SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-bbbb-bbbb-a
 SELECT asynchronous_connection_failover_delete_managed('', 'UUID');
 
 --disconnect connect_async
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
@@ -430,4 +430,4 @@ call mtr.add_suppression("The group .* for the channel .* has been added, and so
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

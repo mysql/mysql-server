@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -919,7 +919,7 @@ B	10000
 E	10000
 T	10000
 Check that Primary Slave has stopped
-include/wait_for_slave_sql_error.inc [errno=1296]
+include/rpl/wait_for_applier_error.inc [errno=1296]
 Restart Primary Slave
 set global sql_replica_skip_counter=1;
 START REPLICA;
@@ -1204,4 +1204,4 @@ drop table test.t2;
 flush logs;
 STOP REPLICA;
 RESET REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc

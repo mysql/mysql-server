@@ -1,5 +1,5 @@
-include/rpl_init.inc [topology=none]
-include/rpl_default_connections.inc
+include/rpl/init.inc [topology=none]
+include/rpl/default_connections.inc
 SET GLOBAL GTID_MODE= OFF_PERMISSIVE;
 [START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY= ON;

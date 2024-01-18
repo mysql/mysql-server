@@ -12,9 +12,9 @@
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $datadir= `SELECT @@GLOBAL.datadir`
 
 # add new channel
@@ -37,7 +37,7 @@ FLUSH RELAY LOGS FOR CHANNEL "channel1";
 --echo #
 --echo # RESET REPLICA ALL for next test;
 --echo #
---source include/rpl_stop_slaves.inc
+--source include/rpl/stop_all_replicas.inc
 RESET REPLICA ALL;
 
 --echo #
@@ -45,13 +45,13 @@ RESET REPLICA ALL;
 --echo #     --relay-log-index
 --echo #
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 --remove_files_wildcard $datadir *msr-relay*
 
 --let $rpl_server_number= 2
 --let $rpl_server_parameters=--relay-log-index=idx-msr-relay
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
 # add new channel
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "channel1";
@@ -72,7 +72,7 @@ FLUSH RELAY LOGS FOR CHANNEL "channel1";
 --echo #
 --echo # RESET REPLICA ALL cleaningup.
 --echo #
---source include/rpl_stop_slaves.inc
+--source include/rpl/stop_all_replicas.inc
 RESET REPLICA ALL;
 
 --echo #
@@ -80,13 +80,13 @@ RESET REPLICA ALL;
 --echo #    --relay-log-index and --relay-log with extensions.
 --echo #    These extensions shall be stripped off
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 --remove_files_wildcard $datadir *msr-relay*
 
 --let $rpl_server_number= 2
 --let $rpl_server_parameters=--relay-log-index=idx-msr-relay.index1 --relay-log=msr-relay.log1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
 # add new channel
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "channel1";
@@ -107,7 +107,7 @@ FLUSH RELAY LOGS FOR CHANNEL "channel1";
 --echo #
 --echo # RESET REPLICA ALL cleaningup.
 --echo #
---source include/rpl_stop_slaves.inc
+--source include/rpl/stop_all_replicas.inc
 RESET REPLICA ALL;
 
 --echo #
@@ -123,6 +123,6 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=$MASTER_M
           SOURCE_USER="root";
 --enable_warnings
 
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc
 

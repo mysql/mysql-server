@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,7 +20,7 @@ RELEASE SAVEPOINT event_logging_1;
 END|
 INSERT INTO t2 VALUES (1);
 INSERT INTO t1 VALUES (1);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (f1 INTEGER PRIMARY KEY)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (f1 INTEGER PRIMARY KEY)
@@ -62,7 +62,7 @@ END|
 CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW CALL p1()|
 INSERT INTO t2 VALUES (1);
 INSERT INTO t1 VALUES (1);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (f1 INTEGER PRIMARY KEY)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (f1 INTEGER PRIMARY KEY)
@@ -118,7 +118,7 @@ DROP TABLE t2;
 DROP TABLE t3;
 DROP PROCEDURE p1;
 # Test case 3:
-include/rpl_reset.inc
+include/rpl/reset.inc
 [connection master]
 CREATE TABLE t (f1 int(10) unsigned NOT NULL, PRIMARY KEY (f1)) ENGINE=InnoDB;
 Warnings:
@@ -131,7 +131,7 @@ ROLLBACK TO savepoint_1;
 END |
 INSERT INTO t VALUES (2);
 INSERT INTO t VALUES (3);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t (f1 int(10) unsigned NOT NULL, PRIMARY KEY (f1)) ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER t_insert_trig AFTER INSERT ON t
@@ -150,7 +150,7 @@ SELECT * FROM t;
 f1
 2
 3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t;
 f1
 2
@@ -158,7 +158,7 @@ f1
 [connection master]
 DROP TABLE t;
 # Test case 4:
-include/rpl_reset.inc
+include/rpl/reset.inc
 [connection master]
 CREATE TABLE t (f1 int(10) unsigned NOT NULL) ENGINE=InnoDB;
 Warnings:
@@ -174,7 +174,7 @@ INSERT INTO t1 VALUES (5);
 END |
 INSERT INTO t VALUES (2), (3);
 INSERT INTO t1 VALUES (30);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t (f1 int(10) unsigned NOT NULL) ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (f1 int(10) unsigned NOT NULL) ENGINE=InnoDB
@@ -199,7 +199,7 @@ f1
 5
 5
 30
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t;
 f1
 2
@@ -213,7 +213,7 @@ f1
 DROP TABLE t;
 DROP TABLE t1;
 # Test case 5:
-include/rpl_reset.inc
+include/rpl/reset.inc
 [connection master]
 CREATE TABLE t (f1 int(10) unsigned NOT NULL) ENGINE=InnoDB;
 Warnings:
@@ -228,7 +228,7 @@ SAVEPOINT savepoint_1;
 END |
 INSERT INTO t VALUES (2), (3);
 INSERT INTO t1 VALUES (30);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t (f1 int(10) unsigned NOT NULL) ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (f1 int(10) unsigned NOT NULL) ENGINE=InnoDB
@@ -250,7 +250,7 @@ f1
 SELECT * FROM t1;
 f1
 30
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t;
 f1
 2
@@ -262,7 +262,7 @@ f1
 DROP TABLE t;
 DROP TABLE t1;
 # Test case 6:
-include/rpl_reset.inc
+include/rpl/reset.inc
 [connection master]
 CREATE TABLE t1 (f1 INTEGER ) ENGINE=INNODB;
 CREATE TABLE t2 (f1 INTEGER ) ENGINE=INNODB;
@@ -277,7 +277,7 @@ BEGIN;
 INSERT INTO t2 VALUES (1), (f1()), (2), (4);
 COMMIT;
 INSERT INTO t2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (f1 INTEGER ) ENGINE=INNODB
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (f1 INTEGER ) ENGINE=INNODB
@@ -304,7 +304,7 @@ f1
 10
 SELECT * FROM t1;
 f1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2;
 f1
 1
@@ -319,7 +319,7 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP FUNCTION f1;
 # Test case 7:
-include/rpl_reset.inc
+include/rpl/reset.inc
 [connection master]
 CREATE TABLE t1 (f1 INTEGER ) ENGINE=INNODB;
 CREATE TABLE t2 (f1 INTEGER ) ENGINE=INNODB;
@@ -333,7 +333,7 @@ BEGIN;
 INSERT INTO t2 VALUES (1), (f1()), (2), (4);
 COMMIT;
 INSERT INTO t2 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (f1 INTEGER ) ENGINE=INNODB
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (f1 INTEGER ) ENGINE=INNODB
@@ -360,7 +360,7 @@ f1
 SELECT * FROM t1;
 f1
 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t2;
 f1
 1
@@ -376,7 +376,7 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP FUNCTION f1;
 # Test case 8:
-include/rpl_reset.inc
+include/rpl/reset.inc
 [connection master]
 CREATE TABLE t1 (f1 INTEGER ) ENGINE=INNODB;
 CREATE FUNCTION f1() RETURNS INT
@@ -388,7 +388,7 @@ BEGIN;
 INSERT INTO t1 VALUES (1), (f1()), (2), (4);
 COMMIT;
 INSERT INTO t1 VALUES (10);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (f1 INTEGER ) ENGINE=INNODB
 master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int
@@ -410,7 +410,7 @@ f1
 2
 4
 10
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 f1
 1
@@ -421,4 +421,4 @@ f1
 [connection master]
 DROP TABLE t1;
 DROP FUNCTION f1;
-include/rpl_end.inc
+include/rpl/deinit.inc

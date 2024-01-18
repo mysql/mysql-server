@@ -33,17 +33,17 @@
 
 
 --source include/have_binlog_format_row.inc
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 
 --echo
 --echo # 1. Initial setup
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 
 --echo
 --echo # 2. Verify that current_number_of_bytes_used for 'memory/sql/Log_event'
 --echo #    is same at global and thread level
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $thread_current_number_of_bytes_used_before = `SELECT SUM(CURRENT_NUMBER_OF_BYTES_USED) AS THREAD FROM performance_schema.memory_summary_by_thread_by_event_name WHERE EVENT_NAME = 'memory/sql/Log_event' GROUP BY EVENT_NAME`
 
@@ -55,14 +55,14 @@
 
 --echo
 --echo # 3. Perform transactions and sync with replica
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 INSERT INTO t1 VALUES (1);
 UPDATE t1 SET c1 = 10;
 DELETE FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Sleep an extra second for replica to settle
 --sleep 1
@@ -87,6 +87,6 @@ DELETE FROM t1;
 
 --echo
 --echo # 6. Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

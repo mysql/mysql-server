@@ -10,7 +10,7 @@ call mtr.add_suppression("Error while executing a group configuration operation:
 set session sql_log_bin=1;
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 CREATE TABLE test.t2 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 2. On a member server2  that will be secondary lock a table t1
 [connection server2]
@@ -56,7 +56,7 @@ UNLOCK TABLES;
 [connection server_1]
 STOP GROUP_REPLICATION;
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
@@ -70,7 +70,7 @@ include/assert.inc [The primary mode should be 1 here.]
 
 # 11. Check that the action finishes
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 12. Check server2 was able to insert value
 [connection server_2_1]

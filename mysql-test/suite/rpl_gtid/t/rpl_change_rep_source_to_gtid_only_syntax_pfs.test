@@ -43,9 +43,9 @@
 
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $source_log_file=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Source_Log_File, 1)
 --let $source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
@@ -190,7 +190,7 @@ CHANGE REPLICATION SOURCE TO GTID_ONLY=1, SOURCE_AUTO_POSITION=1;
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_slave_start
 --let $explicit_default_wait_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 #disabling both GITD_ONLY and SOURCE_AUTO_POSITION fails
 
@@ -236,7 +236,7 @@ CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, SOURCE_AUTO_POSITION=1;
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_slave_start
 --let $explicit_default_wait_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --eval CHANGE REPLICATION SOURCE TO GTID_ONLY=0, SOURCE_AUTO_POSITION=0, SOURCE_LOG_FILE="$source_log_file", SOURCE_LOG_POS=$source_log_pos,RELAY_LOG_FILE='$applier_relaylog_file', RELAY_LOG_POS=$applier_relaylog_pos
 
@@ -275,7 +275,7 @@ RESET REPLICA ALL;
 --let $rpl_server_number = 2
 --let $rpl_skip_start_slave=
 --let $rpl_server_parameters = --gtid-mode=on_permissive
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_count = 1
@@ -286,7 +286,7 @@ RESET REPLICA ALL;
 --let $rpl_channel_name= ''
 --let $slave_param= Replica_IO_Running
 --let $slave_param_value= No
---source include/check_slave_param.inc
+--source include/rpl/assert_replica_status.inc
 
 --error ER_CANT_USE_GTID_ONLY_WITH_GTID_MODE_NOT_ON
 START REPLICA;
@@ -298,9 +298,9 @@ SET @@GLOBAL.GTID_MODE = ON;
 
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT = 0;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 call mtr.add_suppression("Replication channel '' is configured with GTID_ONLY=1, which is invalid when GTID_MODE <> ON. *");
 call mtr.add_suppression("The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1.*");
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

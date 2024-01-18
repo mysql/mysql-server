@@ -1,6 +1,6 @@
 
 --source include/big_test.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_mixed_or_row.inc
 
 let $max_workers= 4;
@@ -18,8 +18,8 @@ eval SET GLOBAL replica_parallel_workers= $max_workers;
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Request to stop replica SQL Thread received while applying a group that has non-transactional changes");
 
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 SET @save_default_storage_engine=@@global.default_storage_engine;
@@ -143,7 +143,7 @@ while ($i) {
 --enable_query_log
 --connection slave
 --disable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --enable_warnings
 
 #cleanup
@@ -167,4 +167,4 @@ SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
 # to sync data
 
 --let slave-timeout= 3600
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

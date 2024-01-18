@@ -24,4 +24,4 @@ DROP TABLE t1;
 --echo ############################################################
 --echo # 2. Assert that the transaction length is correct, with and without compression
 --echo #    (which will be enabled on the MTR collection).
---source include/assert_transaction_length.inc
+--source include/rpl/assert_transaction_length.inc

@@ -63,4 +63,4 @@ EOF
 --source include/wait_until_connected_again.inc
 
 --let $rpl_server_number= $_server_id
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc

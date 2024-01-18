@@ -34,8 +34,8 @@
 #
 
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 --echo
@@ -45,14 +45,14 @@
 --connection master
 CREATE USER replssl@localhost REQUIRE SSL;
 GRANT REPLICATION SLAVE ON *.* TO replssl@localhost;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo With both receiver and applier stopped, all CHANGE REPLICATION SOURCE options should
 --echo be allowed.
 --echo
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 let $source_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1);
 let $source_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
@@ -106,7 +106,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 --echo  message.
 --echo
 
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 --disable_query_log
 replace_result $source_log_file SOURCE_LOG_FILE;
 replace_result $source_log_pos SOURCE_LOG_POS;
@@ -169,8 +169,8 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 1, SOURCE_DELAY=10;
 --echo  message.
 --echo
 
---source include/stop_slave_sql.inc
---source include/start_slave_io.inc
+--source include/rpl/stop_applier.inc
+--source include/rpl/start_receiver.inc
 
 --replace_result $relay_log_file RELAY_LOG_FILE
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE= '$relay_log_file';
@@ -274,7 +274,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY=10, SOURCE_SSL_KEY= '$MYSQL_TEST_
 --error ER_REPLICA_CHANNEL_IO_THREAD_MUST_STOP
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 10, SOURCE_SSL_VERIFY_SERVER_CERT= 1;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --echo
 --echo cleanup
@@ -295,9 +295,9 @@ eval CHANGE REPLICATION SOURCE TO
 --replace_result $save_autoposition SAVE_AUTOPOSITION
 eval CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= $save_autoposition;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 DROP USER replssl@localhost;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

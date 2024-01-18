@@ -2,7 +2,7 @@
 # Set up masters server_1, server_3, server_4, server_5
 # and server_6 with server_2 being a slave.
 #
-include/rpl_init.inc [topology=1->2,3->2,4->2,5->2,6->2]
+include/rpl/init.inc [topology=1->2,3->2,4->2,5->2,6->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -53,7 +53,7 @@ channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
 channel_4	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
 channel_5	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
 channel_6	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
-include/rpl_stop_slaves.inc
+include/rpl/stop_all_replicas.inc
 #
 # 2. Verify that CHANGE REPLICATION FILTER filter [, filter...]
 # FOR CHANNEL <channel_name> acts on the specified channel
@@ -82,7 +82,7 @@ channel_4	REPLICATE_REWRITE_DB	(db4,db44)	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	
 channel_5	REPLICATE_DO_TABLE	db5.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
 channel_5	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
 channel_6	REPLICATE_IGNORE_TABLE	db6.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
-include/rpl_start_slaves.inc
+include/rpl/start_all_replicas.inc
 #
 # Create databases and tables on server_1
 #
@@ -152,15 +152,15 @@ INSERT INTO db66.t1 VALUES (1);
 # Sync the slave (server_2) with all masters
 #
 [connection server_1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 [connection server_4]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_4']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_4']
 [connection server_5]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_5']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_5']
 [connection server_6]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_6']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_6']
 #
 # Check that db1 is replicated and both db11 and db111 are
 # filtered out on channel_1 with CHANGE REPLICATION FILTER
@@ -248,7 +248,7 @@ include/assert.inc [Slave should have 1 row in db66.t1 on channel_6]
 #
 # Stop replica (on server_2).
 #
-include/rpl_stop_slaves.inc
+include/rpl/stop_all_replicas.inc
 #
 # 8. SHOW REPLICA STATUS FOR CHANNEL 'channel_2' throws an error, since
 # the channel does not exist.
@@ -467,29 +467,29 @@ ERROR HY000: Replica is not configured or failed to initialize properly. You mus
 #
 RESET REPLICA FOR CHANNEL 'channel_2';
 ERROR HY000: Replica channel 'channel_2' does not exist.
-include/rpl_start_slaves.inc
+include/rpl/start_all_replicas.inc
 connection_server_1
 DROP DATABASE db1;
 DROP DATABASE db11;
 DROP DATABASE db111;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_1']
 connection_server_3
 DROP DATABASE db3;
 DROP DATABASE db33;
 DROP DATABASE db333;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 connection_server_4
 DROP DATABASE db4;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_4']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_4']
 connection_server_5
 DROP DATABASE db5;
 DROP DATABASE db55;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_5']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_5']
 connection_server_6
 DROP DATABASE db6;
 DROP DATABASE db66;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_6']
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_6']
+include/rpl/deinit.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 RESET REPLICA ALL FOR CHANNEL 'channel_3';
 RESET REPLICA ALL FOR CHANNEL 'channel_4';

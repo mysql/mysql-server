@@ -43,7 +43,7 @@
 # WL#11300: Crash-safe XA + binary log
 #
 # Related tests;
-#   see extra/xa_crash_safe_tests/setup.inc
+#   see common/xa_crash_safe/setup.inc
 #
 --source include/not_valgrind.inc
 --source include/have_debug.inc
@@ -54,7 +54,7 @@
 #
 --let $xid_data = xid1
 --let $xid = `SELECT CONCAT("X'", LOWER(HEX('$xid_data')), "',X'',1")`
---source extra/xa_crash_safe_tests/setup.inc
+--source common/xa_crash_safe/setup.inc
 
 # 2. Start and execute an XA transaction containing an insert until before
 #    `XA COMMIT`.
@@ -76,7 +76,7 @@ INSERT INTO t1 VALUES (1);
 FLUSH LOGS;
 --replace_result $binlog_file BINLOG_FILE
 --eval PURGE BINARY LOGS TO '$binlog_file'
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # 5. Crash the server during `XA COMMIT` execution, before commiting in the
 #    TC.
@@ -87,7 +87,7 @@ FLUSH LOGS;
 --let $sync_point = before_commit_xa_trx
 --source include/execute_to_conditional_timestamp_sync_point.inc
 --source include/kill_mysqld.inc
---source extra/xa_crash_safe_tests/cleanup_connection.inc
+--source common/xa_crash_safe/cleanup_connection.inc
 
 # 6. Restart server and check:
 #
@@ -97,12 +97,12 @@ FLUSH LOGS;
 #      transaction needing recovery.
 #
 --let $assert_select = Successfully prepared 1 XA transaction
---source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--source common/xa_crash_safe/assert_recovery_message.inc
 
 # 6.b. The `XA PREPARE` and `XA COMMIT` aren't found in the binary log.
 #
 --let $event_sequence = $empty_event_sequence
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 # 6.c. The GTID_EXECUTED variable wasn't updated.
 #
@@ -115,12 +115,12 @@ FLUSH LOGS;
 #      RECOVER`.
 #
 --let $expected_prepared_xa_count = 1
---source extra/xa_crash_safe_tests/assert_xa_recover.inc
+--source common/xa_crash_safe/assert_xa_recover.inc
 
 # 6.e. There aren't changes to the table.
 #
 --let $expected_row_count = 1
---source extra/xa_crash_safe_tests/assert_row_count.inc
+--source common/xa_crash_safe/assert_row_count.inc
 
 # 7. Restart the server and check that the transaction is still in preared
 #    state, meaning, the recovery process moved the transaction to
@@ -128,7 +128,7 @@ FLUSH LOGS;
 #
 --source include/restart_mysqld.inc
 --let $expected_prepared_xa_count = 1
---source extra/xa_crash_safe_tests/assert_xa_recover.inc
+--source common/xa_crash_safe/assert_xa_recover.inc
 
 # 8. Commit the transaction.
 #
@@ -137,6 +137,6 @@ FLUSH LOGS;
 # 9. Check the table has changed.
 #
 --let $expected_row_count = 2
---source extra/xa_crash_safe_tests/assert_row_count.inc
+--source common/xa_crash_safe/assert_row_count.inc
 
 DROP TABLE t1;

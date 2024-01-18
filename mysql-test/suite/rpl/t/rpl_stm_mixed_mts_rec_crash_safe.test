@@ -3,8 +3,8 @@
 --source include/have_binlog_format_mixed.inc
 --source include/have_debug.inc
 --source include/not_valgrind.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 --disable_query_log
 call mtr.add_suppression('Attempting backtrace');
@@ -12,4 +12,4 @@ call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression("allocated tablespace .*, old maximum was .*");
 --enable_query_log
 
---source extra/rpl_tests/rpl_mts_crash_safe.test
+--source common/rpl/rpl_mta_crash_safe.test

@@ -23,7 +23,7 @@
 --source include/big_test.inc
 --source include/force_restart.inc
 
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --let $rpl_skip_group_replication_start= 1
@@ -31,7 +31,7 @@
 
 # START GR on Two servers M1 and M2
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin=0;
 --disable_query_log
@@ -49,7 +49,7 @@ SET sql_log_bin=1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Extract the server_uuid
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -64,7 +64,7 @@ SET sql_log_bin=1;
 # that when server3 joins it will be in RECOVERY for some time.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Create the procedure to perform dml operations
 delimiter $$;
@@ -87,11 +87,11 @@ call dml_operations();
 --echo
 
 # Wait for the data to get synced on server2.
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # JOIN M3 to the group
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
@@ -99,7 +99,7 @@ SET sql_log_bin=1;
 LOCK TABLES t1 READ;
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Plugin group_replication reported: 'There was an error when connecting to the donor server.*");
@@ -119,7 +119,7 @@ SET SESSION sql_log_bin= 1;
 while($count<6)
 {
   --let $rpl_connection_name= server_3
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   # Identify the donor_server for M3
   let $donor_id= 1;
   let $other_id= 2;
@@ -131,12 +131,12 @@ while($count<6)
   }
 
   --let $rpl_connection_name= server3
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   UNLOCK TABLES;
 
   --let $rpl_connection_silent= 1
   --let $rpl_connection_name= server$donor_id
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   # kill the donor server
   --let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -145,16 +145,16 @@ while($count<6)
   --replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
   --source include/kill_and_restart_mysqld.inc
 
-  # Needed as we are not using rpl_restart_server.inc
+  # Needed as we are not using rpl/restart_server.inc
   --let $rpl_server_number= $donor_id
-  --source include/rpl_reconnect.inc
+  --source include/rpl/reconnect.inc
 
   --let $rpl_connection_name= server3
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   LOCK TABLES t1 READ;
 
   --let $rpl_connection_name= server$other_id
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_members
   --source include/wait_condition.inc
@@ -163,7 +163,7 @@ while($count<6)
   --sleep 5
 
   --let $rpl_connection_name= server$donor_id
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --let $wait_timeout= 100
   --source include/start_group_replication.inc
 
@@ -172,14 +172,14 @@ while($count<6)
 }
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 # Wait until all the servers are online
 --let $wait_timeout=300
 --let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_members where MEMBER_STATE='ONLINE';
 --source include/wait_condition.inc
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Verify that table t1 has same data on all the servers.
 --let $diff_tables=server1:t1, server2:t1, server3:t1

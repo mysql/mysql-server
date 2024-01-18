@@ -1,5 +1,5 @@
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 
 # Procedure to test metadata replication success against several types of data
@@ -12,14 +12,14 @@
     --die !!!ERROR IN TEST: you must set $insert_value
   }
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   DROP TABLE t1;
   eval CREATE TABLE t1 (
     id INT KEY AUTO_INCREMENT,
     j4 JSON ,
     KEY mv_idx_binary ((( CAST(j4->'$[*]' AS $cast_type ARRAY)))));
   --eval INSERT INTO t1(j4) VALUES($insert_value)
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
   --let $diff_tables= master:t1, slave:t1
   --source include/diff_tables.inc
 # END OF
@@ -28,11 +28,11 @@ PROCEDURE
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression('.*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*');
 SET SESSION sql_log_bin= 1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 FLUSH LOGS;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo #
 --echo # WL#8955: Add multi-valied index support
@@ -49,7 +49,7 @@ insert into t1(f1) values
   (cast('[3,3,4,4,7]' as json)), (cast(4 as json)),
   (cast(7 as json)), (cast('[8,4,3,5]' as json)), (cast('[9,2,7]' as json)),
   ('[98,99]');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
@@ -62,18 +62,18 @@ select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
 explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
 explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 select * from t1 force index(i1) where 99 member of  (f1->"$[*]");
 update t1 set f1=cast('[100,99]' as json) where 99 member of (f1->"$[*]");
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
 explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
 explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
 SET @start_row_image_value = @@session.binlog_row_image;
@@ -81,7 +81,7 @@ SET @@session.binlog_row_image = MINIMAL;
 
 # Test transactions dependency is properly calculated
 FLUSH LOGS;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, data JSON NOT NULL,
   KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
@@ -89,9 +89,9 @@ UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
 INSERT INTO t1(data) VALUES ('[33,44]');
 INSERT INTO t1(data) VALUES ('[0,99]');
 --let $logical_timestamps = 0 1;1 2;2 3;1 4;1 5
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
@@ -100,7 +100,7 @@ INSERT INTO t1(data) VALUES ('[0,99]');
 DROP TABLE t1;
 
 FLUSH LOGS;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, id INT DEFAULT 0,
   data JSON NOT NULL,
   UNIQUE KEY zips(id, (CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
@@ -109,9 +109,9 @@ UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
 INSERT INTO t1(data) VALUES ('[33,44]');
 INSERT INTO t1(data) VALUES ('[0,99]');
 --let $logical_timestamps = 0 1;1 2;2 3;1 4;3 5
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
@@ -120,7 +120,7 @@ INSERT INTO t1(data) VALUES ('[0,99]');
 DROP TABLE t1;
 
 FLUSH LOGS;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, id INT DEFAULT 0,
   data JSON NOT NULL,
   UNIQUE KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY)), id));
@@ -129,9 +129,9 @@ UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
 INSERT INTO t1(data) VALUES ('[33,44]');
 INSERT INTO t1(data) VALUES ('[0,99]');
 --let $logical_timestamps = 0 1;1 2;2 3;1 4;3 5
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
@@ -140,7 +140,7 @@ INSERT INTO t1(data) VALUES ('[0,99]');
 DROP TABLE t1;
 
 FLUSH LOGS;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, data JSON NOT NULL,
   UNIQUE KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
@@ -148,9 +148,9 @@ UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
 INSERT INTO t1(data) VALUES ('[]');
 INSERT INTO t1(data) VALUES ('[0,99]');
 --let $logical_timestamps = 0 1;1 2;2 3;1 4;3 5
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
@@ -160,7 +160,7 @@ DROP TABLE t1;
 
 FLUSH LOGS;
 # Test that non-unique index doesn''t generate collisions
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, data JSON,
   KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
@@ -169,9 +169,9 @@ INSERT INTO t1(data) VALUES ('[33,44]');
 INSERT INTO t1(data) VALUES (NULL);
 INSERT INTO t1(data) VALUES ('[0,99]');
 --let $logical_timestamps = 0 1;1 2;2 3;1 4;1 5;1 6
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
@@ -212,12 +212,12 @@ INSERT INTO t1(data) VALUES ('[0,99]');
 --let $insert_value = '["01-01-01 01:01:01.123456"]'
 --source $MYSQLTEST_VARDIR/tmp/metadata_replication_success.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
 FLUSH LOGS;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --remove_file $MYSQLTEST_VARDIR/tmp/metadata_replication_success.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 # End:

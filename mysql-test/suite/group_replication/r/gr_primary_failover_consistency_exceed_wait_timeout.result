@@ -43,7 +43,7 @@ SELECT * FROM t1;
 # 11. Reap with timeout error on pending statement
 [connection server2]
 ERROR HY000: Timeout exceeded for held statement while new Group Replication primary member is applying backlog.
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 12. UNLOCK tables to allow apply backlog
 [connection server_2]

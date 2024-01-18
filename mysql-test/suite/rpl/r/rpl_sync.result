@@ -1,5 +1,5 @@
 =====Configuring the enviroment=======;
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,21 +13,21 @@ insert into t1(a) values(1);
 insert into t1(a) values(2);
 insert into t1(a) values(3);
 =====Inserting data on the master but without the SQL Thread being running=======;
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 insert into t1(a) values(4);
 insert into t1(a) values(5);
 insert into t1(a) values(6);
 =====Removing relay log files and crashing/recoverying the slave=======;
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 SET SESSION debug="+d,crash_before_rotate_relaylog";
 FLUSH LOGS;
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 =====Dumping and comparing tables=======;
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1,slave:t1]
 =====Clean up=======;
 drop table t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,5 +1,5 @@
 SET @@GLOBAL.concurrent_insert = 0;
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ a	b
 3	1
 4	2
 5	3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a	b
 3	1
@@ -29,7 +29,7 @@ a	b
 3	3
 5	5
 6	6
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a	b
 1	1
@@ -66,7 +66,7 @@ a
 400
 410
 1000
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 5
@@ -116,7 +116,7 @@ a
 600
 610
 611
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1
@@ -134,7 +134,7 @@ a
 drop table t1;
 set @@session.auto_increment_increment=10, @@session.auto_increment_offset=1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 insert into t1 values(2),(12),(22),(32),(42);
 insert into t1 values (NULL),(NULL);
 insert into t1 values (3),(NULL),(NULL);
@@ -145,7 +145,7 @@ a
 11
 21
 31
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1
@@ -192,7 +192,7 @@ Warning	1264	Out of range value for column 'a' at row 1
 select * from t3 order by a;
 a
 127
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 order by a;
 a
 103
@@ -206,8 +206,8 @@ a
 127
 drop table t1,t2,t3;
 SET sql_mode = default;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t2 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=myisam;
 SET SQL_MODE='';
@@ -236,20 +236,20 @@ id
 2700
 INSERT INTO t2 VALUES(4);
 FLUSH LOGS;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 FLUSH LOGS;
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t2;
 SET SQL_MODE='';
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc
 SET @@GLOBAL.concurrent_insert = SAVED_CONCURRENT_INSERT;

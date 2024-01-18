@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -17,27 +17,27 @@ include/assert.inc [Check value in the table]
 # 1.2. Set ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to LOCAL
 #      Check the performance_schema table and applier metadata repository
 #      are correct
-include/stop_slave.inc
-include/rpl_set_gtid_mode.inc [ON on servers 2]
+include/rpl/stop_replica.inc
+include/rpl/set_gtid_mode.inc [ON on servers 2]
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 Warnings:
 Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE_CHECK for default channel "" in performance_schema.replication_applier_configuration is LOCAL]
 include/assert.inc [Check value in the table]
 
 # 1.3. Set ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to uuid
 #      Check the performance_schema table and applier metadata repository
 #      are correct
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 Warnings:
 Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE_CHECK for default channel "" in performance_schema.replication_applier_configuration is UUID]
 include/assert.inc [ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE_CHECK for default channel "" in performance_schema.replication_applier_configuration is "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
 include/assert.inc [Check value in the table]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 
 # 2.1 Upgrade the server while using Table repositories
 #     Have 3 channels:
@@ -45,14 +45,14 @@ include/stop_slave.inc
 #       2. A group_replication channel (group_replication_recovery)
 #       3. A channel with a privileged user (default channel)
 #     ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS is set to OFF for all channels
-include/rpl_set_gtid_mode.inc [ON on servers 2]
+include/rpl/set_gtid_mode.inc [ON on servers 2]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_type;
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_value;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start  --upgrade=FORCE]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start  --upgrade=FORCE]
 include/assert.inc [Check the number of channels with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF]
 include/assert.inc [Check that mysql.slave_relay_log_info entries all have ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF AND ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE set to NULL]
 RESET REPLICA ALL FOR CHANNEL "ch1";
@@ -62,7 +62,7 @@ RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 #      Execute a RESET REPLICA command.
 #      The option should not be affected
 #      It also survives a server restart
-include/rpl_set_gtid_mode.inc [ON on servers 2]
+include/rpl/set_gtid_mode.inc [ON on servers 2]
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 Warnings:
 Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
@@ -70,14 +70,14 @@ include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 RESET REPLICA;
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 
 # 3.2. Change ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to <uuid>
 #      Execute a RESET REPLICA command.
 #      The option should will be affected
 #      It also survives a server restart
-include/rpl_set_gtid_mode.inc [ON on servers 2]
+include/rpl/set_gtid_mode.inc [ON on servers 2]
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 Warnings:
 Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
@@ -85,7 +85,7 @@ include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 RESET REPLICA;
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 
 # 3.3. Execute a RESET REPLICA ALL command.
@@ -103,5 +103,5 @@ CALL mtr.add_suppression("If you intend to use GTID_MODE = ON everywhere*");
 CALL mtr.add_suppression("Variable 'assign_gtids_to_anonymous_transactions_value'");
 CALL mtr.add_suppression("Variable 'ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS' can't be set to the value of");
 CALL mtr.add_suppression("Error writing relay log configuration.");
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

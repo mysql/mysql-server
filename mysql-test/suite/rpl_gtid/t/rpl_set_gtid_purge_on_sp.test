@@ -23,18 +23,18 @@
 
 --source include/have_binlog_format_row.inc
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. We create a table on server 1 for check purposes and extract its id
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $source_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
 CREATE TABLE t1 (a INT PRIMARY KEY);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 2. On the replica create a storage procedure that uses the `root` user
@@ -61,7 +61,7 @@ GRANT EXECUTE ON test.* TO 'no_priv_user'@localhost;
 --connect (no_priv_user_con, 127.0.0.1, no_priv_user, , test, $SLAVE_MYPORT,)
 
 --let $rpl_connection_name= no_priv_user_con
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #
 --echo # 4. Use the procedure to set GTID_PURGED.
@@ -77,12 +77,12 @@ GRANT EXECUTE ON test.* TO 'no_priv_user'@localhost;
 --echo #
 --echo # 5. Check replication is working as expected
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 values (2);
 INSERT INTO t1 values (3);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= Only one transaction was replicated
 --let $assert_cond = COUNT(*)=1 FROM t1
@@ -91,14 +91,14 @@ INSERT INTO t1 values (3);
 --echo #
 --echo # 6. Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'no_priv_user'@localhost;
 DROP USER 'no_priv_user'@localhost;
 DROP PROCEDURE set_gtid_purged_sp;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

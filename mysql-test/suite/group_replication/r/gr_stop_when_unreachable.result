@@ -12,7 +12,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server2]
 [connection server3]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # 2. Crash server 2 and server 3
 # Check they are marked as unreachable
@@ -49,9 +49,9 @@ call mtr.add_suppression("Error while waiting for conflict detection procedure t
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 set session sql_log_bin=1;
 [connection server_2]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 DROP TABLE t1;
 [connection server_3]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 DROP TABLE t1;
 include/group_replication_end.inc

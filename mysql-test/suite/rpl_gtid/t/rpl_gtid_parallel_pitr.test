@@ -43,7 +43,7 @@
 
 --let $rpl_server_count= 2
 --let $rpl_topology= none
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $source_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
@@ -56,12 +56,12 @@ CREATE TABLE t (a INT);
 INSERT INTO t VALUES (NULL), (NULL), (NULL);
 INSERT INTO t VALUES (NULL), (NULL), (NULL);
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 INSERT INTO t VALUES (NULL), (NULL), (NULL);
 INSERT INTO t VALUES (NULL), (NULL), (NULL);
 DROP TABLE t;
 
---source include/save_master_pos.inc
+--source include/rpl/save_server_position.inc
 
 --echo
 --echo # 2. Copy generated binlog and index files into the server_2 data
@@ -80,14 +80,14 @@ DROP TABLE t;
 
 --let $rpl_server_number= 2
 --let $rpl_server_parameters=--relay-log-index=binlog.index --relay-log=binlog
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo
 --echo # 4. Apply binlog files with MTA on server_2
 --echo
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='binlog.000001', RELAY_LOG_POS=4, SOURCE_HOST='dummy', SOURCE_USER='root' FOR CHANNEL 'pitr';
 START REPLICA SQL_THREAD FOR CHANNEL 'pitr';
@@ -96,10 +96,10 @@ START REPLICA SQL_THREAD FOR CHANNEL 'pitr';
 --echo # 5. Wait for expected gtid set on server_2
 --echo
 
---source include/sync_slave_sql.inc
+--source include/rpl/sync_with_saved.inc
 
 # Clean up
 --remove_file $server_2_datadir/binlog-pitr.index.bak
 
 --let $rpl_skip_sync = 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

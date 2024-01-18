@@ -1,13 +1,13 @@
 ################################################################################
-# Check file extra/rpl_tests/rpl_implicit_commit_binlog.test
+# Check file common/rpl/rpl_implicit_commit_binlog.test
 ################################################################################
 --source include/have_udf.inc
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $engine=Innodb
---source extra/rpl_tests/rpl_implicit_commit_binlog.test
---source include/rpl_end.inc
+--source common/rpl/rpl_implicit_commit_binlog.test
+--source include/rpl/deinit.inc

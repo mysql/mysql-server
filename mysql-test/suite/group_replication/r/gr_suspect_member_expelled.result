@@ -24,7 +24,7 @@ SELECT @@GLOBAL.group_replication_member_expel_timeout;
 # Crash server 3
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
 # Restarting server 3
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 #
 # Check that all members are still in the group on servers 1 and 2,
 # which should be ONLINE. Server 3 should still be in the group but

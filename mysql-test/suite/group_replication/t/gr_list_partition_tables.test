@@ -15,7 +15,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo ## List Partitioning ##
 CREATE TABLE t1 (id int PRIMARY KEY, c2 int)
                  CHARSET=utf8mb4
@@ -24,10 +24,10 @@ CREATE TABLE t1 (id int PRIMARY KEY, c2 int)
                  PARTITION p2 VALUES in (2, 3),
                  PARTITION p3 VALUES in (11, 21));
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SHOW CREATE TABLE t1;
 # Insert some values into table
@@ -44,10 +44,10 @@ INSERT INTO t1 VALUES (03, 1);
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 INSERT INTO t1 VALUES (100, 50);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Perform some DMLs
 # This record should belong to partition p3
@@ -58,10 +58,10 @@ INSERT INTO t1 VALUES (21, 10);
 
 DELETE FROM t1 WHERE id= 5;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Validate record counts
 # Assert that partition p1 has 1 row.
@@ -81,6 +81,6 @@ DELETE FROM t1 WHERE id= 5;
 
 # Clean-up
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --source include/group_replication_end.inc

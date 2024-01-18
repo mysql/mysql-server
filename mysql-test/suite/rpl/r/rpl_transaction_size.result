@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -39,7 +39,7 @@ END$$
 Generating 50 transactions on master which initiates the TRIGGER.
 DROP TABLE t5;
 DROP TABLE t6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 Asserting all GTID transaction length information in 'slave-bin.000001'
 Inspected 566 transactions, all with correct transaction length.
 Asserting all GTID transaction length information in 'slave-relay-bin.000002'
@@ -49,4 +49,4 @@ Log file had no transactions with length information.
 [connection master]
 Asserting all GTID transaction length information in 'master-bin.000001'
 Inspected 566 transactions, all with correct transaction length.
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,4 +1,4 @@
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 #
@@ -10,16 +10,16 @@ call mtr.add_suppression(".*Invalid .* username when attempting to connect to th
 
 
 # Assert that we disallow empty users and that no problem
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= '', SOURCE_PASSWORD= '';
 START REPLICA;
 --let $slave_io_errno= 1045, 13117
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root', SOURCE_PASSWORD= '';
 START REPLICA;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

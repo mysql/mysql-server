@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,9 +8,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1. Enable Asynchronous Replication Connection Failover but
 #    do not add failover sources.
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
 include/assert.inc ['Verify replica_monitor thread is running']
@@ -20,21 +20,21 @@ include/assert.inc ['Verify replica_monitor thread is running']
 #    Despite connection failover is enabled, since there are
 #    no failover sources the IO thread will stop.
 [connection master]
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 [connection slave]
-include/wait_for_slave_io_error.inc [errno=2003]
+include/rpl/wait_for_receiver_error.inc [errno=2003]
 include/assert.inc ['Verify replica_monitor thread is running']
 
 ############################################################
 # 3. Stop replica.
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 include/assert.inc ['Verify replica_monitor thread is not running']
 
 ############################################################
 # 4. Clean up
 [connection master]
-include/rpl_start_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
 [connection slave]
-include/rpl_reset_slave.inc
-include/rpl_end.inc
+include/rpl/reset_replica.inc
+include/rpl/deinit.inc

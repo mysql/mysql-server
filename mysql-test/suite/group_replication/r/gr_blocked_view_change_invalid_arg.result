@@ -24,7 +24,7 @@ ERROR HY000: The 'SET GLOBAL group_replication_force_members=127.0.0.1:10000' co
 SHUTDOWN;
 
 # 5. Cleanup
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server2]
 [connection server1]
 set session sql_log_bin=0;

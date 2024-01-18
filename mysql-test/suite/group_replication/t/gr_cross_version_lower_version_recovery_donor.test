@@ -35,7 +35,7 @@
 --echo # 1. Bootstrap M2.
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 values (1);
@@ -45,7 +45,7 @@ INSERT INTO t1 values (1);
 --echo
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
 SET SESSION sql_log_bin=0;
@@ -65,7 +65,7 @@ SET SESSION sql_log_bin=1;
 #  M3    - ON    - 8.5.0  - 50     - R
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @debug1_save= @@GLOBAL.DEBUG;
 SET @recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET @recovery_retry_count_interval_save= @@GLOBAL.group_replication_recovery_retry_count;
@@ -91,11 +91,11 @@ SET DEBUG_SYNC= "now wait_for signal.recovery_waiting";
 # Only server2 is valid donor stop it, so there is no donor.
 # server3 is ONLINE but not a valid donor due to higher version.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 
 --let $group_replication_member_state= ERROR
@@ -123,7 +123,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 # If allow_local_lower_version_join is set,
 # lower_version donor check is turned OFF.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @allow_local_lower_version_join_save= @@GLOBAL.group_replication_allow_local_lower_version_join;
 --eval SET GLOBAL group_replication_allow_local_lower_version_join= 1
 
@@ -138,7 +138,7 @@ SET @allow_local_lower_version_join_save= @@GLOBAL.group_replication_allow_local
 # Writable members continue to be writable.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= The super_read_only mode should be 0 on server3.
 --let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
@@ -155,17 +155,17 @@ SET @allow_local_lower_version_join_save= @@GLOBAL.group_replication_allow_local
 # M3     - ON    - 8.5.0  - 50     - W
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_minor_version';
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= @debug1_save;
 SET @@GLOBAL.group_replication_recovery_reconnect_interval= @recovery_reconnect_interval_save;
 SET @@GLOBAL.group_replication_recovery_retry_count= @recovery_retry_count_interval_save;
@@ -180,7 +180,7 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_allow_local_lower_version_join= @allow_local_lower_version_join_save;
 
 --source include/group_replication_end.inc

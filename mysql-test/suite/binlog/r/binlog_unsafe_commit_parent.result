@@ -22,7 +22,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [3 4]
+include/include/rpl/assert_logical_timestamps.inc [3 4]
 #
 # Verify INSERT after OPTIMIZE TABLE logs correct last_committed
 #
@@ -44,7 +44,7 @@ test.t1	optimize	note	Table does not support optimize, doing recreate + analyze 
 test.t1	optimize	status	OK
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [5 6]
+include/include/rpl/assert_logical_timestamps.inc [5 6]
 #
 # Verify INSERT after REPAIR TABLE logs correct last_committed
 #
@@ -65,7 +65,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [7 8]
+include/include/rpl/assert_logical_timestamps.inc [7 8]
 #
 # Verify INSERT after ALTER TABLE ... REPAIR TABLE logs correct
 # last_committed
@@ -87,7 +87,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [9 10]
+include/include/rpl/assert_logical_timestamps.inc [9 10]
 #
 # Verify INSERT after ALTER TABLE ... OPTIMIZE TABLE logs correct
 # last_committed
@@ -110,7 +110,7 @@ test.t1	optimize	note	Table does not support optimize on partitions. All partiti
 test.t1	optimize	status	OK
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [11 12]
+include/include/rpl/assert_logical_timestamps.inc [11 12]
 #
 # Verify INSERT after ALTER TABLE ... ANALYZE TABLE logs correct
 # last_committed
@@ -132,13 +132,13 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [13 14]
+include/include/rpl/assert_logical_timestamps.inc [13 14]
 #
 # Verify the statements the following statement in different commit
 # window logs correct last_committed
 #
 INSERT INTO t1(c2) VALUES("use max_comitted as last_committed");
-include/include/assert_logical_timestamps.inc [2 3]
+include/include/rpl/assert_logical_timestamps.inc [2 3]
 #
 # Verify binlog rotation doesn't effect the correctness of last_committed
 #
@@ -160,13 +160,13 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/rpl/assert_logical_timestamps.inc [0 2]
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 FLUSH BINARY LOGS;
 INSERT INTO t1(c2) VALUES("use 0 as last_committed");
-include/include/assert_logical_timestamps.inc [0 1]
+include/include/rpl/assert_logical_timestamps.inc [0 1]
 #
 # Verify ALTER TABLE without [OPTIMIZE|REPAIR|ANALYZE] PARTITION and
 # INSERT on different table should be logged in same commit window
@@ -187,5 +187,5 @@ SET debug_sync = "now SIGNAL admin_continue,insert_continue";
 [connection admin_conn]
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [2 4]
+include/include/rpl/assert_logical_timestamps.inc [2 4]
 DROP TABLE t1, t2;

@@ -27,7 +27,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 # 3. Group will remain with only server 1 (and 8 more fake
 #    members).
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 ############################################################
 # 4. Cleanup.

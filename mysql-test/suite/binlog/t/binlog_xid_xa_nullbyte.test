@@ -27,7 +27,7 @@
 --let $rpl_extra_connections_per_server= 1
 --let $rpl_topology= none
 --let $rpl_server_count= 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 --echo #
 --echo # 1) Configuration
 --echo #
@@ -55,8 +55,8 @@ eval XA PREPARE $xid2;
 --echo #
 --let $rpl_server_number = 1
 --let $rpl_force_stop = 1
-#Test requirement is validated when rpl_restart_server.inc does not fail
---source include/rpl_restart_server.inc
+#Test requirement is validated when rpl/restart_server.inc does not fail
+--source include/rpl/restart_server.inc
 
 --echo #
 --echo # 4) Rollback the transaction to remove XID from prepared state.

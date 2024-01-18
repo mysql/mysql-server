@@ -28,7 +28,7 @@
 # Ensure that member 4 was already notified that all 5 members are
 # online.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=5 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
 --source include/wait_condition.inc
 
@@ -41,7 +41,7 @@
 # Since the server loose its GCS configuration it will not rejoin
 # the group.
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.5.expect
 --shutdown_server 0
@@ -56,7 +56,7 @@
 --echo #    assert failures on SQL service
 --echo #    Srv_session::deinit_thread().
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $allow_rpl_inited= 1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -67,7 +67,7 @@
 
 # Wait for client reconnection.
 --let $rpl_server_number= 4
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 
 --echo
@@ -100,9 +100,9 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 5. Wait for client reconnection to server 5.
 --let $rpl_connection_name= server_5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_server_number= 5
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 
 --echo

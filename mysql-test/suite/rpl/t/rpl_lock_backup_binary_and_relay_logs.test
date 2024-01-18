@@ -22,7 +22,7 @@
 
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # BUG#28196680 Suppress warnings thrown when trying to purge logs which
 # are still being read by a thread
@@ -33,8 +33,8 @@ CALL mtr.add_suppression("Could not purge binary logs since another session is e
 --enable_query_log
 
 CREATE TABLE t1 (c1 INT);
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 # Save global variables to be changed during the test case
 SET @saved_binlog_expire_logs_seconds= @@GLOBAL.binlog_expire_logs_seconds;
@@ -42,14 +42,14 @@ SET @saved_binlog_expire_logs_seconds= @@GLOBAL.binlog_expire_logs_seconds;
 SET @@GLOBAL.binlog_expire_logs_seconds= 1;
 
 # Prevent removal of files (among other restrictions)
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 LOCK INSTANCE FOR BACKUP;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 LOCK INSTANCE FOR BACKUP;
 --let $s1= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 
 # Generate workload on master
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $m1= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH LOCAL LOGS;
 
@@ -67,16 +67,16 @@ FLUSH LOCAL LOGS;
 INSERT INTO t1 VALUES (7);
 
 # Ensure slave has consumed first three binary log files
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $sN= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Take a nap to allow binary log expiration to take action
 --sleep 4
 FLUSH LOCAL LOGS;
 INSERT INTO t1 VALUES (8);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Check that relay log files are still around
 --disable_result_log
 --replace_result $s1 FIRST_RELAY_LOG_FILE
@@ -85,7 +85,7 @@ INSERT INTO t1 VALUES (8);
 --eval SHOW RELAYLOG EVENTS IN '$sn'
 --enable_result_log
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Check that binary log files are still around
 --let $assert_text= 1st binary log file should still be available
 --let $assert_cond= "[SHOW BINARY LOGS, Log_name, 1]" = "$m1"
@@ -98,9 +98,9 @@ INSERT INTO t1 VALUES (8);
 --source include/assert.inc
 
 # Assume backup as taken at this point
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 UNLOCK INSTANCE;
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 UNLOCK INSTANCE;
 FLUSH LOCAL LOGS;
 
@@ -111,7 +111,7 @@ FLUSH LOCAL LOGS;
 
 DROP TABLE t1;
 # Unused relay log files should not be available
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --disable_result_log
 --replace_result $s1 FIRST_RELAY_LOG_FILE
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
@@ -122,9 +122,9 @@ DROP TABLE t1;
 --enable_result_log
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Restore changed global variables
 SET @@GLOBAL.binlog_expire_logs_seconds= @saved_binlog_expire_logs_seconds;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

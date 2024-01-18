@@ -26,11 +26,11 @@
 --echo # 1. Configure server2 to be a asynchronous replica of server1,
 --echo #    configuring a failover channel to server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
 --eval SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', $SERVER_MYPORT_1, '', 50);
 
@@ -47,7 +47,7 @@
 --echo #    channel start, thence the member will change to ERROR
 --echo #    state.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The member action \"mysql_start_failover_channels_if_primary\" for event \"AFTER_PRIMARY_ELECTION\" with priority \"10\" failed. Please check previous messages in the error log for hints about what could have caused this failure.");
@@ -106,13 +106,13 @@ SET @@GLOBAL.DEBUG='-d,force_error_on_start_failover_channels';
 --echo ############################################################
 --echo # 3. Clean up.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_channel_name= 'ch1'
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=

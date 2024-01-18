@@ -41,7 +41,7 @@
 --source include/restart_mysqld.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 

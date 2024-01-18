@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -21,7 +21,7 @@ SELECT @@innodb_doublewrite_pages;
 SELECT @@innodb_doublewrite_batch_size;
 @@innodb_doublewrite_batch_size
 10
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 USE test;
 SELECT @@datadir;
@@ -56,7 +56,7 @@ SET GLOBAL innodb_doublewrite_pages=10;
 ERROR HY000: Variable 'innodb_doublewrite_pages' is a read only variable
 SET GLOBAL innodb_doublewrite_batch_size=1;
 ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 USE test;
 SELECT * FROM tab;
@@ -73,9 +73,9 @@ ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable
 [Connection Master]
 USE test;
 DROP TABLE tab;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 USE test;
 SELECT * FROM tab;
 ERROR 42S02: Table 'test.tab' doesn't exist
-include/rpl_end.inc
+include/rpl/deinit.inc

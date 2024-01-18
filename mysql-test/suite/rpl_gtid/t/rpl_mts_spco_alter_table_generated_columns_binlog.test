@@ -33,13 +33,13 @@
 --source include/have_debug_sync.inc
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
---source include/gtid_utils.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/gtid_utils.inc
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $mts_replica_parallel_workers= 8
 --let $mts_num_preceding_trans= 6
 
@@ -58,7 +58,7 @@
 
 --let $mts_spco_save_gtid_executed= 1
 --let $mts_spco_rollback_statement = ROLLBACK
---source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
 
 
 --echo
@@ -78,20 +78,20 @@
 --echo # Cleanup
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 DROP TABLE t2;
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 SET GLOBAL replica_parallel_type= @save_replica_parallel_type;
 --disable_warnings
 SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
 --enable_warnings
 SET GLOBAL replica_preserve_commit_order= @save_replica_preserve_commit_order;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/gtid_utils_end.inc
---source include/rpl_end.inc
+--source include/rpl/gtid_utils_end.inc
+--source include/rpl/deinit.inc

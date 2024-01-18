@@ -24,7 +24,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # We need to restart server 2 to simulate start_on_boot option since
 # on MTR it is impossible to compute ports on configuration files.
@@ -35,9 +35,9 @@
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 SET SESSION SQL_LOG_BIN=0;
 call mtr.add_suppression("The group_replication_group_name option is mandatory");
@@ -74,20 +74,20 @@ SET SESSION SQL_LOG_BIN=1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Verify data is correctly replicated
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Table t1 contains row in server1 after the above execution
 --let $assert_cond= [SELECT COUNT(*) FROM t1] = 1

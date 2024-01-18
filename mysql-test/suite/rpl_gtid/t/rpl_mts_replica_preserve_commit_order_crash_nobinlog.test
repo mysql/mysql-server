@@ -52,7 +52,7 @@
 --source include/not_valgrind.inc
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/force_restart.inc
 
 
@@ -62,7 +62,7 @@
 --echo #    applier workers.
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 
@@ -73,7 +73,7 @@ SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
 SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
 SET GLOBAL replica_parallel_workers= 4;
 SET GLOBAL replica_preserve_commit_order= ON;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 
 --echo
@@ -82,13 +82,13 @@ SET GLOBAL replica_preserve_commit_order= ON;
 --echo #    bring the slave server in same state after restart later in step 11.
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SET GLOBAL innodb_log_checkpoint_now = ON;
 SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
@@ -108,7 +108,7 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 --echo #    101 and 102.
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $debug_point=syncpoint_commit_order_manager_before_wait_100
 --source include/add_debug_point.inc
@@ -126,7 +126,7 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 --echo #    by setting same commit parents for all the inserts.
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Make the following INSERTs have same commit parent. So they can be applied
 # parallel on slave.
@@ -135,19 +135,19 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 
 # transaction T1
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET TIMESTAMP = 100; BEGIN; INSERT INTO t1 VALUES (1); COMMIT;
 
 # transaction T2
 --connect(server1_1, localhost,root,,,$MASTER_MYPORT)
 --let $rpl_connection_name= server1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET TIMESTAMP = 101; BEGIN; INSERT INTO t2 VALUES (2); COMMIT;
 
 # transaction T3
 --connect(server1_1_1, localhost,root,,,$MASTER_MYPORT)
 --let $rpl_connection_name= server1_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET TIMESTAMP = 102; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;
 
 --let $debug_point=set_commit_parent_100
@@ -161,7 +161,7 @@ SET TIMESTAMP = 102; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;
 --echo #    debug sync point, so that they use same flush stage queue.
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $execute_list=100,101,102
 --let $execute_sql_statement= SET DEBUG_SYNC= 'now WAIT_FOR reached_commit_order_manager_before_wait_REPLACE_STRING_VAL'
@@ -241,7 +241,7 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_commit_order_leader_before_ha_flush_logs_1
 --echo #     saved in step 3 and then restart replica.
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --source include/wait_until_disconnected.inc
 
@@ -255,9 +255,9 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_commit_order_leader_before_ha_flush_logs_1
 --source include/wait_until_connected_again.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 
 --echo
@@ -284,12 +284,12 @@ RESET REPLICA;
 SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
 SET GLOBAL replica_parallel_workers= 4;
 SET GLOBAL replica_preserve_commit_order= ON;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $assert_text= Verify t1 contains all the data
 --let $assert_cond= "[SELECT COUNT(*) COUNT from t1, COUNT, 1]" = "2"
 --source include/assert.inc
@@ -303,10 +303,10 @@ SET GLOBAL replica_preserve_commit_order= ON;
 --echo # 13. Cleanup
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 DROP TABLE t2;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

@@ -74,7 +74,7 @@ SET GLOBAL group_replication_allow_local_lower_version_join= ON;
 --source include/start_group_replication.inc
 
 INSERT INTO t1 VALUES (2);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #
 --echo # Check all is fine

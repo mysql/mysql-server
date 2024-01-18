@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ get_lock("lock",2)
 select release_lock("lock");
 release_lock("lock")
 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select get_lock("lock",3);
 get_lock("lock",3)
 1
@@ -31,5 +31,5 @@ select is_free_lock("lock2");
 is_free_lock("lock2")
 1
 drop table t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -1,4 +1,4 @@
---source include/force_binlog_format_statement.inc
+--source include/rpl/force_binlog_format_statement.inc
 
 --echo # connection default
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
@@ -57,4 +57,4 @@ connection default;
 COMMIT;
 DROP TABLE t1;
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

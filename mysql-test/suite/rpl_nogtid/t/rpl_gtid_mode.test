@@ -42,7 +42,7 @@
 --source include/not_windows.inc
 --source include/not_group_replication_plugin.inc
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Initialize ====
 
@@ -64,8 +64,8 @@ call mtr.add_suppression("Could not open .* for logging.*. Turning logging off f
 
 --let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 --let $saved_innodb_page_size_server2=`SELECT @@innodb_page_size`
 --connection master
@@ -80,7 +80,7 @@ call mtr.add_suppression("Could not open .* for logging.*. Turning logging off f
 --echo ---- gtid-mode=ON requires enforce-gtid-consistency ----
 
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 --let $assert_command= $server2_cmd --gtid-mode=on 2>&1
 --let $assert_regex= GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON
@@ -89,16 +89,16 @@ call mtr.add_suppression("Could not open .* for logging.*. Turning logging off f
 
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 0
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
---echo ==== Master-slave handshake checks ====
+--echo ==== Source-replica handshake checks ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 
-# Prevent rpl_set_gtid_mode.inc from trying to sync.
+# Prevent rpl/set_gtid_mode.inc from trying to sync.
 --let $rpl_skip_sync= 1
 
 --let $master_gtid_mode= 0
@@ -106,14 +106,14 @@ while ($master_gtid_mode <= 3)
 {
   --let $rpl_gtid_mode= $master_gtid_mode
   --let $rpl_server_numbers= 1
-  --source include/rpl_set_gtid_mode.inc
+  --source include/rpl/set_gtid_mode.inc
 
   --let $slave_gtid_mode= 0
   while ($slave_gtid_mode <= 3)
   {
     --let $rpl_gtid_mode= $slave_gtid_mode
     --let $rpl_server_numbers= 2
-    --source include/rpl_set_gtid_mode.inc
+    --source include/rpl/set_gtid_mode.inc
 
     --connection slave
 
@@ -137,13 +137,13 @@ while ($master_gtid_mode <= 3)
     START REPLICA IO_THREAD;
     if ($gtid_modes_compatible)
     {
-      --source include/wait_for_slave_io_to_start.inc
-      --source include/stop_slave_io.inc
+      --source include/rpl/wait_for_receiver_to_start.inc
+      --source include/rpl/stop_receiver.inc
     }
     if (!$gtid_modes_compatible)
     {
       --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
-      --source include/wait_for_slave_io_error.inc
+      --source include/rpl/wait_for_receiver_error.inc
     }
 
     # Auto_position compatible with slave and/or master
@@ -161,12 +161,12 @@ while ($master_gtid_mode <= 3)
       if ($master_gtid_mode != 3)
       {
         --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
-        --source include/wait_for_slave_io_error.inc
+        --source include/rpl/wait_for_receiver_error.inc
       }
       if ($master_gtid_mode == 3)
       {
-        --source include/wait_for_slave_io_to_start.inc
-        --source include/stop_slave_io.inc
+        --source include/rpl/wait_for_receiver_to_start.inc
+        --source include/rpl/stop_receiver.inc
       }
       CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
     }
@@ -201,7 +201,7 @@ while ($master_gtid_mode <= 3)
 #       performance_schema.rpelication_connection_status::LAST_ERROR_MESSAGE
 #       This is merely a synchronization point for us to wait until
 #       the error was generated.  This is done using
-#       include/wait_for_slave_io_error.inc
+#       include/rpl/wait_for_receiver_error.inc
 #
 #    2. Check that 1236 was reported for the exact sender thread error
 #       that we are testing This is done using include/assert.inc to
@@ -220,20 +220,20 @@ while ($master_gtid_mode <= 3)
 --let $rpl_server_numbers= 1
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a int);
 
 --let $rpl_server_numbers= 1,2
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 START REPLICA IO_THREAD;
 
 --let $slave_io_errno= 13114  # ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $assert_text= sender thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.
 --let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_connection_status WHERE LAST_ERROR_MESSAGE LIKE "%Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF%";
@@ -246,11 +246,11 @@ START REPLICA IO_THREAD;
 --let $assert_count= 2
 --source include/assert_grep.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
 RESET BINARY LOGS AND GTIDS;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 RESET REPLICA;
 
 --echo #
@@ -260,19 +260,19 @@ RESET REPLICA;
 --let $rpl_server_numbers= 1,2
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_server_numbers= 2
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t2(a int);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Errors in queue_event() are overwritten in SHOW REPLICA STATUS/P_S
 # by (13122 ER_REPLICA_RELAY_LOG_WRITE_FAILURE).
@@ -280,7 +280,7 @@ CREATE TABLE t2(a int);
 # Grep error log to look for old error.
 
 --let $slave_io_errno= 13122 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $assert_text= Receiver thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
@@ -289,16 +289,16 @@ CREATE TABLE t2(a int);
 --let $assert_count= 1
 --source include/assert_grep.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t2;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $rpl_server_numbers= 2
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo #
 --echo #  Warning: "Detected misconfiguration: replication channel '%.192s' was configured with AUTO_POSITION = 1, but the server was started with --gtid-mode=off.  Either reconfigure replication using CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL '%.192s', or change GTID_MODE to some value other than OFF, before starting the slave receiver thread."
@@ -307,15 +307,15 @@ DROP TABLE t2;
 --let $rpl_server_numbers= 1,2
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 
 --let $rpl_server_number=2
 --let $rpl_start_with_gtids= 0
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 
@@ -348,20 +348,20 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 --let $rpl_server_numbers= 1
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t3(a int);
 
 --let $rpl_server_numbers= 1,2
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 START REPLICA IO_THREAD;
 
 --let $slave_io_errno= 13114 # ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $assert_text= sender thread should report - Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON.
 --let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_connection_status WHERE LAST_ERROR_MESSAGE LIKE "%Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON%";
@@ -374,11 +374,11 @@ START REPLICA IO_THREAD;
 --let $assert_count= 2
 --source include/assert_grep.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t3;
 
 --let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo #
 --echo # Case 2: Error on slave(receiver thread)
@@ -386,15 +386,15 @@ DROP TABLE t3;
 
 --let $rpl_server_numbers= 1
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t4(a int);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $slave_io_errno= 13122 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $assert_text= While gtid-mode=on, slave expects an anonymous event to get ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
@@ -403,23 +403,23 @@ CREATE TABLE t4(a int);
 --let $assert_count= 1
 --source include/assert_grep.inc
 
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 
 --let $rpl_server_numbers= 2
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t4;
 RESET BINARY LOGS AND GTIDS;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 RESET REPLICA;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
@@ -433,16 +433,16 @@ RESET REPLICA;
 --let $rpl_server_numbers= 1,2
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t5(a int);  # gtid1
 
 # sync here so that we are sure table exists on slave, so we can sync DROP TABLE later.
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Generate at least one GTID transaction before the anonymous for autoposition
 # to start from here and then discover the anonymous transaction in binary log.
 INSERT INTO t5 VALUES(2);
@@ -450,25 +450,25 @@ INSERT INTO t5 VALUES(2);
 --let $rpl_server_numbers= 1
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= ON_PERMISSIVE
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
 INSERT INTO t5 VALUES(1);  # anonymous transaction
 
 --let $rpl_server_numbers= 1
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 --let $rpl_server_numbers= 2
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 START REPLICA IO_THREAD;
 
 --let $slave_io_errno= 13114 # ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $assert_text= sender thread should report - Cannot replicate anonymous transaction when AUTO_POSITION = 1.
 --let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_connection_status WHERE LAST_ERROR_MESSAGE LIKE "%Cannot replicate anonymous transaction when AUTO_POSITION = 1%";
@@ -482,30 +482,30 @@ START REPLICA IO_THREAD;
 
 --let $rpl_server_number=1
 --let $rpl_start_with_gtids= 0
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 
 --let $rpl_server_numbers= 2
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t5;
 RESET BINARY LOGS AND GTIDS;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 DROP TABLE t5;
 RESET REPLICA;
 
 --let $rpl_skip_sync=0
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Case 2: Error on Slave(receiver thread).
@@ -515,7 +515,7 @@ RESET REPLICA;
 # using DBUG_EXECUTE_IF so that receiver thread sees this error now.
 # We next verify that the same error is also caught by receiver thread.
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @debug_saved= @@GLOBAL.DEBUG;
 
 SET GLOBAL DEBUG= "+d,skip_sender_anon_autoposition_error";
@@ -523,16 +523,16 @@ SET GLOBAL DEBUG= "+d,skip_sender_anon_autoposition_error";
 --let $rpl_server_numbers= 1,2
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t6(a int);  # gtid1
 
 # sync here so that we are sure table exists on slave, so we can sync DROP TABLE later.
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Generate at least one GTID transaction before the anonymous for autoposition
 # to start from here and then discover the anonymous transaction in binary log.
 INSERT INTO t6 VALUES(2);
@@ -540,25 +540,25 @@ INSERT INTO t6 VALUES(2);
 --let $rpl_server_numbers= 1
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= ON_PERMISSIVE
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
 INSERT INTO t6 VALUES(1);  # anonymous transaction
 
 --let $rpl_server_numbers= 1
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 --let $rpl_server_numbers= 2
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 START REPLICA IO_THREAD;
 
 --let $slave_io_errno= 13122 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $assert_text= While AUTO_POSITION is enabled, Master sends an anonymous transaction resulting into ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
@@ -566,26 +566,26 @@ START REPLICA IO_THREAD;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 
 --let $rpl_server_numbers= 1,2
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t6;
 RESET BINARY LOGS AND GTIDS;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 RESET REPLICA;
 
 --let $rpl_skip_sync=0
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # It is enough to run this test on 1 server, no replication required.
 
@@ -593,14 +593,14 @@ RESET REPLICA;
 --echo # Verify the behaviour when rotate fails while setting gtid_mode.
 --echo #
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 call mtr.add_suppression("Could not open * for logging");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET GLOBAL DEBUG= "+d,fault_injection_new_file_rotate_event";
@@ -617,9 +617,9 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 
 # Binlog was closed as a result of the error, restart server to recover.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 
 --echo #
@@ -627,14 +627,14 @@ SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 --echo # generated when re-acquiring anonymous ownership
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GTID_NEXT='ANONYMOUS';
 CREATE TABLE t7(a int);
 
 --let $rpl_server_numbers= 1
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= ON
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 --error ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
 INSERT INTO t7 values (1);
@@ -646,7 +646,7 @@ RESET BINARY LOGS AND GTIDS;
 --let $rpl_server_numbers= 1
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 
 # Get rid of the manually generated slave error log file.
@@ -657,13 +657,13 @@ RESET BINARY LOGS AND GTIDS;
 --echo #
 
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 SET @@GLOBAL.DEBUG= '+d,simulate_source_has_unknown_gtid_mode';
 START REPLICA IO_THREAD;
 --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_io_error= 1
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 SET @@GLOBAL.DEBUG= @debug_saved;
 
 SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;
@@ -676,7 +676,7 @@ RESET REPLICA;
 --let $rpl_server_numbers= 1
 --let $rpl_gtid_mode= ON
 --let $rpl_skip_sync= 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 --error ER_CANT_SET_GTID_MODE
@@ -686,13 +686,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 SET @@GLOBAL.GTID_MODE = OFF;
 --let $rpl_server_numbers= 1
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
 --let $rpl_skip_sync= 0
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

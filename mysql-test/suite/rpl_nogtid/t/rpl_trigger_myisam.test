@@ -3,7 +3,7 @@
 # Adding statement include due to Bug 12574
 # TODO: Remove statement include once 12574 is patched
 --source include/have_binlog_format_mixed_or_statement.inc 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
@@ -35,7 +35,7 @@ DROP TABLE IF EXISTS t1;
 #
 
 connection master;
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 connection slave;
 
@@ -51,7 +51,7 @@ set autocommit = 0;
 insert into t1 values ( 1 );
 --enable_warnings
 rollback;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 let $diff_tables= master:t1, slave:t1;
 --source include/diff_tables.inc
@@ -61,9 +61,9 @@ let $diff_tables= master:log, slave:log;
 
 connection master;
 drop table t1, log;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # End of tests
 #
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

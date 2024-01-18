@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1. Create a table on the group.
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 2. Execute a XA transaction that does commit.
@@ -18,7 +18,7 @@ INSERT INTO t1 VALUES (1);
 XA END 'trx1';
 XA PREPARE 'trx1';
 XA COMMIT 'trx1';
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # Check that GTID_EXECUTED on server 1 contains all
 # transactions.
@@ -42,7 +42,7 @@ INSERT INTO t1 VALUES (2);
 XA END 'trx2';
 XA PREPARE 'trx2';
 XA ROLLBACK 'trx2';
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # Check that GTID_EXECUTED on server 1 contains all
 # transactions.

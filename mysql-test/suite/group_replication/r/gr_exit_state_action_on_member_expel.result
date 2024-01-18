@@ -31,9 +31,9 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 #########################################################################
 
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server3]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 #########################################################################
 # 1.1) Verify that member 1 went to super_read_only mode.
@@ -51,16 +51,16 @@ include/stop_group_replication.inc
 
 SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 #########################################################################
 # 3) Force expel again of member 1.
 #########################################################################
 
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server3]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 #########################################################################
 # 3.1) Wait until server is aborted.
@@ -72,12 +72,12 @@ include/rpl_gr_wait_for_number_of_members.inc
 # 4) Relaunch member 1.
 #########################################################################
 
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server1]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER1";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER1";
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 #########################################################################
 # 5) Cleanup.

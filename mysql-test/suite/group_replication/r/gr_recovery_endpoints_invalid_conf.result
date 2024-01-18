@@ -11,7 +11,7 @@ SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "127.0.0.1:0";
 # 2. Restart server and start Group Replication on boot, it will fail
 #    due invalid configuration
 # restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 3. Assert server log message on wrong option on recovery endpoints
 include/assert_grep.inc [invalid configuration used on recovery endpoints]
@@ -23,7 +23,7 @@ SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "127.0.0.1:360
 # 5. Restart server and start Group Replication on boot, it will fail
 #    due configuration bad format
 # restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 6. Assert server log message on wrong option on recovery endpoints
 include/assert_grep.inc [invalid configuration used on recovery endpoints]
@@ -36,7 +36,7 @@ ERROR HY000: Invalid input value for recovery socket endpoints '127.0.0.1:3600a'
 #    GROUP_REPLICATION , it will fail due invalid endpoint
 SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "128.0.0.1:3600";
 # restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=0
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 START GROUP_REPLICATION;
 ERROR HY000: The server is not listening on endpoint '128.0.0.1:3600'. Only endpoints that the server is listening on are valid recovery endpoints.
 

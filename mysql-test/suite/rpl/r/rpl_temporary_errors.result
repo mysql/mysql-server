@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,7 +8,7 @@ call mtr.add_suppression("Deadlock found");
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 **** On Slave ****
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
 count_transactions_retries
 0
@@ -29,7 +29,7 @@ a	b
 4	4
 5	5
 **** On Slave ****
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set @@global.replica_exec_mode= default;
 SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
 count_transactions_retries
@@ -40,7 +40,7 @@ a	b
 3	3
 4	4
 5	47
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 call mtr.add_suppression("Replica SQL.*Could not execute Update_rows event on table test.t1");
 call mtr.add_suppression("Replica SQL for channel '': worker thread retried transaction");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
@@ -48,7 +48,7 @@ set @save_innodb_lock_wait_timeout=@@global.innodb_lock_wait_timeout;
 set @save_replica_transaction_retries=@@global.replica_transaction_retries;
 set @@global.innodb_lock_wait_timeout=1;
 set @@global.replica_transaction_retries=2;
-include/restart_slave.inc
+include/rpl/restart_applier.inc
 BEGIN;
 INSERT INTO t1 SET a = 6, b = 7;
 INSERT INTO t1 SET a = 99, b = 99;
@@ -56,17 +56,17 @@ XA START 'xa1';
 INSERT INTO t1 SET a = 6, b = 6;
 XA END 'xa1';
 XA PREPARE 'xa1';
-include/wait_for_slave_sql_error.inc [errno=1213,1205]
+include/rpl/wait_for_applier_error.inc [errno=1213,1205]
 set @@global.innodb_lock_wait_timeout=1;
 set @@global.replica_transaction_retries=100;
 SELECT count_transactions_retries FROM performance_schema.replication_applier_status INTO @last_retries;
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 ROLLBACK;
 XA COMMIT 'xa1';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [XA transaction record must be in the table]
 set @@global.innodb_lock_wait_timeout=@save_innodb_lock_wait_timeout;
 set @@global.replica_transaction_retries= @save_replica_transaction_retries;
 **** On Master ****
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

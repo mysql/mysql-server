@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -27,7 +27,7 @@ GRANT REPLICATION SLAVE ON *.* TO proxy_user_wp;
 GRANT REPLICATION SLAVE ON *.* TO regular_user_p;
 GRANT REPLICATION SLAVE ON *.* TO regular_user_wp;
 SET SQL_LOG_BIN=1;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST', SOURCE_SSL = 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -41,34 +41,34 @@ ERROR HY000: Setting authentication options is not possible when only the Replic
 START REPLICA IO_THREAD USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_io_to_start.inc
-include/stop_slave_io.inc
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/stop_receiver.inc
 START REPLICA IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_io_to_start.inc
-include/stop_slave_io.inc
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/stop_receiver.inc
 START REPLICA IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_io_to_start.inc
-include/stop_slave_io.inc
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/stop_receiver.inc
 START REPLICA IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_io_to_start.inc
-include/stop_slave_io.inc
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/stop_receiver.inc
 START REPLICA IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_io_to_start.inc
-include/stop_slave_io.inc
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/stop_receiver.inc
 START REPLICA IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_io_to_start.inc
-include/stop_slave_io.inc
-include/stop_slave.inc
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/stop_receiver.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -76,9 +76,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -86,9 +86,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'regular_user_wp' PASSWORD= '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -96,9 +96,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -106,9 +106,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'regular_user_wp' PASSWORD= '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -116,9 +116,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'regular_user_wp';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -126,9 +126,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -136,9 +136,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -146,9 +146,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -156,9 +156,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -166,9 +166,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -176,9 +176,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -186,9 +186,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -196,81 +196,81 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'plug_user_p', SOURCE_PASSWORD= 'proxy_user_p', SOURCE_SSL = 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
-include/check_slave_is_running.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/assert_replica_running.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'plug_user_wp', SOURCE_PASSWORD= 'proxy_user_wp';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
-include/check_slave_is_running.inc
+include/rpl/start_replica.inc
+include/rpl/assert_replica_running.inc
 CREATE USER 'ssl_user' IDENTIFIED BY '' REQUIRE SSL;
 GRANT ALL ON *.* TO ssl_user;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root', SOURCE_PASSWORD = '' , SOURCE_SSL = 0;
 Warnings:
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
 START REPLICA USER= 'root' PASSWORD= '';
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
 SET @old_log_output= @@log_output;
 SET GLOBAL log_output= 'TABLE,FILE';
 call mtr.add_suppression(".*Invalid .* username when attempting to connect to the source server.*");
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 TRUNCATE mysql.general_log;
 START REPLICA PASSWORD='secret';
-include/wait_for_slave_io_error.inc [errno=13117]
-include/stop_slave.inc
+include/rpl/wait_for_receiver_error.inc [errno=13117]
+include/rpl/stop_replica.inc
 TRUNCATE mysql.general_log;
 START REPLICA USER='root' PASSWORD='secret';
-include/wait_for_slave_io_error.inc [errno=2061]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=2061]
+include/rpl/stop_applier.inc
 START REPLICA USER = 'root' PASSWORD = '<secret>';
-include/wait_for_slave_io_error.inc [errno=2061]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=2061]
+include/rpl/stop_applier.inc
 TRUNCATE mysql.general_log;
 START REPLICA IO_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-include/wait_for_slave_io_error.inc [errno=2061]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=2061]
+include/rpl/stop_applier.inc
 START REPLICA IO_THREAD USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
-include/wait_for_slave_io_error.inc [errno=2061]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=2061]
+include/rpl/stop_applier.inc
 TRUNCATE mysql.general_log;
 START REPLICA IO_THREAD, SQL_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-include/wait_for_slave_io_error.inc [errno=2061]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=2061]
+include/rpl/stop_applier.inc
 START REPLICA IO_THREAD, SQL_THREAD USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
-include/wait_for_slave_io_error.inc [errno=2061]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=2061]
+include/rpl/stop_applier.inc
 TRUNCATE mysql.general_log;
 START REPLICA IO_THREAD, SQL_THREAD UNTIL SOURCE_LOG_FILE='dummy-log.000001', SOURCE_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-include/wait_for_slave_io_error.inc [errno=2061]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=2061]
+include/rpl/stop_applier.inc
 START REPLICA IO_THREAD, SQL_THREAD UNTIL SOURCE_LOG_FILE = 'dummy-log.000001', SOURCE_LOG_POS = 116 USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
-include/wait_for_slave_io_error.inc [errno=2061]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=2061]
+include/rpl/stop_applier.inc
 TRUNCATE mysql.general_log;
 START REPLICA IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE='dummy-log.000001', RELAY_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-include/wait_for_slave_io_error.inc [errno=2061]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=2061]
+include/rpl/stop_applier.inc
 START REPLICA IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE = 'dummy-log.000001', RELAY_LOG_POS = 116 USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
-include/wait_for_slave_io_error.inc [errno=2061]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=2061]
+include/rpl/stop_applier.inc
 SET GLOBAL log_output= @old_log_output;
 TRUNCATE mysql.general_log;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET SQL_LOG_BIN=0;
 DROP USER plug_user_p, plug_user_wp, regular_user_p, regular_user_wp, proxy_user_p, proxy_user_wp;
 SET SQL_LOG_BIN=1;
 DROP USER ssl_user;
-include/rpl_end.inc
+include/rpl/deinit.inc

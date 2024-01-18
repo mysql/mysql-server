@@ -10,6 +10,6 @@ ERROR 70100: Query execution was interrupted
 ERROR 70100: Query execution was interrupted
 # Verify that 'CREATE TABLE t2', 'CREATE TABLE t3' and
 # 'CREATE TABLE t4' events were not logged.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP TABLE t1;

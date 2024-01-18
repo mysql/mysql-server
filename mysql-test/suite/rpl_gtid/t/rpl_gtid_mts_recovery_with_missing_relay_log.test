@@ -36,13 +36,13 @@
 
 # This test case is binlog format agnostic
 --source include/have_binlog_format_row.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/master-slave.inc
+--source include/have_replica_parallel_workers.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 0. Create helper files for restarting the server with gaps
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 let $messages =
 Recovery from source pos .* and file .* for channel ''*
@@ -59,20 +59,20 @@ Replica SQL for channel .* Replica failed to initialize applier metadata structu
 
   #    Replica is made to crash at a state where gaps are present in MTS execution.
   #    This is done by sourcing
-  #    "extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_begin.inc" file which
+  #    "common/rpl/generate_mta_gap_with_missing_relaylog_begin.inc" file which
   #    simulates MTS gaps and removes the relay logs that are required to fill MTS
   #    gaps.
-  --source extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_begin.inc
-  --source include/rpl_connection_slave.inc
+  --source common/rpl/generate_mta_gap_with_missing_relaylog_begin.inc
+  --source include/rpl/connection_replica.inc
   --let $rpl_server_number= 2
   --let $rpl_server_parameters= --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=$relay_log_recovery_param --gtid_mode=$gtid_mode_param --enforce-gtid-consistency --log-replica-updates
-  --source include/rpl_start_server.inc
+  --source include/rpl/start_server.inc
 END_OF_PROCEDURE
 
 --let $sync_check_clean_file = $MYSQL_TMP_DIR/sync_and_check.inc
 --write_file $sync_check_clean_file END_OF_PROCEDURE
-  --source include/rpl_connection_master.inc
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/connection_source.inc
+  --source include/rpl/sync_to_replica.inc
   # Compare the tables on master and slave they should be in sync
   let $m=2;
   while($m)
@@ -83,8 +83,8 @@ END_OF_PROCEDURE
   }
 
   # Cleanup is done by sourcing
-  # extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_end.inc
-  --source extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_end.inc
+  # common/rpl/generate_mta_gap_with_missing_relaylog_end.inc
+  --source common/rpl/generate_mta_gap_with_missing_relaylog_end.inc
 END_OF_PROCEDURE
 
 
@@ -98,7 +98,7 @@ END_OF_PROCEDURE
 --source $restart_server_with_gaps_file
 
 # The replica start is successful
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
 
 --source $sync_check_clean_file
 
@@ -111,7 +111,7 @@ END_OF_PROCEDURE
 --source $restart_server_with_gaps_file
 
 # The replica start is successful
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
 
 --source $sync_check_clean_file
 
@@ -128,8 +128,8 @@ END_OF_PROCEDURE
 START REPLICA;
 
 --let $rpl_server_parameters= --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=1 --gtid_mode=ON --enforce-gtid-consistency --log-replica-updates
---source include/rpl_restart_server.inc
---source include/start_slave.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
 
 --source $sync_check_clean_file
 
@@ -144,12 +144,12 @@ START REPLICA;
 
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 # Wait for the SQL thread to stop (The command still makes the thread stop)
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 # Stop the IO thread that is still running
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 
 # The replica start is successful
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --source $sync_check_clean_file
 
@@ -159,4 +159,4 @@ START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 --remove_file $restart_server_with_gaps_file
 --remove_file $sync_check_clean_file
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

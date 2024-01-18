@@ -37,12 +37,12 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 SET SQL_LOG_BIN=0;
@@ -58,7 +58,7 @@ SET SQL_LOG_BIN=1;
 
 # create a table for replicating data
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 ###
 ### 2. crashes one server: server2
@@ -73,7 +73,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 # will not rejoin the group.
 #
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
@@ -81,7 +81,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 #
 # Wait for the member state be unreachable, meaning
@@ -96,10 +96,10 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --let $group_replication_member_id= $member1_uuid
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $group_seeds_server2 GROUP_SEEDS_SERVER2
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
@@ -114,7 +114,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 ###
 # Group is blocked and so cannot change its configuration.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
@@ -123,7 +123,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --send INSERT INTO t1 VALUES (1)
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 
 # wait until the transaction blocks on "waiting for handler commit"
@@ -180,7 +180,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 # reap the transaction that had been waiting for the majority
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 ###
@@ -188,7 +188,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 ###
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
@@ -208,7 +208,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 ### 8. issue a new transaction and validate that it completes.
 ###
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (2);
 
 --let $assert_text= 'There are two values in table t1'
@@ -220,16 +220,16 @@ INSERT INTO t1 VALUES (2);
 ###
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # this already waits for recovery to happen
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # sync just to make sure
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 ###
 ### 10. check that the group configuration has changed on both
@@ -240,7 +240,7 @@ INSERT INTO t1 VALUES (2);
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # validate that there are two servers in the group
 --let $group_replication_number_of_members= 2
@@ -258,7 +258,7 @@ INSERT INTO t1 VALUES (2);
 ### Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP table t1;
 

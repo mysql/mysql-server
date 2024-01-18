@@ -68,14 +68,14 @@
 --source include/not_group_replication_plugin.inc
 # This test is unrelated to log format
 --source include/have_binlog_format_row.inc
---source include/not_mts_replica_parallel_workers.inc
---source include/master-slave.inc
+--source include/not_replica_parallel_workers.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo # 0. Check if a privilege checks user exists and adapt the test if so.
 --echo #    Create a test auxiliary include file to avoid step repetition.
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # The privilege checks user is only used as a grep starting point.
 # Determine the hostname of the privilege checks user of the replication channel.
@@ -208,7 +208,7 @@ STOP REPLICA;
 --let $rpl_set_enforce_gtid_consistency= 1
 --let $rpl_skip_sync= 1
 --let $no_extra_info = 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 --disable_warnings
@@ -223,7 +223,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_replica_start --upgrade=FORCE
 --let $explicit_default_wait_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'STREAM'`
 --let $assert_text = Check the number of channels with REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM
@@ -242,7 +242,7 @@ if ($gtid_mode_on == 0) {
   --let $rpl_set_enforce_gtid_consistency = 0
 }
 --let $no_extra_info = 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 # Error scenarios
 
@@ -253,7 +253,7 @@ UPDATE mysql.slave_relay_log_info SET Require_table_primary_key_check='GENERATE'
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_replica_start
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $slave_sql_errno= convert_error(ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR_IN_REPO)
 --let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-0$slave_sql_errno' AND data LIKE "%Replication configuration appears to be corrupted. On Group Replication channel%"
@@ -286,7 +286,7 @@ RESET REPLICA;
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_replica_start
 --let $explicit_default_wait_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON'`
 --let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
@@ -359,4 +359,4 @@ START REPLICA;
 
 --let $rpl_channel_name=
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

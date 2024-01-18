@@ -26,7 +26,7 @@
 --echo ##     running and start GR on server-1.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 ## Verify lower_case_table_names cannot be set while server is running.
 ## This make sures we do not need to test variable changes while GR is running.
@@ -39,7 +39,7 @@ SET GLOBAL lower_case_table_names= 1;
 --echo ## 2.  Store variables of server-2 for restart.
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -60,9 +60,9 @@ SET GLOBAL lower_case_table_names= 1;
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
-#Needed as we are not using rpl_restart_server.inc
+#Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
 --source include/wait_condition.inc

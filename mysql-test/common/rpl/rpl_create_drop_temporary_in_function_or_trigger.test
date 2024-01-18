@@ -1,0 +1,214 @@
+# ==== Purpose ====
+#
+# Verify that CREATE/DROP TEMPORARY TABLE is allowed in a FUNCTION and TRIGGER
+# when @@session.binlog_format=ROW/MIXED/STATEMENT.
+#
+# ==== Implementation ====
+#
+# 1. Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
+#    into binlog when using the FUNCTION IN SELECT QUERY.
+# 2. Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
+#    into binlog when using the FUNCTION IN SELECT QUERY IN MULTI
+#    TRANSACTION STATEMENT with commit.
+# 3. Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
+#    into binlog when using the FUNCTION IN SELECT QUERY IN MULTI
+#    TRANSACTION STATEMENT with rollback.
+# 4. Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
+#    into binlog when using the FUNCTION IN INSERT/UPDATE/DELETE QUERY ON
+#    transactional/non-transactional table.
+# 5. Verify that CREATE/DROP TEMPORARY TABLE in a TRIGGER are not written
+#    into binlog when the trigger is triggered before/after
+#    INSERT QUERY ON transactional/non-transactional table.
+# 6. Verify that CREATE/DROP TEMPORARY TABLE in a TRIGGER are not written
+#    into binlog when the trigger is triggered before/after
+#    UPDATE QUERY ON transactional/non-transactional table.
+# 7. Verify that CREATE/DROP TEMPORARY TABLE in a TRIGGER are not written
+#    into binlog when the trigger is triggered before/after
+#    DELETE QUERY ON transactional/non-transactional table.
+#
+# ==== References ====
+#
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+# CREATE FUNCTION USING func_or_trig_body PROVIDED BY MAIN TEST SCRIPT
+--let $header=CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
+--let $begin=BEGIN
+--let $return=RETURN 0;
+--let $end=END
+--let $cmd=`select CONCAT("$header", "\n","$begin","\n", "$func_or_trig_body","\n", "$return", "\n","$end")`
+--eval $cmd
+
+--echo #
+--echo # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
+--echo # into binlog when using the FUNCTION IN SELECT QUERY.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
+SELECT func1();
+--let $binlog_start= $saved_master_pos
+--source include/rpl/deprecated/show_binlog_events.inc
+
+--echo #
+--echo # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
+--echo # into binlog when using the FUNCTION IN SELECT QUERY IN MULTI
+--echo # TRANSACTION STATEMENT with commit.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
+START TRANSACTION;
+SELECT func1();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/rpl/deprecated/show_binlog_events.inc
+
+--echo #
+--echo # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
+--echo # into binlog when using the FUNCTION IN SELECT QUERY IN MULTI
+--echo # TRANSACTION STATEMENT with rollback.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
+START TRANSACTION;
+SELECT func1();
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/rpl/deprecated/show_binlog_events.inc
+
+--echo #
+--echo # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
+--echo # into binlog when using the FUNCTION IN INSERT/UPDATE/DELETE QUERY ON
+--echo # transactional/non-transactional table.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
+# iter 1 : INSERT/UPDATE/DELETE QUERY ON transactional table USING THAT FUNCTION
+# iter 2 : INSERT/UPDATE/DELETE QUERY ON non transactional table USING THAT FUNCTION
+--let $iter=1
+while ($iter <=2)
+{
+  if ($iter == 1)
+  {
+    --let $table=trans_table2
+  }
+  if ($iter == 2)
+  {
+    --let $table=non_trans_table2
+  }
+  --let $insert_cmd= INSERT INTO $table VALUES (func1())
+  --error 0, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
+  --eval $insert_cmd
+
+  --let $update_cmd= UPDATE $table SET i=func1()
+  --error 0, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
+  --eval $update_cmd
+
+  --let $delete_cmd= DELETE FROM $table WHERE i=func1()
+  --error 0, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
+  --eval $delete_cmd
+
+  --inc $iter
+}
+
+--let $binlog_start= $saved_master_pos
+--source include/rpl/deprecated/show_binlog_events.inc
+
+# DELETE THAT FUNCTION
+DROP FUNCTION func1;
+
+# CREATE A TRIGGER USING func_or_trig_body PROVIDED BY MAIN TEST SCRIPT
+# iter1:  BEFORE INSERT ON     transactional table
+# iter2:  AFTER  INSERT ON     transactional table
+# iter3:  BEFORE UPDATE ON     transactional table
+# iter4:  AFTER  UPDATE ON     transactional table
+# iter5:  BEFORE DELETE ON     transactional table
+# iter6:  AFTER  DELETE ON     transactional table
+# iter7:  BEFORE INSERT ON non transactional table
+# iter8:  AFTER  INSERT ON non transactional table
+# iter9:  BEFORE UPDATE ON non transactional table
+# iter10: AFTER  UPDATE ON non transactional table
+# iter11: BEFORE DELETE ON non transactional table
+# iter12: AFTER  DELETE ON non transactional table
+
+# And all 12 iterations should succeed or throw an
+# error ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE.
+
+--let $iter=1
+while ($iter <= 12)
+{
+  --let $header=CREATE TRIGGER trigger1
+  --let $for_each_row= FOR EACH ROW
+  --let $begin=BEGIN
+  --let $end=END
+
+  --let $table=trans_table2
+  if ($iter >= 7)
+  {
+   --let $table=non_trans_table2
+  }
+
+  --let $before_or_after=BEFORE
+  if (`SELECT $iter IN (2, 4, 6, 8, 10, 12)`)
+  {
+   --let $before_or_after=AFTER
+  }
+
+  --let $insert_or_update_or_delete=INSERT
+  if (`SELECT $iter IN (3, 4, 9, 10)`)
+  {
+   --let $insert_or_update_or_delete=UPDATE
+  }
+  if (`SELECT $iter IN (5, 6, 11, 12)`)
+  {
+   --let $insert_or_update_or_delete=DELETE
+  }
+
+  --let $cmd=`select CONCAT("$header", "\n", "$before_or_after", " ", "$insert_or_update_or_delete", " ON ", "$table", " ", "$for_each_row", "\n", "$begin","\n", "$func_or_trig_body","\n", "$end")`
+  --eval $cmd
+
+  if (`SELECT $iter IN (1, 2, 7, 8)`)
+  {
+    --echo #
+    --echo # Verify that CREATE/DROP TEMPORARY TABLE in a TRIGGER are not written
+    --echo # into binlog when the trigger is triggered before/after
+    --echo # INSERT QUERY ON transactional/non-transactional table.
+    --echo #
+    --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
+    --let $insert_cmd= INSERT INTO $table VALUES (10)
+    --error 0, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
+    --eval $insert_cmd
+
+    --let $binlog_start= $saved_master_pos
+    --source include/rpl/deprecated/show_binlog_events.inc
+  }
+
+  if (`SELECT $iter IN (3, 4, 9, 10)`)
+  {
+    --echo #
+    --echo # Verify that CREATE/DROP TEMPORARY TABLE in a TRIGGER are not written
+    --echo # into binlog when the trigger is triggered before/after
+    --echo # UPDATE QUERY ON transactional/non-transactional table.
+    --echo #
+    --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
+    --let $update_cmd= UPDATE $table SET i=12
+    --error 0, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
+    --eval $update_cmd
+
+    --let $binlog_start= $saved_master_pos
+    --source include/rpl/deprecated/show_binlog_events.inc
+  }
+
+  if (`SELECT $iter IN (5, 6, 11, 12)`)
+  {
+    --echo #
+    --echo # Verify that CREATE/DROP TEMPORARY TABLE in a TRIGGER are not written
+    --echo # into binlog when the trigger is triggered before/after
+    --echo # DELETE QUERY ON transactional/non-transactional table.
+    --echo #
+    --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
+    --let $delete_cmd= DELETE FROM $table
+    --error 0, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
+    --eval $delete_cmd
+
+    --let $binlog_start= $saved_master_pos
+    --source include/rpl/deprecated/show_binlog_events.inc
+  }
+
+  DROP TRIGGER trigger1;
+  --inc $iter
+}

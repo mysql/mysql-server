@@ -47,7 +47,7 @@ CREATE TABLE test.t2 (a INT PRIMARY KEY);
 --echo # 2. Start server2 and lock writes to table t1
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -58,7 +58,7 @@ LOCK TABLE t1 READ;
 --echo # 3. Insert values on table t1 on server 1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
@@ -70,7 +70,7 @@ INSERT INTO t1 VALUES (2);
 --send_eval SELECT group_replication_set_as_primary("$server2_uuid")
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= The super_read_only mode should be 0 here.
 --let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
@@ -82,7 +82,7 @@ INSERT INTO t1 VALUES (2);
 --echo #    Server2 must be in read mode
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Election: applying buffered transactions%"
 --source include/wait_condition.inc
@@ -106,17 +106,17 @@ INSERT INTO t1 VALUES (2);
 --echo #    Block it on sending
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --send INSERT INTO t2 VALUES (1)
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
@@ -127,7 +127,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
 --echo #    The member shall now wait for server1 to be in read mode
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_consistency_save2= @@SESSION.group_replication_consistency;
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
@@ -153,19 +153,19 @@ SET @@SESSION.group_replication_consistency = @group_replication_consistency_sav
 --echo #    Block it on sending
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_consistency_save2_1= @@SESSION.group_replication_consistency;
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 --send INSERT INTO t2 VALUES (1)
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
@@ -174,13 +174,13 @@ SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 --echo # 9. Unblock the transaction on server1
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC='now SIGNAL waiting';
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
@@ -189,13 +189,13 @@ SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 --echo #     It should have failed
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC='now SIGNAL waiting';
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
 --reap
@@ -205,7 +205,7 @@ SET @@SESSION.group_replication_consistency = @group_replication_consistency_sav
 --echo # 11. The group_replication_set_as_primary will succeed
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER2_UUID
 --reap
@@ -214,12 +214,12 @@ SET @@SESSION.group_replication_consistency = @group_replication_consistency_sav
 --echo # 12. Server2 is the new primary
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -227,7 +227,7 @@ SET @@SESSION.group_replication_consistency = @group_replication_consistency_sav
 --echo # 13. Cleanup
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 DROP TABLE t2;

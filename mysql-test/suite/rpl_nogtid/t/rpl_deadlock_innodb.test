@@ -2,4 +2,4 @@
 -- source include/not_ndb_default.inc
 
 let $engine_type=innodb;
--- source extra/rpl_tests/rpl_deadlock.test
+-- source common/rpl/rpl_deadlock.test

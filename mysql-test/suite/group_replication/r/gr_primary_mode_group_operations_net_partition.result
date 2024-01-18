@@ -21,7 +21,7 @@ SET SESSION sql_log_bin = 1;
 
 # 2. Create table t1
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 3. Lock table t1 on server2 to block action
 [connection server2]
@@ -40,7 +40,7 @@ SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
 
 # 7. Wait server1 is expelled from group
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 8. Unlock table to action continue
 UNLOCK TABLES;

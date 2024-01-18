@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=none]
+include/rpl/init.inc [topology=none]
 ==== Configure ====
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 CREATE TABLE t1 (a INT);
@@ -83,7 +83,7 @@ SET SESSION GTID_NEXT = 'AUTOMATIC';
 - history=none current=AUTOMATIC
 [END] INSERT INTO t1 VALUES (2);
 - history=ANONYMOUS current=ANONYMOUS
-include/rpl_set_gtid_mode.inc [ON on servers 1]
+include/rpl/set_gtid_mode.inc [ON on servers 1]
 ---- Case 3: Specify GTID prior to transaction ----
 * BEGIN ... ROLLBACK
 - history=none current=none
@@ -247,6 +247,6 @@ SET SESSION GTID_NEXT = 'AUTOMATIC:tag';
 ==== Clean up ====
 SET SESSION GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
-include/rpl_set_gtid_mode.inc [OFF on servers 1]
+include/rpl/set_gtid_mode.inc [OFF on servers 1]
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
-include/rpl_end.inc
+include/rpl/deinit.inc

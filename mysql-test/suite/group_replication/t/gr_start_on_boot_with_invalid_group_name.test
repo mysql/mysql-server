@@ -20,7 +20,7 @@
 --echo # 1. Restart server1 with --group_replication_group_name="",
 --echo #    GR will be unable to start.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The group_replication_group_name '' is not a valid UUID");
@@ -34,9 +34,9 @@ SET SESSION sql_log_bin= 1;
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE member_state="OFFLINE";
 --source include/wait_condition_or_abort.inc

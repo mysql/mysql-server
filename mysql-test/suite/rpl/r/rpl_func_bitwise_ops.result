@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -26,7 +26,7 @@ SELECT (vbin1 ^ x'6ac3'), (vbin2 & x'5939') FROM bitwise_table WHERE id = 2;
 INSERT INTO bitwise_table(vbin1, vbin2)
 SELECT (vbin1 & vbin2) , (vbin1 | vbin2) FROM bitwise_table WHERE id = 7;
 ERROR HY000: Binary operands of bitwise operators must be of equal length
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # check whether table was created and values were inserted on slave
 SELECT HEX(vbin1), BIT_COUNT(vbin1), HEX(vbin2), BIT_COUNT(vbin2) FROM bitwise_table;
@@ -150,7 +150,7 @@ include/diff_tables.inc [master:bitwise_table, slave:bitwise_table]
 # Update rows inside the table
 UPDATE bitwise_table SET vbin1 = (vbin1 | vbin2) WHERE id <= 6;
 UPDATE bitwise_table SET vbin2 = (vbin1 & vbin2) WHERE id <= 6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether rows are updated
 SELECT HEX(vbin1), HEX(vbin2) FROM bitwise_table WHERE id <= 6;
@@ -165,7 +165,7 @@ include/diff_tables.inc [master:bitwise_table, slave:bitwise_table]
 [Connection Master]
 UPDATE bitwise_table SET vbin1 = (vbin1 ^ vbin2) WHERE id <= 6;
 UPDATE bitwise_table SET vbin2 = (~ vbin1) WHERE id <= 6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether rows are updated
 SELECT HEX(vbin1), HEX(vbin2) FROM bitwise_table WHERE id <= 6;
@@ -180,7 +180,7 @@ include/diff_tables.inc [master:bitwise_table, slave:bitwise_table]
 [Connection Master]
 # Delete rows from the table
 DELETE FROM bitwise_table WHERE BIT_COUNT(vbin1) <= 8;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # check whether the rows are deleted
 SELECT HEX(vbin1), HEX(vbin2) FROM bitwise_table;
@@ -208,9 +208,9 @@ include/diff_tables.inc [master:bitwise_table, slave:bitwise_table]
 [Connection Master]
 # Drop tables and clean up
 DROP TABLE bitwise_table;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether table is dropped
 SELECT * FROM bitwise_table;
 ERROR 42S02: Table 'test.bitwise_table' doesn't exist
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Commit a transaction (T1) on server 1, that will be
 # certified and applied on both members.
 CREATE TABLE t1(i INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 # Wait for the first round of garbage collection to finish on server 1.
 # Wait for the first round of garbage collection to finish on server 2.
 # First round of garbage collection finished
@@ -21,7 +21,7 @@ include/start_group_replication.inc
 # Commit a transaction (T2) on server 1, that will be
 # certified and applied on both members.
 INSERT INTO t1 VALUES(1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 # Wait for the second round of garbage collection to finish on server 1.
 # Wait for the third round of garbage collection to finish on server 2.
 # Round on which garbage collection will be unblocked.

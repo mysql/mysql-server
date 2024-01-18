@@ -1,0 +1,238 @@
+# Test how replication of tables work when the definition on the
+# master and slave differs.
+
+# Consider making these part of the basic RBR tests.
+
+connection master;
+--disable_warnings
+--disable_query_log
+DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
+DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t9;
+--enable_query_log
+--enable_warnings
+sync_slave_with_master;
+STOP REPLICA;
+START REPLICA;
+
+connection master;
+eval CREATE TABLE t1_int (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t1_bit (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t1_char (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t1_nodef (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t4 (a INT) ENGINE=$engine_type;
+eval CREATE TABLE t5 (a INT, b INT, c INT) ENGINE=$engine_type;
+eval CREATE TABLE t6 (a INT, b INT, c INT) ENGINE=$engine_type;
+eval CREATE TABLE t7 (a INT NOT NULL) ENGINE=$engine_type;
+eval CREATE TABLE t8 (a INT NOT NULL) ENGINE=$engine_type;
+
+# Table used to detect that slave is running
+eval CREATE TABLE t9 (a INT) ENGINE=$engine_type;
+
+sync_slave_with_master;
+
+# On the slave, we add one INT column last in table 't1_int',
+ALTER TABLE t1_int ADD x INT DEFAULT 42;
+# ... and add BIT columns last in table 't1_bit' to ensure that we
+# have at least one extra null byte on the slave,
+ALTER TABLE t1_bit
+  ADD x BIT(3) DEFAULT b'011',
+  ADD y BIT(5) DEFAULT b'10101',
+  ADD z BIT(2) DEFAULT b'10';
+# ... and add one CHAR column last in table 't1_char',
+ALTER TABLE t1_char ADD x CHAR(20) DEFAULT 'Just a test';
+# ... and add one non-nullable INT column last in table 't1_text'
+#     with no default,
+ALTER TABLE t1_nodef ADD x INT NOT NULL, ADD y INT NOT NULL, ADD z INT NOT NULL;
+# ... and remove the last column in t2
+ALTER TABLE t2 DROP b;
+# ... change the type of the single column in table 't4'
+ALTER TABLE t4 MODIFY a FLOAT;
+# ... change the type of the middle column of table 't5'
+ALTER TABLE t5 MODIFY b FLOAT;
+# ... change the type of the last column of table 't6'
+ALTER TABLE t6 MODIFY c FLOAT;
+
+# ... add one byte worth of null bytes to the table on the slave
+ALTER TABLE t7 ADD e1 INT, ADD e2 INT, ADD e3 INT, ADD e4 INT,
+               ADD e5 INT, ADD e6 INT, ADD e7 INT, ADD e8 INT;
+
+# ... add 8 columns that are nullable: t8 will not be entirely
+#     nullable and have no null bits (just an X bit)
+ALTER TABLE t8 ADD e1 INT NOT NULL DEFAULT 0, ADD e2 INT NOT NULL DEFAULT 0,
+               ADD e3 INT NOT NULL DEFAULT 0, ADD e4 INT NOT NULL DEFAULT 0,
+               ADD e5 INT NOT NULL DEFAULT 0, ADD e6 INT NOT NULL DEFAULT 0,
+               ADD e7 INT NOT NULL DEFAULT 0, ADD e8 INT NOT NULL DEFAULT 0;
+        
+# Insert some values for tables on slave side. These should not be
+# modified when the row from the master is applied.
+# since bug#31552/31609 idempotency is not default any longer. In order
+# the following INSERTs to pass the mode is switched temprorarily
+set @@global.replica_exec_mode= 'IDEMPOTENT';
+
+# so the inserts are going to be overriden
+INSERT INTO t1_int  VALUES (2, 4, 4711);
+INSERT INTO t1_char VALUES (2, 4, 'Foo is a bar');
+INSERT INTO t1_bit  VALUES (2, 4, b'101', b'11100', b'01');
+
+--echo **** On Master ****
+connection master;
+INSERT INTO t1_int VALUES (1,2);
+INSERT INTO t1_int VALUES (2,5);
+INSERT INTO t1_bit VALUES (1,2);
+INSERT INTO t1_bit VALUES (2,5);
+INSERT INTO t1_char VALUES (1,2);
+INSERT INTO t1_char VALUES (2,5);
+SELECT * FROM t1_int ORDER BY a;
+SELECT * FROM t1_bit ORDER BY a;
+SELECT * FROM t1_char ORDER BY a;
+--echo **** On Slave ****
+sync_slave_with_master;
+set @@global.replica_exec_mode= default;
+
+SELECT a,b,x FROM t1_int ORDER BY a;
+SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit ORDER BY a;
+SELECT a,b,x FROM t1_char ORDER BY a;
+
+--echo **** On Master ****
+connection master;
+UPDATE t1_int  SET b=2*b WHERE a=2;
+UPDATE t1_char SET b=2*b WHERE a=2;
+UPDATE t1_bit  SET b=2*b WHERE a=2;
+SELECT * FROM t1_int ORDER BY a;
+SELECT * FROM t1_bit ORDER BY a;
+SELECT * FROM t1_char ORDER BY a;
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT a,b,x FROM t1_int ORDER BY a;
+SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit ORDER BY a;
+SELECT a,b,x FROM t1_char ORDER BY a;
+
+connection master;
+INSERT INTO t9 VALUES (2);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+INSERT INTO t1_nodef VALUES (1,2);
+
+# Last insert on wider slave table succeeds while slave sql sql_mode permits.
+# The previous version of the above test expected slave sql to stop.
+# bug#38173 relaxed conditions to stop only with the strict mode.
+sync_slave_with_master;
+select count(*) from t1_nodef;
+
+#
+# Replicating to tables with fewer columns at the end works as of WL#3228
+#
+connection master;
+INSERT INTO t9 VALUES (2);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+--echo **** On Master ****
+INSERT INTO t2 VALUES (2,4);
+SELECT * FROM t2;
+sync_slave_with_master;
+--echo **** On Slave ****
+SELECT * FROM t2;
+--source include/rpl/assert_replica_running.inc
+
+connection master;
+INSERT INTO t9 VALUES (4);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+INSERT INTO t4 VALUES (4);
+connection slave;
+call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column [012] type mismatch.* Error_code: MY-001535");
+call mtr.add_suppression("Replica SQL.*Column [0-9] of table .test.t[0-9]. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+--let $slave_skip_counter= 2
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED) # 1677
+--source include/rpl/wait_for_applier_error_and_skip.inc
+
+connection master;
+INSERT INTO t9 VALUES (5);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+INSERT INTO t5 VALUES (5,10,25);
+connection slave;
+--let $slave_skip_counter= 2
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED) # 1677
+--source include/rpl/wait_for_applier_error_and_skip.inc
+
+connection master;
+INSERT INTO t9 VALUES (6);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+INSERT INTO t6 VALUES (6,12,36);
+connection slave;
+--let $slave_skip_counter= 2
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED) # 1677
+--source include/rpl/wait_for_applier_error_and_skip.inc
+
+connection master;
+INSERT INTO t9 VALUES (6);
+sync_slave_with_master;
+--source include/rpl/assert_replica_running.inc
+
+# Testing some tables extra field that can be null and cannot be null
+# (but have default values)
+
+connection master;
+INSERT INTO t7 VALUES (1),(2),(3);
+INSERT INTO t8 VALUES (1),(2),(3);
+SELECT * FROM t7 ORDER BY a;
+SELECT * FROM t8 ORDER BY a;
+sync_slave_with_master;
+SELECT * FROM t7 ORDER BY a;
+SELECT * FROM t8 ORDER BY a;
+
+# We will now try to update and then delete a row on the master where
+# the extra field on the slave does not have a default value. This
+# update should not generate an error even though there is no default
+# for the extra column. 
+
+--echo **** On Master ****
+connection master;
+TRUNCATE t1_nodef;
+SET SQL_LOG_BIN=0;
+INSERT INTO t1_nodef VALUES (1,2);
+INSERT INTO t1_nodef VALUES (2,4);
+SET SQL_LOG_BIN=1;
+sync_slave_with_master;
+
+--echo **** On Slave ****
+connection slave;
+INSERT INTO t1_nodef VALUES (1,2,3,4,5);
+INSERT INTO t1_nodef VALUES (2,4,6,8,10);
+
+--echo **** On Master ****
+connection master;
+UPDATE t1_nodef SET b=2*b WHERE a=1;
+SELECT * FROM t1_nodef ORDER BY a;
+
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT * FROM t1_nodef ORDER BY a;
+
+--echo **** On Master ****
+connection master;
+DELETE FROM t1_nodef WHERE a=2;
+SELECT * FROM t1_nodef ORDER BY a;
+
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT * FROM t1_nodef ORDER BY a;
+
+--echo **** Cleanup ****
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
+DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t7,t8,t9;
+--enable_warnings
+sync_slave_with_master;

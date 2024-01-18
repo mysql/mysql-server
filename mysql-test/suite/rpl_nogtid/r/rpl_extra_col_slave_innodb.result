@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,7 +20,7 @@ ENGINE='InnoDB';
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c CHAR(10)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 INSERT INTO t1 () VALUES(1,2,'TEXAS'),(2,1,'AUSTIN'),(3,4,'QA');
 SELECT * FROM t1 ORDER BY a;
@@ -47,7 +47,7 @@ ENGINE='InnoDB';
 CREATE TABLE t2 (a INT PRIMARY KEY, b INT, c CHAR(10)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 INSERT INTO t2 () VALUES(1,2,'Kyle, TEX'),(2,1,'JOE AUSTIN'),(3,4,'QA TESTING');
 SELECT * FROM t2 ORDER BY a;
@@ -55,9 +55,9 @@ a	b	c
 1	2	Kyle, TEX
 2	1	JOE AUSTIN
 3	4	QA TESTING
-include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl/wait_for_applier_error.inc [errno=13146]
 STOP REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 SELECT * FROM t2 ORDER BY a;
 a	b	c	d	e
 *** Drop t2  ***
@@ -72,7 +72,7 @@ ENGINE='InnoDB';
 CREATE TABLE t3 (a BLOB, b INT PRIMARY KEY, c CHAR(20)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1';
 set @b1 = concat(@b1,@b1);
@@ -80,7 +80,7 @@ INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TEST
 ******************************************************************
 *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 *** Drop t3  ***
 DROP TABLE t3;
 *** Create t4 on slave  ***
@@ -93,14 +93,14 @@ ENGINE='InnoDB';
 CREATE TABLE t4 (a DECIMAL(8,2), b INT PRIMARY KEY, c CHAR(20)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
 (30000.22,4,'QA TESTING');
 ******************************************************************
 *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 *** Drop t4  ***
 DROP TABLE t4;
 *** Create t5 on slave  ***
@@ -113,14 +113,14 @@ CREATE TABLE t5 (a INT PRIMARY KEY, b VARCHAR(6),
 c DECIMAL(8,2), d BIT, e BLOB,
 f FLOAT) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
 (2,'JOE',300.01,0,'b2b2',1.0000009);
 ******************************************************************
 *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 *** Drop t5  ***
 DROP TABLE t5;
 *** Create t6 on slave  ***
@@ -132,16 +132,16 @@ CREATE TABLE t6 (a INT PRIMARY KEY, b VARCHAR(6),
 c DECIMAL(8,2), d BIT 
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
 (2,'JOE',300.01,0);
 ******************************************************************
 *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 *** Drop t6  ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 DROP TABLE t6;
 **** Diff Table Def End ****
 **** Extra Colums Start ****
@@ -156,7 +156,7 @@ ENGINE='InnoDB';
 CREATE TABLE t7 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1';
 set @b1 = concat(@b1,@b1);
@@ -184,7 +184,7 @@ SET sql_mode = default;
 CREATE TABLE t8 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
@@ -207,7 +207,7 @@ SET @previous_sql_mode = @@sql_mode;
 SET sql_mode = (select concat('ALLOW_INVALID_DATES,',
 replace(replace(@@sql_mode,'NO_ZERO_DATE',''), 'NO_ZERO_IN_DATE','')));
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 SET @previous_sql_mode = @@sql_mode;
 SET sql_mode = (select concat('ALLOW_INVALID_DATES,',
 replace(replace(@@sql_mode,'NO_ZERO_DATE',''), 'NO_ZERO_IN_DATE','')));
@@ -232,7 +232,7 @@ c CHAR(5), e INT DEFAULT '1')ENGINE='InnoDB';
 CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
@@ -240,7 +240,7 @@ INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ******************************************************************
 *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 *** Drop t10  ***
 DROP TABLE t10;
 *** Create t11 on slave  ***
@@ -251,7 +251,7 @@ c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='InnoDB';
 CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
@@ -259,7 +259,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ******************************************************************
 *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 *** Drop t11  ***
 DROP TABLE t11;
 *** Create t12 on slave  ***
@@ -270,7 +270,7 @@ c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='InnoDB';
 CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
@@ -300,7 +300,7 @@ e TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 CREATE TABLE t13 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
@@ -330,7 +330,7 @@ c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 ALTER TABLE t14 ADD COLUMN c2 DECIMAL(8,2) AFTER c1;
 ALTER TABLE t14 ADD COLUMN c3 TEXT AFTER c2;
@@ -360,7 +360,7 @@ c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 CREATE TABLE t14a (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
@@ -382,7 +382,7 @@ STOP REPLICA;
 *** Master Drop c5 ***
 ALTER TABLE t14a DROP COLUMN c5;
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
@@ -435,7 +435,7 @@ c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 CREATE TABLE t15 (c1 INT PRIMARY KEY, c2 DECIMAL(8,2), c3 TEXT,
 c4 BLOB, c5 CHAR(5)) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 call mtr.add_suppression("Error .Unknown table .t6.. on query.* Error_code: 1051");
 call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: MY-001060");
 call mtr.add_suppression("Table definition on source and replica does not match: Column . ...e mismatch.* Error_code: 1535");
@@ -461,7 +461,7 @@ ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 ********************************************************
 *** Expect slave to fail with Error ER_DUP_FIELDNAME ***
 ********************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=1060]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=1060]
 *** Try to insert in master ****
 INSERT INTO t15 () VALUES(5,2.00,'Replication Testing',@b1,'Buda',2);
 SELECT * FROM t15 ORDER BY c1;
@@ -490,7 +490,7 @@ c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 CREATE TABLE t16 (c1 INT PRIMARY KEY, c2 DECIMAL(8,2), c3 TEXT,
 c4 BLOB, c5 CHAR(5))ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
@@ -551,13 +551,13 @@ ENGINE='InnoDB';
 CREATE TABLE t17 (a BIGINT PRIMARY KEY, b INT, c CHAR(10)
 ) ENGINE='InnoDB';
 *** Start Replica ***
-include/rpl_reset.inc
+include/rpl/reset.inc
 *** Master Data Insert ***
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 ******************************************************************
 *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
+include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 ** DROP table t17 ***
 DROP TABLE t17;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -25,7 +25,7 @@ INSERT INTO t2 VALUES (1);
 DROP TABLE t1;
 DROP TABLE t2;
 
--- source include/ndb_restore_master.inc
+-- source common/rpl/ndb_restore_source.inc
 
 SET autocommit = 0;
 SELECT * FROM t1;
@@ -47,7 +47,7 @@ drop table t2;
 # Using existing backup to create the scenario. Tables are deleted as part of
 # above test cleanup. Thus restoring the backup will bring the system to
 # required state.
--- source include/ndb_restore_master.inc
+-- source common/rpl/ndb_restore_source.inc
 
 SET autocommit = 0;
 SELECT * FROM t1;

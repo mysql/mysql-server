@@ -117,10 +117,10 @@ if (`SELECT "$rpl_gr_grep_primary_error" = "0" and "$rpl_gr_grep_innodb_error" =
 if (!$rpl_mysqlbinlog)
 {
   --let $rpl_connection_name= $rpl_slave_connection_name
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $rpl_skip_gtid= $rpl_curr_gtid
-  --source include/wait_for_slave_sql_error_and_restart.inc
+  --source include/rpl/wait_for_applier_error_and_restart.inc
 }
 
 # apply binlog events using mysqlbinlog and expect error
@@ -137,7 +137,7 @@ if ($rpl_mysqlbinlog)
 
   # Execute mysqlbinlog output of server2 on server1. Expect error.
   --let $rpl_connection_name= $rpl_slave_connection_name
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   if (!$rpl_server_port)
   {

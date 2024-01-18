@@ -31,7 +31,7 @@ include/assert.inc ['There is a Group Replication applier channel on performance
 #    on common replication P_S tables.
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 #group_replication_recovery channel configuration
 SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_recovery";
 CHANNEL_NAME	group_replication_recovery
@@ -174,7 +174,7 @@ APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
 ############################################################
 # 4. Clean up data.
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 5. Stop Group Replication, channels must continue to be

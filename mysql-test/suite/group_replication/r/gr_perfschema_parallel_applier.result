@@ -34,7 +34,7 @@ include/assert.inc ['There are four Group Replication applier channel workers on
 [connection server2]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 
 SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier";
@@ -222,7 +222,7 @@ APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
 # 4. Clean up data.
 [connection server2]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 5. Stop Group Replication, channels must continue to be

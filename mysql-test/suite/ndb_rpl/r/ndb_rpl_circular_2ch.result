@@ -1,15 +1,15 @@
-include/rpl_init.inc [topology=1->2,4->3]
+include/rpl/init.inc [topology=1->2,4->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/rpl_connect.inc [creating master]
-include/rpl_connect.inc [creating master1]
-include/rpl_connect.inc [creating slave]
-include/rpl_connect.inc [creating slave1]
-include/rpl_start_slaves.inc
+include/rpl/connect.inc [creating master]
+include/rpl/connect.inc [creating master1]
+include/rpl/connect.inc [creating slave]
+include/rpl/connect.inc [creating slave1]
+include/rpl/start_all_replicas.inc
 
 *** Check server_id of mysqld servers ***
 SHOW VARIABLES LIKE "server_id";
@@ -55,10 +55,10 @@ Check data on both clusters
 include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE IF EXISTS t1;
 
-include/rpl_stop_slaves.inc
+include/rpl/stop_all_replicas.inc
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
-include/rpl_start_slaves.inc
-include/rpl_end.inc
+include/rpl/start_all_replicas.inc
+include/rpl/deinit.inc

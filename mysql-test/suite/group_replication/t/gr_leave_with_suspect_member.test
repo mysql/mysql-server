@@ -37,19 +37,19 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
 --echo #
 --echo # Create a table
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 set session sql_log_bin=0;
 call mtr.add_suppression("Timeout on wait for view after joining group");
 call mtr.add_suppression("The member is leaving a group without being on one");
@@ -61,22 +61,22 @@ set session sql_log_bin=1;
 --echo # 2. Set group_replication_member_expel_timeout to
 --echo #    300 seconds.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 300;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 300;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 300;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 300;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
@@ -87,7 +87,7 @@ SELECT @@GLOBAL.group_replication_member_expel_timeout;
 --echo #    GCS messages and it will eventually be considered
 --echo #    faulty.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #
 --echo # Get server 3 pid.
@@ -111,7 +111,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    Server 3 should still be in the group but UNREACHABLE.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
@@ -124,11 +124,11 @@ let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_
 --echo #
 --echo # Stop GR on server4.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
@@ -143,21 +143,21 @@ let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_
 --echo # Reset the group_replication_member_expel_timeout to 0.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 0;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 0;
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 0;
 
 --echo #
 --echo # Wait until until server 3 is expelled and 2 servers are online
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 
@@ -168,7 +168,7 @@ let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_
 --echo #
 --echo # Start GR on server4
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server1_local_address SERVER1_LOCAL_ADDRESS
 --eval SET GLOBAL group_replication_group_seeds= "$server1_local_address"
 --source include/start_group_replication.inc
@@ -180,7 +180,7 @@ let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_
 
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Due to BUG#28068548 and BUG#28224165 we cannot check the server status as it
 # may report that the server never left the group.
 #let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE" or MEMBER_STATE="ERROR";
@@ -191,7 +191,7 @@ let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_
 --echo #
 --echo # Wait until until all servers are online again
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=4 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 
@@ -199,8 +199,8 @@ let $wait_condition=SELECT COUNT(*)=4 FROM performance_schema.replication_group_
 --echo ############################################################
 --echo # 9. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --source include/group_replication_end.inc

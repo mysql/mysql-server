@@ -1,0 +1,654 @@
+# Aim of the testcase is to check if different operations on tables
+# respect replica-preserve-commit-order.
+#
+# Commands tested are:
+# 1) ANALYZE TABLE
+# 2) REPAIR TABLE
+# 3) OPTIMIZE TABLE
+# 4) RENAME TABLE
+# 5) CREATE TABLE and CREATE TABLE IF NOT EXISTS
+# 6) DROP TABLE and DROP TABLE IF EXISTS
+# 7) CREATE DATABASE and CREATE DATABASE IF NOT EXISTS
+# 8) DROP DATABASE and DROP DATABASE IF EXISTS
+# 9) CREATE TABLESPACE
+# 10) ALTER TABLESPACE
+# 11) DROP TABLESPACE
+# 12) CREATE INDEX
+# 13) DROP INDEX
+#
+# This test uses common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+# to check the ordering of commits.
+
+--let $rpl_skip_start_slave = 1
+--let $use_gtids= 1
+--let $rpl_gtid_utils = 1
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
+
+# Start replica with 10 worker threads
+--let $mts_replica_parallel_workers= 10
+--let $mts_spco_save_gtid_executed = 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+
+# Set Up
+
+--source include/rpl/connection_replica.inc
+
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+CALL mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
+
+SET @save_replica_parallel_workers= @@global.replica_parallel_workers;
+SET @save_replica_parallel_type= @@global.replica_parallel_type;
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
+SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
+--eval SET GLOBAL replica_parallel_workers= $mts_replica_parallel_workers
+SET GLOBAL replica_preserve_commit_order= ON;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source1.inc
+
+--let $tc_count=1
+--echo
+--echo #################################################################
+--echo # $tc_count. Check for ANALYZE TABLE
+--echo #################################################################
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t2 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; ANALYZE TABLE t1
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t2 has 0 rows
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK
+
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+--inc $tc_count
+
+--echo
+--echo #################################################################
+--echo # $tc_count. Check for REPAIR TABLE
+--echo #################################################################
+
+--let $mts_num_preceding_trans= 5
+--let $mts_add_debug_point =
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement= CREATE TABLE t3(a INT PRIMARY KEY)Engine=MyISAM; INSERT INTO t3 VALUES(1),(2),(3)
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t2 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; SET TIMESTAMP = 100; REPAIR TABLE t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t2 has 0 rows
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK
+
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLE t3
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+--inc $tc_count
+
+--echo
+--echo #################################################################
+--echo # $tc_count. Check for OPTIMIZE TABLE
+--echo #################################################################
+
+--let $mts_num_preceding_trans= 5
+--let $mts_add_debug_point =
+
+--let $mts_spco_start_statement = CREATE TABLE t3 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t4 (c1 INT PRIMARY KEY) ENGINE = InnoDB
+--let $mts_spco_skip_init_statement= 1
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t4 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t4 VALUES (1); COMMIT; BEGIN; INSERT INTO t4 VALUES (2); COMMIT; OPTIMIZE TABLE t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t4 VALUES (3); COMMIT; BEGIN; INSERT INTO t4 VALUES (4); COMMIT; BEGIN; INSERT INTO t4 VALUES (5); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t4 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t4, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK
+
+--let $mts_spco_end_statement = DROP TABLE t3; DROP TABLE t4
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+--inc $tc_count
+
+--echo
+--echo #################################################################
+--echo # $tc_count. Check for RENAME TABLE
+--echo #################################################################
+--echo
+--echo # $tc_count.1 Check for RENAME single table
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10)
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t2 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; RENAME TABLE t1 to t10
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t2 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify tables t1 and t2 exist
+--let $mts_spco_assert_cond2 = "[SELECT COUNT(*) AS Tables_in_test FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=\'test\' AND TABLE_NAME LIKE \'t_\', Tables_in_test, 1]" = "2"
+
+--let $mts_spco_assert_text3 = Verify table t10 does not exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) AS Tables_in_test FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=\'test\' AND TABLE_NAME=\'t10\', Tables_in_test, 1]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+
+--let $mts_spco_end_statement = RENAME TABLE t10 to t1; TRUNCATE TABLE t1; TRUNCATE TABLE t2
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+--echo
+--echo # $tc_count.2 Check for RENAME multiple tables
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement= CREATE TABLE t3 (c1 INT PRIMARY KEY) ENGINE = InnoDB
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t2 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; RENAME TABLE t1 to t10, t3 to t30
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t2 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify tables t1, t2 and t3 exist
+--let $mts_spco_assert_cond2 = "[SELECT COUNT(*) AS Tables_in_test FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=\'test\' AND TABLE_NAME LIKE \'t_\', Tables_in_test, 1]" = "3"
+
+--let $mts_spco_assert_text3 = Verify tables t10 and t30 do not exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) AS Tables_in_test FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=\'test\' AND TABLE_NAME LIKE \'t_0\', Tables_in_test, 1]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+
+--let $mts_spco_end_statement = DROP TABLE t10, t2, t30
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. CREATE TABLE and CREATE TABLE IF NOT EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 6
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+# Bug#30394238 - "CREATE TABLE IF NOT EXISTS" WITH EXISTING TABLE NAME DOESN'T RESPECT SPCO
+#--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE TABLE t10 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE IF NOT EXISTS t20 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE IF NOT EXISTS t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE TABLE t10 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE IF NOT EXISTS t20 (c1 INT PRIMARY KEY) ENGINE = InnoDB
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify tables t1 and t2 exist
+--let $mts_spco_assert_cond2 = "[SELECT COUNT(*) AS Tables_in_test FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=\'test\' AND TABLE_NAME LIKE \'t_\', Tables_in_test, 1]" = "2"
+
+--let $mts_spco_assert_text3 = Verify tables t10 and t20 do not exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) AS Tables_in_test FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=\'test\' AND TABLE_NAME LIKE \'t_0\', Tables_in_test, 1]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+
+--let $mts_spco_end_statement = DROP TABLE t10, t20; TRUNCATE TABLE t1; TRUNCATE TABLE t2
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP TABLE and DROP TABLE IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 8
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement = CREATE TABLE t3 LIKE t1; CREATE TABLE t4 LIKE t1; CREATE TABLE t5 LIKE t1
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP TABLE t2; DROP TABLE t3, t4; DROP TABLE IF EXISTS t5; DROP TABLE IF EXISTS t10
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify tables t1, t2, t3, t4, and t5 exist
+--let $mts_spco_assert_cond2 = "[SELECT COUNT(*) AS Tables_in_test FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=\'test\' AND TABLE_NAME LIKE \'t_\', Tables_in_test, 1]" = "5"
+
+--let $mts_spco_assert_text3 = Verify table t10 does not exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) AS Tables_in_test FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=\'test\' AND TABLE_NAME=\'t10\', Tables_in_test, 1]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. Check for CREATE DATABASE and CREATE DATABASE IF NOT EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 6
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement= CREATE DATABASE db1
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+# Bug#30394278 - "CREATE DATABASE IF NOT EXISTS" WITH EXISTING DATABASE NAME DOESN'T RESPECT SPCO
+#--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE DATABASE db10; CREATE DATABASE IF NOT EXISTS db20; CREATE DATABASE IF NOT EXISTS db1
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE DATABASE db10; CREATE DATABASE IF NOT EXISTS db20
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify DATABASE db1 exists
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) AS DB FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME=\'db1\', DB, 1]" = "1"
+
+--let $mts_spco_assert_text4 = Verify DATABASES db10 and db20 do not exist
+--let $mts_spco_assert_cond4 = "[SELECT COUNT(*) AS DB FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE \'db_0\', DB, 1]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP DATABASE db1; DROP DATABASE db10; DROP DATABASE db20
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+--echo
+--echo #################################################################
+--echo # $tc_count. Check for DROP DATABASE and DROP DATABASE IF EXISTS
+--echo #################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement = CREATE DATABASE db1; CREATE DATABASE db2
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP DATABASE db1; DROP DATABASE IF EXISTS db2; DROP DATABASE IF EXISTS db10
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify DATABASES db1 and db2 exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE \'db_\', COUNT, 1]" = "2"
+
+--let $mts_spco_assert_text4 = Verify DATABASE db10 does not exist
+--let $mts_spco_assert_cond4 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME=\'db10\', COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK
+
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--let $mts_spco_assert_text4 =
+--let $mts_spco_assert_cond4 =
+
+--inc $tc_count
+
+--echo
+--echo #################################################################
+--echo # $tc_count. Check for CREATE TABLESPACE
+--echo #################################################################
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10)
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "1"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify TABLESPACE does not exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM information_schema.files WHERE TABLESPACE_NAME LIKE \'ts1\', COUNT,1]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLESPACE ts1
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+--echo
+--echo #################################################################
+--echo # $tc_count. Check for ALTER TABLESPACE
+--echo #################################################################
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10); CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB; CREATE TABLE t11 (a INT, b INT) ENGINE = InnoDB TABLESPACE=ts1
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLESPACE ts1 RENAME TO ts11
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "1"
+
+--let $mts_spco_assert_text2 = Verify TABLESPACE ts1 exists
+--let $mts_spco_assert_cond2 = "[SELECT COUNT(*) COUNT FROM information_schema.files WHERE TABLESPACE_NAME LIKE \'ts1\', COUNT,1]" = "1"
+
+--let $mts_spco_assert_text3 = Verify TABLESPACE ts11 does not exists
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM information_schema.files WHERE TABLESPACE_NAME LIKE \'ts11\', COUNT,1]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLE t11; DROP TABLESPACE ts11
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+--echo
+--echo #################################################################
+--echo # $tc_count. Check for DROP TABLESPACE
+--echo #################################################################
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10); CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP TABLESPACE ts1
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "1"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify TABLESPACE exists
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM information_schema.files WHERE TABLESPACE_NAME LIKE \'ts1\', COUNT,1]" = "1"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+--echo
+--echo #################################################################
+--echo # $tc_count. Check for CREATE INDEX
+--echo #################################################################
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10); CREATE TABLE t3 (col1 INT, col2 INT, INDEX func_index ((ABS(col1)))); INSERT INTO t3 VALUES(1,1)
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE INDEX idx1 ON t3 ((col1 + col2))
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "1"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify INDEX does not exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = \'test\' AND INDEX_NAME LIKE \'idx1\';]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP INDEX idx1 ON t3; DROP TABLE t3
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+--echo
+--echo #################################################################
+--echo # $tc_count. Check for DROP INDEX
+--echo #################################################################
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10); CREATE TABLE t3 (col1 INT, col2 INT, INDEX func_index ((ABS(col1)))); INSERT INTO t3 VALUES(1,1); CREATE INDEX idx1 ON t3 ((col1 + col2))
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP INDEX idx1 ON t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "1"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify INDEX exists
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = \'test\' AND INDEX_NAME LIKE \'idx1\';]" = "1"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; DROP TABLE t2, t3
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP FUNCTION and DROP FUNCTION IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement = CREATE FUNCTION func1 (param1 INT) returns CHAR(50) return 'test'; CREATE FUNCTION func2 (param1 INT) returns CHAR(50) return 'test'
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP FUNCTION func1; DROP FUNCTION IF EXISTS func2; DROP FUNCTION IF EXISTS func3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify function func1 and func2 exists
+--let $mts_spco_assert_cond2 = [SELECT count(*) COUNT FROM INFORMATION_SCHEMA.ROUTINES where SPECIFIC_NAME like "func%", COUNT, 1] = 2
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = DROP TABLE t1
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP PROCEDURE and DROP PROCEDURE IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+
+--let $mts_spco_start_statement_delim = CREATE PROCEDURE proc_t1 (OUT param1 INT) BEGIN SELECT 'test'; END; CREATE PROCEDURE proc_t2 (OUT param1 INT) BEGIN SELECT 'test'; END
+--let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP PROCEDURE proc_t1; DROP PROCEDURE IF EXISTS proc_t2; DROP PROCEDURE IF EXISTS proc_t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify procedure proc_t1 and proc_t2 exists
+--let $mts_spco_assert_cond2 = [SELECT count(*) COUNT FROM INFORMATION_SCHEMA.ROUTINES where SPECIFIC_NAME like "proc_t%", COUNT, 1] = 2
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = TRUNCATE TABLE t1
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP VIEW and DROP VIEW IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+
+--let $mts_spco_start_statement = CREATE VIEW view_t1 AS SELECT * FROM t1; CREATE VIEW view_t2 AS SELECT * FROM t1
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP VIEW view_t1; DROP VIEW IF EXISTS view_t2; DROP VIEW IF EXISTS view_t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify views view_t1 and view_t2 exists
+--let $mts_spco_assert_cond2 = [SELECT count(*) COUNT FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME like "view_t%", COUNT, 1] = 2
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = DROP TABLE t1
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP EVENT and DROP EVENT IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+
+--let $mts_spco_start_statement_delim = CREATE EVENT event_t1 ON SCHEDULE EVERY 1 DAY DO BEGIN select 'test'; END; CREATE EVENT event_t2 ON SCHEDULE EVERY 1 DAY DO BEGIN select 'test'; END
+--let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP EVENT event_t1; DROP EVENT IF EXISTS event_t2; DROP EVENT IF EXISTS event_t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify events event_t1 and event_t2 exists
+--let $mts_spco_assert_cond2 = [SELECT count(*) COUNT FROM INFORMATION_SCHEMA.EVENTS where EVENT_NAME like "event_t%", COUNT, 1] = 2
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = TRUNCATE TABLE t1
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP TRIGGER and DROP TRIGGER IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+
+--let $mts_spco_start_statement = CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t3 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TRIGGER trig_t1 BEFORE INSERT ON t2 FOR EACH ROW SET @sum = @sum + NEW.c1; CREATE TRIGGER trig_t2 BEFORE INSERT ON t3 FOR EACH ROW SET @sum = @sum + NEW.c1
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP TRIGGER trig_t1; DROP TRIGGER IF EXISTS trig_t2; DROP TRIGGER IF EXISTS trig_t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify trigger trig_t1 and trig_t2 exists
+--let $mts_spco_assert_cond2 = [SELECT count(*) COUNT FROM INFORMATION_SCHEMA.TRIGGERS where TRIGGER_NAME like "trig_t%", COUNT, 1] = 2
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = DROP TABLE t1; DROP TABLE t2; DROP TABLE t3
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+
+--echo
+--echo #################################################################
+--echo # Cleanup
+--echo #################################################################
+
+--let $tc_count=
+--source include/rpl/connection_source1.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+
+SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
+--disable_warnings
+SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc

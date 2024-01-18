@@ -49,7 +49,7 @@
 
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_statement.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 # These tables are mentioned in do-table rules
 CREATE TABLE t1 (id int, a int);
@@ -79,7 +79,7 @@ INSERT INTO t8 VALUES (1, 1), (2, 2), (3, 3);
 INSERT INTO t9 VALUES (1, 1), (2, 2), (3, 3);
 
 # Only t1, t2, t3 should be replicated to slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 echo [on slave];
 SHOW TABLES LIKE 't%';
 
@@ -121,7 +121,7 @@ UPDATE t7 LEFT JOIN (t8, t4, t1) ON (t7.id=t8.id and t7.id=t4.id and t7.id=t1.id
 # Sync slave to make sure all above statements are correctly ignored,
 # if any of the above statement are not ignored, it would cause error
 # and stop replica sql thread.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 call mtr.add_suppression("Replica SQL.*Error .Table .test.t[47]. doesn.t exist. on query.* Error_code: MY-001146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -133,61 +133,61 @@ connection master;
 # cause error on slave
 #
 UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0 where t1.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t1 LEFT JOIN (t4, t7) ON (t1.id=t4.id and t1.id=t7.id) SET a=0 where t1.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t1 LEFT JOIN (t2, t4, t7) ON (t1.id=t2.id and t1.id=t4.id and t1.id=t7.id) SET a=0, b=0 where t1.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t1 LEFT JOIN (t2, t3, t7) ON (t1.id=t2.id and t1.id=t3.id and t1.id=t7.id) SET a=0, b=0, c=0 where t1.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 #
 # Do tables and other tables are referenced for update, these
 # statements should cause error on slave
 #
 UPDATE t1 LEFT JOIN t7 ON (t1.id=t7.id) SET a=0, g=0 where t1.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t7 LEFT JOIN t1 ON (t1.id=t7.id) SET a=0, g=0 where t7.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t1 LEFT JOIN (t4, t5, t7) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t7.id) SET a=0, g=0 where t1.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t1 LEFT JOIN (t4, t7, t8) ON (t1.id=t4.id and t1.id=t7.id and t1.id=t8.id) SET a=0, g=0 where t1.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t1 LEFT JOIN (t7, t8, t9) ON (t1.id=t7.id and t1.id=t8.id and t1.id=t9.id) SET a=0, g=0, h=0, i=0 where t1.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t7 LEFT JOIN (t1, t2, t3) ON (t7.id=t1.id and t7.id=t2.id and t7.id=t3.id) SET g=0, a=0, b=0, c=0 where t7.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t7 LEFT JOIN (t4, t5, t3) ON (t7.id=t4.id and t7.id=t5.id and t7.id=t3.id) SET g=0, c=0 where t7.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t7 LEFT JOIN (t8, t9, t3) ON (t7.id=t8.id and t7.id=t9.id and t7.id=t3.id) SET g=0, h=0, i=0, c=0 where t7.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 #
 # Do tables are referenced for update before ignore tables
 #
 UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0, d=0 where t1.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t1 LEFT JOIN (t4, t5, t6) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t6.id) SET a=0, d=0, e=0, f=0 where t1.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t4 LEFT JOIN (t1, t5, t6) ON (t4.id=t1.id and t4.id=t5.id and t4.id=t6.id) SET a=0, e=0, f=0 where t4.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
 UPDATE t7 LEFT JOIN (t1, t4, t2) ON (t7.id=t1.id and t7.id=t4.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1;
-source include/wait_for_slave_sql_error_and_skip.inc;
+source include/rpl/wait_for_applier_error_and_skip.inc;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 echo [on slave];
 
 # We should only have tables t1, t2, t3 on slave
@@ -203,7 +203,7 @@ connection master;
 echo [on master];
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # BUG#11754117 - 45670: INTVAR_EVENTS FOR FILTERED-OUT QUERY_LOG_EVENTS ARE EXECUTED
@@ -217,7 +217,7 @@ CREATE TABLE test.t1 (a INT); # accepted on slave
 INSERT INTO test.t1 VALUES(1);
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 # Although RAND() is from 0 to 1.0, DECIMAL(M,D), requires that M must be >= D.
 CREATE TABLE test.t_slave (a INT AUTO_INCREMENT PRIMARY KEY, b DECIMAL(20,20), c INT);
@@ -233,7 +233,7 @@ SELECT b into @b FROM test.t5;
 --let $b_master=`select @b`
 UPDATE test.t1 SET a=2; # to run trigger on slave
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # The proof:
 SELECT a AS 'ONE' into @a FROM test.t_slave;
@@ -261,7 +261,7 @@ connection master;
 drop table test.t5;
 drop table test.t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 drop table test.t_slave;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -7,7 +7,7 @@
 --source include/not_group_replication_plugin.inc
 # This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #
 # It is a coverage test for WL#9218 which removed deprecate load data events.
@@ -29,12 +29,12 @@ eval LOAD DATA INFILE "$data_path/wl9218.txt" INTO TABLE t2
      FIELDS TERMINATED BY '\b' ENCLOSED BY '\0'
      LINES TERMINATED BY '\n\r';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables=master:t1, master:t2, slave:t2
 --source include/diff_tables.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2;
 
 --remove_file "$data_path/wl9218.txt"
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

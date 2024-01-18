@@ -27,31 +27,31 @@
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo
 --echo # 2. server1 have a slave connection to server3
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
 
 --let $rpl_channel_name='ch3_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --echo #
 --echo # 3. server2 have a slave connection to server4
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_4 SERVER_4_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_4 for channel 'ch4_2'
 
 --let $rpl_channel_name='ch4_2'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --echo
@@ -59,7 +59,7 @@
 --echo #    one server has slave connections
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GRP_RPL_UDF_ERROR
 SELECT group_replication_switch_to_single_primary_mode();
@@ -67,7 +67,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 --source include/gr_assert_multi_primary_mode.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_multi_primary_mode.inc
 
@@ -82,7 +82,7 @@ call mtr.add_suppression("Error while executing a group configuration operation:
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 STOP REPLICA FOR CHANNEL 'ch4_2';
 RESET REPLICA ALL FOR CHANNEL 'ch4_2';
 

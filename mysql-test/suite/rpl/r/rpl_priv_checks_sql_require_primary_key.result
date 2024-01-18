@@ -1,7 +1,7 @@
 #
 # TC1. Run slave without `SESSION_VARIABLES_ADMIN` privilege
 # ----------------------------------------------------------
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -15,7 +15,7 @@ SET @@global.sql_require_primary_key = 1;
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
 [connection slave]
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=1227]
+include/rpl/wait_for_applier_error.inc [errno=1227]
 #
 # TC2. Run slave with `SESSION_VARIABLES_ADMIN` privilege
 # -------------------------------------------------------
@@ -23,8 +23,8 @@ STOP REPLICA;
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'u'@'localhost';
 START REPLICA;
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@global.sql_require_primary_key = SQL_REQUIRE_PRIMARY_KEY;
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -17,7 +17,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 reset binary logs and gtids;
 --echo must be binlog.000001
---source include/show_binary_logs.inc
+--source include/rpl/deprecated/show_binary_logs.inc
 
 create table t1 (a int);
 flush logs;
@@ -28,7 +28,7 @@ drop table t1;
 RESET BINARY LOGS AND GTIDS;
 
 --exec $MYSQL_BINLOG -c $MYSQLD_DATADIR/binlog.saved | $MYSQL
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 show tables;
 
 # clean-up

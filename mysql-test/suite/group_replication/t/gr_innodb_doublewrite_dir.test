@@ -22,12 +22,12 @@
 
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Make sure number of servers in the group is 2
@@ -37,13 +37,13 @@
 # Make 3rd member ready for starting GR
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $group_replication_group_name GROUP_REPLICATION_DOUBELWRITE
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
 # Connect to server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Disable redo_log on server1
 ALTER INSTANCE DISABLE INNODB REDO_LOG;
@@ -66,18 +66,18 @@ SELECT @@innodb_doublewrite_pages;
 
 SELECT @@innodb_doublewrite_batch_size;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Add 3rd member parallely while the insertion is in progress
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication_command.inc
 
 # Make sure that all the servers in the group are ONLINE
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_timeout= 600
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
@@ -104,7 +104,7 @@ SELECT @@innodb_doublewrite_batch_size;
 --echo
 --echo #Validating the records in server3#
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Check Enable redo_log on server3
 SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
@@ -131,13 +131,13 @@ SET GLOBAL innodb_doublewrite_pages=10;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL innodb_doublewrite_batch_size=1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Verify the consistency of number of records on all the servers
 --echo
 --echo #Validating the records in server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Enable redo_log on server2
 ALTER INSTANCE ENABLE INNODB REDO_LOG;
@@ -165,7 +165,7 @@ SET GLOBAL innodb_doublewrite_batch_size=1;
 
 # Connect to server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Enable redo_log on server1
 ALTER INSTANCE ENABLE INNODB REDO_LOG;
@@ -181,7 +181,7 @@ SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
 --echo
 DROP TABLE test.tab;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 STOP GROUP_REPLICATION;
 

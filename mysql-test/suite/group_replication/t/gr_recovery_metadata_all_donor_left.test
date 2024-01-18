@@ -37,7 +37,7 @@
 --echo # 1. Bootstrap a GROUP on M1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_and_bootstrap_group_replication.inc
@@ -53,7 +53,7 @@
 --echo # 2. Start GR on M2 and block it in RECOVERING.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 --let $group_replication_start_member_state= RECOVERING
@@ -66,7 +66,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached"
 --echo # 3. Set debug point to crash server-1 before recovery metadata send.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET @@GLOBAL.DEBUG='+d,gr_crash_before_recovery_metadata_send';
@@ -76,7 +76,7 @@ SET @@GLOBAL.DEBUG='+d,gr_crash_before_recovery_metadata_send';
 --echo # 4. Start server3.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Error fetching the Recovery Metadata by the Recovery thread. The Recovery will be terminated.");
@@ -97,13 +97,13 @@ SET SESSION sql_log_bin= 1;
 --echo # 5. Wait for M1 crash before message send.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
  --source include/wait_until_disconnected.inc
 # Inform MTR that it should restart the aborted member
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 --source include/wait_until_connected_again.inc
 SET @@GLOBAL.DEBUG='-d,gr_crash_before_recovery_metadata_send';
 
@@ -112,7 +112,7 @@ SET @@GLOBAL.DEBUG='-d,gr_crash_before_recovery_metadata_send';
 --echo # 6. Unblock RECOVERY on M2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
@@ -125,7 +125,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 --echo #    Assert error is logged that there is no valid donor.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state = ERROR
 --source include/gr_wait_for_member_state.inc
@@ -140,12 +140,12 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 --echo # 8. Cleanup.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server1"

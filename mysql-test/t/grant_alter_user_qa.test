@@ -1019,7 +1019,7 @@ CREATE USER user10@localhost
             IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 --echo # Show binlog events
 --let $mask_user_password_events= 1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --let $mask_user_password_events= 0
 
 # Cleanup

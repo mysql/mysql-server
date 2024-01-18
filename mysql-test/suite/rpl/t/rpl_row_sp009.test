@@ -10,8 +10,8 @@
 
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 
 # Begin clean up test section
@@ -67,7 +67,7 @@ delimiter ;|
 
 CALL test.p1('a');
 SELECT * FROM test.t2 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM test.t2 ORDER BY a;
 connection master;
 truncate test.t2;
@@ -75,13 +75,13 @@ truncate test.t2;
 # this next call fails, but should not
 call test.p1('b');
 select * from test.t2 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM test.t2 ORDER BY a;
 
 connection master;
 truncate test.t2;
 SELECT * FROM test.t2 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM test.t2 ORDER BY a;
 
 # Cleanup
@@ -90,7 +90,7 @@ connection master;
 DROP PROCEDURE test.p1;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 5.0 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

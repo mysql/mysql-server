@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2, 2->3, 2->4, 2->5, 2->6, 2->7, 2->8, 2->9]
+include/rpl/init.inc [topology=1->2, 2->3, 2->4, 2->5, 2->6, 2->7, 2->8, 2->9]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -32,270 +32,270 @@ SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
 CALL mtr.add_suppression(".* Timeout waiting for reply of binlog .*");
-include/install_semisync_source.inc
+include/rpl/install_semisync_source.inc
 [connection server_3]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 [connection server_4]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 [connection server_5]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 [connection server_6]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 [connection server_7]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 [connection server_8]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 [connection server_9]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 [connection server_2]
 SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 7;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 [connection server_9]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/start_slave.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 [connection server_8]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/start_slave.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 [connection server_7]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/start_slave.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 [connection server_6]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/start_slave.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 [connection server_5]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/start_slave.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 [connection server_4]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/start_slave.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 [connection server_3]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/start_slave.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 [connection server_2]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/start_slave.inc
-include/stop_slave.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
 replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 [connection server_1]
 [connection server_1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_2]
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:t, server_9:t, server_8:t, server_7:t, server_6:t, server_5:t, server_4:t, server_3:t, server_2:t]
 [connection server_9]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 SET GLOBAL replication_sender_observe_commit_only = 0;
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_8]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 SET GLOBAL replication_sender_observe_commit_only = 0;
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_7]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 SET GLOBAL replication_sender_observe_commit_only = 0;
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_6]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 SET GLOBAL replication_sender_observe_commit_only = 0;
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_5]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 SET GLOBAL replication_sender_observe_commit_only = 0;
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_4]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 SET GLOBAL replication_sender_observe_commit_only = 0;
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_3]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 SET GLOBAL replication_sender_observe_commit_only = 0;
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_2]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 SET GLOBAL replication_sender_observe_commit_only = 0;
-include/uninstall_semisync_source.inc
+include/rpl/uninstall_semisync_source.inc
 [connection server_1]
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

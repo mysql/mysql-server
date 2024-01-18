@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 02. Lock table t1 on server2 to block a future update.

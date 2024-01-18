@@ -27,17 +27,17 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 
 --echo
 --echo ##############################################################
 --echo # 1. Create a table on the source and sync
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo ##############################################################
@@ -50,7 +50,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY);
 INSERT INTO t1 VALUES (1);
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 LOCK TABLES t1 WRITE;
 
@@ -59,7 +59,7 @@ LOCK TABLES t1 WRITE;
 --echo # 3. Add data on the source that will cause an error on the replica
 --echo #    Also execute a FLUSH to cause a log rotation in the replica
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (1);
 
@@ -73,13 +73,13 @@ INSERT INTO t1 VALUES (2);
 --echo #    Signal the debug point to continue
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_before_applier_purge_logs";
 
 UNLOCK TABLES;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Ensure the worker fails
 --let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-010584' AND data LIKE "%Could not execute Write_rows event on table test.t1;%"
@@ -107,7 +107,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.rpl_unblock_purge';
 
 DELETE FROM t1 WHERE c1 = 1;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 let $messages =
 Worker 1 failed executing transaction
@@ -118,8 +118,8 @@ Error writing relay log repository data while a thread is being killed
 --let $suppress_on_current_connection = 1
 --source include/suppress_messages.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

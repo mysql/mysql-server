@@ -15,7 +15,7 @@
 
 --echo # CONFIGURE SERVER 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 --let $primary_server_uuid= `SELECT @@server_uuid`
 
@@ -24,24 +24,24 @@
 
 --echo # CONFIGURE SERVER 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $group_replication_expected_uuid= $primary_server_uuid
 --source include/gr_wait_primary_member_uuid.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO first(c1) VALUES(2),(4);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SELECT * FROM first;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --let $wait_condition= SELECT @@super_read_only = 0
 --source include/wait_condition_or_abort.inc
@@ -51,11 +51,11 @@ SELECT * FROM first;
 # Uncomment line bellow to trigger the fault
 # SET GLOBAL super_read_only=1;
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --echo # CLEANUP
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE first;
 --source include/group_replication_end.inc

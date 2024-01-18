@@ -38,8 +38,8 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 CALL mtr.add_suppression("Found 1 prepared XA transactions");
 CREATE TABLE t1(c1 INT);
@@ -50,45 +50,45 @@ CREATE TABLE mem_t2(c1 INT PRIMARY KEY) ENGINE = MEMORY;
 INSERT INTO mem_t1 VALUES(1),(2),(3);
 INSERT INTO mem_t2 VALUES(1),(2),(3);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_server_number=1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo # Test case 1: verify TRUNCATE TABLE mem_xx can be binlogged correctly
 --echo #              in CREATE TABLE ... SELECT
---source include/rpl_connection_master.inc
---source include/save_binlog_position.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/save_binlog_file_position.inc
 CREATE TABLE t3 SELECT * FROM mem_t1 UNION SELECT 10;
 
 --let $limit= 0,4
 --let $event_sequence= #Anonymous_Gtid # !Q(TRUNCATE.*) #Anonymous_Gtid # !Q(CREATE.*)
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # TRUNCATE TABLE mem_t1 have been applied the tables should be empty.
 SELECT * FROM mem_t1;
 
 --echo #
 --echo # Test case 2: verify TRUNCATE TABLE mem_xx can be binlogged correctly
 --echo #              in a DML on a MyISAM table
---source include/rpl_connection_master.inc
---source include/save_binlog_position.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # mem_t2 is empty, the UNION makes sure that a row event is binlogged.
 INSERT INTO t2 SELECT * FROM mem_t2 UNION SELECT 10;
 
 --let $limit= 0,4
 --let $event_sequence= #Anonymous_Gtid # !Q(TRUNCATE.*) #Anonymous_Gtid # !Begin
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # TRUNCATE TABLE mem_xx have been applied the tables should be empty.
 SELECT * FROM mem_t2;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2, t3, mem_t1, mem_t2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

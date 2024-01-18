@@ -22,7 +22,7 @@
 # Suppress errors
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression(".*The member contains transactions not present *.*");
@@ -33,7 +33,7 @@ SET SESSION sql_log_bin= 1;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # Add some data for recovery
@@ -51,7 +51,7 @@ INSERT INTO t1 VALUES (1);
 --echo #
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SET GTID_NEXT= "$errand_transaction_uuid:1"
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -81,13 +81,13 @@ START GROUP_REPLICATION;
 
 #For precaution, wait for server 2 to leave before joining again.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t2;
 RESET BINARY LOGS AND GTIDS;
@@ -99,14 +99,14 @@ RESET BINARY LOGS AND GTIDS;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (2);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There are two values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2

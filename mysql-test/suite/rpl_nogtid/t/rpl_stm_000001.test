@@ -1,8 +1,8 @@
 # Requires binlog_format=statement format since query involving
 # get_lock() is logged in row format if binlog_format=mixed or row.
 -- source include/have_binlog_format_statement.inc
---source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 
@@ -26,7 +26,7 @@ select * from t1 limit 10;
 #
 # Test slave with wrong password
 #
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 STOP REPLICA;
 connection master;
 set password for root@"localhost" = 'foo';
@@ -43,12 +43,12 @@ sleep 2;
 
 create table t3(n int);
 insert into t3 values(1),(2);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t3;
 select sum(length(word)) from t1;
 connection master;
 drop table t1,t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Test if the slave SQL thread can be more than 16K behind the slave
 # I/O thread (> IO_SIZE)
@@ -56,7 +56,7 @@ drop table t1,t3;
 connection master;
 # we'll use table-level locking to delay slave SQL thread
 eval create table t1 (n int) engine=$engine_type;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 reset binary logs and gtids;
 connection slave;
@@ -84,7 +84,7 @@ connection slave;
 lock tables t1 read;
 START REPLICA;
 connection master;
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 unlock tables;
 
 #test handling of aborted connection in the middle of update
@@ -123,10 +123,10 @@ connection slave;
 # The slave should report ER_ERROR_ON_SOURCE and the error message should 
 # contain the actual error code received from master 1053 = ER_SERVER_SHUTDOWN
 --let $slave_sql_errno= convert_error(ER_ERROR_ON_SOURCE)
-###--source include/wait_for_slave_sql_error_and_skip.inc
---source include/wait_for_slave_sql_error.inc
+###--source include/rpl/wait_for_applier_error_and_skip.inc
+--source include/rpl/wait_for_applier_error.inc
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER=1;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 select count(*) from t1;
 connection master1;
@@ -137,7 +137,7 @@ create user 'blafasel2'@'10.10.10.%' identified by 'blafasel2';
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 update mysql.user set Select_priv = "Y" where User= _binary"blafasel2";
 select select_priv,user from mysql.user where user = _binary'blafasel2';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select n from t1;
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 connection master1;
@@ -150,7 +150,7 @@ delete from mysql.user where user="blafasel2";
 --eval UPDATE mysql.user SET password_last_changed = '$date_to_restore_sys' WHERE user='mysql.sys'
 --echo # mysql.user table restored to original values.
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 4.1 tests
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

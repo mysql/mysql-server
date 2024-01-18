@@ -30,17 +30,17 @@
 --echo #    be applied on member 4 through Group Replication applier.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # server_id=1, last_committed=4, sequence_number=5
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # server_id=2, last_committed=5, sequence_number=6
 CREATE USER user@nohost1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # server_id=3, last_committed=6, sequence_number=7
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 BEGIN;
@@ -48,20 +48,20 @@ COMMIT;
 SET GTID_NEXT= AUTOMATIC;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # server_id=1, last_committed=7, sequence_number=8
 DROP TABLE t1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # server_id=2, last_committed=8, sequence_number=9
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # server_id=3, last_committed=9, sequence_number=10
 CREATE DATABASE db1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -70,7 +70,7 @@ CREATE DATABASE db1;
 --echo #    validate its indexes on member 4.
 --echo #
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $dump_file=$MYSQLTEST_VARDIR/tmp/group_replication_parallel_applier_sequential_indexes.dump
 --exec $MYSQL_BINLOG --force-if-open $server_4_datadir/server-relay-log-group_replication_applier.000002 > $dump_file
@@ -83,9 +83,9 @@ CREATE DATABASE db1;
 
 --let $binlog_file= server-relay-log-group_replication_applier.000002
 --let $logical_timestamps= 0 0;2 3;3 4;4 5;5 6;6 7
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 --let $is_relay_log= 1
---source include/assert_transaction_length.inc
+--source include/rpl/assert_transaction_length.inc
 
 
 --echo

@@ -9,7 +9,7 @@ SET GLOBAL binlog_cache_size = 4096;
 
 # Case 1 Simulate my_b_flush_io_cache failure when truncating binlog
 #        cache. ROLLBACK TO triggers binlog cache truncation process.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 BEGIN;
 INSERT INTO t1 VALUES (repeat('a', 2048));
 SAVEPOINT sp1;
@@ -20,7 +20,7 @@ ROLLBACK TO sp1;
 SET SESSION debug = "-d,simulate_error_during_flush_cache_to_file";
 INSERT INTO t1 VALUES (repeat('c', 8192));
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -48,7 +48,7 @@ SET SESSION debug = "+d,simulate_error_during_flush_cache_to_file";
 #        is cleared correctly if binlog_error_action is IGNORE_ERROR
 #
 TRUNCATE t1;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 BEGIN;
 INSERT INTO t1 VALUES (repeat('a', 8192));
@@ -59,7 +59,7 @@ Error	1026	Error writing file <tmp_file_name> (Errcode: ##)
 SET SESSION debug = "-d,fault_injection_reinit_io_cache_while_flushing_to_file";
 include/assert_grep.inc [An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.]
 # restart
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Stop	#	#	
 
@@ -71,7 +71,7 @@ select @@global.binlog_cache_size;
 @@global.binlog_cache_size
 4096
 TRUNCATE t2;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 BEGIN;
 INSERT INTO t2 VALUES (repeat('b', 8192));
@@ -82,6 +82,6 @@ ERROR HY000: Binary logging not possible. Message: An error occurred during flus
 select * from t2;
 c1
 include/assert.inc [Count of elements in t2 should be 0.]
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TABLE t1, t2, t3;
 RESET BINARY LOGS AND GTIDS;

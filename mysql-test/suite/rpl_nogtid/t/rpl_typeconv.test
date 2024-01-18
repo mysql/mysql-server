@@ -6,7 +6,7 @@
 --source include/not_binlog_transaction_compression_on.inc
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 connection slave;
 --let $saved_log_error_verbosity=`SELECT @@global.log_error_verbosity`
@@ -42,28 +42,28 @@ SELECT @@global.replica_type_conversions;
 # the amount of warnings that we are removing from the log is good 
 # enough to make the test less vulnerable.
 SET @@global.log_error_verbosity=1;
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 
 # Checking strict interpretation of type conversions
 connection slave;
 SET GLOBAL REPLICA_TYPE_CONVERSIONS='';
-source extra/rpl_tests/type_conversions.test;
+source common/rpl/type_conversions.test;
 
 # Checking lossy integer type conversions
 connection slave;
 SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
-source extra/rpl_tests/type_conversions.test;
+source common/rpl/type_conversions.test;
 
 # Checking non-lossy integer type conversions
 connection slave;
 SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY';
-source extra/rpl_tests/type_conversions.test;
+source common/rpl/type_conversions.test;
 
 # Checking all type conversions
 connection slave;
 SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
-source extra/rpl_tests/type_conversions.test;
+source common/rpl/type_conversions.test;
 
 # reinstate the log_error_verbosity value
 --replace_result $saved_log_error_verbosity SAVED_LOG_ERROR_VERBOSITY
@@ -88,8 +88,8 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 set global replica_type_conversions = @saved_replica_type_conversions;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

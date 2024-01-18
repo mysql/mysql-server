@@ -33,7 +33,7 @@
 --echo # Begin change of primary from server2(secondary).
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
@@ -42,13 +42,13 @@ SET @@GLOBAL.DEBUG= '+d,trans_delegate_before_commit_before_before_call_observer
 --send_eval $statement_to_execute_on_server1
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.trans_delegate_before_commit_before_before_call_observers_reached";
 SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observers';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -62,12 +62,12 @@ SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observer
 --echo # and client connection dropped.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.trans_delegate_before_commit_before_before_call_observers_waiting";
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error CR_SERVER_LOST
 --reap
 
@@ -80,12 +80,12 @@ SET DEBUG_SYNC= 'RESET';
 --echo # Assert primary changed.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -98,14 +98,14 @@ SET DEBUG_SYNC= 'RESET';
 --echo # Begin change of primary from server2(primary).
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,trans_delegate_before_commit_before_before_call_observers';
 
 --send_eval $statement_to_execute_on_server2
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.trans_delegate_before_commit_before_before_call_observers_reached";
 SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observers';
@@ -122,7 +122,7 @@ SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observer
 SET DEBUG_SYNC= "now SIGNAL signal.trans_delegate_before_commit_before_before_call_observers_waiting";
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error CR_SERVER_LOST
 --reap
@@ -136,11 +136,11 @@ SET DEBUG_SYNC= 'RESET';
 --echo # Assert primary changed.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc

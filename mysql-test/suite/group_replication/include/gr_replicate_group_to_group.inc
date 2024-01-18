@@ -86,7 +86,7 @@ SET @@GLOBAL.group_replication_group_seeds= "";
 --connection server1
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_AUTO_POSITION=1
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo ###############################################################
@@ -95,7 +95,7 @@ SET @@GLOBAL.group_replication_group_seeds= "";
 --connection server3
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_AUTO_POSITION=1
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo ###############################################################
@@ -140,16 +140,16 @@ DELETE FROM t1 WHERE c1=1;
 --echo #     on all nodes in both groups.
 --connection server3
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server4
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server5
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo ############################################################
@@ -167,16 +167,16 @@ DELETE FROM t2 WHERE c1=1;
 --echo #     on all nodes in both groups.
 --connection server1
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server1
 --let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server1
 --let $sync_slave_connection= server4
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server1
 --let $sync_slave_connection= server5
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo #########################################################################
@@ -195,14 +195,14 @@ while ($i <= 5)
 {
   --connection server$i
   SET SESSION sql_log_bin= 0;
-  --source include/gtid_utils.inc
+  --source include/rpl/gtid_utils.inc
   SET SESSION sql_log_bin= 1;
   --let $expected_gtid_set= 8a94f357-aab4-11df-86ab-c80aa9420000:1-5, 8a94f357-aab4-11df-86ab-c80aa942000d:1-5
   --let $assert_text= Check that GTID_EXECUTED set on all servers are as expected.
   --let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_EXECUTED]", "$expected_gtid_set")
   --source include/assert.inc
   SET SESSION sql_log_bin= 0;
-  --source include/gtid_utils_end.inc
+  --source include/rpl/gtid_utils_end.inc
   SET SESSION sql_log_bin= 1;
   --inc $i
 }
@@ -215,25 +215,25 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server4
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server5
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo ##############################################################
 --echo # 13. Stop asynchronous replication between M3->M1 and M1->M3.
 --connection server1
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
 --connection server3
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
 
 --echo

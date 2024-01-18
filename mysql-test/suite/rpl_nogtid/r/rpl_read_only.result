@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 create user test;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create table t1(a int) engine=InnoDB;
 insert into t1 values(1001);
 set global read_only=1;
@@ -15,7 +15,7 @@ select @@read_only;
 select * from t1;
 a
 1001
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select @@read_only;
 @@read_only
 0
@@ -48,7 +48,7 @@ a
 1001
 1002
 1004
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1001
@@ -70,7 +70,7 @@ a
 1002
 1004
 1005
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1001
@@ -81,6 +81,6 @@ insert into t1 values(1006);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 drop user test;
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set global read_only=0;
-include/rpl_end.inc
+include/rpl/deinit.inc

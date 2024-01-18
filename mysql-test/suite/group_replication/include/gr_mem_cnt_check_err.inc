@@ -86,7 +86,7 @@ while ($cnt < $max_tests)
   {
     if ($validate_data)
     {
-      --source include/rpl_sync.inc
+      --source include/rpl/sync.inc
 
       --let $diff_tables = $validate_data
       --source include/diff_tables.inc

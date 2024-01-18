@@ -174,7 +174,7 @@ while ($i <= $rpl_server_count)
 }
 
 # sync all members
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo ############################################################
 --echo # 4. Validate members state is equal.

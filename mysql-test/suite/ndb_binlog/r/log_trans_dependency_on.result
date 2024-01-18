@@ -18,15 +18,15 @@ CREATE TABLE t1 (
 a INT PRIMARY KEY,
 b CHAR(10)
 ) engine=ndb;
-include/include/assert_logical_timestamps.inc [0 1]
+include/include/rpl/assert_logical_timestamps.inc [0 1]
 INSERT INTO t1 VALUES (1, 'a');
 # Wait for changes to be injected, then check timestamps
 # Wait for ndb_binlog thread...
-include/include/assert_logical_timestamps.inc [1 2]
+include/include/rpl/assert_logical_timestamps.inc [1 2]
 INSERT INTO t1 VALUES (2, 'b');
 # Wait for changes to be injected, then check timestamps
 # Wait for ndb_binlog thread...
-include/include/assert_logical_timestamps.inc [1 3]
+include/include/rpl/assert_logical_timestamps.inc [1 3]
 CREATE TABLE t2 (
 a INT PRIMARY KEY,
 b CHAR(10)
@@ -37,14 +37,14 @@ INSERT INTO t2 VALUES (23, 'bc');
 COMMIT;
 # Wait for changes to be injected, then check timestamps
 # Wait for ndb_binlog thread...
-include/include/assert_logical_timestamps.inc [4 5]
+include/include/rpl/assert_logical_timestamps.inc [4 5]
 BEGIN;
 INSERT INTO t1 VALUES (4, 'd');
 INSERT INTO t2 VALUES (24, 'bd');
 COMMIT;
 # Wait for changes to be injected, then check timestamps
 # Wait for ndb_binlog thread...
-include/include/assert_logical_timestamps.inc [4 6]
+include/include/rpl/assert_logical_timestamps.inc [4 6]
 #
 # Do a longer sequence of transactions that does not
 # have dependencies
@@ -54,24 +54,24 @@ INSERT INTO t2 VALUES (25, 'be');
 COMMIT;
 # Wait for changes to be injected, then check timestamps
 # Wait for ndb_binlog thread...
-include/include/assert_logical_timestamps.inc [4 7]
+include/include/rpl/assert_logical_timestamps.inc [4 7]
 BEGIN;
 INSERT INTO t1 VALUES (6, 'f');
 INSERT INTO t2 VALUES (26, 'bf');
 COMMIT;
 # Wait for changes to be injected, then check timestamps
 # Wait for ndb_binlog thread...
-include/include/assert_logical_timestamps.inc [4 8]
+include/include/rpl/assert_logical_timestamps.inc [4 8]
 #
 # Do update values dependent on previous transactions
 UPDATE t1 SET b = 'updated' WHERE a in (4,5);
 # Wait for changes to be injected, then check timestamps
 # Wait for ndb_binlog thread...
-include/include/assert_logical_timestamps.inc [7 9]
+include/include/rpl/assert_logical_timestamps.inc [7 9]
 UPDATE t2 SET b = 'updated' WHERE a in (24, 26);
 # Wait for changes to be injected, then check timestamps
 # Wait for ndb_binlog thread...
-include/include/assert_logical_timestamps.inc [8 10]
+include/include/rpl/assert_logical_timestamps.inc [8 10]
 # Cleanup
 DROP TABLE t1;
 DROP TABLE t2;

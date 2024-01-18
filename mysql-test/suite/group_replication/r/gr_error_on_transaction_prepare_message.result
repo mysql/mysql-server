@@ -46,7 +46,7 @@ SET @@SESSION.group_replication_consistency= AFTER;
 SET GTID_NEXT='AUTOMATIC:tag_1';
 INSERT INTO t1 VALUES (2);
 SET GTID_NEXT='AUTOMATIC';
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/assert.inc ['There are 2 values in table t1']
 # 6. Cleanup

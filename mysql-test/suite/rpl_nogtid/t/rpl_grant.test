@@ -2,8 +2,8 @@
 
 --source include/not_group_replication_plugin.inc
 let $rpl_privilege_checks_user_grant_option = 1;
-source include/set_privilege_checks_user_as_system_user.inc;
-source include/master-slave.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/init_source_replica.inc;
 
 --echo **** On Master ****
 connection master;
@@ -13,7 +13,7 @@ CREATE USER dummy1@localhost, dummy2@localhost;
 
 SELECT user, host FROM mysql.user WHERE user like 'dummy%';
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user like 'dummy%';
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
@@ -34,7 +34,7 @@ DROP USER dummy@localhost, dummy1@localhost, dummy2@localhost;
 
 SELECT user, host FROM mysql.user WHERE user like 'dummy%';
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user like 'dummy%';
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
@@ -49,7 +49,7 @@ SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
 --echo ##########
 --echo ########## setup (PART I)
 --echo ##########
--- source include/rpl_reset.inc
+-- source include/rpl/reset.inc
 -- connection master
 
 --let $dbname= b54866
@@ -74,7 +74,7 @@ CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
 --echo *************************************************************
 
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 ## assert that grants are the same on master and on slave for $dbuser
 --connection master
@@ -82,7 +82,7 @@ CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
@@ -97,7 +97,7 @@ CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
@@ -113,7 +113,7 @@ CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
 --echo *************************************************************
 
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
@@ -136,7 +136,7 @@ DELIMITER ;|
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
@@ -156,7 +156,7 @@ DELIMITER ;|
 --echo *************************************************************
 
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
@@ -176,7 +176,7 @@ DELIMITER ;|
 --echo *************************************************************
 
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
@@ -196,7 +196,7 @@ REVOKE EXECUTE ON PROCEDURE b54866_p FROM 'fake_user'@'localhost';
 REVOKE EXECUTE ON FUNCTION b54866_f FROM 'fake_user'@'localhost';
 -- error ER_REVOKE_GRANTS
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'fake_user'@'localhost';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ##########
 --echo ########## Cleanup
@@ -206,7 +206,7 @@ DROP PROCEDURE b54866_p;
 DROP FUNCTION b54866_f;
 --eval DROP USER '$dbuser'@'localhost'
 --eval DROP DATABASE $dbname
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # BUG#11827392: 60082: EVEN THOUGH IT FAILS, 'CREATE USER' STATEMENT SI STILL BINLOGGED. 
@@ -226,12 +226,12 @@ DROP FUNCTION b54866_f;
 #
 
 --connection master
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 --connection master
 
 --error ER_PLUGIN_IS_NOT_LOADED
 CREATE USER foo IDENTIFIED WITH 'my_plugin';
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --connection master
 
@@ -260,4 +260,4 @@ EOF
 
 --remove_file $out_file
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,14 +1,14 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 LOCK TABLES t1 READ, performance_schema.threads READ;
 [connection master]
 INSERT INTO t1 (c1) VALUES (1);
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # check that a worker thread is waiting using the thread id
 # given as index by the table replication_applier_status_by_worker
 UNLOCK TABLES;
@@ -17,4 +17,4 @@ UNLOCK TABLES;
 # p_s.threads table
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

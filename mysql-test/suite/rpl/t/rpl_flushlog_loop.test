@@ -4,7 +4,7 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --let $rpl_topology= 1->2->1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/
@@ -20,34 +20,34 @@ show variables like 'relay_log%';
 
 CREATE TABLE t1 (a INT KEY) ENGINE= MyISAM;
 let $wait_binlog_event= CREATE TABLE t1;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection server_1;
 INSERT INTO t1 VALUE(1);
 FLUSH LOGS;
 --let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 INSERT INTO t1 VALUE(2);
 let $slave_param_value= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --let $sync_slave_connection= server_1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Check that the master server's slave threads are still running and show
 # Relay_Log_File
 #
---source include/check_slave_is_running.inc
+--source include/rpl/assert_replica_running.inc
 --let status_items= Relay_Log_File
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 
 --disable_query_log
 connection server_1;
 DROP TABLE t1;
 --let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --enable_query_log
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

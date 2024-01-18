@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,9 +7,9 @@ SET @save_global_debug=@@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,dbug.calculate_sbm_after_previous_gtid_log_event';
 SET @saved_replica_transaction_retries=@@global.replica_transaction_retries;
 SET @@global.replica_transaction_retries=0;
-include/start_slave_io.inc
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (20);
 INSERT INTO t1 VALUES (19);
@@ -33,8 +33,8 @@ INSERT INTO t1 VALUES (2);
 DROP TABLE t1;
 FLUSH LOGS;
 FLUSH LOGS;
-include/sync_slave_io_with_master.inc
-include/start_slave_sql.inc
+include/rpl/sync_to_replica_received.inc
+include/rpl/start_applier.inc
 SET DEBUG_SYNC="now wait_for signal.reached";
 include/assert.inc [Seconds Behind Master should be less than 180 seconds.]
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
@@ -58,4 +58,4 @@ include/assert.inc [Seconds Behind Master should be less than 180 seconds.]
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 SET @@GLOBAL.DEBUG=@save_global_debug;
 SET @@global.replica_transaction_retries=@saved_replica_transaction_retries;
-include/rpl_end.inc
+include/rpl/deinit.inc

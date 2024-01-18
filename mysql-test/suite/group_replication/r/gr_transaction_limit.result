@@ -19,22 +19,22 @@ call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replicat
 call mtr.add_suppression("Error on session .*. Transaction of size .* exceeds specified limit 1024. To increase the limit please adjust group_replication_transaction_size_limit option.");
 set session sql_log_bin=1;
 
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 ## 1. Connect to server 1, create a table (t1)
 ##    Table t1 will be used later in step 3
 [connection server1]
 CREATE TABLE t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ## 2.1 Create table t2 on server 1 and t3 on server 2.
 [connection server1]
 CREATE TABLE t2 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server2]
 CREATE TABLE t3 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ## 2.2 Validate tables t2 and t3 are created on each server.
 [connection server1]
@@ -52,11 +52,11 @@ include/assert.inc ['Check table t3 exist on server 3']
 ## 2.3 Drop table t2 on server 1 and table t3 on server 2.
 [connection server1]
 DROP TABLE t2;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server2]
 DROP TABLE t3;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ## 2.4 Validate tables t2 and t3 are dropped on each server.
 [connection server1]
@@ -76,7 +76,7 @@ include/assert.inc ['Check table t3 dropped on server 3']
 [connection server2]
 INSERT INTO t1 VALUES (10);
 ERROR HY000: Error on observer while running replication hook 'before_commit'.
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server1]
 include/assert.inc ['Checking the number of records in table t1']
@@ -90,7 +90,7 @@ include/assert.inc ['Checking the number of records in table t1']
 ## 3.2 Insert some data in table t1 on server 1, data should be inserted
 [connection server1]
 INSERT INTO t1 VALUES (10);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server1]
 include/assert.inc ['Checking the number of records in table t1']
@@ -104,7 +104,7 @@ include/assert.inc ['Checking the number of records in table t1']
 ## 3.3 Insert some data in table t1 on server 3, data should be inserted
 [connection server3]
 INSERT INTO t1 VALUES (20);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server1]
 include/assert.inc ['Checking the number of records in table t1']
@@ -116,7 +116,7 @@ include/assert.inc ['Checking the number of records in table t1']
 include/assert.inc ['Checking the number of records in table t1']
 
 DELETE FROM t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ## 3.4 Insert large sample data in table t1 on server 3,
 ##     transaction should be rolledback
@@ -124,7 +124,7 @@ include/rpl_sync.inc
 BEGIN;
 COMMIT;
 ERROR HY000: Error on observer while running replication hook 'before_commit'.
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server1]
 include/assert.inc ['Checking the number of records in table t1']
@@ -140,7 +140,7 @@ include/assert.inc ['Checking the number of records in table t1']
 [connection server1]
 BEGIN;
 COMMIT;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server1]
 include/assert.inc ['Checking the number of records in table t1']
@@ -158,7 +158,7 @@ SET @group_replication_transaction_size_limit_save= @@GLOBAL.group_replication_t
 SET GLOBAL group_replication_transaction_size_limit= 808;
 DELETE FROM t1;
 ERROR HY000: Error on observer while running replication hook 'before_commit'.
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET GLOBAL group_replication_transaction_size_limit= @group_replication_transaction_size_limit_save;
 
 [connection server1]
@@ -175,7 +175,7 @@ include/assert.inc ['Checking the number of records in table t1']
 [connection server3]
 DELETE FROM t1;
 ERROR HY000: Error on observer while running replication hook 'before_commit'.
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server1]
 include/assert.inc ['Checking the number of records in table t1']
@@ -189,7 +189,7 @@ include/assert.inc ['Checking the number of records in table t1']
 ## 3.8 Delete all data from table t1 on server 1, table will be empty
 [connection server1]
 DELETE FROM t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ## 4. Validate that server1, server2 and server 3 has same set of data
 include/diff_tables.inc [server1:test.t1, server2:test.t1, server3:test.t1]

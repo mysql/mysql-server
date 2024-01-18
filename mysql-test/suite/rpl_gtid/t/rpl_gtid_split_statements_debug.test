@@ -1,1 +1,1 @@
---source extra/rpl_tests/rpl_split_statements_debug.test
+--source common/rpl/rpl_split_statements_debug.test

@@ -25,12 +25,12 @@
 --echo ############################################################
 --echo # 1. Deploy a single-primary group, where server1 is the primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -40,15 +40,15 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY);
 --echo #    Lock table t1 for writes on server2, that will make
 --echo #    START GROUP_REPLICATION to timeout to enable super_read_only.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 LOCK TABLE t1 WRITE;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
@@ -69,11 +69,11 @@ SET SESSION sql_log_bin = 1;
 --echo #    will succeed, since server2 is a secondary we can assert that
 --echo #    super_read_only is enabled after join the group.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $assert_text= The super_read_only mode must be enabled
@@ -89,7 +89,7 @@ UNLOCK TABLES;
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --source include/group_replication_end.inc

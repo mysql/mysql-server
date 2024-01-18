@@ -5,7 +5,7 @@
 # independent channels between two clusters
 #############################################################
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave_2ch.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica_2ch.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --echo
 
@@ -35,13 +35,13 @@ SET auto_increment_increment = 2;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=ndb;
 
 let $wait_binlog_event= CREATE TABLE t1;
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --connection master1
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --connection slave
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --connection slave1
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --echo
 
 #
@@ -166,5 +166,5 @@ DROP TABLE IF EXISTS t1;
 --connection master
 
 # End of test 5.1
---source suite/ndb_rpl/ndb_master-slave_2ch_end.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica_2ch_end.inc
 

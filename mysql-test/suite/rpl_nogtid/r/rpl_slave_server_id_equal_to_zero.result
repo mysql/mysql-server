@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,8 +9,8 @@ CALL mtr.add_suppression('Replica is not configured or failed to initialize prop
 include/assert.inc [slave's server_id was greater than 0 at startup]
 [connection master]
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET @@GLOBAL.server_id= 0;
 START REPLICA;
 ERROR HY000: The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO
@@ -25,10 +25,10 @@ include/assert_grep.inc [Slave for channel didn't started because of server_id=0
 RESET REPLICA ALL FOR CHANNEL 'any_channel';
 DROP TABLE t1;
 SET @@GLOBAL.server_id= 2;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --server-id=0]
+include/rpl/sync_to_replica.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --server-id=0]
 [connection slave]
 include/assert.inc [slave's server_id was 0 at startup]
 START REPLICA;
@@ -49,9 +49,9 @@ ERROR HY000: Replica is not configured or failed to initialize properly. You mus
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
 SET PERSIST server_id=2;
-include/rpl_restart_server.inc [server_number=2 parameters: --server-id=0 --skip_replica_start=0]
-include/check_slave_is_running.inc
-include/check_slave_no_error.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --server-id=0 --skip_replica_start=0]
+include/rpl/assert_replica_running.inc
+include/rpl/assert_replica_no_error.inc
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

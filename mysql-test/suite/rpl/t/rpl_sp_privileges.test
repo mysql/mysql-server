@@ -15,19 +15,19 @@
 # execute CREATE PROCEDURE command with and without DEFINER class.
 # mysql.procs_priv table should be updated.
 ###############################################################################
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/master-slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (f INT NOT NULL PRIMARY KEY);
 INSERT INTO t1 VALUES (10);
 INSERT INTO t1 VALUES (20);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Case 1: Privileged user root creating procedure with
 # Definer. Procs_priv table should be empty
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE USER 'testuser'@'localhost';
 GRANT CREATE ROUTINE ON test.* TO 'testuser'@'localhost';
 GRANT REPLICATION CLIENT ON *.* TO 'testuser'@'localhost';
@@ -39,46 +39,46 @@ BEGIN
 SELECT COUNT(*) as total_rows FROM test.t1;
 END|
 DELIMITER ;|
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $assert_text= Assert that mysql.procs_priv table is empty
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.procs_priv] = 0
 --source include/assert.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $assert_text= Assert that mysql.procs_priv table is empty
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.procs_priv] = 0
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP PROCEDURE row_cnt;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Case 2: Privileged user root creating procedure without
 # Definer. Procs_priv table should be empty
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DELIMITER |;
 CREATE  PROCEDURE row_cnt()
 BEGIN
 SELECT COUNT(*) as total_rows FROM test.t1;
 END|
 DELIMITER ;|
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $assert_text= Assert that mysql.procs_priv table is empty
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.procs_priv] = 0
 --source include/assert.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $assert_text= Assert that mysql.procs_priv table is empty
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.procs_priv] = 0
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP PROCEDURE row_cnt;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Case 3: Non Privileged user testuser creating procedure with
 # Definer. Procs_priv table should be updated
@@ -90,21 +90,21 @@ BEGIN
 SELECT COUNT(*) as total_rows FROM test.t1;
 END|
 DELIMITER ;|
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $assert_text= Assert that mysql.procs_priv table has one row for testuser
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.procs_priv WHERE User="testuser"] = 1
 --source include/assert.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $assert_text= Assert that mysql.procs_priv table has one row for testuser
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.procs_priv WHERE User="testuser"] = 1
 --source include/assert.inc
 
 --connection con1
 DROP PROCEDURE row_cnt;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Case 4: Non Privileged user testuser creating procedure with
 # Definer. Procs_priv table should be updated
@@ -115,22 +115,22 @@ BEGIN
 SELECT COUNT(*) as total_rows FROM test.t1;
 END|
 DELIMITER ;|
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $assert_text= Assert that mysql.procs_priv table has one row for testuser
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.procs_priv WHERE User="testuser"] = 1
 --source include/assert.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $assert_text= Assert that mysql.procs_priv table has one row for testuser
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.procs_priv WHERE User="testuser"] = 1
 --source include/assert.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 DROP PROCEDURE row_cnt;
 DROP USER 'testuser'@'localhost';
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

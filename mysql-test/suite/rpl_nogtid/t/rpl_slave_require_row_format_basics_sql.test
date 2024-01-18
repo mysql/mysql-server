@@ -42,7 +42,7 @@
 #  WL #12968 : Configure replication applier to require row-based replication
 
 -- source include/have_binlog_format_statement.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/not_hypergraph.inc  # Gets confused by the extra logging.
 
 --echo #
@@ -58,26 +58,26 @@ call mtr.add_suppression("The query does not comply with variable require_row_fo
 
 # Test include
 
---write_file $MYSQL_TMP_DIR/check_slave_SQL_error.inc END_OF_PROCEDURE
+--write_file $MYSQL_TMP_DIR/check_applier_error.inc END_OF_PROCEDURE
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
 
   CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 
-  --source include/start_slave_io.inc
-  --source include/rpl_connection_master.inc
-  --source include/sync_slave_io_with_master.inc
+  --source include/rpl/start_receiver.inc
+  --source include/rpl/connection_source.inc
+  --source include/rpl/sync_to_replica_received.inc
 
   --let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
 
   --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 
   START REPLICA;
 
   --let $slave_sql_errno= convert_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT)
-  --source include/wait_for_slave_sql_error.inc
+  --source include/rpl/wait_for_applier_error.inc
 
   STOP REPLICA;
 
@@ -94,19 +94,19 @@ call mtr.add_suppression("The query does not comply with variable require_row_fo
 
   --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   --echo # Reset for next step
 
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
 
   RESET REPLICA;
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
   RESET BINARY LOGS AND GTIDS;
 
@@ -118,24 +118,24 @@ END_OF_PROCEDURE
 
 # Record the number of temp tables present
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $_number_temp_tables = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
 
 # Create tables for testing
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (i INT);
 CREATE TABLE t2 (c1 TEXT);
 CREATE TABLE t3 (j INT PRIMARY KEY AUTO_INCREMENT);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 --echo #
 --echo # 1. Log a DML transaction using statement based logging (TC1)
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (0);
 
@@ -144,7 +144,7 @@ INSERT INTO t1 VALUES (0);
 
 --let $assert_cond= [ SELECT COUNT(*) = 0 FROM t1 ]
 --let $assert_message_text = Nothing was inserted on the table
---source $MYSQL_TMP_DIR/check_slave_SQL_error.inc
+--source $MYSQL_TMP_DIR/check_applier_error.inc
 
 --echo #
 --echo # 2. Log a transaction with a LOAD DATA event (TC2)
@@ -156,7 +156,7 @@ LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t2;
 
 --let $assert_cond= [SELECT COUNT(*) = 0 FROM t2]
 --let $assert_message_text = Nothing was insert on the table
---source $MYSQL_TMP_DIR/check_slave_SQL_error.inc
+--source $MYSQL_TMP_DIR/check_applier_error.inc
 
 --echo #
 --echo # 3. Log a transaction with a USER_VAR event (TC2)
@@ -169,7 +169,7 @@ LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t2;
 
 --let $assert_cond= [SELECT COUNT(*) = 1 FROM t1]
 --let $assert_message_text = Nothing was insert on the table
---source $MYSQL_TMP_DIR/check_slave_SQL_error.inc
+--source $MYSQL_TMP_DIR/check_applier_error.inc
 
 --echo #
 --echo # 4. Log a transaction with a RAND event (TC2)
@@ -181,7 +181,7 @@ INSERT INTO t1 VALUES (Rand());
 
 --let $assert_cond= [SELECT COUNT(*) = 2 FROM t1]
 --let $assert_message_text = Nothing was insert on the table
---source $MYSQL_TMP_DIR/check_slave_SQL_error.inc
+--source $MYSQL_TMP_DIR/check_applier_error.inc
 
 --echo #
 --echo # 5. Log a transaction with a INTVAR event (TC2)
@@ -193,7 +193,7 @@ INSERT INTO t1 VALUES (Rand());
 
 --let $assert_cond= [SELECT COUNT(*) = 0 FROM t3]
 --let $assert_message_text = Nothing was insert on the table
---source $MYSQL_TMP_DIR/check_slave_SQL_error.inc
+--source $MYSQL_TMP_DIR/check_applier_error.inc
 
 --echo #
 --echo # 6. Log a transaction with a CREATE TEMPORARY TABLE query (TC3)
@@ -205,7 +205,7 @@ CREATE TEMPORARY TABLE temp1 (k INT PRIMARY KEY);
 
 --let $assert_cond= [SELECT COUNT(*) = $_number_temp_tables FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
 --let $assert_message_text = No temporary table was created
---source $MYSQL_TMP_DIR/check_slave_SQL_error.inc
+--source $MYSQL_TMP_DIR/check_applier_error.inc
 
 --echo #
 --echo # 7. Log a transaction with a DROP TEMPORARY TABLE query (TC3)
@@ -218,22 +218,22 @@ DROP TEMPORARY TABLE temp1;
 --inc $_number_temp_tables
 --let $assert_cond= [SELECT COUNT(*) = $_number_temp_tables FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
 --let $assert_message_text = There is still a temporary table
---source $MYSQL_TMP_DIR/check_slave_SQL_error.inc
+--source $MYSQL_TMP_DIR/check_applier_error.inc
 
 --echo #
 --echo # 8. Cleanup
 
---remove_file $MYSQL_TMP_DIR/check_slave_SQL_error.inc
+--remove_file $MYSQL_TMP_DIR/check_applier_error.inc
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

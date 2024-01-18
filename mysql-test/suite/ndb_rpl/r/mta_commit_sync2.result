@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -41,10 +41,10 @@ call mtr.add_suppression(".*Could not execute Write_rows event.*");
 call mtr.add_suppression(".*worker thread retried transaction 1 time.*");
 call mtr.add_suppression(".*possibly leaving data in inconsistent state.*");
 call mtr.add_suppression(".*worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 [connection master]
 # Epoch 1
 update t1 set b="B", c=1 where a=1;
@@ -87,7 +87,7 @@ a	b	c
 2	A	0
 # Start the replica from the other replica connection
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Row lock should stall epoch 2, and hence also
 # the independent epoch 3.
 # Check that no sign of epoch 3 can be seen while the
@@ -106,7 +106,7 @@ a	b	c
 commit;
 [connection slave]
 # Wait for replication error
-include/wait_for_slave_sql_error.inc [errno=3030]
+include/rpl/wait_for_applier_error.inc [errno=3030]
 # Show the error number after failure
 SELECT WORKER_ID, LAST_ERROR_NUMBER
 FROM performance_schema.replication_applier_status_by_worker
@@ -121,7 +121,7 @@ FROM performance_schema.replication_applier_status_by_coordinator;
 LAST_ERROR_NUMBER	3030
 LAST_ERROR_MESSAGE	Coordinator stopped because there were error(s) in the worker(s). The most recent failure being: Worker 2 failed executing transaction 'ANONYMOUS' at source log master-bin.000001, end_log_pos NNN. See error log and/or performance_schema.replication_applier_status_by_worker table for more details about this failure or others, if any.
 # Start replication again
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Resync
 [connection master]
 # Show resynced
@@ -133,4 +133,4 @@ a	b	c
 [connection master]
 # Drop table
 drop table test.t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

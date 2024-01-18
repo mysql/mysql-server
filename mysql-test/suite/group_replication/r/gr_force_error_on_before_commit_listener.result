@@ -5,10 +5,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 ############################################################
 # 1. Execute some transactions on server 1.
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 2. Force error on before_commit listener on the next
@@ -33,7 +33,7 @@ ERROR HY000: Error on observer while running replication hook 'before_commit'.
 #    Next commit must succeed.
 SET @@GLOBAL.DEBUG= @debug_saved;
 INSERT INTO t1 VALUES (4);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 5. Data validation on server 1.

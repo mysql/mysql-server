@@ -29,7 +29,7 @@
 # WL#3549: binlog compression
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 # saves the current setting of keep_transaction_payload_events
@@ -39,36 +39,36 @@
 --let $saved_keep_transaction_payload_events= $keep_transaction_payload_events
 --let $keep_transaction_payload_events= 1
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $saved_binlog_transaction_compression_master = `SELECT @@global.binlog_transaction_compression`
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $saved_binlog_transaction_compression_slave = `SELECT @@global.binlog_transaction_compression`
 
 #
 # enable compression for the slave applier threads
 # enable require_row_format on the channel
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET @@global.binlog_transaction_compression=TRUE;
 
 --let $saved_change_master_require_row_format = `SELECT IF (require_row_format = 'YES', 1, 0) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME=''`
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 #
 # Reset the master and enable compression
 #
 
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@session.binlog_transaction_compression=TRUE;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 FLUSH LOGS;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 FLUSH LOGS;
 
 #
@@ -91,24 +91,24 @@ COMMIT;
 --echo BINLOG EVENTS on master [$compression_type]
 --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $keep_transaction_payload_events = 1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
---source include/rpl_connection_slave.inc
---source include/start_slave_io.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
 
 # 2. make sure it is copied fine to the relay log
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # assert that SHOW RELAYLOG EVENTS shows the correct output
 --echo RELAY LOG EVENTS for $compression_type
 --let $binlog_file= LAST
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 
 # 3. make sure it is applied fine to the slave
---source include/start_slave_sql.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # 4. lets compare contents of the table on master and slave
 --let $checksum_slave = query_get_value(CHECKSUM TABLE t1 EXTENDED, Checksum, 1)
@@ -125,12 +125,12 @@ COMMIT;
 --echo BINLOG EVENTS on slave contain compressed events
 --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $keep_transaction_payload_events = 1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # 6. clean up the test database
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # If we got here, then transaction boundary parser has
 # worked fine with compression and require_row_format
@@ -141,20 +141,20 @@ DROP TABLE t1;
 --let $keep_transaction_payload_events= $saved_keep_transaction_payload_events
 --let $saved_keep_transaction_payload_events=
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --replace_result $saved_binlog_transaction_compression_master SAVED
 --eval SET @@global.binlog_transaction_compression=$saved_binlog_transaction_compression_master
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --replace_result $saved_binlog_transaction_compression_slave SAVED
 --eval SET @@global.binlog_transaction_compression=$saved_binlog_transaction_compression_slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_result $saved_change_master_require_row_format SAVED
 --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=$saved_change_master_require_row_format
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 #
 # =========================
@@ -162,4 +162,4 @@ DROP TABLE t1;
 # =========================
 
 # end the test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

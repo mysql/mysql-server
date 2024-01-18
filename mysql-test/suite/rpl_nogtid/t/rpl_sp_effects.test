@@ -8,8 +8,8 @@
 
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
 --source include/not_group_replication_plugin.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 # ****************************************************************
 connection master;
@@ -35,7 +35,7 @@ delimiter ;//
 
 call p1();
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT * FROM t1 ORDER BY a;
 connection master;
@@ -52,7 +52,7 @@ delimiter ;//
 
 call p2();
 SELECT * FROM t2 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT * FROM t2 ORDER BY a;
 
@@ -95,7 +95,7 @@ SELECT a,f1(a) FROM t2 ORDER BY a;
 insert into t2 select f1(3);
 SELECT 'master:',a FROM t1 ORDER BY a;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT 'slave:',a FROM t1 ORDER BY a;
 
@@ -111,7 +111,7 @@ create view v1 as select f1(a) as f from t2;
 select * from v1 order by f;
 SELECT 'master:',a FROM t1 ORDER BY a;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT 'slave:',a FROM t1 ORDER BY a;
 
@@ -125,7 +125,7 @@ set @xx=123;
 execute s1 using @xx;
 SELECT 'master:',a FROM t1 ORDER BY a;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT 'slave:',a FROM t1 ORDER BY a;
 
@@ -148,7 +148,7 @@ end//
 delimiter ;//
 call p1(15);
 SELECT 'master:',a FROM t1 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT 'slave:',a FROM t1 ORDER BY a;
 
@@ -196,7 +196,7 @@ set @x=30;
 call p1();
 
 SELECT 'master', a FROM t1 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT 'slave', a FROM t1 ORDER BY a;
 
@@ -209,7 +209,7 @@ drop table t1;
 drop function f1;
 drop function f2;
 drop procedure p1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # bug#26199 Replication Failure on Slave when using stored procs
@@ -241,7 +241,7 @@ select sf_bug26199(b'101111111');
 select sf_bug26199('\'');
 select hex(b) from t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 select hex(b) from t2;
 
@@ -256,7 +256,7 @@ drop function sf_bug26199;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 SET sql_mode = default;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo end of the tests
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -47,7 +47,7 @@ WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:21')
 0
 SET GLOBAL GTID_MODE = OFF;
 SET GLOBAL GTID_MODE = OFF;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Test that SELECT WAIT_FOR_EXECUTED_GTID_SET() gives an error if
 # gtid-mode=off.
@@ -56,4 +56,4 @@ SELECT WAIT_FOR_EXECUTED_GTID_SET('master_uuid', 1);
 ERROR HY000: Cannot use WAIT_FOR_EXECUTED_GTID_SET when GTID_MODE = OFF.
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
-include/rpl_end.inc
+include/rpl/deinit.inc

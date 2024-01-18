@@ -34,13 +34,13 @@
 --echo ############################################################
 --echo # 1. Set sql_generate_invisible_primary_key to true on member 2
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sysvars_to_save = [ "GLOBAL.sql_generate_invisible_primary_key" ]
 --source include/save_sysvars.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sysvars_to_save = [ "GLOBAL.sql_generate_invisible_primary_key" ]
 --source include/save_sysvars.inc
@@ -54,14 +54,14 @@ SET GLOBAL sql_generate_invisible_primary_key=true;
 --echo #    Check the second server that recovered still has only 1 column on its table
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE test.t1 (c1 INT);
 
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -77,21 +77,21 @@ CREATE TABLE test.t1 (c1 INT);
 --echo #    Check that server 1 that replicated it still has only 1 column on its table
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL sql_generate_invisible_primary_key=true;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL sql_generate_invisible_primary_key=false;
 
 CREATE TABLE test.t2 (c1 INT);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $column_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t2';`
 --let $assert_text= The table only contains one column
@@ -104,12 +104,12 @@ CREATE TABLE test.t2 (c1 INT);
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/restore_sysvars.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/restore_sysvars.inc
 

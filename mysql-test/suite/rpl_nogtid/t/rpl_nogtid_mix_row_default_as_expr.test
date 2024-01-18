@@ -11,7 +11,7 @@
 #
 
 --source include/have_binlog_format_mixed_or_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo # Create tables on master
 CREATE TABLE v1 (i VARCHAR(36) DEFAULT (RAND()), j VARCHAR(36) DEFAULT (PI()));
@@ -49,7 +49,7 @@ SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 ALTER TABLE t2 ADD COLUMN c char(36) DEFAULT (PI());
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = @start_enforce_gtid_consistency;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [ slave connection ]
 
 SHOW TABLES;
@@ -57,6 +57,6 @@ SHOW CREATE TABLE t2 ;
 SELECT COUNT(*) from t2;
 
 --echo # clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

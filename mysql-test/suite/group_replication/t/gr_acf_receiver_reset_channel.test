@@ -25,12 +25,12 @@
 --echo ############################################################
 --echo # 1. Deploy a group in single-primary mode on server1 and server2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_4 SERVER_4_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=$SERVER_MYPORT_4, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
@@ -43,11 +43,11 @@
 --echo # 2. Configure and start a failover channel on server1 that
 --echo #    replicates from server4.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server4_uuid= `SELECT @@server_uuid`
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_4 SERVER_4_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_4, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
@@ -55,14 +55,14 @@
 --eval SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', $SERVER_MYPORT_4, '', 50);
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 
 --echo
 --echo ############################################################
 --echo # 3. Validate server1 and server2 configuration.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
@@ -89,7 +89,7 @@
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
@@ -119,23 +119,23 @@
 --echo ############################################################
 --echo # 4. Stop and delete channel 'ch1' on server1 and server2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch1'
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_channel_name='ch1'
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 
@@ -147,7 +147,7 @@
 --echo ############################################################
 --echo # 5. Validate server1 and server2 configuration.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There are 0 rows in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
@@ -166,7 +166,7 @@
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
@@ -188,7 +188,7 @@
 --echo ############################################################
 --echo # 6. Add server3 to the group.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 --source include/gr_assert_secondary_member.inc
 
@@ -213,15 +213,15 @@
 --echo ############################################################
 --echo # 7. Clean up.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

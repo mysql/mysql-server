@@ -34,7 +34,7 @@
 --echo # 1. Deploy a 1 member group A in single primary mode.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 --let $group_a= $group_replication_group_name
@@ -47,7 +47,7 @@
 --echo # 2. Deploy a 1 member group B in single primary mode.
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server3_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
 --let $group_b= $group_replication_group_name
@@ -66,7 +66,7 @@ if (!$have_xcom_stack){
 --echo #    to groups A and B.
 --echo
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1 $group_a GROUP_A
 --eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_a', '127.0.0.1', $SERVER_MYPORT_1, '', 90, 70);
@@ -94,12 +94,12 @@ if (!$have_xcom_stack){
 --echo # 4. Create and start the managed channel.
 --echo
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
@@ -113,7 +113,7 @@ if (!$have_xcom_stack){
 --echo # 5. Add secondary member to group A and validate is added to list of senders
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= $group_a
 --disable_query_log
@@ -128,7 +128,7 @@ if (!$have_xcom_stack){
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
 
@@ -136,7 +136,7 @@ if (!$have_xcom_stack){
 --echo # 6. Add secondary member to group B and validate is added to list of senders
 --echo
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server4_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= $group_b
 --disable_query_log
@@ -150,7 +150,7 @@ if (!$have_xcom_stack){
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=4 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
 
@@ -159,11 +159,11 @@ if (!$have_xcom_stack){
 --echo #    list of senders
 --echo
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
 
@@ -172,11 +172,11 @@ if (!$have_xcom_stack){
 --echo #    list of senders
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
 
@@ -184,7 +184,7 @@ if (!$have_xcom_stack){
 --echo # 9. Clean up.
 --echo
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The source .* for channel 'ch1' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
@@ -194,11 +194,11 @@ call mtr.add_suppression("The group .* for the channel .* has been added, and so
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
@@ -210,11 +210,11 @@ SET SESSION sql_log_bin = 1;
 --eval SELECT asynchronous_connection_failover_delete_managed('ch1', '$group_b')
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

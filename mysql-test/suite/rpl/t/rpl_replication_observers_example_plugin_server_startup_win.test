@@ -1,9 +1,9 @@
 # This test will define the execution mode of
-# rpl_replication_observers_example_plugin_server_startup.inc, in order
+# common/rpl/replication_observers_example_plugin_server_startup.inc, in order
 # for it to run in Windows systems.
 #
 # For more details about the test, read the header in
-# extra/rpl_tests/rpl_replication_observers_example_plugin_server_startup.inc
+# common/rpl/replication_observers_example_plugin_server_startup.inc
 #
 --source include/windows.inc
---source extra/rpl_tests/rpl_replication_observers_example_plugin_server_startup.inc
+--source common/rpl/replication_observers_example_plugin_server_startup.inc

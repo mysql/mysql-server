@@ -1,7 +1,7 @@
 #
 # set up masters server_1 and server_3 with server_2 being a slave.
 #.
-include/rpl_init.inc [topology=1->2,3->2,4->2,5->2]
+include/rpl/init.inc [topology=1->2,3->2,4->2,5->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,23 +20,23 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection server_2]
 START REPLICA SQL_THREAD;
-include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_applier_to_start.inc]
 START REPLICA SQL_THREAD;
 Warnings:
 Note	3083	Replication thread(s) for channel 'channel_1' are already runnning.
 Note	3083	Replication thread(s) for channel 'channel_3' are already runnning.
 Note	3083	Replication thread(s) for channel 'channel_4' are already runnning.
 Note	3083	Replication thread(s) for channel 'channel_5' are already runnning.
-include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_applier_to_start.inc]
 START REPLICA IO_THREAD;
-include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_receiver_to_start.inc]
 STOP REPLICA;
-include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_stop.inc]
-include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_stop.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_receiver_to_stop.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_applier_to_stop.inc]
 START REPLICA;
-include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
-include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
-include/rpl_end.inc
+include/rpl/for_each_connection.inc [include/rpl/wait_for_receiver_to_start.inc]
+include/rpl/for_each_connection.inc [include/rpl/wait_for_applier_to_start.inc]
+include/rpl/deinit.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 RESET REPLICA ALL FOR CHANNEL 'channel_3';
 RESET REPLICA ALL FOR CHANNEL 'channel_4';

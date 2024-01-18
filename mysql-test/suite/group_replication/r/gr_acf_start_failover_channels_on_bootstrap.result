@@ -24,7 +24,7 @@ Note	1760	Storing MySQL user name or password information in the connection meta
 include/assert.inc [The action mysql_start_failover_channels_if_primary must be enabled]
 include/start_and_bootstrap_group_replication.inc
 include/gr_assert_primary_member.inc
-include/wait_for_slave_to_start.inc [FOR CHANNEL 'ch1']
+include/rpl/wait_for_replica_to_start.inc [FOR CHANNEL 'ch1']
 include/assert_grep.inc [The member action "mysql_start_failover_channels_if_primary" for event "AFTER_PRIMARY_ELECTION" with priority "10" will be run.]
 include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
 include/assert.inc [Verify channel ch1 IO_THREAD is ON]
@@ -34,5 +34,5 @@ include/assert.inc [Verify replica_monitor thread is running]
 # 3. Clean up.
 [connection server2]
 include/stop_group_replication.inc
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 include/group_replication_end.inc

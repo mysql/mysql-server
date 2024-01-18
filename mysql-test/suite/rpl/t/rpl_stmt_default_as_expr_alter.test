@@ -23,7 +23,7 @@
 #
 
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CALL mtr.add_suppression('.statement is unsafe because it uses a system function that may return a different value on the replica.');
 
@@ -40,4 +40,4 @@ ALTER TABLE t1 ADD COLUMN b char(36) DEFAULT (RAND());
 
 # Clean up
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

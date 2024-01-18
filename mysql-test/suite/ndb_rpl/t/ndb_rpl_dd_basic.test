@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -67,7 +67,7 @@ select * from t1 order by pk1;
 #
 
 --connection master
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 #
 # cleanup
@@ -80,4 +80,4 @@ alter tablespace ts1
 drop datafile 'datafile02.dat';
 DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

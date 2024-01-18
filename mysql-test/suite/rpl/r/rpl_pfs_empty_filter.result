@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Setup 2 filters on the Replica.
 # One FILTER_RULE should be non-empty and another empty.
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
@@ -23,5 +23,5 @@ include/assert.inc [Filter rule is empty for REPLICATE_IGNORE_TABLE.]
 #
 # Cleanup.
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

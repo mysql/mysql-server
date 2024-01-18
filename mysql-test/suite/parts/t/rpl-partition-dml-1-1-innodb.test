@@ -4,5 +4,5 @@
 
 let $ENGINE=InnoDB;
 --source suite/parts/inc/rpl-partition-dml-1-1.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

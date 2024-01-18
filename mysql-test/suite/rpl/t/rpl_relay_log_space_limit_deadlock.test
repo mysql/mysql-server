@@ -25,17 +25,17 @@
 
 --source include/have_debug_sync.inc
 # this issue only happened on MTS
---source include/only_mts_replica_parallel_workers.inc
---source include/master-slave.inc
+--source include/have_replica_parallel_workers.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Create a table on the master and sync it to the slave
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (i INT);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 2. Set some debug points and vars so:
@@ -43,7 +43,7 @@ CREATE TABLE t1 (i INT);
 --echo #  - The slave waits before forcing a relay log rotation
 --echo #  - The wait time between MTS checkpoints is minimal
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 SET @@GLOBAL.DEBUG= '+d,rpl_set_relay_log_limits';
 SET @@GLOBAL.DEBUG= '+d,rpl_before_forced_rotate';
@@ -58,11 +58,11 @@ SET @@GLOBAL.replica_checkpoint_period= 1;
 --echo #  - Wait for the SQL thread to be waiting for new events
 --echo #  - Sleep an extra seconds for MTS checkpoint sleep
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (0);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name='thread/sql/replica_io' AND processlist_state= 'Waiting for the replica SQL thread to free relay log space'
 --source include/wait_condition.inc
@@ -82,11 +82,11 @@ SET @@GLOBAL.DEBUG= '-d,rpl_set_relay_log_limits';
 SET DEBUG_SYNC= 'now SIGNAL signal.rpl_before_forced_rotate_continue';
 SET @@GLOBAL.DEBUG= '-d,rpl_before_forced_rotate';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES (1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= 'There are 2 values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
@@ -98,8 +98,8 @@ INSERT INTO t1 VALUES (1);
 --replace_result $replica_checkpoint_period_value REPLICA_CHECKPOINT_PERIOD
 --eval SET @@GLOBAL.replica_checkpoint_period= $replica_checkpoint_period_value
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

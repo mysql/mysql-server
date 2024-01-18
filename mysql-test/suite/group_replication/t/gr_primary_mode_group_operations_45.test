@@ -33,7 +33,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_read_mode_error';
 --echo # 2. Execute a change to single primary mode with server 2 as the primary
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -45,7 +45,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_read_mode_error';
 --echo # Check other members see it leave
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/wait_until_disconnected.inc
 
@@ -53,16 +53,16 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_read_mode_error';
 --source include/wait_until_connected_again.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER2_UUID
 --reap
@@ -78,7 +78,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_read_mode_error';
 --echo # 5. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Cannot enable the super read only mode on a secondary member.*");

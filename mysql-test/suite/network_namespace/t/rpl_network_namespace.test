@@ -32,7 +32,7 @@
 --source include/not_group_replication_plugin.inc
 
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression("Hostname .* does not resolve to");
 call mtr.add_suppression("IP address .* could not be resolved");
@@ -40,15 +40,15 @@ call mtr.add_suppression("IP address .* could not be resolved");
 --echo # Add a bind address in the 'red' network namespace to master
 --let $rpl_server_number=1
 --let $rpl_server_parameters= --bind-address=127.0.0.1,10.0.2.1/red
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo # Add a bind address in the 'blue' network namespace to the slave
 --let $rpl_server_parameters= --bind-address=127.0.0.1,10.0.1.1/blue
 --let $rpl_server_number=2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 
@@ -70,7 +70,7 @@ INSERT INTO t1 VALUES (1, 'abc');
 SHOW CREATE TABLE t1;
 
 --echo [ connection slave ]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SHOW CREATE TABLE t1;
 
@@ -86,7 +86,7 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 
 --echo # Stop replica and run change replication source to listen to the master on socket
 --echo # created in the 'red' namespace
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --echo [ connection master ]
 --connection master
@@ -109,11 +109,11 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
  --let $crs= $crs, SOURCE_LOG_POS=$SOURCE_LOG_POS
 }
 --exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$crs"
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Now sync slave with master
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Check network namspace of currently connected master
 SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
@@ -128,7 +128,7 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 --let $diff_tables = master:t1, slave:t1
 --source include/diff_tables.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --echo [ connection master ]
 --connection master
@@ -145,12 +145,12 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 }
 --exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$crs"
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Now sync slave with master
 --connection master
 INSERT INTO t1 VALUES (5, 'mno');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Check network namspace of currently connected master
 SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
@@ -169,5 +169,5 @@ DROP USER root@10.0.2.1;
 DROP USER root@10.0.1.1;
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

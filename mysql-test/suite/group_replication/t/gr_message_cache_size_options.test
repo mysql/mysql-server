@@ -35,7 +35,7 @@ SET GLOBAL group_replication_message_cache_size= 5.5;
 --eval SET GLOBAL group_replication_message_cache_size= 3221225472
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $assert_text= The value of group_replication_message_cache_size should be 3221225472
@@ -87,20 +87,20 @@ revoke SUPER, SYSTEM_VARIABLES_ADMIN on *.* from 'group_rpl_user'@localhost;
 --enable_warnings
 --connect (group_rpl_user_con, localhost, group_rpl_user, , )
 --let $rpl_connection_name= group_rpl_user_con
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET GLOBAL group_replication_message_cache_size= default;
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 grant SYSTEM_VARIABLES_ADMIN on *.* to 'group_rpl_user'@localhost;
 --let $rpl_connection_name= group_rpl_user_con
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_message_cache_size= default;
 -- disconnect group_rpl_user_con
 
 # Reset parameter value to default
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'group_rpl_user'@localhost;
 DROP USER 'group_rpl_user'@localhost;
 flush privileges;

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -32,13 +32,13 @@ include/assert.inc [REQUIRE_ROW_FORMAT disabled for default channel "" in perfor
 #       2. A group_replication channel (group_replication_recovery)
 #       3. A channel with a privileged user (default channel)
 #     REQUIRE_ROW_FORMAT must be 0 for 1) and 3). It must be 1 for 2)
-include/rpl_set_gtid_mode.inc
+include/rpl/set_gtid_mode.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'replication_applier'@'localhost' FOR CHANNEL "";
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 10;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start  --upgrade=FORCE]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start  --upgrade=FORCE]
 include/assert.inc [Check the number of channels with enabled REQUIRE_ROW_FORMAT]
 include/assert.inc [Check the number of channels with disabled REQUIRE_ROW_FORMAT]
 include/assert.inc [Check that mysql.slave_relay_log_info has an entry with REQUIRE_ROW_FORMAT set to 0]
@@ -50,7 +50,7 @@ CALL mtr.add_suppression("Error writing relay log configuration.");
 DROP USER 'replication_applier'@'localhost';
 RESET REPLICA ALL FOR CHANNEL "ch1";
 RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
-include/rpl_set_gtid_mode.inc
-include/rpl_end.inc
+include/rpl/set_gtid_mode.inc
+include/rpl/deinit.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.

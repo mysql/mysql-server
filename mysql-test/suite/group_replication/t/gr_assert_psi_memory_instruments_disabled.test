@@ -29,7 +29,7 @@
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $group_replication_member_state= ONLINE
 --source include/gr_wait_for_member_state.inc

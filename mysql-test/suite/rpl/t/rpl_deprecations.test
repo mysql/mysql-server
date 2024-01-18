@@ -1,4 +1,4 @@
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Each deprecated option specified on the command line, produces an
 # extra warning during server restart. So when the test executes with
@@ -16,8 +16,8 @@ let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order
 # WL#13968 : Deprecate sync_relay_log_info                          #
 #####################################################################
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_server_number= 2
 --let $rpl_omit_print_server_parameters=1
@@ -89,7 +89,7 @@ while($i > 0) {
   --let $rpl_omit_print_server_parameters = 2
   --let $rpl_server_number = 2
   --source include/save_error_log_position.inc
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
 
   if($i==2)
   {
@@ -136,10 +136,10 @@ The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a
 RESET PERSIST;
 --let $rpl_server_parameters=
 --let $rpl_omit_print_server_parameters=0
---source include/rpl_restart_server.inc
---source include/start_slave.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

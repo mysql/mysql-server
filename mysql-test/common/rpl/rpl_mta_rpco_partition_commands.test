@@ -1,0 +1,503 @@
+# Aim of the testcase is to check if different operations on partition tables
+# respect replica-preserve-commit-order.
+#
+# Commands tested are:
+# 1) ALTER TABLE TRUNCATE PARTITION
+# 2) ALTER TABLE DISCARD PARTITION
+# 3) ALTER TABLE IMPORT PARTITION
+# 4) ALTER TABLE COALESCE PARTITION
+# 5) ALTER TABLE ANALYZE PARTITION
+# 6) ALTER TABLE OPTIMIZE PARTITION
+# 7) ALTER TABLE REPAIR PARTITION
+# 8) ALTER TABLE REMOVE PARTITIONING
+# 9) ALTER TABLE EXCHANGE PARTITION
+# 10) ALTER TABLE REBUILD PARTITION
+# 11) ALTER TABLE REORGANIZE PARTITION
+# 12) ALTER TABLE ADD PARTITION
+# 13) ALTER TABLE DROP PARTITION
+#
+# This test uses common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+# to check the ordering of commits.
+
+--let $rpl_skip_start_slave = 1
+--let $rpl_gtid_utils = 1
+--source include/rpl/init_source_replica.inc
+
+# Starts slave with 8 worker threads
+--let $mts_replica_parallel_workers= 8
+--let $mts_spco_save_gtid_executed = 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+
+# Set Up
+
+--source include/rpl/connection_replica.inc
+
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+CALL mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
+
+SET @save_replica_parallel_workers= @@global.replica_parallel_workers;
+SET @save_replica_parallel_type= @@global.replica_parallel_type;
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
+SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
+--eval SET GLOBAL replica_parallel_workers= $mts_replica_parallel_workers
+SET GLOBAL replica_preserve_commit_order= ON;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source1.inc
+
+# Create table with subpartitions (HASH and RANGE PARTITION)
+
+CREATE TABLE t_part (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 SUBPARTITION BY KEY(i) (
+    PARTITION p0 VALUES LESS THAN(100) (
+      SUBPARTITION sp00,
+      SUBPARTITION sp01),
+    PARTITION p1 VALUES LESS THAN(200) (
+      SUBPARTITION sp10,
+      SUBPARTITION sp11));
+
+INSERT INTO t_part VALUES(1); INSERT INTO t_part VALUES(101); INSERT INTO t_part VALUES(199);
+
+CREATE TABLE t_hash (a int, PRIMARY KEY (a)) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 2;
+
+INSERT INTO t_hash VALUES(1); INSERT INTO t_hash VALUES(101); INSERT INTO t_hash VALUES(50);
+
+CREATE TABLE t_part1 (i INTEGER) PARTITION BY RANGE(i)(
+    PARTITION p0 VALUES LESS THAN(100),
+    PARTITION p1 VALUES LESS THAN(200),
+    PARTITION p2 VALUES LESS THAN(300));
+
+
+--echo
+--echo # Check for ALTER TABLE TRUNCATE PARTITION
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement = 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part TRUNCATE PARTITION p0, p1;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = drop table t1; drop table t2;
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+
+
+--echo
+--echo # Check for ALTER TABLE DISCARD TABLESPACE
+
+--source include/rpl/connection_source.inc
+--let $MYSQLD_MASTER_DATADIR= `SELECT @@datadir`
+
+FLUSH TABLES t_hash FOR EXPORT;
+--echo # Copying the .cfg and .ibd files as backup
+--copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#p#p0.cfg $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p0.cfg
+--copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#p#p0.ibd $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p0.ibd
+--copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#p#p1.cfg $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p1.cfg
+--copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#p#p1.ibd $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p1.ibd
+UNLOCK TABLES;
+
+--source include/rpl/connection_replica.inc
+--let $MYSQLD_SLAVE_DATADIR= `SELECT @@datadir`
+
+FLUSH TABLES t_hash FOR EXPORT;
+--echo # Copying the .cfg and .ibd files as backup
+--copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p0.cfg $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p0.cfg
+--copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p0.ibd $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p0.ibd
+--copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p1.cfg $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p1.cfg
+--copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p1.ibd $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p1.ibd
+UNLOCK TABLES;
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_hash DISCARD TABLESPACE;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = drop table t1; drop table t2;
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+
+
+--echo
+--echo # Check for ALTER TABLE IMPORT TABLESPACE
+
+--source include/rpl/connection_source.inc
+--echo # Moving the .cfg and .ibd files back from backup on master
+--move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p0.cfg $MYSQLD_MASTER_DATADIR/test/t_hash#p#p0.cfg
+--move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p0.ibd $MYSQLD_MASTER_DATADIR/test/t_hash#p#p0.ibd
+--move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p1.cfg $MYSQLD_MASTER_DATADIR/test/t_hash#p#p1.cfg
+--move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p1.ibd $MYSQLD_MASTER_DATADIR/test/t_hash#p#p1.ibd
+
+--source include/rpl/connection_replica.inc
+--echo # Moving the .cfg and .ibd files back from backup on slave
+--move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p0.cfg $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p0.cfg
+--move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p0.ibd $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p0.ibd
+--move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p1.cfg $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p1.cfg
+--move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p1.ibd $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p1.ibd
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_hash IMPORT TABLESPACE;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = drop table t1; drop table t2;
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+
+
+--echo
+--echo # Check for ALTER TABLE COALESCE PARTITION
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_hash COALESCE PARTITION 1;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify both partitions exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME LIKE \'t_hash\', COUNT, 1]" = "2"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = drop table t1; drop table t2;
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+
+--echo
+--echo # Check for ALTER TABLE ANALYZE PARTITION
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part ANALYZE PARTITION p0;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 =
+--let $mts_spco_assert_cond3 =
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = drop table t1; drop table t2;
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+
+
+--echo
+--echo # Check for ALTER TABLE OPTIMIZE PARTITION
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part OPTIMIZE PARTITION p0, p1;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = drop table t1; drop table t2;
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+
+
+--echo
+--echo # Check for ALTER TABLE REPAIR PARTITION
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part REPAIR PARTITION p0, p1;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = drop table t1; drop table t2; truncate table t_part;
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+
+--echo
+--echo # Check for ALTER TABLE REMOVE PARTITIONING
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t_nopart1 LIKE t_part;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;  ALTER TABLE t_nopart1 REMOVE PARTITIONING;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify all partitions exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME LIKE \'t_nopart1\', COUNT, 1]" = "4"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = drop table t1; drop table t2; DROP TABLE t_nopart1;
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+
+--echo
+--echo # Check for ALTER TABLE EXCHANGE PARTITION
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB; INSERT INTO t_part VALUES(1),(2),(101),(102),(199); CREATE TABLE t_nopart1 LIKE t_part; ALTER TABLE t_nopart1 REMOVE PARTITIONING;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part EXCHANGE PARTITION sp00 WITH TABLE t_nopart1;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 =
+--let $mts_spco_assert_cond3 =
+
+--let $mts_spco_end_statement = drop table t1; drop table t2; DROP TABLE t_nopart1;
+--let $mts_spco_rollback_statement = ROLLBACK;
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+
+
+--echo
+--echo # Check for ALTER TABLE REBUILD PARTITON
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t_nopart2 LIKE t_part; ALTER TABLE t_nopart2 REMOVE PARTITIONING; INSERT INTO t_nopart2 VALUES(1000); INSERT INTO t_nopart2 VALUES(1); ALTER TABLE t_part EXCHANGE PARTITION sp01 WITH TABLE t_nopart2 WITHOUT VALIDATION;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part REBUILD PARTITION p0;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+
+--let $mts_spco_end_statement = drop table t1; drop table t2;
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+
+
+--echo
+--echo # Check for ALTER TABLE REORGANIZE PARTITION
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;ALTER TABLE t_part1 REORGANIZE PARTITION p1,p2 INTO (PARTITION p3 VALUES LESS THAN (300));
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify Partition p3 doesnot exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME LIKE \'t_part1\', COUNT, 1]" = "3"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = drop table t1; drop table t2;
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+
+--echo
+--echo # Check for ALTER TABLE ADD PARTITION
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part ADD PARTITION (PARTITION p3 VALUES LESS THAN (300));
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify Partition p3 doesnot exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME LIKE \'t_part\', COUNT, 1]" = "4"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = drop table t1; drop table t2;
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+
+--echo
+--echo # Check for ALTER TABLE DROP PARTITION
+
+--let $mts_num_preceding_trans= 5
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part DROP PARTITION p3;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify Partition p3 exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME LIKE \'t_part\', COUNT, 1]" = "6"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = DROP TABLE t1,t2,t_hash,t_part,t_part1,t_nopart2;
+
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
+
+
+--echo
+--echo # Cleanup
+--echo
+
+--source include/rpl/connection_source1.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+
+SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
+--disable_warnings
+SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc

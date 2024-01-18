@@ -5,7 +5,7 @@
 #### Include Section ####
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
 ######################################################
@@ -301,7 +301,7 @@ CREATE DATABASE tpcb;
 --let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
 --let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
 
---source include/ndb_restore_slave_eoption.inc
+--source common/rpl/ndb_restore_replica_option.inc
 
 --disable_query_log
 # Set low interval so changes are detected quickly
@@ -356,7 +356,7 @@ while ($j)
 --echo ***** Finsh the slave sync process *******
 --disable_query_log
 # 1. 2. 3.
---source suite/ndb_rpl/ndb_setup_slave.inc
+--source suite/ndb_rpl/ndb_setup_replica.inc
 --enable_query_log
 
 # 4.
@@ -438,6 +438,6 @@ diff_files $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql $MYSQLTEST_VARDIR/tmp/RPL_DD_A
 --remove_file $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
 
 # End 5.1 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

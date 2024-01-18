@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,12 +19,12 @@ SET @@SESSION.binlog_row_image = 'MINIMAL';
 CREATE TABLE t1(f1 INT, f2 INT);
 [connection master]
 SET SESSION sql_generate_invisible_primary_key = ON;
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 CREATE TABLE t1(f1 INT, f2 INT);
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 SET SESSION sql_generate_invisible_primary_key = OFF;
 INSERT INTO t1 VALUES (1, 1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The table t1 contains the inserted row]
 
 ##################################################
@@ -33,7 +33,7 @@ include/assert.inc [The table t1 contains the inserted row]
 [connection master]
 UPDATE t1 SET t1.f1 = 3 WHERE t1.f1=1;
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=1032]
+include/rpl/wait_for_applier_error.inc [errno=1032]
 include/assert.inc [The table t1 contains no rows on the replica]
 
 ##################################################
@@ -41,10 +41,10 @@ include/assert.inc [The table t1 contains no rows on the replica]
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 [connection slave]
-include/stop_slave.inc
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/reset_replica.inc
 RESET BINARY LOGS AND GTIDS;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/suppress_messages.inc
 # Connection 2 suppresses message <Replica SQL for channel .*: Worker .* failed executing transaction .* at source log master-bin.000001, end_log_pos .* Could not execute Update_rows event on table test>.
 # Connection 2 suppresses message <Replica SQL for channel .*: ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
@@ -52,4 +52,4 @@ include/suppress_messages.inc
 # Connection 2 suppresses message <Replica: Can.* find record in 't1'>.
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

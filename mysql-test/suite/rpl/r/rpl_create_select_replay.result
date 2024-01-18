@@ -5,7 +5,7 @@ RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t0 (f1 INT);
 CREATE TABLE t1 AS SELECT * FROM t0;
 # Dump the binlog events into a file.
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # Replay without crash.
 DROP TABLE t0,t1;
 RESET BINARY LOGS AND GTIDS;
@@ -31,7 +31,7 @@ INSERT INTO t0 VALUES (3);
 INSERT INTO t0 VALUES (4);
 CREATE TABLE t1 AS SELECT * FROM t0;
 # Dump the binlog events into a file.
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # Replay without crash.
 DROP TABLE t0,t1;
 RESET BINARY LOGS AND GTIDS;
@@ -64,7 +64,7 @@ CREATE TABLE t1 AS SELECT * FROM t0;
 END|
 CALL proc1();
 # Dump the binlog events into a file.
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # Replay without crash.
 DROP TABLE t0,t1;
 DROP PROCEDURE proc1;
@@ -97,7 +97,7 @@ CREATE TABLE t1 AS SELECT * FROM t0;
 END|
 CALL proc1();
 # Dump the binlog events into a file.
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # Replay without crash.
 DROP TABLE t0,t1;
 DROP PROCEDURE proc1;
@@ -129,7 +129,7 @@ PREPARE stmt FROM "CREATE TABLE t1 AS SELECT * FROM t0";
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 # Dump the binlog events into a file.
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # Replay without crash.
 DROP TABLE t0,t1;
 RESET BINARY LOGS AND GTIDS;

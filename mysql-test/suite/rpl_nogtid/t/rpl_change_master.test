@@ -13,21 +13,21 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
---source extra/rpl_tests/rpl_change_master.test
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
+--source common/rpl/change_replication_source.test
 
 
 # BUG#11758581 - 50801: CHANGE MASTER ACCEPTS BOGUS VARIABLES
 # We want to check if CHANGE REPLICATION SOURCE values have newline characters.
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 connection slave;
 
 ###
 ### This should fail with error ER_WRONG_ARGUMENTS due to empty Source_Host
 ### value.
 ###
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 --error ER_WRONG_ARGUMENTS
@@ -64,10 +64,10 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='master2.mycom
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $status_items= Source_Host
---source include/show_slave_status.inc
---source include/rpl_reset.inc
+--source include/rpl/deprecated/show_replica_status.inc
+--source include/rpl/reset.inc
 
 #
 # Bug #11752299 REPLICATION SLAVE TRUNCATES MASTER_PASSWORD > 32 CHARACTERS
@@ -85,16 +85,16 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=1;
 
 connection slave;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # First, verify that 32 char maximum password works.
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='rpl', SOURCE_PASSWORD='$passwd', SOURCE_SSL=1
 
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 --let $slave_param= Replica_IO_Running
 --let $slave_param_value= Yes
---source include/check_slave_param.inc
+--source include/rpl/assert_replica_status.inc
 
 # Now, prove 1 char oversized password is rejected
 --error ER_CHANGE_SOURCE_PASSWORD_LENGTH
@@ -109,8 +109,8 @@ FLUSH PRIVILEGES;
 SET SQL_LOG_BIN=1;
 
 connection slave;
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL=0;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

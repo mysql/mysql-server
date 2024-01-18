@@ -51,5 +51,5 @@ BEGIN;
 INSERT INTO log (c2, c3) VALUES ('DML with rows query info', RAND()*100);
 COMMIT;
 SET @@SESSION.binlog_rows_query_log_events = OFF;
-include/include/assert_rbr_only_flags.inc [no,yes,no,yes,no,no,no,no,no,yes,yes,yes]
+include/include/rpl/assert_rbr_only_flags.inc [no,yes,no,yes,no,no,no,no,no,yes,yes,yes]
 DROP TABLE t1, t2, log;

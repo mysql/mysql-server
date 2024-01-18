@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,9 +8,9 @@ SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
 # Disable diff_table test
 # Test tables with InnoDB engine when disabling diff_table
 # and simulating flush error
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Build connections to master server
 # Stress test that execute massive queries on every connection
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @@GLOBAL.MAX_BINLOG_SIZE= @max_binlog_size_save;
-include/rpl_end.inc
+include/rpl/deinit.inc

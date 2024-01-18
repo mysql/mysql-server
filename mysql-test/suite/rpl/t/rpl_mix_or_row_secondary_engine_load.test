@@ -12,4 +12,4 @@
 #####################################################################
 
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/rpl/include/rpl_secondary_engine_load.inc
+--source common/rpl/secondary_engine_load.inc

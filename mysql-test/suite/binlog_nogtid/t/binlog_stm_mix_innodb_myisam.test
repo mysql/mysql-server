@@ -7,10 +7,10 @@
 
 CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
 
--- source extra/binlog_tests/mix_innodb_myisam_binlog.test
+-- source common/binlog/mix_innodb_myisam_binlog.test
 
 set @@session.binlog_format=statement;
--- source  extra/binlog_tests/mix_innodb_myisam_side_effects.test
+-- source  common/binlog/mix_innodb_myisam_side_effects.test
 set @@session.binlog_format=@@global.binlog_format;
 
 

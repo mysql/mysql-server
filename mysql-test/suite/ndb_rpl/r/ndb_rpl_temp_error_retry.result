@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -22,7 +22,7 @@ prenom char(4) default NULL,
 PRIMARY KEY USING HASH (nid)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES (1,"XYZ1","ABC1");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 # Lock the row on replica
 BEGIN;
@@ -36,10 +36,10 @@ UPDATE t1 SET nom="DEAD" WHERE nid=1;
 [connection slave1]
 # Wait for deadlock to be detected and applier to stop since
 # retries where not allowed. Use different connection.
-include/wait_for_slave_sql_error.inc [errno=1205]
+include/rpl/wait_for_applier_error.inc [errno=1205]
 # Reconfigure retries high enough to allow retries, start replication
 SET GLOBAL replica_transaction_retries=10;
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Wait for deadlock to be detected and retried at least two times.
 [connection slave]
 # Switch back to the connection holding lock on replica, commit the
@@ -50,7 +50,7 @@ nid	nom	prenom
 1	LOCK	ABC1
 COMMIT;
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 # Verify that the row was applied sucessfully on replica
 SELECT * FROM t1;
@@ -59,4 +59,4 @@ nid	nom	prenom
 [connection master]
 # Cleanup
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

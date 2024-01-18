@@ -14,7 +14,7 @@
 --source include/have_myisam.inc
 # This test case is specific to binlog_format=mixed
 --source include/have_binlog_format_mixed.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Case-1: BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST
 #  INSERT into autoincrement field which is not the first part in the
@@ -38,7 +38,7 @@ COMMIT;
 # Step-1.4: Sync slave with master
 --sync_slave_with_master
 
-# Step-1.5: Diff master-slave tables to make sure everything is in sync.
+# Step-1.5: Diff source-replica tables to make sure everything is in sync.
 --let $diff_tables=master:t1, slave:t1
 --source include/diff_tables.inc
 
@@ -46,4 +46,4 @@ COMMIT;
 --connection master
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

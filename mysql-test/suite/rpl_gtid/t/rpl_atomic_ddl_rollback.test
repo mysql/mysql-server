@@ -15,11 +15,11 @@
 --source include/have_binlog_format_row.inc
 --let $rpl_gtid_utils= 1
 --let $rpl_skip_start_slave= 1
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 # add suppressions to the slave for expected errors/warnings
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Unknown table");
 CALL mtr.add_suppression("A commit for an atomic DDL statement was unsuccessful on the source and the replica");
 CALL mtr.add_suppression("Query caused different errors on source and replica.");
@@ -54,9 +54,9 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 START REPLICA;
 
 --let $slave_sql_errno= convert_error(ER_INCONSISTENT_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $disjoint_value= `SELECT GTID_IS_DISJOINT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', @@GLOBAL.GTID_EXECUTED)`
 --let $assert_text= Check that the failed ddl was rollbacked and is not in the slave gtid_executed set
 --let $assert_cond= $disjoint_value = 1
@@ -68,11 +68,11 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 BEGIN;
 COMMIT;
 SET GTID_NEXT= AUTOMATIC;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 DROP TABLE t1;
 
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
@@ -98,7 +98,7 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 START REPLICA;
 
 --let $slave_sql_errno= convert_error(ER_INCONSISTENT_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --let $disjoint_value= `SELECT GTID_IS_DISJOINT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2', @@GLOBAL.GTID_EXECUTED)`
 --let $assert_text= Check that the failed ddl was rollbacked and is not in the slave gtid_executed set
@@ -106,13 +106,13 @@ START REPLICA;
 --source include/assert.inc
 
 # clean up slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
 BEGIN;
 COMMIT;
 SET GTID_NEXT= AUTOMATIC;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 DROP VIEW v1;
 
 # check that the error is present twice in the error log, once per not applied
@@ -123,4 +123,4 @@ DROP VIEW v1;
 --let $assert_text= There shall be an error when the master is 5.7-, the slave is 8.0+, and the latter fails to apply an atomic DDL
 --source include/assert_grep.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

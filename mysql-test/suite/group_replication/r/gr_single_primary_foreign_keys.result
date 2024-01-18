@@ -19,7 +19,7 @@ include/assert.inc [Verify server1 is primary]
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, KEY(c2));
 INSERT INTO t1 VALUES (1,1);
 CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT, FOREIGN KEY (c2) REFERENCES t1(c2));
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 3. Set a debug sync before broadcast message to group.
@@ -66,7 +66,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 ############################################################
 # 10. Check data consistency.
 [connection server1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [Table t2 contains one row with c1=1]
 include/assert.inc [Table t2 contains one row with c1=2]
 include/diff_tables.inc [server1:test.t1, server2:test.t1]

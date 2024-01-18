@@ -29,7 +29,7 @@
 # Slave filters are specified in rpl_kill_query.cnf
 #
 # The procedure to generate a killed statement is similar in all three
-# cases.  See extra/rpl_tests/rpl_kill_query.inc for details.
+# cases.  See common/rpl/kill_query.inc for details.
 #
 # ==== References ====
 #
@@ -38,7 +38,7 @@
 #   filtering.
 
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --sync_slave_with_master
@@ -48,12 +48,12 @@ CALL mtr.add_suppression("The replica coordinator and worker threads are stopped
 
 --let $database= db1
 --let $table= t1
---source extra/rpl_tests/rpl_kill_query.inc
+--source common/rpl/kill_query.inc
 
 --echo ---- Verify there is an error on slave ----
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 --let $slave_sql_errno= convert_error(ER_ERROR_ON_SOURCE)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo ---- Verify that nothing was inserted on slave -----
 --let $assert_text= Nothing should be inserted on slave
@@ -61,33 +61,33 @@ CALL mtr.add_suppression("The replica coordinator and worker threads are stopped
 --source include/assert.inc
 
 --echo ---- Clean up ----
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 DROP DATABASE db1;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 RESET BINARY LOGS AND GTIDS;
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo ==== Case 2: Master kills query -> no error if slave filters by db ====
 
 --let $database= ignored_db
 --let $table= t1
---source extra/rpl_tests/rpl_kill_query.inc
+--source common/rpl/kill_query.inc
 
 --echo ---- Verify all was replicated ok ----
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo ==== Case 3: Master kills query -> no error if slave filters by table ====
 
 --let $database= db1
 --let $table= ignored_table
---source extra/rpl_tests/rpl_kill_query.inc
+--source common/rpl/kill_query.inc
 
 --echo ---- Verify all was replicated ok ----
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

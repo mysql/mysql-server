@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -168,12 +168,12 @@ INSERT INTO stmts VALUES
 # ,(1201, 1, 'CREATE-ERROR',     '',           '',      '',      1062)#dup
 # ,(1202, 1, 'ROLLBACK',         '',           '~20:1', '~20:1', 0)
 ;
-include/rpl_reset.inc
+include/rpl/reset.inc
 #### Test ####
 ==== row-id = 1000 ====
 [connection server_1_1]
 1:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1000 @@GLOBAL.GTID_EXECUTED: '' + '' = '']
 include/assert.inc [#1000 @@SESSION.GTID_OWNED: '' + '1:1' = '1:1']
 include/assert.inc [#1000 @@GLOBAL.GTID_OWNED: '' + '1:1' = '1:1']
@@ -183,7 +183,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1001 ====
 [connection server_1_1]
 AUTOCOMMIT=1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1001 @@GLOBAL.GTID_EXECUTED: '' + '' = '']
 include/assert.inc [#1001 @@SESSION.GTID_OWNED: '1:1' + '' = '1:1']
 include/assert.inc [#1001 @@GLOBAL.GTID_OWNED: '1:1' + '' = '1:1']
@@ -193,7 +193,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1002 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1002 @@GLOBAL.GTID_EXECUTED: '' + '1:1' = '1:1']
 include/assert.inc [#1002 @@SESSION.GTID_OWNED: '1:1' + '~1:1' = '']
 include/assert.inc [#1002 @@GLOBAL.GTID_OWNED: '1:1' + '~1:1' = '']
@@ -203,7 +203,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1003 ====
 [connection server_1_1]
 1:3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1003 @@GLOBAL.GTID_EXECUTED: '1:1' + '' = '1:1']
 include/assert.inc [#1003 @@SESSION.GTID_OWNED: '' + '1:3' = '1:3']
 include/assert.inc [#1003 @@GLOBAL.GTID_OWNED: '' + '1:3' = '1:3']
@@ -213,7 +213,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1004 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1004 @@GLOBAL.GTID_EXECUTED: '1:1' + '1:3' = '1:1:3']
 include/assert.inc [#1004 @@SESSION.GTID_OWNED: '1:3' + '~1:3' = '']
 include/assert.inc [#1004 @@GLOBAL.GTID_OWNED: '1:3' + '~1:3' = '']
@@ -223,7 +223,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1010 ====
 [connection server_1_1]
 1:3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1010 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
 include/assert.inc [#1010 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1010 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -233,7 +233,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1011 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1011 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
 include/assert.inc [#1011 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1011 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -243,7 +243,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1012 ====
 [connection server_1_1]
 1:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1012 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
 include/assert.inc [#1012 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1012 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -253,7 +253,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1013 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1013 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
 include/assert.inc [#1013 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1013 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -263,7 +263,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1020 ====
 [connection server_1_1]
 2:3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1020 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
 include/assert.inc [#1020 @@SESSION.GTID_OWNED: '' + '2:3' = '2:3']
 include/assert.inc [#1020 @@GLOBAL.GTID_OWNED: '' + '2:3' = '2:3']
@@ -273,7 +273,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1021 ====
 [connection server_1_1]
 CREATE
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1021 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '2:3' = '1:1:3,2:3']
 include/assert.inc [#1021 @@SESSION.GTID_OWNED: '2:3' + '~2:3' = '']
 include/assert.inc [#1021 @@GLOBAL.GTID_OWNED: '2:3' + '~2:3' = '']
@@ -283,7 +283,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1022 ====
 [connection server_1_1]
 2:4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1022 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3' + '' = '1:1:3,2:3']
 include/assert.inc [#1022 @@SESSION.GTID_OWNED: '' + '2:4' = '2:4']
 include/assert.inc [#1022 @@GLOBAL.GTID_OWNED: '' + '2:4' = '2:4']
@@ -293,7 +293,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1023 ====
 [connection server_1_1]
 CREATE
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1023 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3' + '2:4' = '1:1:3,2:3-4']
 include/assert.inc [#1023 @@SESSION.GTID_OWNED: '2:4' + '~2:4' = '']
 include/assert.inc [#1023 @@GLOBAL.GTID_OWNED: '2:4' + '~2:4' = '']
@@ -303,7 +303,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1030 ====
 [connection server_1_1]
 2:3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1030 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
 include/assert.inc [#1030 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1030 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -313,7 +313,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1031 ====
 [connection server_1_1]
 CREATE-NODROP
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1031 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
 include/assert.inc [#1031 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1031 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -323,7 +323,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1032 ====
 [connection server_1_1]
 2:4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1032 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
 include/assert.inc [#1032 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1032 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -333,7 +333,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1033 ====
 [connection server_1_1]
 CREATE-NODROP
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1033 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
 include/assert.inc [#1033 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1033 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -343,7 +343,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1040 ====
 [connection server_1_1]
 4:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1040 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
 include/assert.inc [#1040 @@SESSION.GTID_OWNED: '' + '4:1' = '4:1']
 include/assert.inc [#1040 @@GLOBAL.GTID_OWNED: '' + '4:1' = '4:1']
@@ -353,7 +353,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1041 ====
 [connection server_1_1]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1041 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
 include/assert.inc [#1041 @@SESSION.GTID_OWNED: '4:1' + '' = '4:1']
 include/assert.inc [#1041 @@GLOBAL.GTID_OWNED: '4:1' + '' = '4:1']
@@ -363,7 +363,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1042 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1042 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
 include/assert.inc [#1042 @@SESSION.GTID_OWNED: '4:1' + '' = '4:1']
 include/assert.inc [#1042 @@GLOBAL.GTID_OWNED: '4:1' + '' = '4:1']
@@ -373,7 +373,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1043 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1043 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
 include/assert.inc [#1043 @@SESSION.GTID_OWNED: '4:1' + '' = '4:1']
 include/assert.inc [#1043 @@GLOBAL.GTID_OWNED: '4:1' + '' = '4:1']
@@ -383,7 +383,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1044 ====
 [connection server_1_1]
 COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1044 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '4:1' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1044 @@SESSION.GTID_OWNED: '4:1' + '~4:1' = '']
 include/assert.inc [#1044 @@GLOBAL.GTID_OWNED: '4:1' + '~4:1' = '']
@@ -393,7 +393,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1050 ====
 [connection server_1_1]
 4:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1050 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1050 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1050 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -403,7 +403,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1051 ====
 [connection server_1_1]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1051 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1051 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1051 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -413,7 +413,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1052 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1052 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1052 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1052 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -423,7 +423,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1053 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1053 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1053 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1053 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -433,7 +433,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1054 ====
 [connection server_1_1]
 COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1054 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1054 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1054 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -443,7 +443,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1060 ====
 [connection server_1_1]
 6:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1060 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1060 @@SESSION.GTID_OWNED: '' + '6:1' = '6:1']
 include/assert.inc [#1060 @@GLOBAL.GTID_OWNED: '' + '6:1' = '6:1']
@@ -453,7 +453,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1061 ====
 [connection server_1_1]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1061 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1061 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1061 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -463,7 +463,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1062 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1062 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1062 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1062 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -473,7 +473,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1063 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1063 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1063 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1063 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -483,7 +483,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1064 ====
 [connection server_1_1]
 ROLLBACK
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1064 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1064 @@SESSION.GTID_OWNED: '6:1' + '~6:1' = '']
 include/assert.inc [#1064 @@GLOBAL.GTID_OWNED: '6:1' + '~6:1' = '']
@@ -493,7 +493,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1070 ====
 [connection server_1_1]
 6:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1070 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1070 @@SESSION.GTID_OWNED: '' + '6:1' = '6:1']
 include/assert.inc [#1070 @@GLOBAL.GTID_OWNED: '' + '6:1' = '6:1']
@@ -503,7 +503,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1071 ====
 [connection server_1_1]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1071 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1071 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1071 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -513,7 +513,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1072 ====
 [connection server_1_1]
 SAVEPOINT 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1072 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1072 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1072 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -523,7 +523,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1073 ====
 [connection server_1_1]
 SAVEPOINT 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1073 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1073 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1073 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -533,7 +533,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1074 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1074 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1074 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1074 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -543,7 +543,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1075 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1075 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1075 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1075 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -553,7 +553,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1076 ====
 [connection server_1_1]
 ROLLBACK 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1076 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1076 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1076 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -563,7 +563,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1077 ====
 [connection server_1_1]
 SAVEPOINT 3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1077 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1077 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1077 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -573,7 +573,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1078 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1078 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1078 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1078 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -583,7 +583,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1079 ====
 [connection server_1_1]
 SAVEPOINT 4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1079 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1079 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1079 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -593,7 +593,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1080 ====
 [connection server_1_1]
 ROLLBACK 3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1080 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1080 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1080 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -603,7 +603,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1081 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1081 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1081 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1081 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -613,7 +613,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1082 ====
 [connection server_1_1]
 SAVEPOINT 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1082 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1082 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1082 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -623,7 +623,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1083 ====
 [connection server_1_1]
 ROLLBACK 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1083 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1083 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1083 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -633,7 +633,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1084 ====
 [connection server_1_1]
 ROLLBACK 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1084 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1084 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
 include/assert.inc [#1084 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
@@ -643,7 +643,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1085 ====
 [connection server_1_1]
 ROLLBACK
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1085 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1085 @@SESSION.GTID_OWNED: '6:1' + '~6:1' = '']
 include/assert.inc [#1085 @@GLOBAL.GTID_OWNED: '6:1' + '~6:1' = '']
@@ -653,7 +653,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1090 ====
 [connection server_1_1]
 9:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1090 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
 include/assert.inc [#1090 @@SESSION.GTID_OWNED: '' + '9:1' = '9:1']
 include/assert.inc [#1090 @@GLOBAL.GTID_OWNED: '' + '9:1' = '9:1']
@@ -663,7 +663,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1091 ====
 [connection server_1_1]
 COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1091 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '9:1' = '1:1:3,2:3-4,4:1,9:1']
 include/assert.inc [#1091 @@SESSION.GTID_OWNED: '9:1' + '~9:1' = '']
 include/assert.inc [#1091 @@GLOBAL.GTID_OWNED: '9:1' + '~9:1' = '']
@@ -673,7 +673,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1100 ====
 [connection server_1_1]
 9:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1100 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
 include/assert.inc [#1100 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1100 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -683,7 +683,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1101 ====
 [connection server_1_1]
 COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1101 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
 include/assert.inc [#1101 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1101 @@GLOBAL.GTID_OWNED: '' + '' = '']
@@ -693,7 +693,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1110 ====
 [connection server_1_1]
 11:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1110 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
 include/assert.inc [#1110 @@SESSION.GTID_OWNED: '' + '11:1' = '11:1']
 include/assert.inc [#1110 @@GLOBAL.GTID_OWNED: '' + '11:1' = '11:1']
@@ -703,7 +703,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1111 ====
 [connection server_1_1]
 ROLLBACK
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1111 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
 include/assert.inc [#1111 @@SESSION.GTID_OWNED: '11:1' + '~11:1' = '']
 include/assert.inc [#1111 @@GLOBAL.GTID_OWNED: '11:1' + '~11:1' = '']
@@ -713,7 +713,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1120 ====
 [connection server_1_1]
 12:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1120 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
 include/assert.inc [#1120 @@SESSION.GTID_OWNED: '' + '12:1' = '12:1']
 include/assert.inc [#1120 @@GLOBAL.GTID_OWNED: '' + '12:1' = '12:1']
@@ -726,7 +726,7 @@ send 12:1
 ==== row-id = 1122 ====
 [connection server_1_1]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1122 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
 include/assert.inc [#1122 @@SESSION.GTID_OWNED: '12:1' + '' = '12:1']
 include/assert.inc [#1122 @@GLOBAL.GTID_OWNED: '12:1' + '' = '12:1']
@@ -736,7 +736,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1123 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1123 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
 include/assert.inc [#1123 @@SESSION.GTID_OWNED: '12:1' + '' = '12:1']
 include/assert.inc [#1123 @@GLOBAL.GTID_OWNED: '12:1' + '' = '12:1']
@@ -750,7 +750,7 @@ Checking that thread is still running query
 ==== row-id = 1125 ====
 [connection server_1_1]
 COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1125 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '12:1' = '1:1:3,2:3-4,4:1,9:1,12:1']
 include/assert.inc [#1125 @@SESSION.GTID_OWNED: '12:1' + '~12:1' = '']
 include/assert.inc [#1125 @@GLOBAL.GTID_OWNED: '12:1' + '~12:1' = '']
@@ -760,7 +760,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1126 ====
 [connection server_1_2]
 reap
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1126 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '12:1' = '1:1:3,2:3-4,4:1,9:1,12:1']
 include/assert.inc [#1126 @@SESSION.GTID_OWNED: '' + '' = '']
 include/assert.inc [#1126 @@GLOBAL.GTID_OWNED: '12:1' + '~12:1' = '']
@@ -770,7 +770,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1130 ====
 [connection server_1_1]
 13:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1130 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
 include/assert.inc [#1130 @@SESSION.GTID_OWNED: '' + '13:1' = '13:1']
 include/assert.inc [#1130 @@GLOBAL.GTID_OWNED: '' + '13:1' = '13:1']
@@ -783,7 +783,7 @@ send 13:1
 ==== row-id = 1132 ====
 [connection server_1_1]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1132 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
 include/assert.inc [#1132 @@SESSION.GTID_OWNED: '13:1' + '' = '13:1']
 include/assert.inc [#1132 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
@@ -793,7 +793,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1133 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1133 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
 include/assert.inc [#1133 @@SESSION.GTID_OWNED: '13:1' + '' = '13:1']
 include/assert.inc [#1133 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
@@ -807,7 +807,7 @@ Checking that thread is still running query
 ==== row-id = 1135 ====
 [connection server_1_1]
 ROLLBACK
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1135 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
 include/assert.inc [#1135 @@SESSION.GTID_OWNED: '13:1' + '~13:1' = '']
 include/assert.inc [#1135 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
@@ -817,7 +817,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1136 ====
 [connection server_1_2]
 reap
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1136 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
 include/assert.inc [#1136 @@SESSION.GTID_OWNED: '' + '13:1' = '13:1']
 include/assert.inc [#1136 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
@@ -827,7 +827,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1137 ====
 [connection server_1_2]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1137 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
 include/assert.inc [#1137 @@SESSION.GTID_OWNED: '13:1' + '' = '13:1']
 include/assert.inc [#1137 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
@@ -837,7 +837,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1138 ====
 [connection server_1_2]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1138 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
 include/assert.inc [#1138 @@SESSION.GTID_OWNED: '13:1' + '' = '13:1']
 include/assert.inc [#1138 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
@@ -847,7 +847,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1139 ====
 [connection server_1_2]
 COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1139 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '13:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1139 @@SESSION.GTID_OWNED: '13:1' + '~13:1' = '']
 include/assert.inc [#1139 @@GLOBAL.GTID_OWNED: '13:1' + '~13:1' = '']
@@ -857,7 +857,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1140 ====
 [connection server_1_1]
 14:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1140 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1140 @@SESSION.GTID_OWNED: '' + '14:1' = '14:1']
 include/assert.inc [#1140 @@GLOBAL.GTID_OWNED: '' + '14:1' = '14:1']
@@ -870,7 +870,7 @@ send 14:1
 ==== row-id = 1142 ====
 [connection server_1_1]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1142 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1142 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
 include/assert.inc [#1142 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -880,7 +880,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1143 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1143 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1143 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
 include/assert.inc [#1143 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -894,7 +894,7 @@ Checking that thread is still running query
 ==== row-id = 1145 ====
 [connection server_1_1]
 ROLLBACK
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1145 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1145 @@SESSION.GTID_OWNED: '14:1' + '~14:1' = '']
 include/assert.inc [#1145 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -904,7 +904,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1146 ====
 [connection server_1_2]
 reap
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1146 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1146 @@SESSION.GTID_OWNED: '' + '14:1' = '14:1']
 include/assert.inc [#1146 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -914,7 +914,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1147 ====
 [connection server_1_2]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1147 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1147 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
 include/assert.inc [#1147 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -924,7 +924,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1148 ====
 [connection server_1_2]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1148 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1148 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
 include/assert.inc [#1148 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -941,7 +941,7 @@ Checking that thread is still running query
 ==== row-id = 1151 ====
 [connection server_1_2]
 ROLLBACK
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1151 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1151 @@SESSION.GTID_OWNED: '14:1' + '~14:1' = '']
 include/assert.inc [#1151 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -951,7 +951,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1152 ====
 [connection server_1_3]
 reap
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1152 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1152 @@SESSION.GTID_OWNED: '' + '14:1' = '14:1']
 include/assert.inc [#1152 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -964,7 +964,7 @@ send 14:1
 ==== row-id = 1154 ====
 [connection server_1_3]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1154 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1154 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
 include/assert.inc [#1154 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -974,7 +974,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1155 ====
 [connection server_1_3]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1155 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1155 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
 include/assert.inc [#1155 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -988,7 +988,7 @@ Checking that thread is still running query
 ==== row-id = 1157 ====
 [connection server_1_3]
 ROLLBACK
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1157 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1157 @@SESSION.GTID_OWNED: '14:1' + '~14:1' = '']
 include/assert.inc [#1157 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -998,7 +998,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1158 ====
 [connection server_1_1]
 reap
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1158 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1158 @@SESSION.GTID_OWNED: '' + '14:1' = '14:1']
 include/assert.inc [#1158 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -1008,7 +1008,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1159 ====
 [connection server_1_1]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1159 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1159 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
 include/assert.inc [#1159 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -1018,7 +1018,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1160 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1160 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
 include/assert.inc [#1160 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
 include/assert.inc [#1160 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
@@ -1028,7 +1028,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1161 ====
 [connection server_1_1]
 COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1161 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '14:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1161 @@SESSION.GTID_OWNED: '14:1' + '~14:1' = '']
 include/assert.inc [#1161 @@GLOBAL.GTID_OWNED: '14:1' + '~14:1' = '']
@@ -1038,7 +1038,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1170 ====
 [connection server_1_1]
 17:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1170 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1170 @@SESSION.GTID_OWNED: '' + '17:1' = '17:1']
 include/assert.inc [#1170 @@GLOBAL.GTID_OWNED: '' + '17:1' = '17:1']
@@ -1051,7 +1051,7 @@ send 17:1
 ==== row-id = 1172 ====
 [connection server_1_1]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1172 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1172 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
 include/assert.inc [#1172 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
@@ -1061,7 +1061,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1173 ====
 [connection server_1_1]
 SAVEPOINT 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1173 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1173 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
 include/assert.inc [#1173 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
@@ -1071,7 +1071,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1174 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1174 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1174 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
 include/assert.inc [#1174 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
@@ -1081,7 +1081,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1175 ====
 [connection server_1_1]
 ROLLBACK 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1175 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1175 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
 include/assert.inc [#1175 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
@@ -1091,7 +1091,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1176 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1176 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1176 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
 include/assert.inc [#1176 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
@@ -1105,7 +1105,7 @@ Checking that thread is still running query
 ==== row-id = 1178 ====
 [connection server_1_1]
 ROLLBACK
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1178 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1178 @@SESSION.GTID_OWNED: '17:1' + '~17:1' = '']
 include/assert.inc [#1178 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
@@ -1115,7 +1115,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1179 ====
 [connection server_1_2]
 reap
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1179 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1179 @@SESSION.GTID_OWNED: '' + '17:1' = '17:1']
 include/assert.inc [#1179 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
@@ -1125,7 +1125,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1180 ====
 [connection server_1_2]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1180 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1180 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
 include/assert.inc [#1180 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
@@ -1135,7 +1135,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1181 ====
 [connection server_1_2]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1181 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
 include/assert.inc [#1181 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
 include/assert.inc [#1181 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
@@ -1145,7 +1145,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1182 ====
 [connection server_1_2]
 COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1182 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '17:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1182 @@SESSION.GTID_OWNED: '17:1' + '~17:1' = '']
 include/assert.inc [#1182 @@GLOBAL.GTID_OWNED: '17:1' + '~17:1' = '']
@@ -1155,7 +1155,7 @@ include/assert.inc [The first added event in the binlog should be a Gtid_log_eve
 ==== row-id = 1190 ====
 [connection server_1_1]
 19:1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1190 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1190 @@SESSION.GTID_OWNED: '' + '19:1' = '19:1']
 include/assert.inc [#1190 @@GLOBAL.GTID_OWNED: '' + '19:1' = '19:1']
@@ -1165,7 +1165,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1191 ====
 [connection server_1_1]
 BEGIN
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1191 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1191 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1191 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1175,7 +1175,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1192 ====
 [connection server_1_1]
 SAVEPOINT 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1192 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1192 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1192 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1185,7 +1185,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1193 ====
 [connection server_1_1]
 SAVEPOINT 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1193 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1193 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1193 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1195,7 +1195,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1194 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1194 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1194 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1194 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1205,7 +1205,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1195 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1195 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1195 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1195 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1215,7 +1215,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1196 ====
 [connection server_1_1]
 ROLLBACK 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1196 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1196 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1196 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1225,7 +1225,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1197 ====
 [connection server_1_1]
 SAVEPOINT 3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1197 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1197 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1197 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1235,7 +1235,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1198 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1198 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1198 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1198 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1245,7 +1245,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1199 ====
 [connection server_1_1]
 SAVEPOINT 4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1199 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1199 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1199 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1255,7 +1255,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1200 ====
 [connection server_1_1]
 ROLLBACK 3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1200 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1200 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1200 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1265,7 +1265,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1201 ====
 [connection server_1_1]
 INSERT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1201 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1201 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1201 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1275,7 +1275,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1202 ====
 [connection server_1_1]
 SAVEPOINT 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1202 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1202 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1202 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1285,7 +1285,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1203 ====
 [connection server_1_1]
 ROLLBACK 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1203 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1203 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1203 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1295,7 +1295,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1204 ====
 [connection server_1_1]
 ROLLBACK 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1204 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
 include/assert.inc [#1204 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
 include/assert.inc [#1204 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
@@ -1305,7 +1305,7 @@ include/assert.inc [Binlog position was not updated]
 ==== row-id = 1205 ====
 [connection server_1_1]
 COMMIT
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [#1205 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '19:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1,19:1']
 include/assert.inc [#1205 @@SESSION.GTID_OWNED: '19:1' + '~19:1' = '']
 include/assert.inc [#1205 @@GLOBAL.GTID_OWNED: '19:1' + '~19:1' = '']
@@ -1327,4 +1327,4 @@ DROP TABLE t1;
  DROP TABLE t_1021; DROP TABLE t_1023;;
 DROP TABLE stmts;
 DROP TABLE t;
-include/rpl_end.inc
+include/rpl/deinit.inc

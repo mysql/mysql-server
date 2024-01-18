@@ -47,7 +47,7 @@
 --echo #
 --let $rpl_privilege_checks_user = *:'u1'@'localhost'
 --let $rpl_privilege_checks_user_additional_grants = INSERT,CREATE,DROP
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 2) Set `binlog_row_image` to `MINIMAL`.
@@ -62,21 +62,21 @@ SET @@session.binlog_row_image = MINIMAL;
 --echo #
 --connection master
 CREATE TABLE test.t1 (a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 4) Add an extra column on the slave.
 --echo #
 ALTER TABLE test.t1 ADD COLUMN b INT;
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 
 --echo #
 --echo # 5) Make a DDL change on the master.
 --echo #
 --connection master
 INSERT INTO test.t1 VALUES (1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 6) Check tables have the same data on master and slave.
@@ -95,21 +95,21 @@ INSERT INTO test.t1 VALUES (1);
 --echo #
 --connection master
 CREATE TABLE test.t2 (a INT, b INT, c VARCHAR(50));
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 2) Remove the table last column on the slave.
 --echo #
 ALTER TABLE test.t2 DROP COLUMN c;
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 
 --echo #
 --echo # 3) Make a DDL change on the master.
 --echo #
 --connection master
 INSERT INTO test.t2 VALUES (1,1,"a string of characters");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 4) Check tables have the same data on master and slave.
@@ -126,4 +126,4 @@ INSERT INTO test.t2 VALUES (1,1,"a string of characters");
 --eval SET @@session.binlog_row_image = $session_binlog_row_image
 DROP TABLE t1;
 DROP TABLE t2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

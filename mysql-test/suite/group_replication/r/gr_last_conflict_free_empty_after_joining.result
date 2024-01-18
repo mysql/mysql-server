@@ -19,7 +19,7 @@ include/start_group_replication.inc
 
 [connection server1]
 CREATE TABLE t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 #########################################################################
 # 3) Verify that the LAST_CONFLICT_FREE_TRANSACTION field of the
@@ -130,7 +130,7 @@ SERVER3
 
 [connection server1]
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 #########################################################################
 # 9) Verify that everyone has a conflict free transaction executed
@@ -221,5 +221,5 @@ SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:2
 #########################################################################
 
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

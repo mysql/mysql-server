@@ -34,27 +34,27 @@
 --echo # a) Setup a 2 layered topology with the given topology 1->2
 
 --let $rpl_topology = 1->2
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL replication_sender_observe_commit_only = 1
 --eval SET GLOBAL replication_optimize_for_static_plugin_config = 1
 CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
 CALL mtr.add_suppression("Read semi-sync reply magic number error.*");
 CALL mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached.*");
 CALL mtr.add_suppression("Timeout waiting for reply of binlog.*");
---source include/install_semisync_source.inc
+--source include/rpl/install_semisync_source.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
---source include/install_semisync_replica.inc
+--source include/connection.inc
+--source include/rpl/install_semisync_replica.inc
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped.*");
 
 --echo # b) Ensure that replication_sender_observe_commit_only is turned on
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $current_observe_commit_only= `SELECT @@GLOBAL.replication_sender_observe_commit_only`
 --echo # replication_sender_observe_commit_only: $current_observe_commit_only
 
@@ -72,17 +72,17 @@ CREATE TABLE t (a int);
 --echo # 3. Issue the replica restart while the source is running statements
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_server_parameters= --skip_slave_start=0 --rpl_semi_sync_replica_enabled=1
 --let $rpl_server_number=2
 --let $rpl_start_with_gtids= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo # 4. Sanity check - check whether semi-sync replication was correctly restarted
 
---source include/check_slave_is_running.inc
---source include/check_slave_no_error.inc
+--source include/rpl/assert_replica_running.inc
+--source include/rpl/assert_replica_no_error.inc
 --let $assert_text= Semi sync should be enabled on the replica
 --let $assert_variable_name= rpl_semi_sync_replica_enabled
 --let $assert_variable_value= 1
@@ -91,7 +91,7 @@ CREATE TABLE t (a int);
 --echo # 5. Wait for source to finish the execution of statements
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=$iters FROM t
 --let $wait_timeout= 120
 --source include/wait_condition.inc
@@ -99,9 +99,9 @@ CREATE TABLE t (a int);
 --echo # 6. Wait for replica to catch-up with latest changes
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $slave_timeout=600
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo # 7. Check whether the replica replicated table correctly
 
@@ -111,13 +111,13 @@ CREATE TABLE t (a int);
 --echo # 8. Clean up
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
---source include/uninstall_semisync_replica.inc
+--source include/connection.inc
+--source include/rpl/uninstall_semisync_replica.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL replication_sender_observe_commit_only = OFF
 --eval SET GLOBAL replication_optimize_for_static_plugin_config = OFF
---source include/uninstall_semisync_source.inc
+--source include/rpl/uninstall_semisync_source.inc
 DROP TABLE t;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

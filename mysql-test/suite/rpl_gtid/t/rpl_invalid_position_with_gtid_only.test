@@ -27,7 +27,7 @@
 
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Setup:
@@ -35,7 +35,7 @@
 --echo #     Add some data in the source and replicate it
 --echo #     Restart the replica but don't start replication
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Reduce this to a minimum
 --let $replica_checkpoint_period_value = `SELECT @@global.replica_checkpoint_period`
@@ -43,18 +43,18 @@ SET @@GLOBAL.replica_checkpoint_period= 1;
 
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $assert_text= 'GTID_ONLY is enabled'
 --let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 1
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t(s INT);
 INSERT INTO t VALUES(1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $source_log_file_orig=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Source_Log_File, 1)
 --let $source_log_pos_orig=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
@@ -62,7 +62,7 @@ INSERT INTO t VALUES(1);
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_slave_start
 --let $explicit_default_wait_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo #
 --echo # 2 Assert all invalid positions in SHOW REPLICA STATUS are shown as such
@@ -91,7 +91,7 @@ INSERT INTO t VALUES(1);
 --echo # 3 Start the replica IO thread.
 --echo #   Check receiver positions are now valid
 
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 --let $show_statement= SHOW REPLICA STATUS FOR CHANNEL ''
 --let $field= Source_Log_File
@@ -115,22 +115,22 @@ INSERT INTO t VALUES(1);
 # Reduce this to a minimum again after the restart
 SET @@GLOBAL.replica_checkpoint_period= 1;
 
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # In truth a simple rotate or already skipped transaction in the relay log
 # turns the positions valid again.
 INSERT INTO t VALUES(2);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $log_file_on_source=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $log_pos_on_source=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Relay log is only updated on checkpoint points
 --let $show_statement= SHOW REPLICA STATUS FOR CHANNEL ''
@@ -163,14 +163,14 @@ INSERT INTO t VALUES(2);
 --replace_result $replica_checkpoint_period_value REPLICA_CHECKPOINT_PERIOD
 --eval SET @@GLOBAL.replica_checkpoint_period= $replica_checkpoint_period_value
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

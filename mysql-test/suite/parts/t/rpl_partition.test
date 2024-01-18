@@ -1,7 +1,7 @@
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --vertical_results
 
@@ -16,13 +16,13 @@ select @@global.binlog_format, @@session.binlog_format;
 connection slave;
 set @old_global_binlog_format=  @@global.binlog_format;
 set @old_session_binlog_format=  @@session.binlog_format;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL binlog_format = 'ROW';
 SET SESSION binlog_format = 'ROW';
 select @@global.binlog_format, @@session.binlog_format;
 # start replica so that slave sql thread's binlog format is re-read
 # from @@global.binlog_format
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --echo [on master]
 connection master;
 
@@ -150,7 +150,7 @@ SELECT count(*) as "Master byrange" FROM t3;
 --sync_slave_with_master
 connection slave;
 show create table t3; 
---source include/check_slave_is_running.inc
+--source include/rpl/assert_replica_running.inc
 SELECT count(*) "Slave norm" FROM t1;
 SELECT count(*) "Slave bykey" FROM t2;
 SELECT count(*) "Slave byrange" FROM t3;
@@ -164,10 +164,10 @@ DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 --echo [on slave]
 sync_slave_with_master;
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 set @@global.binlog_format=  @old_global_binlog_format;
 set @@session.binlog_format=  @old_session_binlog_format;
 
 # End of 5.1 tests
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -23,7 +23,7 @@ include/assert.inc ['There should be 1 entry corresponding to the Gcs_message_da
 #    finished.
 [connection server1]
 CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=innodb;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_1]
 SET @@GLOBAL.DEBUG= '+d,group_replication_before_message_broadcast';
 BEGIN;

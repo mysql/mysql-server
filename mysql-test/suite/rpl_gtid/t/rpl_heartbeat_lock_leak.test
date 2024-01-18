@@ -26,20 +26,20 @@
 # 
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --source include/have_debug.inc
 
 CREATE TABLE t(s INT);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t VALUES(10);
 INSERT INTO t VALUES(12);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Unexpected source's heartbeat data");
 CALL mtr.add_suppression("Relay log write failure");
 
@@ -50,7 +50,7 @@ START REPLICA IO_THREAD;
 
 --let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
 --let $show_slave_io_error= 1
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $debug_point= fail_heartbeat_event_lock_leak_testing
 --source include/remove_debug_point.inc
@@ -58,13 +58,13 @@ START REPLICA IO_THREAD;
 RESET REPLICA;
 START REPLICA;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t, slave:t
 --source include/diff_tables.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

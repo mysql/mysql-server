@@ -1,7 +1,7 @@
 --source include/no_valgrind_without_big.inc
 # Skipping the test when binlog_format=STATEMENT due to unsafe statements:
 # unsafe system function like rand(), LIMIT clause.
---source include/not_binlog_format_statement.inc
+--source include/rpl/deprecated/not_binlog_format_statement.inc
 
 #
 # Run subquery_sj.inc with semijoin and turn off all strategies, but Materialization

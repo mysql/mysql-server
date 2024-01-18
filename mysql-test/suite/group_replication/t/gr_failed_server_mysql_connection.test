@@ -27,22 +27,22 @@
 --echo #######
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 call mtr.add_suppression(".*Failed to accept a MySQL connection for Group Replication. Group Replication plugin has an ongoing exclusive operation, like START, STOP or FORCE MEMBERS.*");
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
---source include/disable_binlog.inc
+--source include/connection.inc
+--source include/rpl/disable_binlog.inc
 call mtr.add_suppression("Timeout on wait for view after joining group");
 call mtr.add_suppression("Timeout while waiting for the group communication engine to be ready!");
 call mtr.add_suppression("The group communication engine is not ready for the member to join. Local port: *.*");
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
 call mtr.add_suppression("Error connecting to all peers. Member join failed. Local port: *.*");
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 
 --echo #
 --echo # 2. Enable fail_incoming_connection_ongoing_operation and try to
@@ -51,13 +51,13 @@ call mtr.add_suppression("Error connecting to all peers. Member join failed. Loc
 --echo #######
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point = fail_incoming_connection_ongoing_operation
 --source include/add_debug_point.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #
 --echo # 3. Join M2 will fail. Assert that the error message exists
@@ -72,7 +72,7 @@ call mtr.add_suppression("Error connecting to all peers. Member join failed. Loc
 START GROUP_REPLICATION;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Failed to accept a MySQL connection for Group Replication. Group Replication plugin has an ongoing exclusive operation, like START, STOP or FORCE MEMBERS.'
 --let $assert_cond= "[SELECT COUNT(*) as count FROM performance_schema.error_log WHERE error_code=\'MY-015027\' AND data LIKE \"%Failed to accept a MySQL connection for Group Replication%\", count, 1]" >= "1"
@@ -84,12 +84,12 @@ START GROUP_REPLICATION;
 --echo #######
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --send START GROUP_REPLICATION;
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #
 --echo # 5. Sleep for 10 seconds and then clear
@@ -106,7 +106,7 @@ START GROUP_REPLICATION;
 --echo #
 --echo #######
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
@@ -116,7 +116,7 @@ START GROUP_REPLICATION;
 --echo ######
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/group_replication_end.inc
 

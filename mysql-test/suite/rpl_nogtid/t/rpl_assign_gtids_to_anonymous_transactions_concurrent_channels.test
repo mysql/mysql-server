@@ -41,7 +41,7 @@
 --let $rpl_topology = 1->3, 2->3
 --let $rpl_multi_source = 1
 --let $rpl_skip_start_slave = 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --echo ==== INITIALIZE ====
 
@@ -59,7 +59,7 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL FOR 
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL FOR CHANNEL 'channel_2';
 
 # Start receiver on replica.
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 # Procedure and table definitions.
 --delimiter |
@@ -96,17 +96,17 @@ send CALL workload();
 --reap
 --let $sync_slave_connection = server_3_1
 --let $rpl_channel_name = 'channel_1'
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 --connection server_2
 --reap
 --let $sync_slave_connection = server_3_1
 --let $rpl_channel_name = 'channel_2'
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 --echo # Start applying from both channels.
 --let $rpl_channel_name =
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --echo # Concurrently, execute the same workload on replica.
 CALL workload();
@@ -138,7 +138,7 @@ eval $cleanup;
 --connection server_3
 eval $cleanup;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL 'channel_1';
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL 'channel_2';
 SET @@global.gtid_mode = ON_PERMISSIVE;
@@ -147,4 +147,4 @@ SET @@global.gtid_mode = OFF;
 SET @@global.enforce_gtid_consistency = OFF;
 
 --let $rpl_skip_sync = 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -29,7 +29,7 @@ if (`SELECT "$binlog" != "ON"`)
 RESET BINARY LOGS AND GTIDS;
 --enable_query_log
 
-# Following code 'inspired' by include/wait_for_binlog_event.inc
+# Following code 'inspired' by include/rpl/wait_for_binlog_event.inc
 
 --let $wait_binlog_event=drop table
 

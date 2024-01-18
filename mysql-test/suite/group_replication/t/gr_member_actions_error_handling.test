@@ -16,7 +16,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Unable to disable super read only flag. Try to disable it manually");
 call mtr.add_suppression("The member action \"mysql_disable_super_read_only_if_primary\" for event \"AFTER_PRIMARY_ELECTION\" with priority \"1\" failed, this error is ignored as instructed. Please check previous messages in the error log for hints about*");
@@ -33,7 +33,7 @@ SET SESSION sql_log_bin = 1;
 --echo # 1. Inject a failure into `mysql_disable_super_read_only_if_primary`
 --echo #    execution.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,group_replication_force_error_on_mysql_disable_super_read_only_if_primary';
 --source include/start_and_bootstrap_group_replication.inc
@@ -54,7 +54,7 @@ SET @@GLOBAL.DEBUG='-d,group_replication_force_error_on_mysql_disable_super_read
 --echo # 2. Inject a failure into `mysql_disable_super_read_only_if_primary`
 --echo #    execution, while also forcing the error handling to "CRITICAL".
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,group_replication_force_error_on_mysql_disable_super_read_only_if_primary';
 SET @@GLOBAL.DEBUG='+d,group_replication_force_action_error_handling_critical';

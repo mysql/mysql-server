@@ -22,7 +22,7 @@
 --let $rpl_topology=1->2,3->2
 --let $rpl_multi_source= 1
 --let $rpl_skip_start_slave= 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $delay_1= 5
 --let $delay_2= 8
@@ -30,15 +30,15 @@
 --let $slave_sleep_2= 2
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY= $delay_1 for channel 'channel_1';
 --let $rpl_channel_name= 'channel_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY= $delay_2 for channel 'channel_3';
 --let $rpl_channel_name= 'channel_3'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $master= server_1
 --let $slave= server_2
@@ -46,23 +46,23 @@
 --let $slave_sleep= $slave_sleep_1
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (a INT);
 --let $trx_num= 1
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 INSERT INTO t1 VALUES (1);
 --let $trx_num= 2
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 UPDATE t1 SET a=2;
 --let $trx_num= 3
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 DELETE FROM t1 WHERE a=2;
 --let $trx_num= 4
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 START TRANSACTION;
 INSERT INTO t1 VALUES (1);
@@ -70,11 +70,11 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 COMMIT;
 --let $trx_num= 5
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 DROP TABLE t1;
 --let $trx_num= 6
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 
 #Do the transactions on the second master server_3
@@ -85,23 +85,23 @@ DROP TABLE t1;
 --let $slave_sleep= $slave_sleep_2
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t2 (a INT);
 --let $trx_num= 1
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 INSERT INTO t2 VALUES (1);
 --let $trx_num= 2
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 UPDATE t2 SET a=2;
 --let $trx_num= 3
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 DELETE FROM t2 WHERE a=2;
 --let $trx_num= 4
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 START TRANSACTION;
 INSERT INTO t2 VALUES (1);
@@ -109,21 +109,21 @@ INSERT INTO t2 VALUES (2);
 INSERT INTO t2 VALUES (3);
 COMMIT;
 --let $trx_num= 5
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 DROP TABLE t2;
 --let $trx_num= 6
---source extra/rpl_tests/check_slave_delay_multi_source.inc
+--source common/rpl/check_replica_delay_multi_source.inc
 
 # Cleanup
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name=
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0 For channel 'channel_1';
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0 For channel 'channel_3';
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,7 +13,7 @@ col1	!hidden!functional_index!0!0
 -12	12
 SET SESSION debug="-d,show_hidden_columns";
 # Sync slave with master, and verify that the table exists on the slave.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Show the hidden columns so we can see that the computed value is
 # reflected on the slave.
 SET SESSION debug="+d,show_hidden_columns";
@@ -42,7 +42,7 @@ SET @start_row_image_value= @@session.binlog_row_image;
 SET @@session.binlog_row_image= MINIMAL;
 CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
 INSERT INTO t1 VALUES (-12);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Show the hidden columns so we can see that the computed value is
 # reflected on the slave.
 SET SESSION debug="+d,show_hidden_columns";
@@ -67,7 +67,7 @@ DROP TABLE t1;
 SET @@session.binlog_row_image= noblob;
 CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
 INSERT INTO t1 VALUES (-12);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Show the hidden columns so we can see that the computed value is
 # reflected on the slave.
 SET SESSION debug="+d,show_hidden_columns";
@@ -95,7 +95,7 @@ SET @@session.binlog_row_image= @start_row_image_value;
 #              ON SLAVE.
 #
 CREATE TABLE t1 (col1 INT, UNIQUE INDEX idx ((col1 + col1)));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t1 (col1) VALUES (1);
 [connection master]
 call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Write_rows event on table test.t1");
@@ -103,7 +103,7 @@ call mtr.add_suppression("Replica SQL for channel '': .*Error 'Duplicate entry '
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 INSERT INTO t1 (col1) VALUES (1), (2);
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=1062]
+include/rpl/wait_for_applier_error.inc [errno=1062]
 DELETE FROM t1;
 START REPLICA;
 [connection master]
@@ -114,7 +114,7 @@ col1
 2
 3
 4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT col1 FROM t1;
 col1
 1
@@ -131,7 +131,7 @@ CREATE TABLE t(a INT, b INT, UNIQUE INDEX c ((a + b)));
 INSERT INTO t VALUES (1, 2);
 INSERT INTO t VALUES (2, 3);
 INSERT INTO t VALUES (3, 4);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT a, b FROM t;
 a	b
 1	2
@@ -165,7 +165,7 @@ a	b
 3	5
 4	2
 2	7
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT a, b FROM t;
 a	b
 3	5
@@ -184,11 +184,11 @@ DROP TABLE t;
 #              N_BITS' FAILED ON SLAVE
 #
 CREATE TABLE t(a INT, b INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ALTER TABLE t ADD UNIQUE INDEX i ((a + b));
 [connection master]
 INSERT INTO t VALUES (1, 2);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT a, b FROM t;
 a	b
 1	2
@@ -213,7 +213,7 @@ CREATE TABLE t (a INT, b INT, INDEX ((a+1)));
 SET @@session.sql_log_bin = 1;
 [connection master]
 INSERT INTO t VALUES (1, 2);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:test.t,slave:test.t]
 [connection master]
 DROP TABLE t;
@@ -229,8 +229,8 @@ KEY comp ((CAST(c1 AS UNSIGNED ARRAY)))
 ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1,'[1046, 2995]',1);
 UPDATE t1 SET c2=2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Table t1 was updated]
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

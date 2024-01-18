@@ -15,7 +15,7 @@
 #     Skip reset both super_read_only and read_only variables.
 #
 #   $rpl_debug
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 
 --let $include_filename= assert_and_disable_read_only.inc
 --source include/begin_include_file.inc

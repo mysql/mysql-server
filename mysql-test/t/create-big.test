@@ -12,7 +12,7 @@
 --source include/have_debug_sync.inc
 # Some of tests below also use binlog to check that statements are
 # executed and logged in correct order
---source include/force_binlog_format_statement.inc
+--source include/rpl/force_binlog_format_statement.inc
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
@@ -472,7 +472,7 @@ connection default;
 show create table t2;
 drop table t2;
 # Let us check that statements were executed/binlogged in correct order
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 # Now check the gap between table creation and binlogging
 create table t1 (i int);
@@ -536,7 +536,7 @@ disconnect addconroot2;
 disconnect addconroot3;
 
 set debug_sync='RESET';
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 
 --echo #
@@ -662,4 +662,4 @@ DROP TABLE t1;
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

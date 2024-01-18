@@ -24,7 +24,7 @@
 --echo # the admin-port as the donor port.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_default_report_port= `SELECT @@GLOBAL.report_port`
 
@@ -36,9 +36,9 @@
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_admin_port ADMIN_PORT
 --source include/restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # create a user for replication that requires ssl encryption
 set session sql_log_bin=0;
@@ -65,7 +65,7 @@ INSERT INTO t1 VALUES (1);
 --echo # Configure a joining member to use SSL options on recovery and start it
 --echo #
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $conf_rec_use_ssl= `SELECT @@GLOBAL.group_replication_recovery_use_ssl;`
 --let $conf_rec_ssl_ca= `SELECT @@GLOBAL.group_replication_recovery_ssl_ca;`
 --let $conf_rec_ssl_cert= `SELECT @@GLOBAL.group_replication_recovery_ssl_cert;`
@@ -105,7 +105,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_repli
 --enable_query_log
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 DROP USER 'rec_ssl_user';
@@ -121,8 +121,8 @@ DROP TABLE t1;
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_default_report_port ADMIN_PORT
 --source include/restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --source include/group_replication_end.inc

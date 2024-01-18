@@ -1,6 +1,6 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # 
 # Testing replication of sql_require_primary_key system variable
@@ -9,7 +9,7 @@
 
 # Create a table without pk on master
 CREATE TABLE t1 (c1 INT, c2 TEXT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Assert that table was replicated to the slave
 SHOW CREATE TABLE t1;
@@ -19,8 +19,8 @@ SHOW CREATE TABLE t1;
 CREATE TABLE t2 (c1 INT, c2 TEXT);
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Cleanup
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

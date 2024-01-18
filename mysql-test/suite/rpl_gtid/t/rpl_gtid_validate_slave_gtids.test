@@ -17,7 +17,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Step-1) Master wants to set 1 and 2 GTIDs in GTID_PURGED
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
@@ -46,7 +46,7 @@ START REPLICA IO_THREAD;
 --let $slave_io_errno= 13114
 --let $show_slave_io_error= 1
 --let $slave_io_error_replace= /$master_uuid/MASTER_UUID/
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 # Fix the problem by setting GTID_PURGED on Slave as well.
 --replace_result $master_uuid master_uuid
@@ -55,9 +55,9 @@ START REPLICA IO_THREAD;
 # Now start replica threads. Slave will ask Master to send all GTIDs
 # except GTID:1-2 which should not be a problem and should not throw
 # any errors.
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= Slave should be able to get GTID-3 and 4 now.
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5"
@@ -96,7 +96,7 @@ START REPLICA IO_THREAD;
 
 # Cleanup from the next test script
 --connection master
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 # Step-1) Execute some sample gtid transactions on Master
 CREATE TABLE t1(i INT);
@@ -104,7 +104,7 @@ DROP TABLE t1;
 
 # Step-2) Let it reach Slave.
 --sync_slave_with_master
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # Step-3) Fake raid failure( by manually deleting binary log file)
 --connection master
@@ -117,7 +117,7 @@ DELETE FROM mysql.gtid_executed;
 
 # Step-4) Restart Master, thus removing those gtids from executed gtid set.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 # Step-5) Restart replica's I/O thread, Slave sends its gtids which are purged on Master
 --connection slave
 START REPLICA IO_THREAD;
@@ -126,7 +126,7 @@ START REPLICA IO_THREAD;
 --let $slave_io_errno=13114
 #convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
 --let $show_slave_io_error= 1
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 call mtr.add_suppression(".*Replica has more GTIDs than the source has.*");
 
 # Step-7) Verify that situation is recovered back normal after setting GTID_PURGED
@@ -137,7 +137,7 @@ call mtr.add_suppression(".*Replica has more GTIDs than the source has.*");
 --eval SET GLOBAL GTID_PURGED= "$master_uuid:1-2"
 
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Cleanup
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -21,8 +21,8 @@
 # WL#15755: MAKE SQL_AFTER_GTIDS WORK WITH MTS
 #
 
---source include/only_mts_replica_parallel_workers.inc
---source include/master-slave.inc
+--source include/have_replica_parallel_workers.inc
+--source include/rpl/init_source_replica.inc
 
 --let $option_name = replica_parallel_workers
 --let $option_operator = >
@@ -31,8 +31,8 @@
 
 --let $source_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 CREATE TABLE t1(c1 INTEGER PRIMARY KEY) ENGINE= Innodb;
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 --let $replica_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -40,7 +40,7 @@ CREATE TABLE t1(c1 INTEGER PRIMARY KEY) ENGINE= Innodb;
 --echo ##############################################################
 --echo # 1. REPLICATE ALL SOURCE DATA
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $i=2
 while ($i != 5)
@@ -49,7 +49,7 @@ while ($i != 5)
   --inc $i
 }
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 CREATE TABLE t2(c1 INTEGER PRIMARY KEY) ENGINE= Innodb;
 --let $i=2
@@ -61,7 +61,7 @@ while ($i != 5)
 
 --replace_result $source_uuid SOURCE_UUID $replica_uuid REPLICA_UUID
 --eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:1-4,$replica_uuid:1-4"
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $assert_cond= COUNT(*)=3 FROM t1
 --let $assert_text= 3 rows in t1 must be replicated now
@@ -75,11 +75,11 @@ while ($i != 5)
 --echo ##############################################################
 --echo # 2. DATA IS ALREADY PRESENT
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $source_uuid SOURCE_UUID $replica_uuid REPLICA_UUID
 --eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:1-2,$replica_uuid:1-2"
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $assert_cond= COUNT(*)=3 FROM t1
 --let $assert_text= 3 rows in t1 must be replicated now
@@ -93,7 +93,7 @@ while ($i != 5)
 --echo ##############################################################
 --echo # 3. REPLICATE SUBSET OF SOURCE DATA WAITING ON A SINGLE GTID
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $i=5
 while ($i != 9)
@@ -102,7 +102,7 @@ while ($i != 9)
   --inc $i
 }
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $i=5
 while ($i != 9)
@@ -114,7 +114,7 @@ while ($i != 9)
 # Note: Transaction GTID:8 is not replicated
 --replace_result $source_uuid SOURCE_UUID $replica_uuid REPLICA_UUID
 --eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:7,$replica_uuid:7"
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $assert_cond= COUNT(*)>=6 FROM t1
 --let $assert_text= Atleast 6 rows in t1 must be replicated now
@@ -129,17 +129,17 @@ while ($i != 9)
 --echo ##############################################################
 --echo # 4. REPLICATE SUBSET OF SOURCE DATA WAITING WITH ALREADY KNOW GTIDS
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES(9);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 INSERT INTO t2 VALUES(9);
 
 --replace_result $source_uuid SOURCE_UUID $replica_uuid REPLICA_UUID
 --eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:1-8,$replica_uuid:1-8"
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $assert_cond= COUNT(*)>=7 FROM t1
 --let $assert_text= Atleast 7 rows in t1 must be replicated now
@@ -154,23 +154,23 @@ INSERT INTO t2 VALUES(9);
 --echo ##############################################################
 --echo # 5. REPLICATE MISSING SOURCE DATA WAITING WITH ALREADY KNOW GTIDS
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $source_uuid SOURCE_UUID $replica_uuid REPLICA_UUID
 --eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:1-10,$replica_uuid:1-10"
 
 # Channel is still running since all GTIDs have not been received.
---source include/check_slave_is_running.inc
+--source include/rpl/assert_replica_running.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES(10);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 INSERT INTO t2 VALUES(10);
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $assert_cond= COUNT(*)=9 FROM t1
 --let $assert_text= 9 rows in t1 must be replicated now
@@ -184,23 +184,23 @@ INSERT INTO t2 VALUES(10);
 --echo ##############################################################
 --echo # 6. REPLICATE MISSING SOURCE DATA WAITING ON A SINGLE GTID
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $source_uuid SOURCE_UUID $replica_uuid REPLICA_UUID
 --eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:11,$replica_uuid:11"
 
 # Channel is still running since all GTIDs have not been received.
---source include/check_slave_is_running.inc
+--source include/rpl/assert_replica_running.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t1 VALUES(11);
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 INSERT INTO t2 VALUES(11);
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $assert_cond= COUNT(*)=10 FROM t1
 --let $assert_text= 10 rows in t1 must be replicated now
@@ -214,12 +214,12 @@ INSERT INTO t2 VALUES(11);
 --echo ##############################################################
 --echo # 7. REPLICATE UUID NOT PRESENT WITH DATA INCOMING
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $source_uuid SOURCE_UUID $replica_uuid REPLICA_UUID
 --eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:20,$replica_uuid:20"
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $i=12
 while ($i != 16)
@@ -228,18 +228,18 @@ while ($i != 16)
   --inc $i
 }
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $assert_cond= COUNT(*)=14 FROM t1
 --let $assert_text= 14 rows in t1 must be replicated now
 --source include/assert.inc
 
 # Channel is still running since all GTIDs have not been received.
---source include/check_slave_is_running.inc
+--source include/rpl/assert_replica_running.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $i=16
 while ($i != 21)
@@ -248,7 +248,7 @@ while ($i != 21)
   --inc $i
 }
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $i=12
 while ($i != 21)
@@ -257,7 +257,7 @@ while ($i != 21)
   --inc $i
 }
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $assert_cond= COUNT(*)=19 FROM t1
 --let $assert_text= 19 rows in t1 must be replicated now
@@ -271,9 +271,9 @@ while ($i != 21)
 --echo ##############################################################
 --echo # 8. Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 DROP TABLE t2;
---source include/start_slave_sql.inc
---source include/rpl_end.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/deinit.inc

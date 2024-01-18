@@ -9,14 +9,14 @@
 source include/have_binlog_format_row.inc;
 source include/force_myisam_default.inc;
 source include/have_myisam.inc;
-source include/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
 let $rpl_privilege_checks_user_grant_option = 1;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 
 LET $ENGINE_TYPE= MyISAM;
-source extra/rpl_tests/rpl_tmp_table_and_DDL.test;
---source include/sync_slave_sql_with_master.inc
+source common/rpl/rpl_tmp_table_and_DDL.test;
+--source include/rpl/sync_to_replica.inc
 
 #
 # BUG#20574550
@@ -55,4 +55,4 @@ CREATE TABLE t2 LIKE temp_t2;
 --connection master
 DROP TEMPORARY TABLE temp_t2;
 DROP TABLE t2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

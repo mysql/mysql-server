@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,20 +12,20 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1']
 
 ############################################################
 # 2. Stop IO thread
 #    Verify that SQL thread is running
 #    It will be allowed.
-include/stop_slave_io.inc [FOR CHANNEL 'ch1']
+include/rpl/stop_receiver.inc [FOR CHANNEL 'ch1']
 include/assert.inc [Verify replica_monitor thread is not running]
 include/assert.inc [Verify replica SQL thread is running]
 
 ############################################################
 # 3. Clean up.
-include/stop_slave_sql.inc [FOR CHANNEL 'ch1']
-include/rpl_reset_slave.inc
-include/rpl_end.inc
+include/rpl/stop_applier.inc [FOR CHANNEL 'ch1']
+include/rpl/reset_replica.inc
+include/rpl/deinit.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.

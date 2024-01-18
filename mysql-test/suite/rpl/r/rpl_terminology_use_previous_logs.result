@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -25,14 +25,14 @@ Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a
 TRUNCATE mysql.slow_log;
 * Pause source during REGISTER REPLICA to make it go to slow log
 [connection slave]
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 # Adding debug point 'syncpoint_begin_register_replica' to @@GLOBAL.debug
 START REPLICA IO_THREAD;
 SET @@session.debug_sync = "now WAIT_FOR reached_begin_register_replica";
 * Sleep 2 seconds
 * Allow REGISTER REPLICA to finish
 SET @@session.debug_sync = "now SIGNAL continue_begin_register_replica";
-include/wait_for_slave_io_to_start.inc
+include/rpl/wait_for_receiver_to_start.inc
 * Verify the logs contain the correct term, and not the incorrect one
 include/assert.inc [Slow log should contain "Register Replica"]
 include/assert.inc [Slow log should not contain "no_Register Replica"]
@@ -50,14 +50,14 @@ Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a
 TRUNCATE mysql.slow_log;
 * Pause source during REGISTER REPLICA to make it go to slow log
 [connection slave]
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 # Adding debug point 'syncpoint_begin_register_replica' to @@GLOBAL.debug
 START REPLICA IO_THREAD;
 SET @@session.debug_sync = "now WAIT_FOR reached_begin_register_replica";
 * Sleep 2 seconds
 * Allow REGISTER REPLICA to finish
 SET @@session.debug_sync = "now SIGNAL continue_begin_register_replica";
-include/wait_for_slave_io_to_start.inc
+include/rpl/wait_for_receiver_to_start.inc
 * Verify the logs contain the correct term, and not the incorrect one
 include/assert.inc [Slow log should contain "Register Slave"]
 include/assert.inc [Slow log should not contain "no_Register Slave"]
@@ -71,4 +71,4 @@ SET @@global.terminology_use_previous = @save_terminology_use_previous;
 Warnings:
 Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
 # Removing debug point 'syncpoint_begin_register_replica' from @@GLOBAL.debug
-include/rpl_end.inc
+include/rpl/deinit.inc

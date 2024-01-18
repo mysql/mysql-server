@@ -2,7 +2,7 @@
 # Set up replication topology: 4 sources (id: 1,3,4,5) and
 # 1 replica (id: 2)
 
-include/rpl_init.inc [topology=1->2, 3->2, 4->2, 5->2]
+include/rpl/init.inc [topology=1->2, 3->2, 4->2, 5->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -87,18 +87,18 @@ INSERT INTO t5 VALUES (5);
 # Connect to the replica and start replication threads
 
 [connection server_2]
-include/start_slave.inc
+include/rpl/start_replica.inc
 
 # Synchronizing servers
 
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_3]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_4]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_5]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_2]
 
 # Checking GTID executed set on the replica
@@ -135,19 +135,19 @@ include/assert.inc [Ensure that transactions originated from server 5, tagged wi
 
 [connection server_1]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_3]
 DROP TABLE t3;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_4]
 SET GTID_NEXT='AUTOMATIC';
 DROP TABLE t4;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_5]
 SET GTID_NEXT='AUTOMATIC';
 DROP TABLE t5;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 RESET REPLICA ALL FOR CHANNEL 'channel_3';
 RESET REPLICA ALL FOR CHANNEL 'channel_4';

@@ -17,7 +17,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $saved_super_read_only= `SELECT @@GLOBAL.super_read_only`
 --let $saved_read_only= `SELECT @@GLOBAL.read_only`

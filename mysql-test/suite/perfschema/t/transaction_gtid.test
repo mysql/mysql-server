@@ -55,7 +55,7 @@
 --source include/have_log_bin.inc
 --let $rpl_topology= none
 --let $rpl_server_count= 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --echo ==== Configure ====
 
@@ -89,7 +89,7 @@ while ($n <= 6) {
   }
   if ($n == 3) {
     --let $rpl_gtid_mode= ON
-    --source include/rpl_set_gtid_mode.inc
+    --source include/rpl/set_gtid_mode.inc
     --echo ---- Case 3: Specify GTID prior to transaction ----
     --let $gtid= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1
   }
@@ -199,7 +199,7 @@ DROP TABLE t1;
 # DROP TABLE t_1, t_2, t_3, t_4;
 
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

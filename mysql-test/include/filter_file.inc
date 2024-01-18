@@ -5,7 +5,7 @@
 #
 # This is useful in conjunction with include/write_result_to_file.inc
 # and cat_file or include/read_file_to_var.inc.  See
-# e.g. include/show_events.inc for an example.
+# e.g. include/rpl/deprecated/show_events.inc for an example.
 #
 # ==== Usage ====
 #

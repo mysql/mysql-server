@@ -4,7 +4,7 @@
 
 # Requires statement logging
 -- source include/have_binlog_format_mixed_or_statement.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 --disable_result_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -26,10 +26,10 @@ create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break replica'),('Tried hard');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 let $status_items= Source_Log_File, Relay_Source_Log_File;
-source include/show_slave_status.inc;
-source include/check_slave_is_running.inc;
+source include/rpl/deprecated/show_replica_status.inc;
+source include/rpl/assert_replica_running.inc;
 
 --let $assert_text= Table t1 should contain the first inserted line
 --let $query_result= query_get_value(select * from t1, "s", 1)
@@ -46,10 +46,10 @@ flush logs;
 create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
 flush logs;
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 create table t3 select * from temp_table;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $query_result= query_get_value(select * from t3, "a", 1)
 --let $assert_text= Data in t3 should be equal to temp_table
@@ -65,7 +65,7 @@ drop table temp_table, t3;
 
 # First insert a value on the replica
 #connection slave;
-source include/sync_slave_sql_with_master.inc;
+source include/rpl/sync_to_replica.inc;
 insert into t2 values(1234);
 
 #same value on the source
@@ -76,18 +76,18 @@ connection slave;
 # 1062 = ER_DUP_ENTRY
 call mtr.add_suppression("Replica SQL.*Error .Duplicate entry .1234. for key .t2.PRIMARY.. on query.* Error_code: MY-001062");
 --let $slave_sql_errno= 1062
---source include/wait_for_slave_sql_error_and_skip.inc
+--source include/rpl/wait_for_applier_error_and_skip.inc
 
 connection master;
 
 #let the replica catch up
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 purge binary logs to 'master-bin.000002';
-source include/show_master_logs.inc;
+source include/rpl/deprecated/show_binary_logs_vertical.inc;
 # we just tests if synonyms are accepted
 purge binary logs to 'master-bin.000002';
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 # Set the purge time 1 second after the last modify time of master-bin.000002.
 perl;
@@ -111,11 +111,11 @@ remove_file $MYSQLTEST_VARDIR/tmp/rpl_rotate_logs.tmp;
 
 replace_regex /\.[\\\/]master/master/;
 purge binary logs before (@time_for_purge);
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 insert into t2 values (65);
---source include/sync_slave_sql_with_master.inc
-source include/show_slave_status.inc;
-source include/check_slave_is_running.inc;
+--source include/rpl/sync_to_replica.inc
+source include/rpl/deprecated/show_replica_status.inc;
+source include/rpl/assert_replica_running.inc;
 
 --let $assert_text= Table t2 should still contain the first inserted line after creation
 --let $assert_cond= [select * from t2, m, 1] = 34
@@ -169,14 +169,14 @@ if (`select '$first' like '$last'`)
 {
   --die No expected logs rotation
 }
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $query_result= query_get_value(select * from t4, "a", 1)
 --let $assert_text= Data in t4 should be equal to temp_table
 --let $assert_cond= "$query_result" = "testing temporary tables part 2"
 --source include/assert.inc
 
-source include/check_slave_is_running.inc;
+source include/rpl/assert_replica_running.inc;
 # because of concurrent insert, the table may not be up to date
 # if we do not lock
 lock tables t3 read;
@@ -190,7 +190,7 @@ unlock tables;
 connection master;
 drop table if exists t1,t2,t3,t4;
 drop temporary table temp_table;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo End of 4.1 tests
 
@@ -211,4 +211,4 @@ replace_regex /\.[\\\/]slave/slave/;
 purge binary logs before now();
 
 --echo End of 5.0 tests
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

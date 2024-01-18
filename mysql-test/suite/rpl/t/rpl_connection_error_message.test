@@ -27,7 +27,7 @@
 # Test should only run once.
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 
 # Verify that the message has the expected form.
@@ -75,7 +75,7 @@ EOF
     --die !!!ERROR IN TEST: you must set $expected_message
   }
   START REPLICA IO_THREAD;
-  --source include/wait_for_slave_io_error.inc
+  --source include/rpl/wait_for_receiver_error.inc
 
   --echo ---- Check performance_schema ----
 
@@ -102,7 +102,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 1, SOURCE_RETRY_COUNT = 1;
 
 --echo #### Test 1: invalid credentials ####
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'foo';
 --let $slave_io_errno = convert_error(ER_ACCESS_DENIED_ERROR)
 --let $expected_message = Access denied for user foo
@@ -111,7 +111,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER = 'foo';
 
 --echo #### Test 2: invalid port ####
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_PORT = 1;
 --let $slave_io_errno = 2003 # CR_CONN_HOST_ERROR
 --let $expected_message = Cant connect to MySQL server on
@@ -120,7 +120,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_PORT = 1;
 
 --echo #### Test 3: invalid host ####
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = '999.999.999.999';
 --let $slave_io_errno = 2005 # CR_UNKNOWN_HOST
 --let $expected_message = Unknown MySQL server host
@@ -134,6 +134,6 @@ RESET REPLICA;
 --remove_file $script_dir/check_both_messages.inc
 --replace_result $MASTER_MYPORT PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = $MASTER_MYPORT, SOURCE_USER = 'root';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

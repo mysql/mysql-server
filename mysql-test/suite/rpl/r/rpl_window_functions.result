@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -106,7 +106,7 @@ JSON_OBJECTAGG(b, e) OVER (PARTITION BY d ORDER BY e ROWS BETWEEN UNBOUNDED PREC
 FROM t1;
 SET @master_save_windowing_use_high_precision= (SELECT @@windowing_use_high_precision);
 SET GLOBAL windowing_use_high_precision=0;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SET @slave_save_windowing_use_high_precision= (SELECT @@windowing_use_high_precision);
 SET GLOBAL windowing_use_high_precision=0;
@@ -162,7 +162,7 @@ JSON_ARRAYAGG(e) OVER (ORDER BY e RANGE INTERVAL 4 YEAR PRECEDING) c12,
 JSON_OBJECTAGG(pk, e) OVER (ORDER BY pk RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) c13
 FROM t1;
 SET GLOBAL windowing_use_high_precision=@master_save_windowing_use_high_precision;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SET GLOBAL windowing_use_high_precision=@slave_save_windowing_use_high_precision;
 [Connection Master]
@@ -227,7 +227,7 @@ FROM t1
 WINDOW w1 AS (ORDER BY pk),
 w2 AS (PARTITION BY g ORDER BY h),
 w3 AS (PARTITION BY d ORDER BY NULL);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t4, slave:t4]
 include/diff_tables.inc [master:t2, slave:t2]
@@ -246,7 +246,7 @@ UPDATE t4 SET c5='2017-01-01' WHERE c5 IN (SELECT LAG('2010-09-20',0) OVER () FR
 UPDATE t4 SET c6='2017-01-01 12:30:45' WHERE c6 IN (SELECT CAST(FIRST_VALUE('2007-08-27 14:06:53') OVER () AS DATETIME) FROM DUAL);
 UPDATE t4 SET c7='Updated' WHERE c7 IN (SELECT LAST_VALUE('Alpha') OVER () FROM DUAL);
 UPDATE t4 SET c8='Updated' WHERE c8 IN (SELECT NTH_VALUE('199utjJtezqMHCewY',1) OVER () FROM DUAL);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t2, slave:t2]
 [Connection Master]
@@ -261,7 +261,7 @@ DELETE FROM t4 WHERE c5 IN (SELECT LAG('2017-01-01',0) OVER () FROM DUAL);
 DELETE FROM t4 WHERE c6 IN (SELECT CAST(FIRST_VALUE('2017-01-01 12:30:45') OVER () AS DATETIME) FROM DUAL);
 DELETE FROM t4 WHERE c7 IN (SELECT LEAD('Updated') OVER () FROM DUAL);
 DELETE FROM t4 WHERE c8 IN (SELECT NTH_VALUE('Updated',1) OVER () FROM DUAL);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SELECT * FROM t2 where c1 IN (SELECT ROW_NUMBER() OVER () FROM DUAL);
 c1	c2	c3	c4	c5	c6
@@ -274,4 +274,4 @@ DROP TABLE t4;
 DROP TABLE t2;
 DROP TABLE t3a;
 DROP TABLE t3b;
-include/rpl_end.inc
+include/rpl/deinit.inc

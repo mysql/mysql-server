@@ -54,7 +54,7 @@
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 0. Restart the server, so that the default channel is created and
@@ -62,10 +62,10 @@
 --echo #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --replicate-do-db=:test --replicate-do-db=:my_db2 --replicate-do-db=:my_db3 --replicate-ignore-db=:db1 --replicate-ignore-db=:db11 --replicate-ignore-db=:my_db6 --replicate-do-table=:test.t1 --replicate-do-table=:test.t2 --replicate-ignore-table=:test.t11 --replicate-ignore-table=:test.t22 --replicate-wild-do-table=:test.t% --replicate-wild-do-table=:test.s% --replicate-wild-ignore-table=:test.m% --replicate-wild-ignore-table=:test.n% --replicate-rewrite-db=:my_db7->rewrite_db7 --replicate-rewrite-db=:my_db8->rewrite_db8 --replicate-do-db=global_test --replicate-ignore-db=global_db1 --replicate-do-table=global_test.t1 --replicate-ignore-table=global_test.t11 --replicate-wild-do-table=global_test.t% --replicate-wild-ignore-table=global_test.m% --replicate-rewrite-db=global_my_db7->global_rewrite_db7
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
 --echo #
 --echo # 1. On the configured default channel, verify that per-channel
@@ -83,7 +83,7 @@
 --echo #
 --let $channel_name= ''
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 
 --echo #
 --echo # 2. Verify that performance_schema.replication_applier_filters can
@@ -93,7 +93,7 @@
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 use test;
 CREATE TABLE test.t1 (c1 INT);
@@ -104,7 +104,7 @@ CREATE DATABASE db1;
 CREATE DATABASE db11;
 
 # --connection slave and sync with master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 3. Check that database test is replicated and both db1 and db11
@@ -132,7 +132,7 @@ SHOW DATABASES;
 --echo #
 --echo # Stop replica.
 --echo #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.initfilet3) FOR CHANNEL '';
 CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('te%.t%') FOR CHANNEL '';
@@ -154,7 +154,7 @@ REPLICATE_IGNORE_DB = (my_initfiledb3) FOR CHANNEL '';
 --echo #
 #--let $channel_name= ''
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
---source include/show_slave_status.inc
+--source include/rpl/deprecated/show_replica_status.inc
 
 --echo #
 --echo # 5. Verify that performance_schema.replication_applier_filters can
@@ -170,13 +170,13 @@ CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=() FOR CHANNEL '';
 CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=() FOR CHANNEL '';
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(),REPLICATE_DO_DB = (),
 REPLICATE_IGNORE_DB = () FOR CHANNEL '';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
 SET sql_log_bin=0;
 DROP DATABASE db1;
 DROP DATABASE db11;
 SET sql_log_bin=1;
 DROP TABLE t1,t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

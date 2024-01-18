@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2->1]
+include/rpl/init.inc [topology=1->2->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,13 +14,13 @@ relay_log_purge	ON
 relay_log_recovery	OFF
 relay_log_space_limit	0
 CREATE TABLE t1 (a INT KEY) ENGINE= MyISAM;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t1 VALUE(1);
 FLUSH LOGS;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t1 VALUE(2);
-include/sync_slave_sql_with_master.inc
-include/check_slave_is_running.inc
+include/rpl/sync_to_replica.inc
+include/rpl/assert_replica_running.inc
 Relay_Log_File = 'master-relay-bin.000003'
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

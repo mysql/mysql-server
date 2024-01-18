@@ -29,7 +29,7 @@
 --echo #
 --echo # 1. Create source-replica topology
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 2. Configure source with time_zone value to 'UTC'
@@ -38,10 +38,10 @@ SET time_zone='UTC';
 
 --echo #
 --echo # 3. Configure replica without time_zone table
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 RENAME TABLE mysql.time_zone TO mysql.time_zone_bkup;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --echo #
 --echo # 4. Execute a transaction which doesn't use time_zone
 CREATE DATABASE IF NOT EXISTS db1;
@@ -52,32 +52,32 @@ CREATE USER u1 IDENTIFIED BY 'Root@123';
 
 --echo #
 --echo # 6. Start replica
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped.*");
 call mtr.add_suppression("Replica SQL for channel '':.*failed executing transaction.*");
 call mtr.add_suppression("Replica SQL for channel '': Error 'Table 'mysql.time_zone' doesn't exist' on query.*");
 call mtr.add_suppression("Replica: Unknown or incorrect time zone: 'UTC'.*");
---source include/start_slave_io.inc
---source include/wait_for_slave_io_to_start.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/wait_for_receiver_to_start.inc
 START REPLICA SQL_THREAD;
 
 --echo #
 --echo # 7. Verify that replica sql thread failed with error
 --let $slave_sql_errno= convert_error(ER_NO_SUCH_TABLE)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo #
 --echo # 8. Cleanup
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 RESET REPLICA ALL;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root', SOURCE_HOST= "127.0.0.1", SOURCE_PORT= $MASTER_MYPORT;
 RENAME TABLE mysql.time_zone_bkup TO mysql.time_zone;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP USER u1;
 DROP DATABASE db1;
 set time_zone= @save.time_zone;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

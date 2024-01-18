@@ -31,7 +31,7 @@
 --source include/not_group_replication_plugin.inc
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Configure ====
 
@@ -41,16 +41,16 @@ call mtr.add_suppression("IP address .* could not be resolved");
 --echo # Add a bind address in the 'red' network namespace to master
 --let $rpl_server_number = 1
 --let $rpl_server_parameters = --bind-address=127.0.0.1,10.0.2.1/red
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo # Add a bind address in the 'blue' network namespace to the slave
 --let $rpl_server_parameters = --bind-address=127.0.0.1,10.0.1.1/blue
 --let $rpl_server_number = 2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression("Replica I/O for channel '': Source command COM_REGISTER_REPLICA failed: .*");
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # ==== Procedure verify_namespace_configuration ====
 #
@@ -78,7 +78,7 @@ END_OF_PROCEDURE
 
 --echo ==== Scenario 1: without namespaces ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo # Create  users.
 CREATE USER root@10.0.2.1;
@@ -87,7 +87,7 @@ CREATE USER root@10.0.1.1;
 GRANT ALL ON *.* TO root@10.0.1.1;
 
 --echo [connection slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $namespace =
 --source $verify_namespace_configuration
@@ -96,12 +96,12 @@ GRANT ALL ON *.* TO root@10.0.1.1;
 
 --echo # Stop replica and run CHANGE REPLICATION SOURCE to listen to the source on socket
 --echo # created in the 'red' namespace
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $SOURCE_LOG_POS = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --echo # Change replication source to listen to the source on IP '10.0.2.1' in the 'red' namespace
 --replace_result $MASTER_MYPORT SOURCE_PORT $SOURCE_LOG_POS SOURCE_LOG_POS
 --let $crs = CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
@@ -110,9 +110,9 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
  --let $crs = $crs, SOURCE_LOG_POS=$SOURCE_LOG_POS
 }
 --exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$crs"
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $namespace = red
 --source $verify_namespace_configuration
@@ -122,20 +122,20 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 # Simulate network disconnection by shutting down source, and verify
 # we reconnect in the same namespace.
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $SOURCE_LOG_POS = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 
 # Make receiver thread pause after it has connected
 --let $debug_point = dbug.before_get_SOURCE_UUID
 --source include/add_debug_point.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_server_number = 1
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 --echo # Unblock receiver thread
 eval SET DEBUG_SYNC = 'now SIGNAL signal.get_source_uuid';
@@ -149,7 +149,7 @@ eval SET DEBUG_SYNC = 'now SIGNAL signal.get_source_uuid';
 # '1053' ER_SERVER_SHUTDOWN
 --let $slave_io_errno = 1040, 1053, 2002, 2003, 2006, 2013
 --let $slave_io_error_is_nonfatal = 1
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 # clean up sync points
 --let $debug_point = dbug.before_get_SOURCE_UUID
@@ -157,20 +157,20 @@ eval SET DEBUG_SYNC = 'now SIGNAL signal.get_source_uuid';
 
 --let $rpl_server_number = 1
 --let $rpl_server_parameters = --bind-address=127.0.0.1,10.0.2.1/red
---source include/rpl_start_server.inc
---source include/wait_for_slave_io_to_start.inc
+--source include/rpl/start_server.inc
+--source include/rpl/wait_for_receiver_to_start.inc
 
 --let $namespace = red
 --source $verify_namespace_configuration
 
 --echo ==== Scenario 4: restore to connection without namespace ====
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $SOURCE_LOG_POS = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --echo # Change replication source to original connection
 --replace_result $MASTER_MYPORT SOURCE_PORT $SOURCE_LOG_POS SOURCE_LOG_POS
 --let $crs = CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
@@ -181,9 +181,9 @@ if (`SELECT @@GLOBAL.GTID_MODE = "OFF"`)
 # Connect via the 'blue' namespace and execute the command.
 --exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$crs"
 
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $namespace =
 --source $verify_namespace_configuration
@@ -191,9 +191,9 @@ if (`SELECT @@GLOBAL.GTID_MODE = "OFF"`)
 --echo ==== Cleanup ====
 
 --remove_file $verify_namespace_configuration
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP USER root@10.0.2.1;
 DROP USER root@10.0.1.1;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,13 +10,13 @@ INSERT INTO t0 VALUES (1);
 INSERT INTO t0 VALUES (2);
 INSERT INTO t0 VALUES (3);
 INSERT INTO t0 VALUES (4);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t0, slave:t0]
 # Stop the slave, so that we enable debug flag and apply binlog events
 # after master generates binlog events for CREATE TABLE ... SELECT.
 STOP REPLICA;
 [connection master]
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 CREATE TABLE t1 AS SELECT * FROM t0;
 FLUSH LOGS;
 [connection slave]
@@ -25,23 +25,23 @@ SET global DEBUG='+d, crash_on_transactional_ddl_insert';
 START REPLICA;
 # Wait for server to stop
 # Restart the server.
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 include/assert.inc [Make sure there is only table 't0' in schema 'test'.]
 # Reset the source log position back to event that starts
 # CREATE TABLE ... SELECT and start the slave, without causing crash.
 SELECT @@GLOBAL.GTID_MODE;
 @@GLOBAL.GTID_MODE
 ON
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Sync master and slave events.
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Check that we have table 't1' now.
 include/diff_tables.inc [master:t1, slave:t1]
 # Cleanup
 [connection master]
 DROP TABLE t0,t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # R3 Verify that executing CREATE TABLE ... SELECT with sql mode set
 #    to ANSI gets replicated to slave. This test is added for Bug#33064062.
@@ -50,10 +50,10 @@ include/sync_slave_sql_with_master.inc
 SET @orig_sql_mode_session= @@SESSION.sql_mode;
 SET SESSION sql_mode='ANSI';
 CREATE TABLE t1 AS SELECT 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 SET SESSION sql_mode= @orig_sql_mode_session;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

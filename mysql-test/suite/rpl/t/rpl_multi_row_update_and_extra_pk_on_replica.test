@@ -25,29 +25,29 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo ##############################################################
 --echo # 1. Create a table in the source with a single column, no PK
 --echo #    Create a table in the replica with an extra column that is a PK
 
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 CREATE TABLE t1 (i INT NOT NULL);
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 CREATE TABLE t1 (i INT NOT NULL, i2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 
 --echo
 --echo ##############################################################
 --echo # 2. Create a function that allows us to update a row twice but encoded in a single log event
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --delimiter |
 CREATE FUNCTION f1 () RETURNS INT BEGIN
@@ -57,18 +57,18 @@ CREATE FUNCTION f1 () RETURNS INT BEGIN
 END|
 --delimiter ;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo ##############################################################
 --echo # 3. Update a row twice in the source
 --echo #    Check the updates are applied in the replica
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES (1);
 
 SELECT f1();
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $column_count= `SELECT COUNT(*) FROM t1 WHERE i=3;`
 --let $assert_text= The table was updated twice
@@ -79,9 +79,9 @@ SELECT f1();
 --echo ##############################################################
 --echo # 4. Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP FUNCTION f1;
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

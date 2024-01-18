@@ -10,8 +10,8 @@
 
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 #-- disable_query_log
 #-- disable_result_log
@@ -121,7 +121,7 @@ DELETE FROM test.t1 WHERE id = 1;
 
 DELETE FROM test.t2 WHERE id = 1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection master;
 
 # time to dump the databases and so we can see if they match
@@ -155,4 +155,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/trg003_master.sql $MYSQLTEST_VARDIR/tmp/trg003_
 --remove_file $MYSQLTEST_VARDIR/tmp/trg003_slave.sql
 
 # End of 5.0 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -34,13 +34,13 @@
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @start_global_value_s1 = @@global.replica_max_allowed_packet;
 SET @@global.replica_max_allowed_packet=1024*128;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @start_global_value_s2 = @@global.replica_max_allowed_packet;
 SET @@global.replica_max_allowed_packet=1024*128;
@@ -51,14 +51,14 @@ SET @@global.replica_max_allowed_packet=1024*128;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
 
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
 
@@ -69,12 +69,12 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period'
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Add some data for recovery
 CREATE TABLE test.mytable (f1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f2 VARCHAR(100)) ENGINE=InnoDB;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 SET SESSION sql_log_bin= 0;
 delimiter //;
@@ -96,7 +96,7 @@ delimiter ;//
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 delimiter //;
@@ -118,7 +118,7 @@ delimiter ;//
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL event_scheduler=on;
@@ -127,7 +127,7 @@ ALTER EVENT event1 ENABLE;
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL event_scheduler=on;
@@ -140,7 +140,7 @@ SET SESSION sql_log_bin= 1;
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_timeout=1200
 --let $wait_condition= SELECT COUNT(*)= 1950 FROM test.mytable;
@@ -152,7 +152,7 @@ SET SESSION sql_log_bin= 1;
 --echo #
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_timeout=1200
 --source include/start_group_replication.inc
@@ -163,17 +163,17 @@ SET SESSION sql_log_bin= 1;
 
 INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, @@port));
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There are 1951 values in the table'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM test.mytable, count, 1] = 1951
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There are 1951 values in the table'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM test.mytable, count, 1] = 1951
@@ -184,7 +184,7 @@ INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, 
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 ALTER EVENT event1 DISABLE;
@@ -200,7 +200,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period'
 SET @@global.replica_max_allowed_packet = @start_global_value_s1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 ALTER EVENT event2 DISABLE;
@@ -216,7 +216,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period'
 SET @@global.replica_max_allowed_packet = @start_global_value_s2;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE mytable;
 

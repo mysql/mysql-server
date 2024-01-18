@@ -9,7 +9,7 @@
 #          deleted (valgrind issue).
 #
 # Steps to reproduce:
-# 1) Create a basic master-slave topology with binlog_rows_query_log_events
+# 1) Create a basic source-replica topology with binlog_rows_query_log_events
 #    enabled on master.
 # 2) On master, create a table and wait till it is replicated to slave.
 # 3) On slave, set a debug point 'after_deleting_the_rows_query_ev'.
@@ -24,17 +24,17 @@
 # logging, row format is used.
 --source include/have_binlog_format_row.inc
 --echo #
---echo # Step 1) Create a basic master-slave topology with
+--echo # Step 1) Create a basic source-replica topology with
 --echo #         binlog_rows_query_log_events enabled on master.
 --echo #
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 SET @old_binlog_rows_query_log_events= @@session.binlog_rows_query_log_events;
 SET @@session.binlog_rows_query_log_events=ON;
 --echo #
 --echo # Step 2) On master, create a table and wait till it is replicated to
 --echo #         slave.
 CREATE TABLE t1(a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Step 3) On slave, set a debug point 'after_deleting_the_rows_query_ev'.
@@ -46,13 +46,13 @@ SET @old_debug= @@global.debug;
 --echo #
 --echo # Step 4) On master, do an insert.
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(1);
 
 --echo #
 --echo # Step 5) SHOW PROCESSLIST on slave should show NULL.
 --echo #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET DEBUG_SYNC= "now WAIT_FOR deleted_rows_query_ev";
 --query_vertical SELECT state,info FROM information_schema.processlist WHERE state like 'debug%';
 SET DEBUG_SYNC = "now SIGNAL go_ahead";
@@ -61,7 +61,7 @@ SET DEBUG_SYNC = "now SIGNAL go_ahead";
 --echo # Step 6) Cleanup
 --echo #
 SET GLOBAL debug= @old_debug;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 SET @@session.binlog_rows_query_log_events= @old_binlog_rows_query_log_events;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

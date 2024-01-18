@@ -46,10 +46,10 @@
 #                COMBINATION
 
 --source include/big_test.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Save original datadir and basedir path of server-2
 --let ORIGINAL_MYSQLD_DATADIR= `select @@datadir`
 --let ORIGINAL_MYSQLD_BASEDIR= `select @@basedir`
@@ -68,7 +68,7 @@ EOF
 # 1. Stop replica server so that it can be initialized by specifying server-id and
 # started without specifying server-id
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 # 2. Since server-2 has previously been initialized to a data directory by MTR,
 #    it is required to initialize again by specifying the server-id to a new
@@ -77,14 +77,14 @@ EOF
 # Execute DDL,DML on server-1 so as to ensure that this data will be replicated
 # to server-2 once replication starts between server-1 and server-2
 --echo
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE DATABASE db;
 use db;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 --echo
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # 3. Once server-2 has been initialized by specifying server-id to a new data
 #    directory, start server-2 without specifying the server-id using the new
 #    data directory path.
@@ -93,13 +93,13 @@ INSERT INTO t1 VALUES(2);
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --log-bin=slave-bin --datadir=$NEWDATADIR --replica-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-replica-start=1
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='localhost'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --echo
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:db.t1, slave:db.t1
 --source include/diff_tables.inc
 
@@ -109,22 +109,22 @@ INSERT INTO t1 VALUES(2);
 --let NEWDATADIR_2=$MYSQL_TMP_DIR/rpl_initialize_serverid_2
 mkdir $NEWDATADIR_2;
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 --exec $MYSQLD $args --initialize-insecure --datadir=$NEWDATADIR_2 --init-file=$MYSQL_TMP_DIR/bootstrap_test.sql --server-id=0 > $MYSQLD_LOG
 # 5. Start server-2 by specifying a non-zero server-id, enable replication
 #    between server-1 and server-2 and verify replication works fine
 --echo
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --server-id=2 --log-bin=slave-bin --datadir=$NEWDATADIR_2 --replica-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-replica-start=1
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='localhost'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --echo
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:db.t1, slave:db.t1
 --source include/diff_tables.inc
 
@@ -133,17 +133,17 @@ mkdir $NEWDATADIR_2;
 --let NEWDATADIR_3=$MYSQL_TMP_DIR/rpl_initialize_serverid_3
 mkdir $NEWDATADIR_3;
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 --exec $MYSQLD $args --initialize-insecure --datadir=$NEWDATADIR_3 --init-file=$MYSQL_TMP_DIR/bootstrap_test.sql --server-id=2 > $MYSQLD_LOG
 # 7. Start server-2 by specifying server-id=0
 #    Try to enable replication between server-1 and server-2 and verify that
 #    proper error is thrown since server-id is set to 0
 --echo
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --server-id=0 --log-bin=slave-bin --datadir=$NEWDATADIR_3 --replica-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-replica-start=1
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --error ER_REPLICA_CONFIGURATION
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='localhost'
@@ -153,31 +153,31 @@ mkdir $NEWDATADIR_3;
 --let NEWDATADIR_4=$MYSQL_TMP_DIR/rpl_initialize_serverid_4
 mkdir $NEWDATADIR_4;
 --let $rpl_server_number= 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 --exec $MYSQLD $args --initialize-insecure --datadir=$NEWDATADIR_4 --init-file=$MYSQL_TMP_DIR/bootstrap_test.sql --server-id=1 > $MYSQLD_LOG
 # 9. Start server-2 by specifying server-id=1
 #    Try to enable replication between server-1 and server-2 and verify that
 #    proper error is thrown since both master and slave have same server-id
 --echo
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --server-id=1 --log-bin=slave-bin --datadir=$NEWDATADIR_4 --replica-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-replica-start=1
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='localhost'
 START REPLICA;
 # Verify that slave IO error occurs on START REPLICA
 # 13117 is the code for ER_REPLICA_FATAL_ERROR
 --let $slave_io_errno= 13117
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 # 10. Restart server-2 with the original datadir to bring it back to
 #     original state
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --datadir=$ORIGINAL_MYSQLD_DATADIR --basedir=$ORIGINAL_MYSQLD_BASEDIR --skip-replica-start=0
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # 11. Cleanup files and new data directories created during the test
 remove_file $MYSQLD_LOG;
@@ -187,9 +187,9 @@ remove_file $MYSQL_TMP_DIR/bootstrap_test.sql;
 --force-rmdir $NEWDATADIR_3
 --force-rmdir $NEWDATADIR_4
 --echo
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP DATABASE db;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

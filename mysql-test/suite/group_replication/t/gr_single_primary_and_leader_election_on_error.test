@@ -43,7 +43,7 @@
 --echo
 --echo ## START SERVER 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SQL_LOG_BIN=0;
 call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.table1; Duplicate entry '1'");
 call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Worker .* failed executing transaction .*; Could not execute Write_rows event on table test.table1; Duplicate entry '1' for key 'table1.PRIMARY'.*");
@@ -61,13 +61,13 @@ SET SQL_LOG_BIN=1;
 --echo
 --echo ## START SERVERS 2-3
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 --let $group_replication_expected_uuid= $server1_uuid
 --source include/gr_wait_primary_member_uuid.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 --let $group_replication_expected_uuid= $server1_uuid
 --source include/gr_wait_primary_member_uuid.inc
@@ -78,9 +78,9 @@ SET SQL_LOG_BIN=1;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE `table1`(`id` INT PRIMARY KEY AUTO_INCREMENT, `value` VARCHAR(50));
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ## INSERT SAME ROW ON SERVER1 AND SERVER2
@@ -89,12 +89,12 @@ INSERT INTO `table1`(`id`, `value`) VALUES(1, "First element");
 SET SQL_LOG_BIN= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL super_read_only= 0;
 INSERT INTO `table1`(`id`, `value`) VALUES(1, "First element");
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
 
@@ -114,7 +114,7 @@ INSERT INTO `table1`(`id`, `value`) VALUES(1, "First element");
 --source include/gr_wait_for_role_count.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'Old primary server should be in ERROR state';
 --let $assert_cond= [SELECT MEMBER_STATE="ERROR" as `Result` FROM performance_schema.replication_group_members WHERE MEMBER_ID = @@server_uuid, Result, 1] = 1
 --source include/assert.inc
@@ -127,7 +127,7 @@ INSERT INTO `table1`(`id`, `value`) VALUES(1, "First element");
 --echo # Stage 4. Clean up.
 --echo #
 --let $rpl_connection_name= $group_replication_primary_server_connection_var
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT @@GLOBAL.read_only = '0'
 --source include/wait_condition_or_abort.inc
 DROP TABLE `table1`;
@@ -138,6 +138,6 @@ DROP TABLE `table1`;
 
 # Table1 can't be removed until plugin is stopped
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL read_only= 0;
 DROP TABLE `table1`;

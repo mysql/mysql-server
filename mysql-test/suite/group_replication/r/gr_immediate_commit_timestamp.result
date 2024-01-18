@@ -13,7 +13,7 @@ include/start_group_replication.inc
 # 2. Add some data to S1 and S4
 [connection server1]
 CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server4]
 CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 ############################################################
@@ -23,9 +23,9 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch1_3']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1_3']
 [connection server1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch1_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'ch1_3']
 ############################################################
 # 4. Assert IMMEDIATE_COMMIT_TIMESTAMP is correct on S2 and S3.
 #    On S1 transaction `CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB`
@@ -41,9 +41,9 @@ include/assert.inc ['LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is great
 # 5. Run a transaction while complete setup is ON.
 [connection server2]
 INSERT INTO test.t1 values (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch1_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'ch1_3']
 ############################################################
 # 6. Assert IMMEDIATE_COMMIT_TIMESTAMP is correct on S1 and S3.
 #    On S2 transaction `INSERT INTO test.t1 values (1)`
@@ -63,11 +63,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch4_1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch4_1']
 [connection server4]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch4_1']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'ch4_1']
 [connection server1]
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch1_3']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'ch1_3']
 ############################################################
 # 8. Assert IMMEDIATE_COMMIT_TIMESTAMP is correct on S2 and S3.
 #    On S1 transaction `CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB`

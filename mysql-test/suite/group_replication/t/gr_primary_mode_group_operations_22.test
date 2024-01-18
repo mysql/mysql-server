@@ -33,7 +33,7 @@
 --echo # 2. Check all variables
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= group_replication_enforce_update_everywhere_checks is ON
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 0
@@ -48,7 +48,7 @@
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= group_replication_enforce_update_everywhere_checks is ON
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 0
@@ -67,7 +67,7 @@
 --echo #    goes as planned.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
@@ -89,7 +89,7 @@
 --echo #    all goes as planned.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $allow_rpl_inited=1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -99,7 +99,7 @@
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $assert_text= group_replication_enforce_update_everywhere_checks is ON
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 0

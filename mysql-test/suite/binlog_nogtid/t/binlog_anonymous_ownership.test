@@ -55,7 +55,7 @@
 
 --let $rpl_extra_connections_per_server= 3
 --let $rpl_topology= none
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 
 --echo ==== Initialize ====
@@ -219,7 +219,7 @@ while ($statement_number < $statement_count)
   --echo # Statement $statement_number:
 
   --let $rpl_connection_name= $connection
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   if ($statement == 'reconnect')
   {
@@ -238,7 +238,7 @@ while ($statement_number < $statement_count)
     # Reconnect
     --let $rpl_connection_name= $connection
     --let $rpl_server_number= 1
-    --source include/rpl_connect.inc
+    --source include/rpl/connect.inc
 
     --let $statement=
   }
@@ -328,4 +328,4 @@ DROP TABLE statements;
 DROP TABLE t1;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

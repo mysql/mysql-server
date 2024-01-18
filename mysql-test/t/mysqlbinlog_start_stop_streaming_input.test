@@ -52,7 +52,7 @@ FLUSH LOGS;
 --let $stop_position= $pos_2
 --let $stop_datetime= $datetime_2
 --let $file_options= $MYSQLD_DATADIR/$file_1
---source extra/binlog_tests/mysqlbinlog_start_stop_streaming_input_1.inc
+--source common/binlog/mysqlbinlog_start_stop_streaming_input_1.inc
 
 --echo
 --echo ==== Local with 2 binlogs on command line ====
@@ -61,7 +61,7 @@ FLUSH LOGS;
 --let $stop_position= $pos_3
 --let $stop_datetime= $datetime_3
 --let $file_options= $MYSQLD_DATADIR/$file_1 $MYSQLD_DATADIR/$file_2
---source extra/binlog_tests/mysqlbinlog_start_stop_streaming_input_1.inc
+--source common/binlog/mysqlbinlog_start_stop_streaming_input_1.inc
 
 --echo
 --echo ==== clean up ====

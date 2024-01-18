@@ -31,7 +31,7 @@
 --echo # 1. Start Group Replication on server1 and check the memory used
 --echo #    by 'memory/group_rpl/sql_service_command_data'.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_session_plugin_handler_before_pop';
 SET GLOBAL group_replication_bootstrap_group= 1;
 --disable_query_log
@@ -39,12 +39,12 @@ SET GLOBAL group_replication_bootstrap_group= 1;
 --enable_query_log
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --send START GROUP_REPLICATION
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_session_plugin_handler_before_pop_reached";
 
 --let $assert_text= 'The sum of bytes allocated must be greater than zero'
@@ -59,7 +59,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_session_plugin_handler_befo
 --source include/gr_clear_bootstrap_group.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 
@@ -69,7 +69,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_session_plugin_handler_befo
 --echo #    instrumented memory are in the setup instruments
 --echo #    table and the memory summary tables.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/sql_service_command_data';
 --let $assert_text= 'There should be 1 entry corresponding to the sql_service_command_data in the setup_instruments table after starting GR'
 --let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/sql_service_command_data"
@@ -85,7 +85,7 @@ SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WH
 --echo # 3. Verify that the entries corresponding to the instrumented
 --echo #    sql_service_command_data remain in the tables after stopping GR.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --let $assert_text= 'There should be 1 entry corresponding to the sql_service_command_data in the setup_instruments table after stopping GR'
 --let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/sql_service_command_data"

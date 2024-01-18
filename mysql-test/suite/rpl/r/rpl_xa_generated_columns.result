@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -16,7 +16,7 @@ DELETE FROM st1 WHERE c2=5;
 XA END 'xstatement';
 XA PREPARE 'xstatement';
 XA COMMIT 'xstatement';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # check that st1 exists and has same values in both servers
 include/diff_tables.inc [master:st1, slave:st1]
 # Table st2: stored column as primary key
@@ -34,7 +34,7 @@ DELETE FROM st2 WHERE c2='cd';
 XA END 'xstatement';
 XA PREPARE 'xstatement';
 XA COMMIT 'xstatement';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # check that st2 exists and has same values in both servers
 include/diff_tables.inc [master:st2, slave:st2]
 # Table st3: stored column as unique
@@ -57,7 +57,7 @@ DELETE FROM st3 WHERE c3='update';
 XA END 'xstatement';
 XA PREPARE 'xstatement';
 XA COMMIT 'xstatement';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # check that st3 exists and has same values in both servers
 include/diff_tables.inc [master:st3, slave:st3]
 # Table st4: Stored column as foreign key
@@ -79,7 +79,7 @@ DELETE FROM st4 WHERE c1=21;
 XA END 'xstatement';
 XA PREPARE 'xstatement';
 XA COMMIT 'xstatement';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # check that st4 exists and has same values in both servers
 include/diff_tables.inc [master:st4, slave:st4]
 # Table vt1: virtual column genarated on primary key
@@ -95,7 +95,7 @@ DELETE FROM vt1 WHERE c2=1999;
 XA END 'xstatement';
 XA PREPARE 'xstatement';
 XA COMMIT 'xstatement';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # check that vt1 exists and has same values in both servers
 include/diff_tables.inc [master:vt1, slave:vt1]
 # Table  vt2: virtual column as unique key
@@ -115,7 +115,7 @@ DELETE FROM vt2 WHERE c2='se';
 XA END 'xstatement';
 XA PREPARE 'xstatement';
 XA COMMIT 'xstatement';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # check that vt2 exists and has same values in both servers
 include/diff_tables.inc [master:vt2, slave:vt2]
 # Table vt3: Virtual Column with foreign keys
@@ -145,7 +145,7 @@ DELETE FROM vt3 WHERE c=100;
 XA END 'xstatement';
 XA PREPARE 'xstatement';
 XA COMMIT 'xstatement';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # check that vt3 exists and has same values in both servers
 include/diff_tables.inc [master:vt3, slave:vt3]
 # Table gt1: gt1: both stored and virtual columns
@@ -170,7 +170,7 @@ DELETE FROM gt1 WHERE d=33;
 XA END 'xstatement';
 XA PREPARE 'xstatement';
 XA COMMIT 'xstatement';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # check that gt1 exists and has same values in both servers
 include/diff_tables.inc [master:gt1, slave:gt1]
 # Clean Up
@@ -179,4 +179,4 @@ DROP TABLE st1,st2,st3,st4;
 DROP TABLE vt1,vt2,vt3;
 DROP TABLE gt1;
 DROP TABLE t1,t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

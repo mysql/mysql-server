@@ -23,7 +23,7 @@
 # ========
 #
 # Commit order deadlock occurs only when MTS + LOGICAL CLOCK are enabled.
---source include/only_mts_replica_parallel_type_logical_clock.inc
+--source include/have_replica_parallel_type_logical_clock.inc
 # This test needs at least 2 MTA workers
 --let $option_name = replica_parallel_workers
 --let $option_operator = >
@@ -31,14 +31,14 @@
 --source include/only_with_option.inc
 --source include/have_binlog_format_statement.inc
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Initial data
 --echo #
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 2. Initial setup on Slave.
@@ -46,7 +46,7 @@ CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
 --echo # 2.1. Enable replica_preserve_commit_order on slave for Commit order
 --echo #      deadlock to occur.
 --echo #
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 SET @saved_replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
 SET GLOBAL replica_preserve_commit_order = ON;
 
@@ -80,7 +80,7 @@ connect(slave2,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 --echo #
 --echo # 3.1 Insert basic data on Master
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES(1, 1),(2, 2);
 
 --echo #
@@ -110,7 +110,7 @@ COMMIT;
 --echo #     which will acquire MDL lock on t1
 --echo #     (that blocks 'Transacation-1').
 --echo #
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 BEGIN;
 INSERT INTO t1 VALUES(3, 3);
 
@@ -118,7 +118,7 @@ INSERT INTO t1 VALUES(3, 3);
 --echo # 3.6 On Slave, begin a transaction (Transacation-4)
 --echo #     that can block INSERT in 'Transacation-2'.
 --echo #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 BEGIN;
 INSERT INTO t2 VALUES(1);
 
@@ -126,7 +126,7 @@ INSERT INTO t2 VALUES(1);
 --echo # 3.7 Start SQL thread, let Transaction-1 & 2 reach SQL workers
 --echo #
 --connection slave2
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --echo #
 --echo # 3.8 Wait till the worker threads pick up those transacations
@@ -142,7 +142,7 @@ INSERT INTO t2 VALUES(1);
 --echo # 3.9 Rollback Transaction-3 which will release MDL lock required for
 --echo #     Transaction-1.
 --echo #
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 ROLLBACK;
 
 --echo #
@@ -156,7 +156,7 @@ SET debug_sync = "now WAIT_FOR reported_deadlock";
 --echo # 3.11 Commit Transaction-4 which will release MDL lock required for
 --echo #      Transaction-2.
 --echo #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 COMMIT;
 
 --echo #
@@ -165,7 +165,7 @@ COMMIT;
 --echo #      detected the 'commit order deadlock').
 --echo #
 --let $slave_sql_errno=1062,3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo #
 --echo # 3.13 Check that worker 2 did not *retry* transaction-2
@@ -188,7 +188,7 @@ COMMIT;
 --echo #
 --echo # 4.2 Clean the data on Slave.
 --echo #
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 RESET REPLICA;
 DROP TABLE t1, t2;
 
@@ -201,7 +201,7 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 --echo #
 --echo # 4.4 Clear debug point.
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $debug_type= SESSION
 --let $debug_point= set_commit_parent_100
 --source include/remove_debug_point.inc
@@ -212,4 +212,4 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 DROP TABLE t1, t2;
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

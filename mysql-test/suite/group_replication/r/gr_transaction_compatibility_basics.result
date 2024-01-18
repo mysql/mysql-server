@@ -37,7 +37,7 @@ Occurrences of 'The member contains transactions not present in the group. The m
 # Test that server 2 can now join after extra data is removed.
 #
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server2]
 DROP TABLE t2;
 RESET BINARY LOGS AND GTIDS;
@@ -47,7 +47,7 @@ include/start_group_replication.inc
 #
 [connection server1]
 INSERT INTO t1 VALUES (2);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/assert.inc ['There are two values in table t1']
 #

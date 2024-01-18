@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ CALL mtr.add_suppression('A replica with the same server_uuid/server_id as this 
 SET @saved_event_scheduler= @@GLOBAL.event_scheduler;
 SET @saved_relay_log_purge= @@GLOBAL.relay_log_purge;
 SET @@GLOBAL.event_scheduler= OFF;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CREATE EVENT e_change_master_io_ch0  ON SCHEDULE EVERY 1 SECOND DO CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT FOR CHANNEL '';
 CREATE EVENT e_change_master_sql_ch0 ON SCHEDULE EVERY 1 SECOND DO CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000001', RELAY_LOG_POS=4 FOR CHANNEL '';
 CREATE EVENT e_start_slave_io_ch0    ON SCHEDULE EVERY 1 SECOND DO START REPLICA IO_THREAD FOR CHANNEL '';
@@ -82,5 +82,5 @@ RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT;
 SET @@GLOBAL.event_scheduler = @saved_event_scheduler;
 SET @@GLOBAL.relay_log_purge = @saved_relay_log_purge;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

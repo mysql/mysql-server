@@ -18,7 +18,7 @@ ERROR 42000: PROCEDURE p does not exist
 SHOW CREATE FUNCTION f;
 ERROR 42000: FUNCTION f does not exist
 # Binlog event for failed create routine statement is not created.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 # Routines are created and binlog event is written on a transaction
 # commit.
@@ -32,7 +32,7 @@ SHOW CREATE FUNCTION f;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 SELECT 1
@@ -64,7 +64,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 # Binlog event for failed ALTER routine statement is not created.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 SELECT 1
@@ -83,7 +83,7 @@ Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Da
 p	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
     COMMENT 'atomic DDL on routine'
 SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 SELECT 1
@@ -113,7 +113,7 @@ f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_
     COMMENT 'atomic DDL on routine'
 return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 # Binlog event for failed drop routine statement is not created.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 SELECT 1
@@ -124,7 +124,7 @@ binlog.000001	#	Query	#	#	use `test`; ALTER PROCEDURE p comment "atomic DDL on r
 # Routines are dropped and binlog event is written on transaction commit.
 DROP FUNCTION f;
 DROP PROCEDURE p;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 SELECT 1
@@ -146,7 +146,7 @@ CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 trig1	INSERT	t1	BEGIN END	BEFORE	#	#	#	#	#	#
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT)
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
@@ -163,7 +163,7 @@ SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 trig1	INSERT	t1	BEGIN END	BEFORE	#	#	#	#	#	#
 # Binlog for failed create trigger statement is not created.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT)
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
@@ -173,7 +173,7 @@ SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 trig1	INSERT	t1	BEGIN END	BEFORE	#	#	#	#	#	#
 trig2	INSERT	t1	BEGIN END	AFTER	#	#	#	#	#	#
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT)
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
@@ -193,7 +193,7 @@ Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_clie
 trig1	INSERT	t1	BEGIN END	BEFORE	#	#	#	#	#	#
 trig2	INSERT	t1	BEGIN END	AFTER	#	#	#	#	#	#
 # Binlog for failed drop trigger statement is not created.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT)
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
@@ -203,7 +203,7 @@ DROP TRIGGER trig2;
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 trig1	INSERT	t1	BEGIN END	BEFORE	#	#	#	#	#	#
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT)
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
@@ -225,7 +225,7 @@ SET SESSION DEBUG="-d,simulate_create_event_failure";
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 # Binlog event for failed create event statement is not created.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 # DD object for event is stored and binlog is written in a transaction
 # commit cases.
@@ -233,7 +233,7 @@ CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 test	event1	#	#	RECURRING	NULL	1	YEAR	#	#	ENABLED	1	#	#	#
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
 # Binlog event for "create event if not exists" statement is
@@ -241,7 +241,7 @@ binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT ev
 CREATE EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1;
 Warnings:
 Note	1537	Event 'event1' already exists
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
@@ -258,7 +258,7 @@ SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 test	event1	#	#	RECURRING	NULL	1	YEAR	#	#	ENABLED	1	#	#	#
 # Binlog event for failed alter event statement is not created.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
@@ -267,7 +267,7 @@ ALTER EVENT event1 COMMENT "Atomic Event's DDL";
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 test	event1	#	#	RECURRING	NULL	1	YEAR	#	#	ENABLED	1	#	#	#
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
@@ -287,7 +287,7 @@ SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 test	event1	#	#	RECURRING	NULL	1	YEAR	#	#	ENABLED	1	#	#	#
 # Binlog event for failed drop event statement is not created.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
@@ -299,7 +299,7 @@ Warnings:
 Note	1305	Event event1 does not exist
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
@@ -317,7 +317,7 @@ View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`1` AS `1` from `v1`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
@@ -345,7 +345,7 @@ v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 # Binlog for failed create view is not written.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
@@ -365,7 +365,7 @@ SHOW TABLES;
 Tables_in_test
 v1
 v2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
@@ -392,7 +392,7 @@ SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`1` AS `1` from `v1`	utf8mb4	utf8mb4_0900_ai_ci
 # Binlog for failed alter view is not written.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
@@ -413,7 +413,7 @@ SHOW TABLES;
 Tables_in_test
 v1
 v2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
@@ -443,7 +443,7 @@ Tables_in_test
 v1
 v2
 # Binlog for failed drop view is not written.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
@@ -461,7 +461,7 @@ Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function
 SHOW TABLES;
 Tables_in_test
 v2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
@@ -473,7 +473,7 @@ binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
 DROP VIEW IF EXISTS v1;
 Warnings:
 Note	1051	Unknown table 'test.v1'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
@@ -489,7 +489,7 @@ DROP VIEW t1, v3, v4;
 ERROR HY000: 'test.t1' is not VIEW
 # No binlog event is written in statement failure because of table
 # usage in the statement.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
@@ -506,7 +506,7 @@ binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 int)
 DROP VIEW IF EXISTS v3, v4, v5;
 Warnings:
 Note	1051	Unknown table 'test.v5'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
@@ -537,7 +537,7 @@ CREATE TABLE t1(f1 INT);
 CREATE FUNCTION f() RETURNS INT return 1;
 CREATE VIEW v1 AS SELECT 2 as f2;
 CREATE VIEW v2 AS SELECT f() as f1, v1.f2 FROM v1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 connection default;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
@@ -556,7 +556,7 @@ SET DEBUG_SYNC="now WAIT_FOR drop_func";
 # times out.
 DROP FUNCTION f;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 connection con1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
@@ -570,7 +570,7 @@ connection con1;
 # times out.
 DROP VIEW v1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 connection con1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
@@ -612,7 +612,7 @@ disconnect con1;
 DROP VIEW v1, v2;
 SET GLOBAL lock_wait_timeout= @orig_lock_wait_timeout;
 # Binlog should not contain any event from failed statements.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
@@ -651,7 +651,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET SESSION DEBUG='-d,fail_while_acquiring_view_obj';
 DROP VIEW v1;
 # Binlog should not contain any event from failed statements.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
@@ -678,7 +678,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG='-d,fail_while_dropping_dd_object';
 DROP FUNCTION f1;
 # Binlog should not contain any event from failed statements.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int

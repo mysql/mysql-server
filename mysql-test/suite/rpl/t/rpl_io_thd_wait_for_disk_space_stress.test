@@ -19,10 +19,10 @@
 ###############################################################################
 --source include/have_debug.inc
 --source include/big_test.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (c1 INT, c2 TEXT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Those errors will only happen in the slave
 CALL mtr.add_suppression("Disk is full writing");
@@ -45,7 +45,7 @@ CALL mtr.add_suppression("Failed to flush connection metadata repository");
 --source include/add_debug_point.inc
 
 --echo # Generating events to be replicated to the slave
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $inserts= 8000
 --disable_query_log
 while ($inserts)
@@ -64,7 +64,7 @@ while ($inserts)
 --let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --echo # Waiting until slave I/O thread synced with master
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 if (!$rpl_debug)
 {
   --disable_query_log
@@ -108,7 +108,7 @@ while (!$done)
     --inc $kills
     --replace_result $io_id IO_THREAD
     --eval KILL $io_id
-    --source include/wait_for_slave_io_to_stop.inc
+    --source include/rpl/wait_for_receiver_to_stop.inc
     # Remove the disk space restriction
     --source include/remove_debug_point.inc
 
@@ -124,18 +124,18 @@ while (!$done)
       --disable_warnings
       STOP REPLICA SQL_THREAD;
       --enable_warnings
-      --source include/wait_for_slave_sql_to_stop.inc
+      --source include/rpl/wait_for_applier_to_stop.inc
       # Relay log is in bad shape
       --let $rpl_server_number= 2
       --let $rpl_server_parameters= --relay_log_recovery
-      --source include/rpl_restart_server.inc
-      --source include/start_slave.inc
+      --source include/rpl/restart_server.inc
+      --source include/rpl/start_replica.inc
       --let io_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
     }
     if ($events != No such row)
     {
       # Start the I/O thread again to continue with the test case
-      --source include/start_slave_io.inc
+      --source include/rpl/start_receiver.inc
     }
     # Simulate space restriction again
     --source include/add_debug_point.inc
@@ -151,8 +151,8 @@ if (!$rpl_debug)
 --source include/remove_debug_point.inc
 
 # Assert that everything was replicated
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
 
@@ -162,6 +162,6 @@ if ($rpl_debug)
 }
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

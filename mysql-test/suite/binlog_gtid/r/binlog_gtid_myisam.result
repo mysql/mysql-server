@@ -24,7 +24,7 @@ a	b
 1	1
 4	4
 # There must no UPDATE in binlog;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 delete from t1;
 delete from t2;
@@ -34,7 +34,7 @@ reset binary logs and gtids;
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 ERROR 23000: Duplicate entry '4' for key 't2.PRIMARY'
 # There must be no UPDATE query event;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 drop table t1, t2;
 End of tests

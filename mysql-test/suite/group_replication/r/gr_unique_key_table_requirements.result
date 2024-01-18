@@ -9,7 +9,7 @@ SET SESSION sql_log_bin=1;
 CREATE TABLE t1 (c1 INT UNIQUE KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT, KEY `c1` (`c1`)) ENGINE=InnoDB;
 CREATE TABLE t3 (c1 INT UNIQUE NULL) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # Testing all tables that will fail.
 #
@@ -31,7 +31,7 @@ UPDATE t1 SET c1 = 2;
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 DELETE FROM t1;
 ERROR HY000: The table does not comply with the requirements by an external plugin.
-include/rpl_sync.inc
+include/rpl/sync.inc
 # Now, lets repeat all the tests with group replication stopped.
 include/stop_group_replication.inc
 include/stop_group_replication.inc

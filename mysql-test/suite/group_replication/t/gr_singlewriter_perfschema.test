@@ -36,26 +36,26 @@
 # 3. Change the value of group_replication_paxos_single_leader to 1
 #    on all servers and restart GR.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET GLOBAL group_replication_paxos_single_leader = 1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_paxos_single_leader = 1;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_paxos_single_leader = 1;
 --source include/start_group_replication.inc
 
@@ -72,11 +72,11 @@ SELECT group_replication_switch_to_single_primary_mode();
 
 # 7. Change value of group_replication_paxos_single_leader to 1 on 2 servers.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_paxos_single_leader = 0;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_paxos_single_leader = 0;
 
 # 8. Value of WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE is 1 on all servers.
@@ -87,19 +87,19 @@ SET GLOBAL group_replication_paxos_single_leader = 0;
 # group_replication_paxos_single_leader to OFF
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
@@ -107,12 +107,12 @@ SET GLOBAL group_replication_paxos_single_leader = 0;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -133,19 +133,19 @@ SELECT group_replication_switch_to_multi_primary_mode();
 SELECT group_replication_set_communication_protocol("8.0.27");
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
@@ -153,12 +153,12 @@ SELECT group_replication_set_communication_protocol("8.0.27");
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -171,17 +171,17 @@ SELECT group_replication_set_communication_protocol("8.0.27");
 # Change the value to 0 in all servers and restart GR.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET GLOBAL group_replication_paxos_single_leader = 0;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET GLOBAL group_replication_paxos_single_leader = 0;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET GLOBAL group_replication_paxos_single_leader = 0;
 

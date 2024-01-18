@@ -32,13 +32,13 @@ include/stop_group_replication.inc
 
 # 6. Server2 will fail (applier thread stopped) and abort
 [connection server3]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 # 7. Server3 is the new primary
 include/gr_assert_primary_member.inc
 
 # 8. Wait for server 2 to disconnect/abort and restart
 [connection server2]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 # 9. Cleanup

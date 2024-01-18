@@ -3,7 +3,7 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # mysqlbinlog.inc with $only_decoded_rows needs have_grep.inc
 --source include/have_grep.inc
 
@@ -13,15 +13,15 @@
 --echo #
 CREATE TABLE t (i INT, j JSON NOT NULL);
 SET SESSION binlog_row_value_options = 'PARTIAL_JSON';
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT IGNORE INTO t VALUES (1, NULL);  # succeeds with a warning
 SELECT * FROM t;
 --echo # mysqlbinlog used to show 'Invalid JSON' for the second column.
 --let $mysqlbinlog_only_decoded_rows=1
---source include/mysqlbinlog.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/mysqlbinlog.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t;
 --connection master
 DROP TABLE t;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

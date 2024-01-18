@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,7 +9,7 @@ DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 DROP TRIGGER IF EXISTS tr1;
 DROP FUNCTION IF EXISTS f1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY);
 CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY);
 CREATE PROCEDURE p1()
@@ -45,7 +45,7 @@ END//
 CALL p1();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=1
@@ -114,7 +114,7 @@ id
 10
 SELECT * FROM t2;
 id
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Result on slave
 SELECT * FROM t1;
 id
@@ -132,7 +132,7 @@ DROP TRIGGER tr1;
 CALL p2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=11
@@ -179,7 +179,7 @@ id
 17
 18
 19
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Result on slave
 SELECT * FROM t1;
 id
@@ -212,5 +212,5 @@ DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 DROP FUNCTION IF EXISTS f1;
 DROP TRIGGER IF EXISTS tr1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -2,8 +2,8 @@
 # Drop View breaks replication if view does not exist
 #
 --source include/not_group_replication_plugin.inc
-source include/set_privilege_checks_user_as_system_user.inc;
-source include/master-slave.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/init_source_replica.inc;
 --disable_warnings
 drop table if exists t1, t2;
 drop view if exists v1, v2, v3, not_exist_view;
@@ -19,7 +19,7 @@ drop view not_exist_view;
 --error 1051
 drop view v1, not_exist_view;
 drop view v1, v2, v3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --error 1146
 select * from v1;
 --error 1146
@@ -30,5 +30,5 @@ select * from v3;
 --echo ==== clean up ====
 connection master;
 drop table t1, t2, t3;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

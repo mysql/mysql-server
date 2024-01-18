@@ -15,7 +15,7 @@
 #
 
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 1. Add six rows in
@@ -146,4 +146,4 @@ SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3103);
 SELECT asynchronous_connection_failover_delete_source('ch2', '192.168.0.1', 3101, 'net1');
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

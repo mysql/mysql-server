@@ -1,0 +1,179 @@
+#  WL#5096
+#  
+#  Description 
+#  ===========
+#
+#  This test case covers Requirements for replication using different
+#  combinations of indexes and blob fields. 
+#
+#  It acts as a complement for rpl_row_img_sanity tests as it checks
+#  that in a chained replication scenario, replication does not break.
+#
+#  Usage
+#  =====
+#
+#  Before including this file the following variables should be set:
+#    * $server_1_engine
+#    * $server_2_engine
+#    * $server_3_engine
+#
+#  Example:
+#
+#     -- let $server_1_engine= Falcon
+#     -- let $server_2_engine= MyISAM
+#     -- let $server_3_engine= InnoDB
+#
+#     -- source common/rpl/rpl_row_img_blobs.test
+# 
+
+-- connection server_1
+
+-- let $diff_table=test.t
+let $i= 7;
+while($i)
+{
+  -- connection server_1
+  SET SQL_LOG_BIN=0;
+
+  -- connection server_2
+  SET SQL_LOG_BIN=0;
+
+  -- connection server_3
+  SET SQL_LOG_BIN=0;
+
+  # 
+  # The comments below (on create table) must be read with the SQL
+  # instructions issued later in mind. Declaring a table obviously is 
+  # not enough to assert anything.
+  #
+  # Also, the tests in this file make more sense when performed with
+  # binlog_row_image configured as NOBLOB.
+  #
+
+  if ($i == 1) {
+    -- echo ### Asserts that declaring a blob as part of a primary key does not break replication
+    -- connection server_1
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $server_1_engine;
+    -- connection server_2
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $server_2_engine;
+    -- connection server_3 
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $server_3_engine;
+  }
+  if ($i == 2)
+  { 
+    -- echo ### Asserts that declaring a blob as part of a unique (not null) key does not break replication
+    -- connection server_1
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $server_1_engine;
+    -- connection server_2
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $server_2_engine;
+    -- connection server_3
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $server_3_engine;
+  }
+  if ($i == 3)
+  {
+    -- echo ### Asserts that declaring a blob in a key does not break replication
+    -- connection server_1
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $server_1_engine;
+    -- connection server_2
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $server_2_engine;
+    -- connection server_3
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $server_3_engine;
+
+  }
+  if ($i == 4) {
+    -- echo ### Asserts that updates without blobs in the BI (PK exists int the table)
+    -- echo ### will not break replication
+    -- connection server_1
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $server_1_engine;
+    -- connection server_2
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $server_2_engine;
+    -- connection server_3 
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $server_3_engine;
+
+  }
+  if ($i == 5)
+  { 
+    -- echo ### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+    -- echo ### will not break replication
+    -- connection server_1
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= $server_1_engine;
+    -- connection server_2
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= $server_2_engine;
+    -- connection server_3
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= $server_3_engine;
+
+  }
+  if ($i == 6)
+  { 
+    -- echo ### Asserts that updates without blobs in the AI (they are not updated) 
+    -- echo ### will not break replication (check even if there is a key in the table)
+    -- connection server_1
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $server_1_engine;
+    -- connection server_2
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $server_2_engine;
+    -- connection server_3
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $server_3_engine;
+
+  }
+  if ($i == 7)
+  { 
+    -- echo ### Asserts that updates without blobs in the AI (they are not updated) 
+    -- echo ### will not break replication (check when there is no key in the table)
+    -- connection server_1
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $server_1_engine;
+    -- connection server_2
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $server_2_engine;
+    -- connection server_3
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $server_3_engine;
+  }
+
+  -- connection server_1
+  SET SQL_LOG_BIN=1;
+
+  -- connection server_2
+  SET SQL_LOG_BIN=1;
+
+  -- connection server_3
+  SET SQL_LOG_BIN=1;
+
+  -- connection server_1
+
+  -- let $blob1= "a"
+  -- let $blob2= "b"
+  -- let $blob3= "c"
+
+  -- eval INSERT INTO t VALUES (1, $blob1, 10)
+  -- eval INSERT INTO t VALUES (2, $blob2, 20)
+  -- eval INSERT INTO t VALUES (3, $blob3, 30)
+  
+  -- source include/rpl/sync.inc
+
+  -- connection server_1
+  -- eval UPDATE t SET c1=10 WHERE c2=$blob1
+  -- eval UPDATE t SET c1=20 WHERE c1=2
+  -- eval UPDATE t SET c1=30 WHERE c3=30
+  -- eval UPDATE t SET c3=40 WHERE c1=30
+
+  -- source include/rpl/sync.inc
+
+  -- let $diff_tables= server_1:$diff_table, server_2:$diff_table, server_3:$diff_table
+  -- source include/diff_tables.inc
+
+  -- connection server_1
+  -- eval DELETE FROM t WHERE c2=$blob1
+  -- eval DELETE FROM t WHERE c1=20
+  -- eval DELETE FROM t
+
+  -- source include/rpl/sync.inc
+
+  -- let $diff_tables= server_1:$diff_table, server_2:$diff_table, server_3:$diff_table
+  -- source include/diff_tables.inc
+
+  -- connection server_1
+
+  DROP TABLE t;
+
+  -- source include/rpl/sync.inc
+
+  dec $i;
+}

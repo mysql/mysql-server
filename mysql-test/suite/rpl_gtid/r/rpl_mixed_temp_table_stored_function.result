@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -94,8 +94,8 @@ drop_temp_table_with_dmls()
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
-include/show_binlog_events.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/deprecated/show_binlog_events.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 #
 # Verify that a function call is written to binary log in ROW
@@ -133,7 +133,7 @@ SELECT drop_temp_table_with_dmls();
 drop_temp_table_with_dmls()
 2
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -149,7 +149,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 #
 # Verify that a function call is written to binary log in ROW
@@ -174,7 +174,7 @@ dmls_on_temp_and_regular_tables()
 SELECT drop_temp_table_with_dmls();
 drop_temp_table_with_dmls()
 2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -190,7 +190,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 # Verify that CREATE TEMPORARY TABLE with function is written to
 # the binary log in ROW format.
@@ -199,7 +199,7 @@ CREATE TEMPORARY TABLE temp3(a int);
 INSERT INTO temp3 VALUES(1);
 CREATE TEMPORARY TABLE temp4 SELECT dummy_function() as result FROM temp3;
 include/assert.inc [CREATE TEMPORARY TABLE with function is binlogged in ROW format when binlog_format= ROW/MIXED.]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 #
 # Verify that a function invoking another function that has temporary
@@ -228,7 +228,7 @@ call_drop_temp_table_if_exists()
 SELECT call_drop_temp_table_if_exists();
 call_drop_temp_table_if_exists()
 3
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -256,7 +256,7 @@ CREATE FUNCTION drop_temp_table_if_exists() RETURNS INT RETURN 2;
 SELECT call_drop_temp_table_if_exists();
 call_drop_temp_table_if_exists()
 3
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -287,7 +287,7 @@ call_drop_temp_table_if_exists()
 EXECUTE function_call;
 call_drop_temp_table_if_exists()
 3
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -315,7 +315,7 @@ CREATE FUNCTION drop_temp_table_if_exists() RETURNS INT RETURN 2;
 EXECUTE function_call;
 call_drop_temp_table_if_exists()
 3
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -349,7 +349,7 @@ END //
 SELECT call_proc_with_temp_table_ddl();
 call_proc_with_temp_table_ddl()
 1
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
@@ -363,7 +363,7 @@ CREATE EVENT call_routine_with_temp_table_ddl
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 5 SECOND
 DO SELECT call_proc_with_temp_table_ddl();
 DELETE FROM t4;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
@@ -384,5 +384,5 @@ DROP FUNCTION call_drop_temp_table_if_exists;
 DROP FUNCTION drop_temp_table_if_exists;
 DROP PROCEDURE proc_with_temp_table_ddl;
 DROP FUNCTION call_proc_with_temp_table_ddl;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

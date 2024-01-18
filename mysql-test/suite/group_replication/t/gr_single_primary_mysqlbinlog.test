@@ -27,7 +27,7 @@
 --echo # on server3. Then, stop GR on server3.
 --echo #
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Bootstrap start GR on server3
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -56,12 +56,12 @@ INSERT INTO test.t1 VALUES (1);
 --echo # Bootstrap start GR on server1 (Primary). Start GR on server2 (Secondary).
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Make sure server1 is Primary
@@ -73,7 +73,7 @@ INSERT INTO test.t1 VALUES (1);
 --echo # Try executing mysqlbinlog output of server3 on server2(RO). Expect ERROR.
 --echo #
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_connection_args= --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_2
 --error 1 #ER_OPTION_PREVENTS_STATEMENT
@@ -88,7 +88,7 @@ INSERT INTO test.t1 VALUES (1);
 --echo # Try executing mysqlbinlog output of server3 on server1(RW). Expect SUCCESS.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_connection_args= --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_1
 --exec $MYSQL $server1_connection_args -e "source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_grtest.binlog"
@@ -106,7 +106,7 @@ INSERT INTO test.t1 VALUES (1);
 
 # Check if data has been applied in the group
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo Wait until server2 applies the single row of table t1
 --let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE TABLE_SCHEMA="test" AND TABLE_NAME="t1";
@@ -122,7 +122,7 @@ INSERT INTO test.t1 VALUES (1);
 --echo # Join server3 to the group. Expect SUCCESS.
 --echo #
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # Make sure number of servers in the group is 3
@@ -135,7 +135,7 @@ INSERT INTO test.t1 VALUES (1);
 
 # Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Remove binlog file which is not required now
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_grtest.binlog
 DROP TABLE test.t1;

@@ -21,7 +21,7 @@
 --source include/have_debug.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #
 # 1. Initalization
@@ -33,7 +33,7 @@
 SET GLOBAL binlog_transaction_compression = ON;
 SET SESSION binlog_transaction_compression = ON;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # make the statistics message to be emitted regardless
 # of the time constraint (of at most 1 message every 2 minutes).
@@ -43,7 +43,7 @@ SET SESSION binlog_transaction_compression = ON;
 
 --source include/save_error_log_position.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (
   c1 INT NOT NULL PRIMARY KEY
@@ -68,7 +68,7 @@ while ( $i <= 2500 )
 # 3. Check ER_RPL_MTA_STATISTICS is present in error log.
 #
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # The server will emit the statistics after 1024 events assigned.
 # As 2500 inserts with compression generates 5000 events,
@@ -86,11 +86,11 @@ while ( $i <= 2500 )
 --let $debug_point = simulate_log_err_ER_RPL_MTA_STATISTICS
 --source include/remove_debug_point.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 # Restore system variables
 --source include/restore_sysvars.inc

@@ -1,6 +1,6 @@
 -- source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_statement.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 #
 # Bug #51055    Replication failure on duplicate key + traditional SQL mode
@@ -22,5 +22,5 @@ DROP TABLE t1;
 -- echo # assertion: sync slave with master makes slave not to stop with
 -- echo #            duplicate key error (because it has received event
 -- echo #            with expected error code).
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

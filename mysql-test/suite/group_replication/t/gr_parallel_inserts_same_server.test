@@ -17,7 +17,7 @@
 --source include/group_replication.inc
 
 CREATE TABLE t1 (a INT AUTO_INCREMENT, PRIMARY KEY (a), b int) engine=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server1
 

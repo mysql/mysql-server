@@ -17,31 +17,31 @@
 --source include/not_var_link.inc
 # This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Bug#28541204 SECURE-FILE-PRIV BREAKS LOAD DATA INFILE REPLICATION IN
 #              STATEMENT MODE ON 5.7.23
 
 --echo # Restart the slave with a different secure path.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $old_secure_file_path=`SELECT @@GLOBAL.secure_file_priv`
 --let $datadir=`SELECT @@GLOBAL.datadir`
 --let $include_silent=1
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--secure-file-priv=$datadir
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --let $include_silent=0
 
 # Assert that @@GLOBAL.secure_file_priv equals @@GLOBAL.datadir
 --let $assert_text= Datadir is the new secure file path
 --let $assert_cond= "[SELECT @@GLOBAL.secure_file_priv]" = "[SELECT @@GLOBAL.datadir]"
 --source include/assert.inc
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 ##########################################################################
 #                            Loading data
 ##########################################################################
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 create table t1(a int not null auto_increment, b int, primary key(a)) engine=myisam;
 
@@ -50,13 +50,13 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 ##########################################################################
 #                       Checking Consistency
 ##########################################################################
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Restore the old secure path on slave.
 --let $include_silent=1
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--secure-file-priv=$old_secure_file_path
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --let $include_silent=0
 
 # Assert that @@GLOBAL.secure_file_priv is restored.
@@ -64,7 +64,7 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 --let $assert_cond= "[SELECT @@GLOBAL.secure_file_priv]" = "$old_secure_file_path"
 --source include/assert.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
@@ -72,9 +72,9 @@ source include/diff_tables.inc;
 ##########################################################################
 #                             Clean up
 ##########################################################################
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 drop table t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

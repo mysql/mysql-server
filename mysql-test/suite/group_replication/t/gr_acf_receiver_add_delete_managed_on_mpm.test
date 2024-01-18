@@ -43,7 +43,7 @@ if (!$have_xcom_stack) {
 --echo ############################################################
 --echo # 1. Deploy a 2 members group A in multi-primary mode.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 --let $group_a= $group_replication_group_name
@@ -53,7 +53,7 @@ if (!$have_xcom_stack) {
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= `SELECT @@server_uuid`
 --disable_query_log
 --eval SET GLOBAL group_replication_group_seeds= $group_a_group_seeds
@@ -65,7 +65,7 @@ if (!$have_xcom_stack) {
 --echo ############################################################
 --echo # 2. Deploy a 2 members group A in multi-primary mode.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server3_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
 --let $group_b= $group_replication_group_name
@@ -75,7 +75,7 @@ if (!$have_xcom_stack) {
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server4_uuid= `SELECT @@server_uuid`
 --disable_query_log
 --eval SET GLOBAL group_replication_group_seeds= $group_b_group_seeds
@@ -89,7 +89,7 @@ if (!$have_xcom_stack) {
 --echo #    group B, server3.
 --echo #    It will be allowed but the configuration will not be propagated.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $group_a GROUP_A
 --eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_a', '127.0.0.1', $SERVER_MYPORT_2, '', 90, 70);
@@ -111,7 +111,7 @@ if (!$have_xcom_stack) {
 --source include/assert.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
@@ -134,12 +134,12 @@ if (!$have_xcom_stack) {
 --echo ############################################################
 --echo # 4. Create and start the managed channel on group B, server3.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
@@ -162,7 +162,7 @@ if (!$have_xcom_stack) {
 --source include/assert.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There is no replication channel ch1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="ch1", count, 1] = 0
@@ -190,10 +190,10 @@ if (!$have_xcom_stack) {
 --echo #    group B, server3.
 --echo #    It will be allowed but the configuration will not be propagated.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --replace_result $group_a GROUP_A
 --eval SELECT asynchronous_connection_failover_delete_managed('ch1', '$group_a')
@@ -215,7 +215,7 @@ if (!$have_xcom_stack) {
 --source include/assert.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There is no replication channel ch1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="ch1", count, 1] = 0
@@ -242,27 +242,27 @@ if (!$have_xcom_stack) {
 --echo ############################################################
 --echo # 6. Clean up.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_channel_name='ch1'
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

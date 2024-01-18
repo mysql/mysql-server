@@ -35,14 +35,14 @@
 CREATE TABLE t1 (a INT);
 RESET BINARY LOGS AND GTIDS;
 
---source extra/binlog_tests/binlog_mysqlbinlog_fill.inc
+--source common/binlog/mysqlbinlog_fill.inc
 
 # Verify Non blocking behaviour with connection-server-id=0
 --echo
 --echo ==== Remote with to-last-log stop-never connection-server-id=0 ====
 --let $extra_options= --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $file_1
 --let $options= --to-last-log --stop-never --connection-server-id=0
---source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
+--source common/binlog/mysqlbinlog_start_stop_2.inc
 
 # Verify Non blocking behaviour for BINLOG_DUMP_NON_BLOCK by setting
 # connection-server-id=1 and not setting --stop-never
@@ -50,7 +50,7 @@ RESET BINARY LOGS AND GTIDS;
 --echo ==== Remote with connection-server-id= (value other than 0) ====
 --let $extra_options= --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $file_1
 --let $options= --to-last-log  --connection-server-id=1
---source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
+--source common/binlog/mysqlbinlog_start_stop_2.inc
 
 --echo
 --echo ==== clean up ====

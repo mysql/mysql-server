@@ -18,10 +18,10 @@
 # the test is binlog-format agnostic
 --source include/have_binlog_format_row.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $is_mts= 1
 
---source extra/rpl_tests/rpl_check_ps_applier_status_by_worker_gtid_skipped_transaction.inc
+--source common/rpl/check_ps_applier_status_by_worker_gtid_skipped_transaction.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

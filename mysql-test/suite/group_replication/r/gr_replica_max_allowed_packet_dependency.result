@@ -35,7 +35,7 @@ SET @@GLOBAL.replica_max_allowed_packet=@debug_save_replica_max_allowed_packet;
 include/stop_group_replication.inc
 include/start_group_replication.inc
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 5.  Verification.
 include/diff_tables.inc [server1:t1, server2:t1]

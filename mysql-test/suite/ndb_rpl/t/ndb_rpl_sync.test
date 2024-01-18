@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
 #
@@ -57,7 +57,7 @@ SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
 
 #
 # now setup replication to continue from last epoch
---source suite/ndb_rpl/ndb_setup_slave.inc
+--source suite/ndb_rpl/ndb_setup_replica.inc
 --connection slave
 START REPLICA;
 
@@ -66,7 +66,7 @@ START REPLICA;
 #
 --connection master
 --sync_slave_with_master
---source include/check_slave_is_running.inc
+--source include/rpl/assert_replica_running.inc
 
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
@@ -95,6 +95,6 @@ select * from mysql.ndb_apply_status;
 
 # End 5.1 Test
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

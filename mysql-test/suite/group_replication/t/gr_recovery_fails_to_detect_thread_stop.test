@@ -57,7 +57,7 @@ INSERT INTO t1 VALUES (1);
 --echo #     forcing the SQL thread to stop
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression("Error while creating the group replication recovery channel with donor");
 CALL mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached");
@@ -125,7 +125,7 @@ FLUSH BINARY LOGS;
 # that, and if the dump thread is slow, it will still be reading from
 # the old binlog at the time we do PURGE BINARY LOGS below. That would
 # prevent PURGE BINARY LOGS from purging the log.
---source include/stop_dump_threads.inc
+--source include/rpl/stop_dump_threads.inc
 
 --replace_result $server_binlog_file_cur CURRENT_BINLOG_FILE
 --eval PURGE BINARY LOGS TO '$server_binlog_file_cur'

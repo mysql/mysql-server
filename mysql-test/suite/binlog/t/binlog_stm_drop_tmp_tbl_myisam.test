@@ -19,5 +19,5 @@ CREATE TEMPORARY TABLE temp_non_trx(a INT) ENGINE=MyISAM;
 --connection default
 --source include/wait_until_count_sessions.inc
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 

@@ -1,13 +1,13 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression(".* You need to use --log-bin to make .* work.");
 CALL mtr.add_suppression("Failed to open log");
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 #
 # Error: binlog file doesn't exist
@@ -39,21 +39,21 @@ FLUSH BINARY LOGS;
 # Error: Client requests from a position less than 4
 #
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'request_source_log_pos_3' to @@GLOBAL.debug
 START REPLICA IO_THREAD;
 call mtr.add_suppression(".* Got fatal error 1236 from source when reading data from binary log");
-include/wait_for_slave_io_error.inc [errno=13114]
+include/rpl/wait_for_receiver_error.inc [errno=13114]
 # Removing debug point 'request_source_log_pos_3' from @@GLOBAL.debug
 #
 # Error: Binary log is not open on master
 #
-include/rpl_restart_server.inc [server_number=1 parameters: --disable-log-bin --gtid-mode=off]
+include/rpl/restart_server.inc [server_number=1 parameters: --disable-log-bin --gtid-mode=off]
 #
 # Error: master's gtid_mode is not on
 #
-include/rpl_restart_server.inc [server_number=1 parameters: --gtid-mode=off]
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1 parameters: --gtid-mode=off]
+include/rpl/restart_server.inc [server_number=1]
 #
 # Error: Dump thread is killed
 #
@@ -72,5 +72,5 @@ DROP TABLE t1;
 [connection slave]
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

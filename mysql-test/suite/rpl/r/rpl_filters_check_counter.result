@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -33,7 +33,7 @@ REPLICATE_IGNORE_TABLE	test.itable	CHANGE_REPLICATION_FILTER	0
 REPLICATE_REWRITE_DB	(db1,db2)	CHANGE_REPLICATION_FILTER	0
 REPLICATE_WILD_DO_TABLE	test.t%	CHANGE_REPLICATION_FILTER	0
 REPLICATE_WILD_IGNORE_TABLE	test.i%	CHANGE_REPLICATION_FILTER	0
-include/start_slave.inc
+include/rpl/start_replica.inc
 #
 # Execute transactions on the Master.
 #
@@ -87,7 +87,7 @@ DROP TABLE IF EXISTS test.t1, test.t2, test.itable, test.itable2;
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE nodb;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Verify the filter couter on the Slave.
 # REPLICATE_DO_DB=22,       REPLICATE_IGNORE_DB=0,     REPLICATE_DO_TABLE=12,
@@ -115,7 +115,7 @@ REPLICATE_WILD_IGNORE_TABLE	test.i%	CHANGE_REPLICATION_FILTER	2
 #
 # Clean up and Verify filter couter after unsetting the rules. Expect 0 count.
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=        ();
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=      ();
 CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=          ();
@@ -142,5 +142,5 @@ REPLICATE_IGNORE_TABLE		CHANGE_REPLICATION_FILTER	0
 REPLICATE_REWRITE_DB		CHANGE_REPLICATION_FILTER	0
 REPLICATE_WILD_DO_TABLE		CHANGE_REPLICATION_FILTER	0
 REPLICATE_WILD_IGNORE_TABLE		CHANGE_REPLICATION_FILTER	0
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

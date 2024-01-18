@@ -1,12 +1,12 @@
 # NYI - row-based cannot use CREATE ... SELECT
 
 --source include/not_group_replication_plugin.inc
-source include/set_privilege_checks_user_as_system_user.inc;
-source include/master-slave.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/init_source_replica.inc;
 --disable_warnings
 drop table if exists t1,v1;
 drop view if exists t1,v1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --enable_warnings
 
 #
@@ -19,33 +19,33 @@ insert into t1 values (1);
 create view v1 as select a from t1;
 insert into v1 values (2);
 select * from v1 order by a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # view already have to be on slave
 select * from v1 order by a;
 connection master;
 update v1 set a=3 where a=1;
 select * from v1 order by a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from v1 order by a;
 connection master;
 delete from v1 where a=2;
 select * from v1 order by a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from v1 order by a;
 connection master;
 # 'alter view' internally maped to creation, but still check that it works
 alter view v1 as select a as b from t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from v1 order by 1;
 connection master;
 drop view v1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #error, because view have to be removed from slave
 -- error 1146
 select * from v1 order by a;
 connection master;
 drop table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Change Author: JBM
 # Change Date: 2005-12-22
 # Change: Commented out binlog events to work with SBR and RBR 
@@ -75,7 +75,7 @@ DROP VIEW IF EXISTS v1;
 --echo
 --echo ---> Synchronizing slave with master...
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo ---> connection: master
@@ -103,7 +103,7 @@ SELECT * FROM t1;
 --echo
 --echo ---> Synchronizing slave with master...
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ---> connection: master
 
@@ -124,7 +124,7 @@ SELECT * FROM t1;
 DROP VIEW v1;
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection master
 
 #
@@ -136,7 +136,7 @@ create table t1(a int, b int);
 insert into t1 values (1, 1), (1, 2), (1, 3);
 create view  v1(a, b) as select a, sum(b) from t1 group by a;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 explain v1;
 show create table v1;
 select * from v1;
@@ -145,7 +145,7 @@ connection master;
 drop table t1;
 drop view v1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # BUG#28244 CREATE VIEW breaks replication when view exists
@@ -157,7 +157,7 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 CREATE VIEW v1 AS SELECT * FROM t1;
 DROP VIEW v1;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Bug#32575 Parse error of stmt with extended comments on slave side
@@ -170,12 +170,12 @@ CREATE TABLE t1 (a INT);
 /*!50001 VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` < 3) */
 /*!50002 WITH CASCADED CHECK OPTION */;
 SHOW CREATE VIEW v1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SHOW CREATE VIEW v1;
 connection master;
 DROP VIEW v1;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo End of 5.0 tests
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

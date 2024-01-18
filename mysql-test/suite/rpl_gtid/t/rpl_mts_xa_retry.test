@@ -3,26 +3,26 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $saved_master_binlog_transaction_compression=`SELECT @@session.binlog_transaction_compression`
 SET @@session.binlog_transaction_compression = ON;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $saved_replica_transaction_retries = `SELECT @@global.replica_transaction_retries`
 --let $saved_innodb_lock_wait_timeout = `SELECT @@global.innodb_lock_wait_timeout`
 --let $saved_replica_parallel_workers = `SELECT @@global.replica_parallel_workers`
 --let $saved_replica_parallel_type = `SELECT @@global.replica_parallel_type`
 --let $saved_binlog_transaction_compression = `SELECT @@global.binlog_transaction_compression`
 --let $saved_replica_preserve_commit_order = `SELECT @@global.replica_preserve_commit_order`
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 SET @@global.replica_transaction_retries= 200;
 SET @@global.innodb_lock_wait_timeout= 5;
 SET @@global.binlog_transaction_compression = ON;
 SET @@global.replica_parallel_workers = 4;
 SET @@global.replica_preserve_commit_order = OFF;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --let $j = 3
 while ($j > 0) {
@@ -39,9 +39,9 @@ while ($j > 0) {
     --let $nworkers = 8
   }
 
-  --source include/stop_slave_sql.inc
+  --source include/rpl/stop_applier.inc
   --eval SET @@global.replica_parallel_workers = $nworkers
-  --source include/start_slave_sql.inc
+  --source include/rpl/start_applier.inc
 
   --let $i = 2
   while($i>0)
@@ -57,20 +57,20 @@ while ($j > 0) {
       --let $replica_parallel_type = 'LOGICAL_CLOCK'
     }
 
-    --source include/rpl_connection_master.inc
-    --source include/rpl_reset.inc
+    --source include/rpl/connection_source.inc
+    --source include/rpl/reset.inc
     CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
-    --source include/sync_slave_sql_with_master.inc
+    --source include/rpl/sync_to_replica.inc
 
-    --source include/stop_slave_sql.inc
+    --source include/rpl/stop_applier.inc
     --eval SET @@global.replica_parallel_type = $replica_parallel_type
-    --source include/start_slave_sql.inc
+    --source include/rpl/start_applier.inc
 
-    --source include/rpl_connection_slave1.inc
+    --source include/rpl/connection_replica1.inc
     BEGIN;
     INSERT INTO t1 SET a = 10, b = 11;
 
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
 
     INSERT INTO t1 SET a = 22, b = 22;
     XA START 'xa1';
@@ -81,10 +81,10 @@ while ($j > 0) {
     # assert that we have transactions were compressed
     --let $include_trx_payload_events=1
     --let $event_sequence = Gtid # Query # Gtid # Transaction_payload # Query # Table_map # Write_rows # Xid # Gtid # Transaction_payload # Query/XA START.* # Table_map # Write_rows # Query/XA END.* # XA_prepare
-    --source include/assert_binlog_events.inc
+    --source include/rpl/assert_binlog_events.inc
     --let $include_trx_payload_events=0
 
-    --source include/rpl_connection_slave.inc
+    --source include/rpl/connection_replica.inc
 
     # wait for the applier thread to start applying
     --let $wait_condition=SELECT COUNT(*) > 0 FROM performance_schema.threads WHERE name IN ("thread/sql/replica_sql", "thread/sql/replica_worker") AND processlist_info LIKE 'XA START%'
@@ -97,27 +97,27 @@ while ($j > 0) {
     --let $wait_condition=SELECT APPLYING_TRANSACTION_RETRIES_COUNT > 0 FROM performance_schema.replication_applier_status_by_worker WHERE thread_id = $worker_thread_id
     --source include/wait_condition.inc
 
-    --source include/rpl_connection_slave1.inc
+    --source include/rpl/connection_replica1.inc
 
     ROLLBACK;
 
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
     XA COMMIT 'xa1';
-    --source include/sync_slave_sql_with_master.inc
+    --source include/rpl/sync_to_replica.inc
 
     # assert that we have the expected event sequence in the
     # slave's binary log
     --let $include_trx_payload_events=1
     --let $event_sequence = Gtid # Query # Gtid # Transaction_payload # Query # Table_map # Write_rows # Xid # Gtid # Transaction_payload # Query/XA START.* # Table_map # Write_rows # Query/XA END.* # XA_prepare # Gtid # Query/XA COMMIT.*
-    --source include/assert_binlog_events.inc
+    --source include/rpl/assert_binlog_events.inc
 
     # assert that the tables have the same content
     --let $diff_tables=master:test.t1,slave:test.t1
     --source include/diff_tables.inc
 
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
     DROP TABLE t1;
-    --source include/sync_slave_sql_with_master.inc
+    --source include/rpl/sync_to_replica.inc
 
     --dec $i
   }
@@ -125,7 +125,7 @@ while ($j > 0) {
   --dec $j
 }
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --replace_result $saved_replica_transaction_retries SAVED
 --eval SET @@global.replica_transaction_retries= $saved_replica_transaction_retries
@@ -141,10 +141,10 @@ while ($j > 0) {
 --eval SET @@global.replica_parallel_type = '$saved_replica_parallel_type'
 --replace_result $saved_replica_preserve_commit_order SAVED
 --eval SET @@global.replica_preserve_commit_order = $saved_replica_preserve_commit_order
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --replace_result $saved_master_binlog_transaction_compression SAVED
 --eval SET @@session.binlog_transaction_compression = $saved_master_binlog_transaction_compression
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

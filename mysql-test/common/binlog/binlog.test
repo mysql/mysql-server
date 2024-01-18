@@ -1,0 +1,417 @@
+#
+# misc binlogging tests that do not require a slave running
+#
+
+-- source include/have_log_bin.inc
+-- source include/have_debug.inc
+
+RESET BINARY LOGS AND GTIDS;
+
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=innodb;
+begin;
+insert t1 values (5);
+commit;
+begin;
+insert t2 values (5);
+commit;
+# first COMMIT must be Query_log_event, second - Xid_log_event
+source include/rpl/deprecated/show_binlog_events.inc;
+drop table t1,t2;
+
+#
+# binlog rotation after one big transaction
+#
+
+# test requires big transaction, which compression would invalidate
+# so, we are disabling compression explcitly just for this test case.
+--disable_result_log
+--disable_query_log
+SET @saved_btc = @@session.binlog_transaction_compression;
+SET @@session.binlog_transaction_compression = FALSE;
+--enable_result_log
+--enable_query_log
+
+reset binary logs and gtids;
+let $1=100;
+
+create table t1 (n int) engine=innodb;
+begin;
+--disable_query_log
+while ($1)
+{
+ eval insert into t1 values($1 + 4);
+ dec $1;
+}
+--enable_query_log
+commit;
+drop table t1;
+--source include/rpl/deprecated/show_binlog_events.inc
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source include/rpl/deprecated/show_binlog_events.inc
+--let $binlog_file=
+
+--disable_result_log
+--disable_query_log
+SET @@session.binlog_transaction_compression = @saved_btc;
+--enable_result_log
+--enable_query_log
+
+#
+# Bug#22540 - Incorrect value in column End_log_pos of
+# SHOW BINLOG EVENTS using InnoDB
+#
+
+# the following tests will show that certain queries now return
+# absolute offsets (from binlog start, rather than relative to
+# the beginning of the current transaction).  under what
+# conditions it should be allowed / is sensible to put the
+# slider into the middle of a transaction is not our concern
+# here; we just guarantee that if and when it's done, the
+# user has valid offsets to use.  if the setter function still
+# wants to throw a "positioning into middle of transaction"
+# warning, that's its prerogative and handled elsewhere.
+
+set @ac = @@autocommit;
+
+# first show this to work for SHOW BINLOG EVENTS
+
+set autocommit= 0;
+reset binary logs and gtids;
+create table t1(n int) engine=innodb;
+begin;
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+commit;
+drop table t1;
+--source include/rpl/deprecated/show_binlog_events.inc
+
+# now show that nothing breaks if we need to read from the cache more
+# than once, resulting in split event-headers
+
+# test requires big transaction, which compression would invalidate
+# so, we are disabling compression explcitly just for this test case.
+--disable_result_log
+--disable_query_log
+SET @saved_btc = @@session.binlog_transaction_compression;
+SET @@session.binlog_transaction_compression = FALSE;
+--enable_result_log
+--enable_query_log
+
+set @bcs = @@binlog_cache_size;
+set global binlog_cache_size=4096;
+reset binary logs and gtids;
+
+create table t1 (a int, b char(255)) engine=innodb;
+
+flush status;
+show status like "binlog_cache_use";
+
+let $1=100;
+disable_query_log;
+begin;
+while ($1)
+{
+ eval insert into t1 values( $1, 'just to fill void to make transaction occupying at least two buffers of the trans cache' );
+ dec $1;
+}
+commit;
+--echo *** the following must show the counter value = 1 ***
+show status like "binlog_cache_use";
+enable_query_log;
+
+--source include/rpl/deprecated/show_binlog_events.inc
+
+drop table t1;
+
+set global binlog_cache_size=@bcs;
+set session autocommit = @ac;
+--disable_result_log
+--disable_query_log
+SET @@session.binlog_transaction_compression = @saved_btc;
+--enable_result_log
+--enable_query_log
+
+#
+# Bug#33798: prepared statements improperly handle large unsigned ints
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+reset binary logs and gtids;
+create table t1 (a bigint unsigned, b bigint(20) unsigned);
+prepare stmt from "insert into t1 values (?,?)";
+set @a= 9999999999999999;
+set @b= 14632475938453979136;
+execute stmt using @a, @b;
+deallocate prepare stmt;
+drop table t1;
+--source include/rpl/deprecated/show_binlog_events.inc
+
+
+#
+# Bug #39182: Binary log producing incompatible character set query from 
+# stored procedure.
+#
+reset binary logs and gtids;
+CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci;
+USE bug39182;
+CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8mb3_unicode_ci)
+  DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+
+DELIMITER //;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE s1 VARCHAR(255);
+  SET s1= "test";
+  CREATE TEMPORARY TABLE tmp1
+    SELECT * FROM t1 WHERE a LIKE CONCAT("%", s1, "%");
+  SELECT 
+    COLLATION(NAME_CONST('s1', _utf8mb3'test')) c1,
+    COLLATION(NAME_CONST('s1', _utf8mb3'test' COLLATE utf8mb3_unicode_ci)) c2,
+    COLLATION(s1) c3,
+    COERCIBILITY(NAME_CONST('s1', _utf8mb3'test')) d1,
+    COERCIBILITY(NAME_CONST('s1', _utf8mb3'test' COLLATE utf8mb3_unicode_ci)) d2,
+    COERCIBILITY(s1) d3;
+  DROP TEMPORARY TABLE tmp1;
+END//
+
+DELIMITER ;//
+
+CALL p1();
+source include/rpl/deprecated/show_binlog_events.inc;
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP DATABASE bug39182;
+USE test;
+
+#
+# Bug#35383: binlog playback and replication breaks due to 
+# name_const substitution
+#
+DELIMITER //;
+CREATE PROCEDURE p1(IN v1 INT)
+BEGIN
+  CREATE TABLE t1 SELECT v1;
+  DROP TABLE t1;
+END//
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE v1 INT;
+  CREATE TABLE t1 SELECT v1+1;
+  DROP TABLE t1;
+END//
+CREATE PROCEDURE p3(IN v1 INT)
+BEGIN
+  CREATE TABLE t1 SELECT 1 FROM DUAL WHERE v1!=0;
+  DROP TABLE t1;
+END//
+CREATE PROCEDURE p4(IN v1 INT)
+BEGIN
+  DECLARE v2 INT;
+  CREATE TABLE t1 SELECT 1, v1, v2;
+  DROP TABLE t1;
+  CREATE TABLE t1 SELECT 1, v1+1, v2;
+  DROP TABLE t1;
+END//
+DELIMITER ;//
+
+CALL p1(1);
+CALL p2();
+CALL p3(0);
+CALL p4(0);
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+
+--echo End of 5.0 tests
+
+# Test of a too big SET INSERT_ID: see if the truncated value goes
+# into binlog (right), or the too big value (wrong); we look at the
+# binlog further down with SHOW BINLOG EVENTS.
+reset binary logs and gtids;
+create table t1 (id tinyint auto_increment primary key);
+set insert_id=128;
+insert ignore into t1 values(null);
+select * from t1;
+drop table t1;
+
+# bug#22027 
+create table t1 (a int);
+create table if not exists t2 select * from t1;
+
+# bug#22762
+create temporary table tt1 (a int);
+create table if not exists t3 like tt1;
+
+# BUG#25091 (A DELETE statement to mysql database is not logged with
+# ROW mode format): Checking that some basic operations on tables in
+# the mysql database is replicated even when the current database is
+# 'mysql'.
+
+--disable_warnings
+USE mysql;
+INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string='*1111111111111111111111111111111111111111';
+UPDATE user SET authentication_string='*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WHERE host='localhost' AND user='@#@';
+DELETE FROM user WHERE host='localhost' AND user='@#@';
+--enable_warnings
+
+use test;
+
+# Show binlog events on a different connection because it calls
+# `SELECT UUID()` internally, which is marked unsafe. Since there is
+# an open temporary table, this causes the current connection to log
+# subsequent statements in row format.
+connect (other,localhost,root,,test);
+connection other;
+source include/rpl/deprecated/show_binlog_events.inc;
+connection default;
+disconnect other;
+
+drop table t1,t2,t3,tt1;
+
+#Bug #26079 max_binlog_size + innodb = not make new binlog and hang server
+# server should not hang, binlog must rotate in the end
+reset binary logs and gtids;
+
+# temporarily disable compression for this test case, since it needs
+# to create a large binlog to rotate it.
+--disable_result_log
+--disable_query_log
+SET @saved_btc = @@session.binlog_transaction_compression;
+SET @@session.binlog_transaction_compression = FALSE;
+--enable_result_log
+--enable_query_log
+--disable_warnings
+drop table if exists t3;
+--enable_warnings
+create table t3 (a int(11) NOT NULL AUTO_INCREMENT, b text, PRIMARY KEY (a) ) engine=innodb;
+--let $binlog_file1= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo File $binlog_file1
+let $it=4;
+while ($it)
+{
+insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+dec $it;
+}
+--let $binlog_file2= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo *** show new binlog index after rotating ***
+--echo File $binlog_file2
+drop table t3;
+
+# clean up
+RESET BINARY LOGS AND GTIDS;
+--disable_result_log
+--disable_query_log
+SET @@session.binlog_transaction_compression = @saved_btc;
+--enable_result_log
+--enable_query_log
+
+--echo #
+--echo # Bug #45998: database crashes when running "create as select"
+--echo #
+CREATE DATABASE test1;
+USE test1;
+DROP DATABASE test1;
+CREATE TABLE test.t1(a int);
+INSERT INTO test.t1 VALUES (1), (2);
+CREATE TABLE test.t2 SELECT * FROM test.t1;
+USE test;
+DROP TABLES t1, t2;
+
+#
+# Bug#46640
+# This test verifies if the server_id stored in the "format 
+# description BINLOG statement" will override the server_id 
+# of the server executing the statements.
+#
+
+connect (fresh,localhost,root,,test);
+connection fresh;
+
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+# Format description event, with server_id = 10;
+BINLOG '
+qDtXZQ8KAAAAegAAAH4AAAABAAQAOC4zLjAtZGVidWcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACoO1dlEwANAAgAAAAABAAEAAAAYgAEGggAAAAAAAACAAAACgoKKioAEjQA
+CigAAbnTINA=
+';
+
+# What server_id is logged for a statement? Should be our own, not the
+# one from the format description event.
+INSERT INTO t1 VALUES (1);
+
+# INSERT INTO t1 VALUES (2), with server_id=20. Check that this is logged
+# with our own server id, not the 20 from the BINLOG statement.
+BINLOG '
+iOtVZRMUAAAAMAAAAMoEAAAAAG8AAAAAAAEABHRlc3QAAnQxAAEDAAABAQCv7yeG
+iOtVZR4UAAAAKAAAAPIEAAAAAG8AAAAAAAEAAgAB/wACAAAAB2NFFg==
+';
+
+# Show binlog events to check that server ids are correct.
+--let $show_binlog_events_mask_columns= 1,2,5
+--source include/rpl/deprecated/show_binlog_events.inc
+
+DROP TABLE t1;
+
+--echo
+--echo # BUG#54903 BINLOG statement toggles session variables
+--echo # ----------------------------------------------------------------------
+--echo # This test verify that BINLOG statement doesn't change current session's
+--echo # variables foreign_key_checks and unique_checks.
+--echo
+CREATE TABLE t1 (c1 INT KEY);
+
+SET @@SESSION.foreign_key_checks= ON;
+SET @@SESSION.unique_checks= ON;
+
+--echo # INSERT INTO t1 VALUES (1)
+--echo # foreign_key_checks=0 and unique_checks=0
+BINLOG '
+hPBVZRMBAAAAMAAAAL8DAAAAAHEAAAAAAAEABHRlc3QAAnQxAAEDAAABAQBtCIt3
+hPBVZR4BAAAAKAAAAOcDAAAAAHEAAAAAAAEAAgAB/wABAAAAIqqbMA==
+';
+
+SELECT * FROM t1;
+--echo # Their values should be ON
+SHOW SESSION VARIABLES LIKE "%_checks";
+
+--echo
+SET @@SESSION.foreign_key_checks= OFF;
+SET @@SESSION.unique_checks= OFF;
+
+--echo # INSERT INTO t1 VALUES(2)
+--echo # foreign_key_checks=1 and unique_checks=1
+BINLOG '
+wPBVZRMBAAAAMAAAAP0EAAAAAHEAAAAAAAEABHRlc3QAAnQxAAEDAAABAQCzln7y
+wPBVZR4BAAAAKAAAACUFAAAAAHEAAAAAAAcAAgAB/wACAAAA07AVUA==
+';
+
+SELECT * FROM t1;
+--echo # Their values should be OFF
+SHOW SESSION VARIABLES LIKE "%_checks";
+
+--echo # INSERT INTO t1 VALUES(2)
+--echo # foreign_key_checks=1 and unique_checks=1
+--echo # It should not change current session's variables, even error happens
+call mtr.add_suppression("Replica SQL.*Could not execute Write_rows event on table test.t1; Duplicate entry .2. for key .t1.PRIMARY., Error_code: 1062"); 
+--error 1062
+BINLOG '
+wPBVZRMBAAAAMAAAAP0EAAAAAHEAAAAAAAEABHRlc3QAAnQxAAEDAAABAQCzln7y
+wPBVZR4BAAAAKAAAACUFAAAAAHEAAAAAAAcAAgAB/wACAAAA07AVUA==
+';
+
+SELECT * FROM t1;
+--echo # Their values should be OFF
+SHOW SESSION VARIABLES LIKE "%_checks";
+
+DROP TABLE t1;
+
+disconnect fresh;
+

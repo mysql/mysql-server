@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -43,10 +43,10 @@ include/diff_tables.inc [master:BUG_37656.T2, slave:bug_37656.t2]
 include/diff_tables.inc [master:BUG_37656.T3, slave:bug_37656.t3]
 ******** [ MASTER ] ********
 DROP DATABASE BUG_37656;
-include/rpl_reset.inc
+include/rpl/reset.inc
 CREATE DATABASE B50653;
 USE B50653;
 CREATE PROCEDURE b50653_proc() BEGIN SELECT 1; END;
 DROP PROCEDURE b50653_proc;
 DROP DATABASE B50653;
-include/rpl_end.inc
+include/rpl/deinit.inc
