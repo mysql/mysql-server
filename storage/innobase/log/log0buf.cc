@@ -913,13 +913,15 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
 
 
 /**
+ * [Deprecated] Reserve space in the redo log buffer for remote State Node
  * @StateReplicate 在状态层给 redo log 分配空间，以供接下来的写操作
- * 
+ * 不要逐个log/mtr分配空间，而是直接分配一大块空间供使用
+ * 把方法写到mtr0mtr.cc中，而不是log0buf
+
  * @param log 
  * @param len 
  * @return Log_handle 
  *
- * TODO: 不要逐个log/mtr分配空间，而是直接分配一大块空间供使用？这样的话可能得把方法写到mtr0mtr.cc中，而不是log0buf
  */
 Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   Log_handle handle;
@@ -972,10 +974,12 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
 }
 
 
-/*
-@param[in,out]  log             redo log
-@param[in]      handle          handle for the reservation 
-*/
+/**
+ * [Deprecated] Reserve space in the redo log buffer for remote State Node
+ * @param[in,out]  log             redo log
+ * @param[in]      handle          handle for the reservation 
+ * 
+ */
 // 参考 log_wait_for_space_in_log_buf 的辅助函数
 static void log_wait_for_space_in_remote_log_buf(log_t &log, sn_t end_sn) {
   lsn_t lsn;

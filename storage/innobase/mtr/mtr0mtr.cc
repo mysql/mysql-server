@@ -521,9 +521,20 @@ struct mtr_write_log_t {
 
     /**
      * @StateReplicate: mtr在这里调用log_buffer_write，将log写入buffer中
-     * TODO: 是否应该在这里预分配空间？还是在其他地方？
+     * 
      * 有可能很多个mtr共用一个log buffer，而且在该buf的不同位置并发读写
      */
+
+    // TODO: 是否应该在这里预分配空间？还是在其他地方？
+    // 
+    if (!redo_log_remote_buf_reserved) {
+      // 加锁逻辑，暂时先不考虑并发
+      // char* redo_log_remote_buf_latch = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+
+      redo_log_remote_buf_reserved = true;
+
+      redo_log_remote_buf = new char[OS_FILE_LOG_BLOCK_SIZE];
+    }
 
 
     // 以下为原有逻辑，不需要变更
