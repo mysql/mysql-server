@@ -532,7 +532,7 @@ struct mtr_write_log_t {
       // char* redo_log_remote_buf_latch = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
 
       redo_log_remote_buf_reserved = true;
-
+      // 分配空间
       redo_log_remote_buf = new char[OS_FILE_LOG_BLOCK_SIZE];
     }
 
@@ -575,7 +575,7 @@ struct mtr_write_log_t {
   lsn_t m_lsn;
   ulint m_left_to_write;
 
-  bool redo_log_remote_buf_reserved;
+  bool redo_log_remote_buf_reserved; // 是否已经预分配了空间
 };
 #endif /* !UNIV_HOTBACKUP */
 
@@ -857,7 +857,17 @@ void mtr_t::Command::add_dirty_blocks_to_flush_list(lsn_t start_lsn,
 
   m_impl->m_memo.for_each_block_in_reverse(iterator);
 }
-
+/**
+ * @StateReplicate mtr的提交过程
+ * 
+ * mtr提交最重要的是cmd.execute()，首先通过prepare_write得到最终要写入的日志长度，分为5步：
+ * log_buffer_reserve：等待recent_written的空间，预留logbuffer的空间，如果空间不够，会调用log_write_up_to清理LogBuffer空间；
+ * log_write_up_to通过设置writer_event，异步触发log_writer写。
+ * write_log：将m_log的内容memcpy到LogBuffer中，然后在recent_written加一个link。
+ * log_wait_for_space_in_log_recent_closed：等待recent_closed的空间add_dirty_block_to_flush_list：将该mtr对应的脏页添加到flushlist中
+ * log_buffer_close：在recent_closed中加一个link。
+ * 
+ */
 /** Write the redo log record, add dirty pages to the flush list and release
 the resources. */
 void mtr_t::Command::execute() {
