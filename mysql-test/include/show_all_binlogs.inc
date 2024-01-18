@@ -37,31 +37,31 @@ if ($output_file == '')
   --echo DO_NOT_CHECK_IN_THIS_LINE: include/show_all_binlogs.inc should only be used for debugging. Never check in a test that calls it on success.
 }
 
---let $number= 1
---let $binlog_file= query_get_value(SHOW BINARY LOGS, Log_name, $number)
-while ($binlog_file != 'No such row')
+--let $_sab_number = 1
+--let $_sab_binlog_file = query_get_value(SHOW BINARY LOGS, Log_name, $_sab_number)
+while ($_sab_binlog_file != 'No such row')
 {
-  --let $statement= SHOW BINLOG EVENTS IN '$binlog_file'
-  --let $header= ======== $statement ========
+  --let $_sab_statement = SHOW BINLOG EVENTS IN '$_sab_binlog_file'
+  --let $_sab_header= ======== $_sab_statement ========
 
   if ($output_file != '')
   {
-    --let $write_var= $header
-    --let $write_to_file= $output_file
+    --let $write_var = $_sab_header
+    --let $write_to_file = $output_file
     --source include/write_var_to_file.inc
 
     --source include/write_result_to_file.inc
   }
   if ($output_file == '')
   {
-    --echo $header
-    eval $statement;
+    --echo $_sab_header
+    eval $_sab_statement;
   }
-  --inc $number
+  --inc $_sab_number
 
-  --let $binlog_file= query_get_value(SHOW BINARY LOGS, Log_name, $number)
+  --let $_sab_binlog_file = query_get_value(SHOW BINARY LOGS, Log_name, $_sab_number)
 }
 
 
---let $include_filename= show_all_binlogs.inc
+--let $include_filename = show_all_binlogs.inc
 --source include/end_include_file.inc
