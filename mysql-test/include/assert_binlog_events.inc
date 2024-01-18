@@ -322,8 +322,12 @@ while ($_abe_verdict != 'ok')
     if ($_abe_fail)
     {
       --source include/show_rpl_debug_info.inc
-      --echo event_sequence=$event_sequence
+      --echo event_sequence [until EOF]
+      --echo $event_sequence
+      --echo EOF
       --echo $_abe_verdict
+      --echo binlog_position=<$binlog_position>
+      --echo binlog_file=<$binlog_file>
       --echo statement=$statement
       --echo invert=$invert
       --echo include_header_events=$include_header_events
