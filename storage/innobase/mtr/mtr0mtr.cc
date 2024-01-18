@@ -513,6 +513,13 @@ struct mtr_write_log_t {
 
     start_lsn = m_lsn;
 
+    /**
+     * @StateReplicate: mtr在这里调用log_buffer_write，将log写入buffer中
+     * TODO: 是否应该在这里预分配空间？还是在其他地方？
+     * 有可能很多个mtr共用一个log buffer，而且在该buf的不同位置并发读写
+     */
+
+
     end_lsn =
         log_buffer_write(*log_sys, block->begin(), block->used(), start_lsn);
 
