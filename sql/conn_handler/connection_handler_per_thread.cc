@@ -62,6 +62,8 @@
 #include "sql/sql_thd_internal_api.h"  // thd_set_thread_stack
 #include "thr_mutex.h"
 
+#include "state/allocator/region_allocator.h"
+
 // Initialize static members
 ulong Per_thread_connection_handler::blocked_pthread_count = 0;
 ulong Per_thread_connection_handler::slow_launch_threads = 0;
@@ -223,6 +225,22 @@ static THD *init_new_thd(Channel_info *channel_info) {
   */
   thd_set_thread_stack(thd, (char *)&thd);
   thd->store_globals();
+
+  /* @StateReplicate: Init the recourses need for RDMA operation when init new_thd:
+                      CoroutineScheduler, used for RDMA operations (coro_num = 1)
+                      thread local RDMA region (allocated from global RDMA region)
+                      address_cache, used to address info in remote StateNode ()
+                      qp_manager, used to build QPConnection
+                      
+  */
+  thd->coro_sched = new CoroutineScheduler(thd->thread_id(), CORO_NUM);
+  auto local_rdma_region_range = RDMARegionAllocator::get_instance()->GetThreadLocalRegion(thd->thread_id());
+  // rdma_buffer_allocator is used to manage the local buffer used for RDMA operations
+  thd->rdma_buffer_allocator = new RDMABufferAllocator(local_rdma_region_range.first, local_rdma_region_range.second);
+  // log_offset allocator is used to calculte the remote log_buffer_offset
+  thd->log_offset_allocator = new LogOffsetAllocator(thd->thread_id(), Connection_handler_manager::get_instance()->max_threads);
+  thd->qp_manager = new QPManager(thd->thread_id());
+  thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
 
   return thd;
 }

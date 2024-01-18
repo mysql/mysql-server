@@ -69,6 +69,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_dbug.h"
 #include "mysql/plugin.h"
 #include "sql/clone_handler.h"
+#include "sql/sql_class.h"
+
+#include "state/state_store/txn_list.h"
+#include "state/util/txn_list_util.h"
 
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
 
@@ -1451,6 +1455,61 @@ static void trx_start_low(
   ut_a(trx->error_state == DB_SUCCESS);
 
   MONITOR_INC(MONITOR_TRX_ACTIVE);
+
+  /* @StateReplicate: When start a transaction, add this transaction into the ATT in StateNode
+  */
+  if(trx->mysql_thd != nullptr) {
+    THD* thd = trx->mysql_thd;
+    node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
+    RCQP* qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
+    MetaManager* meta_mgr = MetaManager::get_instance();
+
+    char* bitmap_latch_buf = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+    *(rwlatch_t*)bitmap_latch_buf = BITMAP_LOCKED;
+    
+    // get latch for txn_list_bitmap
+    while(*(rwlatch_t*)bitmap_latch_buf != BITMAP_UNLOCKED) {
+      if(!thd->coro_sched->RDMACASSync(0, qp, bitmap_latch_buf, meta_mgr->GetTxnListLatchAddr(), (uint64_t)BITMAP_UNLOCKED, (uint64_t)BITMAP_LOCKED)){
+        return;
+      }
+    }
+
+    // read txn_list_bitmap
+    size_t txn_bitmap_size = meta_mgr->GetTxnBitmapSize();
+    unsigned char* txn_list_bitmap = (unsigned char*)thd->rdma_buffer_allocator->Alloc(txn_bitmap_size);
+    if(!thd->coro_sched->RDMAReadSync(0, qp, (char*)txn_list_bitmap, meta_mgr->GetTxnListBitmapAddr(), txn_bitmap_size)){
+      return;
+    }
+    
+    // find a free space
+    int free_index = GetFirstFreeBit(txn_list_bitmap, txn_bitmap_size);
+    trx->state_txn_list_index = free_index;
+    assert(free_index != -1);
+    SetBitToUsed(txn_list_bitmap, free_index);
+
+    // write modified bitmap and release latch
+    if(!thd->coro_sched->RDMAWriteSync(0, qp, (char*)txn_list_bitmap, meta_mgr->GetTxnListBitmapAddr(), txn_bitmap_size)) {
+      return;
+    }
+    if(!thd->coro_sched->RDMACASSync(0, qp, bitmap_latch_buf, meta_mgr->GetTxnListLatchAddr(), BITMAP_LOCKED, BITMAP_UNLOCKED)) {
+      return;
+    }
+    // this CAS must succeed, because only one thread can obtain the authority
+    assert(*(rwlatch_t*)bitmap_latch_buf == BITMAP_LOCKED);
+
+    // write txn into state node
+    TxnItem* txn_item_buf = (TxnItem*)thd->rdma_buffer_allocator->Alloc(sizeof(TxnItem));
+    txn_item_buf->txn_state = STATE_TXN_ACTIVE;
+    txn_item_buf->in_depth = trx->in_depth;
+    txn_item_buf->in_innodb = trx->in_innodb;
+    txn_item_buf->abort = trx->abort;
+    txn_item_buf->no = trx->no;
+    txn_item_buf->id = trx->id;
+    GetHashCodeForTxn(txn_item_buf);
+    if(!thd->coro_sched->RDMAWriteSync(0, qp, (char*)txn_item_buf, meta_mgr->GetTxnAddrByIndex(free_index), sizeof(TxnItem))) {
+      return;
+    }
+  }
 }
 
 /** Assigns the trx->no and add the transaction to the serialisation_list.

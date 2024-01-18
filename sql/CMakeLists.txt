@@ -949,6 +949,9 @@ TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
 # which may or may not be inlined.
 TARGET_LINK_LIBRARIES(sql_main ext::libprotobuf-lite)
 
+# @StateReplicate: add link library
+TARGET_LINK_LIBRARIES(sql_main state_core)
+
 ADD_LIBRARY(sql_gis STATIC ${SQL_GIS_SOURCES})
 ADD_DEPENDENCIES(sql_gis GenServerSource)
 ADD_DEPENDENCIES(sql_gis GenDigestServerSource)
@@ -1246,7 +1249,7 @@ ENDIF()
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(mysqld
   sql_main sql_gis binlog rpl rpl_source rpl_replica sql_dd mysys
-  minchassis binlogevents_static ext::icu)
+  minchassis binlogevents_static ext::icu state_core)
 
 # Add dependency on ldap library, to ensure it is not unloaded
 # when we shutdown the authentication plugin.
