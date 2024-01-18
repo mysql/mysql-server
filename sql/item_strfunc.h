@@ -719,38 +719,19 @@ class Item_func_elt final : public Item_str_func {
 class Item_func_make_set final : public Item_str_func {
   typedef Item_str_func super;
 
-  Item *item;
   String tmp_str;
 
  public:
-  Item_func_make_set(const POS &pos, Item *a, PT_item_list *opt_list)
-      : Item_str_func(pos, opt_list), item(a) {}
+  Item_func_make_set(const POS &pos, PT_item_list *opt_list)
+      : Item_str_func(pos, opt_list) {}
 
-  bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *str) override;
   bool fix_fields(THD *thd, Item **ref) override;
-  void fix_after_pullout(Query_block *parent_query_block,
-                         Query_block *removed_query_block) override;
-  bool split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      mem_root_deque<Item *> *fields) override;
   bool resolve_type(THD *) override;
-  void update_used_tables() override;
   const char *func_name() const override { return "make_set"; }
 
-  bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
-    if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
-    if (item->walk(processor, walk, arg)) return true;
-    for (uint i = 0; i < arg_count; i++) {
-      if (args[i]->walk(processor, walk, arg)) return true;
-    }
-    return ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
-  }
-
-  Item *transform(Item_transformer transformer, uchar *arg) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  Item *get_item() { return item; }
-  Item **get_item_ref() { return &item; }
 };
 
 class Item_func_format final : public Item_str_ascii_func {

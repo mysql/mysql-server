@@ -968,8 +968,7 @@ class Make_set_instantiator {
   static const uint Max_argcount = MAX_ARGLIST_SIZE;
 
   Item *instantiate(THD *thd, PT_item_list *args) {
-    Item *param_1 = args->pop_front();
-    return new (thd->mem_root) Item_func_make_set(POS(), param_1, args);
+    return new (thd->mem_root) Item_func_make_set(POS(), args);
   }
 };
 

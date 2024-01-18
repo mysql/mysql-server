@@ -2391,86 +2391,35 @@ String *Item_func_elt::val_str(String *str) {
   return result;
 }
 
-bool Item_func_make_set::do_itemize(Parse_context *pc, Item **res) {
-  if (skip_itemize(res)) return false;
-  /*
-    We have to itemize() the "item" before the super::itemize() call there since
-    this reflects the "natural" order of former semantic action code execution
-    in the original parser:
-  */
-  return item->itemize(pc, &item) || super::do_itemize(pc, res);
-}
-
-bool Item_func_make_set::split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                                        mem_root_deque<Item *> *fields) {
-  if (item->split_sum_func2(thd, ref_item_array, fields, &item, true)) {
-    return true;
-  }
-  return Item_str_func::split_sum_func(thd, ref_item_array, fields);
-}
-
 bool Item_func_make_set::fix_fields(THD *thd, Item **ref) {
-  assert(!fixed);
-  if (!item->fixed && item->fix_fields(thd, &item)) {
-    return true;
-  }
-  if (item->check_cols(1)) {
-    return true;
-  }
-  if (Item_func::fix_fields(thd, ref)) {
-    return true;
-  }
-  if (item->is_nullable()) {
-    set_nullable(true);
-  }
-  used_tables_cache |= item->used_tables();
-  if (null_on_null) not_null_tables_cache |= item->not_null_tables();
-  add_accum_properties(item);
-
-  return false;
-}
-
-void Item_func_make_set::fix_after_pullout(Query_block *parent_query_block,
-                                           Query_block *removed_query_block) {
-  Item_func::fix_after_pullout(parent_query_block, removed_query_block);
-  item->fix_after_pullout(parent_query_block, removed_query_block);
-  used_tables_cache |= item->used_tables();
-  if (null_on_null) not_null_tables_cache |= item->not_null_tables();
+  return Item_func::fix_fields(thd, ref);
 }
 
 bool Item_func_make_set::resolve_type(THD *thd) {
-  if (item->propagate_type(thd, MYSQL_TYPE_LONGLONG)) return true;
-  if (param_type_is_default(thd, 0, -1)) return true;
-  uint32 char_length = arg_count - 1; /* Separators */
+  if (args[0]->propagate_type(thd, MYSQL_TYPE_LONGLONG)) return true;
+  if (param_type_is_default(thd, 1, -1)) return true;
+  uint32 char_length = arg_count - 2; /* Separators */
 
-  if (agg_arg_charsets_for_string_result(collation, args, arg_count))
+  if (agg_arg_charsets_for_string_result(collation, args + 1, arg_count - 1))
     return true;
 
-  for (uint i = 0; i < arg_count; i++)
+  for (uint i = 1; i < arg_count; i++)
     char_length += args[i]->max_char_length();
   set_data_type_string(char_length);
 
   return false;
 }
 
-void Item_func_make_set::update_used_tables() {
-  Item_func::update_used_tables();
-  item->update_used_tables();
-  used_tables_cache |= item->used_tables();
-  not_null_tables_cache |= item->not_null_tables();
-  add_accum_properties(item);
-}
-
 String *Item_func_make_set::val_str(String *str) {
   assert(fixed);
   bool first_found = false;
-  Item **ptr = args;
+  Item **ptr = args + 1;
   THD *thd = current_thd;
 
-  ulonglong bits = item->val_int();
-  if ((null_value = item->null_value)) return nullptr;
+  ulonglong bits = args[0]->val_int();
+  if ((null_value = args[0]->null_value)) return nullptr;
 
-  if (arg_count < 64) bits &= (1ULL << arg_count) - 1;
+  if (arg_count < 64 + 1) bits &= (1ULL << (arg_count - 1)) - 1;
 
   tmp_str.set("", 0, collation.collation);
   for (; bits; bits >>= 1, ptr++) {
@@ -2498,20 +2447,13 @@ String *Item_func_make_set::val_str(String *str) {
   return &tmp_str;
 }
 
-Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg) {
-  item = item->transform(transformer, arg);
-  if (item == nullptr) return nullptr;
-
-  return Item_str_func::transform(transformer, arg);
-}
-
 void Item_func_make_set::print(const THD *thd, String *str,
                                enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("make_set("));
-  item->print(thd, str, query_type);
-  if (arg_count) {
+  args[0]->print(thd, str, query_type);
+  if (arg_count > 1) {
     str->append(',');
-    print_args(thd, str, 0, query_type);
+    print_args(thd, str, 1, query_type);
   }
   str->append(')');
 }
