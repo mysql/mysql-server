@@ -9,7 +9,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection slave]
 
 # 1.1. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
-#      Check the performance_schema table and file repository are correct
+#      Check the performance_schema table and applier metadata repository
+#      are correct
 STOP REPLICA;
 START REPLICA;
 SELECT REQUIRE_TABLE_PRIMARY_KEY_CHECK FROM mysql.slave_relay_log_info;
@@ -19,7 +20,8 @@ include/assert.inc [Check mysql.slave_relay_log_info]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is ON]
 
 # 1.2. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to OFF
-#      Check the performance_schema table and file repository are correct
+#      Check the performance_schema table and applier metadata repository
+#      are correct
 STOP REPLICA;
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 START REPLICA;
@@ -30,7 +32,8 @@ include/assert.inc [Check mysql.slave_relay_log_info]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is OFF]
 
 # 1.3. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to STREAM
-#      Check the performance_schema table and file repository are correct
+#      Check the performance_schema table and applier metadata repository
+#      are correct
 STOP REPLICA;
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
 START REPLICA;
@@ -41,7 +44,8 @@ include/assert.inc [Check mysql.slave_relay_log_info]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is STREAM]
 
 # 1.4. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to GENERATE
-#      Check the performance_schema table and file repository are correct
+#      Check the performance_schema table and applier metadata repository
+#      are correct
 STOP REPLICA;
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
 START REPLICA;
@@ -52,7 +56,7 @@ include/assert.inc [Check mysql.slave_relay_log_info]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is GENERATE]
 STOP REPLICA;
 
-# 4.1 Upgrade the server while using Table repositories
+# 2.1 Upgrade the server while using Table repositories
 #     Have 3 channels:
 #       1. A channel with no privileged user (ch1)
 #       2. A group_replication channel (group_replication_recovery)
@@ -70,12 +74,12 @@ include/assert.inc [Check that mysql.slave_relay_log_info entries all have REQUI
 RESET REPLICA ALL FOR CHANNEL "ch1";
 include/rpl_set_gtid_mode.inc
 
-# 5. Error scenario: Test when the stored configuration for a GR channel is invalid
+# 3. Error scenario: Test when the stored configuration for a GR channel is invalid
 UPDATE mysql.slave_relay_log_info SET Require_table_primary_key_check='GENERATE' WHERE Channel_name="group_replication_recovery";
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
 RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
-# 6.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
+# 4.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
 #      Execute a RESET REPLICA command.
 #      The option should not be affected
 #      It also survives a server restart
@@ -83,10 +87,10 @@ CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 RESET REPLICA;
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start ]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 
-# 6.2. Execute a RESET REPLICA ALL command.
+# 4.2. Execute a RESET REPLICA ALL command.
 #      The table line was removed.
 #      On recreation the value is STREAM for the default channel
 RESET REPLICA ALL;
@@ -94,7 +98,7 @@ include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost";
 include/assert.inc [The default channel "" in mysql.slave_relay_log_info has the default value STREAM]
 
-# 6.3. Make RESET REPLICA fail due to persistence issues
+# 4.3. Make RESET REPLICA fail due to persistence issues
 #      Check that errors on slave info persistence are gracefully handled
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "";
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
@@ -103,7 +107,7 @@ RESET REPLICA;
 ERROR HY000: Could not initialize connection metadata structure; more error messages can be found in the MySQL error log
 include/assert.inc [Check entry for default channel "" is unchanged in mysql.slave_relay_log_info]
 
-# 7. Cleanup
+# 5. Cleanup
 SET @@GLOBAL.DEBUG = '-d,rpl_rli_clear_info_error';
 RESET REPLICA ALL;
 CALL mtr.add_suppression("Error reading relay log configuration.");
