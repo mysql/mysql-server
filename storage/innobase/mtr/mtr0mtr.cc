@@ -513,6 +513,12 @@ struct mtr_write_log_t {
 
     start_lsn = m_lsn;
 
+    end_lsn =
+        log_buffer_write(*log_sys, block->begin(), block->used(), start_lsn);
+
+    ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE <
+         OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
+
     /**
      * @StateReplicate: mtr在这里调用log_buffer_write，将log写入buffer中
      * TODO: 是否应该在这里预分配空间？还是在其他地方？
@@ -520,11 +526,7 @@ struct mtr_write_log_t {
      */
 
 
-    end_lsn =
-        log_buffer_write(*log_sys, block->begin(), block->used(), start_lsn);
-
-    ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE <
-         OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
+    // 以下为原有逻辑，不需要变更
 
     m_left_to_write -= block->used();
 
@@ -561,6 +563,8 @@ struct mtr_write_log_t {
   Log_handle m_handle;
   lsn_t m_lsn;
   ulint m_left_to_write;
+
+  bool redo_log_remote_buf_reserved;
 };
 #endif /* !UNIV_HOTBACKUP */
 
