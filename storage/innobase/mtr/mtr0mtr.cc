@@ -526,14 +526,13 @@ struct mtr_write_log_t {
      */
 
     // TODO: 是否应该在这里预分配空间？还是在其他地方？
-    // 
     if (!redo_log_remote_buf_reserved) {
-      // 加锁逻辑，暂时先不考虑并发
+      // 此处应该加锁，但是暂时先不考虑并发
       // char* redo_log_remote_buf_latch = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
 
       redo_log_remote_buf_reserved = true;
-      // 分配空间
-      redo_log_remote_buf = new char[OS_FILE_LOG_BLOCK_SIZE];
+      // 分配空间，OS_FILE_LOG_BLOCK_SIZE为4KB，先分个32MB看看
+      redo_log_remote_buf = new char[8 * 1024 * OS_FILE_LOG_BLOCK_SIZE];
     }
 
 
