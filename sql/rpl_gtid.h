@@ -1905,6 +1905,11 @@ class Gtid_set {
     const int gno_sid_separator_length;
     const int empty_set_string_length;
   };
+
+  /// @brief Checks if this Gtid set contains any tagged GTIDs
+  /// @retval true This gtid set contains tagged GTIDs
+  /// @retval false This gtid set contains only untagged GTIDs
+  bool contains_tags() const;
   /**
     Returns the length of the output from to_string.
 

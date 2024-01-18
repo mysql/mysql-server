@@ -1,0 +1,131 @@
+# ==== PURPOSE ====
+#
+# This test is to validate correct execution of the
+# SET @@GLOBAL.GTID_PURGED=<tagged GTID SET> command on the source (no replica)
+# under different privileges
+#
+# ==== REQUIREMENTS ====
+#
+# Change of the global gtid_purged variable shall be allowed only if the user
+# executing SET @@GLOBAL.GTID_PURGED statement has the following privileges:
+# TRANSACTION_GTID_TAG and SYSTEM_VARIABLES_ADMIN
+#
+# ==== IMPLEMENTATION ====
+#
+# Below test checks that SET @@GLOBAL.GTID_PURGED with tagged GTIDs is
+# protected with the TRANSACTION_GTID_TAG privilege
+#
+# T1.
+#     Test steps:
+#
+#     1. Create a user with no privileges
+#     2. Execute SET @@GLOBAL.GTID_PURGED with specified, tagged GTID within
+#        a set with the user with the following set of privileges:
+#        NONE
+#     3. Check Pass condition 1:
+#        ER_SPECIFIC_ACCESS_DENIED_ERROR
+#     4. Execute SET @@GLOBAL.GTID_PURGED with specified, tagged GTID within
+#        a set with the user with the following set of privileges:
+#        SYSTEM_VARIABLES_ADMIN
+#     5. Check Pass condition 2:
+#        ER_SPECIFIC_ACCESS_DENIED_ERROR
+#     6. Execute SET @@GLOBAL.GTID_PURGED with specified, tagged GTID within
+#        a set with the user with the following set of privileges:
+#        SYSTEM_VARIABLES_ADMIN, TRANSACTION_GTID_TAG
+#     7. Check Pass condition 3:
+#        No error
+#     8. Execute SET @@GLOBAL.GTID_PURGED with specified, tagged GTID within
+#        a set with the user with the following set of privileges:
+#        TRANSACTION_GTID_TAG
+#     9. Check Pass condition 4:
+#        ER_SPECIFIC_ACCESS_DENIED_ERROR
+#
+#     Test pass conditions:
+#
+#    - step 3
+#    - step 5
+#    - step 7
+#    - step 9
+#
+# ==== REFERENCES ====
+#
+# Bug#36201133 Protect assigning tagged GTIDs to the 'gtid_purged' with
+#              'TRANSACTION_GTID_TAG'
+#
+
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
+
+--let $rpl_skip_sync= 1
+--let $rpl_gtid_mode=ON_PERMISSIVE
+--source include/rpl/set_gtid_mode.inc
+
+--echo
+--echo # T1.1. Create a user with no privileges
+--echo
+
+CREATE USER test_user;
+--connect(conn_1, localhost, test_user,,)
+
+--echo
+--echo # T1.2. Execute SET @@GLOBAL.GTID_PURGED with specified, tagged GTID
+--echo #       within a set with the user with the following set of privileges:
+--echo #       NONE
+--echo # T1.3. Check Pass condition 1:
+--echo #       ER_SPECIFIC_ACCESS_DENIED_ERROR
+--echo
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@GLOBAL.GTID_PURGED = "11111111-1111-1111-1111-111111111111:1, 11111111-1111-1111-1111-111111111111:bb:1";
+
+--echo
+--echo # T1.4. Execute SET @@GLOBAL.GTID_PURGED with specified, tagged GTID
+--echo #       within a set with the user with the following set of privileges:
+--echo #       SYSTEM_VARIABLES_ADMIN
+--echo # T1.5. Check Pass condition 2:
+--echo #       ER_SPECIFIC_ACCESS_DENIED_ERROR
+--echo
+
+--connection default
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO test_user;
+--connection conn_1
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@GLOBAL.GTID_PURGED = "11111111-1111-1111-1111-111111111111:1, 11111111-1111-1111-1111-111111111111:bb:1";
+
+--echo
+--echo # T1.6. Execute SET @@GLOBAL.GTID_PURGED with specified, tagged GTID
+--echo #       within a set with the user with the following set of privileges:
+--echo #       SYSTEM_VARIABLES_ADMIN, TRANSACTION_GTID_TAG
+--echo # T1.7. Check Pass condition 3:
+--echo #       No error
+--echo
+
+--connection default
+GRANT TRANSACTION_GTID_TAG ON *.* TO test_user;
+--connection conn_1
+SET @@GLOBAL.GTID_PURGED = "11111111-1111-1111-1111-111111111111:1, 11111111-1111-1111-1111-111111111111:bb:1";
+
+--echo
+--echo # T1.8. Execute SET @@GLOBAL.GTID_PURGED with specified, tagged GTID
+--echo #       within a set with the user with the following set of privileges:
+--echo #       TRANSACTION_GTID_TAG
+--echo # T1.9. Check Pass condition 4:
+--echo #       ER_SPECIFIC_ACCESS_DENIED_ERROR
+--echo
+
+--connection default
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM test_user;
+--connection conn_1
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@GLOBAL.GTID_PURGED = "11111111-1111-1111-1111-111111111111:1, 11111111-1111-1111-1111-111111111111:bb:1";
+
+--echo #
+--echo # Clean-up
+--echo #
+
+--connection default
+--disconnect conn_1
+DROP USER test_user;
+
+--let $rpl_skip_sync= 1
+--let $rpl_gtid_mode=$gtid_mode
+--source include/rpl/set_gtid_mode.inc
