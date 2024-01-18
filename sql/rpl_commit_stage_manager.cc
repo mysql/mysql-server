@@ -476,7 +476,14 @@ THD *Commit_stage_manager::fetch_queue_skip_acquire_lock(StageID stage) {
 void Commit_stage_manager::process_final_stage_for_ordered_commit_group(
     THD *first) {
   if (first != nullptr) {
+    /*
+      The below call to update_commit_group() function accesses the array
+      `commit_group_sidnos` and needs to be protected with
+      MYSQL_BIN_LOG::LOCK_commit.
+    */
+    mysql_mutex_lock(mysql_bin_log.get_commit_lock());
     gtid_state->update_commit_group(first);
+    mysql_mutex_unlock(mysql_bin_log.get_commit_lock());
     signal_done(first, Commit_stage_manager::COMMIT_ORDER_FLUSH_STAGE);
   }
 }
