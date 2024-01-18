@@ -533,6 +533,7 @@ struct mtr_write_log_t {
       redo_log_remote_buf_reserved = true;
       // 分配空间，OS_FILE_LOG_BLOCK_SIZE为4KB，先分个32MB看看
       redo_log_remote_buf = new char[8 * 1024 * OS_FILE_LOG_BLOCK_SIZE];
+      
     }
 
 
