@@ -742,6 +742,10 @@ struct trx_t {
                when trx->in_rw_trx_list. Initially
                set to TRX_ID_MAX. */
 
+  /* @StateReplicate: state_txn_list_index is the index of this trx in remote StateNode's txn_list
+  */
+  int state_txn_list_index;
+
   /** State of the trx from the point of view of concurrency control
   and the valid state transitions.
 

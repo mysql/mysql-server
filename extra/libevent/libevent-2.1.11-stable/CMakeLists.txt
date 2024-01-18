@@ -324,7 +324,7 @@ if (${GNUC})
 
          # gcc 4
          -Winit-self
-         -Wmissing-field-initializers
+         -W
          -Wdeclaration-after-statement
 
          # gcc 4.2
