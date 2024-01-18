@@ -1,19 +1,19 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 INT);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 [connection slave]
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Kill and restart
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

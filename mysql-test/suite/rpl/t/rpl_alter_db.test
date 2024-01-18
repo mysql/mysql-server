@@ -1,4 +1,4 @@
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 --echo ==== Verify that alter database does not stop replication ====
 
@@ -8,23 +8,23 @@ show create schema temp_db;
 
 sync_slave_with_master;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 show create schema temp_db;
 
 --echo ==== Replication of default collation ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 alter database collate latin1_bin;
 show create schema temp_db;
 
 sync_slave_with_master;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 show create schema temp_db;
 
 --echo ==== Replication of read only ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 create table temp_db.t(i int);
 alter schema temp_db read only=1;
 --error ER_SCHEMA_READ_ONLY
@@ -33,19 +33,19 @@ show create schema temp_db;
 
 sync_slave_with_master;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --error ER_SCHEMA_READ_ONLY
 insert into temp_db.t values(2);
 show create schema temp_db;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 alter schema temp_db read only=0;
 insert into temp_db.t values(1);
 show create schema temp_db;
 
 sync_slave_with_master;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 show create schema temp_db;
 insert into temp_db.t values(2);
 select * from temp_db.t;
@@ -53,7 +53,7 @@ show create schema temp_db;
 
 --echo ==== No replication of read only when turning off binlog ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 drop table temp_db.t;
 create table temp_db.t(i int);
 set sql_log_bin = 0;
@@ -65,12 +65,12 @@ insert into temp_db.t values(1);
 
 sync_slave_with_master;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 show create schema temp_db;
 insert into temp_db.t values(2);
 select * from temp_db.t;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 set sql_log_bin = 0;
 alter schema temp_db read only=0;
 set sql_log_bin = 1;
@@ -79,13 +79,13 @@ show create schema temp_db;
 
 sync_slave_with_master;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 select * from temp_db.t;
 show create schema temp_db;
 
 --echo ==== Slave schema read only will not affect replication ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 set sql_log_bin = 0;
 alter schema temp_db read only=0;
 set sql_log_bin = 1;
@@ -98,14 +98,14 @@ insert into temp_db.t values(1);
 
 sync_slave_with_master;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 show create schema temp_db;
 --error ER_SCHEMA_READ_ONLY
 insert into temp_db.t values(2);
 select * from temp_db.t;
 
 --echo ==== Clean up ====
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 drop database temp_db;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

@@ -39,6 +39,6 @@ EXECUTE s USING @a;
 # 4. Ensure that the compressed event is in the binary log.
 --let $event_sequence = !Gtid_or_anon # !DDL # !Gtid_or_anon # Transaction_payload # !Begin # Table_map # Write_rows # Xid
 --let $include_trx_payload_events = 1
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 DROP TABLE t1;

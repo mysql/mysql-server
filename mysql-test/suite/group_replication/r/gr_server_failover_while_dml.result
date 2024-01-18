@@ -31,13 +31,13 @@ call dml_operations();
 # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
 Got one of the listed errors
 [connection server_1]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server2]
 # check that there are 2 members in the group
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server_1]
 include/start_group_replication.inc
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:t1, server2:t1, server3:t1]
 [connection server_3]
 [connection server_1]

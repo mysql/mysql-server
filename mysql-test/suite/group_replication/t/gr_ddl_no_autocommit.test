@@ -14,7 +14,7 @@
 # 3. Check binlog events on both M1 and M2.
 # 4. Clean up.
 ################################################################################
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 
@@ -71,7 +71,7 @@ while ($ddl_cases >= 1)
   --enable_query_log
 
   --let $binlog_start= $first_binlog_position;
-  --source include/show_binlog_events.inc
+  --source include/rpl/deprecated/show_binlog_events.inc
   --dec $ddl_cases
 }
 SET AUTOCOMMIT= 1;
@@ -81,7 +81,7 @@ SET AUTOCOMMIT= 1;
 --echo #############################################################
 --echo # CHECK CONSISTENCY
 --echo #############################################################
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables= server1:tt_1,server2:tt_1
 --source include/diff_tables.inc
@@ -103,11 +103,11 @@ SET AUTOCOMMIT= 1;
 --connection server1
 --let $binlog_start=
 --let $keep_gtid_events= 1
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo SERVER 2
 --connection server2
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 
 --echo

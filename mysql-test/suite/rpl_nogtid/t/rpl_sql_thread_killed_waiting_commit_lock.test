@@ -35,7 +35,7 @@
 # are in sync with the positions in rli repository.
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
@@ -44,20 +44,20 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 
 --echo # Let master and slave synced with t1 table created
 CREATE TABLE t1 (f INT) ENGINE= INNODB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Setup GLOBAL.DEBUG at slave to reach commit
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $debug_saved= `SELECT @@GLOBAL.DEBUG`
 SET @@GLOBAL.DEBUG= '+d,dbug.reached_commit';
 
 --echo # Do some DML operation on master so that it will be blocked on
 --echo # slave as global read lock is in place.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES (10);
 
 --echo # Issue FLUSH TABLES WITH READ LOCK after Reached is signaled
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET DEBUG_SYNC='now WAIT_FOR Reached';
 FLUSH TABLES WITH READ LOCK;
 --echo # Let sql thread continue to try to obtain commit lock
@@ -75,7 +75,7 @@ let $sql_thread_id= `SELECT ID FROM information_schema.processlist
 --eval KILL $sql_thread_id
 --enable_query_log
 --let $slave_sql_errno= convert_error(ER_QUERY_INTERRUPTED)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo # Restart sql thread to let it finish the replication
 SET @@GLOBAL.DEBUG= '-d,dbug.reached_commit';
@@ -89,15 +89,15 @@ UNLOCK TABLES;
 --let $assert_text= Exec_Source_Log_Pos in SHOW REPLICA STATUS must be equal to mater_log_pos in slave's repository
 --let $assert_cond= $slave_source_log_pos = $slave_source_log_pos_in_repo
 --source include/assert.inc
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 # Check consistency
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

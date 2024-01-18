@@ -82,10 +82,10 @@ set session sql_log_bin=1;
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO test.t1 (b) VALUES (0);
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER='dummy_user' FOR CHANNEL 'group_replication_recovery';
@@ -120,10 +120,10 @@ INSERT INTO test.t1 (b) VALUES (1);
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO test.t1 (b) VALUES (0);
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_warnings
 SET sql_log_bin=0;
@@ -137,7 +137,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_r
 
 INSERT INTO test.t1 (b) VALUES (1);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo #######################################################################

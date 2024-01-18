@@ -1,2 +1,2 @@
 source include/have_binlog_format_mixed_or_row.inc;
-source extra/binlog_tests/tmp_table.test;
+source common/binlog/tmp_table.test;

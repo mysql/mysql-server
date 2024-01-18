@@ -1,4 +1,4 @@
-include/rpl_replication_observers_example_plugin_server_startup.inc
+include/rpl/replication_observers_example_plugin_server_startup.inc
 #
 # Cause an explicit transaction in order to Trans Observer to be called
 #

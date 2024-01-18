@@ -28,7 +28,7 @@
 --echo #    add one row in table t1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
@@ -43,7 +43,7 @@ INSERT INTO test.t1 (b) VALUES (1);
 --echo #    applier and receiver channel start.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
 --eval SET GLOBAL group_replication_recovery_retry_count= 1

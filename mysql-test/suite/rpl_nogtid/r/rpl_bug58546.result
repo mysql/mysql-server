@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,13 +18,13 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1 (c1 INT KEY, c2 INT) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(1, 1);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 [connection master]
-include/stop_dump_threads.inc
+include/rpl/stop_dump_threads.inc
 # Adding debug point 'dump_thread_wait_before_send_xid' to @@GLOBAL.debug
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 BEGIN;
 UPDATE t1 SET c2 = 2 WHERE c1 = 1;
 [connection master]
@@ -41,13 +41,13 @@ ROLLBACK;
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'RESET';
 [connection slave]
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 [connection slave1]
 [connection master]
 # Removing debug point 'dump_thread_wait_before_send_xid' from @@GLOBAL.debug
-include/stop_dump_threads.inc
+include/rpl/stop_dump_threads.inc
 [connection slave1]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t1, t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

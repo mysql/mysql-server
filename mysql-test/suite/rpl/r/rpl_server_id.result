@@ -1,10 +1,10 @@
-include/rpl_init.inc [topology=2->2]
+include/rpl/init.inc [topology=2->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
-include/wait_for_slave_io_error.inc [errno=13117]
+include/rpl/wait_for_receiver_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: The replica I/O thread stops because source and replica have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on replica but this does not always make sense; please check the manual before using it).'
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 RESET REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc

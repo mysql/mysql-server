@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1 (f1 INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (f1 INT) ENGINE=InnoDB;
 CREATE TABLE t3 (f1 TEXT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ALTER TABLE t2 ADD f2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY AFTER f1;
 ALTER TABLE t3 ADD f2 INT NOT NULL AUTO_INCREMENT KEY AFTER f1;
 
@@ -31,7 +31,7 @@ INSERT INTO t3 VALUES (REPEAT('a', 300));
 INSERT INTO t3 VALUES ('a');
 RETURN 0;
 END|
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ##############################################################
 # 3. Insert something on t1 on the source
@@ -43,7 +43,7 @@ INSERT INTO t1 VALUES (99);
 SELECT multi_event_function();
 multi_event_function()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The trigger associated table was updated]
 include/assert.inc [The function associated table was updated]
 
@@ -55,5 +55,5 @@ DROP TRIGGER insert_trigger;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

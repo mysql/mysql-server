@@ -1,4 +1,4 @@
 # This is a wrapper for binlog.test so that the same test case can be used
 
 -- source include/have_binlog_format_mixed_or_row.inc
--- source extra/binlog_tests/drop_temp_table.test
+-- source common/binlog/drop_temp_table.test

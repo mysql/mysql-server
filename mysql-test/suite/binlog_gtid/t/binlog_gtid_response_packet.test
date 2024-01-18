@@ -59,4 +59,4 @@ RESET BINARY LOGS AND GTIDS;
 ######################################################
 # Tests for the OK packet data
 ######################################################
---source suite/binlog/include/binlog_gtid_response_packet.inc
+--source common/binlog/gtid_response_packet.inc

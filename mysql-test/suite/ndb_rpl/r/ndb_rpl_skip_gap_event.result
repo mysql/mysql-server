@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,8 +9,8 @@ count(*)
 1000
 Restarting mysqld
 # restart
-include/rpl_reconnect.inc
-include/show_binlog_events.inc
+include/rpl/reconnect.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Incident	#	#	#1 (LOST_EVENTS)
 master-bin.000002	#	Rotate	#	#	master-bin.000003;pos=POS
@@ -27,4 +27,4 @@ select count(*) from t1;
 count(*)
 1001
 drop table t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

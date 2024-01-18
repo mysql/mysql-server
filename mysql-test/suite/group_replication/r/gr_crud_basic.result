@@ -224,7 +224,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 Performing DDL/DML operations on server 2
 RUN USE test
 
@@ -469,7 +469,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 Performing DDL/DML operations on server 3
 RUN USE test;
 
@@ -801,7 +801,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/assert.inc ['Checking the Value on T1']
 include/assert.inc ['Checking the Value on T2']
@@ -822,7 +822,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 Stopping GR on server 1
 RUN STOP GROUP_REPLICATION;
 

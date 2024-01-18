@@ -4,15 +4,15 @@
 #    parsed.
 
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1);
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ==== Check that we still understand the old format of relay-log.info ====
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 RESET REPLICA;
 --let $MYSQLD_DATADIR= `select @@datadir`
@@ -26,7 +26,7 @@ if ($SYSTEM_PATH_SEPARATOR != /) {
 
 --echo # Read relay-log.info
 START REPLICA IO_THREAD;
---source include/wait_for_slave_io_to_start.inc
+--source include/rpl/wait_for_receiver_to_start.inc
 --echo # Check that relay log coordinates are equal to those we saved in old-format_relay-log.info
 --let $master_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 1)
 --let $master_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
@@ -42,4 +42,4 @@ if (`SELECT "$master_file" != "" OR
 }
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -16,43 +16,43 @@
 # be in sync with master.
 ###############################################################################
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
 echo "Test case1";
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE DATABASE db_a;
 CREATE DATABASE db_b;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 FLUSH LOCAL RELAY LOGS;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 USE db_b;
 CREATE VIEW view_b AS SELECT NULL;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --error ER_TABLE_EXISTS_ERROR
 CREATE VIEW view_b AS SELECT NULL;
 # Prove that CREATE VIEW statement is binlogged only once
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 # Prove that slave doesnot error out and is in sync with master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Prove that CREATE VIEW statement was received by slave
 --let $binlog_file= LAST
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 # Prove that the CREATE VIEW statement is ignored by slave
 --error ER_NO_SUCH_TABLE
 EXPLAIN view_b;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP DATABASE db_a;
 DROP DATABASE db_b;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 echo "Test case2";
 # Create two databases db_a and db_b. Execute a partial update statement such
@@ -63,27 +63,27 @@ echo "Test case2";
 # master: message (format)='Duplicate entry '%-.192s' for key %d' error
 # code=1062 ; Error on slave: actual message='no error', error code=0. Default
 # database: 'db_b'. Query: 'update t2 set f=f+2 where f>=2'.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE DATABASE db_a;
 CREATE DATABASE db_b;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 USE db_b;
 CREATE TABLE t2 (f INT PRIMARY KEY) ENGINE=MYISAM;
 INSERT INTO t2 VALUES (1);
 INSERT INTO t2 VALUES (2);
 INSERT INTO t2 VALUES (3);
 INSERT INTO t2 VALUES (5);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --error ER_DUP_ENTRY
 UPDATE t2 SET f=f+2 WHERE f>=2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP DATABASE db_a;
 DROP DATABASE db_b;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

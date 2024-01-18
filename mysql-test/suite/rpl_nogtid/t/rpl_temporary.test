@@ -2,7 +2,7 @@
 
 --source include/not_have_privilege_checks_user.inc
 source include/add_anonymous_users.inc;
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-replica-updates
@@ -51,26 +51,26 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 
 CREATE TEMPORARY TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('a');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Temporary table t1 open when stop replica is done. So we will have a warning here.
 # But this warning is NOT generated in RBR. So the results will be different in
 # SBR and RBR if we dont disable warnings here.
 --disable_warnings
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --enable_warnings
 
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 connection master;
 INSERT INTO t1 VALUES ('b');
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # cleanup
 
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 
@@ -186,7 +186,7 @@ drop table t1,t2;
 # don't get any memory leaks for this
 
 create temporary table t3 (f int);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # The server will now close done
 
@@ -198,7 +198,7 @@ create temporary table t3 (f int);
 connection master;
 create temporary table t4 (f int);
 create table t5 (f int);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # connection slave
 
 # Temporary table t3,t4 are open when stop replica is done. So we will have a warning here.
@@ -247,7 +247,7 @@ connection master;
 create table t1(f int);
 insert into t1 values (1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 select * from t1 /* must be 1 */;
 
@@ -266,14 +266,14 @@ insert into t1 select * from `\E4\F6\FC\C4\D6\DC`
 EOF
 --exec $MYSQL --character-sets-dir=../share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 select * from t1;
 
 connection master; 
 drop table t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Delete the anonymous users.
 
@@ -281,14 +281,14 @@ drop table t1;
 # But this warning is NOT generated in RBR. So the results will be different in
 # SBR and RBR if we dont disable warnings here.
 --disable_warnings
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --enable_warnings
 
 source include/delete_anonymous_users.inc;
 --connection master
 source include/delete_anonymous_users.inc;
 --let $rpl_only_running_threads= 1
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 
 #
@@ -323,4 +323,4 @@ DROP USER user43748@127.0.0.1;
 
 --echo End of 5.1 tests
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

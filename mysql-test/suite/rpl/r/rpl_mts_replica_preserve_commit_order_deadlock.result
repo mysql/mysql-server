@@ -1,12 +1,12 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
@@ -35,16 +35,16 @@ DELETE FROM t1 WHERE c2 <= 3;
 BEGIN;
 INSERT INTO t1 VALUES(11, 11);
 [connection slave1]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection slave]
 ROLLBACK;
-include/rpl_diff.inc
+include/rpl/diff.inc
 [connection master]
 # Removing debug point 'd,set_commit_parent_100' from @@GLOBAL.debug
 TRUNCATE t1;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 #
 # Case 2: Verify slave can find the deadlock when it begins to applying
 # second DELETE statement.
@@ -67,18 +67,18 @@ INSERT INTO t1 VALUES(21, 21);
 BEGIN;
 INSERT INTO t1 VALUES(23, 23);
 [connection slave1]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection slave]
 ROLLBACK;
 [connection server_2_1]
 ROLLBACK;
-include/rpl_diff.inc
+include/rpl/diff.inc
 [connection master]
 # Removing debug point 'd,set_commit_parent_100' from @@GLOBAL.debug
 TRUNCATE t1;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (32, 32);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 #
 # Test case 3: Verify the worker can handle it correctly when it is
 # retrying a transaction.
@@ -96,12 +96,12 @@ INSERT INTO t1 VALUES(31, 31);
 BEGIN;
 INSERT INTO t1 VALUES(33, 33);
 [connection slave1]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection slave]
 ROLLBACK;
 [connection server_2_1]
 ROLLBACK;
-include/rpl_diff.inc
+include/rpl/diff.inc
 #
 # Test Case 4: Innodb internal transaction deadlock
 #
@@ -110,8 +110,8 @@ CALL mtr.add_suppression(".*Unsafe statement written to the binary log using sta
 # Removing debug point 'd,set_commit_parent_100' from @@GLOBAL.debug
 CREATE TABLE t2(database_name VARCHAR(200), table_name VARCHAR(200));
 INSERT INTO t2 SELECT database_name, table_name FROM mysql.innodb_table_stats;
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 CALL mtr.add_suppression(".* Cannot save table statistics for table.*");
 LOCK TABLE t1 WRITE;
 [connection master]
@@ -122,7 +122,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 INSERT INTO t2 SELECT database_name, table_name FROM mysql.innodb_table_stats;
 [connection slave]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 UNLOCK TABLES;
 #
 # Test Case 5: It won't cause transaction rollback if
@@ -132,8 +132,8 @@ UNLOCK TABLES;
 # Removing debug point 'd,set_commit_parent_100' from @@GLOBAL.debug
 TRUNCATE t1;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 [connection master]
 INSERT INTO t1 VALUES(50, 50);
 # Adding debug point 'd,set_commit_parent_100' to @@GLOBAL.debug
@@ -154,20 +154,20 @@ INSERT INTO t1 VALUES(53, 53);
 [connection slave1]
 SET GLOBAL replica_preserve_commit_order = OFF;
 SET GLOBAL replica_transaction_retries = 0;
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection slave]
 ROLLBACK;
 [connection server_2_1]
 ROLLBACK;
-include/rpl_diff.inc
+include/rpl/diff.inc
 #
 # Deinitialize
 #
 [connection master]
 # Removing debug point 'd,set_commit_parent_100' from @@GLOBAL.debug
 DROP TABLE t1, t2;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;
 Warnings:
@@ -175,5 +175,5 @@ Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a fu
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
 SET GLOBAL replica_preserve_commit_order = @saved_replica_preserve_commit_order;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

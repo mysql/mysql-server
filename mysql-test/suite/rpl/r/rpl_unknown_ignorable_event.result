@@ -1,10 +1,10 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Set a debug point on slave to simulate unknown ignorable log events.
 SET @save_debug=@@global.debug;
 SET GLOBAL DEBUG='+d,simulate_unknown_ignorable_log_event';
@@ -18,11 +18,11 @@ INSERT INTO t1 VALUES (1);
 # log event by rewriting the write_rows log event and
 # previous_gtids log event if gtid mode is on before
 # writing it(them) in relay log.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Verify that the slave applier thread skips these unknown ignorable
 # log event.
 include/assert.inc [Table t1 must not contain 1]
 SET GLOBAL DEBUG= @save_debug;
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

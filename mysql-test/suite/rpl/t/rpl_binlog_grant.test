@@ -1,6 +1,6 @@
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option= 1
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 -- source include/have_binlog_format_mixed_or_statement.inc
 
 let $VERSION=`select version()`;
@@ -20,7 +20,7 @@ create user x@y;
 grant select on t to x@y;
 
 let $wait_binlog_event= grant select;
-source include/wait_for_binlog_event.inc;
+source include/rpl/wait_for_binlog_event.inc;
 #
 # There is no active transaction here
 #
@@ -30,7 +30,7 @@ start transaction;
 insert into t values (2);
 revoke select on t from x@y;
 let $wait_binlog_event= revoke select;
-source include/wait_for_binlog_event.inc;
+source include/rpl/wait_for_binlog_event.inc;
 #
 # There is no active transaction here
 #
@@ -40,4 +40,4 @@ show grants for x@y;
 drop user x@y;
 drop database d1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

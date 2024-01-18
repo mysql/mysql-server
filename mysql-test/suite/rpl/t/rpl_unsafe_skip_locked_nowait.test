@@ -1,5 +1,5 @@
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 call mtr.add_suppression("unsafe because it uses SKIP LOCKED");
 
 --echo # Case-1: BINLOG_STMT_UNSAFE_SKIP_LOCKED
@@ -31,4 +31,4 @@ ROLLBACK;
 DROP TABLE t1, t2, t3;
 --disable_connect_log
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

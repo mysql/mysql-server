@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -21,7 +21,7 @@ INSERT INTO logtbl VALUES (sect,test,FOUND_ROWS());
 END $$
 Warnings:
 Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 **** On Master 1 ****
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 a
@@ -43,7 +43,7 @@ a
 Warnings:
 Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 CALL just_log(1,3);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 **** On Master ****
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 a
@@ -51,7 +51,7 @@ a
 Warnings:
 Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 CALL just_log(1,4);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 sect	test	count
 1	1	183
@@ -59,7 +59,7 @@ sect	test	count
 1	3	3
 1	4	183
 **** On Slave ****
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 sect	test	count
 1	1	183
@@ -144,7 +144,7 @@ sect	test	count
 2	6	1
 2	6	183
 2	7	1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
 sect	test	count
 2	1	3
@@ -162,5 +162,5 @@ DROP PROCEDURE just_log;
 DROP PROCEDURE log_me;
 DROP PROCEDURE log_me_inner;
 DROP FUNCTION log_rows;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

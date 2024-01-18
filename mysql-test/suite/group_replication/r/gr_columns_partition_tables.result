@@ -20,7 +20,7 @@ PARTITION BY LIST COLUMNS(c1, c2)
 PARTITION t2p1 VALUES in ( (1, 'aa'), (2, 'ab') ),
 PARTITION t2p2 VALUES in ( (1, 'cc'), (2, 'cd') )
 );
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -50,13 +50,13 @@ INSERT INTO t2 VALUES (1, 'ab');
 ERROR HY000: Table has no partition for value from column_list
 INSERT INTO t2 VALUES (2, 'ab');
 INSERT INTO t2 VALUES (1, 'cc');
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 INSERT INTO t1 VALUES (11, 5);
 DELETE FROM t1 WHERE c1= 5;
 DELETE FROM t2 WHERE c2= 'ab';
 INSERT INTO t2 VALUES (2, 'cd');
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server3]
 include/assert.inc ['Check that partition t1p1 on table t1 has 1 row']
 include/assert.inc ['Check that partition t1p2 on table t1 has 3 rows']
@@ -64,5 +64,5 @@ include/assert.inc ['Check that partition t2p1 on table t2 has 0 rows']
 include/assert.inc ['Check that partition t2p2 on table t2 has 2 rows']
 DROP TABLE t1;
 DROP TABLE t2;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

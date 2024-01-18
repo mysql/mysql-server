@@ -18,44 +18,44 @@
 --echo # Step 1: setup replication
 --echo #
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Bug#23297190 :RPL_GTID_SERVER_SIGHUP AND RPL_SOURCE_POS_WAIT_AFTER_STARTUP FAILS
 # IN VALGRIND : Increased the time interval between the connection retries.
 --let $rpl_connection_name= slave
---source include/rpl_connection.inc
+--source include/connection.inc
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=30, SOURCE_RETRY_COUNT=30;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Ensuring that prev_gtids_event will have some gtid after binlog rotation
 --let $rpl_connection_name= master
---source include/rpl_connection.inc
+--source include/connection.inc
 create table t1 (a int);
 Insert into t1 values(1);
 drop  table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Step 2: restart Master
 --echo #
 
 --let $rpl_connection_name= master
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_server_number= 1
 --let $rpl_start_with_gtids= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --source include/wait_until_connected_again.inc
 
 --echo #
 --echo # Step 3: Wait on positions by setting ignore_gtids_on_sync= 1.
---echo #         The sync_slave_sql_with_master.inc will call SOURCE_POS_WAIT()
+--echo #         The rpl/sync_to_replica.inc will call SOURCE_POS_WAIT()
 --echo #         internally verifying the fix.
 --echo #
 
 --let $rpl_connection_name= master
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $ignore_gtids_on_sync= 1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $ignore_gtids_on_sync= 0
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

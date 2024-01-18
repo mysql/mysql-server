@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -395,7 +395,7 @@ return 0;
 end|
 use mysqltest;
 set @a:= mysqltest2.f1();
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	drop database if exists mysqltest1
 master-bin.000001	#	Query	#	#	create database mysqltest1
@@ -652,7 +652,7 @@ show function status like '%mysqltestbug36570%';
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	mysqltestbug36570_f1	FUNCTION	SQL	root@localhost	t	t	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 flush logs;
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -1848,7 +1848,7 @@ ERROR 42000: FUNCTION test.f1 does not exist
 #
 # Bug #11918 Can't use a declared variable in LIMIT clause
 #
-include/rpl_reset.inc
+include/rpl/reset.inc
 create table t1 (c1 int) engine=myisam;
 insert into t1 (c1) values
 (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
@@ -1890,4 +1890,4 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 drop table t1;
 drop procedure p1;
 # End of 5.5 tests.
-include/rpl_end.inc
+include/rpl/deinit.inc

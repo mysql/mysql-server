@@ -1,0 +1,130 @@
+# Testcase for BUG#6287 "Slave skips auto_increment values in Replication with InnoDB"
+# The bug was that if on master, INSERT IGNORE ignored some
+# rows, and the table was InnoDB with auto_inc column, then on slave
+# some rows received an auto_inc bigger than on master.
+# Slave needs to be started with --innodb to store table in InnoDB.
+# Same test for MyISAM (which had no bug).
+
+--connection master
+eval CREATE TABLE t1 (
+ a int unsigned not null auto_increment primary key,
+ b int unsigned,
+ unique (b)
+) ENGINE=$engine_type;
+
+eval CREATE TABLE t2 (
+ a int unsigned, # to force INSERT SELECT to have a certain order
+ b int unsigned
+) ENGINE=$engine_type;
+
+
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+INSERT INTO t1 VALUES (NULL, 3);
+INSERT INTO t1 VALUES (NULL, 4);
+
+# An alternation of values which will conflict in t1 and will not.
+
+INSERT INTO t2 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+INSERT INTO t2 VALUES (3, 5);
+INSERT INTO t2 VALUES (4, 3);
+INSERT INTO t2 VALUES (5, 4);
+INSERT INTO t2 VALUES (6, 6);
+--disable_warnings ER_DUP_ENTRY,ER_BINLOG_UNSAFE_STATEMENT ONCE
+INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+--let $assert_cond= COUNT(*) = 6 FROM t1
+--let $assert_text= Count of elements in t1 should be 6.
+--source include/assert.inc
+
+# Compare master and slave
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1 , slave:test.t1
+--source include/diff_tables.inc
+
+# BUG#59338 Inconsistency in binlog for statements that don't change any rows STATEMENT SBR
+# An insert ignore that does not update anything must be written to the binary log in SBR
+# and MIXED modes. We check this property by counting occurrences in t1 before and after
+# the insert and comparing the binlog positions. The count should be the same in both points
+# and the statement should be in the binary log.
+--connection master
+--let $binlog_file= query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+--let $statement_file=INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a
+--disable_warnings ER_DUP_ENTRY,ER_BINLOG_UNSAFE_STATEMENT ONCE
+--eval $statement_file
+
+--let $assert_cond= COUNT(*) = 6 FROM t1
+--let $assert_text= Count of elements in t1 should be 6.
+--source include/assert.inc
+
+# force outstanding executed transactions to be flushed to binlog for ndb
+--save_master_pos
+
+if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
+{
+  --let $binlog_position_cmp= =
+  --let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] $binlog_position_cmp $binlog_start
+  --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+}
+if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
+{
+  --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 3, 1\', Info, 1]\' LIKE \'%$statement_file\'
+  --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+}
+
+--source include/assert.inc
+
+# An insert duplicate that does not update anything must be written to the binary
+# log in SBR and MIXED modes. We check this property by summing a before and after
+# the update and comparing the binlog positions. The sum should be the same at both
+# points and the statement should be in the binary log.
+--disable_warnings
+DROP TABLE t1;
+DROP TABLE t2;
+--enable_warnings
+eval CREATE TABLE t1 (
+ a INT UNSIGNED NOT NULL PRIMARY KEY
+) ENGINE=$engine_type;
+
+eval CREATE TABLE t2 (
+ a INT UNSIGNED
+) ENGINE=$engine_type;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+# force outstanding executed transactions to be flushed to binlog for ndb
+--save_master_pos
+
+--let $binlog_file= query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+--let $statement_file=INSERT INTO t1 SELECT t2.a FROM t2 ORDER BY t2.a ON DUPLICATE KEY UPDATE t1.a= t1.a
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
+--eval $statement_file
+
+--let $assert_cond= SUM(a) = 1 FROM t1
+--let $assert_text= Sum of elements in t1 should be 1.
+--source include/assert.inc
+
+# force outstanding executed transactions to be flushed to binlog for ndb
+--save_master_pos
+
+if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
+{
+  --let $binlog_position_cmp= =
+  --let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] $binlog_position_cmp $binlog_start
+  --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+}
+if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
+{
+  --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 2, 1\', Info, 1]\' LIKE \'%$statement_file\'
+  --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+}
+--source include/assert.inc
+
+
+# Clean up
+--connection master
+drop table t1, t2;
+--source include/rpl/sync_to_replica.inc

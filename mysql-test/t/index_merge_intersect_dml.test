@@ -4,7 +4,7 @@
 
 # Skipping the test when binlog_format=STATEMENT due to unsafe statements:
 # unsafe usage of auto-increment column, LIMIT clause, REPLACE... SELECT.
---source include/not_binlog_format_statement.inc
+--source include/rpl/deprecated/not_binlog_format_statement.inc
 
 --source include/no_valgrind_without_big.inc
 --source include/index_merge_intersect_dml.inc

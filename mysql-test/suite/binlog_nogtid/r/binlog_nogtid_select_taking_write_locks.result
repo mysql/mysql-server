@@ -1,4 +1,4 @@
-include/rpl_set_gtid_mode.inc [OFF_PERMISSIVE on servers 1]
+include/rpl/set_gtid_mode.inc [OFF_PERMISSIVE on servers 1]
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
 CREATE TABLE t2(c1 INT) ENGINE=MEMORY;
 # TC.1 `GTID_NEXT` = `UNDEFINED` + Query statement acquiring wr-lock
@@ -31,4 +31,4 @@ DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 RESET BINARY LOGS AND GTIDS;
-include/rpl_set_gtid_mode.inc
+include/rpl/set_gtid_mode.inc

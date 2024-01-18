@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --connection master
 create table t1(pk int not null primary key, i int) engine = ndb;
@@ -45,7 +45,7 @@ let $mysqld_name=mysqld.1.1;
 
 # Reconnect all clients configured by rpl_init
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # When mysqld starts up again it will:
 # - rotate the binary log(thus switching to second log)
@@ -57,7 +57,7 @@ let $mysqld_name=mysqld.1.1;
 # Show that the second log contains the LOST_EVENT incident
 # and that the binlog has been rotated(ie. flush, rotate and purge).
 let $binlog_file=master-bin.000002;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 drop table if exists t1;
 
@@ -69,15 +69,15 @@ START REPLICA;
 
 let $slave_sql_errno= 13119; # ER_REPLICA_INCIDENT
 let $show_slave_sql_error=1;
--- source include/wait_for_slave_sql_error.inc
+-- source include/rpl/wait_for_applier_error.inc
 
 let $status_items= Replica_IO_Running, Replica_SQL_Running, Last_Errno, Last_Error;	
--- source include/show_slave_status.inc
+-- source include/rpl/deprecated/show_replica_status.inc
 
 # Cleanup
 drop table if exists t1;
 
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 RESET REPLICA;
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

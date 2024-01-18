@@ -58,7 +58,7 @@ while ($iteration>0)
   # RESET BINARY LOGS AND GTIDS is needed.
   RESET BINARY LOGS AND GTIDS;
   # kill the dump threads if there any dump threads (may be from previous test)
-  --source include/stop_dump_threads.inc
+  --source include/rpl/stop_dump_threads.inc
 
   --echo # Step-1: Execute some dummy statements.
   CREATE TABLE t1(i int);
@@ -77,7 +77,7 @@ while ($iteration>0)
   --copy_file $MYSQL_TMP_DIR/binlog.000001 $MYSQL_TMP_DIR/binlog-back_up_file.000001
 
   --echo # Step-5: kill the dump thread serving the mysqlbinlog --stop-never process
-  --source include/stop_dump_threads.inc
+  --source include/rpl/stop_dump_threads.inc
 
   --echo # Step-6: Cleanup the data, so that it is ready for reapply.
   DROP TABLE t1;

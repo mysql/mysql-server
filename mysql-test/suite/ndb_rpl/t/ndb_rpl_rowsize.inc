@@ -1,7 +1,7 @@
 --source include/have_debug.inc
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 SET SESSION DEBUG="+d,ndb_crash_on_drop_SUB_TABLE_DATA";
 
@@ -113,4 +113,4 @@ DROP TABLE t;
 
 sync_slave_with_master;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

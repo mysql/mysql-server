@@ -11,7 +11,7 @@ CREATE TABLE t (
 );
 
 --let $save_binlog_position_in_sql = 1
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --let $gtid_uuid = 435aeb3e-cc91-11ec-a715-6ba04eb9487e
 --let $auxiliary_connection = default
@@ -81,7 +81,7 @@ CREATE TABLE t (
 --let $events_for_3 = Gtid/.*GTID_NEXT= '$gtid_uuid:3' # !Begin # !Insert # !Commit
 
 --let $event_sequence = $events_for_2 # $events_for_3 # $events_for_1
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 DROP TABLE t;
 RESET BINARY LOGS AND GTIDS;

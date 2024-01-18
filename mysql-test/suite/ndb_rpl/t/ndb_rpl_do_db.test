@@ -6,7 +6,7 @@
 ##########################################################
 
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --disable_warnings
 DROP DATABASE IF EXISTS replica;
@@ -54,4 +54,4 @@ DROP DATABASE IF EXISTS replica;
 --sync_slave_with_master
 
 # End 5.1 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -6,14 +6,14 @@
 
 -- source include/have_binlog_format_mixed_or_statement.inc
 
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 # see if DROP DATABASE is binlogged even if no effect
 connection slave;
 create database mysqltest;
 connection master;
 drop database if exists mysqltest;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # can't read dir
 --replace_result "Errcode: 1" "Errcode: X" "Errcode: 2" "Errcode: X" \\ /
 --error 1049
@@ -24,7 +24,7 @@ connection slave;
 create table t1 (a int);
 connection master;
 drop table if exists t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # table does not exist
 --error 1146
 select * from t1;
@@ -32,11 +32,11 @@ select * from t1;
 # see if single-table DELETE is binlogged even if no effect
 connection master;
 create table t1 (a int, b int);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 insert into t1 values(1,1);
 connection master;
 delete from t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t1;
 
 # see if single-table UPDATE is binlogged even if no effect
@@ -44,7 +44,7 @@ insert into t1 values(1,1);
 connection master;
 insert into t1 values(2,1);
 update t1 set a=2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t1;
 
 # End of 4.1 tests
@@ -57,14 +57,14 @@ delete from t1;
 insert into t1 values(1,1);
 insert into t2 values(1,1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # force a difference to see if master's multi-UPDATE will correct it
 update t1 set a=2;
 
 connection master;
 UPDATE t1, t2 SET t1.a = t2.a;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t1;
 select * from t2;
 
@@ -74,7 +74,7 @@ connection master;
 delete from t1;
 delete from t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # force a difference to see if master's multi-DELETE will correct it
 insert into t1 values(1,1);
 insert into t2 values(1,1);
@@ -82,7 +82,7 @@ insert into t2 values(1,1);
 connection master;
 DELETE t1.*, t2.* from t1, t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t1;
 select * from t2;
 
@@ -90,5 +90,5 @@ select * from t2;
 # cleanup
 connection master;
 drop table t1, t2;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

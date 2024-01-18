@@ -15,27 +15,27 @@
 # - IC - Incoming Compressed (incoming compressed transactions from the master)
 # - IR - Incoming Regular    (incoming regular transactions)
 #
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 # setup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $saved_global_binlog_transaction_compression_master = `SELECT @@GLOBAL.binlog_transaction_compression`
 --let $saved_session_binlog_transaction_compression_master = `SELECT @@SESSION.binlog_transaction_compression`
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $saved_global_binlog_transaction_compression_slave = `SELECT @@GLOBAL.binlog_transaction_compression`
 --let $saved_session_binlog_transaction_compression_slave = `SELECT @@SESSION.binlog_transaction_compression`
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 --disable_query_log
 --disable_result_log
@@ -59,12 +59,12 @@ while($i<5)
     # Expectation is that the applier applies compressed transactions
     # and compresses those transactions that writes to its binary log
     #
-    --source include/rpl_connection_slave.inc
-    --source include/stop_slave.inc
+    --source include/rpl/connection_replica.inc
+    --source include/rpl/stop_replica.inc
     SET GLOBAL binlog_transaction_compression = ON;
-    --source include/start_slave.inc
+    --source include/rpl/start_replica.inc
 
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
     SET SESSION binlog_transaction_compression = ON;
 
     --let $comparison_master_cbytes_vs_trx_size_bytes = <
@@ -91,12 +91,12 @@ while($i<5)
     # and compresses those transactions that writes to its binary log
     #
 
-    --source include/rpl_connection_slave.inc
-    --source include/stop_slave.inc
+    --source include/rpl/connection_replica.inc
+    --source include/rpl/stop_replica.inc
     SET GLOBAL binlog_transaction_compression = ON;
-    --source include/start_slave.inc
+    --source include/rpl/start_replica.inc
 
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
     SET SESSION binlog_transaction_compression = OFF;
 
     --let $comparison_master_cbytes_vs_trx_size_bytes = >
@@ -123,12 +123,12 @@ while($i<5)
     # and does not compress those transactions that writes to its binary log
     #
 
-    --source include/rpl_connection_slave.inc
-    --source include/stop_slave.inc
+    --source include/rpl/connection_replica.inc
+    --source include/rpl/stop_replica.inc
     SET GLOBAL binlog_transaction_compression = OFF;
-    --source include/start_slave.inc
+    --source include/rpl/start_replica.inc
 
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
     SET SESSION binlog_transaction_compression = ON;
 
     --let $comparison_master_cbytes_vs_trx_size_bytes = <
@@ -154,13 +154,13 @@ while($i<5)
     # Expectation is that the applier applies regular transactions
     # and does not compress those transactions that writes to its binary log
     #
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
     SET SESSION binlog_transaction_compression = OFF;
 
-    --source include/rpl_connection_slave.inc
-    --source include/stop_slave.inc
+    --source include/rpl/connection_replica.inc
+    --source include/rpl/stop_replica.inc
     SET GLOBAL binlog_transaction_compression = OFF;
-    --source include/start_slave.inc
+    --source include/rpl/start_replica.inc
 
     --let $comparison_master_cbytes_vs_trx_size_bytes = >
     --let $comparison_master_ubytes_vs_trx_size_bytes = >
@@ -176,27 +176,27 @@ while($i<5)
   }
 
   # DDL: create table
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   # master: INSERT values
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes));
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   # DDL: drop table
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   DROP TABLE t1;
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   # get the stats
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   --let $master_cbytes = `SELECT compressed_bytes_counter FROM $pfs_table WHERE log_type = 'BINARY'`
   --let $master_ubytes = `SELECT uncompressed_bytes_counter FROM $pfs_table WHERE log_type = 'BINARY'`
   --let $master_ctrxs = `SELECT SUM(transaction_counter) FROM $pfs_table WHERE log_type = 'BINARY'`
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   --let $slave_relaylog_cbytes = `SELECT compressed_bytes_counter FROM $pfs_table WHERE log_type = 'RELAY'`
   --let $slave_relaylog_ubytes = `SELECT uncompressed_bytes_counter FROM $pfs_table WHERE log_type = 'RELAY'`
   --let $slave_relaylog_ctrxs = `SELECT SUM(transaction_counter) FROM $pfs_table WHERE log_type = 'RELAY'`
@@ -271,16 +271,16 @@ while($i<5)
     --inc $j
   }
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
   # clean up
-  --source include/rpl_reset.inc
+  --source include/rpl/reset.inc
   --inc $i
 }
 
@@ -290,7 +290,7 @@ while($i<5)
 #
 # Clean up
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --replace_result $saved_session_binlog_transaction_compression_master SAVED
 --eval SET @@SESSION.binlog_transaction_compression = $saved_session_binlog_transaction_compression_master
 
@@ -299,7 +299,7 @@ while($i<5)
 
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $saved_session_binlog_transaction_compression_slave SAVED
 --eval SET @@SESSION.binlog_transaction_compression = $saved_session_binlog_transaction_compression_slave
@@ -309,5 +309,5 @@ TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 
---source include/rpl_reset.inc
---source include/rpl_end.inc
+--source include/rpl/reset.inc
+--source include/rpl/deinit.inc

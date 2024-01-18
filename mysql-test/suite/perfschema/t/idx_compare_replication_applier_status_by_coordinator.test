@@ -2,15 +2,15 @@
 # Verify that query results are the same with and without indexes.
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # --source include/have_binlog_format_mixed.inc
 
 --connection slave
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET @old_replica_parallel_workers= @@global.replica_parallel_workers;
 SET GLOBAL replica_parallel_workers= 4;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Debug
 # select * from performance_schema.replication_applier_status_by_coordinator;
@@ -50,9 +50,9 @@ SET @target_id = @coordinator_thread_id;
 --source ../include/idx_compare_cleanup_index_test.inc
 
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL replica_parallel_workers= @old_replica_parallel_workers;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

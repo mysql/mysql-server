@@ -19,7 +19,7 @@
 #
 --let $rpl_server_count= 1
 --let $rpl_topology= none
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
@@ -84,7 +84,7 @@ while ($test_number <= 4)
   #
   --let $xid_data = 1
   --let $expected_prepared_xa_count = 1
-  --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+  --source common/xa_crash_safe/assert_xa_recover.inc
 
   #
   # XA commit failure, add debug point
@@ -103,26 +103,26 @@ while ($test_number <= 4)
   # connection so that attached transaction can be verified.
   #
   --let $rpl_connection_name= server_1
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $assert_text = Transaction is not committed thus the table is empty.
   --let $assert_cond = "[SELECT COUNT(*) FROM t1]" = "0"
   --source include/assert.inc
 
   --let $rpl_connection_name= default
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   #
   # Start server and recover XA transaction
   #
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
 
   #
   # Check the transaction can still be recovered after restart
   #
   --let $xid_data = 1
   --let $expected_prepared_xa_count = 1
-  --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+  --source common/xa_crash_safe/assert_xa_recover.inc
 
   #
   # Now the transaction should commit
@@ -134,7 +134,7 @@ while ($test_number <= 4)
   #
   --let $xid_data = 1
   --let $expected_prepared_xa_count = 0
-  --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+  --source common/xa_crash_safe/assert_xa_recover.inc
 
   #
   # Check value is present

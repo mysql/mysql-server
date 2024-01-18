@@ -1,5 +1,5 @@
 
--- source include/force_binlog_format_statement.inc
+-- source include/rpl/force_binlog_format_statement.inc
 
 RESET BINARY LOGS AND GTIDS;
 SET NAMES gbk;
@@ -40,4 +40,4 @@ DROP TABLE t1;
 DROP TABLE t2;
 --remove_file $MYSQLD_DATADIR/binlog.saved
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

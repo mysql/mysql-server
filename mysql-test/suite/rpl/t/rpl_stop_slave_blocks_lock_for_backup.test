@@ -40,7 +40,7 @@
 #              INSTANCE FOR BACKUP
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
@@ -55,21 +55,21 @@
 
   # 1) Open two different connections, A and B to the slave node and set
   #    `stop_replica_dont_release_backup_lock` debug sync point in both.
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
-  --source include/rpl_connection_slave1.inc
+  --source include/rpl/connection_replica1.inc
   CALL mtr.add_suppression("Lock wait timeout exceeded; try restarting transaction");
   SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
 
   # 2) Through connection A, send $statement to the server that, after acquiring
   #    the BACKUP lock, will wait for a `tried_to_lock_instance_for_backup`
   #    signal in the `stop_replica_dont_release_backup_lock` sync point.
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   --send_eval $statement
 
   # 3) Through connection B, execute a `LOCK INSTANCE FOR BACKUP` statement and
   #    expect a `ER_LOCK_WAIT_TIMEOUT` error.
-  --source include/rpl_connection_slave1.inc
+  --source include/rpl/connection_replica1.inc
   SET DEBUG_SYNC = "now WAIT_FOR replica_acquired_backup_lock";
   --error ER_LOCK_WAIT_TIMEOUT
   LOCK INSTANCE FOR BACKUP;
@@ -78,15 +78,15 @@
   SET DEBUG_SYNC = "now SIGNAL tried_to_lock_instance_for_backup";
 
   # 5) Through connection A, reap the result of the sent statement.
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   --reap
 
   # 6) Check that the slave stopped and re-start it.
   START REPLICA;
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
-  --source include/rpl_connection_slave1.inc
+  --source include/rpl/connection_replica1.inc
   SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
 #END OF
 PROCEDURE
@@ -105,4 +105,4 @@ PROCEDURE
 
 # Clean up
 --remove_file $MYSQLTEST_VARDIR/tmp/lock_instance_while_executing.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

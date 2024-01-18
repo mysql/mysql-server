@@ -49,12 +49,12 @@ SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WH
 --echo #    zero for a transaction and zero after transaction is
 --echo #    finished.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=innodb;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_before_message_broadcast';
 # insert size: 1 MB
 BEGIN;
@@ -63,7 +63,7 @@ INSERT INTO t1 VALUES (1, repeat('a',1024*1024));
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
@@ -88,7 +88,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_after_before_commit_hook';
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_before_commit_hook_continue";
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 DROP TABLE t1;

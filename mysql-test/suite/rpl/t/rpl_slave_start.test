@@ -4,7 +4,7 @@
 --echo # so there is a possibility that Slave_SQL_Error is not 0.
 --source include/not_group_replication_plugin.inc
 source include/have_debug_sync.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 --echo [on slave]
 connection slave;
@@ -24,16 +24,16 @@ CREATE TABLE t1(c1 INT);
 connection slave;
 # ERROR: Table already exists.
 let $slave_sql_errno= 1050;
-source include/wait_for_slave_sql_error.inc;
+source include/rpl/wait_for_applier_error.inc;
 
 DROP TABLE t1;
 
 --echo # Block SQL thread immediately after it starts.
 SET DEBUG_SYNC='after_start_replica WAIT_FOR signal.continue';
 START REPLICA SQL_THREAD;
-source include/wait_for_slave_sql_to_start.inc;
+source include/rpl/wait_for_applier_to_start.inc;
 --echo # Check Slave_SQL_Error, there should not be an error.
-source include/check_slave_no_error.inc;
+source include/rpl/assert_replica_no_error.inc;
 
 --echo # Resume SQL thread
 SET DEBUG_SYNC="now SIGNAL signal.continue";
@@ -41,4 +41,4 @@ SET DEBUG_SYNC="now SIGNAL signal.continue";
 --echo [on master]
 connection master;
 DROP TABLE t1;
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

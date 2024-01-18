@@ -15,7 +15,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo ## Create table with Range Column Partition ##
 CREATE TABLE t1 ( c1 int, c2 int, PRIMARY KEY (c1, c2))
                  CHARSET=utf8mb4
@@ -34,10 +34,10 @@ CREATE TABLE t2 ( c1 int, c2 char(5), PRIMARY KEY (c1, c2))
                     PARTITION t2p2 VALUES in ( (1, 'cc'), (2, 'cd') )
                  );
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SHOW CREATE TABLE t1;
 # Insert some values into table t1
 # This record should belong to partition t1p1
@@ -64,10 +64,10 @@ INSERT INTO t2 VALUES (2, 'ab');
 # This record should belong to partition t2p2
 INSERT INTO t2 VALUES (1, 'cc');
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Perform some DMLs
 # This record should belong to partition t1p2
@@ -80,10 +80,10 @@ DELETE FROM t2 WHERE c2= 'ab';
 # This record should belong to partition t2p2
 INSERT INTO t2 VALUES (2, 'cd');
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Validate Record counts
 # Assert that partition t1p1 has 1 row.
@@ -109,6 +109,6 @@ INSERT INTO t2 VALUES (2, 'cd');
 # Clean-up
 DROP TABLE t1;
 DROP TABLE t2;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --source include/group_replication_end.inc

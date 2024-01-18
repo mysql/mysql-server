@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2->3]
+include/rpl/init.inc [topology=1->2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,25 +7,25 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 
 create table t1 (a int not null auto_increment, b int not null, primary key(a)) engine=innodb;
-include/rpl_sync.inc
-include/stop_slave.inc
+include/rpl/sync.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to SOURCE_PORT=SERVER_MYPORT_1;;
-include/start_slave.inc
+include/rpl/start_replica.inc
 insert into t1 values (NULL, 1);
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [server_1:test.t1, server_2:test.t1, server_3:test.t1]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 insert into t1 values (NULL, 2);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to SOURCE_PORT=SERVER_MYPORT_2;
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [server_1:test.t1, server_2:test.t1, server_3:test.t1]
 CHANGE REPLICATION SOURCE to SOURCE_PORT=SERVER_MYPORT_1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 *** Clean up ***
 DROP TABLE t1;
-include/rpl_sync.inc
-include/rpl_end.inc
+include/rpl/sync.inc
+include/rpl/deinit.inc

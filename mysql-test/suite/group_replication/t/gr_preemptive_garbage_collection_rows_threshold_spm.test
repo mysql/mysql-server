@@ -39,7 +39,7 @@
 --echo #    Block secondary "group_replication_applier" channel to
 --echo #    mimic a delayed server.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
 SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
@@ -47,7 +47,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period'
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
 SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
@@ -62,7 +62,7 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Every time a member joins a garbage collection happens.
 --let $assert_text= 'There were 2 certification info garbage collection runs'
 --let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_count", VARIABLE_VALUE, 1] = 2
@@ -74,7 +74,7 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 --echo # 2. Do some transactions so that we have 10000 write-sets on
 --echo #    certification info.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 --let $trxs=5
 while($trxs)
@@ -100,7 +100,7 @@ while($trxs)
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Writes on "group_replication_applier" channel are blocked, but
 # transactions are still being certified and queued on its relay log.
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
@@ -117,7 +117,7 @@ SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 
 --let $binlog_file= server-relay-log-group_replication_applier.000002
 --let $logical_timestamps= 0 0;1 3;1 4;1 5;1 6
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 
 --echo
@@ -125,7 +125,7 @@ SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 --echo # 3. Set group_replication_preemptive_garbage_collection_rows_threshold
 --echo #    to 10000 and check that certification info was garbage collected.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 10000;
 --let $wait_condition= SELECT Count_transactions_rows_validating=0 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
@@ -135,7 +135,7 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 100
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 10000;
 --let $wait_condition= SELECT Count_transactions_rows_validating=0 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
@@ -150,11 +150,11 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 100
 --echo # 4. Increase group_replication_preemptive_garbage_collection_rows_threshold
 --echo #    to 30000.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 30000;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 30000;
 
 
@@ -163,7 +163,7 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 300
 --echo # 5. Do more transactions so that we have 20000 write-sets on
 --echo #    certification info.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 --let $trxs=2
 while($trxs)
@@ -193,7 +193,7 @@ while($trxs)
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT Count_transactions_rows_validating=20000 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
@@ -210,7 +210,7 @@ while($trxs)
 
 --let $binlog_file= server-relay-log-group_replication_applier.000002
 --let $logical_timestamps= 0 0;1 3;1 4;1 5;1 6;7 8;7 9
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 
 --echo
@@ -219,7 +219,7 @@ while($trxs)
 --echo #    is equal to group_replication_preemptive_garbage_collection_rows_threshold
 --echo #    these write-sets will not be added to certification info.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 --let $rows=30000
 BEGIN;
@@ -240,7 +240,7 @@ COMMIT;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Count_transactions_rows_validating must be equal to 20000 on server1'
 --let $assert_cond= "20000" = "[SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
@@ -255,25 +255,25 @@ COMMIT;
 
 --let $binlog_file= server-relay-log-group_replication_applier.000002
 --let $logical_timestamps= 0 0;1 3;1 4;1 5;1 6;7 8;7 9;9 10
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 
 
 --echo
 --echo ############################################################
 --echo # 7. Clean up.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 --let $slave_timeout= 1800
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= DEFAULT;
@@ -281,7 +281,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period'
 SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= DEFAULT;

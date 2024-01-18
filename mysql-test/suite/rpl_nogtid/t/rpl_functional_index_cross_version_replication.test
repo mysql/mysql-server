@@ -32,7 +32,7 @@
 
 --let $rpl_skip_start_slave = 1
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 --echo #
@@ -42,7 +42,7 @@
 #
 # 1) Stop the slave.
 #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
 
 #
@@ -53,7 +53,7 @@ call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t
 #    INSERT INTO t(a, b) VALUES (1, '1');
 #
 --let $fake_relay_log = $MYSQL_TEST_DIR/std_data/rpl_unfiltered_hidden_gcol.000001
---source include/setup_fake_relay_log.inc
+--source include/rpl/setup_fake_relay_log.inc
 
 #
 # 3) Start the slave.
@@ -69,7 +69,7 @@ START REPLICA SQL_THREAD;
 --let $slave_param = Replica_SQL_Running_State
 --let $slave_param_value= Replica has read all relay log; waiting for more updates
 --let $replica_io_running_check_disable = 1
---source include/wait_for_slave_param.inc
+--source include/rpl/wait_for_replica_status.inc
 
 # Even with the above validation, we should protect against future changes that
 # bipass _OLD_ relay-logs. Therefore, making the test fail if the table doesn't
@@ -89,7 +89,7 @@ START REPLICA SQL_THREAD;
 DROP TABLE t;
 
 STOP REPLICA SQL_THREAD;
---source include/cleanup_fake_relay_log.inc
---source include/start_slave.inc
+--source include/rpl/cleanup_fake_relay_log.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

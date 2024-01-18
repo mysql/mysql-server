@@ -25,11 +25,11 @@
 --echo #    on a secondary.
 --echo #    It will not be allowed.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 --source include/gr_assert_secondary_member.inc
 
@@ -56,7 +56,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAIL
 --echo ############################################################
 --echo # 2. Check that configuration was not changed.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= There must be no failover sources
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_asynchronous_connection_failover] = 0

@@ -25,7 +25,7 @@ while($i < $tables)
   --eval CREATE TABLE t$i (c1 INT NOT NULL PRIMARY KEY)
   --inc $i
 }
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ############################################################
@@ -56,24 +56,24 @@ while($t < $transactions)
 
 # Sync server1, server2
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ############################################################
 --echo # 3. Validate servers state is equal.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 
 --let $assert_text= server1 GTID_EXECUTED must be equal to server2 GTID_EXECUTED

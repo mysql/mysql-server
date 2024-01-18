@@ -36,7 +36,7 @@
 --echo # 1. Bootstrap start a GROUP on M1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -53,7 +53,7 @@ INSERT INTO test.t1 values (NULL);
 --echo # 2. Start GR on M2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -65,7 +65,7 @@ INSERT INTO test.t1 values (NULL);
 --echo #    UNTIL clause.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_recovery_after_gtids_applier_stop_error_out';
 --source include/start_group_replication.inc
 
@@ -88,11 +88,11 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_recovery_after_gtids_applier_stop_erro
 --echo # 5. Cleanup.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_recovery_after_gtids_applier_stop_error_out';
 
 --source include/group_replication_end.inc

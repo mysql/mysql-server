@@ -93,7 +93,7 @@
 
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode=ON_PERMISSIVE
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 --echo
 --echo # T1.1. Create a user with no privileges
@@ -274,4 +274,4 @@ DROP USER normal_user;
 
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode=$gtid_mode
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc

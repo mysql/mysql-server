@@ -30,7 +30,7 @@
 --source include/have_debug_sync.inc
 --source include/have_debug.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #### Initialize ####
 
@@ -55,10 +55,10 @@ while ($terminology_use_previous < 2) {
 
   --echo * Pause source during REGISTER REPLICA to make it go to slow log
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   # Make dump thread pause during 'register replica', so we can force it
   # to go to the slow log.
-  --source include/stop_slave_io.inc
+  --source include/rpl/stop_receiver.inc
   --connection master
   --let $debug_point = syncpoint_begin_register_replica
   --source include/add_debug_point.inc
@@ -76,7 +76,7 @@ while ($terminology_use_previous < 2) {
   SET @@session.debug_sync = "now SIGNAL continue_begin_register_replica";
   # Wait for replica to start
   --connection slave
-  --source include/wait_for_slave_io_to_start.inc
+  --source include/rpl/wait_for_receiver_to_start.inc
 
   --echo * Verify the logs contain the correct term, and not the incorrect one
   --connection master
@@ -102,7 +102,7 @@ while ($terminology_use_previous < 2) {
 
 --echo #### Clean up ####
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@global.log_output = @save_log_output;
 TRUNCATE TABLE mysql.general_log;
 TRUNCATE TABLE mysql.slow_log;
@@ -112,4 +112,4 @@ SET @@global.terminology_use_previous = @save_terminology_use_previous;
 --let $debug_point = syncpoint_begin_register_replica
 --source include/remove_debug_point.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

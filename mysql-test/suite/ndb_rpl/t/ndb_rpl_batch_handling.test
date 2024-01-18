@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 CREATE TABLE mysql.ndb_replication
   (db VARBINARY(63),
@@ -96,4 +96,4 @@ drop table mysql.ndb_replication;
 
 --sync_slave_with_master
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

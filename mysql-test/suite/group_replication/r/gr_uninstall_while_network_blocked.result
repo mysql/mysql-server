@@ -5,12 +5,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server1]
 CREATE TABLE t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 
 # 1. Kill and restart server 2
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS2 --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_communication_stack=GROUP_REPLICATION_COMMUNICATION_STACK
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server1]
 
 # 2. Wait until server2 is marked as UNREACHABLE
@@ -40,8 +40,8 @@ ERROR HY000: Plugin 'group_replication' cannot be uninstalled now. Plugin is bus
 [connection server1]
 # CR_SERVER_LOST, CR_SERVER_GONE_ERROR or Rollback
 Got one of the listed errors
-include/rpl_start_server.inc [server_number=1]
-include/rpl_reconnect.inc
+include/rpl/start_server.inc [server_number=1]
+include/rpl/reconnect.inc
 [connection server2]
 DROP TABLE test.t1;
 [connection server_1]

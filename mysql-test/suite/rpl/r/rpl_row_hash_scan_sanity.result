@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1);
 INSERT INTO t4 VALUES (1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 UPDATE t1 SET c1= 6;
 UPDATE t2 SET c1= 6;
 UPDATE t3 SET c1= 6;
@@ -20,22 +20,22 @@ CREATE TABLE t5(c1 INT, c2 INT, KEY(c2));
 INSERT INTO t5 VALUES (1,1),(2,2),(3,1),(4,NULL),(5,2),(6,3);
 DELETE FROM t5 ORDER BY c1;
 DROP TABLE t5;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t5(c1 BIGINT, c2 BIGINT, KEY(c2));
 INSERT INTO t5 VALUES (1,1),(2,2),(3,1),(4,NULL),(5,2),(6,3);
 DELETE FROM t5 ORDER BY c1;
 DROP TABLE t5;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t5(c1 INT, c2 VARCHAR(20), KEY(c2));
 INSERT INTO t5 VALUES (1,"value1"),(2,"value2"),(3,"value1"),(4,NULL),(5,"value2"),(6,"value3");
 DELETE FROM t5 ORDER BY c1;
 DROP TABLE t5;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t5(c1 INT, c2 INT, c3 VARCHAR(20), KEY(c2,c3));
 INSERT INTO t5 VALUES (1,1,"ab"),(2,2,"cde"),(3,1,"12345"),(4,4,"random"),(5,NULL,NULL),(6,5,NULL),(7,NULL,"lmnopqr");
 DELETE FROM t5 ORDER BY c1;
 DROP TABLE t5;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 call mtr.add_suppression("Could not execute Delete_rows event on table test.t6");
 call mtr.add_suppression("Could not execute Update_rows event on table test.t6");
 call mtr.add_suppression("Can't find record in 't6'");
@@ -47,11 +47,11 @@ INSERT INTO t6 VALUES(6, 1977);
 INSERT INTO t6 VALUES(1, 1983);
 INSERT INTO t6 VALUES(9, 1977);
 DELETE FROM t6 WHERE num= 9;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 CREATE TABLE t6(num INT, year INT, KEY year (year))
 PARTITION BY HASH(num) PARTITIONS 5;
@@ -63,11 +63,11 @@ INSERT INTO t6 VALUES(9, 1987);
 INSERT INTO t6 VALUES(9, 9);
 INSERT INTO t6 VALUES(9, 1555555500);
 DELETE FROM t6 WHERE num= 9;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 CREATE TABLE t6(num INT, year INT, num_2 INT, KEY year (year))
 PARTITION BY HASH(num_2-num) PARTITIONS 5;
@@ -77,12 +77,12 @@ INSERT INTO t6 VALUES(9, 1977, 1);
 INSERT INTO t6 VALUES(9, 1983, 1);
 INSERT INTO t6 VALUES(9, 1977, 3);
 DELETE FROM t6 WHERE num_2= 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t6;
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 [connection master]
 CREATE TABLE t6(num INT, year INT, KEY year (year))
 PARTITION BY HASH(num) PARTITIONS 5;
@@ -95,13 +95,13 @@ SET SQL_LOG_BIN= 1;
 DELETE FROM t6 WHERE num= 10;
 [connection slave]
 START REPLICA SQL_THREAD;
-include/wait_for_slave_sql_error.inc [errno=1032]
-include/stop_slave.inc
+include/rpl/wait_for_applier_error.inc [errno=1032]
+include/rpl/stop_replica.inc
 INSERT INTO t6 VALUES(10, 1977);
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 CREATE TABLE t6(num INT, year INT, KEY year (year))
 PARTITION BY HASH(num) PARTITIONS 5;
@@ -109,11 +109,11 @@ INSERT INTO t6 VALUES(6, 1977);
 INSERT INTO t6 VALUES(1, 1983);
 INSERT INTO t6 VALUES(9, 1977);
 UPDATE t6 SET num= 10 WHERE num= 9;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 CREATE TABLE t6(num INT, year INT, KEY year (year))
 PARTITION BY HASH(num) PARTITIONS 5;
@@ -125,11 +125,11 @@ INSERT INTO t6 VALUES(9, 1987);
 INSERT INTO t6 VALUES(9, 9);
 INSERT INTO t6 VALUES(9, 1555555500);
 UPDATE t6 SET num= 10 WHERE num= 9;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 CREATE TABLE t6(num INT, year INT, num_2 INT, KEY year (year))
 PARTITION BY HASH(num_2-num) PARTITIONS 5;
@@ -139,12 +139,12 @@ INSERT INTO t6 VALUES(9, 1977, 1);
 INSERT INTO t6 VALUES(9, 1983, 1);
 INSERT INTO t6 VALUES(9, 1977, 3);
 UPDATE t6 SET num= 10 WHERE num_2= 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t6;
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 [connection master]
 CREATE TABLE t6(num INT, year INT, KEY year (year))
 PARTITION BY HASH(num) PARTITIONS 5;
@@ -157,14 +157,14 @@ SET SQL_LOG_BIN= 1;
 UPDATE t6 SET num= 9 WHERE num= 10;
 [connection slave]
 START REPLICA SQL_THREAD;
-include/wait_for_slave_sql_error.inc [errno=1032]
-include/stop_slave.inc
+include/rpl/wait_for_applier_error.inc [errno=1032]
+include/rpl/stop_replica.inc
 INSERT INTO t6 VALUES(10, 1977);
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t6;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE IF EXISTS t1, t2, t3, t4;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
+include/rpl/deinit.inc

@@ -1,0 +1,183 @@
+# TBF - difference in row level logging
+# Temp tables are not replicated in rbr, but it is still good to hit rbr with everthing
+
+# See SHOW REPLICA STATUS displays well after RESET REPLICA (it should display the
+# --master-* options from mysqld, as this is what is going to be used next time
+# slave threads will be started). In bug 985, it displayed old values (of before
+# RESET REPLICA).
+# See if slave crashes when doing a CREATE TEMPORARY TABLE twice, separated by
+# RESET REPLICA.
+
+-- source include/rpl/init_source_replica.inc
+sync_slave_with_master;
+--disable_query_log
+call mtr.add_suppression('Replica I/O: Get source BINLOG_CHECKSUM failed with error');
+--enable_query_log
+let $status_items= Source_User, Source_Host;
+source include/rpl/deprecated/show_replica_status.inc;
+
+source include/rpl/stop_replica.inc;
+--replace_column 2 ####
+CHANGE REPLICATION SOURCE to SOURCE_USER='test';
+source include/rpl/deprecated/show_replica_status.inc;
+
+RESET REPLICA;
+source include/rpl/deprecated/show_replica_status.inc;
+
+--replace_column 2 ####
+CHANGE REPLICATION SOURCE to SOURCE_USER='root';
+source include/rpl/start_replica.inc;
+sync_with_master;
+source include/rpl/deprecated/show_replica_status.inc;
+
+# test of crash with temp tables & RESET REPLICA
+# (test to see if RESET REPLICA clears temp tables in memory and disk)
+source include/rpl/stop_replica.inc;
+RESET REPLICA;
+source include/rpl/start_replica.inc;
+connection master;
+create temporary table t1 (a int);
+sync_slave_with_master;
+source include/rpl/stop_replica.inc;
+RESET REPLICA;
+reset binary logs and gtids; # clear GTIDs metadata so that create temporary table is replayed
+source include/rpl/start_replica.inc;
+sync_with_master;
+show status like 'replica_open_temp_tables';
+connection master;
+drop temporary table if exists t1;
+sync_slave_with_master;
+
+#
+#Bug#34654  	RESET SLAVE does not clear LAST_IO_Err* 
+#
+
+# clearing the status
+source include/rpl/stop_replica.inc;
+RESET REPLICA;
+source include/rpl/assert_replica_no_error.inc;
+
+#
+# verifying start replica resets Last_IO_Error and Last_IO_Errno.
+#
+
+--replace_column 2 ####
+CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
+START REPLICA;
+let $slave_io_errno= 1045;
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
+
+--replace_column 2 ####
+CHANGE REPLICATION SOURCE to SOURCE_USER='root';
+source include/rpl/start_replica.inc;
+source include/rpl/assert_replica_no_error.inc;
+
+#
+# verifying reset replica resets Last_{IO,SQL}_Err{or,no}
+#
+
+--echo
+--echo Sync slave, else STOP REPLICA may complain about open temporary table.
+--echo
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+
+--replace_column 2 ####
+CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
+START REPLICA;
+let $slave_io_errno= 1045;
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
+
+RESET REPLICA;
+source include/rpl/assert_replica_no_error.inc;
+--replace_column 2 ####
+CHANGE REPLICATION SOURCE to SOURCE_USER='root';
+
+
+#
+# BUG#11809016 - NO WAY TO DISCOVER AN INSTANCE IS NO LONGER A SLAVE FOLLOWING MYSQL BUG#28796
+#
+
+RESET REPLICA;
+
+--echo
+--echo Sync slave, else STOP REPLICA may complain about open temporary table.
+--echo
+
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+--let $_slave_source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+--let $_slave_source_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
+--let $_slave_source_port= query_get_value(SHOW REPLICA STATUS, Source_Port, 1)
+
+RESET REPLICA all;
+--error ER_BAD_REPLICA
+START REPLICA;
+
+--let $_show_source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+if ($_show_source_host != No such row)
+{
+  die;
+}
+
+--replace_result $_slave_source_host SOURCE_HOST $_slave_source_user SOURCE_USER $_slave_source_port SOURCE_PORT
+--replace_column 2 ####
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_source_host', SOURCE_USER= '$_slave_source_user', SOURCE_PORT= $_slave_source_port
+--source include/rpl/start_replica.inc
+
+#
+# Bug#27357189 MASTER_USER BECOMES 'TEST' IF IT IS EMPTY WHEN READ FROM REPO
+#
+
+# Clean all the previous info
+
+# Sync with the master so we delete the temporary table before stop.
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+
+--let $rpl_reset_slave_all= 1
+--source include/rpl/reset_replica.inc
+
+--echo # Configure the slave with an empty user
+
+--replace_result $MASTER_MYPORT SOURCE_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='localhost'
+
+--echo # Issue a RESET REPLICA instruction and try to start the slave IO thread that will error out
+
+--let $rpl_reset_slave_all= 0
+--source include/rpl/reset_replica.inc
+
+START REPLICA IO_THREAD;
+
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
+--source include/rpl/wait_for_receiver_error.inc
+
+--echo # Check the user is still empty
+
+--let $_user= `SELECT user_name FROM mysql.slave_master_info`
+--let $assert_cond= "$_user" = ""
+--let $assert_text= User_name in slave_master_info is empty
+--source include/assert.inc
+
+--echo # Cleanup
+
+--let $rpl_reset_slave_all= 1
+--source include/rpl/reset_replica.inc
+
+--replace_result $MASTER_MYPORT SOURCE_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+--source include/rpl/start_replica.inc
+
+call mtr.add_suppression("Replica I/O for channel '': Fatal error: Invalid .* username when attempting to connect to the source server*");
+
+--source include/rpl/deinit.inc

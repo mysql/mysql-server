@@ -20,7 +20,7 @@
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (a INT PRIMARY KEY);
 
@@ -28,14 +28,14 @@ SET SESSION sql_log_bin= 0;
 INSERT INTO t1 VALUES (1);
 SET SESSION sql_log_bin= 1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #
 --echo # 2. Insert a value on server 2 that will clash with data on server1
 --echo #
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1);  # Duplicate entry
 
@@ -44,7 +44,7 @@ INSERT INTO t1 VALUES (1);  # Duplicate entry
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Expect ERROR state.
 --let $group_replication_member_state= ERROR
@@ -54,7 +54,7 @@ INSERT INTO t1 VALUES (1);  # Duplicate entry
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Wait for one member on server 2
 --let $group_replication_number_of_members= 1
@@ -65,7 +65,7 @@ INSERT INTO t1 VALUES (1);  # Duplicate entry
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 

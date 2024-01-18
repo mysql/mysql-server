@@ -1,0 +1,60 @@
+# depends on the binlog output
+# Test of replicating FLUSH TABLES to make
+# RENAME TABLE work with MERGE tables on the slave.
+# Test of FLUSH NO_WRITE_TO_BINLOG by the way.
+#
+--source include/have_myisam.inc
+--source include/rpl/init_source_replica.inc
+
+let $SERVER_VERSION=`select version()`;
+
+create table t1 (a int) engine=myisam;
+insert into t1 values (10);
+create table t2 (a int) engine=myisam;
+create table t3 (a int) engine=merge union(t1);
+create table t4 (a int) engine=myisam;
+# We force the slave to open t3 (because we want to try confusing him) with this :
+insert into t4 select * from t3;
+--let $rename_event_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+rename table t1 to t5, t2 to t1;
+# RENAME may have confused the master (this is a known bug): so FLUSH tables,
+# first don't write it to the binlog, to test the NO_WRITE_TO_BINLOG keyword.
+flush no_write_to_binlog tables;
+# Check that it's not in the binlog.
+let $binlog_start= $rename_event_pos;
+source include/rpl/deprecated/show_binlog_events.inc;
+# Check that the master is not confused.
+select * from t3;
+# This FLUSH should go into the binlog to not confuse the slave.
+flush tables;
+# Check that it's in the binlog.
+let $wait_binlog_event= flush tables;
+source include/rpl/wait_for_binlog_event.inc;
+
+--source include/rpl/sync_to_replica.inc
+# Check that the slave is not confused.
+select * from t3;
+# Note that all this confusion may cause warnings 'table xx is open on rename'
+# in the .err files; these are not fatal and are not reported by mysql-test-run.
+STOP REPLICA;
+source include/rpl/wait_for_replica_to_stop.inc;
+
+connection master;
+drop table t1;
+
+connection slave;
+flush tables with read lock;
+START REPLICA;
+source include/rpl/wait_for_replica_to_start.inc;
+--error 1192
+STOP REPLICA;
+
+# Cleanup
+unlock tables;
+
+connection master;
+drop table t3, t4, t5;
+
+# End of 4.1 tests
+
+--source include/rpl/deinit.inc

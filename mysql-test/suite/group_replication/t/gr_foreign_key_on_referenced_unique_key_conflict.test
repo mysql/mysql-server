@@ -36,11 +36,11 @@
 --echo ############################################################
 --echo # Create a table on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, UNIQUE KEY(c2));
 CREATE TABLE t2 (x1 INT PRIMARY KEY, x2 INT, FOREIGN KEY (x2) REFERENCES t1(c2));
 INSERT INTO t1 VALUES (1,1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 #
 # DELETE:
@@ -67,7 +67,7 @@ INSERT INTO t1 VALUES (1,1);
 --echo
 INSERT INTO t1 VALUES (2,2);
 INSERT INTO t1 VALUES (3,3);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 #
 # DELETE:
@@ -91,8 +91,8 @@ INSERT INTO t1 VALUES (3,3);
 --echo ############################################################
 --echo # Check the data sanity
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
---source include/rpl_sync.inc
+--source include/connection.inc
+--source include/rpl/sync.inc
 
 --let $assert_text= Table t1 will contain tuple (1,1)
 --let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE c1 = 1 AND c2 = 1, count, 1]" = "1"

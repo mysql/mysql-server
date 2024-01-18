@@ -5,7 +5,7 @@
 #
 # 1) Set applier privilege checks.
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,18 +19,18 @@ SET @@session.binlog_row_image = MINIMAL;
 # 3) Create a table on the master.
 #
 CREATE TABLE test.t1 (a INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 4) Add an extra column on the slave.
 #
 ALTER TABLE test.t1 ADD COLUMN b INT;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 #
 # 5) Make a DDL change on the master.
 #
 INSERT INTO test.t1 VALUES (1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 6) Check tables have the same data on master and slave.
 #
@@ -43,18 +43,18 @@ include/diff_tables.inc [master:t1,slave:t1]
 # 1) Create a table on the master with two or more columns.
 #
 CREATE TABLE test.t2 (a INT, b INT, c VARCHAR(50));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 2) Remove the table last column on the slave.
 #
 ALTER TABLE test.t2 DROP COLUMN c;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 #
 # 3) Make a DDL change on the master.
 #
 INSERT INTO test.t2 VALUES (1,1,"a string of characters");
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 4) Check tables have the same data on master and slave.
 #
@@ -63,4 +63,4 @@ SET @@global.binlog_row_image = GLOBAL_BINLOG_ROW_IMAGE;
 SET @@session.binlog_row_image = SESSION_BINLOG_ROW_IMAGE;
 DROP TABLE t1;
 DROP TABLE t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

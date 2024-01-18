@@ -1,7 +1,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 connection slave;
 --let $debug_point_silent= 1
@@ -58,19 +58,19 @@ DELETE FROM t1 WHERE a > 390;
 #--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/master-bin.000001
 
 --echo **** On Slave ****
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 
 --echo Check row count and that slave is running ok
 SELECT count(*) from t1;
-source include/check_slave_is_running.inc;
+source include/rpl/assert_replica_running.inc;
 
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $debug_point= extra_row_ndb_info_check
 --source include/remove_debug_point.inc
 connection master;
 --let $debug_point= extra_row_ndb_info_set_618
 --source include/remove_debug_point.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

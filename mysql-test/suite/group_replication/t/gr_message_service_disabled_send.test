@@ -50,7 +50,7 @@
 --echo # 4. Load plugin replication observers example on server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/install_replication_observers_example.inc
 
@@ -69,7 +69,7 @@ SELECT group_replication_service_message_send("tag", "Server2 sent a message");
 --echo #    disabled
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_UDF_ERROR
 SELECT group_replication_service_message_send("tag", "Server1 sent a message");
@@ -99,7 +99,7 @@ DROP TABLE test.t1;
 --echo # 10. Assert server2 received only message from itself
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_disabled_send.2.err
 --let $assert_count = 1
@@ -113,7 +113,7 @@ DROP TABLE test.t1;
 --source include/uninstall_replication_observers_example.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= gr_message_service_disable_send
 --source include/remove_debug_point.inc

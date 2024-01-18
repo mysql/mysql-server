@@ -37,7 +37,7 @@
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -50,7 +50,7 @@
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $preferred_leader_uuid= query_get_value(SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information, write_consensus_leaders_preferred, 1)
 --let $primary_uuid= query_get_value(SELECT member_id FROM performance_schema.replication_group_members WHERE member_role = "PRIMARY", member_id, 1)
@@ -72,7 +72,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/wait_condition_or_abort.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $preferred_leader_uuids= query_get_value(SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information, write_consensus_leaders_preferred, 1)
 --let $primary_uuid_1= query_get_value(SELECT member_id FROM performance_schema.replication_group_members WHERE member_role = "PRIMARY", member_id, 1)
@@ -83,7 +83,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/wait_condition_or_abort.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo ########################################################################
 --echo # 3) Confirm write_concurrency matches the result of
@@ -95,7 +95,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $write_concurrency_udf= `SELECT group_replication_get_write_concurrency()`
 --let $write_concurrency_table= query_get_value(SELECT write_concurrency FROM performance_schema.replication_group_communication_information, write_concurrency, 1)
@@ -108,7 +108,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 4) Confirm protocol_version matches the result of
 --echo #    group_replication_get_communication_protocol.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $communication_protocol_udf= `SELECT group_replication_get_communication_protocol()`
 --let $communication_protocol_table= query_get_value(SELECT protocol_version FROM performance_schema.replication_group_communication_information, protocol_version, 1)
@@ -117,7 +117,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $communication_protocol_udf= `SELECT group_replication_get_communication_protocol()`
 --let $communication_protocol_table= query_get_value(SELECT protocol_version FROM performance_schema.replication_group_communication_information, protocol_version, 1)
@@ -132,13 +132,13 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo #    group_replication_paxos_single_leader=OFF
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
@@ -146,12 +146,12 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_switch_to_single_primary_mode();
 SELECT group_replication_set_communication_protocol("8.0.21");
@@ -172,7 +172,7 @@ SELECT group_replication_set_communication_protocol("8.0.21");
 --source include/assert_grep.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $preferred_leader_uuids= query_get_value(SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information, write_consensus_leaders_preferred, 1)
 --let $member_uuid_1= $primary_uuid_1
@@ -193,11 +193,11 @@ SELECT group_replication_set_communication_protocol("8.0.21");
 --echo # 6) Cleanup.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 --let $rpl_group_replication_reset_persistent_vars= 1

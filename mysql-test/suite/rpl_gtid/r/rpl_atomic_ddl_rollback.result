@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,28 +11,28 @@ CALL mtr.add_suppression("The replica coordinator and worker threads are stopped
 CALL mtr.add_suppression("Replica worker thread has failed to apply an event. As a consequence, the coordinator thread is stopping execution.");
 RESET REPLICA;
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=13113]
-include/stop_slave.inc
+include/rpl/wait_for_applier_error.inc [errno=13113]
+include/rpl/stop_replica.inc
 include/assert.inc [Check that the failed ddl was rollbacked and is not in the slave gtid_executed set]
 RESET REPLICA;
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 BEGIN;
 COMMIT;
 SET GTID_NEXT= AUTOMATIC;
-include/start_slave.inc
+include/rpl/start_replica.inc
 DROP TABLE t1;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=13113]
+include/rpl/wait_for_applier_error.inc [errno=13113]
 include/assert.inc [Check that the failed ddl was rollbacked and is not in the slave gtid_executed set]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
 BEGIN;
 COMMIT;
 SET GTID_NEXT= AUTOMATIC;
-include/start_slave.inc
+include/rpl/start_replica.inc
 DROP VIEW v1;
 include/assert_grep.inc [There shall be an error when the master is 5.7-, the slave is 8.0+, and the latter fails to apply an atomic DDL]
-include/rpl_end.inc
+include/rpl/deinit.inc

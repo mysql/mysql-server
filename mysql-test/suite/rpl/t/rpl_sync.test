@@ -22,7 +22,7 @@
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/not_crashrep.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 #default storage engine is MyIsam for this test.
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
@@ -41,11 +41,11 @@ insert into t1(a) values(3);
 #                             Case 1: Corrupt a relay-log.bin*
 ########################################################################################
 --echo =====Inserting data on the master but without the SQL Thread being running=======;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection slave;
 let $MYSQLD_SLAVE_DATADIR= `select @@datadir`;
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 
 connection master;
 insert into t1(a) values(4);
@@ -54,7 +54,7 @@ insert into t1(a) values(6);
 
 --echo =====Removing relay log files and crashing/recoverying the slave=======;
 connection slave;
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 
 let $file= query_get_value("SHOW REPLICA STATUS", Relay_Log_File, 1);
 
@@ -73,13 +73,13 @@ SET SESSION debug="+d,crash_before_rotate_relaylog";
 FLUSH LOGS;
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo =====Dumping and comparing tables=======;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 let $diff_tables=master:t1,slave:t1;
 source include/diff_tables.inc;
@@ -91,5 +91,5 @@ source include/diff_tables.inc;
 connection master;
 drop table t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

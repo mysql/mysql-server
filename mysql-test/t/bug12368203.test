@@ -4,7 +4,7 @@
 # works fine with mysqladmin.
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 connection master;
@@ -21,7 +21,7 @@ file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 --error 1
 file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo # Make sure relay logs were not flushed
 --echo # after execute 'flush error logs' statement.
 --error 1
@@ -34,7 +34,7 @@ connection master;
 --echo # Test if mysqladmin supports 'flush-logs relay' command.
 --exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs relay
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo # Check if 'slave-relay-bin.000003' file is created
 --echo # after executing 'flush-logs relay' command.
 file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000003;
@@ -95,7 +95,7 @@ file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
 file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000001;
 
 # Test 'flush error logs, relay logs' statement
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo # Make sure the 'slave-relay-bin.000006' file does not exist
 --echo # exist before execute 'flush error logs, relay logs' statement.
 --error 1
@@ -113,7 +113,7 @@ file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 --error 1
 file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000003;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo # Check the 'slave-relay-bin.000006' file is created after
 --echo # execute 'flush error logs, relay logs' statement.
 file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000006;
@@ -130,7 +130,7 @@ file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000007;
 --error 1
 file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
 
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 
 connection master;
 
@@ -144,14 +144,14 @@ file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 --echo # after executing 'flush-logs' command.
 file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000003;
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 --echo # Check the 'slave-relay-bin.000007' and 'slave-relay-bin.000008'
 --echo # files are created after execute 'flush logs' statement.
 file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000007;
 file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
 
---source include/start_slave_sql.inc
---source include/rpl_end.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/deinit.inc
 
 --echo # Test multiple options to flush-logs
 

@@ -8,13 +8,13 @@
 #  will be binlogged as 
 #  'INSERT INTO t1 VALUES (1) /*!10000, (2)*/ /* 99999 ,(3)*/'.
 ###############################################################################
---source include/set_privilege_checks_user_as_system_user.inc
-source include/master-slave.inc;
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+source include/rpl/init_source_replica.inc;
 source include/have_binlog_format_statement.inc;
 
 --let $mask_binlog_commit_events= 1
 CREATE TABLE t1(c1 INT);
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 --echo
@@ -25,9 +25,9 @@ let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 /*!99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /*!99999 ,(11)*/;
 
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
@@ -43,7 +43,7 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 INT);
 EXECUTE stmt;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
@@ -56,10 +56,10 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 INT);
 EXECUTE stmt USING @value;
 
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
@@ -78,10 +78,10 @@ SELECT c1 FROM /*!99999 t1 WHEREN;
 --echo #           pre-processed query buffer.
 --echo #
 CREATE/*!*/EVENT e1 ON SCHEDULE EVERY 10 DAY DO/*!*/SELECT 'abc';
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 --let $mask_binlog_commit_events= 0
 
 DROP TABLE t1;
 DROP EVENT e1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

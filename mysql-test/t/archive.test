@@ -3,7 +3,7 @@
 # Taken FROM the select test
 #
 -- source include/have_archive.inc
--- source include/force_binlog_format_statement.inc
+-- source include/rpl/force_binlog_format_statement.inc
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
@@ -1828,4 +1828,4 @@ SELECT * FROM innodb_table ORDER BY id;
 DROP VIEW v;
 DROP TABLE archive_table, innodb_table;
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

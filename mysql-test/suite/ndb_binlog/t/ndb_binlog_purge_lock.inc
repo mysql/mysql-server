@@ -47,7 +47,7 @@ insert into test.t1 select NULL, a from test.t1;
 insert into test.t1 select NULL, a from test.t1;
 insert into test.t1 select NULL, a from test.t1;
 
---source include/wait_for_ndb_committed_to_binlog.inc
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
 
 let $source_log_file = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
 eval
@@ -128,7 +128,7 @@ select count(*)>0 from mysql.ndb_binlog_index where File=@file1;
 --echo Insert some more rows
 insert into test.t1 select NULL, a from test.t1;
 --echo Wait for rows to be committed to binlog
---source include/wait_for_ndb_committed_to_binlog.inc
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
 --echo Now we see rows in the next file (which means there is no table lock)
 select count(*)>0 from mysql.ndb_binlog_index where File=@file2;
 

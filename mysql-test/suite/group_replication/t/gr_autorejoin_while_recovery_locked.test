@@ -60,7 +60,7 @@ SET sql_log_bin=1;
 --echo #    group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT);
@@ -75,7 +75,7 @@ SET sql_log_bin=1;
 --echo #    Reduce stop_component timeout so recovery module stops faster.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_autorejoin_tries_save = @@GLOBAL.group_replication_autorejoin_tries;
 SET @group_replication_components_stop_timeout_save = @@GLOBAL.group_replication_components_stop_timeout;
@@ -113,7 +113,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    finishing recovery
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL super_read_only= 1;
 FLUSH TABLES WITH READ LOCK;
 
@@ -121,7 +121,7 @@ FLUSH TABLES WITH READ LOCK;
 --echo # 6. Insert data on group
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO test.t1 VALUES (1, 1);
 INSERT INTO test.t1 VALUES (2, 1);
@@ -131,7 +131,7 @@ INSERT INTO test.t1 VALUES (2, 1);
 --echo #    on group that it can't apply as the table is locked
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
@@ -151,18 +151,18 @@ INSERT INTO test.t1 VALUES (2, 1);
 
 # Wait until the group settles on 2 members
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 # Send signal SIGCONT to server 3.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec kill -18 $server_pid
 
 --echo
@@ -199,14 +199,14 @@ INSERT INTO test.t1 VALUES (2, 1);
 --echo # 14. UNLOCK tables on server3 and the join shall succeed
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --echo
 --echo # 15. Server3 shall be ONLINE
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Due to concurrency between the completeness of second auto-rejoin attempt
 # and the UNLOCK TABLES, member can successfully rejoin on the second or third
 # attempt, thence the big wait_timeout.

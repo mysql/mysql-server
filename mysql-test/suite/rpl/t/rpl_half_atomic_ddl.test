@@ -42,9 +42,9 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Replica worker thread has failed to apply an event");
 call mtr.add_suppression("Error writing relay log configuration");
@@ -57,7 +57,7 @@ call mtr.add_suppression("You need to use --log-bin to make.* work");
 call mtr.add_suppression("Could not find a valid tablespace file for");
 --enable_query_log
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # instructing gtid_step_assert that is called by a sourced file
 # to satisfy to gtid-mode OFF as well.
@@ -89,10 +89,10 @@ if (!$crash_commit)
 
 --eval USE $save_curr_db
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 #
 # The test
@@ -108,27 +108,27 @@ if (!$crash_commit)
 --let $count_ddl_queries=0
 # table name to use by the sourced file below and on this level
 --let $table=t_2
---source extra/binlog_tests/binlog_ddl_half_atomic.inc
+--source common/binlog/ddl_half_atomic.inc
 
---source include/rpl_connection_slave.inc
---source include/start_slave_io.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # The receiver thread must be stopped now which
 # crash-safely memorizes the last received event coordinates.
---source include/rpl_connection_slave.inc
---source include/stop_slave_io.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_receiver.inc
 
 # II. Event execution on slave interrupted by errors
 
-#--source include/rpl_connection_slave.inc
+#--source include/rpl/connection_replica.inc
 # First, a regular error
 --eval CREATE TABLE $table (a int)
 START REPLICA SQL_THREAD;
 --let $slave_sql_errno=convert_error(ER_TABLE_EXISTS_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 --eval DROP TABLE $table
 
 # The rest is crash-restart in loop of number of DDL queries
@@ -140,7 +140,7 @@ while ($loops)
   --inc $id
 
   # Find the loop's query and it post-recovery checks upon the first recovery
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
   --let $current_query=`SELECT ddl_query FROM $master_log_db.$master_log_table WHERE id = $id `
   #--let $pre_binlog_check=`SELECT pre_binlog_check FROM $master_log_db.$master_log_table WHERE id = $id`
@@ -150,27 +150,27 @@ while ($loops)
   --echo Loop: $id out of $count_ddl_queries; current query: '$current_query'; pre-binlog check: '$pre_binlog_check'; pre-commit check: '$post_binlog_check';
   }
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   #
   # Commit recovery upon the pre-commit crash.
   #
   --source include/expect_crash.inc
   --echo *** Query: '$current_query'. $commit_message. ***
   --eval SET @@GLOBAL.debug=$crash_commit
-  --source include/gtid_step_reset.inc
+  --source include/rpl/gtid_step_reset.inc
   --error 0,2013
   START REPLICA SQL_THREAD;
 
   # Server wait for stop and restart
   --source include/wait_until_disconnected.inc
   --let $rpl_server_number= 2
-  --source include/rpl_start_server.inc
+  --source include/rpl/start_server.inc
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   # Proof of the commit recovery is one committed gtid
   --let $gtid_step_only_count=1
   --let $gtid_step_count=1
-  --source include/gtid_step_assert.inc
+  --source include/rpl/gtid_step_assert.inc
 
   # Proof by the master side post-recovery checks
   if ($post_binlog_check)
@@ -187,15 +187,15 @@ while ($loops)
 
 # Eventually:
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval DROP DATABASE $master_log_db
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 

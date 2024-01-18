@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -15,7 +15,7 @@ ST_GeomFromText('POINT(0 0)', 2000));
 INSERT INTO t1(col1, col2)
 VALUES (ST_GeomFromText('POINT(1 1)', 2000),
 ST_GeomFromText('POINT(1 1)', 2000));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
 SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
@@ -40,7 +40,7 @@ SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
 def	test	t1	col1	Anguilla 1957 / British West Indies Grid	2000	point
 def	test	t1	col2		0	point
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
 SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
@@ -54,5 +54,5 @@ srid_2000	srid_0
 [Connection Master]
 # Cleanup
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

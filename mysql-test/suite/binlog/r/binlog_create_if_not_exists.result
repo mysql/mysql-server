@@ -2,7 +2,7 @@
 # WL#14722 Support IF NOT EXISTS clause
 # in CREATE PROCEDURE/FUNCTION/TRIGGER
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 
 # Check if objects are created on replica
 [On Replica]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT routine_name FROM information_schema.routines WHERE routine_schema = "test";
 ROUTINE_NAME
 sf1
@@ -54,7 +54,7 @@ Note	4099	Trigger 'trg1' already exists on the table 'test'.'t1'.
 
 # Check if objects are re-created on replica
 [On Replica]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT routine_name FROM information_schema.routines WHERE routine_schema = "test";
 ROUTINE_NAME
 sf1
@@ -73,5 +73,5 @@ DROP FUNCTION sf1;
 DROP FUNCTION metaphon;
 DROP TRIGGER trg1;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

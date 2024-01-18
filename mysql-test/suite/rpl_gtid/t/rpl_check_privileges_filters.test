@@ -74,14 +74,14 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $user=u1_wl15032
 
 --echo #
 --echo # Setup
 --echo #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --eval CREATE USER $user
 --eval GRANT REPLICATION_APPLIER on *.* to $user
 
@@ -94,38 +94,38 @@
 #
 
 # setup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 --let $saved_binlog_format=`SELECT @@session.binlog_format`
 SET @@SESSION.binlog_format='statement';
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
 CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo # DMLs as STATEMENTS and replicate them to ignored table
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES ('abz');
 UPDATE t1 SET word = 'luis';
 DELETE FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # clean up
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER replicate_ignore_table=();
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 --replace_result $saved_binlog_format SAVED_BINLOG_FORMAT
 --eval SET @@SESSION.binlog_format='$saved_binlog_format'
 DROP DATABASE db1;
 USE test;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 --echo #
 --echo # Case #1.1: DML in statement format against a filtered out table (ROW)
@@ -136,38 +136,38 @@ USE test;
 #
 
 # setup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 --let $saved_binlog_format=`SELECT @@session.binlog_format`
 SET @@SESSION.binlog_format='ROW';
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
 CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo # DMLs as STATEMENTS and replicate them to ignored table
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES ('abz');
 UPDATE t1 SET word = 'luis';
 DELETE FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # clean up
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER replicate_ignore_table=();
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 --replace_result $saved_binlog_format SAVED_BINLOG_FORMAT
 --eval SET @@SESSION.binlog_format='$saved_binlog_format'
 DROP DATABASE db1;
 USE test;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 --echo #
 --echo # Case 2: DDL against a table that is in an ignored database
@@ -181,76 +181,76 @@ USE test;
 
 # setup
 --let $ignored_db=db1_wl15032
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
 --eval CHANGE REPLICATION FILTER replicate_ignore_db=($ignored_db)
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 --eval CREATE DATABASE $ignored_db
 --eval USE $ignored_db;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo # Issue DDLs and replicate them to ignored database
 
 # with pseudo_thread_id set (which is always)
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # with sql_require_primary_key set
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@SESSION.sql_require_primary_key = TRUE;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
 DROP TABLE t1;
 SET @@SESSION.sql_require_primary_key = FALSE;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # with default_table_encryption set
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@SESSION.default_table_encryption = TRUE;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 ALTER TABLE t1 ADD COLUMN (c2 INT NOT NULL);
 DROP TABLE t1;
 SET @@SESSION.default_table_encryption = FALSE;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Clean up
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval DROP DATABASE $ignored_db
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER replicate_ignore_db=();
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 --echo #
 --echo # Case #3: SAVEPOINTs in statement format against a filtered out table
 --echo #
 
 # setup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 --let $saved_binlog_format=`SELECT @@session.binlog_format`
 SET @@SESSION.binlog_format='statement';
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
 CHANGE REPLICATION FILTER replicate_ignore_table=(db1.t1);
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo # Issue SAVEPOINTS and ROLLBACK to SAVEPOINTS and replicate them to ignored table
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
 INSERT INTO t1 VALUES ('abz');
 INSERT INTO t1 VALUES ('blah');
@@ -259,39 +259,39 @@ INSERT INTO t1 VALUES ('foo');
 ROLLBACK TO SAVEPOINT sp;
 INSERT INTO t1 VALUES ('bar');
 COMMIT;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # clean up
 --echo #
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER replicate_ignore_table=();
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 --replace_result $saved_binlog_format SAVED_BINLOG_FORMAT
 --eval SET @@SESSION.binlog_format='$saved_binlog_format'
 DROP DATABASE db1;
 USE test;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 --echo #
 --echo # Case 4: Offending LOAD DATA is ignored because applies to ignored database
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval CREATE DATABASE $ignored_db
 --eval CREATE TABLE $ignored_db.tload (c1 TEXT)
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
 --eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ($ignored_db)
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 
 # check both types of load file, statement and row
 --eval USE $ignored_db
@@ -300,57 +300,57 @@ LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 USE test;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_cond=count(*) = 0 FROM $ignored_db.tload
 --let $assert_text=table is empty on the secondary
 --source include/assert.inc
 
 # clean up
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 --eval DROP DATABASE $ignored_db
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 --echo #
 --echo # Case 5: Offending LOAD DATA is ignored because applies to ignored table
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE tload (c1 TEXT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
 --eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = (test.tload)
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 
 SET SESSION binlog_format=STATEMENT;
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_cond=count(*) = 0 FROM test.tload
 --let $assert_text=table is empty on the secondary
 --source include/assert.inc
 
 # clean up
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = ();
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 DROP TABLE tload;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 --echo #
 --echo # Offending LOAD DATA is ignored because of empty transactions on replica
@@ -359,12 +359,12 @@ DROP TABLE tload;
 --let $offending_gtid1='00000000-0000-0000-0000-000000000000:1'
 --let $offending_gtid2='00000000-0000-0000-0000-000000000000:2'
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE tload (c1 TEXT);
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='$user'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # commit empty transaction on the secondary
 --eval SET GTID_NEXT=$offending_gtid1
@@ -376,7 +376,7 @@ COMMIT;
 SET GTID_NEXT=AUTOMATIC;
 
 # issue the transaction on the source
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET SESSION binlog_format=STATEMENT;
 --eval SET GTID_NEXT=$offending_gtid1
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
@@ -384,30 +384,30 @@ SET SESSION binlog_format=ROW;
 --eval SET GTID_NEXT=$offending_gtid2
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET GTID_NEXT=AUTOMATIC;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_cond=count(*) = 0 FROM test.tload
 --let $assert_text=table is empty on the secondary
 --source include/assert.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE tload;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
 
 --echo #
 --echo # Global Cleanup
 --echo #
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 --eval DROP USER $user
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
---source include/rpl_end.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/deinit.inc

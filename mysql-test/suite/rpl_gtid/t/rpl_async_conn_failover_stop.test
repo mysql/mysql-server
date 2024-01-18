@@ -14,17 +14,17 @@
 # 4. Clean up.
 ################################################################################
 --let $use_gtids= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 
 --echo
 --echo ############################################################
 --echo # 1. Enable Asynchronous Replication Connection Failover but
 --echo #    do not add failover sources.
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $assert_text= 'Asynchronous Replication Connection Failover is enabled'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_connection_configuration WHERE SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
@@ -44,13 +44,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURC
 --echo # 2. Stop source server, replica IO thread will fail.
 --echo #    Despite connection failover is enabled, since there are
 --echo #    no failover sources the IO thread will stop.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $rpl_server_number= 1
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $slave_io_errno= 2003
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE SERVICE_STATE="OFF"
 --source include/wait_condition.inc
@@ -63,8 +63,8 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURC
 --echo
 --echo ############################################################
 --echo # 3. Stop replica.
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 
 --let $assert_text= 'Verify replica_monitor thread is not running'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.threads WHERE NAME=\"thread/sql/replica_monitor\", count, 1] = 0
@@ -74,15 +74,15 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURC
 --echo
 --echo ############################################################
 --echo # 4. Clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $rpl_server_number= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_reset_slave_all=
 
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

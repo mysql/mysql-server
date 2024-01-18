@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -29,7 +29,7 @@ zero
 0
 STOP REPLICA;
 rollback;
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 *** sql thread is *not* running: No ***
 *** the prove: the stopped slave has finished the current transaction ***
 five
@@ -38,7 +38,7 @@ zero
 0
 one
 1
-include/start_slave.inc
+include/rpl/start_replica.inc
 drop table t1i, t2m;
 #
 # Bug#56096 STOP SLAVE hangs if executed in parallel with user sleep
@@ -58,19 +58,19 @@ STOP REPLICA;
 # Slave1: unlock the table
 UNLOCK TABLES;
 # Slave: wait for the slave to stop
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 # Start replica again
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Clean up
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=MASTER_POS;
 START REPLICA;
-include/wait_for_slave_param.inc [Last_IO_Errno]
+include/rpl/wait_for_replica_status.inc [Last_IO_Errno]
 Last_IO_Errno = '13114'
 Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'Client requested source to start replication from position > file size''
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
@@ -78,4 +78,4 @@ call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread receiv
 call mtr.add_suppression("Unsafe statement.*. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.*");
 call mtr.add_suppression("Unsafe statement.*. Statement is unsafe because it uses a system function that may return a different value on the replica.*");
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
-include/rpl_end.inc
+include/rpl/deinit.inc

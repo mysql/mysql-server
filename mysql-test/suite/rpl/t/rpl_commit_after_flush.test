@@ -1,5 +1,5 @@
 -- source include/not_ndb_default.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 let $engine_type=innodb;
--- source extra/rpl_tests/rpl_commit_after_flush.test
---source include/rpl_end.inc
+-- source common/rpl/rpl_commit_after_flush.test
+--source include/rpl/deinit.inc

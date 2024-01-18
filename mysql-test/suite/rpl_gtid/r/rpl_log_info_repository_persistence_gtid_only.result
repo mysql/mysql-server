@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ include/assert.inc [In the file the field is set to 0]
 # 1.2. Set GTID_ONLY to 1
 #      Check the performance_schema table and connection metadata
 #      repository are correct
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, GTID_ONLY = 1;
 include/assert.inc [GTID_ONLY for default channel "" in performance_schema.replication_connection_configuration is 1]
 include/assert.inc [In the file the field is set to 1]
@@ -33,12 +33,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_r
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
 ALTER TABLE mysql.slave_master_info DROP COLUMN Gtid_only;
 UPDATE mysql.slave_master_info SET Number_of_lines = 32;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start  --upgrade=FORCE]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_slave_start  --upgrade=FORCE]
 include/assert.inc ['GTID_ONLY is enabled for group replication']
 include/assert.inc ['GTID_ONLY is disabled for the default channel']
 RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
 # Cleanup
-include/rpl_end.inc
+include/rpl/deinit.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.

@@ -31,7 +31,7 @@
 # no privileges on the test database
 --let $RPL_PRIV_DB = test
 --let $rpl_skip_start_slave=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # TC1. Execute INSERT with and without the necessary
@@ -44,11 +44,11 @@ SET @@session.sql_log_bin = OFF;
 CREATE TABLE t(c INT);
 SET @@session.sql_log_bin = ON;
 INSERT INTO t VALUES(10);
---source include/save_master_pos.inc
+--source include/rpl/save_server_position.inc
 
 # 2) On slave create an user 'u1' which will be used as a
 #    PRIVILEGE_CHECKS_USER to apply events in the replication stream.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $opt_partial_revokes = `SELECT @@partial_revokes`
 SET GLOBAL partial_revokes = ON;
 
@@ -64,7 +64,7 @@ SHOW GRANTS FOR 'u1'@'localhost';
 # 4) Start replica and expect an error as the user doesn't have the privilege.
 START REPLICA;
 --let $slave_sql_errno= convert_error(ER_TABLEACCESS_DENIED_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # 5) Stop replica and grant the privilege.
 STOP REPLICA;
@@ -72,7 +72,7 @@ STOP REPLICA;
 
 # 6) Start replica again and this time there should not be any error.
 START REPLICA;
---source include/sync_slave_sql.inc
+--source include/rpl/sync_with_saved.inc
 
 # 7) Revoke the privilege granted in step 4)
 REVOKE INSERT ON *.* FROM 'u1'@'localhost';
@@ -87,10 +87,10 @@ REVOKE INSERT ON *.* FROM 'u1'@'localhost';
 
 # 9) Drop the table from master and slave.
 DROP TABLE t;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@session.sql_log_bin = OFF;
 DROP TABLE t;
 SET @@session.sql_log_bin = ON;
 
 --let $rpl_only_running_threads=1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

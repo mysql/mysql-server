@@ -62,7 +62,7 @@ while ($i < 4)
     --let $evt7=Update_rows
     --let $evt8=Xid
 
-    --source include/show_binlog_events.inc
+    --source include/rpl/deprecated/show_binlog_events.inc
   }
 
   if ($i == 3)

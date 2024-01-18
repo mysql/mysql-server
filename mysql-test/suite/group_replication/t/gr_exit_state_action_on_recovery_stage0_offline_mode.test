@@ -27,7 +27,7 @@
 --echo
 --source include/group_replication.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member2_uuid= `SELECT @@GLOBAL.server_uuid`
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
@@ -53,7 +53,7 @@ SET sql_log_bin = 1;
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --echo
@@ -62,10 +62,10 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (a INT PRIMARY KEY);
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 # Verify that M2 certified one transaction but hasn't yet applied any
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked = 1 AND count_transactions_remote_in_applier_queue = 1
@@ -105,7 +105,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_before_joining_the_group';
 --send START GROUP_REPLICATION
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait for the debug point to be reached
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_join_waiting";
@@ -118,7 +118,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_join_waiting";
 SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GROUP_REPLICATION_CONFIGURATION,ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 --reap
@@ -153,7 +153,7 @@ SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
 
 # Lastly, verify that the member is not viewed as part of the group on M1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
 
@@ -163,11 +163,11 @@ SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG = @debug_saved;
 SET DEBUG_SYNC= 'RESET';
 SET SESSION sql_log_bin = 0;

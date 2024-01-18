@@ -10,11 +10,11 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 INSERT INTO t1 VALUES (4);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [On member 2, all executed GTID should belong to the group]
 include/assert.inc [On member 1, all executed GTID should belong to the group]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/stop_group_replication.inc
 RESET BINARY LOGS AND GTIDS;
 include/stop_group_replication.inc
@@ -26,14 +26,14 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/start_group_replication.inc
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [On member 2, the table should exist and have 3 elements]
 include/assert.inc [On member 1, the table should exist and have 3 elements]
 [ The value of stable_set should contain both provisioned and group GIIDs ]
 include/stop_group_replication.inc
 include/start_group_replication.inc
 INSERT INTO t1 VALUES (4);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [On member 2, the table should exist and have 4 elements]
 include/assert.inc [On member 1, the table should exist and have 4 elements]
 DROP TABLE t1;

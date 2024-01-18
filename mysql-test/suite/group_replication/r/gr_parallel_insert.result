@@ -27,16 +27,16 @@ CREATE TABLE t16 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t17 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t18 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t19 (c1 INT NOT NULL PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 2. Executing the same transaction on both server (almost)
 #    in parallel, one will be committed, the other will be
 #    aborted.
 [connection server1]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ############################################################
 # 3. Validate servers state is equal.
 [connection server1]

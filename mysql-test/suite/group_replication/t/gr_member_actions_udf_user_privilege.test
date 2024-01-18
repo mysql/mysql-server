@@ -27,13 +27,13 @@
 --echo # 1. Try to enable, disable and reset member actions without
 --echo #    GROUP_REPLICATION_ADMIN privilege.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE USER 'group_rpl_user' IDENTIFIED BY '';
 --connect (con_group_rpl_user,127.0.0.1,group_rpl_user,,test,$MASTER_MYPORT,,)
 
 --let $rpl_connection_name= con_group_rpl_user
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
@@ -50,12 +50,12 @@ SELECT group_replication_reset_member_actions();
 --echo # 2. Try to enable, disable and reset member actions with
 --echo #    GROUP_REPLICATION_ADMIN privilege.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'group_rpl_user';
 GRANT SELECT ON performance_schema.* TO 'group_rpl_user';
 
 --let $rpl_connection_name= con_group_rpl_user
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
 
@@ -96,7 +96,7 @@ SELECT group_replication_reset_member_actions();
 --echo #    include/assert_grep.inc requires more privileges, thence
 --echo #    doing it on server1 connection.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_member_actions_udf_user_privilege
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -124,7 +124,7 @@ SELECT group_replication_reset_member_actions();
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disconnect con_group_rpl_user
 DROP USER group_rpl_user;

@@ -15,7 +15,7 @@ insert into t1 values (1, 1);
 use test;
 insert into mysqltest.t1 values(2,2);
 
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 drop database mysqltest;
 
@@ -31,7 +31,7 @@ delete from invisible;
 drop table invisible;
 
 --echo -- Should be nothing in binlog
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 --echo -- Ndb table in mysql db
 create table invisible(a int primary key) engine=ndb;
@@ -41,7 +41,7 @@ delete from invisible;
 drop table invisible;
 
 --echo -- Should be nothing in binlog
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 --echo -- ndb_binlog_index table (MyISAM) in mysql db 
 
@@ -51,7 +51,7 @@ insert into ndb_binlog_index values (20, 'G', 23, 0, 0, 0, 0, 5, 44, 55, 77, 'I'
 delete from ndb_binlog_index;
 
 --echo -- Should be nothing in binlog
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 
 --echo -- Non-ignored db (test2)
 create database test2;

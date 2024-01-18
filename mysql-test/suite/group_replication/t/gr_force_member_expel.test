@@ -32,7 +32,7 @@
 --echo ############################################################
 --echo # 0. Error suppressions.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
@@ -47,7 +47,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    This will make server 1 to not answer to "I am alive"
 --echo #    GCS messages and it will be expelled from the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Get server pid.
 SET SESSION sql_log_bin= 0;
@@ -67,12 +67,12 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 2. Wait until group expel server 1.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
@@ -84,7 +84,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    will change to ERROR state and enabled super_read_only
 --echo #    mode.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo # Send signal SIGCONT to server 1.
 --exec kill -18 $server_pid
 
@@ -109,7 +109,7 @@ CREATE TABLE te (c1 INT NOT NULL PRIMARY KEY);
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo

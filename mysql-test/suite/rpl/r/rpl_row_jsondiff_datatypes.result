@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2->3->4->5->6]
+include/rpl/init.inc [topology=1->2->3->4->5->6]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,17 +14,17 @@ Note	####	Storing MySQL user name or password information in the connection meta
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/rpl_default_connections.inc
+include/rpl/default_connections.inc
 ######## INITIALIZE ########
-include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
+include/rpl/for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = PARTIAL_JSON;
 SET @@GLOBAL.BINLOG_ROW_IMAGE = MINIMAL;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = PARTIAL_JSON;
 ]
-include/rpl_stop_slaves.inc
-include/rpl_start_slaves.inc
+include/rpl/stop_all_replicas.inc
+include/rpl/start_all_replicas.inc
 ******** Data types ********
-include/rpl_for_each_server_stmt.inc [SET SQL_LOG_BIN = 0;
+include/rpl/for_each_server_stmt.inc [SET SQL_LOG_BIN = 0;
 DROP TABLE IF EXISTS t;
 CREATE TABLE t (
 i INT ,
@@ -120,7 +120,7 @@ json_ = '{ "a" : [ 1, 2.3, null, false, "text" ] }';
 SET SQL_LOG_BIN = 1;
 ]
 ---- 1. Update from int column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 0]
@@ -133,7 +133,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', null) WHERE i=1 AND j=CAST('["xy
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 2. Update from char(0) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", null]
@@ -146,7 +146,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '') WHERE i=1 AND j=CAST('["xyzw
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 3. Update from varchar(100) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", ""]
@@ -159,7 +159,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '\\\'"`$%_\b\n\r\t') WHERE i=1 A
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 4. Update from bit(1) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "\\'\"`$%_\b\n\r\t"]
@@ -172,7 +172,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type16:AQ==') WHERE i=1 
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 5. Update from bit(50) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "base64:type16:AQ=="]
@@ -185,7 +185,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type16:AAD4Pg+D4A==') WH
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 6. Update from tinyint(1) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "base64:type16:AAD4Pg+D4A=="]
@@ -198,7 +198,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 0) WHERE i=1 AND j=CAST('["xyzw"
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 7. Update from tinyint(1) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 0]
@@ -211,7 +211,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 1) WHERE i=1 AND j=CAST('["xyzw"
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 8. Update from tinyint column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 1]
@@ -224,7 +224,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -100) WHERE i=1 AND j=CAST('["xy
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 9. Update from tinyint(1) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -100]
@@ -237,7 +237,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -9) WHERE i=1 AND j=CAST('["xyzw
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 10. Update from tinyint unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -9]
@@ -250,7 +250,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 250) WHERE i=1 AND j=CAST('["xyz
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 11. Update from tinyint unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 250]
@@ -263,7 +263,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 9) WHERE i=1 AND j=CAST('["xyzw"
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 12. Update from smallint column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 9]
@@ -276,7 +276,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -12345) WHERE i=1 AND j=CAST('["
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 13. Update from smallint column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -12345]
@@ -289,7 +289,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -987) WHERE i=1 AND j=CAST('["xy
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 14. Update from smallint unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -987]
@@ -302,7 +302,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 45678) WHERE i=1 AND j=CAST('["x
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 15. Update from smallint unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 45678]
@@ -315,7 +315,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 987) WHERE i=1 AND j=CAST('["xyz
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 16. Update from int column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 987]
@@ -328,7 +328,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -1234567) WHERE i=1 AND j=CAST('
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 17. Update from int column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -1234567]
@@ -341,7 +341,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -123456) WHERE i=1 AND j=CAST('[
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 18. Update from int unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -123456]
@@ -354,7 +354,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 3222111000) WHERE i=1 AND j=CAST
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 19. Update from int unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 3222111000]
@@ -367,7 +367,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 987654) WHERE i=1 AND j=CAST('["
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 20. Update from bigint column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 987654]
@@ -380,7 +380,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -5444333222111) WHERE i=1 AND j=
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 21. Update from bigint column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -5444333222111]
@@ -393,7 +393,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -6555444333222111) WHERE i=1 AND
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 22. Update from bigint unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -6555444333222111]
@@ -406,7 +406,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 5444333222111) WHERE i=1 AND j=C
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 23. Update from bigint unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 5444333222111]
@@ -419,7 +419,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 6555444333222111) WHERE i=1 AND 
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 24. Update from decimal(10,0) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 6555444333222111]
@@ -432,7 +432,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -987654321) WHERE i=1 AND j=CAST
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 25. Update from decimal(10,5) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -987654321]
@@ -445,7 +445,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -12345.67890) WHERE i=1 AND j=CA
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 26. Update from decimal(10,0) unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -12345.67890]
@@ -458,7 +458,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 987654321) WHERE i=1 AND j=CAST(
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 27. Update from decimal(10,5) unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 987654321]
@@ -471,7 +471,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 12345.67890) WHERE i=1 AND j=CAS
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 28. Update from float column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 12345.67890]
@@ -484,7 +484,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -5.432100077514774e20) WHERE i=1
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 29. Update from float(4,2) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -5.432100077514774e20]
@@ -497,7 +497,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -43.209999084472656) WHERE i=1 A
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 30. Update from float unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -43.209999084472656]
@@ -510,7 +510,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 65432100864.0) WHERE i=1 AND j=C
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 31. Update from float(4,2) unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 65432100864.0]
@@ -523,7 +523,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 12.34000015258789) WHERE i=1 AND
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 32. Update from double column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 12.34000015258789]
@@ -536,7 +536,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -9.87654321e300) WHERE i=1 AND j
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 33. Update from double(20,10) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -9.87654321e300]
@@ -549,7 +549,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -9876500000.0) WHERE i=1 AND j=C
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 34. Update from double unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", -9876500000.0]
@@ -562,7 +562,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 9.87654321e300) WHERE i=1 AND j=
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 35. Update from double(20,10) unsigned column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 9.87654321e300]
@@ -575,7 +575,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 9876500000.0) WHERE i=1 AND j=CA
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 36. Update from date column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 9876500000.0]
@@ -588,7 +588,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-19') WHERE i=1 AND j=CA
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 37. Update from datetime column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "2017-05-19"]
@@ -601,7 +601,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-20 06:00:00.000000') WH
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 38. Update from datetime(6) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "2017-05-20 06:00:00.000000"]
@@ -614,7 +614,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-21 07:01:01.000001') WH
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 39. Update from timestamp column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "2017-05-21 07:01:01.000001"]
@@ -627,7 +627,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-22 08:02:02.000000') WH
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 40. Update from timestamp(6) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "2017-05-22 08:02:02.000000"]
@@ -640,7 +640,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-23 09:03:03.000003') WH
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 41. Update from time column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "2017-05-23 09:03:03.000003"]
@@ -653,7 +653,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '10:04:04.000000') WHERE i=1 AND
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 42. Update from time(6) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "10:04:04.000000"]
@@ -666,7 +666,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '10:05:05.000005') WHERE i=1 AND
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 43. Update from year column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "10:05:05.000005"]
@@ -679,7 +679,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 2018) WHERE i=1 AND j=CAST('["xy
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 44. Update from binary(1) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", 2018]
@@ -692,7 +692,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type254:YQ==') WHERE i=1
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 45. Update from binary(10) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "base64:type254:YQ=="]
@@ -705,7 +705,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type254:eDAweDAxAAAAAA==
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 46. Update from varbinary(1000) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "base64:type254:eDAweDAxAAAAAA=="]
@@ -718,7 +718,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type15:eGFh') WHERE i=1 
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 47. Update from tinyblob column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "base64:type15:eGFh"]
@@ -731,7 +731,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type249:uw==') WHERE i=1
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 48. Update from blob column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "base64:type249:uw=="]
@@ -744,7 +744,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type252:zA==') WHERE i=1
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 49. Update from tinyblob column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "base64:type252:zA=="]
@@ -757,7 +757,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type249:3Q==') WHERE i=1
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 50. Update from mediumblob column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "base64:type249:3Q=="]
@@ -770,7 +770,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type250:7g==') WHERE i=1
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 51. Update from longblob column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "base64:type250:7g=="]
@@ -783,7 +783,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type251:/w==') WHERE i=1
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 52. Update from char(1) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "base64:type251:/w=="]
@@ -796,7 +796,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'g') WHERE i=1 AND j=CAST('["xyz
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 53. Update from char(10) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "g"]
@@ -809,7 +809,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'hij') WHERE i=1 AND j=CAST('["x
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 54. Update from varchar(1000) column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "hij"]
@@ -822,7 +822,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'klm') WHERE i=1 AND j=CAST('["x
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 55. Update from tinytext column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "klm"]
@@ -835,7 +835,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'nop') WHERE i=1 AND j=CAST('["x
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 56. Update from text column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "nop"]
@@ -848,7 +848,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'qrs') WHERE i=1 AND j=CAST('["x
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 57. Update from tinytext column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "qrs"]
@@ -861,7 +861,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'tuv') WHERE i=1 AND j=CAST('["x
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 58. Update from mediumtext column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "tuv"]
@@ -874,7 +874,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'wxy') WHERE i=1 AND j=CAST('["x
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 59. Update from longtext column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "wxy"]
@@ -887,7 +887,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'z') WHERE i=1 AND j=CAST('["xyz
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 60. Update from enum('abc','def','ghi') column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "z"]
@@ -900,7 +900,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'def') WHERE i=1 AND j=CAST('["x
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 61. Update from set('jkl','mno','pqr') column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "def"]
@@ -913,7 +913,7 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'jkl,pqr') WHERE i=1 AND j=CAST(
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 62. Update from json column ----
-include/rpl_row_jsondiff_scenario.inc
+include/rpl/row_jsondiff_scenario.inc
 # Before update
 j
 ["xyzw", "jkl,pqr"]
@@ -926,10 +926,10 @@ UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', CAST('{"a": [1, 2.3, null, false
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ######## CLEAN UP ########
-include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = FULL;
+include/rpl/for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = FULL;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = '';
 SET @@GLOBAL.BINLOG_ROW_IMAGE = FULL;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = '';
 SET SESSION SQL_LOG_BIN = 0; DROP TABLE test.t; SET SESSION SQL_LOG_BIN = 1;
 ]
-include/rpl_end.inc
+include/rpl/deinit.inc

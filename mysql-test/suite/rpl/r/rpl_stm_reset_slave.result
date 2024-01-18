@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 Source_User = 'root'
 Source_Host = '127.0.0.1'
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='test';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -19,54 +19,54 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 Source_User = 'root'
 Source_Host = '127.0.0.1'
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
-include/start_slave.inc
+include/rpl/start_replica.inc
 create temporary table t1 (a int);
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 RESET REPLICA;
 reset binary logs and gtids;
-include/start_slave.inc
+include/rpl/start_replica.inc
 show status like 'replica_open_temp_tables';
 Variable_name	Value
 Replica_open_temp_tables	1
 drop temporary table if exists t1;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
-include/wait_for_slave_io_error.inc [errno=1045]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=1045]
+include/rpl/stop_applier.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
-include/check_slave_no_error.inc
+include/rpl/start_replica.inc
+include/rpl/assert_replica_no_error.inc
 
 Sync slave, else STOP REPLICA may complain about open temporary table.
 
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
-include/wait_for_slave_io_error.inc [errno=1045]
-include/stop_slave_sql.inc
+include/rpl/wait_for_receiver_error.inc [errno=1045]
+include/rpl/stop_applier.inc
 RESET REPLICA;
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -75,10 +75,10 @@ RESET REPLICA;
 
 Sync slave, else STOP REPLICA may complain about open temporary table.
 
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 RESET REPLICA all;
 START REPLICA;
 ERROR HY000: The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO
@@ -86,28 +86,28 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'SOURCE_HOST', SOURCE_USER= 'SOURCE_US
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/rpl_reset_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/reset_replica.inc
 # Configure the slave with an empty user
 CHANGE REPLICATION SOURCE TO SOURCE_USER='', SOURCE_PORT=SOURCE_PORT, SOURCE_HOST='localhost';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 # Issue a RESET REPLICA instruction and try to start the slave IO thread that will error out
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 START REPLICA IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=13117]
+include/rpl/wait_for_receiver_error.inc [errno=13117]
 # Check the user is still empty
 include/assert.inc [User_name in slave_master_info is empty]
 # Cleanup
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 call mtr.add_suppression("Replica I/O for channel '': Fatal error: Invalid .* username when attempting to connect to the source server*");
-include/rpl_end.inc
+include/rpl/deinit.inc

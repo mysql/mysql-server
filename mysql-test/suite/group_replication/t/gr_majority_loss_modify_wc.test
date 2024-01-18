@@ -24,15 +24,15 @@
 --source include/have_group_replication_plugin.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo ############################################################
@@ -58,7 +58,7 @@
 # Since the servers loose its GCS configuration they will not rejoin
 # the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
@@ -66,7 +66,7 @@
 # Wait until all members are marked unreachable in
 # the remaining server
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member2_uuid
@@ -79,7 +79,7 @@
 # group_replication_set_write_concurrency will fail since group lost its
 # majority.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_CANT_INITIALIZE_UDF
 --eval SELECT group_replication_set_write_concurrency($gr_new_write_concurrency)
@@ -123,8 +123,8 @@
 --echo # Step 8 Clean up.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --source include/group_replication_end.inc

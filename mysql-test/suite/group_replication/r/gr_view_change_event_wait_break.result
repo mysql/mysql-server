@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # Lock writes on table t1
 

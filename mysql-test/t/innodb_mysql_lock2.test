@@ -5,7 +5,7 @@
 # Also in ROW mode LOCK_S row locks won't be acquired for DML
 # and test for bug#51263 won't trigger execution path on which
 # this bug was encountered.
---source include/force_binlog_format_statement.inc
+--source include/rpl/force_binlog_format_statement.inc
 # Original test case for bug#51263 needs partitioning.
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -872,4 +872,4 @@ drop tables t1, t2;
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,18 +10,18 @@ TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 [connection slave]
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 # SCENARIO 1: AC, IC
 [connection slave]
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 [connection master]
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection slave]
 include/assert.inc [MASTER_BINLOG: The expected number of transactions was handled]
@@ -39,18 +39,18 @@ include/assert.inc [SLAVE_BINLOG: compressed bytes < uncompressed bytes]
 [connection master]
 [connection slave]
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 # SCENARIO 2: AC, IR
 [connection slave]
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 [connection master]
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection slave]
 include/assert.inc [MASTER_BINLOG: The expected number of transactions was handled]
@@ -68,18 +68,18 @@ include/assert.inc [SLAVE_BINLOG: compressed bytes < uncompressed bytes]
 [connection master]
 [connection slave]
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 # SCENARIO 3: AR, IC
 [connection slave]
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 [connection master]
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection slave]
 include/assert.inc [MASTER_BINLOG: The expected number of transactions was handled]
@@ -97,18 +97,18 @@ include/assert.inc [SLAVE_BINLOG: compressed bytes = uncompressed bytes]
 [connection master]
 [connection slave]
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 # SCENARIO 4: AR, IR
 [connection master]
 [connection slave]
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection slave]
 include/assert.inc [MASTER_BINLOG: The expected number of transactions was handled]
@@ -126,7 +126,7 @@ include/assert.inc [SLAVE_BINLOG: compressed bytes = uncompressed bytes]
 [connection master]
 [connection slave]
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 [connection master]
 SET @@SESSION.binlog_transaction_compression = SAVED;
 SET @@GLOBAL.binlog_transaction_compression = SAVED;
@@ -135,5 +135,5 @@ TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 SET @@SESSION.binlog_transaction_compression = SAVED;
 SET @@GLOBAL.binlog_transaction_compression = SAVED;
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
-include/rpl_reset.inc
-include/rpl_end.inc
+include/rpl/reset.inc
+include/rpl/deinit.inc

@@ -1,6 +1,6 @@
 # Test case for BUG #11733
 --source include/not_have_privilege_checks_user.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 
@@ -9,7 +9,7 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 # Create a test and replicate it to slave
 connection master;
 create user test;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Setting the master readonly :
 # - the variable @@readonly is not replicated on the slave
@@ -29,7 +29,7 @@ connection master1;
 select @@read_only;
 select * from t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select @@read_only;
 select * from t2;
 
@@ -76,7 +76,7 @@ insert into t2 values(2004);
 
 select * from t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t2;
 
 # Setting the slave readonly : replication will pass
@@ -93,7 +93,7 @@ connection master;
 insert into t2 values(2005);
 select * from t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 select * from t2;
 
@@ -106,8 +106,8 @@ insert into t2 values(2006);
 connection master;
 drop user test;
 drop table t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 set global read_only=0;
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

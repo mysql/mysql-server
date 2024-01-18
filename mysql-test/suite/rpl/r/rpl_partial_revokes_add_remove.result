@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -31,7 +31,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
 REVOKE INSERT ON `mysql`.* FROM `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -43,7 +43,7 @@ GRANT INSERT ON *.* TO bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -55,7 +55,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
 REVOKE INSERT ON `mysql`.* FROM `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -67,7 +67,7 @@ GRANT INSERT ON mysql.* TO bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -79,7 +79,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
 GRANT INSERT ON `mysql`.* TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -121,7 +121,7 @@ GRANT INSERT ON *.* TO bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -176,7 +176,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
 REVOKE INSERT ON `mysql`.* FROM `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -209,7 +209,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT SELECT, INSERT, UPDATE, DELETE, DROP ON *.* TO `bar`@`%`
 REVOKE INSERT, UPDATE, DROP ON `mysql`.* FROM `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -233,7 +233,7 @@ REVOKE CREATE ON `mysql`.* FROM `bar`@`%`
 [connection foo_master]
 # Aggregated restrictions turns out to be empty
 GRANT SELECT, CREATE,ALTER ON *.* TO bar;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -299,7 +299,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
 REVOKE INSERT ON `mysql`.* FROM `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -323,7 +323,7 @@ REVOKE INSERT ON mysql.* FROM bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -335,7 +335,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
 REVOKE INSERT ON `mysql`.* FROM `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -347,7 +347,7 @@ REVOKE INSERT ON *.* FROM bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT USAGE ON *.* TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -507,7 +507,7 @@ REVOKE ALL ON *.* FROM bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT USAGE ON *.* TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -531,7 +531,7 @@ Grants for bar@%
 GRANT <ALL_STATIC_PRIVILEGES> ON *.* TO `bar`@`%`
 GRANT <ALL_DYNAMIC_PRIVILEGES> ON *.* TO `bar`@`%`
 REVOKE SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `mysql`.* FROM `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -556,7 +556,7 @@ REVOKE ALL ON *.* FROM bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT USAGE ON *.* TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -593,7 +593,7 @@ REVOKE ALL ON *.* FROM bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT USAGE ON *.* TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -619,7 +619,7 @@ REVOKE SELECT ON *.* FROM bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT USAGE ON *.* TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -789,7 +789,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT USAGE ON *.* TO `bar`@`%`
 GRANT `select_role`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -814,7 +814,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT USAGE ON *.* TO `bar`@`%`
 GRANT `insert_role`@`%`,`select_role`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -853,7 +853,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT USAGE ON *.* TO `bar`@`%`
 GRANT `insert_role`@`%`,`select_role`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -903,7 +903,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT USAGE ON *.* TO `bar`@`%`
 GRANT `insert_role`@`%`,`select_role`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1019,7 +1019,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT SELECT ON *.* TO `bar`@`%`
 REVOKE SELECT ON `mysql`.* FROM `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1048,7 +1048,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT SELECT ON *.* TO `bar`@`%`
 GRANT `r1`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1078,7 +1078,7 @@ Grants for bar@%
 GRANT SELECT ON *.* TO `bar`@`%`
 REVOKE SELECT ON `mysql`.* FROM `bar`@`%`
 GRANT `r1`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1127,7 +1127,7 @@ Grants for bar@%
 GRANT SELECT, INSERT, DROP ON *.* TO `bar`@`%`
 GRANT UPDATE ON `mysql`.* TO `bar`@`%`
 GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1182,7 +1182,7 @@ SHOW GRANTS;
 Grants for bar@%
 GRANT SELECT ON *.* TO `bar`@`%`
 GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1223,7 +1223,7 @@ Grants for bar@%
 GRANT SELECT, DROP ON *.* TO `bar`@`%`
 GRANT INSERT, UPDATE ON `mysql`.* TO `bar`@`%`
 GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1272,7 +1272,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT SELECT, INSERT ON *.* TO `bar`@`%` WITH GRANT OPTION
 GRANT `r1`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1322,7 +1322,7 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT SELECT, INSERT ON *.* TO `bar`@`%` WITH GRANT OPTION
 GRANT `r1`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1377,7 +1377,7 @@ Grants for bar@%
 GRANT SELECT, INSERT ON *.* TO `bar`@`%` WITH GRANT OPTION
 GRANT SELECT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `mysql`.* TO `bar`@`%`
 GRANT `r1`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1432,7 +1432,7 @@ Grants for bar@%
 GRANT <ALL_STATIC_PRIVILEGES> ON *.* TO `bar`@`%` WITH GRANT OPTION
 GRANT <ALL_DYNAMIC_PRIVILEGES> ON *.* TO `bar`@`%` WITH GRANT OPTION
 GRANT `r1`@`%` TO `bar`@`%`
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SHOW GRANTS FOR bar;
 Grants for bar@%
@@ -1551,4 +1551,4 @@ Test related to wildcard grants end here.
 DROP DATABASE pr_db;
 DROP DATABASE normal_db;
 call mtr.add_suppression(".*Nothing to revoke. Global privilege.*");
-include/rpl_end.inc
+include/rpl/deinit.inc

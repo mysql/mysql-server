@@ -21,11 +21,11 @@
 --echo # 1. Configure server2 to be a asynchronous replica of server1,
 --echo #    configuring a failover channel to server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
 --eval SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', $SERVER_MYPORT_1, '', 50);
 
@@ -39,7 +39,7 @@
 --echo #    Since `mysql_start_failover_channels_if_primary` member
 --echo #    action is enabled, channel 'ch1' will be started.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= The action mysql_start_failover_channels_if_primary must be enabled
 --let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 1
@@ -49,7 +49,7 @@
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_channel_name= 'ch1'
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_start_failover_channels_on_bootstrap
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
@@ -78,13 +78,13 @@
 --echo ############################################################
 --echo # 3. Clean up.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_channel_name= 'ch1'
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=

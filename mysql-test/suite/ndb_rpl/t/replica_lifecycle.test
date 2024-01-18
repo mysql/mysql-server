@@ -2,7 +2,7 @@
 --source include/have_binlog_format_mixed_or_row.inc
 
 # Configure replication and start replicating
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 CREATE TABLE t1 (
   a INT PRIMARY KEY,
@@ -11,25 +11,25 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (1, "row 1");
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SELECT * FROM t1 ORDER BY a;
 
 # Stop and start replica again
---source include/rpl_stop_slaves.inc
---source include/rpl_start_slaves.inc
+--source include/rpl/stop_all_replicas.inc
+--source include/rpl/start_all_replicas.inc
 
 # Stop, reset and start replica again
---source include/rpl_stop_slaves.inc
---source include/rpl_connection_slave.inc
---source include/rpl_reset_slave.inc
+--source include/rpl/stop_all_replicas.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/reset_replica.inc
 DROP TABLE t1;
---source include/rpl_start_slaves.inc
+--source include/rpl/start_all_replicas.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

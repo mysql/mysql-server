@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ INSERT INTO T1 VALUES (1);
 SHOW TABLES;
 Tables_in_B37656
 T1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 use bug37656;
 ### assertion: slave contains lowered case table
 SHOW TABLES;
@@ -35,4 +35,4 @@ CALL mtr.add_suppression("The source\'s UUID has changed.*");
 DROP DATABASE BUG37656;
 SHOW DATABASES LIKE '%37656';
 Database (%37656)
-include/rpl_end.inc
+include/rpl/deinit.inc

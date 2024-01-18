@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,16 +10,16 @@ SET @@session.sql_mode= (select replace(@@session.sql_mode,'NO_BACKSLASH_ESCAPES
 SET GLOBAL DEBUG= '+d,force_hash_string_with_quote';
 CREATE USER 'user1'@'localhost' IDENTIFIED WITH sha256_password BY 'auth_string1';
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user1'@'localhost' IDENTIFIED WITH 'sha256_password' AS '$5$BVZy9O>\'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4'
-include/sync_slave_sql_with_master.inc
-include/show_binlog_events.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user1'@'localhost' IDENTIFIED WITH 'sha256_password' AS '$5$BVZy9O>\'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4'
 SET GLOBAL DEBUG= '-d,force_hash_string_with_quote';
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret1';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT USER();
 USER()
 user1@localhost
@@ -27,16 +27,16 @@ SET GLOBAL DEBUG= '+d,force_hash_string_with_quote';
 SET @@session.sql_mode= 'NO_BACKSLASH_ESCAPES';
 SET @@session.sql_mode= 'NO_BACKSLASH_ESCAPES';
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user1'@'localhost' IDENTIFIED WITH 'sha256_password' AS '$5$BVZy9O>''a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4'
-include/sync_slave_sql_with_master.inc
-include/show_binlog_events.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user1'@'localhost' IDENTIFIED WITH 'sha256_password' AS '$5$BVZy9O>''a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4'
 SET GLOBAL DEBUG= '-d,force_hash_string_with_quote';
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret2';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT USER();
 USER()
 user1@localhost
@@ -77,7 +77,7 @@ SET PASSWORD FOR '11544_u1'@'localhost'='hehe' REPLACE 'ahaha';
 ALTER USER user() IDENTIFIED BY 'ahaha' REPLACE 'hehe';
 ALTER USER '11544_u1'@'localhost' IDENTIFIED BY 'hehe' REPLACE 'ahaha';
 # Check the binlog contents on the master
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE USER '11544_u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' PASSWORD REQUIRE CURRENT OPTIONAL
 master-bin.000001	#	Query	#	#	use `test`; ALTER USER '11544_u1'@'localhost' PASSWORD REQUIRE CURRENT DEFAULT
@@ -89,9 +89,9 @@ master-bin.000001	#	Query	#	#	use `test`; ALTER USER '11544_u1'@'localhost' IDEN
 master-bin.000001	#	Query	#	#	use `test`; ALTER USER '11544_u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 master-bin.000001	#	Query	#	#	use `test`; ALTER USER '11544_u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 # Check the binlog contents on the slave
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER '11544_u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' PASSWORD REQUIRE CURRENT OPTIONAL
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER '11544_u1'@'localhost' PASSWORD REQUIRE CURRENT DEFAULT
@@ -110,21 +110,21 @@ USER()
 [connection master]
 DROP USER '11544_u1'@'localhost';
 * Create a new user with random password
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SELECT CURRENT_USER();
 CURRENT_USER()
 u1@localhost
 [connection master]
 * Set random password using SET PASSWORD
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SELECT CURRENT_USER();
 CURRENT_USER()
 u1@localhost
 [connection master]
 * Set random password using ALTER USER
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SELECT CURRENT_USER();
 CURRENT_USER()
@@ -132,7 +132,7 @@ u1@localhost
 [connection master]
 DROP USER u1@localhost;
 * Check the binlog contents on the master
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
@@ -141,7 +141,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
 * Create a new user with an arbitrary attribute
 CREATE USER u1@localhost IDENTIFIED BY 'foo' ATTRIBUTE '{"trackingId": "12345"}';
 CREATE USER u2@localhost COMMENT 'This is account is used by my private LAMP project';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1' OR USER = 'u2';
 USER	HOST	ATTRIBUTE
@@ -149,7 +149,7 @@ u1	localhost	{"trackingId": "12345"}
 u2	localhost	{"comment": "This is account is used by my private LAMP project"}
 [connection master]
 ALTER USER u1@localhost COMMENT 'TODO: Delete this user';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1';
 USER	HOST	ATTRIBUTE
@@ -159,7 +159,7 @@ include/assert.inc [User JSON attribute updated successfully]
 [connection master]
 ALTER USER u2@localhost ATTRIBUTE '{ "code": "red" }';
 ALTER USER u2@localhost COMMENT 'Change of mind';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u2';
 USER	HOST	ATTRIBUTE
@@ -170,7 +170,7 @@ include/assert.inc [User JSON attribute updated successfully]
 DROP USER u1@localhost;
 DROP USER u2@localhost;
 * Check the binlog contents on the master
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' COMMENT 'This is account is used by my private LAMP project'
@@ -182,4 +182,4 @@ master-bin.000001	#	Query	#	#	use `test`; DROP USER u2@localhost
 SET @@session.sql_mode= @old_sql_mode_slave;
 SET @@session.sql_mode= @old_sql_mode_master;
 DROP USER 'user1'@'localhost';
-include/rpl_end.inc
+include/rpl/deinit.inc

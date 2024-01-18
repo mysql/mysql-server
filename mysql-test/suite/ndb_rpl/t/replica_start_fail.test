@@ -2,7 +2,7 @@
 --source include/have_binlog_format_mixed_or_row.inc
 
 # Configure replication and start replicating
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 CREATE TABLE t1 (
   a INT PRIMARY KEY,
@@ -11,9 +11,9 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (1, "row 1");
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SELECT * FROM t1 ORDER BY a;
 
 --echo #
@@ -24,9 +24,9 @@ SELECT * FROM t1 ORDER BY a;
 
 
 --echo # Stop and reset replica to make it apply everything again
---source include/rpl_stop_slaves.inc
---source include/rpl_connection_slave.inc
---source include/rpl_reset_slave.inc
+--source include/rpl/stop_all_replicas.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/reset_replica.inc
 DROP TABLE t1;
 
 call mtr.add_suppression("An incident event has been written");
@@ -41,18 +41,18 @@ call mtr.add_suppression("Could not connect to storage engine");
 --echo # Start replica and inspect error message
 START REPLICA;
 --let $slave_sql_errno=157
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo # Start cluster
 --exec $NDB_MGM --ndb-connectstring=$NDB_CONNECTSTRING_SLAVE -e "all start"
 --exec $NDB_WAITER --ndb-connectstring=$NDB_CONNECTSTRING_SLAVE 2>&1 > /dev/null
 
 --echo # Start replica again
---source include/rpl_start_slaves.inc
+--source include/rpl/start_all_replicas.inc
 
 --echo # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

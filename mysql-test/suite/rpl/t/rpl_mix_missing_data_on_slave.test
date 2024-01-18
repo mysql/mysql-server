@@ -37,7 +37,7 @@
 --let $rpl_server_count= 3
 --let $rpl_topology= 1->2->3
 --disable_warnings
---source include/rpl_init.inc
+--source include/rpl/init.inc
 --enable_warnings
 
 --connection server_1
@@ -57,12 +57,12 @@ INSERT INTO t1 (val) SELECT val FROM t1;
 INSERT INTO t1 (val) SELECT val FROM t1;
 
 --echo Syncing all three servers
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --echo Verifying 't1' table contents on all three servers through diff tables.
 --let $diff_tables= server_1:t1, server_2:t1, server_3:t1
 --source include/diff_tables.inc
 
 # Clean up
 DROP TABLE t1;
---source include/rpl_sync.inc
---source include/rpl_end.inc
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ include/assert.inc [Value returned by SRS and PS table for Received_Transaction_
 include/assert.inc [Value returned by SRS and PS table for Last_Error_Number should be same.]
 include/assert.inc [Value returned by SRS and PS table for Last_Error_Message should be same.]
 include/assert.inc [Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 
 # heartbeat count and last heartbeat timestamp are indeterministic so we
 # can not test for their exact values. We will thus check for >0 number
@@ -27,7 +27,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_HEARTBEAT_PERIOD= 0.5;
 set @restore_replica_net_timeout= @@global.replica_net_timeout;
 set @@global.replica_net_timeout= 10;
-include/start_slave.inc
+include/rpl/start_replica.inc
 
 A heartbeat has been received by the slave
 
@@ -37,7 +37,7 @@ set @@global.replica_net_timeout= @restore_replica_net_timeout;
 # We now introduce an error in the IO thread and check for the correctness
 # of error number, message and timestamp fields.
 
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to
 SOURCE_USER='replssl',
 SOURCE_PASSWORD='';
@@ -45,7 +45,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA io_thread;
-include/wait_for_slave_param.inc [Last_IO_Errno]
+include/rpl/wait_for_replica_status.inc [Last_IO_Errno]
 
 # Extract the error related fields from SRS and PS table and compare
 # them for correctness.
@@ -57,7 +57,7 @@ include/assert.inc [Value returned by SRS and PS table for Last_Error_Timestamp 
 # Verify that source_UUID and the error related fields are preserved
 # after STOP REPLICA, thread_id changes to NULL and service_state to "off".
 
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 
 # 1. Verify that thread_id changes to NULL and service_state to "off" on
 #    STOP REPLICA.
@@ -76,25 +76,25 @@ include/assert.inc [Value returned by SRS and PS table for Last_Error_Timestamp 
 # Restart the master and slave servers in gtid-mode=on, execute some
 # transactions and verify the 'Received_Transaction_Set' field.
 
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/rpl_restart_server.inc [server_number=2 gtids=on]
+include/rpl/restart_server.inc [server_number=1 gtids=on]
+include/rpl/restart_server.inc [server_number=2 gtids=on]
 CHANGE REPLICATION SOURCE to
 SOURCE_USER = 'root',
 SOURCE_AUTO_POSITION= 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 use test;
 create table t(a int);
 insert into t values(1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Value returned by SRS and PS table for Received_Transaction_Set should be same.]
 
 # Verify that the value for 'Received_Transaction_Set' field is preserved
 # after STOP REPLICA.
 
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 include/assert.inc [Received_Transaction_Set should not have changed after STOP REPLICA]
 
 # Verify that the value for 'Received_Transaction_Set' is cleared
@@ -102,10 +102,10 @@ include/assert.inc [Received_Transaction_Set should not have changed after STOP 
 
 RESET REPLICA;
 include/assert.inc [Received_Transaction_Set should be empty after RESET REPLICA]
-include/start_slave.inc
+include/rpl/start_replica.inc
 drop table t;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL '';
-include/rpl_set_gtid_mode.inc
-include/rpl_end.inc
+include/rpl/set_gtid_mode.inc
+include/rpl/deinit.inc

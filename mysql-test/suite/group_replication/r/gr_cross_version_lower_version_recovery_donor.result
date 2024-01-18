@@ -63,7 +63,7 @@ include/assert.inc [The super_read_only mode should be 0 on server3.]
 
 [connection server2]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server3]
 SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_minor_version';
 include/stop_group_replication.inc

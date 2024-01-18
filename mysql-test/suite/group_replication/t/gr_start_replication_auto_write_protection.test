@@ -39,10 +39,10 @@ INSERT INTO t1 VALUES (1);
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (0);
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --connection server1
 
@@ -66,11 +66,11 @@ SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 # renable connection
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= RECOVERING
 --source include/gr_wait_for_member_state.inc

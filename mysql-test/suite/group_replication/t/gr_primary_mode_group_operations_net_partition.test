@@ -55,26 +55,26 @@ SET SESSION sql_log_bin = 1;
 --echo # 2. Create table t1
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo # 3. Lock table t1 on server2 to block action
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 LOCK TABLE t1 READ;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --echo
 --echo # 4. Server1 insert value on t1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1);
 
@@ -88,7 +88,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 6. Freeze server1 sending a SIGSTOP signal
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait for it to start the election process to make the test deterministic
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: executing Primary election%"
@@ -100,7 +100,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 7. Wait server1 is expelled from group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
@@ -114,7 +114,7 @@ UNLOCK TABLES;
 --echo # 9. Send signal to server continue its process
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec kill -18 $server_pid
 
@@ -122,7 +122,7 @@ UNLOCK TABLES;
 --echo # 10. The action is aborted on server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $member1_uuid MEMBER1_UUID
 --error ER_GRP_RPL_UDF_ERROR
@@ -132,13 +132,13 @@ UNLOCK TABLES;
 --echo # 11. Wait that server2 terminate execution of primary election
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -167,7 +167,7 @@ if(`SELECT "$member2_uuid" > "$member3_uuid"`)
 --echo # 13. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;

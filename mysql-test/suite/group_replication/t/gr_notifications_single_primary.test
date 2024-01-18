@@ -59,7 +59,7 @@
 # server 1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/add_debug_point.inc
@@ -75,7 +75,7 @@ SET GLOBAL group_replication_force_members='';
 # server 2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/add_debug_point.inc
@@ -91,7 +91,7 @@ SET GLOBAL group_replication_force_members='';
 # server 3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/add_debug_point.inc
@@ -113,7 +113,7 @@ SET GLOBAL group_replication_force_members='';
 
 # start the group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # view change + server moved from recovering to online
@@ -130,7 +130,7 @@ SET GLOBAL group_replication_force_members='';
 # server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -141,7 +141,7 @@ SET GLOBAL group_replication_force_members='';
 # server3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -152,14 +152,14 @@ SET GLOBAL group_replication_force_members='';
 # server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $expected_notifications= 1,VIEW %2|1,VIEW %:3|2,STATE %:2|2,STATE %:3
 --source ../include/assert_notifications.inc
 
 --disable_query_log
 TRUNCATE gms_listener_example;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --enable_query_log
 
 # this will cause the primary to switch
@@ -172,7 +172,7 @@ TRUNCATE gms_listener_example;
 
 # server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # wait for the group to rearrange itself
 --let $group_replication_number_of_members= 2
@@ -186,7 +186,7 @@ TRUNCATE gms_listener_example;
 
 # server3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # wait for the group to rearrange itself
 --let $group_replication_number_of_members= 2
@@ -204,19 +204,19 @@ TRUNCATE gms_listener_example;
 # server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 #server3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 # server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/remove_debug_point.inc
@@ -226,7 +226,7 @@ TRUNCATE gms_listener_example;
 # server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/remove_debug_point.inc
@@ -236,7 +236,7 @@ TRUNCATE gms_listener_example;
 # server3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/remove_debug_point.inc
@@ -244,9 +244,9 @@ TRUNCATE gms_listener_example;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE gms_listener_example;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --source include/group_replication_end.inc

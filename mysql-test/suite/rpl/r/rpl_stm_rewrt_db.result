@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ insert into t1 values(9);
 select * from mysqltest1.t1;
 a
 9
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 show databases like 'mysqltest1';
 Database (mysqltest1)
 mysqltest1
@@ -20,7 +20,7 @@ a
 9
 drop table t1;
 drop database mysqltest1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 drop database if exists rewrite;
 create database rewrite;
 use test;
@@ -38,7 +38,7 @@ Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 3 
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
 Warnings:
 Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 1 is superfluous and is deprecated. Please remove.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from rewrite.t1;
 a	b	c	d
 0000-00-00	NULL	0000-00-00	0000-00-00
@@ -54,7 +54,7 @@ Warning	1264	Out of range value for column 'b' at row 2
 Warning	1264	Out of range value for column 'c' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
 Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 3 is superfluous and is deprecated. Please remove.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from rewrite.t1;
 a	b	c	d
 NULL	NULL	0000-00-00	0000-00-00
@@ -65,7 +65,7 @@ create table t1 (a text, b text);
 load data infile '../../std_data/loaddata2.dat' ignore into table t1 fields terminated by ',' enclosed by '''';
 Warnings:
 Warning	1261	Row 3 doesn't contain data for all columns
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select concat('|',a,'|'), concat('|',b,'|') from rewrite.t1;
 concat('|',a,'|')	concat('|',b,'|')
 |Field A|	|Field B|
@@ -81,7 +81,7 @@ Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
 Warning	1262	Row 3 was truncated; it contained more data than there were input columns
 Warning	1366	Incorrect integer value: 'wrong end  ' for column 'a' at row 5
 Warning	1262	Row 5 was truncated; it contained more data than there were input columns
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from rewrite.t1;
 a	b
 1	row 1
@@ -95,7 +95,7 @@ Warnings:
 Warning	1366	Incorrect integer value: '
 ' for column 'a' at row 4
 Warning	1261	Row 4 doesn't contain data for all columns
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from rewrite.t1;
 a	b
 1	row 1
@@ -183,7 +183,7 @@ INSERT INTO t_03_03_temp VALUES(1);
 **** sure that the number of open temporary tables at slave becomes
 **** zero. If not,the test will time out.
 
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 show status like 'Replica_open_temp_tables';
 Variable_name	Value
 Replica_open_temp_tables	10
@@ -208,5 +208,5 @@ DROP DATABASE database_slave_temp_01;
 DROP DATABASE database_slave_temp_02;
 DROP DATABASE database_slave_temp_03;
 SET sql_log_bin= 1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

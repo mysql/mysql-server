@@ -1,10 +1,10 @@
 ################################################################################
-# Check file extra/rpl_tests/rpl_implicit_commit_binlog.test
+# Check file common/rpl/rpl_implicit_commit_binlog.test
 ################################################################################
 --source include/have_binlog_format_mixed.inc
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --let $engine=NDB
---source extra/rpl_tests/rpl_implicit_commit_binlog.test
---source include/rpl_end.inc
+--source common/rpl/rpl_implicit_commit_binlog.test
+--source include/rpl/deinit.inc

@@ -1,7 +1,7 @@
 # WL#9236, WL#9603, WL#9727
 # Sanity tests for window funtions with replication
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo # Create table with columns of different data types and insert values
 
@@ -119,7 +119,7 @@ INSERT INTO t3a SELECT
 SET @master_save_windowing_use_high_precision= (SELECT @@windowing_use_high_precision);
 SET GLOBAL windowing_use_high_precision=0;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 SET @slave_save_windowing_use_high_precision= (SELECT @@windowing_use_high_precision);
@@ -182,7 +182,7 @@ INSERT INTO t3b SELECT
 # Reset variable 'windowing_use_high_precision'
 SET GLOBAL windowing_use_high_precision=@master_save_windowing_use_high_precision;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 SET GLOBAL windowing_use_high_precision=@slave_save_windowing_use_high_precision;
@@ -258,7 +258,7 @@ INSERT INTO t4 SELECT
           w2 AS (PARTITION BY g ORDER BY h),
           w3 AS (PARTITION BY d ORDER BY NULL);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 # Check that tables are replicated properly
@@ -292,7 +292,7 @@ UPDATE t4 SET c6='2017-01-01 12:30:45' WHERE c6 IN (SELECT CAST(FIRST_VALUE('200
 UPDATE t4 SET c7='Updated' WHERE c7 IN (SELECT LAST_VALUE('Alpha') OVER () FROM DUAL);
 UPDATE t4 SET c8='Updated' WHERE c8 IN (SELECT NTH_VALUE('199utjJtezqMHCewY',1) OVER () FROM DUAL);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 # Check that the update's are replicated properly
@@ -315,7 +315,7 @@ DELETE FROM t4 WHERE c6 IN (SELECT CAST(FIRST_VALUE('2017-01-01 12:30:45') OVER 
 DELETE FROM t4 WHERE c7 IN (SELECT LEAD('Updated') OVER () FROM DUAL);
 DELETE FROM t4 WHERE c8 IN (SELECT NTH_VALUE('Updated',1) OVER () FROM DUAL);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 # Check that delete's replicated properly
@@ -338,4 +338,4 @@ DROP TABLE t2;
 DROP TABLE t3a;
 DROP TABLE t3b;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

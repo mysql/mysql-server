@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 drop tables if exists t1, t2;
 drop view if exists v1;
 # Syncing slave with master and switching to connection 'slave'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Switching to connection 'master'
 create table t1 (i int);
 create table t2 (i int);
@@ -42,7 +42,7 @@ select * from t1;
 i
 1
 # Syncing slave with master and switching to connection 'slave'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Check that slave was able to replicate this sequence
 # which means that we got correct binlog order.
 select * from t1;
@@ -77,7 +77,7 @@ i
 select * from t2;
 i
 # Syncing slave with master and switching to connection 'slave'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Now let us check that statements were logged in proper order
 # So we have same result on slave.
 select * from t1;
@@ -90,5 +90,5 @@ i
 drop table t1, t2;
 drop view v1;
 # Syncing slave with master and switching to connection 'slave'
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

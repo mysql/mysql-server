@@ -3,7 +3,7 @@
 # ALTER INSTANCE [ENABLE|DISABLE] INNODB REDO_LOG and
 # Check Red-Log Archive error cases when redo_log disable
 # *************************************************************
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
@@ -21,7 +21,7 @@ SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
 CREATE TABLE tab1(c1 int,c2 text);
 INSERT INTO tab1 VALUES(1,'Test');
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 #Check Default status of the redo_log on Slave
@@ -58,7 +58,7 @@ SELECT innodb_redo_log_archive_start('label1');
 CREATE TABLE tab2(c1 int,c2 text);
 INSERT INTO tab2 VALUES(1,'Test');
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --let $saved_slave_dirs = `SELECT @@global.innodb_redo_log_archive_dirs`
@@ -107,7 +107,7 @@ SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
 --echo # Set Default value on master side
 eval SET @@global.innodb_redo_log_archive_dirs = '$saved_master_dirs';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 # Set Enable On Slave
@@ -123,4 +123,4 @@ eval SET @@global.innodb_redo_log_archive_dirs = '$saved_master_dirs';
 --remove_files_wildcard $IRLA_DIRECTORY_1/ archive*
 --rmdir $IRLA_DIRECTORY_1
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

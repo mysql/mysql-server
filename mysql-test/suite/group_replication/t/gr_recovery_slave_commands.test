@@ -65,7 +65,7 @@
 --echo # when MEMBER_STATE: ONLINE and recovery channel is ABSENT
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 set session sql_log_bin=0;
 call mtr.add_suppression("Replica channel 'group_replication_recovery' does not exist.*");
 set session sql_log_bin=1;
@@ -147,7 +147,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Transaction cannot be executed while Group Replication is recovering.*");
@@ -230,21 +230,21 @@ RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
 # Stop group replication and lock table t1 on server 2 to block recovery.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 
 # Lock the table in a different connection
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 LOCK TABLE t1 READ;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
@@ -347,17 +347,17 @@ RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 --echo # is PRESENT but INACTIVE.
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --echo

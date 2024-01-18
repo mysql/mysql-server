@@ -24,7 +24,7 @@
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_group_replication.inc
@@ -33,7 +33,7 @@
 --echo # 1. Enable debug point to block action
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 
@@ -48,7 +48,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 --echo #    due to already one operation is being executed
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # verify thread THD_group_action_coordinator has started
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_group_action_coordinator"
@@ -86,12 +86,12 @@ SELECT group_replication_switch_to_single_primary_mode();
 --echo # 4. Unlock the blocked action on server1
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # 5. Resume the action on server1
@@ -105,7 +105,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is*");

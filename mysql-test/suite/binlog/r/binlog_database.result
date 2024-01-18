@@ -9,7 +9,7 @@ create function sf1 (a int) returns int return a+1;
 create trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a);
 create procedure sp1 (a int) insert into t1 values(a);
 drop database testing_1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	create database testing_1
 binlog.000001	#	Query	#	#	use `testing_1`; create table t1 (a int)
@@ -27,7 +27,7 @@ insert into t1 values (1);
 drop database if exists mysqltest1;
 insert into t1 values (1);
 drop table tt1, t1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; create temporary table tt1 (a int)
 binlog.000001	#	Query	#	#	use `test`; create table t1 (a int)
@@ -60,7 +60,7 @@ SHOW TABLES FROM db1;
 Tables_in_db1
 t1
 t2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP DATABASE db1;
 RESET BINARY LOGS AND GTIDS;
@@ -75,7 +75,7 @@ create function sf1 (a int) returns int return a+1;
 create trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a);
 create procedure sp1 (a int) insert into t1 values(a);
 drop database testing_1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	create database testing_1
 binlog.000001	#	Query	#	#	use `testing_1`; create table t1 (a int)
@@ -93,7 +93,7 @@ insert into t1 values (1);
 drop database if exists mysqltest1;
 insert into t1 values (1);
 drop table tt1, t1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; create table t1 (a int)
 binlog.000001	#	Query	#	#	BEGIN
@@ -124,7 +124,7 @@ SHOW TABLES FROM db1;
 Tables_in_db1
 t1
 t2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP DATABASE db1;
 RESET BINARY LOGS AND GTIDS;
@@ -139,7 +139,7 @@ create function sf1 (a int) returns int return a+1;
 create trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a);
 create procedure sp1 (a int) insert into t1 values(a);
 drop database testing_1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	create database testing_1
 binlog.000001	#	Query	#	#	use `testing_1`; create table t1 (a int)
@@ -157,7 +157,7 @@ insert into t1 values (1);
 drop database if exists mysqltest1;
 insert into t1 values (1);
 drop table tt1, t1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; create table t1 (a int)
 binlog.000001	#	Query	#	#	BEGIN
@@ -190,7 +190,7 @@ SHOW TABLES FROM db1;
 Tables_in_db1
 t1
 t2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP DATABASE db1;
 RESET BINARY LOGS AND GTIDS;

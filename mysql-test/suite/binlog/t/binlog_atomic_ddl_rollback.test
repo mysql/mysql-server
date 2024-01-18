@@ -37,7 +37,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue';
 #
 # the group generator
 #
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 DELETE FROM tmp;
 
 #
@@ -46,7 +46,7 @@ DELETE FROM tmp;
 #
 --let $gtid_event=!Gtid_or_anon
 --let $event_sequence= $gtid_event # !Begin # !Q(DELETE.*) # !Commit
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 --let $dont_print_pattern= 0
 
 # Cleanup:

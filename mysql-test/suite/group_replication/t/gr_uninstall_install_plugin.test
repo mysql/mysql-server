@@ -22,7 +22,7 @@
 --echo # 1. Bootstrap start GR.
 --echo #    Verify that group replication specific P_S tables are not empty.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $assert_text= P_S table replication_group_members should not be empty

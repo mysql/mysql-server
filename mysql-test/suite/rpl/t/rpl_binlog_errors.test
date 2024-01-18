@@ -23,7 +23,7 @@
 -- source include/have_myisam.inc
 -- source include/have_debug.inc
 -- source include/have_binlog_format_statement.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 -- echo #######################################################################
 -- echo ####################### PART 1: MASTER TESTS ##########################
@@ -34,7 +34,7 @@
 ###         the test
 
 -- connection slave
--- source include/stop_slave.inc
+-- source include/rpl/stop_replica.inc
 -- connection master
 
 --disable_query_log
@@ -69,7 +69,7 @@ RESET BINARY LOGS AND GTIDS;
 ### ASSERTION: no problem flushing logs (should show two binlogs)
 FLUSH LOGS;
 -- echo # assert: must show two binlogs
--- source include/show_binary_logs.inc
+-- source include/rpl/deprecated/show_binary_logs.inc
 
 -- echo ###################### TEST #2
 
@@ -93,7 +93,7 @@ eval SET GLOBAL debug='$old_debug';
 --enable_query_log
 # Restart the server to enable binary log.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 RESET BINARY LOGS AND GTIDS;
 
 -- echo ###################### TEST #3
@@ -115,7 +115,7 @@ RESET BINARY LOGS AND GTIDS;
 
 # shows two binary logs
 -- echo # assert: must show three binlog
--- source include/show_binary_logs.inc
+-- source include/rpl/deprecated/show_binary_logs.inc
 
 # clean up the table and the binlog to be used in next part of test
 --disable_query_log
@@ -152,7 +152,7 @@ eval SET GLOBAL debug='$old_debug';
 DELETE FROM t2;
 # Restart the server to enable binary log.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 RESET BINARY LOGS AND GTIDS;
 
 -- echo ###################### TEST #5
@@ -210,7 +210,7 @@ eval SET GLOBAL debug='$old_debug';
 DELETE FROM t2;
 # Restart the server to enable binary log.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 RESET BINARY LOGS AND GTIDS;
 
 -- echo ###################### TEST #7
@@ -239,7 +239,7 @@ eval SET GLOBAL debug='$old_debug';
 DELETE FROM t4;
 # Restart the server to enable binary log.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 RESET BINARY LOGS AND GTIDS;
 
 -- echo ###################### TEST #8
@@ -269,7 +269,7 @@ SELECT count(*) FROM t2;
 
 # Restart the server to enable binary log.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --disable_query_log
@@ -282,7 +282,7 @@ eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,erro
 
 # Restart the server to enable binary log.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --disable_query_log
@@ -304,7 +304,7 @@ SELECT count(*) FROM t2;
 
 # Restart the server to enable binary log.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --disable_query_log
@@ -318,7 +318,7 @@ DELETE FROM t4 WHERE a IN (@xxx, @yyy) or a <> '1';
 
 # Restart the server to enable binary log.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --disable_query_log
@@ -380,7 +380,7 @@ call mtr.add_suppression("Could not open .*");
 
 # Restart the server to enable binary log.
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 RESET BINARY LOGS AND GTIDS;
 SHOW WARNINGS;
 
@@ -416,7 +416,7 @@ DROP TABLE t5;
 
 # restart the server so that we have binlog again
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # +d,fault_injection_openning_index => injects fault on MYSQL_BIN_LOG::open_index_file
 --disable_query_log
@@ -443,7 +443,7 @@ DROP TABLE t5;
 
 # restart the server so that we have binlog again
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 -- echo ###################### TEST #12
 
@@ -473,7 +473,7 @@ DROP TABLE t5;
 
 # restart the server so that we have binlog again
 --let $rpl_server_number= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 ## clean up
 --disable_query_log
@@ -484,7 +484,7 @@ RESET BINARY LOGS AND GTIDS;
 
 # restart replica again
 -- connection slave
--- source include/start_slave.inc
+-- source include/rpl/start_replica.inc
 -- connection master
 
 -- echo #######################################################################
@@ -492,7 +492,7 @@ RESET BINARY LOGS AND GTIDS;
 -- echo #######################################################################
 
 ### setup
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 -- connection slave
 
 # slave suppressions
@@ -539,7 +539,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 -- source include/io_thd_fault_injection.inc
 
 ### clean up
--- source include/stop_slave_sql.inc
+-- source include/rpl/stop_applier.inc
 --disable_query_log
 eval SET GLOBAL debug='$old_debug';
 --enable_query_log
@@ -548,4 +548,4 @@ eval SET GLOBAL debug='$old_debug';
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,7 +1,7 @@
 #
 # 1. Set up masters server_1 and server_3 with server_2 being a slave.
 #
-include/rpl_init.inc [topology=1->2,3->2]
+include/rpl/init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ include/assert.inc [assert that @@global.binlog_format is not changed]
 SET @@persist.binlog_format=STATEMENT;
 ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP REPLICA SQL_THREAD and try again.
 include/assert.inc [assert that @@global.binlog_format is not changed]
-include/rpl_stop_slaves.inc
+include/rpl/stop_all_replicas.inc
 SET @@global.binlog_format=STATEMENT;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
@@ -27,7 +27,7 @@ set global binlog_format=@saved_binlog_format;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@global.binlog_format is set to @saved_binlog_format]
-include/rpl_start_slaves.inc
-include/rpl_end.inc
+include/rpl/start_all_replicas.inc
+include/rpl/deinit.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 RESET REPLICA ALL FOR CHANNEL 'channel_3';

@@ -21,7 +21,7 @@ INSERT INTO t1 VALUES (3);
 #
 # Wait for all servers to be in sync
 #
-include/rpl_sync.inc
+include/rpl/sync.inc
 server3
 #
 # Stress server 3 by joining, leaving and joining again without waiting

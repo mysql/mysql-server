@@ -21,7 +21,7 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo # Column with SRID property on a MyISAM table should only be
 --echo # supported if the SRID represents a cartesian coordinate system.
@@ -42,7 +42,7 @@ INSERT INTO t1(col1, col2)
   VALUES (ST_GeomFromText('POINT(1 1)', 2000),
           ST_GeomFromText('POINT(1 1)', 2000));
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --let $diff_tables = master:t1, slave:t1
@@ -70,7 +70,7 @@ INSERT INTO t1(col1, col2)
 
 SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --let $diff_tables = master:t1, slave:t1
@@ -86,6 +86,6 @@ SELECT ST_SRID(col1) AS srid_2000, ST_SRID(col2) AS srid_0 FROM t1;
 --echo # Cleanup
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

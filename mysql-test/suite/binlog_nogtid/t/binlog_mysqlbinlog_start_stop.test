@@ -10,5 +10,5 @@
 # TODO: Need to look at making row based version once new binlog client is complete.
 -- source include/have_binlog_format_mixed_or_statement.inc
 
---source extra/binlog_tests/binlog_mysqlbinlog_start_stop.inc
+--source common/binlog/mysqlbinlog_start_stop.inc
 

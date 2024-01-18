@@ -49,13 +49,13 @@
 --source include/have_binlog_format_row.inc
 --source include/not_have_privilege_checks_user.inc
 --source include/not_rpl_gtid_only.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo # 0. Create a user to use as a privilege_checks_user
 --echo #    Create some test auxiliary include files to avoid step repetition.
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 CREATE USER 'replication_applier'@'localhost' IDENTIFIED BY 'password';
 GRANT REPLICATION_APPLIER ON * . * TO 'replication_applier'@'localhost';
@@ -127,7 +127,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 --let $rpl_set_enforce_gtid_consistency= 1
 --let $rpl_skip_sync= 1
 --let $no_extra_info = 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 --disable_warnings
@@ -142,7 +142,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 10;
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_replica_start  --upgrade=FORCE
 --let $explicit_default_wait_counter = 15000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # We have only 1 table here as group_replication_recovery does not show up
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE REQUIRE_ROW_FORMAT = 'YES'`
@@ -185,8 +185,8 @@ if ($gtid_mode_on == 0) {
   --let $rpl_set_enforce_gtid_consistency = 0
 }
 --let $no_extra_info = 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 --let $rpl_channel_name=
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

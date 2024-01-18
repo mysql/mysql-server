@@ -38,13 +38,13 @@
 # the test is binlog-format agnostic
 --source include/have_binlog_format_row.inc
 --source include/have_debug_sync.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/master-slave.inc
+--source include/have_replica_parallel_workers.inc
+--source include/rpl/init_source_replica.inc
 
 --let $is_mts= 1
 
---source extra/rpl_tests/rpl_ps_connection_applier_status.inc
+--source common/rpl/ps_connection_applier_status.inc
 
---source extra/rpl_tests/rpl_ps_connection_applier_status_by_worker_failed_trx.inc
+--source common/rpl/ps_connection_applier_status_by_worker_failed_trx.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

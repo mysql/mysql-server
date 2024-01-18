@@ -11,7 +11,7 @@ The connection master1 should be waiting for the WAIT_FOR_EXECUTED_GTID_SET here
 INSERT INTO t1 values(2);
 WAIT_FOR_EXECUTED_GTID_SET('GROUP_NAME:4')
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE t1;
 DROP USER `ABC`;
 include/group_replication_end.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,7 +20,7 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 2	master
 4	master
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
 INSERT INTO t1 (b) VALUES ('slave');
 INSERT INTO t1 (b) VALUES ('slave');
@@ -90,7 +90,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(10) COLLATE latin1_german1_ci DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [On Slave]
 CREATE SCHEMA s2;
 SHOW CREATE SCHEMA s2;
@@ -139,7 +139,7 @@ INSERT INTO t1 VALUES (1, 'master ', WEEK('2008-01-07'));
 SELECT * FROM t1 ORDER BY a;
 a	b	c
 1	master 	1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO t1 VALUES (2, 'slave ', WEEK('2008-01-07'));
 SELECT * FROM t1 ORDER BY a;
 a	b	c
@@ -157,7 +157,7 @@ LOAD DATA LOCAL INFILE 'FILE' INTO TABLE t1 (b);
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 70
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 LOAD DATA LOCAL INFILE 'FILE2' INTO TABLE t1 (b);
 ERROR 42000: Loading local data is disabled; this must be enabled on both the client and server sides
 SELECT COUNT(*) FROM t1;
@@ -171,7 +171,7 @@ SET @@global.character_set_database=@restore_master_character_set_database;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET @@global.collation_server=@restore_master_collation_server;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @@global.character_set_database=@restore_slave_character_set_database;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
@@ -179,4 +179,4 @@ SET @@global.collation_server=@restore_slave_collation_server;
 SET @@global.local_infile= @old_local_infile;
 
 call mtr.add_suppression("The table 't[12]' is full");
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,7 +19,7 @@ create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60))
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t3 select * from t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a	b
 1	10
@@ -33,20 +33,20 @@ drop table t1;
 drop table t2;
 drop table t3;
 create table t1(a int, b int, unique(b));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 insert into t1 values(1,10);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 call mtr.add_suppression("Replica SQL.*Error .Duplicate entry .10. for key .t1.b.. on query.* Error_code: MY-001062");
 call mtr.add_suppression("Replica SQL.*Query caused different errors on source and replica.*Error on source:.*error code=1062.*Error on replica:.*Error_code: MY-013113");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-include/wait_for_slave_sql_error_and_skip.inc [errno=1062]
-include/check_slave_no_error.inc
+include/rpl/wait_for_applier_error_and_skip.inc [errno=1062]
+include/rpl/assert_replica_no_error.inc
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
-include/wait_for_slave_sql_error.inc [errno=1062]
-include/stop_slave_io.inc
+include/rpl/wait_for_applier_error.inc [errno=1062]
+include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='test';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -55,17 +55,17 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 set global sql_replica_skip_counter=1;
 START REPLICA;
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
-include/wait_for_slave_sql_error.inc [errno=1062]
+include/rpl/wait_for_applier_error.inc [errno=1062]
 STOP REPLICA;
 RESET REPLICA;
-include/check_slave_no_error.inc
+include/rpl/assert_replica_no_error.inc
 reset binary logs and gtids;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=MyISAM;
@@ -90,12 +90,12 @@ load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 ERROR 23000: Duplicate entry '2003-03-22' for key 't2.day'
-include/wait_for_slave_sql_error.inc [errno=13113]
+include/rpl/wait_for_applier_error.inc [errno=13113]
 drop table t1, t2;
 drop table t1, t2;
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 RESET REPLICA;
-include/rpl_reset.inc
+include/rpl/reset.inc
 drop database if exists b48297_db1;
 drop database if exists b42897_db2;
 create database b48297_db1;
@@ -115,13 +115,13 @@ LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE t1;
 ### assertion: works without stating the default database
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE b48297_db1.t1;
 ### disconnect and switch back to master connection
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 use b48297_db1;
 include/diff_tables.inc [master:b48297_db1.t1, slave:b48297_db1.t1]
 DROP DATABASE b48297_db1;
 DROP DATABASE b42897_db2;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 use test;
 CREATE TABLE t1 (`key` TEXT, `text` TEXT);
 LOAD DATA INFILE '../../std_data/loaddata2.dat' REPLACE INTO TABLE `t1` FIELDS TERMINATED BY ',';
@@ -132,6 +132,6 @@ Field 1	'Field 2'
 Field 3	'Field 4'
 'Field 5' 	'Field 6'
 Field 6	 'Field 7'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -156,7 +156,7 @@ SET PERSIST log_bin_trust_function_creators=1;
 
 --echo # SET PERSIST statement should not be bin logged.
 --echo # Show binlog events
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # String type variables.
 SET PERSIST block_encryption_mode= 'aes-128-ecb';
@@ -256,7 +256,7 @@ SELECT VARIABLE_NAME, VARIABLE_SOURCE
 
 --echo # SET PERSIST statement should not be bin logged.
 --echo # Show binlog events
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo Show what is logged:
 --echo ------ rewrite ------

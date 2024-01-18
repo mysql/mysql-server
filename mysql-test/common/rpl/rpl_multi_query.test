@@ -1,0 +1,26 @@
+# Test for BUG#8436: verify that a multi-query (i.e. one query
+# containing several queries (assuming client has
+# CLIENT_MULTI_STATEMENTS) will be binlogged ONE-query-per-event (not
+# one binlog event containing all queries)
+
+
+# PS doesn't support multi-statements
+--disable_ps_protocol
+-- source include/rpl/init_source_replica.inc
+create database mysqltest;
+
+delimiter /;
+create table mysqltest.t1 ( n int);
+insert into mysqltest.t1 values(1)/
+insert into mysqltest.t1 values(2);
+insert into mysqltest.t1 values(3);
+insert into mysqltest.t1 values(4);
+insert into mysqltest.t1 values(5)/
+delimiter ;/
+--source include/rpl/sync_to_replica.inc
+select * from mysqltest.t1;
+connection master;
+source include/rpl/deprecated/show_binlog_events.inc;
+drop database mysqltest;
+
+--source include/rpl/deinit.inc

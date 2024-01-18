@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ Verify that example engine is installed.
 SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
 EXAMPLE	YES	Example storage engine	NO	NO	NO
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 connection slave: Verify that example engine is not installed.
 SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
@@ -33,6 +33,6 @@ Delta
 Verify that example engine is not installed.
 SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc
 End of test

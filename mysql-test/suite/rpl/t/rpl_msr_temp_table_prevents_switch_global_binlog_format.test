@@ -43,17 +43,17 @@
 --echo #
 --let $rpl_topology= 1->2,3->2
 --let $rpl_multi_source= 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 # Connect to slave
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Stop replica applier on slave channel_1.
 --let $rpl_channel_name= 'channel_1'
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 # Stop replica applier on slave channel_3.
 --let $rpl_channel_name= 'channel_3'
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 --echo #
 --echo # Verify that SET @@global.binlog_format is allowed if none
 --echo # of all replication channels have open temporary table(s).
@@ -70,7 +70,7 @@ SET @@global.binlog_format=STATEMENT;
 --echo # effect on channel_1.
 --echo #
 --let $rpl_channel_name= 'channel_1'
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 # Connect to master server_1
 --echo connection_server_1
@@ -82,11 +82,11 @@ SET @@global.binlog_format=STATEMENT;
 CREATE TEMPORARY TABLE temp1(a INT);
 --let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Connect to slave
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #
 --echo # On a running slave, verify that SET @@global.binlog_format is
@@ -103,7 +103,7 @@ SET @@persist.binlog_format=ROW;
 
 # Stop replica threads on slave channel_1.
 --let $rpl_channel_name= 'channel_1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --echo #
 --echo # On a stopped slave, verify that SET @@global.binlog_format is
@@ -120,7 +120,7 @@ SET @@persist.binlog_format=ROW;
 
 # Start replica threads on slave channel_1.
 --let $rpl_channel_name= 'channel_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 #cleanup
 --echo connection_server_1
@@ -128,7 +128,7 @@ SET @@persist.binlog_format=ROW;
 DROP TEMPORARY TABLE temp1;
 --let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

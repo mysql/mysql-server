@@ -22,7 +22,7 @@
 
 # Test is debug_binlog_format agnostic
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Init ====
 
@@ -33,13 +33,13 @@
 
 --let $restart = $MYSQL_TMP_DIR/restart.inc
 --write_file $restart END_OF_PROCEDURE
-  --source include/rpl_connection_slave.inc
-  --source include/stop_slave.inc
+  --source include/rpl/connection_replica.inc
+  --source include/rpl/stop_replica.inc
   --let $rpl_server_number = 1
-  --source include/rpl_restart_server.inc
-  --source include/rpl_connection_slave.inc
-  --source include/start_slave.inc
-  --source include/rpl_connection_master.inc
+  --source include/rpl/restart_server.inc
+  --source include/rpl/connection_replica.inc
+  --source include/rpl/start_replica.inc
+  --source include/rpl/connection_source.inc
 END_OF_PROCEDURE
 
 --source include/save_error_log_position.inc
@@ -97,4 +97,4 @@ SHOW REPLICAS;
 --echo ==== Clean up ====
 
 --remove_file $restart
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -18,7 +18,7 @@ SET SESSION sql_log_bin = 1;
 SET @debug_saved= @@GLOBAL.DEBUG;
 include/start_group_replication.inc
 SET @@GLOBAL.DEBUG='+d,block_applier_updates';
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
@@ -49,7 +49,7 @@ INSERT INTO t1 VALUES (2);
 [connection server2]
 [connection server1]
 include/gr_wait_for_member_state.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server2]
 SET @@GLOBAL.DEBUG= '+d,certifier_assert_next_seqno_equal_7';
 include/start_group_replication.inc
@@ -57,9 +57,9 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 
 ############################################################
 # 5. Shutdown.
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/stop_group_replication.inc
 RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 RESET BINARY LOGS AND GTIDS;

@@ -1,3 +1,3 @@
 --source include/no_valgrind_without_big.inc
---source include/not_mts_replica_parallel_workers.inc
---source extra/rpl_tests/rpl_split_statements_debug.test
+--source include/not_replica_parallel_workers.inc
+--source common/rpl/rpl_split_statements_debug.test

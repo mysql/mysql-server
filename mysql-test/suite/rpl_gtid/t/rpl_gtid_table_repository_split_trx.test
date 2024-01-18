@@ -23,7 +23,7 @@
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Create a table and insert some data
 CREATE TABLE t1 (c1 INT) ENGINE= InnoDB;
@@ -32,22 +32,22 @@ INSERT INTO t1 VALUES (1);
 ###
 ### Flush the relay log after the second GTID is received
 ###
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $rpl_after_received_events_action= flush
 --let $rpl_event_count= 2
 --let $rpl_count_only_event_type= Gtid
---source include/rpl_receive_event_count.inc
+--source include/rpl/receive_event_count.inc
 
 # Sync the receiver thread with the master
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # Now start the applier thread
---source include/start_slave_sql.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

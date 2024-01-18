@@ -1,12 +1,12 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1(c1 INTEGER) ENGINE= Innodb;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 [connection master]
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
@@ -31,42 +31,42 @@ START REPLICA IO_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5";
 Warnings:
 Note	1279	SQL thread is not to be started so UNTIL options are ignored
 Wait until IO Thread reads all master binlog and stop replica.
-include/wait_for_slave_param.inc [Retrieved_Gtid_Set]
-include/stop_slave_io.inc
+include/rpl/wait_for_replica_status.inc [Retrieved_Gtid_Set]
+include/rpl/stop_receiver.inc
 SQL thread must stop *before* INSERT 4
 START REPLICA SQL_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [Rows until 3 in t1 must be replicated now]
 SQL thread must stop *after* INSERT 5
 START REPLICA SQL_THREAD UNTIL SQL_AFTER_GTIDS= "MASTER_UUID:4-5";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [Rows until 5 in t1 must be replicated now]
 SQL thread must stop *before* INSERT 6
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:2-7";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [Rows until 5 in t1 must be replicated now]
 SQL thread must stop *after* INSERT 5
 1-5 are already applied so it will stop immediately
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS= "MASTER_UUID:1-5";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [Rows until 5 in t1 must be replicated now]
 SQL thread must stop *before* INSERT 10
 START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:10";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [Rows until 9 in t1 must be replicated now]
 SQL thread must stop *before* INSERT 3-6
 3-6 is already applied so it will stop immediately
 START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:3-6";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [Rows until 9 in t1 must be replicated now]
 SQL thread must stop *before* INSERT 9
 9 is already applied so it will stop immediately
 START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:9";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [Rows until 9 in t1 must be replicated now]
 Sync slave with master
-include/start_slave.inc
+include/rpl/start_replica.inc
 SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:10');
 include/assert.inc [Rows until 10 in t1 must be replicated now]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

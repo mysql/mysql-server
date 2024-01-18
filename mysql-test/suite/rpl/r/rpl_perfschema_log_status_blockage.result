@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,11 +13,11 @@ channels JSON NOT NULL,
 storage_engines JSON NOT NULL);
 CREATE TABLE t1_innodb (c1 INT);
 CREATE TABLE t2_myisam (c1 INT) ENGINE=MyISAM;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Adding debug point 'pause_collecting_instance_logs_info' to @@GLOBAL.debug
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 CALL mtr.add_suppression('Unsafe statement written to the binary log');
-include/save_master_pos.inc
+include/rpl/save_server_position.inc
 [connection slave1]
 FLUSH TABLES test.t2_myisam, performance_schema.threads WITH READ LOCK;
 [connection slave]
@@ -79,4 +79,4 @@ SET @@GLOBAL.replica_checkpoint_period= REPLICA_CHECKPOINT_PERIOD;
 RESET REPLICA ALL FOR CHANNEL 'ch2';
 [connection master]
 DROP TABLE ils_copy, t1_innodb, t2_myisam;
-include/rpl_end.inc
+include/rpl/deinit.inc

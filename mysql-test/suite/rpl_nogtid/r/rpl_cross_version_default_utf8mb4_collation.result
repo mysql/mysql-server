@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2, 2->3]
+include/rpl/init.inc [topology=1->2, 2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,16 +8,16 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server_2]
 RESET REPLICA;
 START REPLICA;
-include/wait_for_slave_param.inc [Replica_SQL_Running_State]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State]
 [connection server_3]
 RESET REPLICA;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection server_2]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
 [connection server_2]
 call mtr.add_suppression("Client requested source to start replication from position > file size");
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc

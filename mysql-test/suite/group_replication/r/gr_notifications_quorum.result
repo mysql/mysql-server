@@ -26,19 +26,19 @@ include/start_and_bootstrap_group_replication.inc
 include/start_group_replication.inc
 [connection server3]
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 TRUNCATE gms_listener_example;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_3]
 [connection server3]
 [connection server_3]
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/assert.inc [Assert that there are 1 notifications logged of type STATE %:3]
 include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:4]
 include/assert.inc [Assert that there are 2 notifications logged]
@@ -64,7 +64,7 @@ include/assert.inc [Assert that there are 2 notifications logged]
 ##########################################################
 [connection server_1]
 include/assert.inc [group_replication_force_members is correct]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/assert.inc [No more unreachable servers in the P_S table.]
 include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:5]
 include/assert.inc [Assert that there are 1 notifications logged]
@@ -98,5 +98,5 @@ include/start_group_replication.inc
 include/start_group_replication.inc
 [connection server1]
 DROP TABLE gms_listener_example;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

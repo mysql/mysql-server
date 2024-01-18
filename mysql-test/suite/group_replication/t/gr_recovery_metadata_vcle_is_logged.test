@@ -25,7 +25,7 @@
 --echo # 1. Bootstrap a GROUP on M1 with lower version
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
@@ -36,7 +36,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --echo # 2. Start GR on M2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Member version is read compatible with the group.");
@@ -49,19 +49,19 @@ SET SESSION sql_log_bin= 1;
 --echo # 3. Assert VCLE is logged.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $limit=
 --let $binlog_file= server-binary-log.000001
 --let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT	
 --let $event_sequence= $vcle_seq # $vcle_seq
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --echo ############################################################
 --echo # 4. Cleanup.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 

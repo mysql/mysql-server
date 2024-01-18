@@ -32,7 +32,7 @@
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
@@ -43,16 +43,16 @@
 --echo # 1. Create table t1 and sync on group
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo # 2. Start a transaction on the old primary (server1) and don't commit
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -61,13 +61,13 @@ INSERT INTO t1 VALUES (1);
 --echo # 3. Execute action that will block
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $member2_uuid MEMBER2_UUID
 --send_eval SELECT group_replication_set_as_primary("$member2_uuid")
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait for it to start the election process to make the test deterministic
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Switch: waiting for pending transactions to finish%"
@@ -78,7 +78,7 @@ INSERT INTO t1 VALUES (1);
 --echo #    on boot
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -88,13 +88,13 @@ INSERT INTO t1 VALUES (1);
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # 5. Wait for members be unreachable
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member1_uuid
@@ -111,7 +111,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 7. Reap with success action executed
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $member2_uuid MEMBER2_UUID
 --reap
@@ -125,7 +125,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 8. Rejoin to group server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -133,7 +133,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 9. Assert server2 is primary on the group
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
@@ -141,7 +141,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 10. Assert server1 is secondary on the group
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -149,7 +149,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 11. Cleanup
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

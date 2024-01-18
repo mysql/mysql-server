@@ -4,4 +4,4 @@
 -- source include/have_myisam.inc
 
 let $engine_type=MyISAM;
--- source extra/rpl_tests/rpl_sv_relay_space.test
+-- source common/rpl/rpl_sv_relay_space.test

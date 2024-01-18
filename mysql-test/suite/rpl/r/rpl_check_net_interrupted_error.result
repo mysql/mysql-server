@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 call mtr.add_suppression("Replica I/O .*: Source command COM_REGISTER_REPLICA failed: .*");
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 [connection master]
 CREATE TABLE t1 (c1 INT);
 DROP TABLE t1;
@@ -15,12 +15,12 @@ DROP TABLE t1;
 #
 # Adding debug point 'get_source_server_id.ER_NET_READ_INTERRUPTED' to @@GLOBAL.debug
 START REPLICA;
-include/wait_for_slave_io_to_start.inc
+include/rpl/wait_for_receiver_to_start.inc
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 include/assert_grep.inc [Make sure there is not the error "fatal error is encountered when it try to get the value of SERVER_ID variable from master" in slave's error log.]
 include/assert_grep.inc [Make sure there is the warning "Get master SERVER_ID failed with error" in slave's error log.]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Removing debug point 'get_source_server_id.ER_NET_READ_INTERRUPTED' from @@GLOBAL.debug
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

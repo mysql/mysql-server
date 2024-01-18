@@ -19,7 +19,7 @@
 
 --source include/not_group_replication_plugin.inc
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # BUG#40482 only manifested itself in debug-compiled binaries.
 source include/have_debug.inc;
@@ -35,24 +35,24 @@ call mtr.add_suppression('Replica SQL.*Relay log read failure: Could not parse r
 # incident number.
 
 --echo ==== Initialize ====
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $debug_point = dbug_disable_relay_log_truncation
 --source include/add_debug_point.inc
 RESET REPLICA;
 
 let $fake_relay_log= $MYSQL_TEST_DIR/std_data/bug40482-bin.000001;
-source include/setup_fake_relay_log.inc;
+source include/rpl/setup_fake_relay_log.inc;
 
 --echo ==== Test ====
 START REPLICA SQL_THREAD;
 let $slave_sql_errno= 13121; # ER_REPLICA_RELAY_LOG_READ_FAILURE
 let $show_slave_sql_error= 1;
-source include/wait_for_slave_sql_error.inc;
+source include/rpl/wait_for_applier_error.inc;
 
 --echo ==== Clean up ====
 --let $debug_point = dbug_disable_relay_log_truncation
 --source include/remove_debug_point.inc
-source include/cleanup_fake_relay_log.inc;
+source include/rpl/cleanup_fake_relay_log.inc;
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

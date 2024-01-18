@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # Setup
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,7 +20,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
 SHOW BINLOG EVENTS shall not fail on the un-encrypted binlog file
 SHOW BINLOG EVENTS IN 'PLAIN_MASTER_FILE';
 # Restarting the server with "--binlog_encryption=ON" and keyring
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 include/assert.inc [binlog_encryption option shall be ON]
 include/assert.inc [Binary log is encrypted using 1st master key]
 # Part 2 - binlog_encryption = ON
@@ -28,11 +28,11 @@ include/assert.inc [Binary log is encrypted using 1st master key]
 SHOW BINLOG EVENTS shall not fail on the encrypted binlog file
 SHOW BINLOG EVENTS IN 'ENCRYPTED_MASTER_FILE';
 # Restarting the server without "--binlog_encryption=ON"
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
@@ -44,6 +44,6 @@ DROP TABLE t1;
 # Removing local keyring file for keyring component: component_keyring_file
 # Removing local configuration file for keyring component: component_keyring_file
 # Removing local configuration file for keyring component: component_keyring_file
-include/rpl_end.inc
+include/rpl/deinit.inc
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------

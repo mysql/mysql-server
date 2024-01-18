@@ -23,7 +23,7 @@
 --source include/have_binlog_format_row.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
@@ -53,7 +53,7 @@ eval INSERT INTO t1 (c1, data) VALUES (1,
 --enable_query_log
 
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 INSERT INTO t1 (c1, data) VALUES (2, 'b');
 
@@ -61,14 +61,14 @@ INSERT INTO t1 (c1, data) VALUES (2, 'b');
 --echo # Verify that we can skip the incident event by setting
 --echo # --replica-skip-errors=1590 on slave.
 --echo #
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 --replace_result $old_max_binlog_stmt_cache_size ORIGINAL_VALUE
 --eval SET GLOBAL max_binlog_stmt_cache_size= $old_max_binlog_stmt_cache_size
 --replace_result $old_binlog_stmt_cache_size ORIGINAL_VALUE
 --eval SET GLOBAL binlog_stmt_cache_size= $old_binlog_stmt_cache_size
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

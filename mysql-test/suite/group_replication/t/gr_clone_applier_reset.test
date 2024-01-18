@@ -32,7 +32,7 @@
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -56,7 +56,7 @@ INSERT INTO t1 VALUES (2);
 --echo
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -95,7 +95,7 @@ START GROUP_REPLICATION;
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # 6. Confirm value of PRIVILEGE_CHECKS_USER is preserved pre and post GR start.

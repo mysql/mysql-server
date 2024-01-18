@@ -9,12 +9,12 @@
 --echo #
 --echo # Test written by Matthias Leich.
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --disable_abort_on_error
 --connection master
 ALTER DATABASE does_not_exist CHARACTER SET  utf8;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection master
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

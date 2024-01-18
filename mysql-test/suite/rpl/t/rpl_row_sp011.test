@@ -14,8 +14,8 @@ call mtr.add_suppression("option 'thread_stack':");
 
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 
 # Begin clean up test section
@@ -72,7 +72,7 @@ delimiter ;|
 CALL test.p1();
 
 #SELECT * FROM test.t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #SELECT * FROM test.t2;
 
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/sp011_master.sql
@@ -92,7 +92,7 @@ DROP PROCEDURE IF EXISTS test.p7;
 DROP TABLE IF EXISTS test.t1;
 --enable_warnings ER_BAD_TABLE_ERROR
 DROP TABLE IF EXISTS test.t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Lets compare. Note: If they match test will pass, if they do not match
 # the test will show that the diff statement failed and not reject file
@@ -107,4 +107,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/sp011_master.sql $MYSQLTEST_VARDIR/tmp/sp011_sl
 --remove_file $MYSQLTEST_VARDIR/tmp/sp011_slave.sql
 
 # End of 5.0 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

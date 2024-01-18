@@ -74,5 +74,5 @@ include/diff_tables.inc [server1:test.t1, server2:test.t1]
 # 8. Cleanup.
 [connection server1]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

@@ -22,7 +22,7 @@ include/start_group_replication.inc
 ############################################################
 # 3. Assert VCLE is logged.
 [connection server1]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT	 # Gtid # Query/BEGIN # View_change # Query/COMMIT	]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT	 # Gtid # Query/BEGIN # View_change # Query/COMMIT	]
 ############################################################
 # 4. Cleanup.
 [connection server1]

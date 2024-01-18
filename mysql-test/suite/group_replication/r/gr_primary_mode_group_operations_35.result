@@ -11,7 +11,7 @@ call mtr.add_suppression("The function 'group_replication_switch_to_single_prima
 set session sql_log_bin=1;
 [connection server2]
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 1. Get a transaction stuck on server 2 (the new primary)
 [connection server_2]

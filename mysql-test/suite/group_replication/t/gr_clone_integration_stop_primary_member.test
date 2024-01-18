@@ -40,7 +40,7 @@
 --echo # 1. Install clone plugin on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -59,7 +59,7 @@ INSERT INTO t1 VALUES (2);
 --echo #################################################################
 --echo # 3. Install the clone plugin and start GR on server3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server3_port = `SELECT @@port`
 --let $server3_ip_port= 127.0.0.1:$server3_port
 
@@ -73,7 +73,7 @@ INSERT INTO t1 VALUES (2);
 --echo # 4. Restart server 2 with a monitoring process (mysqld_safe) if needed
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds2= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -122,12 +122,12 @@ SET DEBUG_SYNC = 'now WAIT_FOR signal.gr_clone_thd_paused';
 --echo #    Check all states are correct
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
@@ -139,7 +139,7 @@ let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_gro
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
@@ -156,7 +156,7 @@ let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_gro
 --echo #    Check everything is fine after restart
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = 'now SIGNAL signal.gr_clone_thd_continue';
 SET @@GLOBAL.DEBUG = '-d,gr_clone_process_before_execution';
@@ -164,7 +164,7 @@ SET @@GLOBAL.DEBUG = '-d,gr_clone_process_before_execution';
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $group_replication_member_state=ONLINE
 --source include/gr_wait_for_member_state.inc
@@ -179,7 +179,7 @@ SET @@GLOBAL.DEBUG = '-d,gr_clone_process_before_execution';
 --echo #    Check data consistency
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -191,7 +191,7 @@ SET @@GLOBAL.DEBUG = '-d,gr_clone_process_before_execution';
 --echo ############################################################
 --echo # 10. Cleanup
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = 'RESET';
 

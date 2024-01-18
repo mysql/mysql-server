@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 
 [connection slave]
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 [connection master]
 CREATE DATABASE db;
@@ -15,49 +15,49 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 
 [connection slave]
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=SOURCE_PORT, SOURCE_HOST='localhost';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:db.t1, slave:db.t1]
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 [connection slave]
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=SOURCE_PORT, SOURCE_HOST='localhost';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:db.t1, slave:db.t1]
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 [connection slave]
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=SOURCE_PORT, SOURCE_HOST='localhost';
 ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 [connection slave]
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=SOURCE_PORT, SOURCE_HOST='localhost';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
-include/wait_for_slave_io_error.inc [errno=13117]
-include/rpl_restart_server.inc [server_number=2]
+include/rpl/wait_for_receiver_error.inc [errno=13117]
+include/rpl/restart_server.inc [server_number=2]
 
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
-include/rpl_end.inc
+include/rpl/deinit.inc

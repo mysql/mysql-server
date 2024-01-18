@@ -33,7 +33,7 @@ include/assert.inc [stage/group_rpl/Single-primary Switch: checking group pre-co
 [connection server_1]
 STOP GROUP_REPLICATION;
 [connection server_2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server1]
 SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';

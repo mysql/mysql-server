@@ -35,7 +35,7 @@ while ($_i)
 {
   # connect to the server
   --let $rpl_connection_name=server$_i
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   let $_has_no_errors= `SELECT count(*) FROM performance_schema.replication_group_members
          WHERE MEMBER_ID = @@server_uuid AND
@@ -66,7 +66,7 @@ while ($_i)
 }
 
 --let $rpl_connection_name=$_saved_current_connection
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $include_filename= group_replication_wait_until_role.inc
 --source include/end_include_file.inc

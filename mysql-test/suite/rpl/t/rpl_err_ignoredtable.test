@@ -7,7 +7,7 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --disable_query_log
 CALL mtr.add_suppression(
@@ -31,17 +31,17 @@ create table t4 (a int primary key);
 insert into t1 values (1),(1);
 # For debugging:
 # Expect to see "insert into t1 values (1),(1)" in the output of
-# --source include/show_binlog_events.inc
+# --source include/rpl/deprecated/show_binlog_events.inc
 insert into t4 values (1),(2);
 # as the t1 table is ignored on the slave, the slave should be able to sync
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # check that the table has been ignored, because otherwise the test is nonsense
 show tables like 't1';
 show tables like 't4';
 SELECT * FROM test.t4 ORDER BY a;
 --connection master
 drop table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Now test that even critical errors (connection killed) are ignored if the
 # rules allow it. The "kill" idea was copied from rpl000001.test.
@@ -76,7 +76,7 @@ let $wait_condition= SELECT count(*) = 0 FROM information_schema.processlist
 --source include/wait_condition_or_abort.inc
 # For debugging:
 # Expect to see "update t2 set a = a + if(a = 1, ........."
-# --source include/show_binlog_events.inc
+# --source include/rpl/deprecated/show_binlog_events.inc
 drop table t2;
 insert into t4 values (3),(4);
 --connection master
@@ -87,14 +87,14 @@ insert into t4 values (3),(4);
 reap;
 --enable_warnings
 --connection master1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM test.t4 ORDER BY a;
 
 --connection master1
 DROP TABLE test.t4;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # End of 4.1 tests
 # Adding comment for force manual merge 5.0 -> wl1012. delete me if needed
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

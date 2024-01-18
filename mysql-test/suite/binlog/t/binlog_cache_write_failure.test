@@ -48,7 +48,7 @@ connect(con1,localhost,root,,);
 --echo
 --echo # Case 1 Simulate my_b_flush_io_cache failure when truncating binlog
 --echo #        cache. ROLLBACK TO triggers binlog cache truncation process.
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 BEGIN;
 INSERT INTO t1 VALUES (repeat('a', 2048));
@@ -69,7 +69,7 @@ COMMIT;
 
 # The transaction should be binlogged correctly
 --let $binlog_start= $binlog_position
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo
 --echo # Case 2 Simulate my_b_flush_io_cache failure when reseting binlog cache
@@ -99,7 +99,7 @@ SET SESSION debug = "+d,simulate_error_during_flush_cache_to_file";
 --echo #
 --connect(con1,localhost,root,,)
 TRUNCATE t1;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 BEGIN;
@@ -128,7 +128,7 @@ SET SESSION debug = "-d,fault_injection_reinit_io_cache_while_flushing_to_file";
 
 # Nothing should be logged
 --let $binlog_start= $binlog_position
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo
 --echo # Case 5 Simulate write failure when reinitializing binlog cache for
@@ -140,7 +140,7 @@ SET GLOBAL binlog_cache_size = 4096;
 
 select @@global.binlog_cache_size;
 TRUNCATE t2;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 BEGIN;
@@ -165,7 +165,7 @@ select * from t2;
 
 # Nothing should be logged
 --let $binlog_start= $binlog_position
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # Cleanup
 --disconnect con1

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -27,7 +27,7 @@ test	not_replicated	col1	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "
 test	replicated	col1	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
 # Sync slave with master, and verify that we only have column statistics
 # for table 'replicated' on the slave
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
@@ -43,4 +43,4 @@ ANALYZE TABLE foo UPDATE HISTOGRAM ON meh WITH 10 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.foo	histogram	Error	The column 'meh' does not exist.
 DROP TABLE foo;
-include/rpl_end.inc
+include/rpl/deinit.inc

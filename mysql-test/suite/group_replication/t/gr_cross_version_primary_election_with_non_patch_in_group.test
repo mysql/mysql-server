@@ -46,7 +46,7 @@ SET @@GLOBAL.DEBUG= 'd,group_replication_legacy_election_version2';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 SET SESSION sql_log_bin=0;
@@ -55,7 +55,7 @@ SET SESSION sql_log_bin=1;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 SET @debug3_save= @@GLOBAL.DEBUG;
@@ -68,7 +68,7 @@ SET SESSION sql_log_bin=1;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server4_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 SET @debug4_save= @@GLOBAL.DEBUG;
@@ -95,7 +95,7 @@ SET SESSION sql_log_bin=1;
 #  M4    - ON    - 9.0.17  - 90     - S
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid MEMBER_UUID
 --eval SELECT group_replication_set_as_primary("$server2_uuid");
@@ -130,17 +130,17 @@ SET SESSION sql_log_bin=1;
 --source include/gr_assert_spm_consistency.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.group_replication_member_weight = @member_weight3_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_next_primary_uuid= query_get_value("SELECT Member_id FROM performance_schema.replication_group_members WHERE Member_id <> '$server4_uuid' ORDER BY Member_id ASC LIMIT 1", Member_id, 1)
 --let $_primary_member_of_group= $_next_primary_uuid
@@ -158,7 +158,7 @@ SET @@GLOBAL.group_replication_member_weight = @member_weight3_save;
 #  M4    - ON    - 9.0.17  - 90     - S
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_result_log
 --replace_result $server1_uuid MEMBER_UUID
@@ -175,7 +175,7 @@ SET @@GLOBAL.group_replication_member_weight = @member_weight3_save;
 --echo
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Server - State - Version - Weight - P/S
 #  M1    - OFF   - 8.0.15  - 50     - S
@@ -188,13 +188,13 @@ SET @@GLOBAL.group_replication_member_weight = @member_weight4_save;
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= @debug3_save;
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= @debug1_save;
 

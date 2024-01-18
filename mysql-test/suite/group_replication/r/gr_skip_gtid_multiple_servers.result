@@ -5,11 +5,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 [connection server1]
 include/assert.inc [GTID_EXECUTED must contain 0 transactions, view change events are not logged.]
@@ -17,24 +17,24 @@ include/assert.inc [GTID_EXECUTED must contain 0 transactions, view change event
 SET GTID_NEXT= "32e15fec-01d2-11e6-a992-02420ef39c5b:3";
 CREATE TABLE t1 (i INT PRIMARY KEY);
 SET GTID_NEXT='AUTOMATIC';
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [GTID_EXECUTED must contain one transactions, 0 from view change and other being the create.]
 [connection server2]
 INSERT INTO t1 VALUES(1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [GTID_EXECUTED must contain two transactions, 0 from view change, 1 create and 1 insert.]
-include/assert_binlog_events.inc [Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit]
+include/rpl/assert_binlog_events.inc [Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit]
 [connection server1]
-include/assert_binlog_events.inc [Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit]
+include/rpl/assert_binlog_events.inc [Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit]
 [connection server1]
 include/assert.inc [GTID_EXECUTED must contain two transactions, 0 from view change, 1 create and 1 insert.]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 DROP TABLE t1;
 include/group_replication_end.inc

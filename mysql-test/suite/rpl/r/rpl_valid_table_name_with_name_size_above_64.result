@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ INSERT INTO 试测试测试测试测试测试测试测试测试测试测试测�
 CREATE TABLE test.测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试 (c1 INT);
 INSERT INTO test.测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试 VALUES(1);
 SHOW BINLOG EVENTS;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 2. Check the data was replicated
 include/assert.inc [The table with a big database name has 1 line]
@@ -23,4 +23,4 @@ include/assert.inc [The table with a big name has 1 line]
 DROP TABLE 试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测.t1;
 DROP DATABASE 试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测;
 DROP TABLE test.测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试;
-include/rpl_end.inc
+include/rpl/deinit.inc

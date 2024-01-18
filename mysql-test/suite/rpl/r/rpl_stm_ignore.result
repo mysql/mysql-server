@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,22 +7,22 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 CREATE DATABASE db_a;
 CREATE DATABASE db_b;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 FLUSH LOCAL RELAY LOGS;
 [connection master]
 USE db_b;
 CREATE VIEW view_b AS SELECT NULL;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 CREATE VIEW view_b AS SELECT NULL;
 ERROR 42S01: Table 'view_b' already exists
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	CREATE DATABASE db_a
 master-bin.000001	#	Query	#	#	CREATE DATABASE db_b
 master-bin.000001	#	Query	#	#	use `db_b`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_b` AS SELECT NULL
-include/sync_slave_sql_with_master.inc
-include/show_relaylog_events.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
 slave-relay-bin.000003	#	Query	#	#	use `db_b`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_b` AS SELECT NULL
@@ -31,13 +31,13 @@ ERROR 42S02: Table 'test.view_b' doesn't exist
 [connection master]
 DROP DATABASE db_a;
 DROP DATABASE db_b;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 "Test case2"
 [connection master]
 CREATE DATABASE db_a;
 CREATE DATABASE db_b;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 USE db_b;
 CREATE TABLE t2 (f INT PRIMARY KEY) ENGINE=MYISAM;
@@ -45,13 +45,13 @@ INSERT INTO t2 VALUES (1);
 INSERT INTO t2 VALUES (2);
 INSERT INTO t2 VALUES (3);
 INSERT INTO t2 VALUES (5);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 UPDATE t2 SET f=f+2 WHERE f>=2;
 ERROR 23000: Duplicate entry '5' for key 't2.PRIMARY'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 DROP DATABASE db_a;
 DROP DATABASE db_b;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

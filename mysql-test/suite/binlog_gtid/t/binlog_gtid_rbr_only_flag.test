@@ -86,7 +86,7 @@ SET @@SESSION.binlog_rows_query_log_events = OFF;
 --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 #                       1   2  3   4  5  6  7  8  9  10  11  12
 --let $rbr_only_flags= no,yes,no,yes,no,no,no,no,no,yes,yes,yes
---source include/assert_rbr_only_flags.inc
+--source include/rpl/assert_rbr_only_flags.inc
 
 # Cleanup
 DROP TABLE t1, t2, log;

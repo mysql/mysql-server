@@ -5,7 +5,7 @@
 
 # Skipping the test when log-bin is enabled and binlog_format due to unsafe statement:
 # LIMIT clause.
---source include/not_binlog_format_statement.inc
+--source include/rpl/deprecated/not_binlog_format_statement.inc
 --source include/have_innodb_min_8k.inc
 
 --source include/no_valgrind_without_big.inc

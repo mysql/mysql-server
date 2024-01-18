@@ -7,8 +7,8 @@ UPDATE t SET j = '1' WHERE i = 1;
 DELETE FROM t;
 DROP TABLE t;
 ==== Check output from mysqlbinlog ====
-include/save_binlog_position.inc
-include/mysqlbinlog.inc
+include/rpl/save_binlog_file_position.inc
+include/rpl/mysqlbinlog.inc
 ### INSERT INTO `test`.`t`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */

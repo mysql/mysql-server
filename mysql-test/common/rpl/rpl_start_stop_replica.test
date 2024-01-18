@@ -1,0 +1,216 @@
+#
+# Bug#6148 ()
+#
+# Let the master do lots of insertions
+--source include/have_myisam.inc
+
+if (0) { # to be fixed in other bug
+connection master;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+connection slave;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+connection master;
+create table t1(n int);
+sync_slave_with_master;
+STOP REPLICA;
+--source include/rpl/wait_for_replica_to_stop.inc
+connection master;
+let $1=2500;
+disable_query_log;
+while ($1)
+{
+ eval insert into t1 values($1);
+ dec $1;
+}
+enable_query_log;
+save_master_pos;
+
+connection slave;
+START REPLICA;
+let $wait_condition= SELECT COUNT(*) > 0 FROM t1;
+source include/wait_condition_or_abort.inc;
+STOP REPLICA io_thread;
+START REPLICA io_thread;
+source include/rpl/wait_for_replica_to_start.inc;
+sync_with_master;
+
+connection master;
+drop table t1;
+sync_slave_with_master;
+}# if(0)
+
+#
+# Bug#38205 Row-based Replication (RBR) causes inconsistencies...
+# Bug#319   if while a non-transactional slave is replicating a transaction...
+#
+# Verifying that STOP REPLICA does not interrupt excution of a group
+# execution of events if the group can not roll back.
+# Killing the sql thread continues to provide a "hard" stop (the
+# part II, moved to the bugs suite as it's hard to make it
+# deterministic with KILL).
+#
+
+#
+# Part I. The being stopped sql thread finishes first the current group of 
+#         events if the group contains an event on a non-transaction table.
+
+connection master;
+create table t1i(n int primary key) engine=innodb;
+create table t2m(n int primary key) engine=myisam;
+begin;
+insert into t1i values (1);
+insert into t1i values (2);
+insert into t1i values (3);
+commit;
+
+sync_slave_with_master;
+connection slave;
+begin;
+insert into t1i values (5);
+
+connection master;
+let $pos0_master= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
+begin;
+insert into t1i values (4);
+insert into t2m values (1); # non-ta update to process
+insert into t1i values (5); # to block at. to be played with stopped
+commit;
+
+connection slave;
+# slave sql thread must be locked out by the conn `slave' explicit lock
+let $pos0_slave= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1);
+--disable_query_log
+eval select $pos0_master - $pos0_slave as zero;
+--enable_query_log
+
+connection slave1;
+let $count= 1;
+let $table= t2m;
+source include/wait_until_rows_count.inc;
+send STOP REPLICA;
+
+connection slave;
+rollback; # release the sql thread
+
+connection slave1;
+reap;
+source include/rpl/wait_for_replica_to_stop.inc;
+let $sql_status= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1);
+--echo *** sql thread is *not* running: $sql_status ***
+
+
+connection master;
+let $pos1_master= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
+
+connection slave;
+
+let $pos1_slave= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1);
+
+--echo *** the prove: the stopped slave has finished the current transaction ***
+
+--disable_query_log
+select count(*) as five from t1i;
+eval select $pos1_master - $pos1_slave as zero;
+eval select $pos1_slave > $pos0_slave as one;
+--enable_query_log
+
+source include/rpl/start_replica.inc;
+
+# clean-up
+connection master;
+drop table t1i, t2m;
+
+sync_slave_with_master;
+
+--echo #
+--echo # Bug#56096 STOP SLAVE hangs if executed in parallel with user sleep
+--echo #
+
+--connection master
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT );
+
+sync_slave_with_master;
+
+--connection slave1
+--echo # Slave1: lock table for synchronization
+LOCK TABLES t1 WRITE;
+
+--connection master
+--echo # Master: insert into the table
+INSERT INTO t1 SELECT SLEEP(4);
+
+--connection slave
+--echo # Slave: wait for the insert
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE STATE = "Waiting for table metadata lock"
+  AND INFO = "INSERT INTO t1 SELECT SLEEP(4)";
+--source include/wait_condition_or_abort.inc
+
+--echo # Slave: send slave stop
+--send STOP REPLICA
+
+--connection slave1
+--echo # Slave1: wait for stop replica
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE INFO = "STOP REPLICA";
+--source include/wait_condition_or_abort.inc
+
+--echo # Slave1: unlock the table
+UNLOCK TABLES;
+
+--connection slave
+--echo # Slave: wait for the slave to stop
+--reap
+--source include/rpl/wait_for_replica_to_stop.inc
+
+--echo # Start replica again
+--source include/rpl/start_replica.inc
+
+--echo # Clean up
+--connection master
+DROP TABLE t1;
+sync_slave_with_master;
+
+#
+# bug#3593869-64035 attempt to read a member of event_coordinates
+# referenced by NULL pointer crashes server.
+# Testing how out of valid range position value is handled with an error.
+#
+
+--connection master
+RESET BINARY LOGS AND GTIDS;
+let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
+let $master_pos= `SELECT $master_pos + 1`;
+
+--connection slave
+--source include/rpl/stop_replica.inc
+--replace_regex /[0-9]+/MASTER_POS/
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$master_pos;
+
+START REPLICA;
+# ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG 13114
+--let $slave_param=Last_IO_Errno
+--let $slave_param_value=13114
+--source include/rpl/wait_for_replica_status.inc
+
+--let $slave_field_result_replace= / at [0-9]*/ at XXX/
+--let $status_items= Last_IO_Errno, Last_IO_Error
+--source include/rpl/deprecated/show_replica_status.inc
+
+--let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
+--source include/rpl/stop_replica.inc
+RESET REPLICA;
+
+--connection master
+RESET BINARY LOGS AND GTIDS;
+
+# Slave is stopped by bug#3593869-64035 tests.

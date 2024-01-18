@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,9 +6,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 DROP TABLE IF EXISTS t1;
 **** Testing WL#3228 changes. ****
 *** Create "wider" table on slave ***
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 STOP REPLICA;
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 SET @saved_replica_type_conversions = @@replica_type_conversions;
@@ -63,7 +63,7 @@ Warning	1681	Specifying number of digits for floating point data types is deprec
 RESET BINARY LOGS AND GTIDS;
 *** Start replication ***
 START REPLICA;
-include/wait_for_slave_to_start.inc
+include/rpl/wait_for_replica_to_start.inc
 *** Insert data on master and display it. ***
 INSERT INTO t1 () VALUES (
 17.567, 
@@ -89,7 +89,7 @@ SELECT * FROM t1 ORDER BY a;
 a	b	c	d	e	f	g	h	j	k	l	m	n	o	p	q	r	s	t
 17.567	2.123	10.20	125	#	TEST	This is a test	#	more binary data	6	7	blob 1	blob  2	blob   3	blob    4	text 1	text  2	text   3	text    4
 *** Select data from slave to compare ***
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY a;
 a	b	c	d	e	f	g	h	j	k	l	m	n	o	p	q	r	s	t
 17.567	2.123000000	10.200000000000000000000000000000	125	#	TEST	This is a test	#	more binary data	6	7	blob 1	blob  2	blob   3	blob    4	text 1	text  2	text   3	text    4
@@ -101,7 +101,7 @@ b VARCHAR(100),
 c VARCHAR(300),
 d CHAR(5)
 );
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 Alter varchar table on slave
 ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(100);
 ALTER TABLE t1 CHANGE COLUMN b b VARCHAR(400);
@@ -123,7 +123,7 @@ t1	CREATE TABLE `t1` (
   `c` varchar(300) DEFAULT NULL,
   `d` char(5) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 Insert some values and select them on slave
 SELECT * FROM t1;
 a	b	c	d
@@ -146,7 +146,7 @@ d BIT(11),
 e BIT(11)
 );
 Create bit table on slave
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE t1;
 CREATE TABLE t1 (
 a BIT(16),
@@ -175,7 +175,7 @@ t1	CREATE TABLE `t1` (
   `d` bit(11) DEFAULT NULL,
   `e` bit(11) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 Insert some values and select them on master
 SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
 BIN(a)	BIN(b)	BIN(c)	BIN(d)	BIN(e)
@@ -201,10 +201,10 @@ b'101010110101010101111',
 b'10101010101',
 b'10101011111'
   );
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 *** Cleanup  ***
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -25,7 +25,7 @@
 --echo ############################################################
 --echo # 1. Start one member with GCS SSL enabled.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
 --source include/start_and_bootstrap_group_replication.inc
@@ -45,7 +45,7 @@ SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
 --echo #    join the group, since the certificate does contain the
 --echo #    hostname 'localhost' and the hostname is '127.0.0.1'.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 
 --disable_query_log
@@ -82,11 +82,11 @@ if(!$have_mysql_stack) {
 --echo ############################################################
 --echo # 3. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 
 --source include/group_replication_end.inc

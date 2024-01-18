@@ -4,7 +4,7 @@
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 --source include/have_binlog_format_mixed.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #==============================================================
 # Execute a variety of dml and ddl statements on the master.
@@ -334,4 +334,4 @@ sync_slave_with_master;
 
 --enable_warnings
 --enable_query_log
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

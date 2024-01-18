@@ -19,13 +19,13 @@
 --echo #.
 --let $rpl_multi_source= 1
 --let $rpl_topology= 1->2,3->2
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 # Multisource replication is already setup.
 
 # On slave
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo #
 --echo #  1. Test ER_REPLICA_MULTIPLE_CHANNELS_CMD
 --echo #
@@ -110,4 +110,4 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL
 # End MSR setup.
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

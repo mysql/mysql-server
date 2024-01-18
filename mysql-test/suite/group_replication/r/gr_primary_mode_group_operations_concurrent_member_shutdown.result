@@ -18,7 +18,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 # Do it in a way that connections are killed before the plugin stop.
 # Wait for the server to be back again
 [connection server2]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 4. Check the action completed correctly
 [connection server1]

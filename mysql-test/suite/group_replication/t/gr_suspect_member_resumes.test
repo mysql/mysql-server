@@ -40,17 +40,17 @@
 --echo # 1. Set group_replication_member_expel_timeout to
 --echo #    300 seconds.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 300;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 300;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 300;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
@@ -60,10 +60,10 @@ SELECT @@GLOBAL.group_replication_member_expel_timeout;
 --echo # 2. Create a table and insert some data. Check that
 --echo #    it is replicated to all servers.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -73,7 +73,7 @@ INSERT INTO t1 VALUES (1);
 --echo #    GCS messages and it will eventually be considered
 --echo #    faulty.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Get server 3 pid.
 SET SESSION sql_log_bin= 0;
@@ -95,14 +95,14 @@ SET SESSION sql_log_bin= 1;
 --echo #    servers 1 and 2, which should both be ONLINE.
 --echo #    Server 3 should still be in the group but UNREACHABLE.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
@@ -118,7 +118,7 @@ let $wait_condition=SELECT COUNT(*)=2 FROM t1;
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM t1;
 --source include/wait_condition.inc
 
@@ -128,22 +128,22 @@ let $wait_condition=SELECT COUNT(*)=2 FROM t1;
 --echo # 6. Resume server 3 by sending a signal SIGCONT to it.
 --echo #    Server should change to ONLINE state.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo # Send signal SIGCONT to server 3.
 --exec kill -18 $server_pid
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 
@@ -154,11 +154,11 @@ let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_
 --echo #    it was suspended. Then, insert new data into table t1
 --echo #    which should be replicated to servers 1 and 2.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM t1;
 --source include/wait_condition.inc
 INSERT INTO t1 VALUES (3);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $diff_tables=server1:t1, server2:t1, server3:t1
 --source include/diff_tables.inc
 

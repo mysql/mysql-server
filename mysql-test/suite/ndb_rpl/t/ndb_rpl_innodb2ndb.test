@@ -9,7 +9,7 @@
 ##############################################################
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
--- source suite/ndb_rpl/ndb_master-slave.inc
+-- source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 SET default_storage_engine=innodb;
 --source suite/ndb_rpl/t/ndb_rpl_2multi_eng.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

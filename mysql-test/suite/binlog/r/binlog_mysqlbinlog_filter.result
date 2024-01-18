@@ -6,7 +6,7 @@ SET autocommit= 0;
 INSERT INTO foo (i, j) VALUES (Rand(), @2);
 COMMIT;
 DROP TABLE foo;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.' COLLATE 'utf8mb4_0900_ai_ci'))

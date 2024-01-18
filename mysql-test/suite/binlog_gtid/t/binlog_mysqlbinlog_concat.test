@@ -33,11 +33,11 @@
 #################################################################
 --source include/have_binlog_format_row.inc
 
-# Use this so that we can use rpl_restart_server.inc later.
+# Use this so that we can use rpl/restart_server.inc later.
 --let $rpl_server_count= 1
 --let $rpl_topology= none
---source include/rpl_init.inc
---source include/rpl_default_connections.inc
+--source include/rpl/init.inc
+--source include/rpl/default_connections.inc
 
 
 #Initial setup
@@ -52,7 +52,7 @@ INSERT INTO t1 values (1);
 # Step 2: Restart server with gtid-mode off (binlog will be rotated)
 --let $rpl_server_number= 1
 --let $rpl_server_parameters= --gtid-mode=off
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --let $binlog_file2= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Step 3: Dummy statements to generate anonymous transactions
@@ -63,7 +63,7 @@ INSERT INTO t2 values (2);
 # Step 4: Restart server with gtid-mode ON (binlog will be rotated)
 --let $rpl_server_number= 1
 --let $rpl_server_parameters= --gtid-mode=on
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --let $binlog_file3= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Step 5 : Dummy statements to generate gtid transactions (gtid-mode is ON)

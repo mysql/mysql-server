@@ -43,7 +43,7 @@ include/start_group_replication.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.reached_recovery_metadata_send";
 SET @@GLOBAL.DEBUG='-d,gr_wait_before_sending_metadata';
 SET DEBUG_SYNC= "now SIGNAL signal.send_the_recovery_metadata";
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 SET @@GLOBAL.DEBUG='-d,gr_crash_before_recovery_metadata_send';
 
 ############################################################

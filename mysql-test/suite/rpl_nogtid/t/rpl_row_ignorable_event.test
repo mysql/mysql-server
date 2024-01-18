@@ -19,7 +19,7 @@ source include/have_binlog_format_row.inc;
 #while the dump thread is running, may cause sporadic races between user and
 #dump threads. BUG#12765441
 --let $rpl_skip_start_slave= 1
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 source include/have_debug.inc;
 source include/force_myisam_default.inc;
 source include/have_myisam.inc;
@@ -79,7 +79,7 @@ drop table t3, t6;
 drop table t4, t5;
 
 --echo # SHOW BINLOG EVENTS ON MASTER before '--exec MYSQL_BINLOG'
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 FLUSH LOGS;
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -91,7 +91,7 @@ RESET BINARY LOGS AND GTIDS;
 --echo # MYSQL_BINLOG output based on a saved copy of master-bin.000001
 
 --let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $binlog_uuid_filename
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --echo # Test the Rows_query log event can be applied
 --exec $MYSQL_BINLOG -v -v --stop-position=$end_pos $binlog_uuid_filename | $MYSQL test 2>&1
@@ -99,7 +99,7 @@ RESET BINARY LOGS AND GTIDS;
 --remove_file $binlog_uuid_filename
 
 --echo # SHOW BINLOG EVENTS ON MASTER after '--exec MYSQL_BINLOG'
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 connect (master2,localhost,root,,);
 connection master2;
@@ -118,15 +118,15 @@ set @@session.binlog_rows_query_log_events= on;
 --echo # functions when setting binlog_rows_query_log_events= on
 insert into t7(a) values(UUID_SHORT());
 drop table t7;
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $binlog_start= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
 --echo # Test The Rows_query log event can be relayed.
 --echo # SHOW BINLOG EVENTS ON SLAVE
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

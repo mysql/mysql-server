@@ -8,8 +8,8 @@
 
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 -- disable_query_log
 -- disable_result_log
@@ -53,7 +53,7 @@ END//
 delimiter ;//
 
 # Make sure that all definition have propagated to the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 -- disable_query_log
@@ -77,7 +77,7 @@ while ($1)
 connection master;
 let $count = `select count(*) from t1`;
 eval INSERT INTO test.t1 VALUES ($count+1, NOW());
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #show binlog events; 
 #select * from test.t2;
@@ -103,7 +103,7 @@ DROP TRIGGER test.t3_bi_t2;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP TABLE test.t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Lets compare. Note: If they match test will pass, if they do not match
 # the test will show that the diff statement failed and not reject file
@@ -119,4 +119,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/trig001_master.sql $MYSQLTEST_VARDIR/tmp/trig00
 --enable_warnings
 
 # End of 5.0 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

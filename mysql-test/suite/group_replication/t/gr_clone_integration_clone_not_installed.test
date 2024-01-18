@@ -22,7 +22,7 @@
 --echo # 1. Start group replication on server1 and add some data
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -30,7 +30,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ###############################################################
@@ -39,7 +39,7 @@ INSERT INTO t1 VALUES (2);
 --echo #    is not installed in the joiner
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
 SET GLOBAL group_replication_clone_threshold= 1;
@@ -62,12 +62,12 @@ SET GLOBAL group_replication_clone_threshold= 1;
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (3);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -89,7 +89,7 @@ INSERT INTO t1 VALUES (3);
 
 DROP TABLE t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 UNINSTALL PLUGIN clone;
 

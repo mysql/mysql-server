@@ -19,13 +19,13 @@
 --source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/force_restart.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set sql_log_bin=0;
 call mtr.add_suppression("Error in Log_event::read_log_event()");
@@ -57,7 +57,7 @@ delimiter ;$$
 --echo
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait until some data is entered into table t1 to ensure that the server1
 # will get killed while there are dml operations running on it
@@ -73,19 +73,19 @@ delimiter ;$$
 --echo # restarting
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
 --error 2006,2013
 --reap
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
-# Needed as we are not using rpl_restart_server.inc
+--source include/connection.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait until group has only 2 members, that is, server1 death is detected by
 # the group.
@@ -94,22 +94,22 @@ delimiter ;$$
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 # START GR on server1
 --source include/start_group_replication.inc
 
 # Sync all the servers.
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Verify that all the tables have same data.
 --let $diff_tables=server_1:t1, server2:t1, server3:t1
 --source include/diff_tables.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 drop table t1;
 drop procedure dml_operations;
 

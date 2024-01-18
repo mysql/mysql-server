@@ -93,7 +93,7 @@ not_log_bin.inc
 # 4.3 Tests are run only on Dev builds compiled with -DWITH_DEBUG=1 option
 # Additional references for more details:
 # https://dev.mysql.com/doc/internals/en/cmake-build-types.html
-mysqlbinlog_have_debug.inc
+have_mysqlbinlog_debug.inc
 have_innochecksum_debug.inc
 have_udf.inc
 have_mecab.inc
@@ -203,11 +203,11 @@ not_group_replication_plugin.inc
 # 14.1 Some rpl tests can run only with MTS_LC, MTS_DB and Non MTS
 have_replica_parallel_type_logical_clock.inc
 have_replica_parallel_type_database.inc
-only_mts_replica_parallel_workers.inc
-only_mts_replica_parallel_type_logical_clock.inc
-only_mts_replica_parallel_type_database.inc
-not_mts_replica_parallel_workers.inc
-only_replica_preserve_commit_order.inc
+have_replica_parallel_workers.inc
+have_replica_parallel_type_logical_clock.inc
+have_replica_parallel_type_database.inc
+not_replica_parallel_workers.inc
+have_replica_preserve_commit_order.inc
 # 14.2 rpl misc files
 have_default_replica_transaction_retries.inc
 

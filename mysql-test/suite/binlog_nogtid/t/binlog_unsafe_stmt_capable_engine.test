@@ -245,7 +245,7 @@ while ($unsafe_type < 7) {
     --let $CRC_ARG_sel_sidef= $sel_sidef_0
     --let $CRC_ARG_sel_retval= $sel_retval_0
     --let $CRC_ARG_desc= $desc_0
-    --source extra/rpl_tests/create_recursive_construct_stmt_capable_engine.inc
+    --source common/rpl/create_recursive_construct_stmt_capable_engine.inc
     --let $stmt_sidef_1= $CRC_RET_stmt_sidef
     --let $value_1= $CRC_RET_value
     --let $sel_sidef_1= $CRC_RET_sel_sidef
@@ -276,7 +276,7 @@ while ($unsafe_type < 7) {
         --let $CRC_ARG_sel_sidef= $sel_sidef_1
         --let $CRC_ARG_sel_retval= $sel_retval_1
         --let $CRC_ARG_desc= $desc_1
-        --source extra/rpl_tests/create_recursive_construct_stmt_capable_engine.inc
+        --source common/rpl/create_recursive_construct_stmt_capable_engine.inc
         --let $stmt_sidef_2= $CRC_RET_stmt_sidef
         --let $value_2= $CRC_RET_value
         --let $sel_sidef_2= $CRC_RET_sel_sidef

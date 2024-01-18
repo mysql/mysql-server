@@ -37,7 +37,7 @@
 --echo # 1. Install clone plugin on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -57,7 +57,7 @@ INSERT INTO t1 VALUES (2);
 --echo # 3. Install the clone plugin and start group replication on server3.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server3_port = `SELECT @@port`
 --let $server3_ip_port= 127.0.0.1:$server3_port
@@ -72,7 +72,7 @@ INSERT INTO t1 VALUES (2);
 --echo # 4.  Restart server 2 with a monitoring process (mysqld_safe) if needed
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds2= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -135,7 +135,7 @@ if ($donor_ip_port == $server3_ip_port) {
 --echo # 8. Unblock clone.
 --echo #    Check process finished and server2 is online
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = 'now SIGNAL gr_clone_continue';
 SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
@@ -145,7 +145,7 @@ SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
 --let $disconnect_timeout=
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $group_replication_member_state=ONLINE
 --source include/gr_wait_for_member_state.inc
@@ -169,7 +169,7 @@ if ($donor_ip_port == $server3_ip_port) {
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.$server_to_kill.expect
 --source include/wait_until_connected_again.inc
 --let $rpl_server_number= $server_to_kill
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # See if the data has been properly cloned in server2
 --let $diff_tables=server1:test.t1, server2:test.t1, server3:test.t1
@@ -179,7 +179,7 @@ if ($donor_ip_port == $server3_ip_port) {
 --echo ############################################################
 --echo # 10. Cleanup
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = 'RESET';
 

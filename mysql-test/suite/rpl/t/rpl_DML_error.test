@@ -1,7 +1,7 @@
 --source include/not_group_replication_plugin.inc
 source include/force_myisam_default.inc;
 source include/have_myisam.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 --echo # Verify the statements can be binlogged correctly when error happens
 --echo # ------------------------------------------------------------------
@@ -15,13 +15,13 @@ INSERT INTO t2 VALUES(1);
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --error 1062
 INSERT INTO t1 VALUES(1),(2);
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 --echo
 --echo # A row is inserted.
 --error 1062
 INSERT INTO t1 VALUES(2),(1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 let $diff_tables= master:test.t1, slave:test.t1;
 source include/diff_tables.inc;
 
@@ -31,13 +31,13 @@ connection master;
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --error 1062
 INSERT INTO t1 SELECT 1 UNION SELECT 2;
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 --echo
 --echo # A row is inserted.
 --error 1062
 INSERT INTO t1 SELECT 3 UNION SELECT 2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 source include/diff_tables.inc;
 
 
@@ -47,7 +47,7 @@ connection master;
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --error 1062
 UPDATE t1 SET c1=4;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 source include/diff_tables.inc;
 
 --echo # Nothing is updated.
@@ -55,14 +55,14 @@ connection master;
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --error 1062
 UPDATE t1 SET c1=4;
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 --echo
 --echo # A row is updated.
 connection master;
 --error 1062
 UPDATE t1, t2 SET t1.c1= 5, t2.c1=5;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 source include/diff_tables.inc;
 
 --echo
@@ -71,7 +71,7 @@ connection master;
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --error 1062
 UPDATE t1, t2 SET t1.c1= 5, t2.c1=5;
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 DROP TABLE t1, t2;
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

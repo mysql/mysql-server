@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression('.*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*');
 SET SESSION sql_log_bin= 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 FLUSH LOGS;
@@ -26,7 +26,7 @@ insert into t1(f1) values
 (cast('[3,3,4,4,7]' as json)), (cast(4 as json)),
 (cast(7 as json)), (cast('[8,4,3,5]' as json)), (cast('[9,2,7]' as json)),
 ('[98,99]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
 analyze table t1;
@@ -79,7 +79,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array),json'[100]')
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
@@ -95,21 +95,21 @@ DROP TABLE t1;
 SET @start_row_image_value = @@session.binlog_row_image;
 SET @@session.binlog_row_image = MINIMAL;
 FLUSH LOGS;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, data JSON NOT NULL,
 KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
 UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
 INSERT INTO t1(data) VALUES ('[33,44]');
 INSERT INTO t1(data) VALUES ('[0,99]');
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;1 5]
-include/sync_slave_sql_with_master.inc
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;1 5]
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
 FLUSH LOGS;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, id INT DEFAULT 0,
 data JSON NOT NULL,
 UNIQUE KEY zips(id, (CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
@@ -117,14 +117,14 @@ INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
 UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
 INSERT INTO t1(data) VALUES ('[33,44]');
 INSERT INTO t1(data) VALUES ('[0,99]');
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
-include/sync_slave_sql_with_master.inc
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
 FLUSH LOGS;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, id INT DEFAULT 0,
 data JSON NOT NULL,
 UNIQUE KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY)), id));
@@ -132,28 +132,28 @@ INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
 UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
 INSERT INTO t1(data) VALUES ('[33,44]');
 INSERT INTO t1(data) VALUES ('[0,99]');
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
-include/sync_slave_sql_with_master.inc
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
 FLUSH LOGS;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, data JSON NOT NULL,
 UNIQUE KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
 UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
 INSERT INTO t1(data) VALUES ('[]');
 INSERT INTO t1(data) VALUES ('[0,99]');
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
-include/sync_slave_sql_with_master.inc
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
 [Connection Master]
 DROP TABLE t1;
 FLUSH LOGS;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, data JSON,
 KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
@@ -161,8 +161,8 @@ UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
 INSERT INTO t1(data) VALUES ('[33,44]');
 INSERT INTO t1(data) VALUES (NULL);
 INSERT INTO t1(data) VALUES ('[0,99]');
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;1 5;1 6]
-include/sync_slave_sql_with_master.inc
+include/include/rpl/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;1 5;1 6]
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -172,7 +172,7 @@ id INT KEY AUTO_INCREMENT,
 j4 JSON ,
 KEY mv_idx_binary ((( CAST(j4->'$[*]' AS CHAR(10) ARRAY)))));
 INSERT INTO t1(j4) VALUES('["foobar"]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
@@ -181,7 +181,7 @@ id INT KEY AUTO_INCREMENT,
 j4 JSON ,
 KEY mv_idx_binary ((( CAST(j4->'$[*]' AS BINARY(10) ARRAY)))));
 INSERT INTO t1(j4) VALUES('["foobar"]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
@@ -190,7 +190,7 @@ id INT KEY AUTO_INCREMENT,
 j4 JSON ,
 KEY mv_idx_binary ((( CAST(j4->'$[*]' AS DECIMAL ARRAY)))));
 INSERT INTO t1(j4) VALUES('[123]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
@@ -199,7 +199,7 @@ id INT KEY AUTO_INCREMENT,
 j4 JSON ,
 KEY mv_idx_binary ((( CAST(j4->'$[*]' AS DECIMAL(4,2) ARRAY)))));
 INSERT INTO t1(j4) VALUES('[12.34]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
@@ -208,7 +208,7 @@ id INT KEY AUTO_INCREMENT,
 j4 JSON ,
 KEY mv_idx_binary ((( CAST(j4->'$[*]' AS UNSIGNED ARRAY)))));
 INSERT INTO t1(j4) VALUES('[12]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
@@ -217,7 +217,7 @@ id INT KEY AUTO_INCREMENT,
 j4 JSON ,
 KEY mv_idx_binary ((( CAST(j4->'$[*]' AS SIGNED ARRAY)))));
 INSERT INTO t1(j4) VALUES('[-1234]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
@@ -226,7 +226,7 @@ id INT KEY AUTO_INCREMENT,
 j4 JSON ,
 KEY mv_idx_binary ((( CAST(j4->'$[*]' AS DATE ARRAY)))));
 INSERT INTO t1(j4) VALUES('["01-01-01"]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
@@ -235,7 +235,7 @@ id INT KEY AUTO_INCREMENT,
 j4 JSON ,
 KEY mv_idx_binary ((( CAST(j4->'$[*]' AS TIME(6) ARRAY)))));
 INSERT INTO t1(j4) VALUES('["01:01:01.123456"]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
@@ -244,10 +244,10 @@ id INT KEY AUTO_INCREMENT,
 j4 JSON ,
 KEY mv_idx_binary ((( CAST(j4->'$[*]' AS DATETIME(6) ARRAY)))));
 INSERT INTO t1(j4) VALUES('["01-01-01 01:01:01.123456"]');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
 FLUSH LOGS;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

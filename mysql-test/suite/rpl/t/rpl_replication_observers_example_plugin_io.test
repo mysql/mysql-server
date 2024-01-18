@@ -24,13 +24,13 @@
 --source include/have_replication_observers_example_plugin.inc
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection slave
 --echo #
 --echo # Stop replica and install plugin.
 --echo #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --source include/install_replication_observers_example.inc
 
 --echo #
@@ -41,7 +41,7 @@ RESET REPLICA;
 --echo #
 --echo # Cause a connect notification.
 --echo #
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo #
 --echo # Execute some transactions on master to cause the other notifications.
@@ -51,12 +51,12 @@ RESET REPLICA;
 CREATE TABLE t1 (c1 INT) Engine=InnoDB;
 INSERT t1 VALUES(1);
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Stop replica and uninstall plugin.
 --echo #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --source include/uninstall_replication_observers_example.inc
 
 --echo #
@@ -103,4 +103,4 @@ DROP TABLE t1;
 --source include/grep_pattern.inc
 
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,5 +1,5 @@
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave_2ch.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica_2ch.inc
 --source include/have_binlog_format_mixed_or_row.inc
 
 #
@@ -77,12 +77,12 @@ select
 # Symptom is that we get an extra ndb_apply_status line
 # for server_id 3.
 #
---source include/wait_for_ndb_committed_to_binlog.inc
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
 
 --echo Now swap replication channels around
---source include/rpl_stop_slaves.inc
+--source include/rpl/stop_all_replicas.inc
 --let $rpl_topology= 2->1,3->4
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 
 # We've changed the direction, but need to set binlog filenames
 # and positions
@@ -174,7 +174,7 @@ select
     variable_value = epoch;
 
 --echo Now start replicas up
---source include/rpl_start_slaves.inc
+--source include/rpl/start_all_replicas.inc
 
 --echo Show that applying something from Cluster B causes the
 --echo old Max Rep Epoch to be loaded from ndb_apply_status
@@ -320,5 +320,5 @@ eval select server_id as local_server_with_max_epoch from mysql.ndb_apply_status
 drop table t1;
 --sync_slave_with_master slave1
 
---source suite/ndb_rpl/ndb_master-slave_2ch_end.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica_2ch_end.inc
 

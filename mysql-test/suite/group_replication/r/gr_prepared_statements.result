@@ -22,7 +22,7 @@ a
 DEALLOCATE PREPARE stmt1;
 DEALLOCATE PREPARE stmt2;
 DEALLOCATE PREPARE stmt3;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server2]
 include/assert.inc ['Check table t1 exist on server 2']
@@ -60,7 +60,7 @@ DEALLOCATE PREPARE stmt4;
 DEALLOCATE PREPARE stmt5;
 DEALLOCATE PREPARE stmt6;
 DEALLOCATE PREPARE stmt7;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server1]
 include/assert.inc ['Check all records exists on server 1']

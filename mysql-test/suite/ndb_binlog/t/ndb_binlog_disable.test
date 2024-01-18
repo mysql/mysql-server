@@ -49,7 +49,7 @@ drop table stream_marker;
 --echo We should se tables ndbt1 and ndbt3 added to Table_map,
 --echo but not table ndbt2
 --connection mysqld1
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 let $MYSQLD_DATADIR= `select @@datadir;`;
 
@@ -69,7 +69,7 @@ reset binary logs and gtids;
 --echo We should se tables ndbt1 and ndbt3 added to Table_map,
 --echo but not table ndbt2
 --connection mysqld2
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 let $MYSQLD_DATADIR= `select @@datadir;`;
 
@@ -130,7 +130,7 @@ drop table ndbt3;
 #--enable_query_log
 #
 #--connection mysqld2
-#--source include/wait_for_binlog_event.inc
+#--source include/rpl/wait_for_binlog_event.inc
 #--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 #let $MYSQLD_DATADIR= `select @@datadir;`;
 #create table table_map_binlog_rows (Table_map varchar(1000));

@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 # Let master and slave synced with t1 table created
 CREATE TABLE t1 (f INT) ENGINE= INNODB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Setup GLOBAL.DEBUG at slave to reach commit
 [connection slave]
 # Adding debug point 'dbug.reached_commit' to @@GLOBAL.debug
@@ -25,11 +25,11 @@ SHOW REPLICA STATUS;
 UNLOCK TABLES;
 # Removing debug point 'dbug.reached_commit' from @@GLOBAL.debug
 # Restart SQL thread so that it notices debug has changed
-include/restart_slave.inc
+include/rpl/restart_applier.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

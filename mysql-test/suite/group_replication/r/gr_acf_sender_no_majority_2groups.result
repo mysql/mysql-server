@@ -40,7 +40,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1']
 include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server1]
 
 ############################################################
@@ -66,8 +66,8 @@ include/assert.inc ['There is one row in performance_schema.replication_asynchro
 ############################################################
 # 8. Clean up.
 [connection server5]
-include/stop_slave.inc [FOR CHANNEL 'ch1']
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
+include/rpl/reset_replica.inc
 SELECT asynchronous_connection_failover_delete_managed('ch1', 'GROUP_A');
 asynchronous_connection_failover_delete_managed('ch1', 'GROUP_A')
 The UDF asynchronous_connection_failover_delete_managed() executed successfully.
@@ -95,7 +95,7 @@ call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communic
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
 SET SESSION sql_log_bin = 1;
 [connection server2]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server4]
 include/stop_group_replication.inc
 [connection server3]

@@ -11,11 +11,11 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/not_group_replication_plugin.inc
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection slave
 
@@ -44,7 +44,7 @@ FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo #
 --echo # connection slave
 --echo #
@@ -127,4 +127,4 @@ SET GLOBAL MAX_BINLOG_SIZE=@SIZE_DEFAULT;
 --connection master
 DROP TABLE t1,t2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

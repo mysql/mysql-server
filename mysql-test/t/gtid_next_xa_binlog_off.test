@@ -5,4 +5,4 @@
 # identified with explicit GTID_NEXT values.
 
 --let $rpl_skip_log_bin=1
---source extra/binlog_tests/binlog_gtid_next_xa.inc
+--source common/binlog/gtid_next_xa.inc

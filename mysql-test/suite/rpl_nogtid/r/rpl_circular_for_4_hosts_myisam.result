@@ -1,5 +1,5 @@
 *** Set up circular replication on four servers *** 
-include/rpl_init.inc [topology=1->2->3->4->1]
+include/rpl/init.inc [topology=1->2->3->4->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -27,7 +27,7 @@ SET auto_increment_increment= 4;
 SET auto_increment_offset= 1;
 *** Preparing data ***
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=MyISAM;
-include/rpl_sync.inc
+include/rpl/sync.inc
 call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Replica SQL: Coordinator thread of multi-threaded replica is exiting seeing a failed Worker to apply an event");
@@ -40,7 +40,7 @@ INSERT INTO t1(b,c) VALUES('A',1);
 INSERT INTO t1(b,c) VALUES('B',1);
 INSERT INTO t1(b,c) VALUES('C',1);
 INSERT INTO t1(b,c) VALUES('D',1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT 'Master A',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
 Master A	a	b
 Master A	1	A
@@ -71,12 +71,12 @@ Master D	4	D
 * Do failure for C and then make new connection B->D *
 STOP REPLICA;
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 INSERT INTO t1 VALUES(6,'C',2);
 lock table t1 write  /* must block B_2^6 coming */;
 INSERT INTO t1(b,c) VALUES('B',2);
 unlock tables;
-include/wait_for_slave_sql_error.inc [errno=1062]
+include/rpl/wait_for_applier_error.inc [errno=1062]
 INSERT INTO t1(b,c) VALUES('A',2);
 INSERT INTO t1(b,c) VALUES('D',2);
 
@@ -98,13 +98,13 @@ Master D	a	b
 Master D	8	D
 
 * Reconfigure replication to schema A->B->D->A *
-include/stop_slave_io.inc
-include/stop_slave.inc
-include/rpl_change_topology.inc [new topology=1->2->4->1,2->3]
+include/rpl/stop_receiver.inc
+include/rpl/stop_replica.inc
+include/rpl/change_topology.inc [new topology=1->2->4->1,2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 
 * Check data inserted before failure *
 SELECT 'Master A',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
@@ -130,7 +130,7 @@ Master D	8	D
 INSERT INTO t1(b,c) VALUES('A',3);
 INSERT INTO t1(b,c) VALUES('B',3);
 INSERT INTO t1(b,c) VALUES('D',3);
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT 'Master A',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
 Master A	a	b
 Master A	9	A
@@ -152,17 +152,17 @@ Master D	12	D
 *** Testing restoring scheme A->B->C->D->A after failure ***
 
 * Remove wrong event from C and restore B->C->D *
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 DELETE FROM t1 WHERE a = 6;
-include/start_slave.inc
+include/rpl/start_replica.inc
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
-include/rpl_change_topology.inc [new topology=1->2->3->4->1]
+include/rpl/change_topology.inc [new topology=1->2->3->4->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
-include/rpl_sync.inc
+include/rpl/start_replica.inc
+include/rpl/sync.inc
 
 * Check data inserted before restoring schema A->B->C->D->A *
 SELECT 'Master A',a,b FROM t1 WHERE c IN (2,3) ORDER BY a,b;
@@ -203,7 +203,7 @@ INSERT INTO t1(b,c) VALUES('A',4);
 INSERT INTO t1(b,c) VALUES('B',4);
 INSERT INTO t1(b,c) VALUES('C',4);
 INSERT INTO t1(b,c) VALUES('D',4);
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT 'Master A',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
 Master A	a	b
 Master A	13	A
@@ -231,4 +231,4 @@ Master D	16	D
 
 *** Clean up ***
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

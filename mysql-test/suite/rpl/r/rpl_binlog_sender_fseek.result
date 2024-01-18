@@ -1,9 +1,9 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/stop_dump_threads.inc
+include/rpl/stop_dump_threads.inc
 CREATE TABLE t1 (c1 TEXT(8192));
 Inserting a reference transaction to calculate the content size
 Filling binary log up to the border of the 8192 block
@@ -11,13 +11,13 @@ include/assert.inc [The binary log is at the expected border of a 8192 block]
 Filling the binary log 100 transactions
 TRUNCATE performance_schema.file_summary_by_event_name;
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 [connection master]
 include/assert.inc [COUNT_MISC for "wait/io/file/sql/binlog" should be minimal]
 [connection slave]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

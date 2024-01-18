@@ -29,10 +29,10 @@
 --let $rpl_topology=1->2,3->2
 --let $rpl_multi_source= 1
 
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server_1_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
 
 CREATE DATABASE db1;
@@ -45,10 +45,10 @@ DROP DATABASE db1;
 
 --let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection=server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server_3_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
 
 CREATE DATABASE db2;
@@ -61,7 +61,7 @@ DROP DATABASE db2;
 
 --let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection=server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $check_master_OCT= 1
 --let $check_master_slave_ICT= 1
@@ -71,14 +71,14 @@ while($i<8)
   --let $gtid= $server_1_uuid:$i
   --let $master= server_1
   --let $slave=server_2
-  --source extra/rpl_tests/rpl_replication_timestamps.inc
+  --source common/rpl/replication_timestamps.inc
 
   --let $gtid= $server_3_uuid:$i
   --let $master=server_3
   --let $slave=server_2
-  --source extra/rpl_tests/rpl_replication_timestamps.inc
+  --source common/rpl/replication_timestamps.inc
   --inc $i
 }
 
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -21,14 +21,14 @@
 # Test does not depend on binlog_format, so only execute it once
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Setup 2 filters on the Replica.
 --echo # One FILTER_RULE should be non-empty and another empty.
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=();
@@ -48,5 +48,5 @@ SELECT FILTER_NAME, FILTER_RULE FROM performance_schema.replication_applier_filt
 
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

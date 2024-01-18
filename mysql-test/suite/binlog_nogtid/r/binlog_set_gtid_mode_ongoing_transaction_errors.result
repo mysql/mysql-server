@@ -1,5 +1,5 @@
-include/rpl_init.inc [topology=none]
-include/rpl_default_connections.inc
+include/rpl/init.inc [topology=none]
+include/rpl/default_connections.inc
 CALL mtr.add_suppression("Statement violates GTID consistency:");
 CREATE TABLE innodb (a INT) ENGINE = InnoDB;
 CREATE TABLE myisam (a INT) ENGINE = MyISAM;
@@ -157,4 +157,4 @@ COMMIT;
 SET GLOBAL GTID_MODE = OFF;
 SET GTID_NEXT = AUTOMATIC;
 DROP TABLE innodb, myisam;
-include/rpl_end.inc
+include/rpl/deinit.inc

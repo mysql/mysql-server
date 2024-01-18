@@ -110,7 +110,7 @@ include/diff_tables.inc [server1:test.t3, server2:test.t3, server3:test.t3]
 ############################################################
 # 12. Check all servers have the same transactions order on the binary log.
 [connection server1]
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Previous_gtids	#	#	
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
@@ -129,7 +129,7 @@ server-binary-log.000001	#	Query	#	#	COMMIT
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE test.t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
 [connection server2]
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Previous_gtids	#	#	
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
@@ -148,7 +148,7 @@ server-binary-log.000001	#	Query	#	#	COMMIT
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE test.t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
 [connection server3]
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Previous_gtids	#	#	
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'

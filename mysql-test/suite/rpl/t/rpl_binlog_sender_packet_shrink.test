@@ -12,8 +12,8 @@
 --source include/not_sparc_debug.inc
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
---source include/stop_dump_threads.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/stop_dump_threads.inc
 
 # this test requires some large events to be able to test
 # buffer size dynamic behavior
@@ -22,7 +22,7 @@
 --let $default_packet_size=`SELECT @@GLOBAL.net_buffer_length`
 
 CREATE TABLE t1 (a TEXT(1048576));
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection master
 --let $tid= `SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_COMMAND LIKE "Binlog Dump%"`
 --let $from_table= FROM performance_schema.memory_summary_by_thread_by_event_name
@@ -38,7 +38,7 @@ CREATE TABLE t1 (a TEXT(1048576));
 --echo INSERT 1M byte string
 --let $big= REPEAT('a', 1048576)
 eval INSERT INTO t1 VALUES ($big);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection master
 --let $last_packet_size= $default_packet_size
 --let $current_packet_size= `SELECT CURRENT_NUMBER_OF_BYTES_USED - $baseline $from_clause`
@@ -61,7 +61,7 @@ while ($i < $trx_to_shrink)
   eval INSERT INTO t1 VALUES ($medium);
   --inc $i
 }
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection master
 --let $last_packet_size= $current_packet_size
 --let $current_packet_size= `SELECT CURRENT_NUMBER_OF_BYTES_USED - $baseline $from_clause`
@@ -90,7 +90,7 @@ while ($b < 8)
     eval INSERT INTO t1 VALUES ($small);
     --inc $i
   }
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
   --connection master
   --let $last_packet_size= $current_packet_size
   --let $current_packet_size= `SELECT CURRENT_NUMBER_OF_BYTES_USED - $baseline $from_clause`
@@ -102,4 +102,4 @@ while ($b < 8)
 
 # Cleanup
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

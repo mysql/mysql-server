@@ -15,7 +15,7 @@
 
 # restart MySQL Server with invalid single primary mode configuration
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $restart_parameters=restart: --group_replication_enforce_update_everywhere_checks=ON --group_replication_single_primary_mode=ON --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group-replication-group-name=$group_replication_group_name
@@ -180,7 +180,7 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 --echo #
 --echo # START GROUP REPLICATION ON SERVER 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 --let $assert_text= 'group_replication_enforce_update_everywhere_checks should be set to 0'
@@ -202,10 +202,10 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 
 # restore single primary mode configuration system variables
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET @@GLOBAL.group_replication_single_primary_mode= $saved_single_primary_mode
 --eval SET @@GLOBAL.group_replication_enforce_update_everywhere_checks= $saved_enforce_update_everywhere_checks
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET @@GLOBAL.group_replication_single_primary_mode= $saved_single_primary_mode
 --eval SET @@GLOBAL.group_replication_enforce_update_everywhere_checks= $saved_enforce_update_everywhere_checks

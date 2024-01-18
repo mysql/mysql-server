@@ -34,27 +34,27 @@
 
 --source include/have_binlog_format_row.inc
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t(a int);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL sql_replica_skip_counter = 1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $saved_binlog_transaction_compression_session_source = `SELECT @@SESSION.binlog_transaction_compression`
 SET SESSION binlog_transaction_compression = ON;
 INSERT INTO t VALUES (10);
 INSERT INTO t VALUES (10);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_cond = [SELECT COUNT(*) FROM t] = 1
 --let $assert_text = There should be exactly 1 row in table t
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
 CREATE TABLE t(a int);
 DROP TABLE t;
@@ -62,6 +62,6 @@ DROP TABLE t;
 --replace_result $saved_binlog_transaction_compression_session_source BINLOG_TRANSACTION_COMPRESSION_SOURCE
 --eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session_source
 # No error here
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

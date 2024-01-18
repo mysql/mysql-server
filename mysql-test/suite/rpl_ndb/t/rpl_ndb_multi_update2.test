@@ -7,8 +7,8 @@
 # Run this only for row based replication, as replication of
 # auto_increment values are not supported with NDB as storage engine
 -- source include/have_binlog_format_mixed_or_row.inc
--- source suite/ndb_rpl/ndb_master-slave.inc
+-- source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 let $engine_type=NDB;
---source extra/rpl_tests/rpl_multi_update2.test
---source include/rpl_end.inc
+--source common/rpl/rpl_multi_update2.test
+--source include/rpl/deinit.inc

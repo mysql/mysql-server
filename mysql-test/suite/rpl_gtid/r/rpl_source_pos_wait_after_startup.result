@@ -1,29 +1,29 @@
 #
 # Step 1: setup replication
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=30, SOURCE_RETRY_COUNT=30;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 create table t1 (a int);
 Insert into t1 values(1);
 drop  table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Step 2: restart Master
 #
 [connection master]
-include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/rpl/restart_server.inc [server_number=1 gtids=on]
 #
 # Step 3: Wait on positions by setting ignore_gtids_on_sync= 1.
-#         The sync_slave_sql_with_master.inc will call SOURCE_POS_WAIT()
+#         The rpl/sync_to_replica.inc will call SOURCE_POS_WAIT()
 #         internally verifying the fix.
 #
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

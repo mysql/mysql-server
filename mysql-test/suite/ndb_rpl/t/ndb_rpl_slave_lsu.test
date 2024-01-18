@@ -33,33 +33,33 @@
 --let $rpl_topology= none
 --let $rpl_server_count= 6
 --let $rpl_skip_reset_master_and_slave=1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 --let $rpl_skip_reset_master_and_slave=0
 
 --echo *** Configuring connections ***
 --let $rpl_connection_name= srv_master
 --let $rpl_server_number= 1
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= srv_master1
 --let $rpl_server_number= 2
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= srv_master2
 --let $rpl_server_number= 3
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= srv_slave
 --let $rpl_server_number= 4
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= srv_slave1
 --let $rpl_server_number= 5
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= srv_slave2
 --let $rpl_server_number= 6
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --echo *** Waiting for each cluster to startup ***
 
@@ -124,18 +124,18 @@ RESET BINARY LOGS AND GTIDS;
 
 --echo *** Configuring replication via Slave ***
 --let $rpl_connection_name= srv_slave
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_topology= 1->4
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Run the test script
 --let $which_slave=srv_slave
 --source suite/ndb_rpl/t/ndb_rpl_multi_binlog_update.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # Reset state of all Binlogging nodes
 --disable_query_log
@@ -164,18 +164,18 @@ RESET BINARY LOGS AND GTIDS;
 
 --echo *** Configuring replication via Slave1 ***
 --let $rpl_connection_name= srv_slave1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_topology= 1->4,1->5
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Run the test script
 --let $which_slave=srv_slave1
 --source suite/ndb_rpl/t/ndb_rpl_multi_binlog_update.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # Reset state of all Binlogging nodes
 --disable_query_log
@@ -204,24 +204,24 @@ RESET BINARY LOGS AND GTIDS;
 
 --echo *** Configuring replication via Slave2 ***
 --let $rpl_connection_name= srv_slave2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_topology= 1->4,1->5,1->6
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Run the test script
 --let $which_slave=srv_slave2
 --source suite/ndb_rpl/t/ndb_rpl_multi_binlog_update.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 
 
 # Cleanup and reset replication settings to how
 # they where when test started
 --let $rpl_topology= none
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -16,7 +16,7 @@ BEGIN
   SELECT 1234;
 END ||
 DELIMITER ;||
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Valid grants
 
@@ -29,7 +29,7 @@ SHOW GRANTS FOR userZ;
 
 --let $event= !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 6 : Create new user with an account without CREATE USER privilege
 
@@ -41,7 +41,7 @@ SHOW GRANTS FOR userZ;
 SHOW GRANTS FOR userA;
 SHOW GRANTS FOR userB;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 connect(conn_userX, localhost, userX,,,,,);
 connection conn_userX;
 
@@ -70,7 +70,7 @@ SHOW GRANTS FOR userB;
 DROP USER userX, userY, userZ, userA, userB;
 DROP PROCEDURE db1.proc1;
 DROP DATABASE db1;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for GRANT : Routine grants
 

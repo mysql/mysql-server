@@ -25,16 +25,16 @@
 --echo ############################################################
 --echo # 1. Deploy a 3 members group in single primary mode.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -42,12 +42,12 @@
 --echo ############################################################
 --echo # 2. Create and start a replication channel.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
@@ -60,17 +60,17 @@
 --echo # 3. Configure replica to manage the asynchronous connection
 --echo #    to the group.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_REPLICA_CHANNEL_MUST_STOP
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
 
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $group_replication_group_name GROUP_NAME
@@ -89,13 +89,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1'
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
@@ -118,15 +118,15 @@ call mtr.add_suppression("The group .* for the channel .* has been added, and so
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

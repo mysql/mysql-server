@@ -46,7 +46,7 @@
 --connect(conn2,localhost,root,,test)
 
 --let $rpl_connection_name= conn1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Create a new table
 CREATE TABLE t1 (c1 INT) ENGINE = MyISAM;
 
@@ -56,7 +56,7 @@ SET DEBUG_SYNC= 'bgc_between_flush_and_sync SIGNAL
 --send INSERT INTO t1 VALUES (1)
 
 --let $rpl_connection_name= conn2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Wait until it reached the sync binary log group
 SET DEBUG_SYNC= 'now WAIT_FOR holding_between_flush_and_sync';
 
@@ -70,7 +70,7 @@ SET DEBUG_SYNC= 'binlog_rotate_between_close_and_open SIGNAL
 # Wait until the server reaches the debug sync point while rotating the
 # binary log
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'now WAIT_FOR holding_between_close_and_open';
 
 # Let the INSERT sync and continue
@@ -78,20 +78,20 @@ SET DEBUG_SYNC= 'now SIGNAL continue_between_flush_and_sync';
 # Clear the binary log rotate debug sync point to avoid it to stop twice
 
 --let $rpl_connection_name= conn1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap # INSERT
 
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 # Let the binary log rotate to continue
 SET DEBUG_SYNC = 'now SIGNAL continue_rotate_binlog_file';
 
 --let $rpl_connection_name= conn2
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap # FLUSH LOGS
 
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 # Cleanup
 DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';

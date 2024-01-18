@@ -1,11 +1,11 @@
-include/rpl_init.inc [topology=1->2->3]
+include/rpl/init.inc [topology=1->2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/rpl_default_connections.inc
+include/rpl/default_connections.inc
 #
 # First part
 #
@@ -151,11 +151,11 @@ CREATE TABLE trans_t1 (c1 INT) ENGINE=InnoDB;
 #
 CREATE TEMPORARY TABLE temp_ignore (c1 INT) ENGINE=MyISAM;
 DROP TEMPORARY TABLE IF EXISTS temp_ignore, temp_non_trans_t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 CREATE TEMPORARY TABLE temp_ignore (c1 INT) ENGINE=InnoDB;
 DROP TEMPORARY TABLE IF EXISTS temp_ignore, temp_trans_t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Third part
 #
@@ -182,18 +182,18 @@ CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
 USE test3;
 CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE temp_non_trans_t2 (c1 INT) ENGINE=MyISAM;
-include/sync_slave_sql_with_master.inc
-include/stop_slave_io.inc
-include/rpl_stop_server.inc [server_number=1]
-include/rpl_start_server.inc [server_number=1]
+include/rpl/sync_to_replica.inc
+include/rpl/stop_receiver.inc
+include/rpl/stop_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 include/assert.inc [Replica_open_temp_tables should be 0]
 [connection master]
 USE test;
 DROP TABLE trans_t1;
 DROP DATABASE test2;
 DROP DATABASE test3;
-include/rpl_end.inc
+include/rpl/deinit.inc

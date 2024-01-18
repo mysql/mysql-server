@@ -51,11 +51,11 @@
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $local_address_server3= `SELECT @@GLOBAL.group_replication_local_address`
 
 
@@ -63,7 +63,7 @@
 --echo # 1. Install clone plugin on server1.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -127,7 +127,7 @@ INSERT INTO t1 VALUES (2);
 --echo # 4. Install the clone plugin and start GR on server3
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -172,7 +172,7 @@ INSERT INTO t1 VALUES (2);
 --echo # 6. Restart server 2 with a monitoring process (mysqld_safe)
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
 
@@ -222,7 +222,7 @@ START GROUP_REPLICATION;
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $group_replication_member_state=ONLINE
 --source include/gr_wait_for_member_state.inc
@@ -264,7 +264,7 @@ START GROUP_REPLICATION;
 --echo # 10. Get server2 expelled.
 --echo
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL super_read_only = 0;
 SET @debug_saved = @@GLOBAL.DEBUG;
@@ -291,7 +291,7 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
 --echo #     on server 1 before server2 rejoins.
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT asynchronous_connection_failover_add_source('ch1', '10.0.0.1', 3307, '', 50);
 
@@ -307,14 +307,14 @@ INSERT INTO t1 VALUES (4);
 --source include/assert.inc
 
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
 --echo # 12. Unblock the rejoin, another clone should happen
 --echo
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_clone_threshold= 1;
 
@@ -323,7 +323,7 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $group_replication_member_state=ONLINE
 --source include/gr_wait_for_member_state.inc
@@ -369,13 +369,13 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --let $server2_uuid= `SELECT @@server_uuid`
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --eval SELECT group_replication_set_as_primary("$server2_uuid")
@@ -387,7 +387,7 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --source include/wait_condition.inc
 
 --let $rpl_channel_name='ch1'
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_configuration where CHANNEL_NAME='ch1' and HOST='127.0.0.1' and PORT=$SERVER_MYPORT_4
 --source include/wait_condition.inc
@@ -418,25 +418,25 @@ RESET PERSIST IF EXISTS group_replication_start_on_boot;
 RESET PERSIST IF EXISTS local_infile;
 
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 UNINSTALL PLUGIN clone;
 
 --let $rpl_channel_name='ch1'
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
@@ -447,21 +447,21 @@ set session sql_log_bin=1;
 
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 UNINSTALL PLUGIN clone;
 
 --let $rpl_channel_name='ch1'
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 --eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save

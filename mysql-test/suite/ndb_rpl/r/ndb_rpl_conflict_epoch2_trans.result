@@ -3,7 +3,7 @@ Setup connections for use in this file
 First we have Cluster A as Primary, Cluster B as Secondary
 SET GLOBAL ndb_applier_conflict_role="PRIMARY";
 SET GLOBAL ndb_applier_conflict_role="SECONDARY";
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -919,7 +919,7 @@ B	10000
 E	10000
 T	10000
 Check that Primary Slave has stopped
-include/wait_for_slave_sql_error.inc [errno=1296]
+include/rpl/wait_for_applier_error.inc [errno=1296]
 Restart Primary Slave
 set global sql_replica_skip_counter=1;
 START REPLICA;
@@ -1179,7 +1179,7 @@ drop table test.t2;
 flush logs;
 STOP REPLICA;
 RESET REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc
 Next we have Cluster A as Secondary, Cluster B as Primary
 SET GLOBAL ndb_applier_conflict_role="NONE";
 SET GLOBAL ndb_applier_conflict_role="SECONDARY";
@@ -1188,7 +1188,7 @@ SET GLOBAL ndb_applier_conflict_role="PRIMARY";
 We set a special control var to allow the generic scripts
 to handle this topology
 Remove some connections which can't be setup twice (ugly)
-include/master-slave.inc [rpl_server_count=2]
+include/rpl/init_source_replica.inc [rpl_server_count=2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -2104,7 +2104,7 @@ B	10000
 E	10000
 T	10000
 Check that Primary Slave has stopped
-include/wait_for_slave_sql_error.inc [errno=1296]
+include/rpl/wait_for_applier_error.inc [errno=1296]
 Restart Primary Slave
 set global sql_replica_skip_counter=1;
 START REPLICA;
@@ -2364,6 +2364,6 @@ drop table test.t2;
 flush logs;
 STOP REPLICA;
 RESET REPLICA;
-include/rpl_end.inc
+include/rpl/deinit.inc
 SET GLOBAL ndb_applier_conflict_role="NONE";
 SET GLOBAL ndb_applier_conflict_role="NONE";

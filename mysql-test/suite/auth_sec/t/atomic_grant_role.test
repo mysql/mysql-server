@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -10,7 +10,7 @@
 
 CREATE USER userX, userY, userZ;
 CREATE ROLE roleX, roleY, roleZ;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Execute GRANT ROLE for existing users
 
@@ -21,7 +21,7 @@ SELECT FROM_USER, TO_USER FROM mysql.role_edges;
 
 --let $event= !Q(GRANT.*roleX.*roleY.*TO.*userX.*userY.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 2 : Execute GRANT ROLE for non-existing users
 
@@ -44,7 +44,7 @@ SELECT FROM_USER, TO_USER FROM mysql.role_edges;
 
 DROP ROLE roleX, roleY, roleZ;
 DROP USER userX, userY, userZ;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for GRANT ROLE
 

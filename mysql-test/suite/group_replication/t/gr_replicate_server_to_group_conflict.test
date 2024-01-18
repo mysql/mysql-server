@@ -52,15 +52,15 @@
 # Keep binary logs with only GTIDs from test.
 --connection server1
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 --connection server2
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 --connection server3
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 
@@ -84,7 +84,7 @@ SET SESSION sql_log_bin= 1;
 --connection server1
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_AUTO_POSITION=1 FOR CHANNEL ""
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 
 --echo
@@ -106,10 +106,10 @@ SET GTID_NEXT= 'AUTOMATIC';
 --echo #     applied on group.
 --connection server3
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo
@@ -119,10 +119,10 @@ SET GTID_NEXT= 'AUTOMATIC';
 --echo #     Before that make server 1 block before message
 --echo #     broadcast to group.
 --connection server1
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET @server1_debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,debug.wait_after_set_snapshot_version_on_transaction_context_log_event';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection server3
 --eval SET GTID_NEXT= '$uuida:3'
@@ -136,7 +136,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 --echo #     the debug sync point:
 --echo #     wait_after_set_snapshot_version_on_transaction_context_log_event
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
@@ -159,10 +159,10 @@ SET DEBUG_SYNC= 'now SIGNAL signal.resume_after_set_snapshot_version_on_transact
 
 --connection server2
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $slave_sql_errno= convert_error(ER_TRANSACTION_ROLLBACK_DURING_COMMIT)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 SET DEBUG_SYNC= 'RESET';
 
@@ -186,9 +186,9 @@ SET SESSION sql_log_bin= 1;
 BEGIN;
 COMMIT;
 SET GTID_NEXT= 'AUTOMATIC';
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --connection server3
 --eval SET GTID_NEXT= '$uuida:4'
@@ -202,10 +202,10 @@ SET GTID_NEXT= 'AUTOMATIC';
 --echo #     applied on group.
 --connection server3
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo
@@ -286,10 +286,10 @@ SET GTID_NEXT= 'AUTOMATIC';
 DROP TABLE t1;
 
 --let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection server3
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo
@@ -297,7 +297,7 @@ DROP TABLE t1;
 --echo # 15. Stop asynchronous replication connection from server 3
 --echo #     into group (server 1)
 --connection server1
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
 
 --echo
@@ -315,15 +315,15 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
 --echo # 17. Uninstall GTID utils.
 --connection server1
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 --connection server2
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 --connection server3
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 
 --source include/group_replication_end.inc

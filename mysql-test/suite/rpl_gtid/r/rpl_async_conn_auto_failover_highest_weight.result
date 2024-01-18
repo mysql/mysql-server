@@ -1,4 +1,4 @@
-include/master-slave.inc [rpl_server_count=3]
+include/rpl/init_source_replica.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,9 +19,9 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #    performance_schema.replication_connection_configuration.
 #
 [connection server_2]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 #
 # 3. Add two asynchronous connection failover servers including
@@ -40,7 +40,7 @@ include/assert.inc ['There are two rows in performance_schema.replication_asynch
 #
 # 4. Stop server 1.
 #
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 #
 # 5. Verify connection is not attempted with server-1 when it is offline.
 #    Verify connection failover to server-3.
@@ -51,19 +51,19 @@ include/assert.inc ['Asynch connection failover is not attempted with off single
 # 6. Start server-1 again.
 #    Verify connection is fail over to server-1 when it is online.
 #
-include/rpl_start_server.inc [server_number=1]
-include/rpl_reconnect.inc
+include/rpl/start_server.inc [server_number=1]
+include/rpl/reconnect.inc
 [connection server_2]
 #
 # 7. Clean up
 #
 [connection server_2]
-include/stop_slave.inc
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/reset_replica.inc
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '');;
 asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '');;
 asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
-include/rpl_end.inc
+include/rpl/deinit.inc

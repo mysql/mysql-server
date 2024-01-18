@@ -1,4 +1,4 @@
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 include/install_replication_observers_example.inc
 CALL mtr.add_suppression(".*was not purged because it was being read by.*");
 RESET BINARY LOGS AND GTIDS;
@@ -634,4 +634,4 @@ include/assert.inc [Assert that there is no Stop and no Rotate event]
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
 include/uninstall_replication_observers_example.inc
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc

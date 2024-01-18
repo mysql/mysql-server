@@ -132,7 +132,7 @@ global_db.tab1
 test.igtab1
 test.itab1
 test.tab1
-include/rpl_sync.inc
+include/rpl/sync.inc
 # Verify nothing is filtered on M2
 [connection server2]
 # M2: Should display 4 databases

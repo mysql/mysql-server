@@ -1,7 +1,7 @@
 # Tests for PERFORMANCE_SCHEMA
 
 --source include/have_log_bin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --disable_warnings
 drop table if exists test.t1;
@@ -12,7 +12,7 @@ reset binary logs and gtids;
 create table test.t1(a int);
 drop table test.t1;
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # Notes
 #
@@ -174,5 +174,5 @@ select
   and event_name not like "%MYSQL_RELAY_LOG::update_cond"
   order by event_name;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

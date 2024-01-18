@@ -85,7 +85,7 @@
     XA PREPARE '1';
   }
 
-  --source include/save_binlog_position.inc
+  --source include/rpl/save_binlog_file_position.inc
   --let $start_position = $binlog_position
 
   --let $before_gtid_executed = `SELECT @@global.gtid_executed`
@@ -135,7 +135,7 @@
     --let $expected_prepared_xa_count = 0
   }
   --let $xid_data = 1
-  --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+  --source common/xa_crash_safe/assert_xa_recover.inc
 
   --let $after_gtid_executed = `SELECT @@global.gtid_executed`
   --let $assert_text = GTID_EXECUTED has not been updated
@@ -143,20 +143,20 @@
   --source include/assert.inc
 
   # Binary log has not been updated
-  --source include/save_binlog_position.inc
+  --source include/rpl/save_binlog_file_position.inc
   --let $assert_text = Binary log has not been updated
   --let $assert_cond = "$start_position" = "$binlog_position"
   --source include/assert.inc
 
   --let $rpl_connection_name = server_1
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $assert_text = Transaction is not committed thus the table is empty.
   --let $assert_cond = "[SELECT COUNT(*) FROM t1]" = "0"
   --source include/assert.inc
 
   --let $rpl_connection_name = default
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   if ($one_phase == 0)
   {
@@ -165,7 +165,7 @@
     # Check the transaction cannot be recovered after rollback
     --let $xid_data = 1
     --let $expected_prepared_xa_count = 0
-    --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+    --source common/xa_crash_safe/assert_xa_recover.inc
   }
 END_OF_PROCEDURE
 
@@ -174,7 +174,7 @@ END_OF_PROCEDURE
 #
 --let $rpl_server_count= 1
 --let $rpl_topology= none
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc

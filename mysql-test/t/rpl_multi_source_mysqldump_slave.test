@@ -30,7 +30,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='binlog-ch
 --exec $MYSQL --force < $MYSQL_TMP_DIR/chm_1_dump.sql
 --remove_file $MYSQL_TMP_DIR/chm_1_dump.sql
 --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --echo #
 --echo # 2. With a default channel configured
@@ -46,7 +46,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE="binlog-de
 --echo # Execute mysql using the dump as input
 --exec $MYSQL --force < $MYSQL_TMP_DIR/chm_2_dump.sql
 --remove_file $MYSQL_TMP_DIR/chm_2_dump.sql
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # Clean up
 RESET REPLICA ALL;

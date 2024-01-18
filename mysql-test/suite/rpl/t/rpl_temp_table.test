@@ -1,9 +1,9 @@
-# drop table t1 t2 t3 are included int master-slave.inc
+# drop table t1 t2 t3 are included int rpl/init_source_replica.inc
 #  meaningful only in statement-based:
 
 -- source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_statement.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -64,7 +64,7 @@ show status like 'Replica_open_temp_tables';
 connect (master2,localhost,root,,);
 connection master2;
 drop table if exists t1,t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

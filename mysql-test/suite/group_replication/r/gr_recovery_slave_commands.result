@@ -198,7 +198,7 @@ ERROR HY000: This operation cannot be performed with running replication threads
 UNLOCK TABLES;
 [connection server1]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/stop_group_replication.inc
 

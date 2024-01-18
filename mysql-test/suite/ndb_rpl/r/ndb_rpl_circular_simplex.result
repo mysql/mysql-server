@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,13 +11,13 @@ RESET BINARY LOGS AND GTIDS;
 INSERT INTO t1 VALUES (1,2);
 INSERT INTO t1 VALUES (2,3);
 STOP REPLICA;
-include/rpl_change_topology.inc [new topology=1->2->1]
+include/rpl/change_topology.inc [new topology=1->2->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	2
@@ -28,7 +28,7 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 1	2
 2	3
-include/wait_for_slave_to_start.inc
-include/check_slave_is_running.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/assert_replica_running.inc
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

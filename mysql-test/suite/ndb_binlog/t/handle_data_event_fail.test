@@ -65,7 +65,7 @@ while($loop < 3)
 
   --echo # Check that LOST_EVENTS event was written to the binlog for
   --echo # INSERT and UPDATE. The DELETE should have a normal log entry.
-  --source include/show_binlog_events.inc
+  --source include/rpl/deprecated/show_binlog_events.inc
 
   inc $loop;
 }

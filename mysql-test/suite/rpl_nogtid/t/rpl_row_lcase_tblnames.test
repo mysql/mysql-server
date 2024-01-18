@@ -1,15 +1,15 @@
 # BUG#37656
 #  
-#  For details look into extra/rpl_tests/rpl_lower_case_table_names.test
+#  For details look into common/rpl/rpl_lower_case_table_names.test
 # 
 
 -- source include/not_group_replication_plugin.inc
 -- source include/not_windows.inc
 -- source include/not_lowercase1.inc
 -- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 -- let $engine=InnoDB
--- source extra/rpl_tests/rpl_lower_case_table_names.test
+-- source common/rpl/rpl_lower_case_table_names.test
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

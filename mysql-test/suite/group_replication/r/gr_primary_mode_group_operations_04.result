@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 
 # 1. Create table to use on test
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 
 # 2. Pause transactions on server2 to monitor

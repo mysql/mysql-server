@@ -37,14 +37,14 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo ##################################################
 --echo # 0. This test requires the replica to allow some conversions so we set
 --echo #    replica_type_conversions = ALL_NON_LOSSY
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # save_sysvars.inc should work with REPLICA_TYPE_CONVERSIONS
 SET @saved_replica_type_conversions = @@replica_type_conversions;
@@ -58,20 +58,20 @@ SET GLOBAL replica_type_conversions = 'ALL_NON_LOSSY';
 --echo #    With the binary log temporarily disabled, create table t1 and t2
 --echo #    Create the same tables on the replica with non lossy compatible columns
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 CREATE TABLE t1 (f1 varchar(800), f2 enum('1','2','3', '4','5'));
 CREATE TABLE t2 (f1 BIGINT UNSIGNED);
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Set at the session level, so no restore needed for MTR
 SET SESSION sql_generate_invisible_primary_key = ON;
 
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 CREATE TABLE t1 (f1 varchar(100), f2 enum('1','2','3'));
 CREATE TABLE t2 (f1 INT UNSIGNED);
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 
 SET SESSION sql_generate_invisible_primary_key = OFF;
 
@@ -84,7 +84,7 @@ INSERT INTO t1 VALUES ('abbbb xyz', '2');
 
 INSERT INTO t2 VALUES (1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $row_count= `SELECT COUNT(*) FROM t1 WHERE  f1 = 'abbbb xyz' AND f2 = '2';`
 --let $assert_text= Table t1 contains the inserted values
@@ -104,21 +104,21 @@ INSERT INTO t2 VALUES (1);
 --echo #    Create tables t3 and t4 on the source
 --echo #    On the replica alter the tables so they have non lossy compatible columns
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 # Store the default value
 --let $_pk_key_check_value = `SELECT require_table_primary_key_check FROM performance_schema.replication_applier_configuration WHERE channel_name=""`
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t3 (f1  TINYINT UNSIGNED);
 
 CREATE TABLE t4 (f1 VARCHAR(20), f2 TINYINT);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 ALTER TABLE t3 MODIFY f1 INT UNSIGNED;
 
@@ -131,13 +131,13 @@ ALTER TABLE t4 MODIFY f2 INT;
 --echo # 4. Add a row to each table
 --echo #    Check the rows are correctly applied in the replica
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO t3 VALUES (30);
 
 INSERT INTO t4 VALUES ('text', 4);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $row_count= `SELECT COUNT(*) FROM t3 WHERE my_row_id = 1 AND f1 = 30;`
 --let $assert_text= Table t3 contains the inserted values
@@ -153,20 +153,20 @@ INSERT INTO t4 VALUES ('text', 4);
 --echo ##################################################
 --echo # 5. Cleanup
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 --replace_result $_pk_key_check_value PRIMARY_KEY_CHECK_VALUE
 --eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 SET GLOBAL replica_type_conversions = @saved_replica_type_conversions;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -218,7 +218,7 @@ include/assert_and_disable_read_only.inc
 include/start_group_replication.inc
 include/start_group_replication.inc
 include/start_group_replication.inc
-include/rpl_sync.inc
+include/rpl/sync.inc
 ############################################################
 # 4. Validate members state is equal.
 ############################################################

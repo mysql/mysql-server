@@ -1,8 +1,8 @@
 # This is a wrapper for binlog.test so that the same test case can be used 
 # For both statement and row based bin logs 11/07/2005 [jbm]
 
--- source include/force_binlog_format_statement.inc
--- source extra/binlog_tests/ctype_cp932_binlog.test
+-- source include/rpl/force_binlog_format_statement.inc
+-- source common/binlog/ctype_cp932_binlog.test
 -- source include/big_test.inc
 
 --disable_query_log
@@ -29,7 +29,7 @@ CALL bug18293("Foo's a Bar", _cp932 0xED40ED41ED42, 47.93);
 SELECT HEX(s1),HEX(s2),d FROM t4;
 DROP PROCEDURE bug18293;
 DROP TABLE t4;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo End of 5.0 tests
 
@@ -160,4 +160,4 @@ set collation_connection=cp932_bin;
 --echo #
 --echo # End of 5.6 tests
 --echo #
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

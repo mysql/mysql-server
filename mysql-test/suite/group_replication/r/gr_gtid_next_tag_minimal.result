@@ -22,7 +22,7 @@ INSERT INTO t1 VALUES (3);
 #      Verify that executed GTIDs exist in the gtid_executed global
 #      variable
 
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/assert.inc [Verify that executed GTIDs exist in the gtid_executed global variable. T1, pass condition 1]
 [connection server3]

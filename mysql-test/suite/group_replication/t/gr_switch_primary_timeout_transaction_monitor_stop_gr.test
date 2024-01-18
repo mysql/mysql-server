@@ -45,7 +45,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
@@ -59,7 +59,7 @@ set session sql_log_bin=1;
 --echo # 2. Start a new transaction and do not commit.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 BEGIN;
 INSERT INTO test.t1 (b) VALUES (1);
@@ -69,7 +69,7 @@ INSERT INTO test.t1 (b) VALUES (1);
 --echo # 3. Start a primary change on server 1.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --replace_result $server2_uuid MEMBER2_UUID
@@ -79,7 +79,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --echo # 4. Wait for the THD_transaction_monitor thread to start.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
 --source include/wait_condition.inc
@@ -88,12 +88,12 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --echo # 5. Stop GR on server2 for a view-change and unblock the operation.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC = "now SIGNAL signal.primary_action_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 
@@ -101,7 +101,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --echo # 6. Change of primary should fail since the selected primary left the group.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GRP_RPL_UDF_ERROR
 --reap
@@ -110,7 +110,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --echo # 7. Check the monitor thread exited.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
 --source include/wait_condition.inc
 
@@ -120,19 +120,19 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --echo # 8. Rejoin server2 to the group.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 COMMIT;
 
 --echo
 --echo # 9. Start a primary change on server 1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --replace_result $server2_uuid MEMBER2_UUID
@@ -142,7 +142,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --echo # 10. Wait for the THD_transaction_monitor thread to start.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
 --source include/wait_condition.inc
@@ -151,12 +151,12 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --echo # 11. Stop GR on server1 from another client and unblock the primary change.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --send STOP GROUP_REPLICATION
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Below wait is only to allow STOP GR to proceed and has no significance otherwise.
 --let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO='STOP GROUP_REPLICATION';
@@ -172,13 +172,13 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GRP_RPL_UDF_ERROR
 --reap
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
@@ -189,7 +189,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --echo # 13. Check the monitor thread exited.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
 --source include/wait_condition.inc
@@ -198,7 +198,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --echo # 14. Cleanup.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.read_only= 0;
 SET @@SESSION.sql_log_bin= 0;
@@ -206,7 +206,7 @@ DROP TABLE t1;
 SET @@SESSION.sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

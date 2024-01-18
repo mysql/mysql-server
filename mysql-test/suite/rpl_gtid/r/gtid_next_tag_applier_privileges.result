@@ -1,7 +1,7 @@
 
 # 1. Set up replication, create an user with REPLICATION_APPLIER
 
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,7 +14,7 @@ GRANT DROP on *.* to custom_user;
 GRANT REPLICATION_APPLIER on *.* to custom_user;
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='custom_user';
 CALL mtr.add_suppression("Replica SQL for channel ''.*");
-include/start_slave.inc
+include/rpl/start_replica.inc
 
 # 2. Execute one untagged and one tagged transaction, the tagged one
 #    fails. Privileges: SYSTEM_VARIABLES_ADMIN
@@ -23,26 +23,26 @@ GRANT SYSTEM_VARIABLES_ADMIN on *.* to custom_user;
 [connection master]
 SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:1";
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET GTID_NEXT= "AUTOMATIC:bb";
 INSERT INTO t1 VALUES(1);
 SET GTID_NEXT= "AUTOMATIC";
 [connection slave]
-include/wait_for_slave_param.inc [Last_SQL_Errno]
+include/rpl/wait_for_replica_status.inc [Last_SQL_Errno]
 
 # 3. Try again with more privileges, replication succeeds
 #    Privileges: SYSTEM_VARIABLES_ADMIN && TRANSACTION_GTID_TAG
 
 GRANT TRANSACTION_GTID_TAG on *.* to custom_user;
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 
 # 4. Revoke a privilege. Execute tagged transaction.
 #    Replication should succeed. Privileges: TRANSACTION_GTID_TAG
 
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM custom_user;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 SET GTID_NEXT= "AUTOMATIC:bb";
 INSERT INTO t1 VALUES(2);
@@ -50,12 +50,12 @@ INSERT INTO t1 VALUES(2);
 
 # 5. Cleanup
 
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t1;
 DROP USER IF EXISTS custom_user;
 Warnings:
 Note	3162	Authorization ID 'custom_user'@'%' does not exist.
-include/rpl_end.inc
+include/rpl/deinit.inc

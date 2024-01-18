@@ -1,4 +1,4 @@
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 
 # Create a few users
 CREATE USER userX, userY, userZ;
@@ -28,8 +28,8 @@ SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 
 # This event sequence pattern MUST NOT be present in binlog: !Q(SET DEFAULT ROLE .*userX.*invalidUser.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 
 # 1.2 : Set the default roles for two valid users
 SET DEFAULT ROLE administrator, qa to userX, userY;
@@ -43,8 +43,8 @@ HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 %	userY	%	qa
 
 # This event sequence pattern MUST be present in binlog: !Q(SET DEFAULT ROLE .*userX.*userY.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 
 #
 # 2. Tests to set the default roles to ALL
@@ -63,8 +63,8 @@ HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 %	userY	%	qa
 
 # This event sequence pattern MUST NOT be present in binlog: !Q(SET DEFAULT ROLE ALL .*userX.*userY.*invalidUser.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 
 # 2.2 : Set the default roles for multiple users
 SET DEFAULT ROLE ALL to userX, userY, userZ;
@@ -86,8 +86,8 @@ HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 %	userZ	%	qa
 
 # This event sequence pattern MUST be present in binlog: !Q(SET DEFAULT ROLE ALL .*userX.*userY.*userZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 
 #
 # 3. Tests to set the default roles to NONE
@@ -109,8 +109,8 @@ HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 %	userZ	%	qa
 
 # This event sequence pattern MUST be present in binlog: !Q(SET DEFAULT ROLE NONE .*userY.*invalidUser.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 
 # 3.2 : Set the default roles to NONE for valid users
 SET DEFAULT ROLE NONE to userX, userY, userZ;
@@ -120,8 +120,8 @@ SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 
 # This event sequence pattern MUST be present in binlog: !Q(SET DEFAULT ROLE NONE .*userX.*userY.*userZ.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
+include/rpl/assert_binlog_events.inc
+include/rpl/save_binlog_file_position.inc
 
 #
 # End of tests

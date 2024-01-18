@@ -9,18 +9,18 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #######
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 call mtr.add_suppression(".*Failed to accept a MySQL connection for Group Replication. Group Replication plugin has an ongoing exclusive operation, like START, STOP or FORCE MEMBERS.*");
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 [connection server2]
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 call mtr.add_suppression("Timeout on wait for view after joining group");
 call mtr.add_suppression("Timeout while waiting for the group communication engine to be ready!");
 call mtr.add_suppression("The group communication engine is not ready for the member to join. Local port: *.*");
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
 call mtr.add_suppression("Error connecting to all peers. Member join failed. Local port: *.*");
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 #
 # 2. Enable fail_incoming_connection_ongoing_operation and try to
 #    join M2.

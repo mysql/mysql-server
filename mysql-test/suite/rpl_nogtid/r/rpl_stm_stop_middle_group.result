@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -17,14 +17,14 @@ commit;
 call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression("Replica SQL.*Replica SQL Thread stopped with incomplete event group having non-transactional changes");
 call mtr.add_suppression("Replica SQL.*The replica coordinator and worker threads are stopped.*");
-include/wait_for_slave_sql_to_stop.inc
-include/check_slave_no_error.inc
+include/rpl/wait_for_applier_to_stop.inc
+include/rpl/assert_replica_no_error.inc
 include/assert.inc [Everything that was read, was executed]
 include/assert.inc [There is one row in table tm]
 include/assert.inc [There is one row in table ti]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @@global.debug="-d,stop_replica_middle_group";
-include/start_slave.inc
+include/rpl/start_replica.inc
 truncate table tm;
 truncate table ti;
 set @@global.debug="+d,stop_replica_middle_group";
@@ -35,25 +35,25 @@ insert into tm set a=null;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 commit;
-include/wait_for_slave_sql_error.inc [errno=13117,1756]
+include/rpl/wait_for_applier_error.inc [errno=13117,1756]
 include/assert.inc [Not everything that was read, was executed]
 include/assert.inc [There is one row in table tm]
 include/assert.inc [There is no row in table ti]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @@global.debug="-d,stop_replica_middle_group";
 set @@global.debug="-d,incomplete_group_in_relay_log";
 truncate table tm;
-include/start_slave.inc
+include/rpl/start_replica.inc
 set @@global.debug="+d,stop_replica_middle_group";
 set @@global.debug="+d,incomplete_group_in_relay_log";
 update tm as t1, ti as t2 set t1.a=t1.a * 2, t2.a=t2.a * 2;
-include/wait_for_slave_sql_error.inc [errno=13117,1756]
+include/rpl/wait_for_applier_error.inc [errno=13117,1756]
 include/assert.inc [Not everything that was read, was executed]
 include/assert.inc [The max value for field 'a' is 2]
 include/assert.inc [The max value for field 'a' is 1]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @@global.debug="-d,stop_replica_middle_group";
 set @@global.debug="-d,incomplete_group_in_relay_log";
-include/rpl_reset.inc
+include/rpl/reset.inc
 drop table tm, ti;
-include/rpl_end.inc
+include/rpl/deinit.inc

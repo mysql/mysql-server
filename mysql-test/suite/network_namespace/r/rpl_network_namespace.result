@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,10 +6,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 call mtr.add_suppression("Hostname .* does not resolve to");
 call mtr.add_suppression("IP address .* could not be resolved");
 # Add a bind address in the 'red' network namespace to master
-include/rpl_restart_server.inc [server_number=1 parameters: --bind-address=127.0.0.1,10.0.2.1/red]
+include/rpl/restart_server.inc [server_number=1 parameters: --bind-address=127.0.0.1,10.0.2.1/red]
 # Add a bind address in the 'blue' network namespace to the slave
-include/rpl_restart_server.inc [server_number=2 parameters: --bind-address=127.0.0.1,10.0.1.1/blue]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --bind-address=127.0.0.1,10.0.1.1/blue]
+include/rpl/start_replica.inc
 # Create tables and users.
 CREATE TABLE t1(a int primary key, b varchar(10));
 CREATE USER root@10.0.2.1;
@@ -27,7 +27,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 [ connection slave ]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -49,15 +49,15 @@ a	b
 2	cdf
 # Stop replica and run change replication source to listen to the master on socket
 # created in the 'red' namespace
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 [ connection master ]
 #Insert via connection to the address 127.0.0.1 from the default network namespace
 INSERT INTO t1 VALUES (3, 'ghi');
 #Insert via connection to the address 10.0.2.1 from the 'red' network namespace
 [ connection slave ]
 # Change replication source to listen to the master on IP '10.0.2.1' in the 'red' namespace
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 # Check network namspace of currently connected master
 SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
 master_network_namespace
@@ -74,13 +74,13 @@ a	b
 4	jkl
 # Check that the table is replicated properly
 include/diff_tables.inc [master:t1, slave:t1]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 [ connection master ]
 [ connection slave ]
 # Change replication source to original connection
-include/start_slave.inc
+include/rpl/start_replica.inc
 INSERT INTO t1 VALUES (5, 'mno');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Check network namspace of currently connected master
 SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
 master_network_namespace
@@ -95,5 +95,5 @@ include/diff_tables.inc [master:t1, slave:t1]
 DROP USER root@10.0.2.1;
 DROP USER root@10.0.1.1;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,20 +10,20 @@ CREATE TABLE t3 (C1 CHAR(1), C2 CHAR(1), KEY(C1, C2)) ENGINE = ndb;
 INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
 INSERT INTO t2 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
 INSERT INTO t3 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 **** On Slave ****
 set @prior_replica_exec_mode=@@global.replica_exec_mode;
 set @prior_replica_allow_batching=@@global.replica_allow_batching;
 set @@global.replica_exec_mode= 'IDEMPOTENT';
 set @@global.replica_allow_batching = OFF;
-include/restart_slave.inc
+include/rpl/restart_applier.inc
 DELETE FROM t1 WHERE C1 = 'L';
 DELETE FROM t2 WHERE C1 = 'L';
 DELETE FROM t3 WHERE C1 = 'K';
 **** On Master ****
 DELETE FROM t1;
-include/sync_slave_sql_with_master.inc
-include/check_slave_is_running.inc
+include/rpl/sync_to_replica.inc
+include/rpl/assert_replica_running.inc
 **** On Slave ; expect count to be 0 ****
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)
@@ -31,8 +31,8 @@ COUNT(*)
 **** On Master ****
 DELETE FROM t2;
 DELETE FROM t3;
-include/sync_slave_sql_with_master.inc
-include/check_slave_is_running.inc
+include/rpl/sync_to_replica.inc
+include/rpl/assert_replica_running.inc
 **** On Slave ; expect count to be 0 ****
 SELECT COUNT(*) FROM t2 ORDER BY c1,c2;
 COUNT(*)
@@ -46,4 +46,4 @@ drop table t1, t2, t3;
 set @@global.replica_exec_mode= @prior_replica_exec_mode;
 set @@global.replica_allow_batching= @prior_replica_allow_batching;
 call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table test.t.* Error_code: 1032");
-include/rpl_end.inc
+include/rpl/deinit.inc

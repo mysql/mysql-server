@@ -19,23 +19,23 @@
 --let $rpl_gtid_utils=1
 --let $rpl_skip_start_slave=1
 --let $rpl_topology=1->2,2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $master1_uuid=`SELECT @@global.server_uuid`
 # Create one table, populate it, then drop it
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
---source include/start_slave.inc
+--source include/connection.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Add debug instrumentation to hold the receiver thread
 # while writing to the relay log.
@@ -44,12 +44,12 @@ INSERT INTO t1 VALUES(1);
 
 # Execute transaction on server1
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES(2);
 
 # Wait until the receiver reached the debug point on server2
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC="now WAIT_FOR reached_updating_received_transaction_set";
 
 # Insert on master2 and execution of SELECT @@GLOBAL.GTID_EXECUTED is successful
@@ -65,17 +65,17 @@ SET GTID_NEXT= AUTOMATIC;
 --source include/assert.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
---source include/start_slave.inc
+--source include/connection.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo sync server_3 with server_2
 --let $sync_slave_connection= server_3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $debug_point=updating_received_transaction_set
 --source include/remove_debug_point.inc
 
@@ -84,12 +84,12 @@ SET DEBUG_SYNC="now SIGNAL continue_updating_received_transaction_set";
 
 --echo sync server_3 with server_2
 --let $sync_slave_connection= server_3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Cleanup
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $use_gtids= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

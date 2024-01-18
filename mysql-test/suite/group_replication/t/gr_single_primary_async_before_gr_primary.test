@@ -17,7 +17,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server_id1=`SELECT @@server_id`
 
@@ -28,7 +28,7 @@
 
 # start replica
 --let $rpl_channel_name='ch2_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo # 2. Start GR on server1
@@ -40,7 +40,7 @@
 if ($group_replication_found_primary_out_var)
 {
   --let $rpl_connection_name= $group_replication_primary_connection_out_var
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --let $primary_server_id=`SELECT @@server_id`
 
   --let $assert_text= The server1 is primary
@@ -69,7 +69,7 @@ if (!$group_replication_found_primary_out_var)
 --echo # 5. Clean up
 
 --let $rpl_channel_name='ch2_1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name=
 
 RESET REPLICA ALL FOR CHANNEL 'ch2_1';

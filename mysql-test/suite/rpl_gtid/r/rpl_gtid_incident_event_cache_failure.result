@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,8 +6,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 SET GLOBAL binlog_stmt_cache_size = 4096;
 SET GLOBAL max_binlog_stmt_cache_size = 4096;
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
-include/sync_slave_sql_with_master.inc
-include/stop_slave_io.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_receiver.inc
 # Testing the failure of cache creation while writing incident events.
 #
 # Since generation of GTIDs is tightly coupled with IO caches, if there is any
@@ -25,7 +25,7 @@ ERROR HY000: Multi-row statements required more than 'max_binlog_stmt_cache_size
 SHOW BINARY LOGS;
 ERROR HY000: You are not using binary logging
 include/assert_grep.inc [Found the message about the failure of cache creation in the error log.]
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 [connection master]
 SET GLOBAL binlog_stmt_cache_size = 4096;
 SET GLOBAL max_binlog_stmt_cache_size = 4096;
@@ -34,14 +34,14 @@ SET GLOBAL binlog_error_action = ABORT_SERVER;
 ERROR HY000: Binary logging not possible. Message: Could not create IO cache while writing an incident event to the binary log. Since GTID_MODE = ON, server is unable to proceed with logging. Query: 'INSERT INTO t1 (c1, data)
 VALUES (2, CONCAT("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 # Restart the master server
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection master]
 include/assert_grep.inc [Found the message about the failure of cache creation in the error log.]
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
 CALL mtr.add_suppression("Attempting backtrace. You can use the following information to find out*");
 CALL mtr.add_suppression("ERROR.*Could not create IO cache while writing an incident event to the binary log.*");
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

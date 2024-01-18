@@ -24,9 +24,9 @@ include/start_group_replication.inc
 server3
 include/start_group_replication.inc
 #After recovery all members must see 3 other members
-include/rpl_gr_wait_for_number_of_members.inc
-include/rpl_gr_wait_for_number_of_members.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 #After recovery all members must have the data present in the donor.
 include/assert.inc [On all members, the table should exist and have 3 elements]
 include/assert.inc [On all members, the table should exist and have 3 elements]
@@ -41,7 +41,7 @@ include/stop_group_replication.inc
 server2
 INSERT INTO t1 VALUES (4);
 INSERT INTO t1 VALUES (5);
-include/rpl_sync.inc
+include/rpl/sync.inc
 #Stop the member 2
 include/stop_group_replication.inc
 #Add some data to future recoveries
@@ -61,9 +61,9 @@ include/start_group_replication.inc
 server3
 include/start_group_replication.inc
 #After recovery all members must see 3 other members
-include/rpl_gr_wait_for_number_of_members.inc
-include/rpl_gr_wait_for_number_of_members.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 #After recovery all members must have the data present in the donor.
 include/assert.inc [On all members, the table should exist and have 7 elements]
 include/assert.inc [On all members, the table should exist and have 7 elements]

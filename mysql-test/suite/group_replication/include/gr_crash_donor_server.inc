@@ -22,7 +22,7 @@
 --source include/big_test.inc
 --source include/force_restart.inc
 
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --let $rpl_skip_group_replication_start= 1
@@ -30,7 +30,7 @@
 
 # START GR on Two servers M1 and M2
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
@@ -42,7 +42,7 @@ SET sql_log_bin=1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
@@ -57,7 +57,7 @@ SET sql_log_bin=1;
 # that when M3 joins it will be in recovery for some time.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Create the procedure to perform dml operations
 delimiter $$;
@@ -80,11 +80,11 @@ call dml_operations();
 --echo
 
 # Wait for the data to get synced on server2
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # JOIN M3 to the group
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
@@ -92,7 +92,7 @@ SET sql_log_bin=1;
 LOCK TABLES t1 READ;
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
@@ -124,7 +124,7 @@ if(`SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHER
 
 --let $rpl_connection_silent= 1
 --let $rpl_connection_name= server$other_id
---source include/rpl_connection.inc
+--source include/connection.inc
 # Create the procedure to perform dml operations
 delimiter $$;
 CREATE PROCEDURE dml_operations_2()
@@ -147,7 +147,7 @@ send call dml_operations_2();
 
 # Wait until Recovery phase1 ends.(until the service_state of group_replication_recovery goes to OFF state.)
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 --let $wait_timeout=200
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE channel_name='group_replication_recovery' AND service_state='OFF';
@@ -155,7 +155,7 @@ UNLOCK TABLES;
 
 # Kill the donor server during phase 2 of M3's recovery
 --let $rpl_connection_name= server$donor_id
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 call mtr.add_suppression(".*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
@@ -170,12 +170,12 @@ SET sql_log_bin=1;
 --source include/kill_and_restart_mysqld.inc
 --echo # restarting
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= $donor_id
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server$other_id
---source include/rpl_connection.inc
+--source include/connection.inc
 reap;
 # Wait until group has only 2 members, that is, donor server's death is detected by
 # the group.
@@ -188,19 +188,19 @@ reap;
 # Start GR on killed and restarted donor server and wait until all the servers are ONLINE.
 # Start GR on donor server
 --let $rpl_connection_name= server$donor_id
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_timeout= 200
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server$other_id
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_timeout= 200
 --let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_members where MEMBER_STATE='ONLINE';
 --source include/wait_condition.inc
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Verify that table t1 has same data on all the servers.
 --let $diff_tables=server1:t1, server2:t1, server3:t1

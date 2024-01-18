@@ -3,7 +3,7 @@
 --echo # in CREATE PROCEDURE/FUNCTION/TRIGGER
 --echo #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo # Create objects on source
@@ -21,7 +21,7 @@ CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 --echo
 --echo # Check if objects are created on replica
 --echo [On Replica]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection slave
 
 SELECT routine_name FROM information_schema.routines WHERE routine_schema = "test";
@@ -50,7 +50,7 @@ CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 --echo
 --echo # Check if objects are re-created on replica
 --echo [On Replica]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection slave
 
 SELECT routine_name FROM information_schema.routines WHERE routine_schema = "test";
@@ -69,5 +69,5 @@ DROP TRIGGER trg1;
 
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

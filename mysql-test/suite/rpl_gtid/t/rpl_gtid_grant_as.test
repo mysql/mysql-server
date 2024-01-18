@@ -23,9 +23,9 @@
 # Setup
 #
 
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #
 # Tests
@@ -39,18 +39,18 @@
 
 # 1.1 Make sure --partial_revokes is set to ON
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @save_partial_revokes_master = @@global.partial_revokes;
 SET GLOBAL partial_revokes=ON;
 --let $rpl_connection_name = slave
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @save_partial_revokes_slave = @@global.partial_revokes;
 SET GLOBAL partial_revokes=ON;
 
 
 # 1.2 Create accounts and perform grants/partial revokes
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE USER foo;
 CREATE ROLE r1, r2;
@@ -76,7 +76,7 @@ GRANT INSERT, SELECT ON *.* TO u6 AS foo WITH ROLE NONE;
 GRANT INSERT, SELECT ON *.* TO u7;
 
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 --disconnect foo_conn
 
 
@@ -87,14 +87,14 @@ GRANT INSERT, SELECT ON *.* TO u7;
 --let $user_number = 1
 while ($user_number <= 7) {
   --let $rpl_diff_statement = SHOW GRANTS FOR u$user_number
-  --source include/rpl_diff.inc
+  --source include/rpl/diff.inc
   --inc $user_number
 }
 
 # 1.5 Stop replica -> drop users -> apply binary log -> start replica -> verify
 --let $rpl_connection_name = slave
---source include/rpl_connection.inc
---source include/stop_slave.inc
+--source include/connection.inc
+--source include/rpl/stop_replica.inc
 
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
@@ -105,21 +105,21 @@ RESET REPLICA;
 --exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
 
 --let $rpl_connection_name = slave
---source include/rpl_connection.inc
---source include/start_slave.inc
+--source include/connection.inc
+--source include/rpl/start_replica.inc
 
 # Verification
 --let $user_number = 1
 while ($user_number <= 7) {
   --let $rpl_diff_statement = SHOW GRANTS FOR u$user_number
-  --source include/rpl_diff.inc
+  --source include/rpl/diff.inc
   --inc $user_number
 }
 
 
 # 1.6 Case 1 Cleanup
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
 DROP USER foo;
@@ -129,31 +129,31 @@ DROP USER foo;
 
 # 1.6.1 Restore original value of partial_revokes
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@global.partial_revokes = @save_partial_revokes_master;
 --let $rpl_connection_name = slave
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@global.partial_revokes = @save_partial_revokes_slave;
 
 # 1.6.2 Reset source and reset replica - because we need a clean slate
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo # Case 2: Without --partial_revokes
 
 # 2.1 Make sure --partial_revokes is set to OFF
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @save_partial_revokes_master = @@global.partial_revokes;
 SET GLOBAL partial_revokes=OFF;
 --let $rpl_connection_name = slave
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @save_partial_revokes_slave = @@global.partial_revokes;
 SET GLOBAL partial_revokes=OFF;
 
 
 # 2.2 Create accounts and perform grants/partial revokes
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE USER foo;
 CREATE ROLE r1, r2;
@@ -177,7 +177,7 @@ GRANT INSERT, SELECT ON *.* TO u6 AS foo WITH ROLE NONE;
 GRANT INSERT, SELECT ON *.* TO u7;
 
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 --disconnect foo_conn
 
 # 2.4 Verify that both - master and slave has consistent grants
@@ -187,15 +187,15 @@ GRANT INSERT, SELECT ON *.* TO u7;
 --let $user_number = 1
 while ($user_number <= 7) {
   --let $rpl_diff_statement = SHOW GRANTS FOR u$user_number
-  --source include/rpl_diff.inc
+  --source include/rpl/diff.inc
   --inc $user_number
 }
 
 
 # 2.5 Stop replica -> drop users -> apply binary log -> start replica -> verify
 --let $rpl_connection_name = slave
---source include/rpl_connection.inc
---source include/stop_slave.inc
+--source include/connection.inc
+--source include/rpl/stop_replica.inc
 
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
@@ -206,30 +206,30 @@ RESET REPLICA;
 --exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
 
 --let $rpl_connection_name = slave
---source include/rpl_connection.inc
---source include/start_slave.inc
+--source include/connection.inc
+--source include/rpl/start_replica.inc
 
 # Verification
 --let $user_number = 1
 while ($user_number <= 7) {
   --let $rpl_diff_statement = SHOW GRANTS FOR u$user_number
-  --source include/rpl_diff.inc
+  --source include/rpl/diff.inc
   --inc $user_number
 }
 
 # 2.6 Case 2 Cleanup
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
 DROP USER foo;
 
 # 2.6.1 Restore original value of partial_revokes
 --let $rpl_connection_name = master
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@global.partial_revokes = @save_partial_revokes_master;
 --let $rpl_connection_name = slave
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@global.partial_revokes = @save_partial_revokes_slave;
 
 
@@ -237,4 +237,4 @@ SET @@global.partial_revokes = @save_partial_revokes_slave;
 # cleanup
 #
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

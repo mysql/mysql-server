@@ -43,7 +43,7 @@
 --echo #    variables to use when start GR
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/install_replication_observers_example.inc
 
@@ -62,7 +62,7 @@ SELECT group_replication_service_message_send("tag", "Server2 sent a message");
 --echo # 5. Server1 send a message on GR delivery system
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_service_message_send("tag", "Server1 sent a message");
 
@@ -70,7 +70,7 @@ SELECT group_replication_service_message_send("tag", "Server1 sent a message");
 --echo # 6. Start Group Replication on server 2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -78,7 +78,7 @@ SELECT group_replication_service_message_send("tag", "Server1 sent a message");
 --echo # 7. Uninstall GR from server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/uninstall_group_replication_plugin.inc
 
@@ -93,7 +93,7 @@ SELECT group_replication_service_message_send("tag", "Server1 sent another messa
 --echo #    delivered.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_service_message_send("tag", "Server2 sent another message");
 
@@ -104,7 +104,7 @@ SELECT group_replication_service_message_send("tag", "Server2 sent another messa
 --echo #     log.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/install_group_replication_plugin.inc
 
@@ -119,7 +119,7 @@ SELECT group_replication_service_message_send("tag", "Server2 sent another messa
 --echo # 11. Assert server 2 received message from itself
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_stop_uninstall_gr.2.err
 --let $assert_count = 1
@@ -131,7 +131,7 @@ SELECT group_replication_service_message_send("tag", "Server2 sent another messa
 --echo # 12. Assert server 1 received message from itself
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_stop_uninstall_gr.1.err
 --let $assert_count = 1
@@ -145,7 +145,7 @@ SELECT group_replication_service_message_send("tag", "Server2 sent another messa
 --source include/uninstall_replication_observers_example.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/uninstall_replication_observers_example.inc
 

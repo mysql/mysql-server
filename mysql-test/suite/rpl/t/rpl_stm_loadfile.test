@@ -13,14 +13,14 @@
 ##########
 
 # Includes
---source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/have_binlog_format_statement.inc
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 enable_query_log;
 
--- source extra/rpl_tests/rpl_loadfile.test
+-- source common/rpl/rpl_loadfile.test
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

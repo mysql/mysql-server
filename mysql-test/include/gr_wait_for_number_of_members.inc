@@ -9,7 +9,7 @@
 # --let $group_replication_number_of_members= NUMBER
 # [--let $$wait_timeout= NUMBER]
 # [--let $rpl_debug= 1]
-# --source include/rpl_gr_wait_for_number_of_members.inc
+# --source include/rpl/gr_wait_for_number_of_members.inc
 #
 # Parameters:
 #   $group_replication_group_name
@@ -22,9 +22,9 @@
 #     See include/wait_condition.inc
 #
 #   $rpl_debug
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 
---let $include_filename= rpl_gr_wait_for_number_of_members.inc
+--let $include_filename= rpl/gr_wait_for_number_of_members.inc
 --source include/begin_include_file.inc
 
 if ($group_replication_group_name == '')
@@ -50,5 +50,5 @@ if($group_replication_number_of_members == 0)
 
 --source include/wait_condition.inc
 
---let $include_filename= rpl_gr_wait_for_number_of_members.inc
+--let $include_filename= rpl/gr_wait_for_number_of_members.inc
 --source include/end_include_file.inc

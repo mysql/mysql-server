@@ -14,16 +14,16 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 server2
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 #
 # Make server 2 leave and enter generating one more view change event
 # Check that only one view change transaction is written to the binlog
 #
 server2
 include/stop_group_replication.inc
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 include/start_group_replication.inc
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 #
 # Make server 3 join and leave while server 2 was away
 # Server 2 should receive 1 view change transaction from recovery and
@@ -37,7 +37,7 @@ include/start_group_replication.inc
 include/stop_group_replication.inc
 server2
 include/start_group_replication.inc
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 #
 # Cleaning up
 #

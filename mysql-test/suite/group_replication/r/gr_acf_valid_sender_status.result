@@ -41,7 +41,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch1_4']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1_4']
 
 # 5. Confirm server1 and  server2 members of group are added to
 #    performance_schema.replication_asynchronous_connection_failover.
@@ -88,8 +88,8 @@ call mtr.add_suppression("The source .* for channel 'ch1_4' has joined the group
 call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
 SET SESSION sql_log_bin = 1;
-include/stop_slave.inc [FOR CHANNEL 'ch1_4']
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1_4']
+include/rpl/reset_replica.inc
 SELECT asynchronous_connection_failover_delete_managed('ch1_4', 'GROUP_NAME');
 asynchronous_connection_failover_delete_managed('ch1_4', 'GROUP_NAME')
 The UDF asynchronous_connection_failover_delete_managed() executed successfully.

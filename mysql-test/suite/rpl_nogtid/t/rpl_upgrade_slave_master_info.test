@@ -56,15 +56,15 @@
 --source include/have_binlog_format_row.inc
 # Using this unusual topology because of mysql_upgrade
 --let $rpl_topology= 2->1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 # First part: the upgrade
 
 --echo # DROP slave_master_info table and re-create it as of MySQL 5.6.30
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 CALL mtr.add_suppression('A replica with the same server_uuid/server_id as this replica has connected to the source');
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 USE mysql;
 DROP TABLE `slave_master_info`;
 CREATE TABLE `slave_master_info` (
@@ -99,11 +99,11 @@ CREATE TABLE `slave_master_info` (
 --let $rpl_server_parameters= --upgrade=FORCE
 --let $rpl_server_number= 1
 --let $wait_counter= 10000
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # Create two additional channels on the slave
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_2 SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2 FOR CHANNEL ''
@@ -129,23 +129,23 @@ CREATE TABLE `slave_master_info` (
 --source include/assert.inc
 
 # Stop replica and reset the slave removing all channels
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 
 # Create the default channel again
 --replace_result $SERVER_MYPORT_2 SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Generate traffic on the master
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (1);
---source include/save_master_pos.inc
+--source include/rpl/save_server_position.inc
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
---source include/sync_slave_sql.inc
+--source include/connection.inc
+--source include/rpl/sync_with_saved.inc
 
 # In order to make check-testcase.test happy, we need to do two small changes
 # on mysql.slave_master_info table
@@ -156,7 +156,7 @@ ALTER TABLE slave_master_info
 
 # Second part: switching positions of Tls_version and Channel_name
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # The slave will throw the following errors:
 CALL mtr.add_suppression('Info table has a problem with its key field.*slave_master_info');
@@ -199,7 +199,7 @@ ALTER TABLE slave_master_info
 
 --let $rpl_server_number= 1
 --let $rpl_server_parameters=
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # This now should work fine now
 RESET REPLICA ALL;
@@ -208,7 +208,7 @@ RESET REPLICA ALL;
 # to replicate from the last synced position
 --replace_result $SERVER_MYPORT_2 SOURCE_PORT $_saved_file FILE $_saved_pos POS
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_LOG_FILE='$_saved_file', SOURCE_LOG_POS=$_saved_pos
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Third part: switching positions of Tls_version and Channel_name after having
 #             channels configured and used.
@@ -221,36 +221,36 @@ CALL mtr.add_suppression('Failed to create or recover replication info repositor
 # Make each channel to replicate something
 # On default channel
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (2);
 --let $sync_slave_connection= server_1
 # [--let $rpl_channel_name= 'NAME']
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 # On channel_1
 --replace_result $SERVER_MYPORT_2 SOURCE_PORT $_saved_file FILE $_saved_pos POS
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_LOG_FILE='$_saved_file', SOURCE_LOG_POS=$_saved_pos FOR CHANNEL 'channel_1'
 --let $rpl_channel_name= 'channel_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (3);
 --let $sync_slave_connection= server_1
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 # On channel_2
 --replace_result $SERVER_MYPORT_2 SOURCE_PORT $_saved_file FILE $_saved_pos POS
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_LOG_FILE='$_saved_file', SOURCE_LOG_POS=$_saved_pos FOR CHANNEL 'channel_2'
 --let $rpl_channel_name= 'channel_2'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (4);
 --let $sync_slave_connection= server_1
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 # Change the position of the slave_master_info table primary key
 ALTER TABLE slave_master_info
@@ -260,7 +260,7 @@ ALTER TABLE slave_master_info
 
 --let $rpl_server_number= 1
 --let $rpl_server_parameters=
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # We cannot perform repository operations until the repository be fixed
 --error ER_REPLICA_CONFIGURATION
@@ -285,25 +285,25 @@ ALTER TABLE slave_master_info
 
 --let $rpl_server_number= 1
 --let $rpl_server_parameters=
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # This now should work fine now
 --let $rpl_channel_name=
 --let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 
 # Create the default channel again
 # to replicate from the last synced position
 --replace_result $SERVER_MYPORT_2 SOURCE_PORT $_saved_file FILE $_saved_pos POS
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_LOG_FILE='$_saved_file', SOURCE_LOG_POS=$_saved_pos
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Cleanup
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 # The above two assert_grep.inc sources require to restart server.
 --source include/force_restart.inc

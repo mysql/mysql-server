@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 CREATE TABLE t1 (a INT PRIMARY KEY);
 INSERT INTO t1 (a) VALUES (10),(20);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 #2. Execute dependent DDL and DML (one after the other)
 #   in different sessions, on same member
@@ -22,7 +22,7 @@ UPDATE t1 set a= 3 where a= 30;
 COMMIT;
 [connection server_1]
 ALTER TABLE t1 add column b varchar(10) DEFAULT 'empty';
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT * FROM t1;
 a	b
 1	empty
@@ -52,7 +52,7 @@ a
 1
 2
 3
-include/rpl_sync.inc
+include/rpl/sync.inc
 # 3.3 Check that t1 on Server1, Server2 has same data
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 [connection server1]

@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1. Create a basic table on all three servers.
 [connection server1]
 CREATE TABLE t1(a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 SET sql_log_bin=0;
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication.");
@@ -45,7 +45,7 @@ include/start_group_replication.inc
 #           (just to check that everything is working fine).
 [connection server1]
 INSERT INTO t1 values (13);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:t1, server2:t1, server3:t1]
 ################
 # 6. Cleanup.

@@ -32,7 +32,7 @@
 --echo #    Commit some data and then purge all binary logs.
 --echo #    Bootstrap a group on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Install the clone plugin
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
@@ -45,7 +45,7 @@ INSERT INTO t1 VALUES (2);
 
 # Purge binary logs.
 SET sql_log_bin = 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET sql_log_bin = 1;
 
 FLUSH BINARY LOGS;
@@ -68,7 +68,7 @@ FLUSH BINARY LOGS;
 
 # Install the clone plugin
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -93,14 +93,14 @@ SET DEBUG_SYNC = "now SIGNAL signal.run_clone_query_continue";
 --echo ############################################################
 --echo # 3. Cleanup.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 
 UNINSTALL PLUGIN clone;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG='-d,gr_run_clone_query_fail_once';
 

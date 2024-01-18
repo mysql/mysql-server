@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_io.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_receiver.inc
 CALL mtr.add_suppression('GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected');
 CALL mtr.add_suppression('An unexpected event sequence was detected by the IO thread');
 [connection master]
@@ -21,11 +21,11 @@ INSERT INTO t1 VALUES (8);
 INSERT INTO t1 VALUES (9);
 COMMIT;
 [connection slave]
-include/rpl_receive_event_count.inc [stop after 2 Write_rows events]
+include/rpl/receive_event_count.inc [stop after 2 Write_rows events]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='MASTER_FILE', SOURCE_LOG_POS=MASTER_POS;
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

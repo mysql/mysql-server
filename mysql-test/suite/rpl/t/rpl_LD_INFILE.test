@@ -6,7 +6,7 @@
 #############################################################################
 
 # Includes
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 # Begin clean up test section
 --disable_warnings
@@ -23,7 +23,7 @@ LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE test.t1;
 
 
 SELECT * FROM test.t1 ORDER BY a DESC;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT * FROM test.t1 ORDER BY a DESC;
 
@@ -31,8 +31,8 @@ SELECT * FROM test.t1 ORDER BY a DESC;
 #show binlog events;
 connection master;
 DROP TABLE test.t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 5.0 test case
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

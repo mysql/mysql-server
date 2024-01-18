@@ -48,7 +48,7 @@ FLUSH LOGS;
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $mysqlbinlog_parameters= $MYSQLD_DATADIR/binlog.000001
 --let $mysqlbinlog_pipe= > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --let $assert_text = There is no session.require_row_format being set
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
@@ -70,7 +70,7 @@ FLUSH LOGS;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --let $mysqlbinlog_parameters= --require_row_format $MYSQLD_DATADIR/binlog.000001
 --let $mysqlbinlog_pipe= > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --let $assert_text = Session.require_row_format is being set
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out

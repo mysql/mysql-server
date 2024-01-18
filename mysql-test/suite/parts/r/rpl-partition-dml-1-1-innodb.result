@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -28,7 +28,7 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 set @old_session_binlog_format=  @@session.binlog_format;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL binlog_format = 'ROW';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
@@ -41,7 +41,7 @@ ROW	ROW
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Additional tests for WL#5217 by QA, testplan 1.1
 CREATE TABLE t1 
 (a INT NOT NULL,
@@ -125,7 +125,7 @@ a	b
 3	p0-29-upd-1
 4	p0-29-upd-1
 connection slave;
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 connection slave;
 connection slave;
 connection slave;
@@ -152,7 +152,7 @@ a	b
 33	p30-299-upd
 34	p30-299-upd
 connection slave;
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 connection slave;
 connection slave;
 connection slave;
@@ -175,7 +175,7 @@ a	b
 303	p300-2999-upd
 304	p300-2999-upd
 connection slave;
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 connection slave;
 connection slave;
 connection slave;
@@ -200,7 +200,7 @@ a	b
 3	subp3-upd
 4	subp4-upd
 connection slave;
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 connection slave;
 connection slave;
 connection slave;
@@ -214,12 +214,12 @@ a	b
 24	subp3-upd
 3	subp3-upd
 4	subp4-upd
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 connection slave;
 set @@global.binlog_format=  @old_global_binlog_format;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 connection slave;
 set @@session.binlog_format=  @old_session_binlog_format;
 Warnings:
@@ -232,4 +232,4 @@ set @@session.binlog_format=  @old_session_binlog_format;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

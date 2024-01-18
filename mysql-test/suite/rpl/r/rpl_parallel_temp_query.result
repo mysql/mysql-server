@@ -1,14 +1,14 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 flush status;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 4;
-include/start_slave.inc
+include/rpl/start_replica.inc
 create database d2;
 use d2;
 create table d2.t1 (a int auto_increment primary key, b int) engine=innodb;
@@ -33,7 +33,7 @@ create table d3.t1 (a int auto_increment primary key, b int) engine=innodb;
 insert into d3.t1 (b) select count(*) from tt_##;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:d4.t1, slave:d4.t1]
 include/diff_tables.inc [master:d3.t1, slave:d3.t1]
 include/diff_tables.inc [master:d2.t1, slave:d2.t1]
@@ -44,11 +44,11 @@ drop database d2;
 drop database d1;
 use d4;
 use d3;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 drop database d4;
 drop database d3;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
-include/rpl_end.inc
+include/rpl/deinit.inc

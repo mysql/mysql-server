@@ -20,7 +20,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    Srv_session::deinit_thread().
 [connection server4]
 # restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=0 --group_replication_start_on_boot=1
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 ############################################################
 # 4. Validate that member is back ONLINE and group has 4
@@ -42,7 +42,7 @@ SET SESSION sql_log_bin= 1;
 ############################################################
 # 5. Wait for client reconnection to server 5.
 [connection server_5]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 ############################################################
 # 6. Clean up.

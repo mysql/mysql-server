@@ -10,9 +10,9 @@
 -- source include/have_binlog_format_row.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 let $engine_type=myisam;
--- source extra/rpl_tests/rpl_row_blob.test
+-- source common/rpl/rpl_row_blob.test
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

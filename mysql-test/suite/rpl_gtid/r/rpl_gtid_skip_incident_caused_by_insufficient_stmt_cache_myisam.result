@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -17,7 +17,7 @@ CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
 # accommodate the changes.
 #
 Got one of the listed errors
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam
@@ -29,7 +29,7 @@ master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
 # Wait for the error 'ER_REPLICA_INCIDENT' caused by applying incident
 # event on slave and then stop the slave sql thread.
 #
-include/wait_for_slave_sql_error.inc [errno=13119]
+include/rpl/wait_for_applier_error.inc [errno=13119]
 #
 # Prepare the slave to skip the incident event by its GTID.
 #
@@ -37,9 +37,9 @@ SET GTID_NEXT='MASTER_GTID:5';
 BEGIN;
 COMMIT;
 SET GTID_NEXT=AUTOMATIC;
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
 DROP TABLE t1;
 SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;
-include/rpl_end.inc
+include/rpl/deinit.inc

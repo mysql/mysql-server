@@ -56,7 +56,7 @@
 # WL#15755: MAKE SQL_AFTER_GTIDS WORK WITH MTS
 #
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo ##############################################################
@@ -65,8 +65,8 @@
 --let $source_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 CREATE TABLE test.t1(c1 INTEGER PRIMARY KEY) ENGINE= Innodb;
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 --let $replica_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --echo
@@ -95,10 +95,10 @@ Received all the transactions mentioned in the option SQL_AFTER_GTIDS. Timeout w
 --echo #    Replicate, SOURCE:1 will be in replica worker thread.
 --echo #    Since table is locked it will not be applied.
 
- --source include/rpl_connection_slave1.inc
+ --source include/rpl/connection_replica1.inc
 LOCK TABLES test.t1 WRITE;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO test.t1 VALUES(1);
 
 --echo
@@ -106,7 +106,7 @@ INSERT INTO test.t1 VALUES(1);
 --echo # 5. Wait for the coordinator to read all the event.
 --echo #    Execute transaction REPLICA:2, it will execute.
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State='Waiting for source to send event'
 --source include/wait_condition.inc
@@ -121,12 +121,12 @@ INSERT INTO test.t2 VALUES(1);
 --echo #    Check worker thread is still executing the transaction SOURCE:2.
 --echo #    Check channel is still running, waiting for SOURCE:2 to be applied.
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $wait_condition = SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE state = 'Waiting for table metadata lock'
 --source include/wait_condition.inc
 
---source include/check_slave_is_running.inc
+--source include/rpl/assert_replica_running.inc
 
 --echo
 --echo ##############################################################
@@ -134,18 +134,18 @@ INSERT INTO test.t2 VALUES(1);
 --echo #    Since table is UNLOCKED now, SOURCE:2 will be applied and
 --echo #    channel will STOP.
 
- --source include/rpl_connection_slave1.inc
+ --source include/rpl/connection_replica1.inc
 UNLOCK TABLES;
 
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --echo
 --echo ##############################################################
 --echo # 8. Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 DROP TABLE t2;
---source include/start_slave_sql.inc
---source include/rpl_end.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/deinit.inc

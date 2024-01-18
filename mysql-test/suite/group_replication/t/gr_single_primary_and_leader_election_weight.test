@@ -62,7 +62,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo #
 --echo # 1. Verify group_replication_member_weight for value range, NULL,
@@ -134,7 +134,7 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 
 # Server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # get member uuid
 --let $server_uuid2=`SELECT @@server_uuid`
@@ -167,7 +167,7 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 
 # Server3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # get member uuid
 --let $server_uuid3=`SELECT @@server_uuid`
@@ -196,7 +196,7 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 
 # Server4
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # get member uuid
 --let $server_uuid4=`SELECT @@server_uuid`
@@ -228,7 +228,7 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 --echo #    based on member weight.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # 3.1. Wait for server1 to be set as primary member.
 --let $group_replication_expected_uuid=$server_uuid1
@@ -244,7 +244,7 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # 3.4. Wait for server4 to be set as primary member.
 --let $group_replication_expected_uuid=$server_uuid4
@@ -260,7 +260,7 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # 3.7. Wait for server2 to be set as primary member.
 --let $group_replication_expected_uuid=$server_uuid2
@@ -276,7 +276,7 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # 3.10. Wait for server3 to be set as primary member.
 --let $group_replication_expected_uuid=$server_uuid3
@@ -292,22 +292,22 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 
 

@@ -23,15 +23,15 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 
 # Create table
 CREATE TABLE t1 (a INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Save the variables, for server restart.
 --let $member2_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -46,10 +46,10 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # 2. Wait until server2 is marked as UNREACHABLE
@@ -62,7 +62,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 --send INSERT INTO test.t1 VALUES(11)
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Group Replication plugin is busy, it cannot be uninstalled. To force");
@@ -97,7 +97,7 @@ UNINSTALL PLUGIN group_replication;
 --echo
 --echo # 6. Clean-up
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # terminate send calling reap
 --echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR or Rollback
@@ -106,17 +106,17 @@ UNINSTALL PLUGIN group_replication;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $rpl_server_number= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE test.t1;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE test.t1;
 
 --source include/group_replication_end.inc

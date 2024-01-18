@@ -32,8 +32,8 @@
 --source include/not_group_replication_plugin.inc
 source include/big_test.inc;
 source include/have_debug.inc;
-source include/set_privilege_checks_user_as_system_user.inc;
-source include/master-slave.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/init_source_replica.inc;
 
 # Use the DBUG_SYNC_POINT to make sure the thread running the DDL is
 # waiting before creating the query log event
@@ -109,7 +109,7 @@ CREATE INDEX i1 ON t1 (a);
 
 CREATE VIEW v1 AS SELECT a FROM t1 WHERE a < 100;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master1;
 let $connection_name= master1;
@@ -144,17 +144,17 @@ let $rpl_diff_statement= SELECT schema_name FROM information_schema.schemata
                          WHERE schema_name LIKE \'d%\' ORDER BY schema_name;
 
 send CREATE DATABASE d2;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send ALTER DATABASE d1
        DEFAULT CHARACTER SET = 'utf8';
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP DATABASE d1;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP DATABASE IF EXISTS d2;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 ######## EVENT ########
 
@@ -165,17 +165,17 @@ let $rpl_diff_statement= SELECT event_name, event_body, execute_at
 send CREATE EVENT e2
   ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
   DO INSERT INTO test.t1 VALUES (2);
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send ALTER EVENT e1
   ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 DAY;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP EVENT e1;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP EVENT IF EXISTS e2;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 ######## FUNCTION ########
 
@@ -183,20 +183,20 @@ source include/kill_query_and_diff_master_slave.inc;
 
 send CREATE FUNCTION f2 () RETURNS INT DETERMINISTIC
      RETURN 1;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send ALTER FUNCTION f1 SQL SECURITY INVOKER;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 # function f1 probably does not exist because the ALTER query was
 # killed
 send DROP FUNCTION f1;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 # function f2 probably does not exist because the CREATE query was
 # killed
 send DROP FUNCTION IF EXISTS f2;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 ######## PROCEDURE ########
 
@@ -209,39 +209,39 @@ send CREATE PROCEDURE p2 (OUT rownum INT)
      END;
      //
 DELIMITER ;//
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send ALTER PROCEDURE p1 SQL SECURITY INVOKER COMMENT 'return rows of table t1';
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP PROCEDURE p1;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP PROCEDURE IF EXISTS p2;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 ######## TABLE ########
 
 --let $rpl_diff_statement= SHOW TABLES LIKE \'t%\'
 
 send CREATE TABLE t2 (b int);
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send ALTER TABLE t1 ADD (d int);
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send RENAME TABLE t3 TO t4;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 ######## INDEX ########
 
 --let $rpl_diff_statement= SHOW INDEX FROM t1
 
 send CREATE INDEX i2 on t1 (a);
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP INDEX i1 on t1;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 
 ######## SERVER ########
@@ -254,17 +254,17 @@ source include/kill_query_and_diff_master_slave.inc;
 # send CREATE SERVER s2
 #     FOREIGN DATA WRAPPER mysql
 #     OPTIONS (USER 'user2', HOST '192.168.1.108', DATABASE 'test');
-# source include/kill_query_and_diff_master_slave.inc;
+# source include/rpl/kill_query_and_diff_source_replica.inc;
     
 # send ALTER SERVER s1
 #     OPTIONS (DATABASE 'test1');
-# source include/kill_query_and_diff_master_slave.inc;
+# source include/rpl/kill_query_and_diff_source_replica.inc;
 
 # send DROP SERVER s1;
-# source include/kill_query_and_diff_master_slave.inc;
+# source include/rpl/kill_query_and_diff_source_replica.inc;
 
 # send DROP SERVER IF EXIST s1;
-# source include/kill_query_and_diff_master_slave.inc;
+# source include/rpl/kill_query_and_diff_source_replica.inc;
 
 ######## TRIGGER ########
 
@@ -282,36 +282,36 @@ send CREATE TRIGGER tr2 BEFORE INSERT ON t4
        END;
        //
 DELIMITER ;//
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP TRIGGER tr1;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP TRIGGER IF EXISTS tr2;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 ######## VIEW ########
 
 --let $rpl_diff_statement= SHOW TABLES LIKE \'v%\'
 
 send CREATE VIEW v2 AS SELECT a FROM t1 WHERE a > 100;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP VIEW v1;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP VIEW IF EXISTS v2;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 ######## DROP TABLE ########
 
 --let $rpl_diff_statement= SHOW TABLES LIKE \'t%\'
 
 send DROP TABLE t1;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP TABLE IF EXISTS t2;
-source include/kill_query_and_diff_master_slave.inc;
+source include/rpl/kill_query_and_diff_source_replica.inc;
 
 ######## CLEAN UP ########
 
@@ -348,4 +348,4 @@ DROP PROCEDURE IF EXISTS p2;
 DROP PROCEDURE IF EXISTS p3;
 DROP PROCEDURE IF EXISTS p4;
 enable_warnings;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

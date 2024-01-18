@@ -28,7 +28,7 @@ include/start_group_replication.inc
 Occurrences of 'CHANGE REPLICATION SOURCE' in the input file: 0
 # Ensuring the the two members are online.
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 # Asserting that CHANGE REPLICATION SOURCE is not replicated in the binary log of the server.
 Occurrences of 'CHANGE REPLICATION SOURCE' in the input file: 0
 [connection server2]

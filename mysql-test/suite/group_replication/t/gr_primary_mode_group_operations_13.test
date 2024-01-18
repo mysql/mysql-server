@@ -27,14 +27,14 @@
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo
 --echo # 2. server1 has a slave connection to server3
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -42,7 +42,7 @@
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
 
 --let $rpl_channel_name='ch3_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --echo
@@ -50,7 +50,7 @@
 --echo #    It shall fail as server1 has slave connections
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -76,7 +76,7 @@
 --echo # 6. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 STOP REPLICA FOR CHANNEL 'ch3_1';
 RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 
@@ -86,7 +86,7 @@ call mtr.add_suppression("Error while executing a group configuration operation:
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL read_only= 0;
 set session sql_log_bin=0;

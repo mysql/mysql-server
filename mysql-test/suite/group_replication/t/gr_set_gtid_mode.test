@@ -23,11 +23,11 @@
 # Keep binary logs with only GTIDs from test.
 --connection server1
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 --connection server2
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 --let $expected_gtid_set= "8a94f357-aab4-11df-86ab-c80aa9429490:1-2"
@@ -120,7 +120,7 @@ SET @@GLOBAL.GTID_MODE= ON;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -154,11 +154,11 @@ DROP TABLE t1;
 
 --connection server1
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 --connection server2
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 
 --source include/group_replication_end.inc

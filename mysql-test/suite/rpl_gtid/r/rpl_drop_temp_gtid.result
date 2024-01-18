@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,24 +14,24 @@ COMMIT;
 BEGIN;
 INSERT INTO t1 VALUES ((SELECT COUNT(*) FROM temp_t1));
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 # Stop the IO thread
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 Warnings:
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 # Restart IO thread
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Do one more insert on master and then sync slave with master
 [connection master]
 BEGIN;
 INSERT INTO t1 VALUES ((SELECT COUNT(*) FROM temp_t1));
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Now compare master and slave's t1 table data
 [connection master]
 include/diff_tables.inc [master:t1, slave:t1]
 # Cleanup
 [connection master]
 DROP TABLE t1, temp_t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

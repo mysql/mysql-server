@@ -55,7 +55,7 @@
 --source include/have_debug_sync.inc
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 
 --echo
@@ -64,7 +64,7 @@
 --echo #    applier workers.
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 
@@ -75,14 +75,14 @@ SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
 SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
 SET GLOBAL replica_parallel_workers= 4;
 SET GLOBAL replica_preserve_commit_order= ON;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 
 --echo
 --echo # 2. On source binlog_transaction_dependency_history_size is set to 1,
 --echo #    which will fallback to commit order dependency tracking algorithm.
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $sysvars_to_save = [ "GLOBAL.binlog_transaction_dependency_history_size" ]
 --source include/save_sysvars.inc
@@ -93,13 +93,13 @@ SET GLOBAL binlog_transaction_dependency_history_size = 1;
 --echo # 3. On master create table t1 and t2 and sync it to slave.
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= Verify t2 contains only one row
 --let $assert_cond= "[SELECT COUNT(*) COUNT from t2, COUNT, 1]" = "1"
@@ -113,7 +113,7 @@ INSERT INTO t2 VALUES (1);
 --echo #    @@session.timestamp 100, 101 and 102 respectively.
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $debug_point=syncpoint_after_commit_order_thread_becomes_leader_100
 --source include/add_debug_point.inc
@@ -134,7 +134,7 @@ INSERT INTO t2 VALUES (1);
 --echo #    leader for for COMMIT_ORDER_FLUSH_STAGE stage.
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Make the following INSERTs have same commit parent. So they can be applied
 # parallel on slave.
@@ -143,13 +143,13 @@ INSERT INTO t2 VALUES (1);
 
 # transaction T1
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET TIMESTAMP = 100; BEGIN; INSERT INTO t1 VALUES (1); COMMIT;
 
 --let $debug_point=set_commit_parent_100
 --source include/remove_debug_point.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR reached_after_commit_order_thread_becomes_leader_100";
 
@@ -171,19 +171,19 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_after_commit_order_thread_becomes_leader_1
 # transaction T2
 --connect(slave22,127.0.0.1,root,,,$SLAVE_MYPORT,)
 --let $rpl_connection_name= slave22
---source include/rpl_connection.inc
+--source include/connection.inc
 --send SET TIMESTAMP = 101; BEGIN; INSERT INTO t2 VALUES (2); COMMIT;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET DEBUG_SYNC= "now WAIT_FOR reached_before_binlog_leader_wait_101";
 
 # transaction T3
 --connect(slave222,127.0.0.1,root,,,$SLAVE_MYPORT,)
 --let $rpl_connection_name= slave222
---source include/rpl_connection.inc
+--source include/connection.inc
 --send SET TIMESTAMP = 102; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $debug_point=set_commit_parent_100
 --source include/remove_debug_point.inc
@@ -253,11 +253,11 @@ SET DEBUG_SYNC= "now SIGNAL continue_before_commit_order_leader_waits_for_binlog
 --echo
 
 --let $rpl_connection_name= slave22
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $rpl_connection_name= slave222
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 
@@ -265,7 +265,7 @@ SET DEBUG_SYNC= "now SIGNAL continue_before_commit_order_leader_waits_for_binlog
 --echo # 11. Verify data inserted in step 5 and 6 is there on the slave.
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $wait_condition= SELECT COUNT(*)=2 from t1
 --source include/wait_condition.inc
@@ -278,15 +278,15 @@ SET DEBUG_SYNC= "now SIGNAL continue_before_commit_order_leader_waits_for_binlog
 --echo # 12. Cleanup
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 DROP TABLE t2;
 --source include/restore_sysvars.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL replica_parallel_type = @save_replica_parallel_type;
 --disable_warnings
 SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
@@ -294,4 +294,4 @@ SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
 SET GLOBAL replica_preserve_commit_order = @save_replica_preserve_commit_order;
 
 --let $rpl_only_running_threads = 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

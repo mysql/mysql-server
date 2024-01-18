@@ -26,14 +26,14 @@
 --echo #    Server1 will be primary and server 2 secondary.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_8_0_28';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 SET SESSION sql_log_bin=0;
@@ -47,7 +47,7 @@ SET SESSION sql_log_bin=1;
 --echo #    running_transactions_timeout is compatible with version 8.0.28 or greater.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --error ER_CANT_INITIALIZE_UDF
@@ -57,7 +57,7 @@ SET SESSION sql_log_bin=1;
 --echo # 3. Cleanup.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_8_0_28';
 

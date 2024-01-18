@@ -1,0 +1,268 @@
+# ==== Purpose ====
+#
+# Verify that Seconds_Behind_Source is calculated correctly on a
+# Multi-threaded Slave when replica_parallel_type = 'DATABASE'.
+# The test covers these scenarios:
+#
+# 1) With two workers, check if Seconds_Behind_Source is calculated correctly
+# when all the workers are waiting.
+#
+# 2) With two workers, check if Seconds_Behind_Source is calculated correctly
+# when first worker compeletes first.
+#
+# 3) With three workers, check if Seconds_Behind_Source is calculated correctly
+# when second worker completes first.
+
+--source include/rpl/start_replica.inc
+
+###############################################################################
+# Scenario 1: Slave executes insert to t1 and is blocked due to lock on t1,
+# after 3s another worker on slave starts to execute insert to t2, this worker
+# is also blocked due to lock on t2. After 2 more seconds we check
+# Seconds_Behind_Source. Since 1st worker is still executing insert to t1,
+# this means that slave is at least 5s behind master.
+###############################################################################
+--echo # Scenario 1: With two workers, check if Seconds_Behind_Source is
+--echo # calculated correctly when all the workers are waiting.
+connect (slave2, 127.0.0.1, root, , test, $SLAVE_MYPORT, );
+
+connection master;
+CREATE TABLE t1 (f1 INT);
+CREATE DATABASE test2;
+USE test2;
+CREATE TABLE t2 (f1 INT);
+--source include/rpl/sync_to_replica.inc
+
+connection slave1;
+LOCK TABLE test.t1 WRITE;
+
+connection slave2;
+LOCK TABLE test2.t2 WRITE;
+
+connection master;
+USE test;
+let $start= `SELECT UNIX_TIMESTAMP()`;
+INSERT INTO t1 VALUES (1);
+
+--sleep 3
+
+USE test2;
+let $start2= `SELECT UNIX_TIMESTAMP()`;
+INSERT INTO t2 VALUES (1);
+--sleep 2
+
+# Wait till all events are written to relay-log
+--source include/rpl/sync_to_replica_received.inc
+
+# Check that two workers are waiting for metadata lock
+# and no worker is executing the event.
+let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
+--source include/wait_condition.inc
+let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
+                                                                             OR State = 'update';
+--source include/wait_condition.inc
+--source include/rpl/wait_for_mta_checkpoint.inc
+
+# Calculate the upper bound for Seconds_Behind_Source.
+# $upper_bound = "timestamp on slave after reading Seconds_Behind_Source" -
+#                "timestamp on master before the insert statement".
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $stop= `SELECT UNIX_TIMESTAMP()`;
+let $upper_bound= `SELECT $stop - $start`;
+let $assert_text= Seconds_Behind_Source must be between 5 and upper_bound;
+let $assert_cond= 5 <= $sbm AND $sbm <= $upper_bound;
+--source include/assert.inc
+
+connection slave1;
+UNLOCK TABLES;
+
+# Check that one worker is still running (waiting)
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
+--source include/wait_condition.inc
+let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
+                                                                             OR State = 'update';
+--source include/wait_condition.inc
+--source include/rpl/wait_for_mta_checkpoint.inc
+
+# Since we have unlocked test.t1, now the first worker which was 5s behind
+# the master has completed its task. However the second worker is still
+# waiting for lock. This means that Seconds_Behind_Source should now be 2s
+# or slightly more.
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $stop= `SELECT UNIX_TIMESTAMP()`;
+let $upper_bound= `SELECT $stop - $start2`;
+let $assert_text= Seconds_Behind_Source must be between 2 and upper_bound;
+let $assert_cond= 2 <= $sbm AND $sbm <= $upper_bound;
+--source include/assert.inc
+
+connection slave2;
+UNLOCK TABLES;
+
+--connection master
+--source include/rpl/sync_to_replica.inc
+
+let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
+--source include/wait_condition.inc
+--source include/rpl/wait_for_mta_checkpoint.inc
+
+# Now both the workers have completed their tasks and no new tasks have arrived, thus
+# Seconds_Behind_Source should be equal to 0.
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $assert_text= Seconds_Behind_Source must be 0;
+let $assert_cond= $sbm = 0;
+--source include/assert.inc
+
+###############################################################################
+# Scenario 2: In this scenario we check if Seconds_Behind_Source is updated
+# correctly when first worker compeletes its tasks first.
+###############################################################################
+--echo # Scenario 2: With two workers, check if Seconds_Behind_Source is
+--echo # calculated correctly when first worker compeletes first.
+
+connection slave2;
+LOCK TABLE test2.t2 WRITE;
+
+connection master;
+USE test;
+let $start= `SELECT UNIX_TIMESTAMP()`;
+INSERT INTO t1 VALUES (1);
+
+--sleep 3
+
+USE test2;
+let $start2= `SELECT UNIX_TIMESTAMP()`;
+INSERT INTO t2 VALUES (1);
+--sleep 2
+
+# Wait till all events are written to relay-log
+--source include/rpl/sync_to_replica_received.inc
+
+# Check that one worker is still running
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
+--source include/wait_condition.inc
+let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
+                                                                             OR State = 'update';
+--source include/wait_condition.inc
+--source include/rpl/wait_for_mta_checkpoint.inc
+
+# First worker has completed its task, second worker is still executing.
+# This means that Seconds_Behind_Source should now be 2s or slightly more.
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $stop= `SELECT UNIX_TIMESTAMP()`;
+let $upper_bound= `SELECT $stop - $start2`;
+let $assert_text= Seconds_Behind_Source must be between 2 and upper_bound;
+let $assert_cond= 2 <= $sbm AND $sbm <= $upper_bound;
+--source include/assert.inc
+
+connection slave2;
+UNLOCK TABLES;
+
+# Check that all the workers are free.
+let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
+--source include/wait_condition.inc
+--source include/rpl/wait_for_mta_checkpoint.inc
+
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $assert_text= Seconds_Behind_Source must be 0;
+let $assert_cond= $sbm = 0;
+--source include/assert.inc
+
+###############################################################################
+# Scenario 3: Three workers are running. In this scenario we check if correct
+# Seconds_Behind_Source is calculated when second worker completes first.
+###############################################################################
+--echo # Scenario 3: With three workers, check if Seconds_Behind_Source is
+--echo # calculated correctly when second worker completes first.
+--connection master
+
+CREATE DATABASE test3;
+USE test3;
+CREATE TABLE t3 (f1 INT);
+--source include/rpl/sync_to_replica.inc
+
+connect (slave3, 127.0.0.1, root, , test, $SLAVE_MYPORT, );
+
+connection slave1;
+LOCK TABLE test.t1 WRITE;
+
+connection slave3;
+LOCK TABLE test3.t3 WRITE;
+
+connection master;
+let $start= `SELECT UNIX_TIMESTAMP()`;
+
+USE test;
+INSERT INTO t1 VALUES (1);
+--sleep 3
+
+use test2;
+INSERT INTO t2 VALUES (1);
+--sleep 2
+
+USE test3;
+let $start3= `SELECT UNIX_TIMESTAMP()`;
+INSERT INTO t3 VALUES (1);
+--sleep 2
+
+--source include/rpl/sync_to_replica_received.inc
+
+# Check that two workers are still running
+let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
+--source include/wait_condition.inc
+let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
+                                                                             OR State = 'update';
+--source include/wait_condition.inc
+--source include/rpl/wait_for_mta_checkpoint.inc
+
+# Only second worker has completed. This means that longest running worker is
+# the first one, thus slave should be at least 7s behind the master.
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $stop= `SELECT UNIX_TIMESTAMP()`;
+let $upper_bound= `SELECT $stop - $start`;
+let $assert_text= Seconds_Behind_Source must be between 7 and upper_bound;
+let $assert_cond= 7 <= $sbm AND $sbm <= $upper_bound;
+--source include/assert.inc
+
+connection slave1;
+UNLOCK TABLES;
+
+# Check that last worker is still running
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
+--source include/wait_condition.inc
+let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
+                                                                             OR State = 'update';
+--source include/wait_condition.inc
+--source include/rpl/wait_for_mta_checkpoint.inc
+
+# Only third worker is running. This means that slave should be at least 2s
+# behind the master.
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $stop= `SELECT UNIX_TIMESTAMP()`;
+let $upper_bound= `SELECT $stop - $start3`;
+let $assert_text= Seconds_Behind_Source must be between 2 and upper_bound;
+let $assert_cond= 2 <= $sbm AND $sbm <= $upper_bound;
+--source include/assert.inc
+
+connection slave3;
+UNLOCK TABLES;
+
+# Now all four workers have completed. Seconds_Behind_Source should be 0.
+let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
+--source include/wait_condition.inc
+--source include/rpl/wait_for_mta_checkpoint.inc
+
+let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1);
+let $assert_text= Seconds_Behind_Source must be 0;
+let $assert_cond= $sbm = 0;
+--source include/assert.inc
+
+#
+# Cleanup
+#
+connection master;
+DROP TABLE test.t1;
+DROP DATABASE test2;
+DROP DATABASE test3;
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc

@@ -17,7 +17,7 @@
 
 
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --source include/big_test.inc
 
@@ -26,9 +26,9 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 # Increasing source_connect_retry to increase the time interval between connection retries due to Bug#23615424:
 # WL#6338: RPL.RPL_INNODB_AUTO_INCREMENT FAILS WITH ERROR IN SYNC_WITH_MASTER.INC
 --let $rpl_connection_name= slave
---source include/rpl_connection.inc
+--source include/connection.inc
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 ##########################################################################################
 # Consecutive lock mode                                                                  #
@@ -38,17 +38,17 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 
 --let $rpl_server_number=1
 --let $rpl_server_parameters= --innodb_autoinc_lock_mode=1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo # Restart replica with innodb_autoinc_lock_mode = 1
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
 --let $rpl_server_number=2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source suite/rpl/include/rpl_auto_increment.inc
+--source common/rpl/auto_increment.inc
 
 ##########################################################################################
 # Traditional lock mode                                                                  #
@@ -59,18 +59,18 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 
 --let $rpl_server_number=1
 --let $rpl_server_parameters= --innodb_autoinc_lock_mode=0
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 
 --echo # Restart replica with innodb_autoinc_lock_mode = 0
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
 --let $rpl_server_number=2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source suite/rpl/include/rpl_auto_increment.inc
+--source common/rpl/auto_increment.inc
 
 ##########################################################################################
 # Interleaved lock mode                                                                  #
@@ -81,17 +81,17 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 
 --let $rpl_server_number=1
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo # Restart replica with innodb_autoinc_lock_mode = 2
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source suite/rpl/include/rpl_auto_increment.inc
+--source common/rpl/auto_increment.inc
 ##########################################################################################
 # Master : Interleaved lock mode; Slave : Traditional lock mode                          #
 ##########################################################################################
@@ -100,11 +100,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --connection slave
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source suite/rpl/include/rpl_auto_increment.inc
+--source common/rpl/auto_increment.inc
 
 
 ##########################################################################################
@@ -115,11 +115,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --connection slave
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source suite/rpl/include/rpl_auto_increment.inc
+--source common/rpl/auto_increment.inc
 
 ##########################################################################################
 # Master : Traditional lock mode; Slave : Consecutive lock mode                          #
@@ -129,9 +129,9 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --connection master
 --let $rpl_server_number=1
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source suite/rpl/include/rpl_auto_increment.inc
+--source common/rpl/auto_increment.inc
 
 ##########################################################################################
 # Master : Traditonal lock mode; Slave : Interleaved lock mode                           #
@@ -141,11 +141,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --connection slave
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source suite/rpl/include/rpl_auto_increment.inc
+--source common/rpl/auto_increment.inc
 
 ##########################################################################################
 # Master : Consecutive lock mode; Slave : Interleaved lock mode                          #
@@ -155,9 +155,9 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --connection master
 --let $rpl_server_number=1
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source suite/rpl/include/rpl_auto_increment.inc
+--source common/rpl/auto_increment.inc
 
 
 ##########################################################################################
@@ -168,11 +168,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --connection slave
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source suite/rpl/include/rpl_auto_increment.inc
+--source common/rpl/auto_increment.inc
 
 ##########################################################################################
 # Set locking mode back to the default mode                                              #
@@ -182,14 +182,14 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --connection master
 --let $rpl_server_number=1
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --echo # Restart replica with innodb_autoinc_lock_mode = 2
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -22,7 +22,7 @@
 #
 
 --source include/have_binlog_format_mixed_or_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo # Create tables on master
 CREATE TABLE t1 (z VARCHAR(36));
@@ -33,4 +33,4 @@ ALTER TABLE t1 ADD COLUMN b char(36) DEFAULT (RAND());
 
 # Clean up
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

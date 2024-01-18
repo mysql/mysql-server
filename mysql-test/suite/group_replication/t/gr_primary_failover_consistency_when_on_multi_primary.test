@@ -31,7 +31,7 @@
 --echo # 1. Bootstrap group on server 1 and create table t1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -44,7 +44,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 2. Join server2 to group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -53,7 +53,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 3. Lock tables on server2
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 LOCK TABLE t1 READ;
 
@@ -62,7 +62,7 @@ LOCK TABLE t1 READ;
 --echo # 4. Add more data to table t1 on server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (2);
 
@@ -71,7 +71,7 @@ INSERT INTO t1 VALUES (2);
 --echo # 5. Execute switch to multi primary
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --send SELECT group_replication_switch_to_multi_primary_mode()
 
@@ -82,7 +82,7 @@ INSERT INTO t1 VALUES (2);
 --echo #    replication backlog.
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT received_transaction_set="$group_replication_group_name:1-3" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier";
 --source include/wait_condition.inc
@@ -106,7 +106,7 @@ UNLOCK TABLES;
 --echo # 8. Reap with success change to multi primary
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
@@ -115,7 +115,7 @@ UNLOCK TABLES;
 --echo # 9. Cleanup
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

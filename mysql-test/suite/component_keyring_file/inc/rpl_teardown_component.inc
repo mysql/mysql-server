@@ -20,7 +20,7 @@
 --let CURRENT_DATADIR = $REPLICA_DATADIR 
 --source include/keyring_tests/helper/local_keyring_remove_config.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 # Restart server without manifest file
 --source include/keyring_tests/helper/cleanup_server_with_manifest.inc

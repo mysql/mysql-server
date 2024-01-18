@@ -1,7 +1,7 @@
 --source include/have_ndb.inc
 #error message differs slightly with statement based replication
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 -- disable_query_log
 call mtr.add_suppression("Got error 146 - 'Lock timed out; Retry transaction' during COMMIT");
@@ -204,11 +204,11 @@ UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 # 1205 = ER_LOCK_WAIT_TIMEOUT 
 --let $slave_sql_errno= 1205 
 --let $show_slave_sql_error= 0
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # now set max retries high enough to succeed, and start replica again
 set GLOBAL replica_transaction_retries=10;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 # Wait for deadlock to be detected and retried.
 # We want to wait until at least one retry has been made, but before
 # the slave stops. currently, there is no safe way to do that: we
@@ -357,4 +357,4 @@ drop table t1;
 --sync_slave_with_master
 --connection master
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

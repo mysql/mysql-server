@@ -24,7 +24,7 @@
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # create a user for replication that requires ssl encryption
 SET SESSION sql_log_bin=0;
@@ -51,7 +51,7 @@ INSERT INTO t1 VALUES (1);
 --echo #
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column values of performance_schema.replication_group_members table are correct and DNS resolvable.");
@@ -97,13 +97,13 @@ SET GLOBAL group_replication_recovery_tls_ciphersuites= DEFAULT;
 --echo # Clean up
 --echo #
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.group_replication_recovery_use_ssl= @group_replication_recovery_use_ssl_saved;
 SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @group_replication_recovery_tls_ciphersuites_saved;
 SET @@GLOBAL.group_replication_recovery_retry_count= @group_replication_recovery_retry_count_saved;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.tls_version= @tls_version_saved;
 ALTER INSTANCE RELOAD TLS;
 

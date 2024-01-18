@@ -1,0 +1,238 @@
+# The following test aims at verifying MTS recovery.
+# It can be invoked in a standard as well as Multi-source replication environment.
+#
+# Algorithm of test
+# -----------------
+#
+# 1. stop the replica applier and make it apply in non commit order (to create gap)
+# 2. create 4 concurrent transactions (on 4 different tables) on the source
+# 3. on the replica lock table 3
+# 4. start the applier, watch it fail on an innodb lock wait timeout
+# 5. restart the applier with UNTIL SQL_AFTER_MTS_GAPS
+# 6. watch the applier fill in the gap and stop
+# 7. go to step #1 and repeat, but on step #5 also restart the server
+#    before restarting the applier
+
+#------------------
+# Parameters:
+#
+
+# give up waiting for lock in Innodb at error simulation
+--let $innodb_wait_timeout=1
+# small value for max relay-log-size
+--let $relay_log_size= 4096
+
+--let $ntables=5
+
+--source include/rpl/connection_replica.inc
+
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+
+# save previous settings to restore them at the end
+--let $save_innodb_lock_wait_timeout= `SELECT @@GLOBAL.innodb_lock_wait_timeout`
+--let $save_replica_transaction_retries= `SELECT @@global.replica_transaction_retries`
+--let $save_replica_preserve_commit_order= `SELECT @@global.replica_preserve_commit_order`
+--let $save_max_relay_log_size=`SELECT @@global.max_relay_log_size`
+
+# change global vars on the replica
+--source include/rpl/stop_applier.inc
+--eval SET @@global.max_relay_log_size=$relay_log_size
+--eval SET @@global.innodb_lock_wait_timeout=$innodb_wait_timeout
+SET @@global.replica_transaction_retries= 0;
+SET GLOBAL replica_preserve_commit_order= OFF;
+--source include/rpl/start_applier.inc
+
+--let $assert_text= the max size of relay log must be $relay_log_size
+--let $assert_cond= [select @@global.max_relay_log_size] = $relay_log_size
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+#
+# End of parameters
+# ------------------
+
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
+if ($rpl_multi_source)
+{
+  --let $FOR_CHANNEL = FOR CHANNEL 'channel_1'
+  --let $rpl_channel_name = 'channel_1'
+}
+
+# iteration 2: simple SQL_AFTER_MTS_GAPS
+# iteration 1: restart the server +  simple SQL_AFTER_MTS_GAPS
+--let $iterations=2
+while ($iterations)
+{
+  if ($iterations == 2)
+  {
+    --echo # ASSERTION 1: a simple START REPLICA UNTIL SQL_AFTER_MTS_GAPS, after the
+    --echo #              applier stops, works
+  }
+
+  if ($iterations == 1)
+  {
+    --echo # ASSERTION 2: a simple SQL_AFTER_MTS_GAPS, after restarting the server, works
+  }
+
+  #
+  # PHASE 1: Setup
+  #
+  --source include/rpl/connection_source.inc
+  --let $i=1
+  while($i <= $ntables)
+  {
+    --eval CREATE TABLE t$i (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT) ENGINE = InnoDB
+    --eval INSERT INTO t$i VALUES (1, REPEAT('a', 8192))
+    --inc $i
+  }
+
+  --source include/rpl/sync_to_replica.inc
+
+  #
+  # PHASE 2: Tests / Assertions
+  #
+
+  # stop the applier so that we have enough backlog to exercise the workers
+  --source include/rpl/stop_applier.inc
+
+  # create the load
+  --source include/rpl/connection_source.inc
+  --let $i=1
+  while($i < $ntables)
+  {
+    --eval UPDATE t$i SET c1 = 2 , c2 = REPEAT('b', 8192) WHERE c1 = 1
+    --inc $i
+    --let $gtid_executed_after_t4=`SELECT @@global.gtid_executed`
+  }
+
+  # lock records in db3.t
+  --source include/rpl/connection_replica1.inc
+  START TRANSACTION;
+  --let $to_replace = `SELECT REPEAT('a', 8192)`
+  --replace_result $to_replace a...<8192>...a
+  SELECT * FROM t3 FOR UPDATE;
+
+  # start the applier
+  --source include/rpl/connection_replica.inc
+  --source include/rpl/start_applier.inc
+
+  # wait for it to stop with an error
+  --let $slave_sql_errno = convert_error(ER_LOCK_WAIT_TIMEOUT)
+  --let $show_slave_sql_error= 0
+  --source include/rpl/wait_for_applier_error.inc
+
+  # remove the condition that creates the gap
+  --source include/rpl/connection_replica1.inc
+  ROLLBACK;
+
+  # assert that there is a gap
+  --source include/rpl/connection_replica.inc
+
+  --let $assert_cond = [SELECT count(*) FROM t1 WHERE c1 = 2] = 1
+  --let $assert_text = Assert that t1 has 1 records in it
+  --source include/assert.inc
+
+  --let $assert_cond = [SELECT count(*) FROM t2 WHERE c1 = 2] = 1
+  --let $assert_text = Assert that t2 has 1 records in it
+  --source include/assert.inc
+
+  --let $assert_cond = [SELECT count(*) FROM t3 WHERE c1 = 2] = 0
+  --let $assert_text = Assert that t3 has 0 records in it
+  --source include/assert.inc
+
+  --let $assert_cond = [SELECT count(*) FROM t4 WHERE c1 = 2] = 1
+  --let $assert_text = Assert that t4 has 1 records in it
+  --source include/assert.inc
+
+  --let $assert_cond = [SELECT count(*) FROM t5 WHERE c1 = 2] = 0
+  --let $assert_text = Assert that t5 has 0 records in it
+  --source include/assert.inc
+
+  # this is the extra bit
+  if ($iterations == 1)
+  {
+    # restart the server
+    --let $rpl_server_number= 2
+    --let $rpl_skip_start_slave= 1
+    --source include/rpl/restart_server.inc
+    --source include/rpl/connection_replica.inc
+
+    # set the vars to the custom ones again (they were reset back to
+    # defaults when the server restarted)
+    --eval SET @@global.max_relay_log_size=$relay_log_size
+    --eval SET @@global.innodb_lock_wait_timeout=$innodb_wait_timeout
+    SET @@global.replica_transaction_retries= 0;
+    SET GLOBAL replica_preserve_commit_order= OFF;
+  }
+
+  --source include/rpl/connection_source.inc
+  UPDATE t5 SET c1 = 2 , c2 = REPEAT('b', 8129) WHERE c1 = 1;
+  --source include/rpl/connection_replica.inc
+
+  # assert that a START REPLICA fills in the GAP and nothing else
+
+  if ($gtid_mode != 'OFF')
+  {
+    --let $START_REPLICA_UNTIL_AFTER_GAPS=START REPLICA UNTIL SQL_AFTER_GTIDS='$gtid_executed_after_t4' $FOR_CHANNEL
+    --let $slave_param_value = SQL_AFTER_GTIDS
+  }
+
+  if ($gtid_mode == 'OFF')
+  {
+    --let $START_REPLICA_UNTIL_AFTER_GAPS=START REPLICA UNTIL SQL_AFTER_MTS_GAPS $FOR_CHANNEL
+    --let $slave_param_value = DONE
+  }
+
+  --replace_result $START_REPLICA_UNTIL_AFTER_GAPS START_REPLICA_UNTIL_AFTER_GAPS
+  --eval $START_REPLICA_UNTIL_AFTER_GAPS
+  --let $slave_param = Until_Condition
+  --source include/rpl/wait_for_replica_status.inc
+  --source include/rpl/wait_for_applier_to_stop.inc
+
+  --let $assert_cond = [SELECT count(*) FROM t3 WHERE c1 = 2] = 1
+  --let $assert_text = Assert that t3 has 1 records in it
+  --source include/assert.inc
+
+  --let $assert_cond = [SELECT count(*) FROM t5 WHERE c1 = 2] = 0
+  --let $assert_text = Assert that t5 has 0 records in it
+  --source include/assert.inc
+
+  #
+  # PHASE 3: Clean up
+  #
+  --source include/rpl/connection_replica.inc
+  --source include/rpl/start_replica.inc
+  --source include/rpl/connection_source.inc
+  --let $i=1
+  while ($i <= $ntables)
+  {
+    --eval DROP TABLE t$i
+    --inc $i
+  }
+  --source include/rpl/sync_to_replica.inc
+  --source include/rpl/connection_source.inc
+
+  --dec $iterations
+
+}
+
+# Final clean up
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+# restore replica's settings
+--source include/rpl/stop_applier.inc
+
+--replace_result $save_innodb_lock_wait_timeout DEFAULT_INNODB_LOCK_WAIT_TIMEOUT
+--eval SET @@global.innodb_lock_wait_timeout=$save_innodb_lock_wait_timeout
+
+--replace_result $save_replica_transaction_retries DEFAULT_REPLICA_TRANSACTION_RETRIES
+--eval SET @@global.replica_transaction_retries= $save_replica_transaction_retries;
+
+--replace_result $save_max_relay_log_size DEFAULT_MAX_RELAY_LOG_SIZE
+--eval SET @@global.max_relay_log_size= $save_max_relay_log_size
+
+--replace_result $save_replica_preserve_commit_order DEFAULT_REPLICA_PRESERVE_COMMIT_ORDER
+--eval SET @@global.replica_preserve_commit_order= $save_replica_preserve_commit_order
+
+--source include/rpl/start_applier.inc

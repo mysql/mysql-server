@@ -1,0 +1,173 @@
+# ==== Purpose ====
+#
+# Test that slave behaves well in some conflict situations.  The
+# following are tested:
+#
+# - The slave SQL thread sees an 'INSERT' of a row with a key that
+#   already exists in the table;
+#
+# - The slave SQL thread sees a 'DELETE' of a row that does not
+#   exist in the table.
+#
+# In statement-logging mode, the first conflict type causes the slave
+# to stop with an error and the second conflict is ignored.
+#
+# In row-logging mode, the slave behavior depends the value of
+# @@replica_exec_mode on the slave: if @@replica_exec_mode is IDEMPOTENT,
+# the slave should ignore the conflicting statement and continue
+# normally.  If @@replica_exec_mode is STRICT, the slave should stop
+# with an error.
+#
+# This test was previously named rpl_stm_mystery22/rpl_row_mystery22.
+#
+#
+# ==== Method ====
+#
+# Create a table on master and slave, insert a row on slave, and
+# insert the same row on master.
+#
+# Create a table on master and slave, insert a row on master with
+# binlogging turned off, and remove the row on master with binlogging
+# turned on.
+#
+#
+# ==== Related bugs ====
+#
+# BUG#31552: Replication breaks when deleting rows from out-of-sync table without PK
+# BUG#31609: Not all RBR slave errors reported as errors
+#
+# Bug in this test case:
+# BUG#37718: rpl.rpl_stm_mystery22 fails sporadically on pushbuild
+#
+#
+# ==== Usage ====
+#
+# This file assumes the following:
+#
+# - The test language variable $slave_is_idempotent is set to 1 if the
+#   slave is expected to stop on duplicate key errors (i.e., if the
+#   binlog is in statement mode or
+#   @@global.replica_exec_mode=STRICT). It is set to 0 otherwise.
+#
+# - Replication has been initialized by include/rpl/init_source_replica.inc
+#
+# - The test adds a suppression for the following warning:
+#    Slave: Can't find record in 't1' Error_code: 1032
+
+
+--echo ==== Initialize ====
+
+--echo [on master]
+connection master;
+CREATE TABLE t1(a INT PRIMARY KEY);
+--echo [on slave]
+--source include/rpl/sync_to_replica.inc
+
+--echo ==== Test: SQL thread sees 'INSERT' of existing key ====
+
+--echo ---- Prepare slave so that it will get duplicate key error ----
+# This row will be in the way of the row inserted by master.
+INSERT INTO t1 VALUES (1);
+
+--echo ---- Insert rows on master ----
+--echo [on master]
+connection master;
+# Insert the same row on master
+INSERT INTO t1 VALUES (1);
+save_master_pos;
+SELECT * FROM t1;
+
+--echo [on slave]
+connection slave;
+
+# If we are statement-logging or if replica_exec_mode=STRICT, we now
+# expect to see an error on the slave.  Otherwise (i.e., we are
+# row-logging and replica_exec_mode=IDEMPOTENT), we expect that the
+# duplicate row is ignored by the slave and replication continues.
+if (`SELECT @@global.binlog_format != 'ROW' OR @@global.replica_exec_mode = 'STRICT'`) {
+  --echo ---- Wait until slave stops with an error ----
+  # Wait until the slave tries to run the query, fails with duplicate
+  # key error, and stops the SQL thread.
+
+  let $slave_sql_errno= convert_error(ER_DUP_ENTRY);
+  source include/rpl/wait_for_applier_error.inc;
+  --let $errno= query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1)
+  --eval SELECT "$errno" as 'Last_SQL_Errno'
+
+  call mtr.add_suppression("Replica SQL.*Duplicate entry .1. for key .t1.PRIMARY.* Error_code: MY-001062");
+  call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+  SELECT * FROM t1;
+
+  --echo ---- Resolve the conflict on the slave and restart SQL thread ----
+  DELETE FROM t1 WHERE a = 1;
+  START REPLICA SQL_THREAD;
+  source include/rpl/wait_for_applier_to_start.inc;
+}
+
+--echo ---- Sync slave and verify that there is no error ----
+sync_with_master;
+--source include/rpl/assert_replica_no_error.inc
+SELECT * FROM t1;
+
+
+--echo ==== Test: SQL thread sees 'DELETE' of non-existing row ====
+
+--echo ---- On master, insert two rows, the second with binlogging off ----
+--echo [on master]
+connection master;
+DELETE FROM t1;
+INSERT INTO t1 VALUES (1);
+
+--echo [on slave]
+--source include/rpl/sync_to_replica.inc
+DELETE FROM t1 WHERE a = 1;
+
+--echo ---- On master, remove the row that does not exist on slave ----
+--echo [on master]
+connection master;
+DELETE FROM t1 WHERE a = 1;
+SELECT * FROM t1;
+save_master_pos;
+
+--echo [on slave]
+connection slave;
+
+# If we are row-logging and replica_exec_mode is STRICT, we now expect
+# an error since the row to delete does not exist on slave.  Otherwise
+# (i.e., either we are statement-logging or replica_exec_mode is
+# IDEMPOTENT), the absence of the row to delete is ignored and
+# replication continues.
+if (`SELECT @@global.binlog_format = 'ROW' AND @@global.replica_exec_mode = 'STRICT'`) {
+  --echo ---- Wait until slave stops with an error ----
+  call mtr.add_suppression("Replica SQL.*Can.t find record in .t1., Error_code: 1032");
+
+  let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND);
+  source include/rpl/wait_for_applier_error.inc;
+  --let $errno= query_get_value("SHOW REPLICA STATUS", Last_SQL_Errno, 1)
+  --eval SELECT "$errno" as 'Last_SQL_Errno'
+
+  SELECT * FROM t1;
+
+  --echo ---- Resolve the conflict on the slave and restart SQL thread ----
+  INSERT INTO t1 VALUES (1);
+  START REPLICA SQL_THREAD;
+  source include/rpl/wait_for_applier_to_start.inc;
+}
+
+--echo ---- Sync slave and verify that there is no error ----
+# The slave should sync ok, and SHOW REPLICA STATUS should give no
+# error.
+sync_with_master;
+--source include/rpl/assert_replica_no_error.inc
+SELECT * FROM t1;
+
+
+--echo ==== Clean up ====
+
+--echo [on master]
+connection master;
+DROP TABLE t1;
+
+--echo [on slave]
+--source include/rpl/sync_to_replica.inc

@@ -31,7 +31,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_var_persist_error';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -39,7 +39,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_var_persist_error';
 --echo # 2. Execute action to switch to multi primary mode
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_switch_to_multi_primary_mode();
 
@@ -49,7 +49,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/gr_assert_multi_primary_mode.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_multi_primary_mode.inc
 
@@ -61,7 +61,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There are two persisted variables'
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 3
@@ -71,7 +71,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 5. Go back to single primary mode with server 1 as the primary
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid MEMBER1_UUID
 --eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
@@ -80,12 +80,12 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 6. Check if the members roles are the expected ones
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -93,14 +93,14 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 7. Check that only server 2 persisted the variables
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There are no persisted variables'
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 1
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There are two persisted variables'
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 3
@@ -110,7 +110,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 8. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='-d,group_replication_var_persist_error';
 

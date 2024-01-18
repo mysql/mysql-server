@@ -20,32 +20,32 @@
 # The test cannot run in Valgrind since it generates an assert on the slave
 --source include/not_valgrind.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $gtid_mode_value= `SELECT @@GLOBAL.GTID_MODE = "ON"`
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 #
 # 1) Create a table that gets filtered out by the added filter
 #
 CREATE TABLE t1 (a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # 2) Add a replication filter to the slave node
 #
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 CALL mtr.add_suppression(".*You need to use --log-bin to make --binlog-format work.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression(".*The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replica.*");
 CHANGE REPLICATION FILTER Replicate_Ignore_Table=(test.t1);
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 #
 # 3) Start an XA transaction and execute a statement that is filtered out by
 #    replication filter
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 XA START '1'; INSERT INTO t1 VALUES (1); XA END '1'; XA PREPARE '1';
 XA COMMIT '1';
 --let $gtid_executed_master= `SELECT @@GLOBAL.GTID_EXECUTED`
@@ -53,16 +53,16 @@ XA COMMIT '1';
 #
 # Wait for the ER_XA_REPLICATION_FILTERS error to be thrown
 #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $slave_sql_errno= convert_error(ER_XA_REPLICATION_FILTERS)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 #
 # Retry the transaction
 #
 START REPLICA SQL_THREAD;
 --let $slave_sql_errno= convert_error(ER_XA_REPLICATION_FILTERS)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 #
 # If GTID_MODE is ON, test that are missing GTID
@@ -85,9 +85,9 @@ if ($gtid_mode_value == 1)
 #
 CHANGE REPLICATION FILTER Replicate_Ignore_Table=();
 --let $slave_sql_errno=
---source include/start_slave_sql.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let $count = `SELECT COUNT(1) FROM test.t1;`
 --let $assert_text = table 'test.t1' record count must be 1
 --let $assert_cond = $count = 1
@@ -102,7 +102,7 @@ CHANGE REPLICATION FILTER Replicate_Ignore_Table=();
 --let $assert_text= Found error message regarding usage of replication filters with XA transactions
 --source include/assert_grep.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

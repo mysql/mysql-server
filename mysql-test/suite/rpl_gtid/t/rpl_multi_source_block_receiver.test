@@ -21,19 +21,19 @@
 --let $rpl_gtid_utils=1
 --let $rpl_multi_source=1
 --let $rpl_topology=1->2,3->2,4->2
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid=`SELECT @@global.server_uuid`
 # Create one table, populate it, then drop it
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='channel_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Add debug instrumentation to hold the receiver thread
 # while writing to the relay log.
@@ -42,12 +42,12 @@ INSERT INTO t1 VALUES(1);
 
 # Execute transaction on server1
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES(2);
 
 # Wait until the receiver reached the debug point on server2
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC="now WAIT_FOR reached_updating_received_transaction_set";
 
 # Remove the debug point on server2
@@ -55,7 +55,7 @@ SET DEBUG_SYNC="now WAIT_FOR reached_updating_received_transaction_set";
 --source include/remove_debug_point.inc
 
 --let $rpl_connection_name= server_4
---source include/rpl_connection.inc
+--source include/connection.inc
 # Create one table, populate it, then drop it
 CREATE TABLE t4 (c1 INT) ENGINE=InnoDB;
 INSERT INTO t4 VALUES(1);
@@ -63,7 +63,7 @@ DROP TABLE t4;
 --let $server4_gtid_executed=`SELECT @@GLOBAL.gtid_executed`
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 START REPLICA FOR CHANNEL 'channel_4';
 --echo Wait until channel_4 be synchronized with master
 --let $wait_condition= SELECT RECEIVED_TRANSACTION_SET='$server4_gtid_executed' FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = 'channel_4'
@@ -71,7 +71,7 @@ START REPLICA FOR CHANNEL 'channel_4';
 
 # Execute transactions on server3 to take backup
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Execute transactions on server3/master2
 CREATE TABLE t2 (a int);
 INSERT INTO t2 VALUES(1);
@@ -84,7 +84,7 @@ INSERT INTO t2 VALUES(2);
 --let $server3_uuid = `SELECT @@global.server_uuid`
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Setting the arguments to connect to server2
 --let $server2_uuid = `SELECT @@global.server_uuid`
 --let $server2_connection_args= --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_2
@@ -100,23 +100,23 @@ SET DEBUG_SYNC="now SIGNAL continue_updating_received_transaction_set";
 
 # Cleanup
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_channel_name= 'channel_3'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t2;
 
 --let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_skip_sync=1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

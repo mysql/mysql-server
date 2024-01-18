@@ -30,12 +30,12 @@
 --source include/not_group_replication_plugin.inc
 # Use statement binlog format for replicating CREATE/DROP TEMPORARY TABLE
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Connect to slave
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Stop replica applier.
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 --echo #
 --echo # Verify that SET @@global.binlog_format is allowed if none
 --echo # of all replication channels have open temporary table(s).
@@ -50,15 +50,15 @@ SET @@global.binlog_format=STATEMENT;
 --echo # Start replica applier, so that SET @@global.binlog_format=STATEMENT
 --echo # takes effect on the default slave channel.
 --echo #
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --echo #
 --echo # Replicate the 'CREATE TEMPORARY TABLE temp1' to  slave, so that
 --echo # the default slave channel has an open temporary table.
 --echo #
 CREATE TEMPORARY TABLE temp1(a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # On a running slave, verify that SET @@global.binlog_format is
@@ -74,7 +74,7 @@ SET @@global.binlog_format=ROW;
 SET @@persist.binlog_format=ROW;
 
 # Stop replica threads on the default slave channel.
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --echo #
 --echo # On a stopped slave, verify that SET @@global.binlog_format is
 --echo # disallowed if any replication channel has open temporary table(s).
@@ -88,9 +88,9 @@ SET @@global.binlog_format=ROW;
 --error ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
 SET @@persist.binlog_format=ROW;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TEMPORARY TABLE temp1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

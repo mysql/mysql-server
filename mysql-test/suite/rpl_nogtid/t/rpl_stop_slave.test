@@ -2,7 +2,7 @@
 --source include/no_valgrind_without_big.inc
 
 # Needed because test uses CREATE TEMPORARY/DROP TEMPORARY inside transaction
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
 # 72475 renders this case irrelevant for mixed mode as temp tables are no
@@ -19,29 +19,29 @@ source include/have_binlog_format_statement.inc;
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
 CREATE TABLE t2(c1 INT) ENGINE=InnoDB;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET DEBUG_SYNC= 'RESET';
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 --echo
 --echo # Suspend the INSERT statement in current transaction on SQL thread.
 --echo # It guarantees that SQL thread is applying the transaction when
 --echo # STOP REPLICA command launchs.
 SET GLOBAL debug= '+d,after_mysql_insert';
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 --echo
 --echo # CREATE TEMPORARY TABLE with InnoDB engine
 --echo # -----------------------------------------
 let $tmp_table_stm= CREATE TEMPORARY TABLE tt1(c1 INT) ENGINE = InnoDB;
-source extra/rpl_tests/rpl_stop_slave.test;
+source common/rpl/rpl_stop_replica.test;
 
 --echo
 --echo # CREATE TEMPORARY TABLE ... SELECT with InnoDB engine
 --echo # ----------------------------------------------------
 let $tmp_table_stm= CREATE TEMPORARY TABLE tt1(c1 INT) ENGINE = InnoDB
                     SELECT c1 FROM t2;
-source extra/rpl_tests/rpl_stop_slave.test;
+source common/rpl/rpl_stop_replica.test;
 
 # Don't need to verify 'CREATE TEMPORARY TABLE' with MyIASM engine, as it
 # never is binlogged into a transaction since 5.5.
@@ -49,14 +49,14 @@ source extra/rpl_tests/rpl_stop_slave.test;
 --echo
 --echo # Test end
 SET GLOBAL debug= '-d,after_mysql_insert';
-source include/restart_slave_sql.inc;
+source include/rpl/restart_applier.inc;
 
 connection slave;
 call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 connection master;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

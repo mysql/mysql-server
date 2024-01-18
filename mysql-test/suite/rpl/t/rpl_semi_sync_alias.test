@@ -40,19 +40,19 @@
 # Test is binlog_format agnostic
 --source include/have_binlog_format_row.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Setup ====
 
 --source include/save_error_log_position.inc
 
 CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --source include/save_error_log_position.inc
 
---source include/stop_slave.inc
---source include/rpl_connection_master.inc
---source include/stop_dump_threads.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/stop_dump_threads.inc
 
 let $messages =
 .*A message intended for a client cannot be sent there as no client-session is attached.*Got an error reading communication packets.*
@@ -83,7 +83,7 @@ let $messages =
 --let $install_plugins = $proc_dir/install_plugins.inc
 --write_file $install_plugins END_OF_PROCEDURE
   --let $rpl_connection_name = $source_connection
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   if ($source_name == master) {
     --replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN
     eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
@@ -98,7 +98,7 @@ let $messages =
   eval SET @@global.rpl_semi_sync_$source_name$_enabled_text = 1;
 
   --let $rpl_connection_name = $replica_connection
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   if ($replica_name == slave) {
     --replace_result $SEMISYNC_SLAVE_PLUGIN SEMISYNC_SLAVE_PLUGIN
     eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
@@ -123,13 +123,13 @@ END_OF_PROCEDURE
 --let $uninstall_plugins = $proc_dir/uninstall_plugins.inc
 --write_file $uninstall_plugins END_OF_PROCEDURE
   --let $rpl_connection_name = $source_connection
-  --source include/rpl_connection.inc
-  --source include/stop_dump_threads.inc
+  --source include/connection.inc
+  --source include/rpl/stop_dump_threads.inc
   eval UNINSTALL PLUGIN rpl_semi_sync_$source_name;
 
   --let $rpl_connection_name = $replica_connection
-  --source include/rpl_connection.inc
-  --source include/stop_dump_threads.inc
+  --source include/connection.inc
+  --source include/rpl/stop_dump_threads.inc
   eval UNINSTALL PLUGIN rpl_semi_sync_$replica_name;
 END_OF_PROCEDURE
 
@@ -152,11 +152,11 @@ END_OF_PROCEDURE
 --let $check_replication = $proc_dir/check_replication.inc
 --write_file $check_replication END_OF_PROCEDURE
   --let $rpl_connection_name = $replica_connection
-  --source include/rpl_connection.inc
-  --source include/start_slave.inc
+  --source include/connection.inc
+  --source include/rpl/start_replica.inc
 
   --let $rpl_connection_name = $source_connection
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $assert_cond = '[SHOW STATUS LIKE 'Rpl_semi_sync_$source_name$_yes_tx_text', Value, 1]' = '0'
   --let $assert_text = Initially no acked transactions
@@ -169,24 +169,24 @@ END_OF_PROCEDURE
   --source include/assert.inc
 
   --let $sync_slave_connection = $replica_connection
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
   --let $sync_slave_connection =
 
   --let $rpl_connection_name = $source_connection
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $assert_cond = '[SHOW STATUS LIKE 'Rpl_semi_sync_$source_name$_status_text', Value, 1]' = 'ON'
   --let $assert_text = Semisync $source_name library should remain enabled on $source_connection
   --source include/assert.inc
 
   --let $rpl_connection_name = $replica_connection
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $assert_cond = '[SHOW STATUS LIKE 'Rpl_semi_sync_$replica_name$_status_text', Value, 1]' = 'ON'
   --let $assert_text = Semisync $replica_name library should remain enabled on $replica_connection
   --source include/assert.inc
 
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
 END_OF_PROCEDURE
 
 --echo ==== R3. Replication: old source library -> old replica library ====
@@ -234,7 +234,7 @@ END_OF_PROCEDURE
 # arrive, and so semisync times out.
 
 --let $rpl_topology = 1->2->1
---source include/rpl_change_topology.inc
+--source include/rpl/change_topology.inc
 
 --let $source_name = master
 --let $replica_name = slave
@@ -335,7 +335,7 @@ SET @@global.rpl_semi_sync_slave_enabled = 0;
   --let $rpl_server_parameters = --plugin-load=rpl_semi_sync_$plugin1=$library1;rpl_semi_sync_$plugin2=$library2
   --let $rpl_omit_print_server_parameters = 1
   --let $rpl_server_number = 1
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
   let $error_pattern =
 Cannot install the rpl_semi_sync_$plugin1 plugin when the rpl_semi_sync_$plugin2 plugin is installed.
 Plugin .rpl_semi_sync_$plugin1. init function returned error.
@@ -362,7 +362,7 @@ Plugin .rpl_semi_sync_$plugin2. init function returned error.
   --let $rpl_server_parameters = --init-file=$init_file
   --let $rpl_omit_print_server_parameters = 1
   --let $rpl_server_number = 1
-  --source include/rpl_restart_server.inc
+  --source include/rpl/restart_server.inc
 
   --remove_file $init_file
 
@@ -421,7 +421,7 @@ END_OF_PROCEDURE
 --let $rpl_server_parameters = --plugin-load=rpl_semi_sync_master=$SEMISYNC_MASTER_PLUGIN;rpl_semi_sync_slave=$SEMISYNC_SLAVE_PLUGIN
 --let $rpl_omit_print_server_parameters = 1
 --let $rpl_server_number = 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 let $error_pattern =
 .rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.
 .rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.
@@ -432,20 +432,20 @@ let $error_pattern =
 
 --let $rpl_server_number = 1
 --let $rpl_server_parameters =
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 # Since we configured replication 1->2->1, let replication start on
-# source too, to make rpl_end.inc happy.  It will auto-start on
-# the previous rpl_restart_server.inc, since mysqld.1 is not configured
+# source too, to make rpl/deinit.inc happy.  It will auto-start on
+# the previous rpl/restart_server.inc, since mysqld.1 is not configured
 # with --skip-replica-start, so we just need to wait for it to happen.
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 --remove_file $install_plugins
 --remove_file $uninstall_plugins

@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ==== Initialize ====
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 SET @@session.binlog_row_image = 'MINIMAL';
 SET @@session.sql_log_bin = 0;
@@ -15,14 +15,14 @@ SET @@session.sql_log_bin = 1;
 CREATE TABLE t1 (a INT, b INT NOT NULL, UNIQUE KEY(b), PRIMARY KEY(a));
 [connection master]
 INSERT INTO t1 VALUES [100 rows];
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ==== Test ====
 [connection master]
 DELETE FROM t1 WHERE b != 0 ORDER BY b DESC;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The search algorithm used while deleting rows is INDEX_SCAN, in the code before this bug it was TABLE_SCAN]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/deinit.inc

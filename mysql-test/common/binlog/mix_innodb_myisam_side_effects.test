@@ -1,0 +1,295 @@
+# the file to be sourced from binlog.binlog_mix_innodb_myisam
+
+#
+# Bug #27417  	thd->no_trans_update.stmt lost value inside of SF-exec-stack
+# bug #28960    non-trans temp table changes with insert .. select
+#               not binlogged after rollback
+#
+# testing appearence of insert into temp_table in binlog.
+# There are two branches of execution that require different setup.
+
+# checking binlog content filled with row-based events due to
+# a used stored function modifies non-transactional table
+
+## send_eof() branch
+
+# prepare
+
+create temporary table tt (a int unique);
+create table ti (a int) engine=innodb;
+reset binary logs and gtids;
+
+# action
+
+begin; 
+insert into ti values (1); 
+insert into ti values (2) ; 
+# This is SAFE because --binlog-direct-non-transactional-updates=FALSE
+insert into tt select * from ti;
+rollback;
+
+# check
+
+select count(*) from tt /* 2 */;
+source include/rpl/deprecated/show_binlog_events.inc;
+select count(*) from ti /* zero */;
+insert into ti select * from tt;
+select * from ti /* that is what slave would miss - bug#28960 */;
+
+
+## send_error() branch
+delete from ti;
+delete from tt where a=1;
+reset binary logs and gtids;
+
+# action
+
+begin; 
+insert into ti values (1); 
+insert into ti values (2) /* to make the dup error in the following */; 
+--error ER_DUP_ENTRY
+insert into tt select * from ti /* one affected and error */;
+rollback;
+
+# check
+
+source include/rpl/deprecated/show_binlog_events.inc; # nothing in binlog with row bilog format
+select count(*) from ti /* zero */;
+insert into ti select * from tt;
+select * from tt /* that is what otherwise slave missed - the bug */;
+
+drop table ti;
+
+
+#
+# Bug #27417 thd->no_trans_update.stmt lost value inside of SF-exec-stack
+#
+# Testing asserts: if there is a side effect of modifying non-transactional
+# table thd->no_trans_update.stmt must be TRUE;
+# the assert is active with debug build
+#
+
+--disable_warnings
+drop function if exists bug27417;
+drop table if exists t1,t2;
+--enable_warnings
+# side effect table
+CREATE TABLE t1 (a int NOT NULL auto_increment primary key) ENGINE=MyISAM;
+# target tables
+CREATE TABLE t2 (a int NOT NULL auto_increment, PRIMARY KEY (a));
+
+delimiter |;
+create function bug27417(n int) 
+RETURNS int(11)
+begin
+  insert into t1 values (null);
+  return n;
+end|
+delimiter ;|
+
+reset binary logs and gtids;
+
+# execute
+
+insert into t2 values (bug27417(1));
+insert into t2 select bug27417(2);
+reset binary logs and gtids;
+
+--error ER_DUP_ENTRY
+insert into t2 values (bug27417(2));
+source include/rpl/deprecated/show_binlog_events.inc; #only (!) with fixes for #23333 will show there is the query
+select count(*) from t1 /* must be 3 */;
+
+reset binary logs and gtids;
+select count(*) from t2;
+delete from t2 where a=bug27417(3);
+select count(*) from t2 /* nothing got deleted */; 
+source include/rpl/deprecated/show_binlog_events.inc; # the query must be in regardless of #23333
+select count(*) from t1 /* must be 5 */;
+
+--enable_info
+delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
+--disable_info
+select count(*) from t1 /* must be 7 */;
+
+# function bug27417 remains for the following testing of bug#23333
+drop table t1,t2;
+
+#
+# Bug#23333 using the patch (and the test) for bug#27471
+# throughout the bug tests 
+# t1 - non-trans side effects gatherer;
+# t2 - transactional table;
+#
+CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM;
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique) ENGINE=MyISAM;
+CREATE TABLE t4 (a int, PRIMARY KEY (a), b int unique) ENGINE=Innodb;
+CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+
+
+#
+# INSERT
+#
+
+# prepare
+  
+ insert into t2 values (1);
+ reset binary logs and gtids;
+
+# execute
+
+ --error ER_DUP_ENTRY
+ insert into t2 values (bug27417(1)); 
+  
+# check
+
+ source include/rpl/deprecated/show_binlog_events.inc; # must be event of the query
+ select count(*) from t1 /* must be 1 */;
+
+#
+# INSERT SELECT
+#
+
+# prepare
+ delete from t1;
+ delete from t2;
+ insert into t2 values (2);
+ reset binary logs and gtids;
+
+# execute
+
+ --error ER_DUP_ENTRY
+ insert into t2 select bug27417(1) union select bug27417(2); 
+  
+# check
+
+ source include/rpl/deprecated/show_binlog_events.inc; # must be events of the query
+ select count(*) from t1 /* must be 2 */;
+
+#
+# UPDATE inc multi-update
+#
+
+# prepare
+ delete from t1;
+ insert into t3 values (1,1),(2,3),(3,4);
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ update t3 set b=b+bug27417(1);
+
+# check
+ source include/rpl/deprecated/show_binlog_events.inc; # must be events of the query
+ select count(*) from t1 /* must be 2 */;
+
+## multi_update::send_eof() branch
+
+# prepare
+ delete from t3;
+ delete from t4;
+ insert into t3 values (1,1);
+ insert into t4 values (1,1),(2,2);
+
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
+
+# check
+ source include/rpl/deprecated/show_binlog_events.inc; # the offset must denote there is the query
+ select count(*) from t1 /* must be 4 */;
+
+## send_error() branch of multi_update
+
+# prepare
+ delete from t1;
+ delete from t3;
+ delete from t4;
+ insert into t3 values (1,1),(2,2);
+ insert into t4 values (1,1),(2,2);
+
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ UPDATE t3,t4 SET t3.a = t4.a + bug27417(1) where t3.a = 1;
+
+# check
+ select count(*) from t1 /* must be 1 */;
+
+# cleanup
+ drop table t4;
+
+
+#
+# DELETE incl multi-delete
+#
+
+# prepare
+ delete from t1;
+ delete from t2;
+ delete from t3;
+ insert into t2 values (1);
+ insert into t3 values (1,1);
+ create trigger trg_del before delete on t2 for each row 
+   insert into t3 values (bug27417(1), 2);
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ delete from t2;
+# check
+ source include/rpl/deprecated/show_binlog_events.inc; # the offset must denote there is the query
+ select count(*) from t1 /* must be 1 */;
+
+# cleanup
+ drop trigger trg_del;
+
+# prepare
+ delete from t1;
+ delete from t2;
+ delete from t5;
+ create trigger trg_del_t2 after  delete on t2 for each row
+   insert into t1 values (1);
+ insert into t2 values (2),(3);
+ insert into t5 values (1),(2);
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ delete t2.* from t2,t5 where t2.a=t5.a + 1;
+
+# check
+ source include/rpl/deprecated/show_binlog_events.inc; # must be events of the query
+ select count(*) from t1 /* must be 1 */;
+
+
+#
+# LOAD DATA
+#
+
+# prepare
+ delete from t1;
+ create table t4 (a int default 0, b int primary key) engine=innodb;
+ insert into t4 values (0, 17);
+ reset binary logs and gtids;
+
+# execute
+ --error ER_DUP_ENTRY
+ load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
+# check
+ select * from t4;
+ select count(*) from t1 /* must be 2 */;
+ source include/rpl/deprecated/show_binlog_events.inc; # must be events of the query
+
+#
+# bug#23333 cleanup
+#
+
+
+drop trigger trg_del_t2;
+drop table t1,t2,t3,t4,t5,tt;
+drop function bug27417;

@@ -60,14 +60,14 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 --echo
@@ -75,9 +75,9 @@ SET SESSION sql_log_bin= 1;
 --echo # 1. Create a table on the group.
 --echo ############################################################
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ############################################################
@@ -96,15 +96,15 @@ STOP GROUP_REPLICATION;
 --source include/assert.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= There is no value 2 in table t1
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 0
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 COMMIT;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $assert_text= There is a value 2 in table t1 on server1
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
@@ -115,7 +115,7 @@ COMMIT;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= There is a value 2 in table t1 on server2
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
 --source include/assert.inc
@@ -132,7 +132,7 @@ COMMIT;
 --echo #    implicit commits.
 --echo ############################################################
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
 
 --error ER_CANT_EXECUTE_COMMAND_WITH_ASSIGNED_GTID_NEXT
@@ -142,7 +142,7 @@ STOP GROUP_REPLICATION;
 
 # Do the checks on another connection as asserts wont fail properly in the session context
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= GTID_EXECUTED must contain 2 group transactions
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2")
@@ -157,7 +157,7 @@ STOP GROUP_REPLICATION;
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 COMMIT;
 SET GTID_NEXT= AUTOMATIC;
@@ -178,7 +178,7 @@ SET GTID_NEXT= AUTOMATIC;
 --echo #    ER_LOCK_OR_ACTIVE_TRANSACTION
 --echo ############################################################
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 BEGIN;
 INSERT INTO t1 VALUES (4);
 
@@ -192,13 +192,13 @@ START GROUP_REPLICATION;
 # We need to check on a different connection to do not see
 # ongoing transaction on server2 (not committed) data.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= There is no value 4 in table t1
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 4, count, 1] = 0
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 COMMIT;
 
 --let $assert_text= There is a value 4 in table t1 on server1
@@ -235,11 +235,11 @@ INSERT INTO t_without_primary_key VALUES (1);
 
 # From a different session, execute start group replication.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # There are no DMLs in the transaction that needs to be certified
 # This situation is an error in Group Replication.
 --error ER_RUN_HOOK_ERROR
@@ -263,7 +263,7 @@ DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
 
@@ -274,7 +274,7 @@ START GROUP_REPLICATION;
 
 # Do the checks on another connection as asserts wont fail properly in the session context
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= GTID_EXECUTED is empty
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"")
@@ -285,7 +285,7 @@ START GROUP_REPLICATION;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 COMMIT;
 
@@ -317,17 +317,17 @@ RESET BINARY LOGS AND GTIDS;
 
 # Acquire LOCK on table t1 in server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 LOCK table t1 WRITE;
 
 # Execute a DML on server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 values (6);
 
 # Check that applier thread is waiting to acquire lock on t1
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 let $wait_condition=SELECT COUNT(*)=0 FROM information_schema.processlist WHERE info='Waiting for table metadata lock';
 --source include/wait_condition.inc
 
@@ -346,13 +346,13 @@ UNLOCK tables;
 --echo #################################################################
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Stop group replication to get ready to test the next scenario.
 --source include/stop_group_replication.inc
 
 # Acquire LOCK on table t1 in server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 LOCK table t1 WRITE;
 
 # START GROUP_REPLICATION after acquiring exclusive lock in the session
@@ -371,18 +371,18 @@ UNLOCK tables;
 --echo # 9. Clean up
 --echo ############################################################
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 
 --source include/group_replication_end.inc

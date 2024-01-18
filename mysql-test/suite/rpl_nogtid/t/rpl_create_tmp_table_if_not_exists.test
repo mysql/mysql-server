@@ -26,7 +26,7 @@
 #CREATE TEMPORARY TABLE statements are not binlogged in row mode,
 #or in mixed mode, so it must be test by itself.
 source include/have_binlog_format_statement.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 --disable_warnings ER_TABLE_EXISTS_ERROR
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp(c1 int);
@@ -37,10 +37,10 @@ CREATE TEMPORARY TABLE IF NOT EXISTS tmp2 SELECT * FROM tmp;
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp2 SELECT * FROM tmp;
 --enable_warnings ER_TABLE_EXISTS_ERROR
 
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 DROP TEMPORARY TABLE IF EXISTS tmp;
 DROP TEMPORARY TABLE IF EXISTS tmp1;
 DROP TEMPORARY TABLE IF EXISTS tmp2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

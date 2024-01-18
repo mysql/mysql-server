@@ -27,22 +27,22 @@
 
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/only_mts_replica_parallel_type_logical_clock.inc
+--source include/have_replica_parallel_type_logical_clock.inc
 --let $rpl_gtid_utils = 1
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 let $sysvars_to_save = [
   "GLOBAL.replica_preserve_commit_order"
 ];
 --source include/save_sysvars.inc
 SET @@GLOBAL.replica_preserve_commit_order = 1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t (a INT PRIMARY KEY);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Debug point that will set the replica commit order ticket sequence number
 # to MAX_ULLONG minus 2, meaning, after executing 2 transactions, the
@@ -64,15 +64,15 @@ let $transactions_to_exec = [
 # ensure that both special values 0 and 1 will be skipped because otherwise
 # the 5th transaction will be waiting on the commit order indefinitely.
 --let $replica_execution_order = [ 1, 2, 5, 3, 4 ]
---source include/rpl_mta_apply_in_order.inc
+--source include/rpl/mta_apply_in_order.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 --source include/restore_sysvars.inc
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $debug_point = commit_order_queue_seq_wrap_around
 --source include/remove_debug_point.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

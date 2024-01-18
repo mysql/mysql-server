@@ -1,6 +1,6 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --echo [Connection Master]
 --connection master
 
@@ -9,7 +9,7 @@
 CREATE TABLE t1  (i INT, KEY(i) INVISIBLE) ENGINE=MYISAM;
 INSERT INTO t1 VALUES (2),(3),(5),(7),(11);
 ANALYZE TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 SHOW INDEXES FROM t1;
 EXPLAIN SELECT i FROM t1;
@@ -18,7 +18,7 @@ EXPLAIN SELECT i FROM t1;
 --echo # Make index visible
 ALTER TABLE t1 ALTER INDEX i INVISIBLE, ALTER INDEX i VISIBLE, ALTER INDEX i VISIBLE;
 ANALYZE TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 SHOW INDEXES FROM t1;
 EXPLAIN SELECT i FROM t1;
@@ -28,5 +28,5 @@ EXPLAIN SELECT i FROM t1;
 
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

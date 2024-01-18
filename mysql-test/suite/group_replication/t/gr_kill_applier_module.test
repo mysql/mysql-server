@@ -23,7 +23,7 @@
 --echo ############################################################
 --echo # 1. Create a table t1 on the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET sql_log_bin=0;
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
@@ -33,7 +33,7 @@ call mtr.add_suppression("Failed to stop the group replication applier thread.")
 SET sql_log_bin=1;
 
 CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -41,7 +41,7 @@ CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo # 2. Kill the "Group replication applier module" thread on
 --echo #    server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $processlist_id= `SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME="thread/group_rpl/THD_applier_module_receiver"`
 --replace_result $processlist_id PROCESSLIST_ID
 --eval KILL $processlist_id
@@ -55,7 +55,7 @@ CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo #    that its thread was killed, which will move the
 --echo #    member to ERROR state.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
 
 
@@ -63,7 +63,7 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 4. Server1 will move to ERROR state.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state = ERROR
 --source include/gr_wait_for_member_state.inc
 
@@ -75,7 +75,7 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 5. Server2 is ONLINE and alone on the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
 --source include/wait_condition.inc
 
@@ -84,7 +84,7 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 6. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 DROP TABLE t1;

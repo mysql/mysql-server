@@ -34,7 +34,7 @@
 # Suppress errors
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression(".*This member has more executed transactions *.*");
@@ -42,7 +42,7 @@ call mtr.add_suppression(".*The member contains transactions not present *.*");
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression(".*This member has more executed transactions *.*");
@@ -54,7 +54,7 @@ SET SESSION sql_log_bin= 1;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # Add some data for recovery
@@ -72,7 +72,7 @@ INSERT INTO t1 VALUES (1);
 --echo #
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SET GTID_NEXT= "$errand_transaction_uuid:1"
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -94,7 +94,7 @@ RESET BINARY LOGS AND GTIDS;
 
 #For precaution, wait for server 2 to leave
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
@@ -105,12 +105,12 @@ RESET BINARY LOGS AND GTIDS;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -119,7 +119,7 @@ RESET BINARY LOGS AND GTIDS;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= The second member to join has 2 transactions
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-2";
@@ -133,7 +133,7 @@ START GROUP_REPLICATION;
 --echo # Put server 1 back in the group
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 #For precaution, wait for server 1 to leave
 --let $group_replication_number_of_members= 1
@@ -144,12 +144,12 @@ START GROUP_REPLICATION;
 RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -158,18 +158,18 @@ RESET BINARY LOGS AND GTIDS;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (2);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $assert_text= 'There are two values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There are two values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2

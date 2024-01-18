@@ -36,14 +36,14 @@
 
 --let $rpl_skip_start_slave = 1
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 --echo
 --echo ##################################################
 --echo # 1. Create table t1 with a GIPK
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 SET SESSION sql_generate_invisible_primary_key = ON;
 CREATE TABLE t1 (c1 BIGINT, c2 TEXT);
@@ -56,17 +56,17 @@ SET SESSION sql_generate_invisible_primary_key = OFF;
 
 # File contains INSERT INTO t1 VALUES (1);
 --let $fake_relay_log = $MYSQL_TEST_DIR/std_data/rpl_no_gipk_low_column_number.000001
---source include/setup_fake_relay_log.inc
+--source include/rpl/setup_fake_relay_log.inc
 
 START REPLICA SQL_THREAD;
 
 --let $slave_sql_errno= convert_error(ER_REPLICATION_INCOMPATIBLE_TABLE_WITH_GIPK)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-0$slave_sql_errno' AND data LIKE "%Failed to apply row event with 1 columns, originating from a server of version 8.0.28 on table 'test.t1', which has 3 columns%"
 --source include/wait_condition.inc
 
---source include/cleanup_fake_relay_log.inc
+--source include/rpl/cleanup_fake_relay_log.inc
 
 --echo
 --echo ##################################################
@@ -75,17 +75,17 @@ START REPLICA SQL_THREAD;
 
 # File contains INSERT INTO t1 VALUES (1, 1, 1, 1);
 --let $fake_relay_log = $MYSQL_TEST_DIR/std_data/rpl_no_gipk_high_column_number.000001
---source include/setup_fake_relay_log.inc
+--source include/rpl/setup_fake_relay_log.inc
 
 START REPLICA SQL_THREAD;
 
 --let $slave_sql_errno= convert_error(ER_REPLICATION_INCOMPATIBLE_TABLE_WITH_GIPK)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-0$slave_sql_errno' AND data LIKE "% Failed to apply row event with 4 columns, originating from a server of version unknown on table 'test.t1', which has 3 columns%"
 --source include/wait_condition.inc
 
---source include/cleanup_fake_relay_log.inc
+--source include/rpl/cleanup_fake_relay_log.inc
 
 --echo
 --echo ##################################################
@@ -94,17 +94,17 @@ START REPLICA SQL_THREAD;
 
 # File contains INSERT INTO t1 VALUES (1, 1, 1);
 --let $fake_relay_log = $MYSQL_TEST_DIR/std_data/rpl_no_gipk_schema_divergence.000001
---source include/setup_fake_relay_log.inc
+--source include/rpl/setup_fake_relay_log.inc
 
 START REPLICA SQL_THREAD;
 
 --let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-0$slave_sql_errno' AND data LIKE "%Column 2 of table 'test.t1' cannot be converted from type 'bigint' to type 'text'%"
 --source include/wait_condition.inc
 
---source include/cleanup_fake_relay_log.inc
+--source include/rpl/cleanup_fake_relay_log.inc
 
 --echo
 --echo ##################################################
@@ -113,7 +113,7 @@ START REPLICA SQL_THREAD;
 
 # File contains INSERT INTO t1 VALUES (1, '1');
 --let $fake_relay_log = $MYSQL_TEST_DIR/std_data/rpl_no_gipk_minus_one_column_number.000001
---source include/setup_fake_relay_log.inc
+--source include/rpl/setup_fake_relay_log.inc
 
 START REPLICA SQL_THREAD;
 
@@ -125,8 +125,8 @@ START REPLICA SQL_THREAD;
 --let $assert_cond= $row_count = 1
 --source include/assert.inc
 
---source include/stop_slave_sql.inc
---source include/cleanup_fake_relay_log.inc
+--source include/rpl/stop_applier.inc
+--source include/rpl/cleanup_fake_relay_log.inc
 
 --echo
 --echo ##################################################
@@ -135,7 +135,7 @@ START REPLICA SQL_THREAD;
 
 # File contains INSERT INTO t1 VALUES (2, 2, '2');
 --let $fake_relay_log = $MYSQL_TEST_DIR/std_data/rpl_gipk_equivalent_key.000001
---source include/setup_fake_relay_log.inc
+--source include/rpl/setup_fake_relay_log.inc
 
 START REPLICA SQL_THREAD;
 
@@ -154,8 +154,8 @@ START REPLICA SQL_THREAD;
 DROP TABLE t1;
 
 STOP REPLICA SQL_THREAD;
---source include/cleanup_fake_relay_log.inc
---source include/start_slave.inc
+--source include/rpl/cleanup_fake_relay_log.inc
+--source include/rpl/start_replica.inc
 
 let $messages =
 Replica SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Failed to apply row event with 1 columns,
@@ -169,4 +169,4 @@ Replica SQL for channel .*: Column 2 of table 'test.t1' cannot be converted from
 --let $suppress_on_current_connection = 1
 --source include/suppress_messages.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

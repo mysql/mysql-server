@@ -6,7 +6,7 @@
 # inconsistency between binlog and the internal list of temp tables.
 
 # This does not work for RBR yet.
---source include/force_binlog_format_statement.inc
+--source include/rpl/force_binlog_format_statement.inc
 
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -24,4 +24,4 @@ CREATE TEMPORARY TABLE t2 ( PRIMARY KEY (a) ) ENGINE=INNODB SELECT a FROM t1;
 select * from t2;
 drop table t1;
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

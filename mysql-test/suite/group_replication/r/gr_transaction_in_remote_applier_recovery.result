@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 
 # 1. Create table t1 and LOCK it on server2.
 CREATE TABLE test.t1 (c1 int primary key);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 LOCK TABLE test.t1 READ;
 

@@ -1,5 +1,5 @@
-# See rpl_row_jsondiff_init.inc for overview.
-# See rpl_row_jsondiff_basic.inc for test scenarios.
+# See common/rpl/row_jsondiff_init.inc for overview.
+# See common/rpl/row_jsondiff_basic.inc for test scenarios.
 #
 # This script runs without any key.
 
@@ -10,6 +10,6 @@
 
 --let $key=
 
---source extra/rpl_tests/rpl_row_jsondiff_init.inc
---source extra/rpl_tests/rpl_row_jsondiff_basic.inc
---source extra/rpl_tests/rpl_row_jsondiff_exit.inc
+--source common/rpl/row_jsondiff_init.inc
+--source common/rpl/row_jsondiff_basic.inc
+--source common/rpl/row_jsondiff_exit.inc

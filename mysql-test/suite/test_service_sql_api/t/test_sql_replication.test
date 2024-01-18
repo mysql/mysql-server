@@ -1,4 +1,4 @@
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection master
 
@@ -25,7 +25,7 @@ remove_file $MYSQLD_DATADIR/test_sql_replication.log;
 
 SELECT * FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 SELECT * FROM t1;
@@ -53,7 +53,7 @@ remove_file $MYSQLD_DATADIR/test_sql_replication.log;
 
 SELECT * FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 SELECT * FROM t1;
@@ -70,10 +70,10 @@ DROP TABLE t1;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --error ER_NO_SUCH_TABLE
 SELECT * FROM t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

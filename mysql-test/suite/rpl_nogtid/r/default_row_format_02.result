@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,12 +13,12 @@ dynamic
 CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000) CHARSET latin1, KEY idx1(b(3070)))
 ENGINE= InnoDB;
 INSERT INTO tab(a,b) VALUES(1,'Check with max prefix');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT @@innodb_default_row_format;
 @@innodb_default_row_format
 compact
 SHOW CREATE TABLE tab;
 ERROR 42S02: Table 'test.tab' doesn't exist
 DROP TABLE tab;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

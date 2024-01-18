@@ -6,4 +6,4 @@
 # For both statement and row based bin logs 9/19/2005 [jbm]
 
 -- source include/have_binlog_format_mixed_or_statement.inc
--- source extra/binlog_tests/insert_select-binlog.test
+-- source common/binlog/insert_select-binlog.test

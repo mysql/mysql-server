@@ -1,0 +1,41 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/09/2005                                                #
+#############################################################################
+# TEST: Use after insert and before inset triggers and stored procdures to  #
+#       Update and insert data                                              #
+#############################################################################
+# Change Auth: JBM                                 #
+# Date: 2006-02-14                                 #
+# Change: Added error, sleep and comments (ndb)    #
+####################################################
+
+# Begin clean up test section
+connection master;
+eval CREATE TABLE test.t1 (n MEDIUMINT NOT NULL AUTO_INCREMENT, d FLOAT, PRIMARY KEY(n))ENGINE=$engine_type;
+eval CREATE TABLE test.t2 (n MEDIUMINT NOT NULL, f FLOAT, PRIMARY KEY(n))ENGINE=$engine_type;
+
+delimiter //;
+CREATE TRIGGER test.t1_bi_t2 BEFORE INSERT ON test.t2 FOR EACH ROW INSERT INTO test.t1 VALUES (NULL, 1.234)//
+delimiter ;//
+
+INSERT INTO test.t2 VALUES (1, 0.0);
+# Expect duplicate error 1022 == ndb
+--error 1022, ER_DUP_ENTRY
+INSERT INTO test.t2 VALUES (1, 0.0);
+
+#show binlog events; 
+select * from test.t1;
+select * from test.t2;
+--source include/rpl/sync_to_replica.inc
+select * from test.t1;
+select * from test.t2;
+
+connection master;
+
+DROP TRIGGER test.t1_bi_t2;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+
+--source include/rpl/sync_to_replica.inc
+# End of 5.0 test case

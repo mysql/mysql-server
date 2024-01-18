@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1. Start single primary group and create table
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/start_group_replication.inc
 
@@ -43,7 +43,7 @@ include/stop_group_replication.inc
 
 # 8. Wait group detect exit of server2
 [connection server_1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 9. Unlock table on server3
 [connection server_3]

@@ -34,7 +34,7 @@ if ($member_id == '')
 while ($itr > 0)
 {
   --let $rpl_connection_name=server$itr
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   #
   # Verify if this is the connection of the member to expel.
@@ -75,7 +75,7 @@ while ($itr > 0)
   if ($curr_server != $conn_name)
   {
     --let $rpl_connection_name = $curr_server
-    --source include/rpl_connection.inc
+    --source include/connection.inc
 
     --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.$itr.expect
     --shutdown_server 0
@@ -92,12 +92,12 @@ while ($itr > 0)
   if ($curr_server != $conn_name)
   {
     --let $rpl_connection_name = $curr_server
-    --source include/rpl_connection.inc
+    --source include/connection.inc
 
     --source include/wait_until_connected_again.inc
 
     --let $rpl_server_number= $itr
-    --source include/rpl_reconnect.inc
+    --source include/rpl/reconnect.inc
   }
 
   --dec $itr
@@ -106,7 +106,7 @@ while ($itr > 0)
 # Verify that we have indeed lost contact to a majority of the group.
 #
 --let $rpl_connection_name = $conn_name
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # The member should enter the ERROR state
 --let $group_replication_member_state = ERROR

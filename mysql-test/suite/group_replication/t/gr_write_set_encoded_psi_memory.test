@@ -50,7 +50,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_after_add_write_set';
 --send INSERT INTO t1 VALUES(1);
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_after_add_write_set_reached";
 
 --let $assert_text= 'The sum bytes allocated must be greater than 0'
@@ -71,7 +71,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_before_commit_hook_co
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 DROP TABLE t1;

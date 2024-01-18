@@ -21,8 +21,8 @@
 source include/force_myisam_default.inc;
 source include/have_myisam.inc;
 source include/have_binlog_format_statement.inc;
---source include/set_privilege_checks_user_as_system_user.inc
-source include/master-slave.inc;
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+source include/rpl/init_source_replica.inc;
 
 connection slave;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -41,9 +41,9 @@ USE replicate_do_db;
 CREATE TABLE replicate_do_db.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE replicate_do_db.t2 (s CHAR(255)) ENGINE=MyISAM;
 
---source include/sync_slave_sql_with_master.inc
-source include/stop_slave.inc;
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+source include/rpl/stop_replica.inc;
+--source include/rpl/connection_source.inc
 
 DELIMITER //;
 CREATE PROCEDURE replicate_do_db.p1 ()
@@ -96,11 +96,11 @@ INSERT INTO replicate_do_db.t2 VALUES ('after call replicate_do_db.p1()');
 SELECT * FROM replicate_do_db.t1;
 SELECT * FROM replicate_do_db.t2;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 replace_result $master_pos MASTER_POS;
 eval START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_pos;
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 # Test BUG#43263
 --let $assert_cond= [SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1] = $master_end_trans_pos
@@ -110,7 +110,7 @@ eval START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$ma
 SELECT * from replicate_do_db.t1;
 SELECT * from replicate_do_db.t2;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 INSERT INTO replicate_do_db.t2 VALUES ('before call replicate_do_db.p2()');
 
@@ -132,11 +132,11 @@ INSERT INTO replicate_do_db.t2 VALUES ('after call replicate_do_db.p2()');
 SELECT * FROM replicate_do_db.t1;
 SELECT * FROM replicate_do_db.t2;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --replace_result $master_pos MASTER_POS
 eval START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_pos;
-source include/wait_for_slave_sql_to_stop.inc;
+source include/rpl/wait_for_applier_to_stop.inc;
 
 # Test BUG#43263
 --let $assert_cond= [SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1] = $master_end_trans_pos
@@ -147,12 +147,12 @@ SELECT * from replicate_do_db.t1;
 SELECT * from replicate_do_db.t2;
 
 START REPLICA;
-source include/wait_for_slave_sql_to_start.inc;
+source include/rpl/wait_for_applier_to_start.inc;
 
 --echo #
 --echo # SAVEPOINT and ROLLBACK TO have the same problem in BUG#43263
 --echo # This was reported by BUG#50407
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 let $binlog_start=query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 BEGIN;
@@ -177,8 +177,8 @@ INSERT INTO replicate_do_db.t2 VALUES("after rollback to");
 INSERT INTO replicate_do_db.t1 VALUES(50);
 USE binlog_ignore_db;
 COMMIT;
-source include/show_binlog_events.inc;
---source include/sync_slave_sql_with_master.inc
+source include/rpl/deprecated/show_binlog_events.inc;
+--source include/rpl/sync_to_replica.inc
 
 --echo [on slave]
 --echo #
@@ -198,7 +198,7 @@ SELECT * FROM replicate_do_db.t1 WHERE a IN (30, 40);
 --echo # encountered.
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 USE replicate_do_db;
 DROP TABLE t1, t2;
@@ -209,7 +209,7 @@ INSERT INTO t1 VALUES(1, "master");
 
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # [ on slave ]
 USE replicate_do_db;
@@ -218,9 +218,9 @@ SET @timeout_old= @@GLOBAL.innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout= 1;
 
 STOP REPLICA SQL_THREAD;
-source include/wait_for_slave_sql_to_stop.inc;
+source include/rpl/wait_for_applier_to_stop.inc;
 START REPLICA SQL_THREAD;
-source include/wait_for_slave_sql_to_start.inc;
+source include/rpl/wait_for_applier_to_start.inc;
 
 --echo # Verify the SQL thread doesn't retry the transaction when one of
 --echo # its statements has modified a non-transactional table.
@@ -228,40 +228,40 @@ source include/wait_for_slave_sql_to_start.inc;
 --echo
 --echo # INSERT statement inserts a row to a non-transactional table.
 let $statement= INSERT INTO t2 VALUES(1);
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # INSERT ... SELECT statement inserts a row to a non-transactional table.
 let $statement= INSERT INTO t2 SELECT 2;
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # UPDATE statement updates a row to a non-transactional table.
 connection master;
 let $statement= UPDATE t2 SET c1= 3;
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # MULTI-UPDATE statement updates a row to a non-transactional table.
 connection master;
 let $statement= UPDATE t2, t3 SET t2.c1=4, t3.c1= 4;
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # DELETE statement deletes a row from a non-transactional table.
 connection master;
 let $statement= DELETE FROM t2;
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # CREATE TEMPORARY TABLE statement in the transaction
 let $statement= CREATE TEMPORARY TABLE IF NOT EXISTS temp_t(c1 INT);
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # DROP TEMPORARY TABLE statement in the transaction
 let $statement= DROP TEMPORARY TABLE IF EXISTS temp_t;
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # Verify that the SQL thread doesn't retry the transaction if one
@@ -313,34 +313,34 @@ END |
 --echo # The INSERT statement in a function inserts a row into a
 --echo # non-transactional table.
 let $statement= INSERT INTO t3 VALUES(f_insert());
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # The INSERT ... SELECT statement in a function inserts a row into a
 --echo # non-transactional table.
 let $statement= INSERT INTO t3 VALUES(f_insert());
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # The UPDATE statement in a function updates a row of a
 --echo # non-transactional table.
 connection master;
 let $statement= INSERT INTO t3 VALUES(f_update());
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # The MULTI-UPDATE statement in a function updates a row of a
 --echo # non-transactional table.
 connection master;
 let $statement= INSERT INTO t3 VALUES(f_multi_update());
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 --echo
 --echo # The DELETE statement in a function deletes a row from a
 --echo # non-transactional table.
 connection master;
 let $statement= INSERT INTO t3 VALUES(f_delete());
-source extra/rpl_tests/rpl_temp_error.test;
+source common/rpl/rpl_temp_error.test;
 
 SET @@global.innodb_lock_wait_timeout= @timeout_old;
 
@@ -350,4 +350,4 @@ SET @@global.innodb_lock_wait_timeout= @timeout_old;
 connection master;
 DROP DATABASE replicate_do_db;
 DROP DATABASE binlog_ignore_db;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

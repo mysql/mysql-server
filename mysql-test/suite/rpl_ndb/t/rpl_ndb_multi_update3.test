@@ -3,7 +3,7 @@
 # to reuse test code between engine runs                   #
 ############################################################
 -- source include/have_ndb.inc
--- source suite/ndb_rpl/ndb_master-slave.inc
+-- source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 let $engine_type=NDB;
--- source extra/rpl_tests/rpl_multi_update3.test
---source include/rpl_end.inc
+-- source common/rpl/rpl_multi_update3.test
+--source include/rpl/deinit.inc

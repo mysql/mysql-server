@@ -1,9 +1,9 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/install_semisync.inc
+include/rpl/install_semisync.inc
 SET @max_binlog_size_save= @@GLOBAL.MAX_BINLOG_SIZE;
 SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
 SET @@GLOBAL.BINLOG_ORDER_COMMITS= FALSE;
@@ -18,17 +18,17 @@ SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 # Disable diff_table test
 # Test tables with MyISAM engine when disabling diff_table and
 # simulating flush error
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Build connections to master server
 # Stress test that execute massive queries on every connection
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Enable diff_table test
 # Test tables with InnoDB engine when enableing diff_table
 # and simulating flush error
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Build connections to master server
 # Stress test that execute massive queries on every connection
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Test if the results are consistent on master and slave
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
@@ -40,7 +40,7 @@ include/diff_tables.inc [master:t7, slave:t7]
 include/diff_tables.inc [master:t8, slave:t8]
 include/diff_tables.inc [master:t9, slave:t9]
 include/diff_tables.inc [master:t10, slave:t10]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Verify it on AFTER_COMMIT wait point
 # ==============================================================
@@ -50,17 +50,17 @@ SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
 # Disable diff_table test
 # Test tables with MyISAM engine when disabling diff_table and
 # simulating flush error
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Build connections to master server
 # Stress test that execute massive queries on every connection
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Enable diff_table test
 # Test tables with InnoDB engine when enableing diff_table
 # and simulating flush error
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Build connections to master server
 # Stress test that execute massive queries on every connection
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Test if the results are consistent on master and slave
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
@@ -72,8 +72,8 @@ include/diff_tables.inc [master:t7, slave:t7]
 include/diff_tables.inc [master:t8, slave:t8]
 include/diff_tables.inc [master:t9, slave:t9]
 include/diff_tables.inc [master:t10, slave:t10]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @@GLOBAL.BINLOG_ORDER_COMMITS= TRUE;
 SET @@GLOBAL.MAX_BINLOG_SIZE= @max_binlog_size_save;
-include/uninstall_semisync.inc
-include/rpl_end.inc
+include/rpl/uninstall_semisync.inc
+include/rpl/deinit.inc

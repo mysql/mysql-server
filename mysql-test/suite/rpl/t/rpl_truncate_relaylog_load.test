@@ -55,13 +55,13 @@
 # This test does not depend on binlog format
 --source include/have_binlog_format_row.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo # T1.1. On the replica: set up test configuration
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --echo
 --echo # T1.2. On the replica: set mysqlslap to periodically flush relay logs
@@ -76,15 +76,15 @@
 --echo #       using mysqlslap
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $trx_iterations=3
 --let $string_length=5000000
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE=InnoDB;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=$num_rotates --query="DO SLEEP(2); FLUSH LOGS" --concurrency=1 --silent 2>&1
 --exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=$trx_iterations --query="BEGIN; INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); COMMIT" --concurrency=1 --silent 2>&1
@@ -94,7 +94,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE
 --echo #        1 transaction
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --let $wait_timeout = 120
 --let $wait_condition=SELECT COUNT(*)>=1 FROM t1
@@ -107,7 +107,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # Before the WL#7353, Replica would sporadically fail after some time with the:
 #   Could not parse relay log event entry. The possible reasons are: the
@@ -119,7 +119,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE
 # replica will truncate those transactions and will catch up with the source
 # without an error.
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo # T1.6. On the replica: Wait for the replica to replicate all of the
@@ -134,7 +134,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE
 --echo # Clean-up
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

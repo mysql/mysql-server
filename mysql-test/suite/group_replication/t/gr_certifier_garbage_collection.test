@@ -44,11 +44,11 @@
 # Keep binary logs with only GTIDs from test.
 --connection server1
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 --connection server2
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 
@@ -59,7 +59,7 @@ SET SESSION sql_log_bin= 1;
 --connection server1
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -160,7 +160,7 @@ SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ############################################################
@@ -174,7 +174,7 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 UPDATE t1 SET c1=3 WHERE c1=2;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo ############################################################
@@ -214,11 +214,11 @@ DROP TABLE t1;
 
 --connection server1
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 --connection server2
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 SET DEBUG_SYNC= 'RESET';
 

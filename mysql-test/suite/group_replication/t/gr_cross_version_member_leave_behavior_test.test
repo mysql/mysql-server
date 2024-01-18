@@ -27,7 +27,7 @@
 --echo # 1. Bootstrap M1.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
@@ -35,7 +35,7 @@
 --echo
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @debug2_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
@@ -52,7 +52,7 @@ SET SESSION sql_log_bin=1;
 --echo
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @debug3_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_minor_version';
@@ -76,7 +76,7 @@ SET SESSION sql_log_bin=1;
 # M3     - ON    - 8.1.17  - 50     - R
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $skip_reset_read_mode= 1
 --source include/stop_group_replication.inc
@@ -95,7 +95,7 @@ SET SESSION sql_log_bin=1;
 
 # Single member test for any corner case.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= @debug2_save;
 --source include/stop_group_replication.inc
@@ -112,7 +112,7 @@ SET @@GLOBAL.DEBUG= @debug2_save;
 # M3     - ON    - 8.1.17  - 50     - W
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= @debug3_save;
 --source include/stop_group_replication.inc

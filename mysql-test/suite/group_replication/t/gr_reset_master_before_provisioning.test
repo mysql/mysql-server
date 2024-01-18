@@ -60,7 +60,7 @@ INSERT INTO t1 VALUES (3);
 INSERT INTO t1 VALUES (4);
 
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #Both members must have the same GTID set
 --let $server_count=2
@@ -76,7 +76,7 @@ while ($server_count)
 DROP TABLE t1;
 
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Phase 2: Reset the group and provision a server
@@ -129,7 +129,7 @@ INSERT INTO t1 VALUES (2);
 
 INSERT INTO t1 VALUES (3);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 #Both members should possess the same data
 
@@ -166,7 +166,7 @@ if(`SELECT "$server_uuid" > "$group_replication_group_name"`)
 --source include/start_group_replication.inc
 
 INSERT INTO t1 VALUES (4);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 #Both members should possess the same data
 

@@ -5,7 +5,7 @@
 #
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
 --echo Setup circular replication
@@ -763,7 +763,7 @@ select left(b,1), length(b) from test.t5 order by a;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --let $slave_sql_errno=1296
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 #SHOW REPLICA STATUS;
 
 --echo Restart Primary Slave
@@ -1370,7 +1370,7 @@ STOP REPLICA;
 RESET REPLICA;
 
 #change replication source to source_host='';
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 # TODO
 # More complex dependencies

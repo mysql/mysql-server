@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 FLUSH LOCAL LOGS;
 include/assert.inc [Master status shall point to master-bin.000002]
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 # Part 1
 Try to restart the master with debug instrumentation
 include/assert_grep.inc [Server reported: Cannot get file password for encrypted replication log file]
@@ -59,12 +59,12 @@ Try to restart the master with debug instrumentation
 include/assert_grep.inc [Server reported: Header is incomplete]
 include/assert_grep.inc [Server failed to initialize binary log for recovery]
 include/assert_grep.inc [Server aborted to start]
-include/rpl_start_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
 # Part 2
 include/assert.inc [1st binary log is not encrypted]
 include/assert.inc [2nd binary log is encrypted]
 include/assert.inc [3rd binary log is not encrypted]
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Previous_gtids	#	#	
 master-bin.000002	#	Anonymous_Gtid	#	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
@@ -81,12 +81,12 @@ master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000002	#	Xid	#	#	COMMIT /* XID */
 # Part 3
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Slave shall have t1 with a 6 rows on it]
 DROP TABLE t1;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Part 4
 [connection master]
 # Part 4.1
@@ -147,8 +147,8 @@ ERROR HY000: Error reading a replication log encryption header: Header is incomp
 # Removing debug point 'force_incomplete_encryption_header' from @@GLOBAL.debug
 # Part 4.2
 UNINSTALL PLUGIN keyring_file;
-include/rpl_stop_server.inc [server_number=1]
-include/rpl_start_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
 SHOW BINLOG EVENTS IN 'master-bin.000002';
 ERROR HY000: Can't find key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # Part 4.3
@@ -158,5 +158,5 @@ ERROR HY000: Failed to fetch key from keyring, please check if keyring is loaded
 # Part 5
 include/assert_grep.inc [mysqlbinlog reported it does not support reading encrypted log files]
 [connection slave]
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

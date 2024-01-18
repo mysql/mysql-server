@@ -9,11 +9,11 @@
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #
 --echo # Test case 1 - error on commit
@@ -23,20 +23,20 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 BEGIN;
 INSERT INTO t1 VALUES (1);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (1);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_ERROR_DURING_COMMIT
 COMMIT;
@@ -47,28 +47,28 @@ COMMIT;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (2);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (3);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= On member1, the table t1 should contain 3 rows
 --let $assert_cond= [SELECT COUNT(*) FROM t1] = 3;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= On member2, the table t1 should contain 3 rows
 --let $assert_cond= [SELECT COUNT(*) FROM t1] = 3;
@@ -82,20 +82,20 @@ INSERT INTO t1 VALUES (3);
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 BEGIN;
 INSERT INTO t1 VALUES (11);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (11);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_LOCK_DEADLOCK
 INSERT INTO t1 VALUES (12);
@@ -108,42 +108,42 @@ COMMIT;
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= On member1, the rolled back transaction is not there
 --let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE c1=12] = 0;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= On member2, the rolled back transaction is not there
 --let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE c1=12] = 0;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (12);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (13);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= On member1, the table t1 should contain 6 rows
 --let $assert_cond= [SELECT COUNT(*) FROM t1] = 6;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= On member2, the table t1 should contain 6 rows
 --let $assert_cond= [SELECT COUNT(*) FROM t1] = 6;
@@ -154,7 +154,7 @@ INSERT INTO t1 VALUES (13);
 --echo #
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

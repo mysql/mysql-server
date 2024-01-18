@@ -29,7 +29,7 @@
 --echo #    of the query which will be killed.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # We RESET the channel here due to Bug#31541607. By executing this command
 # here, we avoid a internal failure on START GROUP_REPLICATION that would
@@ -71,7 +71,7 @@ SET @@GLOBAL.DEBUG= 'd,simulate_file_write_error';
 --echo # 3. Verify START GR is blocked.
 --echo
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='starting' AND INFO='start group_replication';
 --source include/wait_condition.inc
@@ -91,7 +91,7 @@ SET @@GLOBAL.DEBUG= 'd,simulate_file_write_error';
 --echo # 5. Reap the killed command and reset debug point.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 --reap
 
@@ -120,7 +120,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -129,7 +129,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO test.t1 VALUES (1);
@@ -140,10 +140,10 @@ INSERT INTO test.t1 VALUES (1);
 --echo
 
 # Wait for all servers to be in sync
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Verify test.t1 is synced
 --let $assert_cond= "[SELECT count(*) COUNT FROM test.t1, COUNT, 1]" = "1"
@@ -151,7 +151,7 @@ INSERT INTO test.t1 VALUES (1);
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Verify test.t1 is synced
 --let $assert_cond= "[SELECT count(*) COUNT FROM test.t1, COUNT, 1]" = "1"

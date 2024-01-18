@@ -32,10 +32,10 @@ let $sysvars_to_save = [ "GLOBAL.max_allowed_packet" ];
 --source include/save_sysvars.inc
 
 # The session value is read-only. So we set the global value here,
-# before master-slave.inc creates the sessions.
+# before rpl/init_source_replica.inc creates the sessions.
 SET @@global.max_allowed_packet = 1024*1024*1024;#1073741824;
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo ==== Setup variables ====
@@ -61,14 +61,14 @@ while ($c < 2) {
   --echo
   --echo ==== Scenario: compression=$c ====
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
   --echo * Writing $block_count * $block_size random bytes to file, $file_count times
 
   FLUSH BINARY LOGS;
 
   eval SET @@session.binlog_transaction_compression = $c;
-  --source include/save_binlog_position.inc
+  --source include/rpl/save_binlog_file_position.inc
 
   CREATE TABLE t1 (x LONGBLOB);
 
@@ -90,14 +90,14 @@ while ($c < 2) {
 
   --echo # There should be no payload event.
   --let $keep_transaction_payload_events = 1
-  --source include/show_binlog_events.inc
+  --source include/rpl/deprecated/show_binlog_events.inc
 
   --let $measured_size = `SELECT SUM(LENGTH(x)) FROM t1`
   --let $assert_cond = $measured_size = $total_size
   --let $assert_text = The source's table size should equal the size of inserted data
   --source include/assert.inc
 
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   --echo ==== Verify result on replica ====
 
@@ -109,9 +109,9 @@ while ($c < 2) {
   --echo
   --echo ==== Clean up scenario ====
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   DROP TABLE t1;
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   --inc $c
 }
@@ -119,7 +119,7 @@ while ($c < 2) {
 --echo
 --echo ==== Clean up test case ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --source include/restore_sysvars.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -17,9 +17,9 @@ CREATE PROCEDURE test.p2()
 BEGIN
 INSERT INTO test.t2 (f,d) VALUES (RAND(),NOW());
 END//
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 INSERT INTO test.t1 VALUES (1+1, NOW());
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 <End test section 2 (Tiggers & SP)>
 -----------------------------------
@@ -30,5 +30,5 @@ DROP TRIGGER test.t3_bi_t2;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP TABLE test.t3;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -22,13 +22,13 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo ##############################################################
 --echo # 1. Create a table where a generated column has the type TIME
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 CREATE TABLE t1 (
   first DOUBLE,
@@ -73,9 +73,9 @@ INSERT INTO t1 (first) VALUES(1.55);
 
 DELETE FROM t1 WHERE gen_col="00:00:01.5";
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 #
 # To understand what divergences in SQL mode would do:
@@ -94,8 +94,8 @@ DELETE FROM t1 WHERE gen_col="00:00:01.5";
 --echo ##############################################################
 --echo # 5. Cleanup
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

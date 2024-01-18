@@ -40,7 +40,7 @@ CREATE TABLE t1(c_year YEAR, c_date DATE, c_time TIME, c_time_f TIME(3),
   c_timestamp TIMESTAMP, c_timestamp_f TIMESTAMP(3) DEFAULT "2017-1-1 10:10:10");
 
 INSERT INTO t1(c_year) VALUES(2017);
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -50,7 +50,7 @@ RESET BINARY LOGS AND GTIDS;
 --echo #
 CREATE TABLE t1 (c_json JSON, c_char CHAR(100));
 INSERT INTO t1(c_char) VALUES("abc");
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -64,14 +64,14 @@ CREATE TABLE t1 (c_geo GEOMETRY, c_point POINT, c_linestring LINESTRING,
   c_geometrycollection GEOMETRYCOLLECTION, c_char CHAR(100));
 
 INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 
 # geometry type is binlogged, the real geometry types are printed
 INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -87,13 +87,13 @@ SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c_bool) VALUES(1);
 
 --echo # UNSIGNED flag should be printed
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1(c_bool) VALUES(1);
 
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -109,13 +109,13 @@ SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c_char) VALUES("1");
 
 # Charset set is printed with default charset
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1(c_char) VALUES("1");
 
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -129,7 +129,7 @@ SHOW CREATE TABLE t1;
 
 INSERT INTO t1 VALUES(1);
 
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
 
@@ -143,7 +143,7 @@ CREATE TABLE t1(c_char_utf8mb3 CHAR(10) CHARSET utf8mb3,
 INSERT INTO t1 VALUES("1", "2", "3");
 
 # Charset set is printed with Default charset
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -156,7 +156,7 @@ CREATE TABLE t1(c_utf8mb4_520 CHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_unicode_5
 INSERT INTO t1 VALUES("1", "2", "3");
 
 # Charset set is printed without default charset
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -169,7 +169,7 @@ CREATE TABLE t1(c_binary BINARY(10), c_varbinary VARBINARY(10),
   c_mediumblob MEDIUMBLOB, c_longblob LONGBLOB);
 
 INSERT INTO t1 VALUES("1", "2", "3", "4", "5", "6");
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -189,12 +189,12 @@ CREATE TABLE t1(
 
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("set1_v1_å", "set2_v2_ä", "set3_v3_ö", "set4_v1_å", "set5_v2_ä", "set6_v3_ö");
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES("set1_v1_å", "set2_v2_ä", "set3_v3_ö", "set4_v1_å", "set5_v2_ä", "set6_v3_ö");
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -214,12 +214,12 @@ CREATE TABLE t1(
 
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("enum1_v1_å", "enum2_v2_ä", "enum3_v3_ö", "enum4_v1_å", "enum5_v2_ä", "enum6_v3_ö");
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES("enum1_v1_å", "enum2_v2_ä", "enum3_v3_ö", "enum4_v1_å", "enum5_v2_ä", "enum6_v3_ö");
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -231,7 +231,7 @@ CREATE TABLE t1(c_not_null1 INT NOT NULL, c_null1 INT, c_not_null2 INT NOT NULL,
                 c_null2 INT);
 
 INSERT INTO t1 VALUES(1, 2, 3, 4);
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -244,7 +244,7 @@ PRIMARY KEY(c_key1, c_key2, c_key3));
 
 INSERT INTO t1 VALUES(1, 2, 3, 4);
 --let $print_primary_key= 1
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -254,14 +254,14 @@ CREATE TABLE t1(c_key1 CHAR(100), c_key3 CHAR(100), c_not_key INT, c_key2 CHAR(1
 PRIMARY KEY(c_key1(5), c_key2, c_key3(10)));
 
 INSERT INTO t1 VALUES("1", "2", 3, "4");
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 RESET BINARY LOGS AND GTIDS;
 # Primary key should not be printed
 SET GLOBAL binlog_row_metadata = MINIMAL;
 
 INSERT INTO t1 VALUES("2", "2", 3, "4");
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 RESET BINARY LOGS AND GTIDS;
 --echo #
@@ -272,7 +272,7 @@ SET GLOBAL binlog_row_metadata = FULL;
 
 SET SESSION debug = 'd, dont_log_column_name';
 INSERT INTO t1 VALUES("3", "2", 3, "4");
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 --let $print_primary_key=
 DROP TABLE t1;
@@ -286,7 +286,7 @@ CREATE TABLE t1(c1 int, c2 BLOB);
 SET SESSION debug = 'd,inject_invalid_column_type';
 INSERT INTO t1 VALUES(1, "a");
 # It prints an error
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 RESET BINARY LOGS AND GTIDS;
 
@@ -301,7 +301,7 @@ INSERT INTO t1 VALUES(2, "b");
 # The invalid metadata will case assertion failure on Write_rows_log_event
 # So we need to stop mysqlbinlog before reading Write_rows_log_event.
 --let $stop_position= query_get_value(SHOW BINLOG EVENTS FROM $start_pos LIMIT 3, End_log_pos, 3)
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 --echo #
 --echo # Coverage test: Inject an invalid Geometry type
@@ -317,7 +317,7 @@ INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
 # The invalid metadata will case assertion failure on Write_rows_log_event
 # So we need to stop mysqlbinlog before reading Write_rows_log_event.
 --let $stop_position= query_get_value(SHOW BINLOG EVENTS FROM $start_pos LIMIT 3, End_log_pos, 3)
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -334,7 +334,7 @@ INSERT INTO t1(c_int) VALUES(1);
 # CHAR will be printed as BINARY(10)
 # POINT will be printed as GEOMETRY
 --let $stop_position=
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
@@ -351,7 +351,7 @@ SET session debug='d,simulate_init_primary_key_field_error';
 INSERT INTO t1 VALUES("b");
 
 --let $print_primary_key= 1
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 SET SESSION debug = '';
 SET GLOBAL binlog_row_metadata = MINIMAL;
@@ -373,16 +373,16 @@ CREATE TABLE t1 (c1 INT,
 
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES(1);
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 UPDATE t1 SET c1=4 WHERE c4=5;
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 
 RESET BINARY LOGS AND GTIDS;
 --echo # INVISIBLE clause is included with only binlog_row_metadata = FULL.
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c1, c4) VALUES(3, 6);
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 UPDATE t1 SET c1=4 WHERE c4=6;
---source extra/binlog_tests/print_optional_metadata.inc
+--source common/binlog/print_optional_metadata.inc
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;

@@ -1,7 +1,7 @@
 # Created: 2015-07-01  Lalit Choudhary
 # WL#8540
 # Testing IF [NOT] EXISTS clause in CREATE/DROP/ALTER USER with Replication.
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --connection master
 --echo [On Master]
 --echo #
@@ -20,7 +20,7 @@ SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 CREATE USER IF NOT EXISTS wl8540@nohost1, wl8540@nohost2;
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [On Slave]
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 
@@ -35,7 +35,7 @@ SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [On Slave]
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 
@@ -52,7 +52,7 @@ SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 CREATE USER IF NOT EXISTS wl8540@nohost1, wl8540@nohost2;
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [On Slave]
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 
@@ -81,13 +81,13 @@ DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2,
                     slave_user1@localhost,slave_user2@localhost;
 FLUSH PRIVILEGES;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo WL#11144: Check that ALTER/CREATE/DROP USER IF [NOT] EXISTS will succesfully replicate in multi user scenarios
 
 --echo # All users exist on master, some on slave
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE USER u1,u2;
 set @@session.sql_log_bin=0;
 CREATE USER u3,u4;
@@ -103,11 +103,11 @@ CREATE USER u3,u4;
 set @@session.sql_log_bin=1;
 
 DROP USER IF EXISTS u1, u2, u3, u4;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # All users exist on master, none on slave
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 set @@session.sql_log_bin=0;
 CREATE USER u1,u2,u3,u4;
 set @@session.sql_log_bin=1;
@@ -121,19 +121,19 @@ CREATE USER u1,u2,u3,u4;
 set @@session.sql_log_bin=1;
 
 DROP USER IF EXISTS u1, u2, u3, u4;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Some users exist on master, others on slave
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 set @@session.sql_log_bin=0;
 CREATE USER u3,u4;
 set @@session.sql_log_bin=1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 CREATE USER u1,u2;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
 
@@ -141,18 +141,18 @@ set @@session.sql_log_bin=0;
 DROP USER u1,u2;
 set @@session.sql_log_bin=1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 DROP USER u3,u4;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP USER IF EXISTS u1, u2, u3, u4;
 
 --echo # Some users exist on master, all on slave
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 CREATE USER u1,u2;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE USER u3,u4;
 
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
@@ -163,11 +163,11 @@ DROP USER u1,u2;
 set sql_log_bin=1;
 
 DROP USER IF EXISTS u1, u2, u3, u4;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Some users exist on master, none on slave
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 set @@session.sql_log_bin=0;
 CREATE USER u3,u4;
 set @@session.sql_log_bin=1;
@@ -183,10 +183,10 @@ DROP USER IF EXISTS u1, u2, u3, u4;
 
 --echo # No users exist on master, some on slave
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 CREATE USER u3,u4;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
@@ -200,11 +200,11 @@ DROP USER IF EXISTS u1, u2, u3, u4;
 
 --echo # No users exist on master, all on slave
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 CREATE USER u1,u2,u3,u4;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
@@ -336,4 +336,4 @@ RENAME TABLE mysql.password_history_backup TO mysql.password_history;
 # Cleanup
 SET @@GLOBAL.password_history= @old_password_history;
 DROP USER no_pwd_history@localhost;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

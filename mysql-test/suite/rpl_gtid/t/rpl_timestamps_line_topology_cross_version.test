@@ -36,12 +36,12 @@
 
 # Establish the line topology.
 --let $rpl_topology=1->2, 2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --echo # A. First server in the replication chain is not 5.8
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= do_not_write_rpl_timestamps
 --source include/add_debug_point.inc
@@ -50,35 +50,35 @@
 
 CREATE TABLE t1 (a INT);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo # A2. Collect both timestamps (original/immediate) from servers 2 and 3.
 
 # Switch to server_1, to collect the corrresponding GTID.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
 --let $gtid= $server_uuid:1
 
 # Switch to server_2, save both OCT and ICT.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/get_original_commit_timestamp.inc
+--source include/rpl/get_original_commit_timestamp.inc
 --let $server_2_OCT= $original_commit_timestamp
 
---source include/get_immediate_commit_timestamp.inc
+--source include/rpl/get_immediate_commit_timestamp.inc
 --let $server_2_ICT= $immediate_commit_timestamp
 
 # Switch to server_3, save both OCT and ICT.
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/get_original_commit_timestamp.inc
+--source include/rpl/get_original_commit_timestamp.inc
 --let $server_3_OCT= $original_commit_timestamp
 
---source include/get_immediate_commit_timestamp.inc
+--source include/rpl/get_immediate_commit_timestamp.inc
 --let $server_3_ICT= $immediate_commit_timestamp
 
 --echo # A3. Verify that the timestamps are correct.
@@ -102,48 +102,48 @@ CREATE TABLE t1 (a INT);
 --echo # A4. Cleanup
 # Switch to server_1, to remove debug_point
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/remove_debug_point.inc
 
 --echo # B. Server in the middle of the replication chain is not 5.8
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $debug_point= do_not_write_rpl_timestamps
 --source include/add_debug_point.inc
 
 --echo # B1. Execute a transaction and sync it on all the servers.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo # B2. Collect both timestamps (original/immediate) from servers 1 and 3.
 
 # Switch to server_1, save both OCT and ICT.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
 --let $gtid= $server_uuid:2
 
---source include/get_original_commit_timestamp.inc
+--source include/rpl/get_original_commit_timestamp.inc
 --let $server_1_OCT= $original_commit_timestamp
 
---source include/get_immediate_commit_timestamp.inc
+--source include/rpl/get_immediate_commit_timestamp.inc
 --let $server_1_ICT= $immediate_commit_timestamp
 
 # Switch to server_3, save both OCT and ICT.
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
---source include/get_original_commit_timestamp.inc
+--source include/rpl/get_original_commit_timestamp.inc
 --let $server_3_OCT= $original_commit_timestamp
 
---source include/get_immediate_commit_timestamp.inc
+--source include/rpl/get_immediate_commit_timestamp.inc
 --let $server_3_ICT= $immediate_commit_timestamp
 
 --echo # B3. Verify that the timestamps are correct.
@@ -163,7 +163,7 @@ DROP TABLE t1;
 --echo # B4. Cleanup
 # Switch to server_2, to remove debug_point
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/remove_debug_point.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

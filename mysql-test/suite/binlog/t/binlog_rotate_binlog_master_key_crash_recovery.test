@@ -38,7 +38,7 @@ SET @@GLOBAL.binlog_encryption=ON;
 
 --let $first_encrypted_binary_log=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$first_encrypted_binary_log
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=the first encrypted binary log is encrypted using first master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
@@ -54,7 +54,7 @@ INSERT INTO t1 VALUES(2);
 --let $debug_point=crash_before_set_old_master_key_seqno_on_keyring
 --let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
 --let $restart_parameters=restart: $PLUGIN_DIR_OPT
---source suite/binlog/include/binlog_server_crash_recovery.inc
+--source common/binlog/server_crash_recovery.inc
 
 --let $assert_text= 'binlog_encryption' is off after above crash recovery.
 --let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
@@ -93,12 +93,12 @@ SET @@GLOBAL.binlog_encryption=ON;
 --let $current_comparison_digit=2
 --let $rotated_master_key_id=3
 --let $rotated_comparison_digit=2
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 --echo # Part 2: crash_after_set_old_master_key_seqno_on_keyring
 --let $debug_point=crash_after_set_old_master_key_seqno_on_keyring
 --let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
---source suite/binlog/include/binlog_server_crash_recovery.inc
+--source common/binlog/server_crash_recovery.inc
 
 --let $assert_text= 'binlog_encryption' is off after above crash recovery.
 --let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
@@ -124,12 +124,12 @@ SET @@GLOBAL.binlog_encryption=ON;
 
 --let $current_master_key_id=4
 --let $rotated_master_key_id=5
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 --echo # Part 3: crash_after_set_new_master_key_seqno_on_keyring
 --let $debug_point=crash_after_set_new_master_key_seqno_on_keyring
 --let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
---source suite/binlog/include/binlog_server_crash_recovery.inc
+--source common/binlog/server_crash_recovery.inc
 
 --let $assert_text= 'binlog_encryption' is off after above crash recovery.
 --let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
@@ -154,12 +154,12 @@ SET @@GLOBAL.binlog_encryption=ON;
 
 --let $current_master_key_id=6
 --let $rotated_master_key_id=7
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 --echo # Part 4: crash_after_generate_new_master_key_on_keyring
 --let $debug_point=crash_after_generate_new_master_key_on_keyring
 --let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
---source suite/binlog/include/binlog_server_crash_recovery.inc
+--source common/binlog/server_crash_recovery.inc
 
 --let $assert_text= 'binlog_encryption' is off after above crash recovery.
 --let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
@@ -184,12 +184,12 @@ SET @@GLOBAL.binlog_encryption=ON;
 
 --let $current_master_key_id=8
 --let $rotated_master_key_id=9
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 --echo # Part 5: crash_after_remove_master_key_seqno_from_keyring 
 --let $debug_point=crash_after_remove_master_key_seqno_from_keyring
 --let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
---source suite/binlog/include/binlog_server_crash_recovery.inc
+--source common/binlog/server_crash_recovery.inc
 
 --let $assert_text= 'binlog_encryption' is off after above crash recovery.
 --let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
@@ -204,12 +204,12 @@ SET @@GLOBAL.binlog_encryption=ON;
 --let $current_comparison_digit=3
 --let $rotated_master_key_id=11
 --let $rotated_comparison_digit=3
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 --echo # Part 6: crash_after_set_master_key_seqno_on_keyring
 --let $debug_point=crash_after_set_master_key_seqno_on_keyring
 --let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
---source suite/binlog/include/binlog_server_crash_recovery.inc
+--source common/binlog/server_crash_recovery.inc
 
 --let $assert_text= 'binlog_encryption' is off after above crash recovery.
 --let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
@@ -222,12 +222,12 @@ SET @@GLOBAL.binlog_encryption=ON;
 
 --let $current_master_key_id=12
 --let $rotated_master_key_id=13
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 --echo # Part 7: crash_after_remove_old_master_key_seqno_from_keyring
 --let $debug_point=crash_after_remove_old_master_key_seqno_from_keyring
 --let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
---source suite/binlog/include/binlog_server_crash_recovery.inc
+--source common/binlog/server_crash_recovery.inc
 
 --let $assert_text= 'binlog_encryption' is off after above crash recovery.
 --let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
@@ -240,12 +240,12 @@ SET @@GLOBAL.binlog_encryption=ON;
 
 --let $current_master_key_id=14
 --let $rotated_master_key_id=15
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 --echo # Part 8: crash_after_remove_new_master_key_seqno_from_keyring
 --let $debug_point=crash_after_remove_new_master_key_seqno_from_keyring
 --let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
---source suite/binlog/include/binlog_server_crash_recovery.inc
+--source common/binlog/server_crash_recovery.inc
 
 --let $assert_text= 'binlog_encryption' is off after above crash recovery.
 --let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
@@ -258,12 +258,12 @@ SET @@GLOBAL.binlog_encryption=ON;
 
 --let $current_master_key_id=16
 --let $rotated_master_key_id=17
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 --echo # Part 9: crash_after_set_old_master_key_seqno_on_keyring
 --let $debug_point=crash_after_set_old_master_key_seqno_on_keyring
 --let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
---source suite/binlog/include/binlog_server_crash_recovery.inc
+--source common/binlog/server_crash_recovery.inc
 
 --let $assert_text= 'binlog_encryption' is off after above crash recovery.
 --let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
@@ -289,7 +289,7 @@ SET @@GLOBAL.binlog_encryption=ON;
 
 --let $current_master_key_id=18
 --let $rotated_master_key_id=19
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 # Cleanup
 DROP TABLE t1;

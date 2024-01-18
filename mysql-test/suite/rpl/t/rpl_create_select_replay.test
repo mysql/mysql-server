@@ -78,7 +78,7 @@ CREATE TABLE t0 (f1 INT);
 CREATE TABLE t1 AS SELECT * FROM t0;
 
 --echo # Dump the binlog events into a file.
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --echo # Replay without crash.
 DROP TABLE t0,t1;
@@ -129,7 +129,7 @@ INSERT INTO t0 VALUES (4);
 CREATE TABLE t1 AS SELECT * FROM t0;
 
 --echo # Dump the binlog events into a file.
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --echo # Replay without crash.
 DROP TABLE t0,t1;
@@ -196,7 +196,7 @@ DELIMITER ;|
 CALL proc1();
 
 --echo # Dump the binlog events into a file.
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --echo # Replay without crash.
 DROP TABLE t0,t1;
@@ -254,7 +254,7 @@ DELIMITER ;|
 CALL proc1();
 
 --echo # Dump the binlog events into a file.
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --echo # Replay without crash.
 DROP TABLE t0,t1;
@@ -313,7 +313,7 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 --echo # Dump the binlog events into a file.
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --echo # Replay without crash.
 DROP TABLE t0,t1;

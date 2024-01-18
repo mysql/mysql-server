@@ -1,4 +1,4 @@
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 RESET BINARY LOGS AND GTIDS;
 SET @start_global_value = @@global.gtid_purged;
 SELECT @start_global_value;
@@ -73,4 +73,4 @@ RESET BINARY LOGS AND GTIDS;
 SELECT @@global.gtid_purged;
 @@global.gtid_purged
 
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc

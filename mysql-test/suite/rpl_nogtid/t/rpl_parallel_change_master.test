@@ -8,16 +8,16 @@
 # The test for bug#12995174 is not format-specific but uses sleep
 # so it made to be run in ROW format that is the way the bug is reported.
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection slave
 call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key .*");
 call mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 call mtr.add_suppression("Error writing relay log configuration.");
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=2;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 
@@ -29,11 +29,11 @@ CREATE TABLE d2.t1 (a int unique) ENGINE=INNODB;
 INSERT INTO d1.t1 VALUES (1);
 FLUSH LOGS;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY=5;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 INSERT INTO d1.t1 VALUES (3);
@@ -42,7 +42,7 @@ INSERT INTO d1.t1 VALUES (5);
 FLUSH LOGS;
 
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 let $relay_file = query_get_value( SHOW REPLICA STATUS, Relay_Log_File, 1 );
 let $relay_pos = query_get_value( SHOW REPLICA STATUS, Relay_Log_Pos, 1 );
@@ -50,16 +50,16 @@ let $relay_pos = query_get_value( SHOW REPLICA STATUS, Relay_Log_Pos, 1 );
 --replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --sleep 5
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 let $relay_file = query_get_value( SHOW REPLICA STATUS, Relay_Log_File, 1 );
 let $relay_pos = query_get_value( SHOW REPLICA STATUS, Relay_Log_Pos, 1 );
 --replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos, SOURCE_DELAY=0;
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 BEGIN;
 INSERT INTO d1.t1 VALUES (13); # to cause the dup key error
 # change-master with gaps
@@ -91,9 +91,9 @@ INSERT INTO d2.t1 VALUES (9);
 COMMIT;
 
 --let $slave_sql_errno= 1062
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 
 let $relay_file = query_get_value( SHOW REPLICA STATUS, Relay_Log_File, 1 );
 let $relay_pos = query_get_value( SHOW REPLICA STATUS, Relay_Log_Pos, 1 );
@@ -109,7 +109,7 @@ SET @@global.replica_parallel_workers= @save.replica_parallel_workers; # cleanup
 #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --relay-log-recovery --skip-replica-start
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --connection slave
 SELECT @@global.relay_log_recovery as 'must be ON';
@@ -119,12 +119,12 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --skip-replica-start
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 SELECT @@global.relay_log_recovery as 'must be OFF';
 --connection slave
 DELETE FROM d1.t1 WHERE a = 13;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 #
 # cleanup
@@ -132,7 +132,7 @@ DELETE FROM d1.t1 WHERE a = 13;
 --connection master
 DROP DATABASE d1;
 DROP DATABASE d2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 ###############################################################################
 # Bug#20411374: CAN NOT EXECUTE CHANGE MASTER AFTER ERROR OCCURED IN MTS MODE
@@ -152,22 +152,22 @@ DROP DATABASE d2;
 # report an assert in the case of bug scenario and it should succeed after the
 # fix.
 ###############################################################################
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=2;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE DATABASE d1;
 CREATE DATABASE d2;
 CREATE TABLE d1.t1 (a int unique) ENGINE=INNODB;
 CREATE TABLE d2.t1 (a int unique) ENGINE=INNODB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 BEGIN;
 INSERT INTO d1.t1 VALUES (13); # to cause the dup key error
 # change-master with gaps
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO d1.t1 VALUES (6);
 INSERT INTO d2.t1 VALUES (7);
 --connection master1
@@ -182,28 +182,28 @@ COMMIT;
 COMMIT;
 INSERT INTO d2.t1 VALUES (9);
 
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 # make sure workers doing d2.t1 raced the one that occupied  with d1.t1
 --let $count= 1
 --let $table= d2.t1
 --let $wait_condition= select count(*) = 1 from $table where a = 8
 --source include/wait_condition.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # make worker executing (13) to error out
 COMMIT;
 
 --let $slave_sql_errno= 1062
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 FLUSH LOGS;
 --let $file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --replace_result $MASTER_MYPORT SOURCE_PORT  $file FILE $pos POS
 --replace_column 2 ####
 --error ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
@@ -216,12 +216,12 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER
 --disable_warnings
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 --enable_warnings
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 #
 # cleanup
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP DATABASE d1;
 DROP DATABASE d2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

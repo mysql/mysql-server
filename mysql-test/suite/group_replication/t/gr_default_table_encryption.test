@@ -30,7 +30,7 @@
 --echo # 1. Bootstrap a group on server 1 with
 --echo #    GLOBAL.default_table_encryption = ON
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @table_encryption_default= @@GLOBAL.default_table_encryption;
 SET @@GLOBAL.default_table_encryption = ON;
 --source include/start_and_bootstrap_group_replication.inc
@@ -42,7 +42,7 @@ SET @@GLOBAL.default_table_encryption = ON;
 --echo #    GLOBAL.default_table_encryption = OFF
 --echo #    to the group, it shall fail.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The member is configured with a default_table_encryption option value '0' different from the group '1'. The member will now exit the group.");
@@ -92,12 +92,12 @@ SET PERSIST default_table_encryption=ON;
 --echo ############################################################
 --echo # 7. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.default_table_encryption= @table_encryption_default;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.default_table_encryption= @table_encryption_default;
 SET @@SESSION.default_table_encryption= @table_encryption_default;

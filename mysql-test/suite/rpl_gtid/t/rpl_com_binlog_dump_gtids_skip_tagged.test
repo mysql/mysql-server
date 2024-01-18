@@ -37,14 +37,14 @@
 
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo # T1.1. On the replica server: Commit transaction with a specified,
 --echo #       tagged GTID (GTID_1)
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
 CREATE TABLE t1 (a INT);
@@ -62,20 +62,20 @@ SET GTID_NEXT='AUTOMATIC';
 --echo # T1.3. Reconnect replica to the source (new COM_BINLOG_DUMP_GTIDS)
 --echo
 
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 
 --echo
 --echo # T1.4. On the source: Commit one transaction with GTID_1
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
 CREATE TABLE t2 (a INT);
 SET GTID_NEXT='AUTOMATIC';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # T1.5. On the replica: Observe that transaction with GTID_1 was
@@ -104,5 +104,5 @@ SET GTID_NEXT='AUTOMATIC';
 --remove_file $output_file
 
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 DROP TABLE t2;

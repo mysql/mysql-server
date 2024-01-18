@@ -1,10 +1,10 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @saved_binlog_expire_logs_seconds= @@GLOBAL.binlog_expire_logs_seconds;
 SET @@GLOBAL.binlog_expire_logs_seconds= 1;
@@ -23,11 +23,11 @@ INSERT INTO t1 VALUES (5);
 INSERT INTO t1 VALUES (6);
 FLUSH LOCAL LOGS;
 INSERT INTO t1 VALUES (7);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 FLUSH LOCAL LOGS;
 INSERT INTO t1 VALUES (8);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SHOW RELAYLOG EVENTS IN 'FIRST_RELAY_LOG_FILE';
 SHOW RELAYLOG EVENTS IN 'LAST_RELAY_LOG_FILE';
 [connection master]
@@ -41,9 +41,9 @@ UNLOCK INSTANCE;
 FLUSH LOCAL LOGS;
 include/assert.inc [1st to 3rd binary log file should be not available]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SHOW RELAYLOG EVENTS IN 'FIRST_RELAY_LOG_FILE';
 SHOW RELAYLOG EVENTS IN 'LAST_RELAY_LOG_FILE';
 [connection master]
 SET @@GLOBAL.binlog_expire_logs_seconds= @saved_binlog_expire_logs_seconds;
-include/rpl_end.inc
+include/rpl/deinit.inc

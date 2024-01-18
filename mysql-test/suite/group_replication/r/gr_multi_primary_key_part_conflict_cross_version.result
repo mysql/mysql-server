@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1. Create a table on server1.
 [connection server1]
 CREATE TABLE t1(a VARCHAR(64), b VARCHAR(64), PRIMARY KEY(a(4), b));
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 2. Set a debug sync before broadcast message to group on
@@ -47,7 +47,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 #    since transactions are conflicting and server2 was
 #    ordered first.
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_1]
 ERROR 40000: Plugin instructed the server to rollback the current transaction.
 
@@ -84,7 +84,7 @@ COMMIT;
 #    only not truncated PKE. See Bug#35404584.
 [connection server2]
 INSERT INTO t1 VALUES ('ddddxxxx', 'bbbbxxxx');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ############################################################
 # 4. Signal the waiting thread on server_1 to resume.
@@ -96,7 +96,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 # 5. It will execute without error as the conflicting transactions have
 #    been removed.
 [connection server_1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 6. Assert that number of certified transactions are the

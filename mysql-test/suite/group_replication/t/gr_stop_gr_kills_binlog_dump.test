@@ -35,7 +35,7 @@
 --echo
 --echo # 1. Start GR on M1(primary) and create table t1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 set session sql_log_bin=0;
@@ -57,7 +57,7 @@ INSERT INTO test.t1 values (1);
 --echo
 --echo # 2. Start M2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -66,7 +66,7 @@ INSERT INTO test.t1 values (1);
 --echo #    and ch4_1: M1(master), M4(slave).
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Error reading packet from server for channel 'ch3_1': .*");
@@ -76,7 +76,7 @@ set session sql_log_bin=1;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_1 for channel 'ch3_1'
 
 --let $rpl_channel_name='ch3_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE TABLE_SCHEMA="test" AND TABLE_NAME="t1"
@@ -86,7 +86,7 @@ set session sql_log_bin=1;
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Error reading packet from server for channel 'ch4_1': .*");
@@ -96,7 +96,7 @@ set session sql_log_bin=1;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_1 for channel 'ch4_1'
 
 --let $rpl_channel_name='ch4_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE TABLE_SCHEMA="test" AND TABLE_NAME="t1"
@@ -108,7 +108,7 @@ set session sql_log_bin=1;
 --echo
 --echo # 4. Insert row on M1 and table t1 with binlog off.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin=0;
 INSERT INTO test.t1 values (2);
@@ -117,7 +117,7 @@ SET sql_log_bin=1;
 --echo
 --echo # 5. Insert same row in M2 so that M1 stops due to primary key coflict.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL super_read_only= 0;
 INSERT INTO test.t1 values (2);
@@ -125,7 +125,7 @@ INSERT INTO test.t1 values (2);
 --echo
 --echo # 6. Wait for GR to ERROR out on M1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
@@ -145,7 +145,7 @@ SET GLOBAL super_read_only= TRUE;
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
 --let $assert_select= Lost connection to MySQL server during query \(server_errno=2013\)
@@ -158,7 +158,7 @@ SET GLOBAL super_read_only= TRUE;
 --source include/assert.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.4.err
 --let $assert_select= Lost connection to MySQL server during query \(server_errno=2013\)
@@ -174,21 +174,21 @@ SET GLOBAL super_read_only= TRUE;
 --echo # 8. Restore M3 channel.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch3_1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name=
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch4_1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name=
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL super_read_only= FALSE;
 SET sql_log_bin=0;
@@ -210,20 +210,20 @@ SET sql_log_bin=1;
 INSERT INTO test.t1 values (3);
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch3_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM test.t1 WHERE a=3
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch4_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM test.t1 WHERE a=3
@@ -232,7 +232,7 @@ INSERT INTO test.t1 values (3);
 --echo
 --echo # 10. Stop GR on M1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -251,7 +251,7 @@ SET GLOBAL super_read_only= TRUE;
 --source include/assert.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
 --let $assert_select= Lost connection to MySQL server during query \(server_errno=2013\)
@@ -264,7 +264,7 @@ SET GLOBAL super_read_only= TRUE;
 --source include/assert.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.4.err
 --let $assert_select= Lost connection to MySQL server during query \(server_errno=2013\)
@@ -279,7 +279,7 @@ SET GLOBAL super_read_only= TRUE;
 --echo
 --echo # 12. Cleanup
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL super_read_only= FALSE;
 SET sql_log_bin=0;
@@ -290,24 +290,24 @@ SET GLOBAL super_read_only= TRUE;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE test.t1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch3_1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name=
 RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name='ch4_1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name=
 RESET REPLICA ALL FOR CHANNEL 'ch4_1';
 --source include/start_group_replication.inc

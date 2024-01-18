@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=1045]
+include/rpl/wait_for_receiver_error.inc [errno=1045]
 ---- Check performance_schema ----
 include/assert.inc [Error should contain the reason (Access denied for user foo) for connection failure]
 ---- Check SHOW REPLICA STATUS ----
@@ -22,7 +22,7 @@ include/assert.inc [Error should be the same in both SRS and P_S]
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_PORT = 1;
 START REPLICA IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=2003 # CR_CONN_HOST_ERROR]
+include/rpl/wait_for_receiver_error.inc [errno=2003 # CR_CONN_HOST_ERROR]
 ---- Check performance_schema ----
 include/assert.inc [Error should contain the reason (Cant connect to MySQL server on) for connection failure]
 ---- Check SHOW REPLICA STATUS ----
@@ -33,7 +33,7 @@ include/assert.inc [Error should be the same in both SRS and P_S]
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = '999.999.999.999';
 START REPLICA IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=2005 # CR_UNKNOWN_HOST]
+include/rpl/wait_for_receiver_error.inc [errno=2005 # CR_UNKNOWN_HOST]
 ---- Check performance_schema ----
 include/assert.inc [Error should contain the reason (Unknown MySQL server host) for connection failure]
 ---- Check SHOW REPLICA STATUS ----
@@ -46,5 +46,5 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = PORT, SOUR
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

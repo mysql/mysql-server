@@ -10,7 +10,7 @@
 #in case sensitive filesystem. Using 'lower_case_table_names=0' in case of
 #insensitive filsystem is not allowed.
 -- source include/have_case_sensitive_file_system.inc
---source extra/rpl_tests/rpl_do_table_filter_sensitive.inc
+--source common/rpl/do_table_filter_sensitive.inc
 
 # Bug#27808432 - SPORADIC CHECK-TESTCASE FAILURE SEEN FOR RPL_GTID_DO_TABLE_FILTER_SENSITIVE
 --source include/force_restart.inc

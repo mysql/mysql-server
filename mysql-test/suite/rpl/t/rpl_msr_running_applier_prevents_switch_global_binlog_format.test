@@ -28,10 +28,10 @@
 --echo #
 --let $rpl_topology= 1->2,3->2
 --let $rpl_multi_source= 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set @saved_binlog_format=@@global.binlog_format;
 --error ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
@@ -46,7 +46,7 @@ SET @@persist.binlog_format=STATEMENT;
 --let $assert_cond= "[select @@global.binlog_format]" = @saved_binlog_format
 --source include/assert.inc
 
---source include/rpl_stop_slaves.inc
+--source include/rpl/stop_all_replicas.inc
 SET @@global.binlog_format=STATEMENT;
 --let $assert_text= assert that @@global.binlog_format is set to STATEMENT
 --let $assert_cond= "[select @@global.binlog_format]" = "STATEMENT"
@@ -56,7 +56,7 @@ set global binlog_format=@saved_binlog_format;
 --let $assert_text= assert that @@global.binlog_format is set to @saved_binlog_format
 --let $assert_cond= "[select @@global.binlog_format]" = @saved_binlog_format
 --source include/assert.inc
---source include/rpl_start_slaves.inc
+--source include/rpl/start_all_replicas.inc
 
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -19,25 +19,25 @@
 
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 connection slave;
 --echo [ON SLAVE]
 call mtr.add_suppression('The replica I/O thread was stopped because a fatal error is encountered');
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $debug_point= undefined_algorithm_on_replica
 --source include/add_debug_point.inc
 
 START REPLICA;
 --let $slave_io_errno= 13117
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $debug_point= undefined_algorithm_on_replica
 --source include/remove_debug_point.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

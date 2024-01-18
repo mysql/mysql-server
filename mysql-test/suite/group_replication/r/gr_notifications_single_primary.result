@@ -64,7 +64,7 @@ include/assert.inc [Assert that there are 2 notifications logged of type STATE %
 include/assert.inc [Assert that there are 2 notifications logged of type STATE %:3]
 include/assert.inc [Assert that there are 6 notifications logged]
 [Truncating gms_listener_example Table]
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/stop_group_replication.inc
 include/assert.inc [Assert that there are 1 notifications logged of type VIEW %: ]
 include/assert.inc [Assert that there are 1 notifications logged of type STATE %: ]
@@ -72,13 +72,13 @@ include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:
 include/assert.inc [Assert that there are 3 notifications logged]
 [Truncating gms_listener_example Table]
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:4]
 include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:4]
 include/assert.inc [Assert that there are 2 notifications logged]
 [Truncating gms_listener_example Table]
 [connection server3]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:4]
 include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:4]
 include/assert.inc [Assert that there are 2 notifications logged]
@@ -98,5 +98,5 @@ include/start_group_replication.inc
 include/start_group_replication.inc
 [connection server1]
 DROP TABLE gms_listener_example;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

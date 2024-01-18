@@ -14,7 +14,7 @@ call mtr.add_suppression("The server was automatically set into read only mode a
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 SET SESSION sql_log_bin = 1;
 include/start_and_bootstrap_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 SET SESSION sql_log_bin = 0;
@@ -25,7 +25,7 @@ call mtr.add_suppression("The server was automatically set into read only mode a
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 SET SESSION sql_log_bin = 1;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 #

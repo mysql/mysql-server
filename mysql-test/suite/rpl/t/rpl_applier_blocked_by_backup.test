@@ -18,13 +18,13 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Lock replica for backup
 --echo #
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $MYSQLD_SLAVE_DATADIR = `select @@datadir`
 --source include/save_error_log_position.inc
 LOCK INSTANCE FOR BACKUP;
@@ -33,14 +33,14 @@ LOCK INSTANCE FOR BACKUP;
 --echo # Flush binary logs so relay log is tried to be purged
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 FLUSH BINARY LOGS;
 
 --echo #
 --echo # Check that relay logs have not been purged on replica
 --echo #
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --replace_regex /[\\]/\//
 --cat_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
@@ -61,14 +61,14 @@ UNLOCK INSTANCE;
 --echo # Generate log purge from source onto replica
 --echo #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 FLUSH BINARY LOGS;
 
 --echo #
 --echo # Check relay logs have been purged on replica
 --echo #
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --replace_regex /[\\]/\//
 --cat_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
@@ -82,6 +82,6 @@ call mtr.add_suppression("Could not purge binary logs since another session is e
 --echo # Cleanup
 --echo #
 
---source include/rpl_connection_master.inc
---source include/rpl_end.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/deinit.inc
 

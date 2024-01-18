@@ -39,7 +39,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 
 # sync all members
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Validate members state is equal.
 --let $diff_tables= server1:t1, server2:t1

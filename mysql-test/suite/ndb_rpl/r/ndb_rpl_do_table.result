@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -23,4 +23,4 @@ ERROR 23000: Duplicate entry '3' for key 't1.PRIMARY'
 INSERT INTO t1 VALUES (3, repeat('bad too',1));
 ERROR 23000: Duplicate entry '3' for key 't1.PRIMARY'
 DROP TABLE IF EXISTS t1, t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

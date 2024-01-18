@@ -1,7 +1,7 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --source include/have_cs_test_mysql_proto_reader_mtr.inc
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 
 RESET BINARY LOGS AND GTIDS;
 
@@ -50,4 +50,4 @@ SET GTID_NEXT=AUTOMATIC;
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
 
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc

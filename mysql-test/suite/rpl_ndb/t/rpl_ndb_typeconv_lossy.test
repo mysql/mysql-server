@@ -6,7 +6,7 @@
 --source include/not_binlog_transaction_compression_on.inc
 --source include/have_ndb.inc
 --source include/have_binlog_format_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 let $engine_type=NDBCLUSTER;
 
 connection slave;
@@ -38,7 +38,7 @@ SELECT @@global.replica_type_conversions;
 # Checking lossy integer type conversions
 connection slave;
 SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY';
-source extra/rpl_tests/type_conversions.test;
+source common/rpl/type_conversions.test;
 
 connection slave;
 --source suite/rpl_ndb/t/check_conversions.inc
@@ -56,4 +56,4 @@ sync_slave_with_master;
 
 set global replica_type_conversions = @saved_replica_type_conversions;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

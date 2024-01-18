@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GLOBAL super_read_only= 1;
 SET AUTOCOMMIT= ON;
 SHOW VARIABLES like '%autocommit%';
@@ -16,7 +16,7 @@ autocommit	ON
 ####################################################################
 # Test Case1: STOP REPLICA command
 ####################################################################
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 ####################################################################
 # Test Case2: CHANGE REPLICATION FILTER command
 ####################################################################
@@ -37,9 +37,9 @@ RESET REPLICA;
 ####################################################################
 # Test Case5: START REPLICA command
 ####################################################################
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ####################################################################
 # Test Case6: FLUSH BINARY LOGS command
 ####################################################################
@@ -55,29 +55,29 @@ SET GLOBAL gtid_purged= 'MASTER_UUID:1';
 ####################################################################
 # Test Case9: Server Restart
 ####################################################################
-include/rpl_restart_server.inc [server_number=2]
+include/rpl/restart_server.inc [server_number=2]
 include/assert.inc [Read_Source_Log_Pos before and after restart are same.]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 "Clean up"
 SET AUTOCOMMIT= SAVED_AUTOCOMMIT;
 SET GLOBAL super_read_only= SAVED_SUPER_READ_ONLY;
 SET GLOBAL read_only= SAVED_READ_ONLY;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 [connection master]
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GLOBAL super_read_only= 1;
 SET AUTOCOMMIT= OFF;
 SHOW VARIABLES like '%autocommit%';
@@ -86,7 +86,7 @@ autocommit	OFF
 ####################################################################
 # Test Case1: STOP REPLICA command
 ####################################################################
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 ####################################################################
 # Test Case2: CHANGE REPLICATION FILTER command
 ####################################################################
@@ -107,9 +107,9 @@ RESET REPLICA;
 ####################################################################
 # Test Case5: START REPLICA command
 ####################################################################
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ####################################################################
 # Test Case6: FLUSH BINARY LOGS command
 ####################################################################
@@ -125,22 +125,22 @@ SET GLOBAL gtid_purged= 'MASTER_UUID:1';
 ####################################################################
 # Test Case9: Server Restart
 ####################################################################
-include/rpl_restart_server.inc [server_number=2]
+include/rpl/restart_server.inc [server_number=2]
 include/assert.inc [Read_Source_Log_Pos before and after restart are same.]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 "Clean up"
 SET AUTOCOMMIT= SAVED_AUTOCOMMIT;
 SET GLOBAL super_read_only= SAVED_SUPER_READ_ONLY;
 SET GLOBAL read_only= SAVED_READ_ONLY;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
+include/rpl/deinit.inc

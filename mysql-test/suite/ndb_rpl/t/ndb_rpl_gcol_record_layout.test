@@ -6,7 +6,7 @@
 --source include/have_ndb.inc
 --source suite/gcol_ndb/inc/mtr_conditionals.inc
 --disable_warnings
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 --enable_warnings
 
 --echo ####### TEST gcol after blob
@@ -181,5 +181,5 @@ DROP TABLE gcol_first;
 sync_slave_with_master;
 connection master;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

@@ -33,7 +33,7 @@
 --echo # 1. Install clone plugin on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -55,7 +55,7 @@ INSERT INTO test.t1 (b) VALUES (2);
 --echo # 4. Change settings on recovery to speed up failure
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -123,7 +123,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo #     from donor will be valid
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -136,7 +136,7 @@ START GROUP_REPLICATION;
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $group_replication_member_state=ONLINE
 --source include/gr_wait_for_member_state.inc
@@ -146,7 +146,7 @@ START GROUP_REPLICATION;
 
 DROP TABLE test.t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Maximum number of retries when*");
@@ -178,7 +178,7 @@ RESET PERSIST IF EXISTS group_replication_communication_stack;
 UNINSTALL PLUGIN clone;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 UNINSTALL PLUGIN clone;
 

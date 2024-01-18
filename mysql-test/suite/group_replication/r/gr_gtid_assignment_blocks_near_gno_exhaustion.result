@@ -35,7 +35,7 @@ include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775802]
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775803]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 4. Execute a transaction on server 2.

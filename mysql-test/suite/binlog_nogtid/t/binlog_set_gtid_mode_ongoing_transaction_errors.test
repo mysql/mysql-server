@@ -42,8 +42,8 @@
 --let $rpl_topology= none
 --let $rpl_server_count= 1
 --let $rpl_gtid_utils= 1
---source include/rpl_init.inc
---source include/rpl_default_connections.inc
+--source include/rpl/init.inc
+--source include/rpl/default_connections.inc
 
 CALL mtr.add_suppression("Statement violates GTID consistency:");
 
@@ -55,25 +55,25 @@ CREATE TABLE myisam (a INT) ENGINE = MyISAM;
 
 --echo ==== AUTOMATIC, GTID-consistent: all modes ok ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
   INSERT INTO innodb VALUES (1);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = ON;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 COMMIT;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
   INSERT INTO innodb VALUES (1);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
@@ -81,17 +81,17 @@ SET GLOBAL GTID_MODE = OFF;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 COMMIT;
 
 --echo ==== AUTOMATIC, GTID-violating: only OFF and OFF_PERMISSIVE ok ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
   INSERT INTO innodb VALUES (1);
   INSERT INTO myisam VALUES (1);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 --error ER_CANT_ENFORCE_GTID_CONSISTENCY_WITH_ONGOING_GTID_VIOLATING_TX
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
@@ -100,16 +100,16 @@ SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 COMMIT;
 
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
   INSERT INTO innodb VALUES (1);
   INSERT INTO myisam VALUES (1);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 --error ER_CANT_ENFORCE_GTID_CONSISTENCY_WITH_ONGOING_GTID_VIOLATING_TX
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
@@ -118,17 +118,17 @@ SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 COMMIT;
 
 --echo ==== ANONYMOUS, GTID-consistent: all except ON are ok ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
   INSERT INTO innodb VALUES (1);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
@@ -136,15 +136,15 @@ SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 --error ER_CANT_SET_GTID_MODE
 SET GLOBAL GTID_MODE = ON;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 COMMIT;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
   INSERT INTO innodb VALUES (1);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 --error ER_CANT_SET_GTID_MODE
@@ -153,18 +153,18 @@ SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 COMMIT;
 
 --echo ==== ANONYMOUS, GTID-violating: all except ON are ok ====
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
   INSERT INTO innodb VALUES (1);
   INSERT INTO myisam VALUES (1);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 --error ER_CANT_ENFORCE_GTID_CONSISTENCY_WITH_ONGOING_GTID_VIOLATING_TX
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
@@ -173,16 +173,16 @@ SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 --error ER_CANT_SET_GTID_MODE
 SET GLOBAL GTID_MODE = ON;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 COMMIT;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
   INSERT INTO innodb VALUES (1);
   INSERT INTO myisam VALUES (1);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 --error ER_CANT_ENFORCE_GTID_CONSISTENCY_WITH_ONGOING_GTID_VIOLATING_TX
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
@@ -192,19 +192,19 @@ SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 COMMIT;
 
 --echo ==== GTID transaction: all except OFF are ok ====
 
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 eval SET GTID_NEXT = '$uuida:1';
 BEGIN;
   INSERT INTO innodb VALUES (1);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 --error ER_CANT_SET_GTID_MODE
 SET GLOBAL GTID_MODE = OFF;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
@@ -213,15 +213,15 @@ SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = ON;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 COMMIT;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 eval SET GTID_NEXT = '$uuida:2';
 BEGIN;
   INSERT INTO innodb VALUES (1);
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
@@ -229,11 +229,11 @@ SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 --error ER_CANT_SET_GTID_MODE
 SET GLOBAL GTID_MODE = OFF;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 COMMIT;
 SET GLOBAL GTID_MODE = OFF;
 
 SET GTID_NEXT = AUTOMATIC;
 DROP TABLE innodb, myisam;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

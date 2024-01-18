@@ -7,23 +7,23 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 0. The test requires two servers: M1 and M2.
 ###
 [connection server1]
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 call mtr.add_suppression("Error while executing a group configuration operation: Could not extract the access credentials for XCom connections.*");
 call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed.*");
 call mtr.add_suppression("\\[GCS\\] The group communication engine failed to test connectivity to the local group communication engine.*");
 call mtr.add_suppression("Timeout on wait for view after joining group.");
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 #
 # 1. Create two users on M1: user_m1 and user_m2.
 ###
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 CREATE USER 'user_m1' IDENTIFIED BY 'password';
 CREATE USER 'user_m2' IDENTIFIED BY 'password';
 GRANT REPLICATION SLAVE ON *.* TO "user_m1";
 GRANT REPLICATION SLAVE ON *.* TO "user_m2";
 GRANT GROUP_REPLICATION_STREAM ON *.* TO "user_m1";
 GRANT GROUP_REPLICATION_STREAM ON *.* TO "user_m2";
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 #
 # 2. Start and bootstrap group on M1
 ###
@@ -36,25 +36,25 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server2]
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 call mtr.add_suppression("Error while executing a group configuration operation: Could not extract the access credentials for XCom connections.*");
 call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed.*");
 call mtr.add_suppression("\\[GCS\\] The group communication engine failed to test connectivity to the local group communication engine.*");
 call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to be ready.*");
 call mtr.add_suppression("\\[GCS\\] The group communication engine is not ready for the member to join.*");
 call mtr.add_suppression("Timeout on wait for view after joining group.");
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 #
 # 3. Create two users on M2: user_m1 with a wrong password and user_m2.
 ###
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 CREATE USER 'user_m1' IDENTIFIED BY 'wrongpassword';
 CREATE USER 'user_m2' IDENTIFIED BY 'password';
 GRANT REPLICATION SLAVE ON *.* TO "user_m1";
 GRANT REPLICATION SLAVE ON *.* TO "user_m2";
 GRANT GROUP_REPLICATION_STREAM ON *.* TO "user_m1";
 GRANT GROUP_REPLICATION_STREAM ON *.* TO "user_m2";
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 #
 # 4. Change the Recovery Channel to use user_m2
 ###
@@ -74,9 +74,9 @@ ERROR HY000: The server is not configured properly to be an active member of the
 # functional. It must succeed.
 ###
 [connection server1]
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 CREATE USER 'user_m3' IDENTIFIED BY 'wrongpassword';
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 #
 # 8. Cleanup.
 ###
@@ -84,18 +84,18 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root' , SOURCE_PASSWORD='' FOR CHANNEL
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 DROP USER 'user_m3';
 DROP USER 'user_m2';
 DROP USER 'user_m1';
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 [connection server2]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root' , SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 DROP USER 'user_m2';
 DROP USER 'user_m1';
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 include/group_replication_end.inc

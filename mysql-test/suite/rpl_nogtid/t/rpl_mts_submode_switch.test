@@ -2,10 +2,10 @@
 # mts submode switch between master parallel to dbname and vice-versa
 
 -- source include/have_debug.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
--- source include/only_mts_replica_parallel_workers.inc
+-- source include/have_replica_parallel_workers.inc
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the replica");
 -- sync_slave_with_master
 -- connection master
@@ -21,7 +21,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 -- error ER_REPLICA_SQL_THREAD_MUST_STOP
 SET GLOBAL replica_parallel_type=LOGICAL_CLOCK;
 
--- source include/stop_slave.inc
+-- source include/rpl/stop_replica.inc
 
 # Setup 4 connections to master
 -- connect(m1, localhost,root,,,$MASTER_MYPORT)
@@ -161,9 +161,9 @@ DROP TABLE db4.t_temp;
 
 # DEFAULT  ========> DATABASE
 SET GLOBAL replica_parallel_type='DATABASE';
--- source include/start_slave.inc
+-- source include/rpl/start_replica.inc
 -- connection master
--- source include/sync_slave_sql_with_master.inc
+-- source include/rpl/sync_to_replica.inc
 -- let diff_tables= master:db1.t,slave:db1.t
 -- source include/diff_tables.inc
 -- let diff_tables= master:db2.t, slave:db2.t
@@ -172,7 +172,7 @@ SET GLOBAL replica_parallel_type='DATABASE';
 -- source include/diff_tables.inc
 -- let diff_tables= master:db4.t, slave:db4.t
 -- source include/diff_tables.inc
--- source include/stop_slave.inc
+-- source include/rpl/stop_replica.inc
 RESET REPLICA;
 DROP DATABASE db1;
 DROP DATABASE db2;
@@ -181,9 +181,9 @@ DROP DATABASE db4;
 
 # DATABASE ==========> LOGICAL_CLOCK
 SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
--- source include/start_slave.inc
+-- source include/rpl/start_replica.inc
 -- connection master
--- source include/sync_slave_sql_with_master.inc
+-- source include/rpl/sync_to_replica.inc
 -- let diff_tables= master:db1.t, slave:db1.t
 -- source include/diff_tables.inc
 -- let diff_tables= master:db2.t, slave:db2.t
@@ -192,7 +192,7 @@ SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
 -- source include/diff_tables.inc
 -- let diff_tables= master:db4.t, slave:db4.t
 -- source include/diff_tables.inc
--- source include/stop_slave.inc
+-- source include/rpl/stop_replica.inc
 RESET REPLICA;
 DROP DATABASE db1;
 DROP DATABASE db2;
@@ -201,9 +201,9 @@ DROP DATABASE db4;
 
 # LOGICAL_CLOCK ==========> DATABASE
 SET GLOBAL replica_parallel_type='DATABASE';
--- source include/start_slave.inc
+-- source include/rpl/start_replica.inc
 -- connection master
--- source include/sync_slave_sql_with_master.inc
+-- source include/rpl/sync_to_replica.inc
 -- let diff_tables= master:db1.t, slave:db1.t
 -- source include/diff_tables.inc
 -- let diff_tables= master:db2.t, slave:db2.t
@@ -213,9 +213,9 @@ SET GLOBAL replica_parallel_type='DATABASE';
 -- let diff_tables= master:db4.t, slave:db4.t
 -- source include/diff_tables.inc
 
--- source include/stop_slave.inc
+-- source include/rpl/stop_replica.inc
 SET GLOBAL REPLICA_PARALLEL_TYPE=DEFAULT;
--- source include/start_slave.inc
+-- source include/rpl/start_replica.inc
 
 #clean up
 -- connection master
@@ -234,17 +234,17 @@ DROP DATABASE db4;
 -- let $status_var_value= 0
 -- source include/wait_for_status_var.inc
 
--- source include/stop_slave.inc
+-- source include/rpl/stop_replica.inc
 
 -- disable_query_log
 -- disable_result_log
 -- eval SET GLOBAL replica_parallel_type= '$saved_submode'
--- source include/start_slave.inc
+-- source include/rpl/start_replica.inc
 
 -- connection master
 -- eval SET GLOBAL DEBUG='$saved_debug'
 -- enable_query_log
 -- enable_result_log
 
--- source include/rpl_end.inc
+-- source include/rpl/deinit.inc
 

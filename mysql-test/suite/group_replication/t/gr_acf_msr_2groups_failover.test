@@ -36,7 +36,7 @@
 --echo ############################################################
 --echo # 1. Deploy a 3 members group A in single primary mode.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 --let $group_a= $group_replication_group_name
@@ -51,7 +51,7 @@ if (!$have_xcom_stack){
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= `SELECT @@server_uuid`
 --disable_query_log
 if ($have_xcom_stack){
@@ -65,7 +65,7 @@ SET GLOBAL group_replication_member_weight=99;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server3_uuid= `SELECT @@server_uuid`
 --disable_query_log
 if ($have_xcom_stack){
@@ -82,7 +82,7 @@ if (!$have_xcom_stack){
 --echo ############################################################
 --echo # 2. Deploy a 3 members group B in single primary mode.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server4_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
 --let $group_b= $group_replication_group_name
@@ -97,7 +97,7 @@ if (!$have_xcom_stack){
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server5_uuid= `SELECT @@server_uuid`
 --disable_query_log
 if ($have_xcom_stack){
@@ -111,7 +111,7 @@ SET GLOBAL group_replication_member_weight=99;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server6
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server6_uuid= `SELECT @@server_uuid`
 --disable_query_log
 if ($have_xcom_stack){
@@ -129,7 +129,7 @@ if (!$have_xcom_stack){
 --echo # 3. Configure replica to manage the asynchronous connection
 --echo #    to groups A and B.
 --let $rpl_connection_name= server7
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $group_a GROUP_A
 --eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_a', '127.0.0.1', $SERVER_MYPORT_2, '', 90, 70);
@@ -158,7 +158,7 @@ if (!$have_xcom_stack){
 --echo ############################################################
 --echo # 4. Create and start the managed channels.
 --let $rpl_connection_name= server7
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
@@ -167,7 +167,7 @@ if (!$have_xcom_stack){
 
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
@@ -179,7 +179,7 @@ if (!$have_xcom_stack){
 
 
 --let $rpl_channel_name='ch2'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $assert_text= Verify channel ch2 IO_THREAD is ON and connected to server4
@@ -195,11 +195,11 @@ if (!$have_xcom_stack){
 --echo # 5. Stop primary from group A (server1) and the replica
 --echo #    shall connect to new primary server2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server7
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE channel_name='ch1' AND source_uuid='$server2_uuid';
 --source include/wait_condition.inc
 
@@ -209,11 +209,11 @@ if (!$have_xcom_stack){
 --echo # 6. Stop primary from group B (server4) and the replica
 --echo #    shall connect to new primary server5.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server7
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE channel_name='ch2' AND source_uuid='$server5_uuid';
 --source include/wait_condition.inc
 
@@ -222,7 +222,7 @@ if (!$have_xcom_stack){
 --echo ############################################################
 --echo # 7. Validate that channel ch1 did not reconnect to ch2 sources.
 --let $rpl_connection_name= server7
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_msr_2groups_failover
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.7.err
@@ -250,7 +250,7 @@ if (!$have_xcom_stack){
 --echo ############################################################
 --echo # 8. Validate that channel ch2 did not reconnect to ch1 sources.
 --let $rpl_connection_name= server7
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_msr_2groups_failover
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.7.err
@@ -278,7 +278,7 @@ if (!$have_xcom_stack){
 --echo ############################################################
 --echo # 9. Clean up.
 --let $rpl_connection_name= server7
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
@@ -286,19 +286,19 @@ call mtr.add_suppression("The Monitor IO thread detected that the source .* does
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
 
 --let $rpl_channel_name='ch2'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
@@ -310,20 +310,20 @@ SET SESSION sql_log_bin = 1;
 --eval SELECT asynchronous_connection_failover_delete_managed('ch2', '$group_b')
 
 --let $rpl_connection_name= server6
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server5
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET GLOBAL group_replication_member_weight= DEFAULT;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET GLOBAL group_replication_member_weight= DEFAULT;
 

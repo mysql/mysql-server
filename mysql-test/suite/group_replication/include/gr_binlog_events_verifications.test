@@ -72,7 +72,7 @@ if ($rpl_mysqlbinlog)
 --echo # Bootstrap start Group Replication on server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 if (!$rpl_mysqlbinlog)
@@ -80,20 +80,20 @@ if (!$rpl_mysqlbinlog)
   --echo
   --echo # Create new channel ch2_1: server1(slave), server2(master).
   --let $rpl_connection_name= server1
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --replace_result $SERVER_MYPORT_2 SERVER_2_PORT
   --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_AUTO_POSITION=1 for channel 'ch2_1'
 
   --let $rpl_channel_name='ch2_1'
-  --source include/start_slave.inc
+  --source include/rpl/start_replica.inc
 }
 
 --echo
 --echo # Set binlog format on server2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 if (!$rpl_binlog_format)
 {
@@ -128,7 +128,7 @@ SET GTID_NEXT= AUTOMATIC;
 --echo # server2(master) and add data to it.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t2 (c1 INT) engine MyIsam;
 
@@ -154,7 +154,7 @@ SET GTID_NEXT= AUTOMATIC;
 --echo # on server2(master) and add data to it.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE tp3 (c1 INT PRIMARY KEY);
 CREATE TABLE tc3 (c1 INT PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tp3(c1) ON DELETE CASCADE);
@@ -179,7 +179,7 @@ SET GTID_NEXT= AUTOMATIC;
 --echo # Clean-up
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 drop table t1;
 drop table t2;
@@ -193,13 +193,13 @@ if (!$rpl_mysqlbinlog)
 {
   # Sync slave(server1) with master(server2)
   --let $sync_slave_connection=server_1
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   --let $rpl_connection_name= server1
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $rpl_channel_name='ch2_1'
-  --source include/stop_slave.inc
+  --source include/rpl/stop_replica.inc
 
   RESET REPLICA ALL FOR CHANNEL 'ch2_1';
 
@@ -212,7 +212,7 @@ if ($rpl_mysqlbinlog)
   --remove_file $rpl_out_binlog
 
   --let $rpl_connection_name= server1
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   drop table t1;
   drop table t2;

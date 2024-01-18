@@ -50,7 +50,7 @@
 --let $correct_list1= fe80::f6dd:5a39:661b:b00b/64,8.9.10.0/20,192.168.1.1,192.168.2.0/24
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --eval SET GLOBAL group_replication_group_name="$group_replication_group_name"
 
 ####
@@ -268,13 +268,13 @@ START GROUP_REPLICATION;
 # Access from localhost is always allowlisted
 #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SET GLOBAL group_replication_ip_allowlist=""
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # if localhost was blocked this would not succeed
 --source include/start_group_replication.inc
@@ -284,8 +284,8 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
---source include/rpl_sync.inc
+--source include/connection.inc
+--source include/rpl/sync.inc
 
 # Assert that the data made it through
 --let $diff_tables= server1:test.t1,server2:test.t1
@@ -296,17 +296,17 @@ INSERT INTO t1 VALUES (1);
 ##
 
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_ip_allowlist= AUTOMATIC
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 --eval SET GLOBAL group_replication_ip_allowlist= AUTOMATIC

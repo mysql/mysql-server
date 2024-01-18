@@ -1,7 +1,7 @@
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 #
 # Bug #19930381 WL1697: 'START SLAVE' CRASHES POST RESTART
 #
@@ -12,7 +12,7 @@ call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression("Corrupted table mysql.slave_worker_info");
 call mtr.add_suppression("Could not delete from Replica Workers info repository");
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=2;
@@ -54,7 +54,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', S
 --source include/assert.inc
 
 --let $rpl_channel_name= 'ch_b'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 #
 # Testing Worker info table after server restarts.
@@ -64,13 +64,13 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', S
 --let $rpl_omit_print_server_parameters= 1
 --let $rpl_server_number= 1
 --let $rpl_server_parameters=
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --skip-replica-start
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --replace_result $MASTER_MYPORT SOURCE_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_b';
 START REPLICA;
@@ -81,4 +81,4 @@ RESET REPLICA ALL;
 --let $rpl_skip_stop_slave=1
 --let $rpl_skip_sync = 1
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

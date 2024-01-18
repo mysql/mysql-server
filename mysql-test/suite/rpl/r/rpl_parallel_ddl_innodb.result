@@ -1,12 +1,12 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 4;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/diff_tables.inc [master:d32.t8, slave:d32.t8]
 include/diff_tables.inc [master:d32.t7, slave:d32.t7]
 include/diff_tables.inc [master:d32.t6, slave:d32.t6]
@@ -522,4 +522,4 @@ t6.ibd
 t7.ibd
 t8.ibd
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
-include/rpl_end.inc
+include/rpl/deinit.inc

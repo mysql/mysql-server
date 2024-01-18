@@ -60,7 +60,7 @@ include/gr_assert_primary_member.inc
 # 7. Validate that the DDL was applied on server2 through
 #    the 'group_replication_applier' channel.
 [connection server2]
-include/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
+include/rpl/deprecated/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-relay-log-group_replication_applier.000002	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
 server-relay-log-group_replication_applier.000002	#	Query	#	#	use `test`; DROP PROCEDURE proc1

@@ -56,12 +56,12 @@ SET @group_replication_autorejoin_tries_saved = @@GLOBAL.group_replication_autor
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -69,7 +69,7 @@ SET @group_replication_autorejoin_tries_saved = @@GLOBAL.group_replication_autor
 --echo # 2. Enable auto-rejoin and expel one of the members.
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_autorejoin_tries = 1;
 SET @@GLOBAL.DEBUG='+d,group_replication_skip_wait_for_view_modification';
@@ -117,7 +117,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_autorejoin_allow_join_to_ch
 --echo # 6. Cleanup.
 
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG = @debug_saved;
 

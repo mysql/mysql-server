@@ -5,8 +5,8 @@
 # is replication unsafe.
 #
 
---source include/set_privilege_checks_user_as_system_user.inc
-source include/master-slave.inc;
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+source include/rpl/init_source_replica.inc;
 source include/have_binlog_format_mixed.inc;
 source include/force_myisam_default.inc;
 source include/have_myisam.inc;
@@ -38,7 +38,7 @@ show warnings;
 set @@binlog_format=mixed;
 insert into tm set b=null, a=2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 if (`select count(*) <> 3 from tm`)
 {
@@ -54,6 +54,6 @@ if (`select count(*) <> 3 from tm`)
 drop table tm;
 drop function multi_part_pk_with_autoinc;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

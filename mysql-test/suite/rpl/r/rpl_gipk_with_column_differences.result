@@ -1,5 +1,5 @@
 include/only_with_option.inc [GLOBAL.binlog_row_image = 'full']
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,11 +11,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    With the binary log temporarily disabled, create tables t1, t2 and t3 with no primary keys
 [connection master]
 SET SESSION sql_generate_invisible_primary_key = ON;
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 CREATE TABLE t1(f1 INT, f2 INT);
 CREATE TABLE t2(f1 INT, f2 INT);
 CREATE TABLE t3(f1 INT, f2 INT);
-include/restore_binlog.inc
+include/rpl/restore_binlog.inc
 SET SESSION sql_generate_invisible_primary_key = OFF;
 
 ##################################################
@@ -39,7 +39,7 @@ INSERT INTO t2 VALUES (21, 22);
 INSERT INTO t2 VALUES (21, 23);
 INSERT INTO t3 VALUES (31, 31);
 INSERT INTO t3 VALUES (32, 32);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 include/assert.inc [The table t1 contains the 2 inserted rows]
 include/assert.inc [The table t2 contains the 3 inserted rows]
@@ -55,7 +55,7 @@ DELETE FROM t2 WHERE t2.f2=21;
 UPDATE t2 SET t2.f2 = 24 WHERE t2.f2=23;
 UPDATE t3 SET t3.f2 = 33 WHERE t3.f1=31;
 DELETE FROM t3 WHERE t3.f1=32;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 include/assert.inc [The table t1 contains 1 row]
 include/assert.inc [The table t1 was updated]
@@ -64,7 +64,7 @@ include/assert.inc [The table t3 contains 1 row]
 include/assert.inc [The table t3 was updated]
 [connection master]
 UPDATE t2 SET t2.f1 = 22 WHERE t2.f2=22;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The table t2 contains 1 rows with value 21]
 include/assert.inc [The table t2 contains 1 rows with value 22]
 # Phase 2: Tests with a GIPK only on the replica
@@ -72,9 +72,9 @@ include/assert.inc [The table t2 contains 1 rows with value 22]
 ##################################################
 # 5. Enable the generation of GIPKs on replication
 [connection slave]
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 
 ##################################################
 # 6. Create some tables without primary keys on the source
@@ -83,7 +83,7 @@ include/start_slave_sql.inc
 CREATE TABLE t4(f1 INT, f2 INT);
 CREATE TABLE t5(f1 INT, f2 INT);
 CREATE TABLE t6(f1 INT, f2 INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ALTER TABLE t5 DROP COLUMN f2;
 ALTER TABLE t6 ADD COLUMN f3 INT AFTER f2;
 
@@ -98,7 +98,7 @@ INSERT INTO t5 VALUES (51, 52);
 INSERT INTO t5 VALUES (51, 53);
 INSERT INTO t6 VALUES (61, 61);
 INSERT INTO t6 VALUES (62, 62);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 include/assert.inc [The table t4 contains the 2 inserted rows]
 include/assert.inc [The table t5 contains the 3 inserted rows]
@@ -114,7 +114,7 @@ DELETE FROM t5 WHERE t5.f2=51;
 UPDATE t5 SET t5.f2 = 54 WHERE t5.f2=53;
 UPDATE t6 SET t6.f2 = 63 WHERE t6.f1=61;
 DELETE FROM t6 WHERE t6.f1=62;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 include/assert.inc [The table t4 contains 1 row]
 include/assert.inc [The table t4 was updated]
@@ -123,15 +123,15 @@ include/assert.inc [The table t6 contains 1 row]
 include/assert.inc [The table t6 was updated]
 [connection master]
 UPDATE t5 SET t5.f1 = 52 WHERE t5.f2=52;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The table t5 contains 1 rows with value 51]
 include/assert.inc [The table t5 contains 1 rows with value 52]
 
 ##################################################
 # 9. Cleanup
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = PRIMARY_KEY_CHECK_VALUE;
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
 DROP TABLE t1;
 DROP TABLE t2;
@@ -139,4 +139,4 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLE t5;
 DROP TABLE t6;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -133,7 +133,7 @@ RESET REPLICA ALL;
 --connection server1
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_AUTO_POSITION=1 FOR CHANNEL "channel_1"
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $assert_text= 'The created slave channel is ON'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="channel_1" and SERVICE_STATE="ON", count, 1] = 1
@@ -147,14 +147,14 @@ RESET REPLICA ALL;
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/kill_and_restart_mysqld.inc
 
-#Needed as we are not using rpl_restart_server.inc
+#Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 # Wait until group has only 1 member, that is, server1 death is detected by
 # the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member1_uuid
@@ -173,10 +173,10 @@ RESET REPLICA ALL;
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Wait for the slave channel start
 --let $rpl_channel_name= 'channel_1'
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 --let $rpl_channel_name=
 
 --let $assert_text= 'The group replication recovery channel is present'
@@ -201,7 +201,7 @@ DROP TABLE t1;
 
 --connection server1
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "channel_1";
 
 --source include/start_group_replication.inc

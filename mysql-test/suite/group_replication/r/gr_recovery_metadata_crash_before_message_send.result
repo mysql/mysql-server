@@ -25,7 +25,7 @@ include/start_group_replication.inc
 
 ############################################################
 # 6. Donor will crash.
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 SET @@GLOBAL.DEBUG='-d,gr_crash_before_recovery_metadata_send';
 
 ############################################################

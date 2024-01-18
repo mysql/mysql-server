@@ -10,7 +10,7 @@
 -- source include/have_myisam.inc
 
 --let $rpl_topology= 1->2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 -- connection server_1
 -- connection server_2
@@ -24,7 +24,7 @@
 -- echo ### Testing with InnoDB storage engine
 
 -- let $engine=InnoDB
--- source extra/rpl_tests/rpl_row_empty_imgs.test
+-- source common/rpl/rpl_row_empty_imgs.test
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

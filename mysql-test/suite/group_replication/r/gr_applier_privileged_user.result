@@ -17,7 +17,7 @@ CALL mtr.add_suppression("The server was automatically set into offline mode aft
 CALL mtr.add_suppression(".*Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 SET @@sql_log_bin = 1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 2) Stop GR on `server1`.
 include/stop_group_replication.inc
@@ -58,12 +58,12 @@ SET @@sql_log_bin = 1;
 include/start_group_replication.inc
 
 # 10) Ensure that table was properly replicated
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [Table properly replicated in server1]
 
 # Cleanup
 DROP DATABASE db1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 SET @@sql_log_bin = 0;
 DROP USER 'u1'@'localhost';

@@ -44,45 +44,45 @@ CREATE TABLE t3 (y DOUBLE DEFAULT (PI()));
 
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1 VALUES ();
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1(a) VALUES (1);
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1(b) VALUES (DEFAULT);
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1(b) VALUES (1);
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
 --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Update_rows # Xid
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW UPDATE t1 SET a = DEFAULT;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW UPDATE t1 SET b = DEFAULT;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
 --echo # Test R2.
@@ -91,28 +91,28 @@ CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t3 VALUES ();
 # Logged in STATEMENT format, since the triggered statement does not touch a
 # table with any non-deterministic DEFAULT expressions.
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t2 VALUES ();
 --let $event_sequence = !Gtid_or_anon # !Begin # Query # Xid
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
 --echo # Test R3.
 
 # Logged in ROW format when the DEFAULT expression is used.
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t1 VALUES ();
 --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Write_rows # Xid
---source include/assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/assert_binlog_events.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t1 (b) VALUES (DEFAULT);
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 # Logged in STATEMENT format when the DEFAULT expression is not used.
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 INSERT INTO t1 (b) VALUES (1);
 --let $event_sequence = !Gtid_or_anon # !Begin # Query # Xid
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 # Clean up
 DROP TABLE t1, t2, t3;

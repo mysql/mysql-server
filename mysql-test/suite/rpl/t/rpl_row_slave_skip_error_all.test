@@ -21,12 +21,12 @@
 ################################################################################
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # On master create table t which contains a field named 'name' with length
 # varchar(25).
 CREATE TABLE t (name VARCHAR(25) DEFAULT NULL) ENGINE=InnoDB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # On slave alter the name field length to varchar(255).
 call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
@@ -35,37 +35,37 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 call mtr.add_suppression("Got error 149 - .Lock deadlock; Retry transaction. during COMMIT");
 ALTER TABLE t CHANGE name name VARCHAR(255);
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t VALUE ('Amy');
 --echo # Sync should be successful. Slave should not stop with an error
 --echo # ER_REPLICA_CONVERSION_FAILED. It should be up and running in spite
 --echo # of errors as we have set slave_skip_error=all.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Drop the table t on slave.
 DROP TABLE t;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 UPDATE t SET name='New';
 --echo # Sync should be successful. Slave should not stop with an error
 --echo # ER_NO_SUCH_TABLE. It should be up and running in spite of errors
 --echo # as we have set slave_skip_error=all.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Enable a debug point to simulate failure during rows event cleanup.
 
 --let $debug_point= simulate_rows_event_cleanup_failure
 --source include/add_debug_point.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 UPDATE t SET name='Old';
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --echo # Since this is not an ignored error slave should stop. We only ignore the
 --echo # errors that are generated during the execution of an event. The other errors
 --echo # that are generated during commit/rollback failure, which takes place during cleanup
 --echo # cannot be ignored.
 --let $slave_sql_errno= convert_error(ER_ERROR_DURING_COMMIT);
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Verfiy that two warning logs for 'Error executing row event: ' (due to executing
 # two update statement to table t on master after dropping the table t at slave) are logged
@@ -81,14 +81,14 @@ UPDATE t SET name='Old';
 --let $debug_point= simulate_rows_event_cleanup_failure
 --source include/remove_debug_point.inc
 
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -12,7 +12,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 SET SESSION sql_log_bin= 0;
 INSERT INTO t1 VALUES (1);
 SET SESSION sql_log_bin= 1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # 2. Insert a value on server 2 that will clash with data on server1
 #
@@ -24,10 +24,10 @@ INSERT INTO t1 VALUES (1);
 [connection server1]
 # Expect ERROR state.
 include/gr_wait_for_member_state.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 [connection server2]
 # Wait for one member on server 2
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 #
 # 4. Remove the value, restart the plugin and do a cleanup
 #

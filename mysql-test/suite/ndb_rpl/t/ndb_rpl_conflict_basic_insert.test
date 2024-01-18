@@ -4,7 +4,7 @@
 #
 --source include/have_multi_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --disable_query_log
 --connection master
@@ -372,4 +372,4 @@ drop table t2_max, t2_max$EX;
 drop table t1_max_ins, `t1_max_ins$EX`, t1_max_del_win_ins, `t1_max_del_win_ins$EX`;
 drop table mysql.ndb_replication;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

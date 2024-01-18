@@ -45,7 +45,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_legacy_election_version';
 --echo # 2. Configure server2 with 8.0.12 version, and start group replication
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: The group has a member with a version that does not support group coordinated operations.");
@@ -61,7 +61,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_legacy_election_version';
 --echo # 3. Start group replication on server3 with a higher weight
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL group_replication_member_weight= 90;
 # server1 started with legacy version, so server2 and server3 are read compatible
@@ -75,7 +75,7 @@ set session sql_log_bin=1;
 --echo # 4. Stop group replication on server1 to force election of a new primary
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -83,12 +83,12 @@ set session sql_log_bin=1;
 --echo # 5. Check server3 is the primary and server2 the secondary
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -101,7 +101,7 @@ SET GLOBAL group_replication_member_weight= 95;
 --echo # 7. Start group replication on server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -109,7 +109,7 @@ SET GLOBAL group_replication_member_weight= 95;
 --echo # 8. Stop group replication on server3 to force election of a new primary
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -117,12 +117,12 @@ SET GLOBAL group_replication_member_weight= 95;
 --echo # 9. Check server2 is the primary and server1 the secondary
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -150,7 +150,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 SET @@GLOBAL.DEBUG= @debug1_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -158,7 +158,7 @@ SET @@GLOBAL.DEBUG= @debug2_save;
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 

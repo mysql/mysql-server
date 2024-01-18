@@ -3,7 +3,7 @@
 #
 # --------------------------------------------------------------
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,30 +11,30 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 CREATE TABLE t (c INT);
 INSERT INTO t VALUES (1), (2);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression("Error writing relay log configuration");
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_username;
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 include/assert.inc [Configured PRIVILEGE_CHECKS_USER appears in PFS table with NULL value]
 include/assert.inc [Table mysql.slave_relay_log_info has no columns regarding PRIVILEGE_CHECKS_USER]
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --upgrade=FORCE]
-include/start_slave.inc
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --upgrade=FORCE]
+include/rpl/start_replica.inc
 [connection slave]
 include/assert.inc [Table mysql.slave_relay_log_info has columns for PRIVILEGE_CHECKS_USER]
 include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CREATE USER 'u1'@'localhost';;
 GRANT CREATE,INSERT,DROP,REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER = 'u1'@'localhost']
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP USER 'u1'@'localhost';;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

@@ -1,13 +1,13 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 reset binary logs and gtids;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
-include/start_slave.inc
+include/rpl/start_replica.inc
 create table t1(n char(30)) CHARACTER SET latin1;
 set @i1:=12345678901234, @i2:=-12345678901234, @i3:=0, @i4:=-1;
 set @s1:='This is a test', @r1:=12.5, @r2:=-12.5;
@@ -63,7 +63,7 @@ abcn1
 abcn1n2
 abc\def
 This is a test
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1 ORDER BY n;
 n
 NULL
@@ -118,7 +118,7 @@ ELSE
 INSERT INTO test.t21 VALUES ('TRIG_FALSE');
 END IF;
 END|
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @VAR=0;
 CALL test.insert();
 SET @VAR=1;
@@ -132,7 +132,7 @@ SELECT * FROM t21;
 a
 TRIG_FALSE
 TRIG_TRUE
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 On slave: Check the tables for correct data and it matches master
 SELECT * FROM t20;
 a
@@ -168,7 +168,7 @@ i
 9
 16
 25
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 On slave: Retrieve the values from the table and verify they are the same as on master
 SELECT * FROM t1;
 i
@@ -194,14 +194,14 @@ SET @c = (@a - 1);
 END if;
 return @c;
 END |
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @a=500;
 INSERT INTO t1 values(f1());
 SET @b = 125;
 SET @c = 1;
 INSERT INTO t1 values(f2());
 On master: Retrieve the values from the table
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * from t1;
 a
 500
@@ -223,7 +223,7 @@ INSERT INTO t2 values (@a);
 SET @a:=42;
 INSERT INTO t2 values (@a);
 END |
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @a:=100;
 INSERT INTO t1 values (5);
 On master: Check to see that data was inserted correctly in both tables
@@ -234,7 +234,7 @@ SELECT * from t2;
 k
 100
 42
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 On slave: Check the tables for correct data and it matches master
 SELECT * from t1;
 i
@@ -253,7 +253,7 @@ execute s1 using @x;
 select * from t1;
 a	b
 2	1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a	b
 2	1
@@ -273,7 +273,7 @@ a
 2
 1
 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1
@@ -291,7 +291,7 @@ FUNCTION f2() RETURNS INT BEGIN
 INSERT INTO t1 VALUES (10 + @a);
 RETURN 0;
 END|
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @a:=123;
 SELECT f1(), f2();
 f1()	f2()
@@ -302,7 +302,7 @@ SELECT * FROM t1;
 i
 133
 123
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 On slave: Check the table for correct data and it matches master
 SELECT * FROM t1;
 i
@@ -311,5 +311,5 @@ i
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

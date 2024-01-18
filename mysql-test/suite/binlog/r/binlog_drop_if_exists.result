@@ -6,7 +6,7 @@ DROP VIEW IF EXISTS db_bug_13684.v;
 DROP EVENT IF EXISTS db_bug_13684.e;
 DROP TABLE IF EXISTS db_bug_13684.t;
 DROP DATABASE IF EXISTS db_bug_13684;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; DROP PROCEDURE IF EXISTS db_bug_13684.p
 binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION IF EXISTS db_bug_13684.f
@@ -32,7 +32,7 @@ END;
 CREATE FUNCTION db_bug_13684.f (s CHAR(20))
 RETURNS CHAR(50) DETERMINISTIC
 RETURN s;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; DROP PROCEDURE IF EXISTS db_bug_13684.p
 binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION IF EXISTS db_bug_13684.f
@@ -64,7 +64,7 @@ DROP VIEW IF EXISTS db_bug_13684.v;
 DROP EVENT IF EXISTS db_bug_13684.e;
 DROP TABLE IF EXISTS db_bug_13684.t;
 DROP DATABASE IF EXISTS db_bug_13684;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; DROP PROCEDURE IF EXISTS db_bug_13684.p
 binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION IF EXISTS db_bug_13684.f

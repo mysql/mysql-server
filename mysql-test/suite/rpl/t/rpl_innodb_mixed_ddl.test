@@ -6,4 +6,4 @@
 # This test case is specific to binlog_format=mixed
 --source include/have_binlog_format_mixed.inc
 let $engine_type= innodb;
---source suite/rpl/include/rpl_mixed_ddl.inc
+--source common/rpl/mixed_ddl.inc

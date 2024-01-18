@@ -3,10 +3,10 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/only_mts_replica_parallel_type_logical_clock.inc
---source include/only_replica_preserve_commit_order.inc
---source include/master-slave.inc
+--source include/have_replica_parallel_workers.inc
+--source include/have_replica_parallel_type_logical_clock.inc
+--source include/have_replica_preserve_commit_order.inc
+--source include/rpl/init_source_replica.inc
 
 # METHOD: We will do some inserts of continious integers into a t1.a
 # and enable a forced parallelization. These transactions are applied in
@@ -18,11 +18,11 @@
 # This script is used with logical clock based MTS.
 #
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
 # Make all following INSERTs into the 2nd binlog.
 FLUSH BINARY LOGS;
 if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
@@ -35,7 +35,7 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 --echo #
 --echo # Verify the transactions are ordered correctly on slave
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Make the following INSERTs have same commit parent. So they can be applied
 # parallel on slave.
 SET @save_debug = @@GLOBAL.debug;
@@ -53,10 +53,10 @@ SET GLOBAL debug = "+d,set_commit_parent_100";
 
 while ($iteration <= 6)
 {
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   LOCK TABLE t1 WRITE;
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   --let $row_count= 1
   while ($row_count <= $iteration)
   {
@@ -64,16 +64,16 @@ while ($iteration <= 6)
     --inc $value
     --inc $row_count
   }
-  --source include/save_master_pos.inc
+  --source include/rpl/save_server_position.inc
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   # Wait until all workers are blocked by LOCK TABLE t1 WRITE. It implies all
   # transactions are registered into the order commit queue.
   let $wait_condition= SELECT count(*) = $iteration FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
   --source include/wait_condition.inc
 
   UNLOCK TABLES;
-  --source include/sync_slave_sql.inc
+  --source include/rpl/sync_with_saved.inc
   SET DEBUG_SYNC = 'RESET';
   --inc $iteration
 }
@@ -81,7 +81,7 @@ while ($iteration <= 6)
 #
 # Verify above INSERTs are in the same order as master
 #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $SLAVE_MYSQLD_DATADIR= `SELECT @@DATADIR`
 --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --copy_file $SLAVE_MYSQLD_DATADIR/$binlog_file $MYSQL_TMP_DIR/$binlog_file
@@ -132,22 +132,22 @@ SELECT * FROM t1 WHERE id <> a;
 
 --remove_file $MYSQL_TMP_DIR/$binlog_file
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL debug = @save_debug;
 
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Verify that it will generate a warning if slave-preserve-commit is
 --echo # used with DB PARTITIONED MTS together
 --echo #
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 SET GLOBAL replica_parallel_type = 'DATABASE';
 --error ER_DONT_SUPPORT_REPLICA_PRESERVE_COMMIT_ORDER
 START REPLICA SQL_THREAD;
 
 SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
 --let rpl_only_running_threads= 1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

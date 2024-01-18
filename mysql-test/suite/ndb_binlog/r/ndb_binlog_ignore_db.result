@@ -5,7 +5,7 @@ create table t1 (a int primary key, b int) engine=ndb;
 insert into t1 values (1, 1);
 use test;
 insert into mysqltest.t1 values(2,2);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 drop database mysqltest;
 --bug58698 Epoch not in ndb_apply_status 
@@ -18,7 +18,7 @@ insert into invisible values (2);
 delete from invisible;
 drop table invisible;
 -- Should be nothing in binlog
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -- Ndb table in mysql db
 create table invisible(a int primary key) engine=ndb;
@@ -27,14 +27,14 @@ insert into invisible values (2);
 delete from invisible;
 drop table invisible;
 -- Should be nothing in binlog
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -- ndb_binlog_index table (MyISAM) in mysql db 
 insert into ndb_binlog_index values (12, 'F', 23, 0, 0, 0, 0, 3, 44, 55, 66, 'H');
 insert into ndb_binlog_index values (20, 'G', 23, 0, 0, 0, 0, 5, 44, 55, 77, 'I');
 delete from ndb_binlog_index;
 -- Should be nothing in binlog
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -- Non-ignored db (test2)
 create database test2;

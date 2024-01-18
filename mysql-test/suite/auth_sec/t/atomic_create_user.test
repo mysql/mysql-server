@@ -1,5 +1,5 @@
 --source include/have_log_bin.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -22,7 +22,7 @@ SELECT user FROM mysql.user WHERE user LIKE 'user%';
 --let $event= !Q(CREATE USER .*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
 --let $invert= 0
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 2 : Execute CREATE USER for non-existing users
 CREATE USER userY, userZ;
@@ -31,7 +31,7 @@ SELECT user FROM mysql.user WHERE user LIKE 'user%';
 
 --let $event= !Q(CREATE USER .userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 3 : Try creating anonymous user with expired password
 --error ER_CANNOT_USER
@@ -73,7 +73,7 @@ UPDATE mysql.tmp_user SET user='userW' WHERE user LIKE 'userX';
 INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
 DROP TABLE mysql.tmp_user;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Though userW is not present in cache, CREATE USER should fail
 --echo # because we will encounter duplicate key error while inserting entry
@@ -92,7 +92,7 @@ FLUSH PRIVILEGES;
 
 DROP USER userW, userX, userY, userZ;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # End : Tests for CREATE USER
 
@@ -103,7 +103,7 @@ DROP USER userW, userX, userY, userZ;
 CALL mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS but they already exist.");
 
 CREATE USER userX;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 1 : Execute CREATE USER IF NOT EXISTS for existing user
 CREATE USER IF NOT EXISTS userX, userY, userZ;
@@ -113,14 +113,14 @@ SELECT user FROM mysql.user WHERE user LIKE 'user%';
 
 --let $event= !Q(CREATE USER IF NOT EXISTS.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Must show warnings about userX, userY and userZ
 CREATE USER IF NOT EXISTS userX, userY, userZ;
 
 --let $event= !Q(CREATE USER IF NOT EXISTS.*userX.*userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 2 : Try creating anonymous user with expired password
 --echo #          using CREATE USER IF NOT EXISTS
@@ -157,7 +157,7 @@ UPDATE mysql.tmp_user SET user='userW' WHERE user LIKE 'userX';
 INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
 DROP TABLE mysql.tmp_user;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Though userW is not present in cache, CREATE USER IF NOT EXISTS
 --echo # will skip it because we will encounter duplicate key error while
@@ -175,7 +175,7 @@ SELECT user FROM mysql.user WHERE user LIKE 'user%';
 
 DROP USER userV, userW, userX, userY, userZ;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # END : Tests for CREATE USER IF NOT EXISTS
 
@@ -197,7 +197,7 @@ SELECT user FROM mysql.default_roles where user LIKE 'user%';
 --let $event= !Q(CREATE USER .*userY.*userZ.*.userX)
 --source ../include/auth_sec_assert_binlog_events.inc
 --let $invert= 0
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 2 : Execute CREATE USER for non-existing users
 CREATE USER userY, userZ DEFAULT ROLE 'roleX', 'roleY';
@@ -207,7 +207,7 @@ SELECT user FROM mysql.default_roles where user LIKE 'user%';
 
 --let $event= !Q(CREATE USER .userY.*userZ.*)
 --source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # Case 3 : Try creating user with invalid hash
 --error ER_PASSWORD_FORMAT
@@ -228,7 +228,7 @@ SELECT user FROM mysql.default_roles WHERE user LIKE 'user%';
 DROP USER userX, userY, userZ;
 DROP ROLE roleX, roleY, roleZ;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo # ----------------------------------------------------------------------
 

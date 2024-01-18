@@ -55,7 +55,7 @@
 
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $source_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
@@ -67,7 +67,7 @@
 # 1) Set `PRIVILEGE_CHECKS_USER` to a user without `REPLICATION_APPLIER`
 #    privilege.
 #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 CALL mtr.add_suppression(".PRIVILEGE_CHECKS_USER for replication channel.");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
@@ -84,8 +84,8 @@ START REPLICA;
 # 3) Wait for slave to error out.
 #
 --let $slave_sql_errno = convert_error(ER_WARN_LOG_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV)
---source include/wait_for_slave_sql_error.inc
---source include/stop_slave.inc
+--source include/rpl/wait_for_applier_error.inc
+--source include/rpl/stop_replica.inc
 
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 
@@ -112,22 +112,22 @@ START REPLICA;
 #
 # 2) Create a table on the master.
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 
 #
 # 3) Wait for slave to error out.
 #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $slave_sql_errno = convert_error(ER_TABLEACCESS_DENIED_ERROR)
---source include/wait_for_slave_sql_error.inc
---source include/stop_slave.inc
+--source include/rpl/wait_for_applier_error.inc
+--source include/rpl/stop_replica.inc
 
 # Grant the necessary privileges in order to clear the error and continue
 GRANT CREATE ON *.* TO 'u1'@'localhost';
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # TC3. Slave thread should fail to start if `PRIVILEGE_CHECKS_USER`
@@ -141,7 +141,7 @@ GRANT CREATE ON *.* TO 'u1'@'localhost';
 #
 # 2) Stop the slave and drop the user.
 #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 DROP USER 'u1'@'localhost';
 
 #
@@ -149,8 +149,8 @@ DROP USER 'u1'@'localhost';
 #
 START REPLICA;
 --let $slave_sql_errno = convert_error(ER_WARN_LOG_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST);
---source include/wait_for_slave_sql_error.inc
---source include/stop_slave.inc
+--source include/rpl/wait_for_applier_error.inc
+--source include/rpl/stop_replica.inc
 
 --echo #
 --echo # TC4. Validate that slave stops when PRIVILEGE_CHECKS_USER is not able
@@ -161,34 +161,34 @@ START REPLICA;
 # 1) Setup PRIVILEGE_CHECKS_USER without WITH GRANT OPTION, that is,
 #    u1 will not be able to GRANT privileges.
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $master_uuid = `SELECT @@GLOBAL.SERVER_UUID`
 --let $source_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 SET sql_log_bin= 0;
 CREATE USER 'u1'@'localhost';
 SET sql_log_bin= 1;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 
 --replace_result $MASTER_MYPORT MY_SOURCE_PORT $source_log_pos MY_SOURCE_LOG_POS
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$source_log_pos
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 #
 # 2) GRANT a privilege to u1 on master.
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 GRANT REPLICATION_APPLIER on *.* TO 'u1'@'localhost';
 
 #
 # 3) Slave will stop since u1 cannot GRANT privileges.
 #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression(".*Access denied. you need .at least one of. the GRANT OPTION privilege.*");
 --let $slave_sql_errno= convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Allow slave to skip the transaction by commiting a empty
 # transaction with the same GTID.
@@ -205,30 +205,30 @@ if (`SELECT @@GLOBAL.GTID_MODE = "ON"`)
 #
 # 4) Clean up test case.
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET sql_log_bin= 0;
 DROP USER 'u1'@'localhost';
 SET sql_log_bin= 1;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 DROP USER 'u1'@'localhost';
 
 # Clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $source_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT DROP ON *.* TO 'u1'@'localhost';
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --replace_result $source_log_pos MY_SOURCE_LOG_POS
 --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$source_log_pos
 START REPLICA;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';
 START REPLICA;
 DROP USER 'u1'@'localhost';
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

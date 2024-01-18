@@ -24,7 +24,7 @@ CALL insert_into_t1(0,10);
 SELECT f1();
 f1()
 10
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 Check if server1 and server2 has same data in test.t1
 include/diff_tables.inc [server1:test.t1, server2:test.t1]

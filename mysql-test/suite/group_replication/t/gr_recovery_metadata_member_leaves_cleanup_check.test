@@ -48,7 +48,7 @@
 --echo # 1. Bootstrap a GROUP on M1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_and_bootstrap_group_replication.inc
@@ -58,7 +58,7 @@
 --echo # 2. Start GR on M2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_group_replication.inc
@@ -100,7 +100,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_recovery_metadata_module_delete_all_sto
 --echo # 5. Start GR on M3.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
@@ -154,7 +154,7 @@ SET @@GLOBAL.DEBUG='-d,group_replication_recovery_metadata_module_delete_one_sto
 --echo # 11. Verify joiner reached ONLINE state.
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= ONLINE
 --source include/gr_wait_for_member_state.inc

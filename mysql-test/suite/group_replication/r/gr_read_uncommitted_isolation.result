@@ -20,7 +20,7 @@ SET SESSION transaction_isolation= 'READ-UNCOMMITTED';
 [connection server1]
 CREATE TABLE t1 (a INT PRIMARY KEY);
 INSERT INTO t1 VALUES (10),(20);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ## 3.1 Set a debug sync before broadcast message to group on server1
 ##     Commit a transaction that will be blocked before broadcast.
@@ -53,7 +53,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 ## 3.5 It will end up in an error stating that it was aborted, since
 ##     transactions are conflicting and server2 was ordered first.
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_1]
 ERROR 40000: Plugin instructed the server to rollback the current transaction.
 
@@ -68,7 +68,7 @@ ROLLBACK;
 BEGIN;
 UPDATE t1 SET a=10 WHERE a=3;
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ## 3.8 Transaction originated on server2 will be successful as ROLLED BACK
 ##     transactions are not broadcasted.
@@ -100,7 +100,7 @@ COMMIT;
 ##    first certification, since server_1 is blocked before broadcast.
 [connection server2]
 UPDATE t1 SET a=1 where a=10;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ## 4.4 Signal the waiting thread on server_1 to resume.
 [connection server1]
@@ -109,7 +109,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 
 ## 4.5 Transaction will be executed
 [connection server_1]
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ## 5. Assert that number of certified transactions are the
 ##    expected ones and validate data on server1, server2

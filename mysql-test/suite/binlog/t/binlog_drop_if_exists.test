@@ -59,7 +59,7 @@ if($fixed_bug_25705)
 {
   DROP SERVER IF EXISTS s_bug_13684;
 }
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # test drop with existing values
 
@@ -95,7 +95,7 @@ if($fixed_bug_25705)
     OPTIONS (USER 'Remote', HOST '192.168.1.106', DATABASE 'test');
 }
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # drop existing 
 DROP PROCEDURE IF EXISTS db_bug_13684.p;
@@ -110,6 +110,6 @@ if($fixed_bug_25705)
   DROP SERVER IF EXISTS s_bug_13684;
 }
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 enable_warnings;

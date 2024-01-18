@@ -17,48 +17,48 @@
 
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_mixed.inc;
---source include/set_privilege_checks_user_as_system_user.inc
-source include/master-slave.inc;
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+source include/rpl/init_source_replica.inc;
 
 --echo # Test case1: INVOKES A TRIGGER with after insert action
 let $trigger_action = after insert;
-source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+source common/rpl/rpl_auto_increment_invoke_trigger.test;
 
 --echo # Test case2: INVOKES A TRIGGER with before insert action
 let $trigger_action = before insert;
-source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+source common/rpl/rpl_auto_increment_invoke_trigger.test;
 
 --echo # Test case3: INVOKES A TRIGGER with after update action
 let $trigger_action = after update;
-source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+source common/rpl/rpl_auto_increment_invoke_trigger.test;
 
 --echo # Test case4: INVOKES A TRIGGER with before update action
 let $trigger_action = before update;
-source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+source common/rpl/rpl_auto_increment_invoke_trigger.test;
 
 --echo # Test case5: INVOKES A TRIGGER with after delete action
 let $trigger_action = after delete;
-source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+source common/rpl/rpl_auto_increment_invoke_trigger.test;
 
 --echo # Test case6: INVOKES A TRIGGER with before delete action
 let $trigger_action = before delete;
-source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+source common/rpl/rpl_auto_increment_invoke_trigger.test;
 
 --echo # Test case7: CALLS A FUNCTION which INVOKES A TRIGGER with after insert action
 let $insert_action = after insert;
-source extra/rpl_tests/rpl_autoinc_func_invokes_trigger.test;
+source common/rpl/rpl_autoinc_func_invokes_trigger.test;
 
 --echo # Test case8: CALLS A FUNCTION which INVOKES A TRIGGER with before insert action
 let $insert_action = before insert;
-source extra/rpl_tests/rpl_autoinc_func_invokes_trigger.test;
+source common/rpl/rpl_autoinc_func_invokes_trigger.test;
 
 --echo # Test case9: INSERT DATA INTO VIEW WHICH INVOKES TRIGGERS with after insert action
 let $insert_action = after insert;
-source extra/rpl_tests/rpl_auto_increment_insert_view.test;
+source common/rpl/rpl_auto_increment_insert_view.test;
 
 --echo # Test case10: INSERT DATA INTO VIEW WHICH INVOKES TRIGGERS with before insert action
 let $insert_action = before insert;
-source extra/rpl_tests/rpl_auto_increment_insert_view.test;
+source common/rpl/rpl_auto_increment_insert_view.test;
 
 --echo # Test case11: INVOKES A FUNCTION TO INSERT TWO OR MORE VALUES INTO A TABLE WITH AUTOINC COLUMN
 connection master;
@@ -88,7 +88,7 @@ connection master;
 --echo #Test result for INVOKES A FUNCTION TO INSERT TWO OR MORE VALUES on master
 select * from t2 ORDER BY i1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 --echo #Test result for INVOKES A FUNCTION TO INSERT TWO OR MORE VALUES on slave
 select * from t2 ORDER BY i1;
@@ -97,7 +97,7 @@ connection master;
 drop table t1;
 drop table t2;
 drop function f1_two_inserts;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Test case12: INVOKES A FUNCTION TO UPDATE TWO OR MORE VALUES OF A TABLE WITH AUTOINC COLUMN
 connection master;
@@ -131,7 +131,7 @@ connection master;
 --echo #Test result for INVOKES A FUNCTION TO UPDATE TWO OR MORE VALUES on master
 select * from t2 ORDER BY i1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 --echo #Test result for INVOKES A FUNCTION TO UPDATE TWO OR MORE VALUES on slave
 select * from t2 ORDER BY i1;
@@ -140,7 +140,7 @@ connection master;
 drop table t1;
 drop table t2;
 drop function f1_two_updates;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Test case13: UPDATE MORE THAN ONE TABLES ON TOP-STATEMENT
 connection master;
@@ -155,9 +155,9 @@ insert into t1(a,b) values(3,3);
 insert into t2(a,b) values(3,3);
 commit;
 --echo # To verify if it works fine when these statements are not be marked as unsafe
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo #Test if the results are consistent on master and slave
 --echo #for 'UPDATE MORE THAN ONE TABLES ON TOP-STATEMENT'
 let $diff_tables= master:t1, slave:t1;
@@ -168,7 +168,7 @@ source include/diff_tables.inc;
 connection master;
 drop table t1;
 drop table t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Test case14: INSERT DATA INTO VIEW WHICH INVOLVED MORE THAN ONE TABLES
 connection master;
@@ -193,9 +193,9 @@ INSERT INTO v15(c1) VALUES (23), (24);
 INSERT INTO v15(c2) VALUES (25), (26);
 commit;
 --echo # To verify if it works fine when these statements are not be marked as unsafe
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo #Test if the results are consistent on master and slave
 --echo #for 'INSERT DATA INTO VIEW WHICH INVOLVED MORE THAN ONE TABLES'
 let $diff_tables= master:t1, slave:t1;
@@ -207,6 +207,6 @@ connection master;
 drop table t1;
 drop table t2;
 drop view  v15;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

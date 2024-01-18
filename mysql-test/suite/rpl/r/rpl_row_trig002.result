@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,7 +19,7 @@ id	domain
 3	earthmotherwear.com
 4	yahoo.com
 5	example.com
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1 ORDER BY id;
 id	domain
 1	example.com
@@ -37,7 +37,7 @@ select * from test.t3 order by value;
 value	domain_id	mailaccount_id	program	keey
 No	5	NULL	spamfilter	scan_incoming
 Yes	1	NULL	spamfilter	scan_incoming
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from test.t2;
 value	domain_id	mailaccount_id	program	keey
 Yes	1	NULL	spamfilter	scan_incoming
@@ -58,7 +58,7 @@ id	domain
 3	earthmotherwear.com
 4	yahoo.com
 5	example.com
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1 ORDER BY id;
 id	domain
 2	mysql.com
@@ -69,5 +69,5 @@ DROP TRIGGER test.t2_ai;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP TABLE test.t3;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

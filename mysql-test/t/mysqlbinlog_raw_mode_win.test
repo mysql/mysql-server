@@ -5,6 +5,6 @@
 # WL#4783
 #
 
--- source include/mysqlbinlog_raw_mode.inc
+-- source include/rpl/mysqlbinlog_raw_mode.inc
 
 -- echo End of tests

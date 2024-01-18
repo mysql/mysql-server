@@ -18,7 +18,7 @@
 
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_statement.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 
 --echo ==== Create a big file ====
@@ -56,14 +56,14 @@ select count(*) from t2 /* 5 000 */;
 
 # the binlog will show fragmented Append_block events
 --let $mask_binlog_commit_events= 1
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 --let $mask_binlog_commit_events= 0
 
 
 --echo ==== Verify results on slave ====
 
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select count(*) from t2 /* 5 000 */;
 
 
@@ -72,6 +72,6 @@ select count(*) from t2 /* 5 000 */;
 --echo [on master]
 connection master;
 drop table t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 remove_file $MYSQLTEST_VARDIR/tmp/bug30435_5k.txt;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

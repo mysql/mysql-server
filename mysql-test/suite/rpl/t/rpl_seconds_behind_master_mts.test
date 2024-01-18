@@ -14,7 +14,7 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Bug #25407335 SLAVE DON'T REPORT SECONDS_BEHIND_MASTER WHEN RUNNING
 #               REPLICA_PARALLEL_WORKERS > 0
@@ -32,13 +32,13 @@ SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
 SET GLOBAL replica_parallel_type = 'DATABASE';
 SET @@global.replica_parallel_workers= 4;
 SET @@global.replica_preserve_commit_order=0;
---source extra/rpl_tests/rpl_seconds_behind_master_mts_type_database.test
+--source common/rpl/rpl_seconds_behind_source_mta_type_database.test
 
 --echo # Test for LOGICAL_CLOCK
 SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
 SET GLOBAL replica_parallel_workers = 3;
 SET GLOBAL replica_preserve_commit_order=1;
---source extra/rpl_tests/rpl_seconds_behind_master_mts_logical_clock.test
+--source common/rpl/rpl_seconds_behind_source_mta_logical_clock.test
 
 #Cleanup
 --let $debug_point= dbug.mta.force_clock_diff_eq_0
@@ -49,6 +49,6 @@ SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 --enable_warnings
 SET @@global.replica_transaction_retries= @save_replica_transaction_retries;
 SET @@global.replica_preserve_commit_order= @save_replica_preserve_commit_order;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

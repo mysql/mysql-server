@@ -1,6 +1,6 @@
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
--- source suite/ndb_rpl/ndb_master-slave.inc
+-- source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 # Minimal test checking that relay log position on the slave
 # is advanced when NDB binlog injector writes compressed binlog.
@@ -12,7 +12,7 @@
 # although problem only occured when using at least one worker.
 
 # Turn on compression
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $save_binlog_compression=`SELECT @@global.ndb_log_transaction_compression`
 SET GLOBAL ndb_log_transaction_compression=ON;
 
@@ -20,7 +20,7 @@ SET GLOBAL ndb_log_transaction_compression=ON;
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 
 # Create table and insert data
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 ( a int primary key, b varchar(32)) ENGINE = NDB;
 INSERT INTO t1 VALUES (1, "Row 1"), (2, "Row 2"), (3, "Row 3");
 
@@ -38,21 +38,21 @@ if ($cbytes == 0) {
 }
 
 # Wait for replication sync
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Check that tables are identical
 let $diff_tables = master:t1,slave:t1;
 --source include/diff_tables.inc
 
 # drop table
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --disable_query_log ONCE
 eval SET GLOBAL ndb_log_transaction_compression=$save_binlog_compression;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

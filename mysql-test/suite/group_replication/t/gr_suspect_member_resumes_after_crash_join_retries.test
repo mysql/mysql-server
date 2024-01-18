@@ -34,15 +34,15 @@
 --echo # 1. Set group_replication_member_expel_timeout to
 --echo #    20 seconds.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 20;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 20;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 20;
 set session sql_log_bin=0;
 call mtr.add_suppression("read failed");
@@ -57,10 +57,10 @@ set session sql_log_bin=1;
 --echo # 2. Create a table and insert some data. Check that
 --echo #    it is replicated to all servers.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -68,7 +68,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 3. Crash server 3 and it will restart with start on boot.
 --echo #    It will try to rejoin immediatly
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
 
@@ -78,9 +78,9 @@ INSERT INTO t1 VALUES (1);
 
 --echo #
 --echo # Restarting server 3
---echo # Needed as we are not using rpl_restart_server.inc
+--echo # Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo ############################################################
@@ -90,14 +90,14 @@ INSERT INTO t1 VALUES (1);
 --echo #    This is a proof that we did not have any implicit rejoin.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
@@ -111,7 +111,7 @@ INSERT INTO t1 VALUES (1);
 --echo #
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 

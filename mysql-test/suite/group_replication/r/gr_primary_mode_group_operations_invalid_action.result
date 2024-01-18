@@ -18,7 +18,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 group_replication_switch_to_single_primary_mode()
 Mode switched to single-primary successfully.
 [connection server2]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server2]
 
 # 5. Cleanup

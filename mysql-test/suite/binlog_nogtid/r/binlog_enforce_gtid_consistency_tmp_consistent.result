@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=none]
+include/rpl/init.inc [topology=none]
 SET @old_sql_notes= @@GLOBAL.SQL_NOTES;
 SET GLOBAL SQL_NOTES= 0;
 SET SESSION SQL_NOTES= 0;
@@ -5210,4 +5210,4 @@ SET AUTOCOMMIT = 1;
 SET SQL_LOG_BIN = 1;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 SET GLOBAL SQL_NOTES = @old_sql_notes;
-include/rpl_end.inc
+include/rpl/deinit.inc

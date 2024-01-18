@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1. We create a table on server 1 for check purposes and extract its id
 [connection master]
 CREATE TABLE t1 (a INT PRIMARY KEY);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 2. On the replica create a storage procedure that uses the `root` user
 #    security context to SET GTID_PURGED
@@ -36,7 +36,7 @@ include/assert.inc [@@GLOBAL.GTID_PURGED has changed]
 [connection master]
 INSERT INTO t1 values (2);
 INSERT INTO t1 values (3);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Only one transaction was replicated]
 #
 # 6. Cleanup
@@ -46,4 +46,4 @@ DROP TABLE t1;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'no_priv_user'@localhost;
 DROP USER 'no_priv_user'@localhost;
 DROP PROCEDURE set_gtid_purged_sp;
-include/rpl_end.inc
+include/rpl/deinit.inc

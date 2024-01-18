@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -25,7 +25,7 @@ a	b	c
 Show that subsequent changes cause an error
 insert into t1 values (3000,3000,3000);
 Expect replication to stop with an error
-include/wait_for_slave_sql_error.inc [errno=1296]
+include/rpl/wait_for_applier_error.inc [errno=1296]
 Data not replicated
 select * from t1 where a=3000;
 a	b	c
@@ -80,4 +80,4 @@ epoch_diff
 0
 set global ndb_applier_allow_skip_epoch=0;
 drop table t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

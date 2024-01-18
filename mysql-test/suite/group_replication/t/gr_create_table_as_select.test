@@ -20,7 +20,7 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 1. Create a table using select statement from a empty table.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) AS SELECT * FROM t1;
 INSERT INTO t2 VALUES (1);
@@ -30,7 +30,7 @@ INSERT INTO t2 VALUES (1);
 --echo ############################################################
 --echo # 2. Create a table using select statement from a non empty table.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY);
 INSERT INTO t3 VALUES (1);
 CREATE TABLE t4 (c1 INT NOT NULL PRIMARY KEY) AS SELECT * FROM t3;
@@ -49,14 +49,14 @@ CREATE TABLE t5 (c1 INT NOT NULL) AS SELECT * FROM t1;
 --echo
 --echo # 4. Assert parallel applier indexes.
 --echo ############################################################
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $binlog_file= server-relay-log-group_replication_applier.000002
 --let $logical_timestamps= 0 0;2 3;3 4;4 5;5 6;6 7;7 8;8 9
---source include/assert_logical_timestamps.inc
+--source include/rpl/assert_logical_timestamps.inc
 --let $is_relay_log= 1
---source include/assert_transaction_length.inc
+--source include/rpl/assert_transaction_length.inc
 
 
 --echo
@@ -76,7 +76,7 @@ CREATE TABLE t5 (c1 INT NOT NULL) AS SELECT * FROM t1;
 --echo ############################################################
 --echo # 5. Clean-up
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;

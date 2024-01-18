@@ -15,8 +15,8 @@
 --source include/have_binlog_format_row.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 let $engine=MyISAM;
---source extra/rpl_tests/rpl_not_null.test
---source include/rpl_end.inc
+--source common/rpl/rpl_not_null.test
+--source include/rpl/deinit.inc

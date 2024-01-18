@@ -6,7 +6,7 @@
 ##########################################################
 
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
@@ -43,4 +43,4 @@ INSERT INTO t1 VALUES (3, repeat('bad too',1));
 connection master;
 DROP TABLE IF EXISTS t1, t2;
 --sync_slave_with_master
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

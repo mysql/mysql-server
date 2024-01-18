@@ -47,7 +47,7 @@ Warning	3162	Authorization ID unknown_user does not exist.
 SELECT COUNT(*) FROM mysql.user where user = 'unknown_user';
 COUNT(*)
 0
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE ALL ON *.* FROM unknown_user IGNORE UNKNOWN USER
 binlog.000001	#	Query	#	#	use `test`; REVOKE SELECT ON *.* FROM unknown_user IGNORE UNKNOWN USER
@@ -60,7 +60,7 @@ REVOKE ALL ON wl14690.* FROM u1;
 ERROR 42000: There is no such grant defined for user 'u1' on host '%'
 REVOKE ALL ON wl14690.* FROM u1 IGNORE UNKNOWN USER;
 ERROR 42000: There is no such grant defined for user 'u1' on host '%'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 GRANT SELECT, INSERT (i) ON wl14690.t TO u1, u2;
 GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO u2;
@@ -82,7 +82,7 @@ GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO `u2`@`%`
 GRANT SELECT, INSERT (`i`) ON `wl14690`.`t` TO `u2`@`%`
 RESET BINARY LOGS AND GTIDS;
 REVOKE INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER
 # check that INSERT (i) is revoked.
@@ -135,7 +135,7 @@ Warning	3162	Authorization ID unknown_user does not exist.
 REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM unknown_user, u2 IGNORE UNKNOWN USER;
 Warnings:
 Warning	3162	Authorization ID unknown_user does not exist.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE r1 FROM unknown_user, u2 IGNORE UNKNOWN USER
 binlog.000001	#	Query	#	#	use `test`; REVOKE SELECT, INSERT (i) ON wl14690.t FROM u1, u2, unknown_user IGNORE UNKNOWN USER
@@ -171,7 +171,7 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u2`@`%`
 GRANT INSERT (`i`) ON `wl14690`.`t` TO `u2`@`%`
 REVOKE EVENT, TRIGGER ON wl14690.* FROM u2, u3, unknown_user IGNORE UNKNOWN USER;
 ERROR 42000: There is no such grant defined for user 'u2' on host '%'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 # check that existing privileges are not revoked.
 SHOW GRANTS FOR u1;
@@ -233,7 +233,7 @@ GRANT `r1`@`%` TO `u1`@`%`
 REVOKE IF EXISTS role1, r1 FROM u1;
 Warnings:
 Warning	3523	Unknown authorization ID `role1`@`%`
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS PROXY ON u3 FROM u1
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS PROXY ON u3 FROM r1
@@ -263,13 +263,13 @@ REVOKE SELECT ON *.* FROM unknown_user;
 ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
 REVOKE IF EXISTS SELECT ON *.* FROM unknown_user;
 ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 # FR1.3.3: REVOKE IF EXISTS where target user/role exists and
 #          privilege being revoked is granted
 RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS SELECT, INSERT, UPDATE ON *.* FROM u1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS SELECT, INSERT, UPDATE ON *.* FROM u1
 # FR1.4.1: REVOKE IF EXISTS where multiple target users/roles exists and
@@ -288,7 +288,7 @@ REVOKE IF EXISTS role1 FROM u1, u2;
 Warnings:
 Warning	3523	Unknown authorization ID `role1`@`%`
 Warning	3523	Unknown authorization ID `role1`@`%`
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS SELECT ON wl14690.* FROM u1, u2, u3
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS role1 FROM u1, u2
@@ -330,7 +330,7 @@ Warning	1141	There is no such grant defined for user 'r1' on host '%'
 # for global level privleges IF EXISTS is implicit, so no warning
 REVOKE IF EXISTS SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN
 ON *.* FROM u1,u2,u3,u4,r1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM u1, u2, u3
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM r1
@@ -368,7 +368,7 @@ REVOKE IF EXISTS UPDATE, SELECT ON *.* FROM u1, u2, unknown_user;
 ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
 REVOKE IF EXISTS TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* FROM unknown_user, u3, u1;
 ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 # grants should be same
 SHOW GRANTS FOR u1;
@@ -394,7 +394,7 @@ Warning	3162	Authorization ID unknown_user does not exist.
 REVOKE IF EXISTS PROXY ON u1 FROM unknown_user IGNORE UNKNOWN USER;
 Warnings:
 Warning	3162	Authorization ID unknown_user does not exist.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS UPDATE, SELECT ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS PROXY ON u1 FROM unknown_user IGNORE UNKNOWN USER
@@ -414,7 +414,7 @@ RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER;
 REVOKE IF EXISTS TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* FROM u1, u3
 IGNORE UNKNOWN USER;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* FROM u1, u3
@@ -448,7 +448,7 @@ SHOW GRANTS FOR u2;
 Grants for u2@%
 GRANT SELECT, UPDATE ON *.* TO `u2`@`%`
 GRANT SELECT ON `wl14690`.`t` TO `u2`@`%`
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM u1, u2, u3
 IGNORE UNKNOWN USER
@@ -460,7 +460,7 @@ RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS SELECT ON wl14690.t FROM u1, unknown_user IGNORE UNKNOWN USER;
 Warnings:
 Warning	3162	Authorization ID unknown_user does not exist.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS SELECT ON wl14690.t FROM u1, unknown_user IGNORE UNKNOWN USER
 #
@@ -483,7 +483,7 @@ REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user IGN
 Warnings:
 Warning	3619	Illegal privilege level specified for DYNAMIC_PRIV1,DYNAMIC_PRIV2
 Warning	3162	Authorization ID unknown_user does not exist.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM u1
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER
@@ -508,7 +508,7 @@ Warning	3628	The role `r1`@`%` is a mandatory role and can't be revoked or dropp
 REVOKE IF EXISTS r1 FROM u1,u2,u3,r2;
 Warnings:
 Warning	3628	The role `r1`@`%` is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS r1 FROM u1
 binlog.000001	#	Query	#	#	use `test`; REVOKE IF EXISTS r1 FROM r2

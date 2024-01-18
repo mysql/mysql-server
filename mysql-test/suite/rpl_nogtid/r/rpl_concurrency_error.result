@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -32,7 +32,7 @@ COMMIT;
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
@@ -57,7 +57,7 @@ INSERT INTO t VALUES (6 + (2 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
 COMMIT;
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
@@ -82,7 +82,7 @@ COMMIT;
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
@@ -105,7 +105,7 @@ INSERT INTO t VALUES (6 + (1 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
 COMMIT;
 COMMIT;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
@@ -117,14 +117,14 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE IGNORE t SET f = 'dark blue 1' WHERE f = 'red'
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (6 + (1 * 10),"brown")
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-include/sync_slave_sql_with_master.inc
-include/rpl_diff.inc
-include/rpl_diff.inc
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
 ########################################################################
 #                                Cleanup
 ########################################################################
 DROP TRIGGER tr;
 DROP TABLE t;
 DROP TABLE n;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

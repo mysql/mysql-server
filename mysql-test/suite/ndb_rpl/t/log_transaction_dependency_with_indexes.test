@@ -97,17 +97,17 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_row.inc
 --source suite/ndb/include/ndb_log_transaction_dependency_enabled.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #### INITIALIZE ####
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 SET @save_replica_parallel_workers= @@GLOBAL.replica_parallel_workers;
 SET @@GLOBAL.replica_parallel_workers= 4;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Tell assert_logical_timestamps to save the current position so that
 # the next call will continue where the current ended.
@@ -209,7 +209,7 @@ while ($explicit_pk < 2)
         CREATE TABLE t2 (a INT PRIMARY KEY) engine = NDB;
 
         FLUSH LOGS;
-        --source include/save_binlog_position.inc
+        --source include/rpl/save_binlog_file_position.inc
 
         --echo # TRX1: independent
         INSERT INTO t1 VALUES (1, 1, 1);
@@ -217,7 +217,7 @@ while ($explicit_pk < 2)
 
         --echo # now t1 contains one row: (1, 1, 1)
         --let $logical_timestamps= 0 1
-        --source include/assert_logical_timestamps.inc
+        --source include/rpl/assert_logical_timestamps.inc
 
         --echo # TRX2: independent
         BEGIN;
@@ -231,7 +231,7 @@ while ($explicit_pk < 2)
         }
         if (!$pk) { --let $logical_timestamps= 1 2
         }
-        --source include/assert_logical_timestamps.inc
+        --source include/rpl/assert_logical_timestamps.inc
 
         --echo # TRX3: independent
         INSERT INTO t2 VALUES (3);
@@ -246,7 +246,7 @@ while ($explicit_pk < 2)
         }
         if (!$pk) { --let $logical_timestamps= 1 3;3 4
         }
-        --source include/assert_logical_timestamps.inc
+        --source include/rpl/assert_logical_timestamps.inc
 
         --echo # TRX5: independent
         INSERT INTO t2 VALUES (5);
@@ -265,7 +265,7 @@ while ($explicit_pk < 2)
         }
         if (!$pk) { --let $logical_timestamps= 1 5;5 6
         }
-        --source include/assert_logical_timestamps.inc
+        --source include/rpl/assert_logical_timestamps.inc
 
         if (!$nonnull)
         {
@@ -279,7 +279,7 @@ while ($explicit_pk < 2)
           }
           if (!$pk) { --let $logical_timestamps= 6 7
           }
-          --source include/assert_logical_timestamps.inc
+          --source include/rpl/assert_logical_timestamps.inc
 
           --echo # TRX8: independent
           INSERT INTO t2 VALUES (8);
@@ -294,7 +294,7 @@ while ($explicit_pk < 2)
           }
           if (!$pk) { --let $logical_timestamps= 1 8;8 9
           }
-          --source include/assert_logical_timestamps.inc
+          --source include/rpl/assert_logical_timestamps.inc
 
           --echo # TRX10: independent
           INSERT INTO t2 VALUES (10);
@@ -309,7 +309,7 @@ while ($explicit_pk < 2)
           }
           if (!$pk) { --let $logical_timestamps= 1 10;10 11
           }
-          --source include/assert_logical_timestamps.inc
+          --source include/rpl/assert_logical_timestamps.inc
 
         }
 
@@ -327,9 +327,9 @@ while ($explicit_pk < 2)
 
 --echo #### CLEAN UP ####
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --disable_warnings
 SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
 --enable_warnings
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -24,43 +24,43 @@
 # recreate it on master. Now sync master with slave. Slave should be in sync
 # and up and running.
 ###############################################################################
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_statement.inc
 
 # Database 'test' on master is mapped with 'new_test' on slave by using
 # replicate_rewrite_db filter
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CREATE DATABASE new_test;
 
 # Create a temporary table on the default database.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 use test;
 CREATE TEMPORARY TABLE t1(id int);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # On slave verify that all the queries are rewritten as per the rewrite db
 # rules.
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # On slave verify that one temporary table is created.
 SHOW STATUS LIKE 'Replica_open_temp_tables';
 
 # On master drop the temporary table.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 use test;
 DROP TEMPORARY TABLE IF EXISTS t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/show_binlog_events.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 # On slave verify that  temporary table is dropped. Hence output should
 # be 0.
 SHOW STATUS LIKE 'Replica_open_temp_tables';
 
 # On master recreate the temporary tables once again.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 use test;
 CREATE TEMPORARY TABLE t1(id int);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # On slave temporary table should be recreated.
 SHOW STATUS LIKE 'Replica_open_temp_tables';
@@ -68,10 +68,10 @@ SHOW STATUS LIKE 'Replica_open_temp_tables';
 # Disconnect the master, temp table on slave should dissapear
 disconnect master;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Wait until drop of temp tables appers in slave's binlog
 let $wait_binlog_event= DROP;
-source include/wait_for_binlog_event.inc;
+source include/rpl/wait_for_binlog_event.inc;
 
 # On slave verify that  temporary table is dropped. Hence output should
 # be 0.
@@ -80,4 +80,4 @@ SHOW STATUS LIKE 'Replica_open_temp_tables';
 # ===========Clean up==========
 DROP DATABASE new_test;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ load data infile 'LOAD_FILE' into table t1 ignore 1 lines;
 select count(*) from t1;
 count(*)
 69
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=MyISAM
 master-bin.000001	#	Query	#	#	BEGIN
@@ -24,10 +24,10 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' IGNORE 1 LINES  (`word`) ;file_id=#
 master-bin.000001	#	Query	#	#	COMMIT
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=MyISAM
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=1
@@ -106,7 +106,7 @@ Aberdeen
 Abernathy
 aberrant
 aberration
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 order by 1 asc;
 word
 Aarhus
@@ -179,11 +179,11 @@ Abernathy
 aberrant
 aberration
 flush logs;
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 create table t2 (n int)ENGINE=MyISAM;
 insert into t2 values (1);
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=MyISAM
 master-bin.000001	#	Query	#	#	BEGIN
@@ -197,7 +197,7 @@ master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' IGNORE 1 LINES  (`word`) ;file_id=#
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	#	#	use `test`; create table t3 (a int)ENGINE=MyISAM
 master-bin.000002	#	Query	#	#	use `test`; create table t2 (n int)ENGINE=MyISAM
@@ -208,12 +208,12 @@ show binary logs;
 Log_name	File_size	Encrypted
 master-bin.000001	#	#
 master-bin.000002	#	#
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 show binary logs;
 Log_name	File_size	Encrypted
 slave-bin.000001	#	#
 slave-bin.000002	#	#
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=MyISAM
 slave-bin.000001	#	Query	#	#	BEGIN
@@ -228,24 +228,24 @@ slave-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../tm
 slave-bin.000001	#	Query	#	#	COMMIT
 slave-bin.000001	#	Query	#	#	use `test`; create table t3 (a int)ENGINE=MyISAM
 slave-bin.000001	#	Rotate	#	#	slave-bin.000002;pos=POS
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000002	#	Query	#	#	use `test`; create table t2 (n int)ENGINE=MyISAM
 slave-bin.000002	#	Query	#	#	BEGIN
 slave-bin.000002	#	Query	#	#	use `test`; insert into t2 values (1)
 slave-bin.000002	#	Query	#	#	COMMIT
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 show binlog events in 'slave-bin.000005' from 4;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find target log
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
-include/rpl_reset.inc
+include/rpl/reset.inc
 create table t1(a int auto_increment primary key, b int);
 insert into t1 values (NULL, 1);
 set insert_id=5;
 insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1(a int auto_increment primary key, b int)
 master-bin.000001	#	Query	#	#	BEGIN
@@ -263,5 +263,5 @@ a	b
 5	1
 6	1
 drop table t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

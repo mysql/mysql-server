@@ -1,5 +1,5 @@
-include/begin_replace_gtid_combination.inc [gtid_mode=off/on -> default_storage_engine=InnoDB/MyISAM]
-include/rpl_init.inc [topology=none]
+include/rpl/begin_replace_gtid_combination.inc [gtid_mode=off/on -> default_storage_engine=InnoDB/MyISAM]
+include/rpl/init.inc [topology=none]
 SET @old_sql_notes= @@GLOBAL.SQL_NOTES;
 SET GLOBAL SQL_NOTES= 0;
 SET SESSION SQL_NOTES= 0;
@@ -3927,5 +3927,5 @@ DROP TABLE empty_innodb, empty_myisam, nonempty_innodb, nonempty_myisam;
 SET SQL_LOG_BIN = 1;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 SET GLOBAL SQL_NOTES = @old_sql_notes;
-include/rpl_end.inc
-include/end_replace_gtid_combination.inc [gtid_mode=off/on -> default_storage_engine=InnoDB/MyISAM]
+include/rpl/deinit.inc
+include/rpl/end_replace_gtid_combination.inc [gtid_mode=off/on -> default_storage_engine=InnoDB/MyISAM]

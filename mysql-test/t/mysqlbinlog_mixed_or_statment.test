@@ -1,7 +1,7 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
---source include/force_binlog_format_statement.inc
+--source include/rpl/force_binlog_format_statement.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -45,4 +45,4 @@ DROP FUNCTION f1;
 #Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

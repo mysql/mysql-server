@@ -20,8 +20,8 @@
 #                                                                                           #
 #############################################################################################
 
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 #############################################################################################
 # Create tables and insert different GEOMETRY data                                          #
@@ -115,7 +115,7 @@ INSERT INTO geom_data SELECT * FROM multilinestring_geom;
 INSERT INTO geom_data SELECT * FROM multipolygon_geom;
 INSERT INTO geom_data SELECT * FROM geometrycollection_geom;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether data was inserted on the slave
@@ -143,7 +143,7 @@ CREATE VIEW geomcollection_view
 AS SELECT ST_NUMGEOMETRIES(geom) as numgeometries, ST_GEOMETRYN(geom,3) as nthgeom
 FROM geom_data WHERE ST_GEOMETRYTYPE(geom) = 'GEOMETRYCOLLECTION';
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether views were created on slave
@@ -164,7 +164,7 @@ SELECT numgeometries, ST_ASTEXT(nthgeom) FROM geomcollection_view;
 DROP VIEW linestring_view;
 DROP VIEW geomcollection_view;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether views are dropped on slave
@@ -184,7 +184,7 @@ SELECT * FROM geomcollection_view;
 --echo # Update a row in the table
 UPDATE geom_data SET geom = ST_GEOMFROMTEXT('POINT(4 5)') WHERE id = 10;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether row is updated on slave
@@ -203,7 +203,7 @@ SELECT id, ST_ASTEXT(geom) FROM geom_data WHERE id = 10;
 --echo # Delete a row from the table
 DELETE FROM geom_data WHERE id = 13;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether row is deleted on slave
@@ -222,7 +222,7 @@ SELECT COUNT(geom) FROM geom_data;
 --echo # Drop the spatial index from the table
 ALTER TABLE geom_data DROP INDEX geom;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether spatial index is dropped on slave
@@ -238,7 +238,7 @@ SHOW CREATE TABLE geom_data;
 --echo # Add spatial index to the column of GEOMETRY data type
 ALTER TABLE geom_data ADD SPATIAL INDEX(geom);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether spatial index is added on slave
@@ -315,7 +315,7 @@ UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                  'MULTIPOLYGON(((7 7,7 10,10 10,10 7,7 7)),((3 4,5 7,7 4,3 4))))')
                                               WHERE id = 72;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether the column is added and populated on slave
@@ -336,7 +336,7 @@ SELECT id, ST_ASTEXT(geom1), ST_GEOMETRYTYPE(geom1), ST_DIMENSION(geom1) FROM ge
 
 ALTER TABLE geom_data DROP COLUMN geom1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether column is dropped on slave
@@ -360,11 +360,11 @@ DROP TABLE multipolygon_geom;
 DROP TABLE geometrycollection_geom;
 DROP TABLE geom_data;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 --echo # Check whether table is dropped on slave
 --error ER_NO_SUCH_TABLE
 SELECT COUNT(id) FROM geom_data;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -41,7 +41,7 @@ CREATE TABLE t (a INT);
 --source include/remove_debug_point.inc
 
 --echo # Verify that mysqlbinlog fails
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $assert_command = $MYSQL_BINLOG --force-if-open $binlog_fullpath 2>&1
 --let $assert_regex = ERROR: Could not read entry at offset .*: Error in log format or read error 1..*ERROR: corrupted data in log event
 --let $assert_status = 1
@@ -60,7 +60,7 @@ RESET BINARY LOGS AND GTIDS;
 --echo # Create a truncated binary log.
 CREATE TABLE t (a INT);
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $in_filename = $binlog_fullpath
 --let $out_filename = $in_filename.tmp
 --let $file_start_pos = 0
@@ -89,7 +89,7 @@ RESET BINARY LOGS AND GTIDS;
 --echo # Create a truncated binary log.
 CREATE TABLE t (a INT);
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 FLUSH BINARY LOGS;
 
 --let $in_filename = $binlog_fullpath

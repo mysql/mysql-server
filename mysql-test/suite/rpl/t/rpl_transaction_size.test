@@ -30,8 +30,8 @@
 #
 # WL#10493: Add transaction length to gtid_log_event
 #
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 # this test uses large transactions, tence cannot use compression
 --source include/not_binlog_transaction_compression_on.inc
@@ -134,7 +134,7 @@ CREATE TABLE db1.t4 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT);
 
 --send_eval CALL dml($transactions)
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 
 --disable_query_log
 while ($transactions)
@@ -153,7 +153,7 @@ while ($transactions)
 --enable_query_log
 DROP DATABASE db1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --reap
 DROP PROCEDURE dml;
 
@@ -187,11 +187,11 @@ while ($transactions)
 DROP TABLE t5;
 DROP TABLE t6;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Assert the transaction length in all slave log files
---source include/assert_transaction_length_all_logs.inc
+--source include/rpl/assert_transaction_length_all_logs.inc
 # Assert the transaction length in all source log files
---source include/rpl_connection_master.inc
---source include/assert_transaction_length_all_logs.inc
---source include/rpl_end.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/assert_transaction_length_all_logs.inc
+--source include/rpl/deinit.inc

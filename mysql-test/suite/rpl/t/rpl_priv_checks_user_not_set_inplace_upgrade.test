@@ -39,17 +39,17 @@
 --echo #
 
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # 1) Create a table and insert a record on the master.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t (c INT);
 INSERT INTO t VALUES (1), (2);
 
 # 2) Synchronize master and slave and stop the slave.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression("Error writing relay log configuration");
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 # 3) Remove the columns from `mysql.slave_relay_log_info` that regard
 #    `PRIVILEGE_CHECKS_USER`.
@@ -72,17 +72,17 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 
 # 5) Restart the server with `--upgrade=FORCE`.
 --let $rpl_server_number = 2
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --upgrade=FORCE
 --let $explicit_default_wait_counter = 15000
---source include/rpl_start_server.inc
---source include/start_slave.inc
+--source include/rpl/start_server.inc
+--source include/rpl/start_replica.inc
 
 # 6) Ensure the slave now has structure information on system tables regarding
 #    `PRIVILEGE_CHECKS_USER` but related columns aren't instantiated.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $channels_in_table = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE Privilege_checks_username is NULL AND Privilege_checks_hostname is NULL`
 --let $priv_checks_columns = `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'mysql' AND table_name = 'slave_relay_log_info' AND column_name LIKE 'Privilege_checks%'`
 
@@ -95,12 +95,12 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 --source include/assert.inc
 
 # 7) Change `PRIVILEGE_CHECKS_USER` and check the table is consistent.
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $applier_user = 'u1'@'localhost'
 --eval CREATE USER $applier_user;
 --eval GRANT CREATE,INSERT,DROP,REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO $applier_user
 --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $applier_user, REQUIRE_ROW_FORMAT = 1
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $channels_in_table = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE CONCAT("'", Privilege_checks_username, "'@'", Privilege_checks_hostname, "'") = "$applier_user"`
 --let $assert_text = Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER = $applier_user
@@ -108,13 +108,13 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 --source include/assert.inc
 
 # Clean up
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --eval DROP USER $applier_user;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

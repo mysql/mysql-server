@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -96,7 +96,7 @@ SELECT * FROM test.regular_tbl ORDER BY fkid DESC LIMIT 2;
 id	dt	user	uuidf	fkid	filler
 1	date-time	USER	UUID	300	Partitioned table! Going to test replication for MySQL
 2	date-time	USER	UUID	299	Partitioned table! Going to test replication for MySQL
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 show create table test.byrange_tbl;
 Table	Create Table
 byrange_tbl	CREATE TABLE `byrange_tbl` (
@@ -148,4 +148,4 @@ DROP PROCEDURE test.proc_norm;
 DROP PROCEDURE test.proc_byrange;
 DROP TABLE test.regular_tbl;
 DROP TABLE test.byrange_tbl;
-include/rpl_end.inc
+include/rpl/deinit.inc

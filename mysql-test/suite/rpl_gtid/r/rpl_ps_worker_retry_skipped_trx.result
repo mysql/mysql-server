@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ SET @@GLOBAL.replica_transaction_retries = 10;
 SET @@GLOBAL.innodb_lock_wait_timeout = 2;
 [connection master]
 CREATE TABLE t1 (a INT UNIQUE);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 BEGIN;
 INSERT INTO t1 VALUES (1);
 [connection master]
@@ -19,15 +19,15 @@ SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 INSERT INTO t1 VALUES (1);
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 [connection slave]
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [The master transaction should not be in the slave GTID_EXECUTED set]
 COMMIT;
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 COMMIT;
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The master transaction should be in the slave GTID_EXECUTED set]
 include/assert.inc [The GTID information about the last applied transaction was not changed]
 include/assert.inc [The OCT information about the last applied transaction was not changed]
@@ -42,5 +42,5 @@ SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET @@GLOBAL.replica_transaction_retries = @saved_replica_transaction_retries;
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

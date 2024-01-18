@@ -8,7 +8,7 @@
 #####################################
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --echo ***************** Test 1 ************************
 --echo
@@ -134,4 +134,4 @@ drop table t1;
 set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
 # End cleanup
 sync_slave_with_master;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

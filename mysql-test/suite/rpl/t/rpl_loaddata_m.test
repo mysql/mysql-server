@@ -8,7 +8,7 @@
 #         and to test the option better + Cleanup
 ######################################################
 --source include/not_group_replication_plugin.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 --disable_warnings
 drop database if exists mysqltest;
@@ -29,7 +29,7 @@ LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE mysqltest.t1;
 SELECT COUNT(*) FROM mysqltest.t1;
 
 # Now lets check the slave to see what we have :-)
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SHOW DATABASES;
 
@@ -46,7 +46,7 @@ SELECT COUNT(*) FROM mysqltest.t1;
 connection master;
 DROP DATABASE mysqltest;
 DROP TABLE IF EXISTS test.t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of test
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

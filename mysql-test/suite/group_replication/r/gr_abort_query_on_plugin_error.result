@@ -69,7 +69,7 @@ SET sql_log_bin=1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
 include/start_group_replication.inc
 INSERT INTO test.t1 (b) VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 #######################################################################
 # Assert that server1 and server2 have the same data and GTID_EXECUTED.

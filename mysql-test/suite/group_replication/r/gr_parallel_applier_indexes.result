@@ -17,17 +17,17 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 INSERT INTO t1 VALUES (1);
 SET GTID_NEXT= AUTOMATIC;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server3]
 INSERT INTO t1 VALUES (3);
 [connection server1]
 UPDATE t1 SET c1=2 WHERE c1=1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 include/stop_group_replication.inc
 
@@ -41,7 +41,7 @@ Matching lines are:
 #time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=2	sequence_number=4	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 #time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=3	sequence_number=5	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 Occurrences of 'last_committed' in the input file: 4
-include/include/assert_logical_timestamps.inc [0 0;2 3;2 4;3 5]
+include/include/rpl/assert_logical_timestamps.inc [0 0;2 3;2 4;3 5]
 Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000002'
 Inspected 3 transactions, all with correct transaction length.
 
@@ -60,16 +60,16 @@ include/start_group_replication.inc
 include/start_group_replication.inc
 [connection server3]
 INSERT INTO t1 VALUES (4);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 UPDATE t1 SET c1=5 WHERE c1=4;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 INSERT INTO t1 VALUES (6);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server4]
 UPDATE t1 SET c1=7 WHERE c1=6;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # Dump Group Replication applier channel relay log and
 # validate its indexes on member 2.
@@ -80,7 +80,7 @@ Matching lines are:
 #time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=4	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 #time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=4	sequence_number=5	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 Occurrences of 'last_committed' in the input file: 3
-include/include/assert_logical_timestamps.inc [0 0;2 4;4 5]
+include/include/rpl/assert_logical_timestamps.inc [0 0;2 4;4 5]
 Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000003'
 Inspected 2 transactions, all with correct transaction length.
 
@@ -93,7 +93,7 @@ Matching lines are:
 #time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 #time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=1	sequence_number=4	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 Occurrences of 'last_committed' in the input file: 3
-include/include/assert_logical_timestamps.inc [0 0;2 3;1 4]
+include/include/rpl/assert_logical_timestamps.inc [0 0;2 3;1 4]
 Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000003'
 Inspected 2 transactions, all with correct transaction length.
 
@@ -111,7 +111,7 @@ Inspected 2 transactions, all with correct transaction length.
 INSERT INTO t1 VALUES (8);
 [connection server2]
 INSERT INTO t1 VALUES (9);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # Dump Group Replication applier channel relay log and
 # validate its indexes on member 2.
@@ -123,7 +123,7 @@ Matching lines are:
 #time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=4	sequence_number=5	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 #time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=7	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 Occurrences of 'last_committed' in the input file: 4
-include/include/assert_logical_timestamps.inc [0 0;2 4;4 5;6 7]
+include/include/rpl/assert_logical_timestamps.inc [0 0;2 4;4 5;6 7]
 Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000003'
 Inspected 3 transactions, all with correct transaction length.
 
@@ -137,7 +137,7 @@ Matching lines are:
 #time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=1	sequence_number=4	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 #time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 Occurrences of 'last_committed' in the input file: 4
-include/include/assert_logical_timestamps.inc [0 0;2 3;1 4;5 6]
+include/include/rpl/assert_logical_timestamps.inc [0 0;2 3;1 4;5 6]
 Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000003'
 Inspected 3 transactions, all with correct transaction length.
 

@@ -26,7 +26,7 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 --let $master_error_log= $MYSQL_TMP_DIR/master.err
 
 --let $rpl_server_number= 1
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 # Master is not able to run some queries from includes until restarted
 --connection slave
 --remove_file $master_error_log
@@ -81,7 +81,7 @@ while ($point < 3)
 --let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON --log-error=$MYSQL_TMP_DIR/master.err
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 --connection master
 --let $assert_text=binlog_encryption option shall be ON
 --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
@@ -104,7 +104,7 @@ INSERT INTO t1 (c1) VALUES (4),(5),(6);
 #
 
 # Restart the slave loading the keyring
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $SLAVE_DATADIR= `select @@datadir`
 --let $assert_text= 1st binary log is not encrypted on slave
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 1]" = "No"
@@ -114,7 +114,7 @@ INSERT INTO t1 (c1) VALUES (4),(5),(6);
 --let $rpl_server_parameters= --skip-replica-start $RPL_PLUGIN_DIR_OPT
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --let $assert_text=binlog_encryption option shall be OFF
 --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
 --let $assert_cond= "$option_value" = "OFF"
@@ -173,10 +173,10 @@ SET GLOBAL binlog_encryption = ON;
 --source include/assert.inc
 
 # Cleanup
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL binlog_encryption = OFF;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET GLOBAL binlog_encryption = OFF;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc

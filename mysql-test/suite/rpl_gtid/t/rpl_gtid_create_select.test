@@ -1,1 +1,1 @@
---source extra/rpl_tests/rpl_create_select.inc
+--source common/rpl/create_select.inc

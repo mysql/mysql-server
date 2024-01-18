@@ -36,7 +36,7 @@
 # replication filters).
 #
 #########################################################################
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -130,7 +130,7 @@ slave-relay-bin-ch1.index
 #
 # RESET REPLICA deletes all relay log files of ch2
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
 #
 # Verify that "RESET REPLICA" retains all replication filters from
@@ -269,5 +269,5 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
 	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
 	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

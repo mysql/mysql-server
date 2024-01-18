@@ -1,7 +1,7 @@
 # Tests for the performance schema
 
 # ==========================================
-# HELPER include/rpl_truncate_statements.inc
+# HELPER include/rpl/truncate_statements.inc
 # ==========================================
 
 --disable_query_log

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,12 +6,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 ==== Initialize ====
 SET GLOBAL REPLICA_TRANSACTION_RETRIES= 0;
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 ==== Test ====
 include/assert.inc [The worker status should be set in P_S.threads]
 ==== Look for more mistakes in mysqld.cc ====
 ==== Clean up ====
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL REPLICA_PARALLEL_WORKERS= OLD_VALUE;
 SET GLOBAL REPLICA_TRANSACTION_RETRIES= OLD_VALUE;
-include/rpl_end.inc
+include/rpl/deinit.inc

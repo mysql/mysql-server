@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 02. Lock table t1 on server2 to block a future update.
@@ -77,7 +77,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 [connection server2]
 include/assert.inc ['There is a 1 in table t1']
 include/assert.inc ['There is a 99 in table t2']
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/assert.inc ['There is a 2 in table t2']
 include/assert.inc ['There were 2 transactions with group_replication_consistency=BEFORE']

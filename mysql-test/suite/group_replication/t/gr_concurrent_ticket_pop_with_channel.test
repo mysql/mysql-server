@@ -43,7 +43,7 @@
 --echo #    Add some data to server 3 that will be replicated to server 1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sysvars_to_save = [ "GLOBAL.group_replication_view_change_uuid" ]
 --source include/save_sysvars.inc
@@ -57,19 +57,19 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_3 FOR CHANNEL 'ch1'
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --echo # Add some data on 3 and sync
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
 --let $sync_slave_connection=server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 2. Insert one last transaction on server 3 that will block on commit on server 1
@@ -77,7 +77,7 @@ INSERT INTO t1 VALUES (1);
 --echo #    Wait for the transaction to block
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Block the last transaction from completing
 # Block it when it is already registered/certified but not committed.
@@ -85,12 +85,12 @@ INSERT INTO t1 VALUES (1);
 --source include/add_debug_point.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t1 VALUES (2);
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait for the debug sync to be reached.
 SET DEBUG_SYNC= "now WAIT_FOR signal.ordered_commit_waiting";
@@ -101,7 +101,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.ordered_commit_waiting";
 --echo #    Wait for the VCLE to reach application where it will be stuck waiting for its ticket
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sysvars_to_save = [ "GLOBAL.group_replication_view_change_uuid" ]
 --source include/save_sysvars.inc
@@ -114,7 +114,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication_command.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait for the VCLE to reach application
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier" AND applying_transaction= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2"
@@ -142,7 +142,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.end_of_ticket_waiting";
 --echo #    Wait for this new VCLE to be queued
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sysvars_to_save = [ "GLOBAL.group_replication_view_change_uuid" ]
 --source include/save_sysvars.inc
@@ -155,7 +155,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication_command.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait for the VCLE for the member 4 join to be queued
 # Not stuck waiting for the ticket, the VCLE is still stuck waiting for the flush stage lock
@@ -175,19 +175,19 @@ SET DEBUG_SYNC= "now SIGNAL signal.end_of_ticket_continue";
 --echo # 7. Cleaning up
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 
 --let $sync_slave_connection=server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= 'RESET';
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "ch1";
 
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
@@ -195,14 +195,14 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --source include/restore_sysvars.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --source include/stop_group_replication.inc
 --source include/restore_sysvars.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --source include/stop_group_replication.inc

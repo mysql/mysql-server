@@ -86,7 +86,7 @@ INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 SET GLOBAL group_replication_clone_threshold= 1;
 SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "LOCAL_ADDRESS_SERVER1, LOCAL_ADDRESS_SERVER2, LOCAL_ADDRESS_SERVER3";
 START GROUP_REPLICATION;
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/gr_wait_for_member_state.inc
 include/assert.inc [Clone must be completed]
 
@@ -126,14 +126,14 @@ INSERT INTO t1 VALUES (3);
 INSERT INTO t1 VALUES (4);
 include/assert.inc ['There are 3 rows in performance_schema.replication_asynchronous_connection_failover']
 include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 12. Unblock the rejoin, another clone should happen
 
 [connection server2]
 SET GLOBAL group_replication_clone_threshold= 1;
 SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/gr_wait_for_member_state.inc
 include/assert.inc [Clone must be completed]
 
@@ -152,13 +152,13 @@ include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled for ch1']
 #     connection will be started without any error.
 
 [connection server1]
-include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
 [connection server2]
 SELECT group_replication_set_as_primary("SERVER2_UUID");
 group_replication_set_as_primary("SERVER2_UUID")
 Primary server switched to: SERVER2_UUID
 include/gr_wait_primary_member_uuid.inc
-include/wait_for_slave_to_start.inc [FOR CHANNEL 'ch1']
+include/rpl/wait_for_replica_to_start.inc [FOR CHANNEL 'ch1']
 include/assert.inc [Verify replica_monitor thread is running]
 
 # 15. Cleanup
@@ -172,19 +172,19 @@ RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_communication_stack;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
 RESET PERSIST IF EXISTS local_infile;
-include/stop_slave.inc [FOR CHANNEL 'ch1']
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
+include/rpl/reset_replica.inc
 [connection server1]
 include/stop_group_replication.inc
 UNINSTALL PLUGIN clone;
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 set session sql_log_bin=0;
 call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1', thence it will try to connect to another source.");
 set session sql_log_bin=1;
 [connection server3]
 include/stop_group_replication.inc
 UNINSTALL PLUGIN clone;
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 [connection server2]
 include/stop_group_replication.inc
 UNINSTALL PLUGIN clone;

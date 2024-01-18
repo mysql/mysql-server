@@ -8,15 +8,15 @@
 # match the number of events on a compressed binlog.
 -- source include/not_binlog_transaction_compression_on.inc
 -- source include/have_ndb.inc
--- source suite/ndb_rpl/ndb_master-slave.inc
+-- source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 
 let $engine_type = 'NDB';
 
 set binlog_format='row';
--- source extra/rpl_tests/rpl_extra_col_master.test
+-- source common/rpl/rpl_extra_col_source.test
 
 set binlog_format='mixed';
--- source extra/rpl_tests/rpl_extra_col_master.test
+-- source common/rpl/rpl_extra_col_source.test
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

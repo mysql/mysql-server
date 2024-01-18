@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -21,7 +21,7 @@ f10 DECIMAL, f11 DECIMAL(16, 10));
 INSERT INTO wl529_insert SELECT CAST(bt AS FLOAT), CAST(vt AS FLOAT), CAST(tt AS FLOAT), CAST(ft AS FLOAT), CAST(it AS FLOAT), CAST(itu AS FLOAT), CAST(jt AS FLOAT), CAST(dt AS FLOAT), CAST(dc AS FLOAT), CAST(dat AS FLOAT), CAST(yt AS FLOAT) FROM wl529;
 INSERT INTO wl529_insert SELECT CAST(bt AS DOUBLE), CAST(vt AS DOUBLE), CAST(tt AS DOUBLE), CAST(ft AS DOUBLE), CAST(it AS DOUBLE), CAST(itu AS DOUBLE), CAST(jt AS DOUBLE), CAST(dt AS DOUBLE), CAST(dc AS DOUBLE), CAST(dat AS DOUBLE), CAST(yt AS DOUBLE) FROM wl529;
 INSERT INTO wl529_insert SELECT CAST(bt AS REAL), CAST(vt AS REAL), CAST(tt AS REAL), CAST(ft AS REAL), CAST(it AS REAL), CAST(itu AS REAL), CAST(jt AS REAL), CAST(dt AS REAL), CAST(dc AS REAL), CAST(dat AS REAL), CAST(yt AS REAL) FROM wl529;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether table was created and values were inserted on slave
 SELECT * FROM wl529;
@@ -53,7 +53,7 @@ include/diff_tables.inc [master:wl529_insert, slave:wl529_insert]
 # Update values inside the table
 UPDATE wl529 SET dt = CAST(vt AS DOUBLE) WHERE id = 2;
 UPDATE wl529 SET dt = CAST(vt AS REAL) WHERE id = 3;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether rows are updated
 SELECT * FROM wl529 WHERE id < 4;
@@ -64,7 +64,7 @@ id	bt	vt	tt	ft	it	itu	jt	dt	dc	dat	yt
 include/diff_tables.inc [master:wl529, slave:wl529]
 [Connection Master]
 DELETE FROM wl529 WHERE CAST(vt AS DOUBLE) = dt;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 # Check whether the rows are deleted
 SELECT * FROM wl529;
@@ -76,6 +76,6 @@ include/diff_tables.inc [master:wl529, slave:wl529]
 [Connection Master]
 # Drop tables and clean up
 DROP TABLE wl529, wl529_insert;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
-include/rpl_end.inc
+include/rpl/deinit.inc

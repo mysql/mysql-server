@@ -1,11 +1,11 @@
 -- source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 #
 # BUG#52868 Wrong handling of NULL value during update, replication out of sync
 #
 
 -- let $engine= InnoDB
--- source extra/rpl_tests/rpl_record_compare.test
---source include/rpl_end.inc
+-- source common/rpl/rpl_record_compare.test
+--source include/rpl/deinit.inc

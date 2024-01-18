@@ -28,7 +28,7 @@
 --echo #    group. This will mimic a start timeout due to all seeds be
 --echo #    unreachable.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= @debug_save;
 --let $allow_rpl_inited= 1
@@ -38,9 +38,9 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 
 --echo
@@ -56,7 +56,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --source include/assert.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --send STOP GROUP_REPLICATION
 
 
@@ -65,14 +65,14 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo # 3. Unblock the start procedure, the server start will proceed
 --echo #    and then the STOP will proceed.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='starting' AND INFO='stop group_replication';
 --source include/wait_condition.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.continue_group_join";
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $assert_text= The super_read_only mode must be 1
@@ -84,7 +84,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_group_join";
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --source include/group_replication_end.inc

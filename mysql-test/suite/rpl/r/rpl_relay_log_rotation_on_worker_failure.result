@@ -1,13 +1,13 @@
 
 ##############################################################
 # 1. Create a table on the source and sync
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ##############################################################
 # 2. Add a debug point to the replica so it stops during a log rotation
@@ -42,7 +42,7 @@ include/assert.inc [No error about writting to the relay log was found]
 ##############################################################
 # 6. Cleanup
 DELETE FROM t1 WHERE c1 = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/suppress_messages.inc
 # Connection 2 suppresses message <Worker 1 failed executing transaction>.
 # Connection 2 suppresses message <The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
@@ -50,4 +50,4 @@ include/suppress_messages.inc
 # Connection 2 suppresses message <Error writing relay log repository data while a thread is being killed>.
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

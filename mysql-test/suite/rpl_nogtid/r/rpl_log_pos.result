@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,14 +7,14 @@ call mtr.add_suppression ("Replica I/O for channel '': Got fatal error 1236 from
 show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=SOURCE_LOG_POS;
 Read_Source_Log_Pos = '75'
 START REPLICA;
-include/wait_for_slave_io_error.inc [errno=13114]
+include/rpl/wait_for_receiver_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'bogus data in log event; the first event 'master-bin.000001' at XXX, the last event read from './master-bin.000001' at XXX, the last byte read from './master-bin.000001' at XXX.''
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
@@ -30,6 +30,6 @@ n
 2
 3
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 End of 5.0 tests
-include/rpl_end.inc
+include/rpl/deinit.inc

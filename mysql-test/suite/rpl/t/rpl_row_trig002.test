@@ -8,8 +8,8 @@
 
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 #-- disable_query_log
 #-- disable_result_log
@@ -40,7 +40,7 @@ INSERT INTO test.t1 VALUES (1, 'example.com'),(2, 'mysql.com'),(3, 'earthmotherw
 
 SELECT * FROM test.t1 ORDER BY id;
 #show binlog events;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1 ORDER BY id;
 connection master;
 
@@ -50,7 +50,7 @@ INSERT INTO test.t2 VALUES ('Yes', 1, NULL, 'spamfilter','scan_incoming');
 
 select * from test.t2;
 select * from test.t3 order by value;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from test.t2;
 select * from test.t3 order by value;
 connection master;
@@ -60,7 +60,7 @@ DELETE FROM test.t1 WHERE id = 1;
 SELECT * FROM test.t1 ORDER BY id;
 connection master;
 SELECT * FROM test.t1 ORDER BY id;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1 ORDER BY id;
 
 # Cleanup
@@ -70,7 +70,7 @@ DROP TRIGGER test.t2_ai;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP TABLE test.t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 5.0 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

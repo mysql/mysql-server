@@ -5,10 +5,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 ############################################################
 # 1. Execute some transactions on server1.
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ############################################################
 # 2. Force negative certification outcome of the next
@@ -23,7 +23,7 @@ SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
 INSERT INTO t1 VALUES (2);
 ERROR 40000: Plugin instructed the server to rollback the current transaction.
 INSERT INTO t1 VALUES (3);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc ['There is no value 2 in table t1 on server 1']
 include/assert.inc ['There is a value 3 in table t1 on server 1']
 include/assert.inc ['The value of Count_Transactions_in_queue should be 0 on server 1']
@@ -45,7 +45,7 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 ############################################################
 # 5. Shutdown.
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc ['Aborted transaction should not have increased GNO to 5 on server 1']
 include/assert.inc ['Aborted transaction should not have increased GNO to 5 on server 2']
 include/group_replication_end.inc

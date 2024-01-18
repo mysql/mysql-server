@@ -20,7 +20,7 @@ let $keep_connection= 1;
 # Set up circular ring and new names for servers
 --echo *** Set up circular replication on four servers *** 
 --let $rpl_topology= 1->2->3->4->1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 --echo
 
 #set auto inc variables at each server
@@ -28,7 +28,7 @@ let $keep_connection= 1;
 while ($_rpl_server)
 {
   --let $rpl_connection_name= server_$_rpl_server
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   eval SET auto_increment_increment= $rpl_server_count;
   eval SET auto_increment_offset= $_rpl_server;
 
@@ -39,7 +39,7 @@ while ($_rpl_server)
 --echo *** Preparing data ***
 --connection server_1
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --connection server_4
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Replica SQL: Coordinator thread of multi-threaded replica is exiting seeing a failed Worker to apply an event");
@@ -79,7 +79,7 @@ COMMIT;
 --connection server_1
 --enable_query_log
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server_1
 SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
@@ -119,7 +119,7 @@ ROLLBACK;
 --connection server_1
 --enable_query_log
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection server_1
 SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
@@ -138,4 +138,4 @@ SELECT 'Master D',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
 --connection server_1
 DROP TABLE t2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

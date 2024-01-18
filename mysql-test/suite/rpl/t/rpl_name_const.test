@@ -8,8 +8,8 @@
 # BUG#35515 Aliases of variables in binary log are ignored with NAME_CONST.
 #
 --source include/not_group_replication_plugin.inc
-source include/set_privilege_checks_user_as_system_user.inc;
-source include/master-slave.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/init_source_replica.inc;
 
 --echo ==== Initialize ====
 
@@ -37,7 +37,7 @@ call test_procedure(1234);
 
 
 --echo [on slave]
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t1 order by id;
 
 --echo ==== Clean up ====
@@ -46,4 +46,4 @@ select * from t1 order by id;
 connection master;
 drop table t1;
 drop procedure test_procedure;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

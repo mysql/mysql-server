@@ -36,7 +36,7 @@ SHOW BINARY LOGS;
 --connect (con1, localhost, root,,)
 
 --let $rpl_connection_name = default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval PURGE BINARY LOGS TO '$binlog_file'
 --let $statement_connection = con1

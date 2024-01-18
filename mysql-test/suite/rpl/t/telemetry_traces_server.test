@@ -2,7 +2,7 @@
 # Check if a replicated statement gets processed by telemetry on replica
 ################################################################################
 
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 --source include/have_server_telemetry_traces.inc
 --source include/have_no_telemetry_component.inc
 # Statement replication format needed for stmt to be visible to telemetry
@@ -10,7 +10,7 @@
 --source include/not_parallel.inc
 --source include/no_ps_protocol.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 CREATE DATABASE mysqltest;
 CREATE TABLE mysqltest.t1 (n INT PRIMARY KEY);
 
@@ -21,9 +21,9 @@ INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
 # Execute statement to be replicated
 connection master;
 INSERT INTO mysqltest.t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 DROP DATABASE mysqltest;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Check log
 connection slave;
@@ -33,7 +33,7 @@ connection master;
 --disable_result_log
 SHOW DATABASES;
 --enable_result_log
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 connection slave;
 --reap;
 
@@ -48,4 +48,4 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
 
 # End of test
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -35,7 +35,7 @@ if ($member_id == '')
 while ($itr > 0)
 {
   --let $rpl_connection_name=server$itr
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   #
   # Verify if this is the connection of the member to expel.
@@ -60,7 +60,7 @@ if ($conn_name == '')
 # signal we want.
 #
 --let $rpl_connection_name = $conn_name
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
 --let $pid_file=`SELECT @@pid_file`
@@ -91,7 +91,7 @@ while ($itr > 0)
   if ($curr_server != $conn_name)
   {
     --let $rpl_connection_name = server$itr
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     --let $group_replication_number_of_members = $new_server_count
     --source include/gr_wait_for_number_of_members.inc
   }
@@ -103,7 +103,7 @@ while ($itr > 0)
 # Wake up the suspended member - he should have been expelled.
 #
 --let $rpl_connection_name = $conn_name
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec kill -18 $server_pid
 
 # Verify that the member entered an error state
@@ -113,7 +113,7 @@ while ($itr > 0)
 
 # Then verify that it enabled super_read_only
 --let $rpl_connection_name = $conn_name
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text = super_read_only should be enabled
 --let $assert_cond = [SELECT @@GLOBAL.super_read_only] = 1;
 --source include/assert.inc

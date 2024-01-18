@@ -12,7 +12,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
 SET sql_log_bin = 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET sql_log_bin = 1;
 FLUSH BINARY LOGS;
 PURGE BINARY LOGS TO 'CURRENT_BINLOG_FILE';
@@ -39,15 +39,15 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 # 4. See that server 2 aborts when clone fails
 START GROUP_REPLICATION;
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/assert.inc [Member 1 should have aborted]
 
 ############################################################
 # 5 Cleanup.
 [connection server1]
 DROP TABLE t1;
-include/gtid_utils_end.inc
-include/rpl_reconnect.inc
+include/rpl/gtid_utils_end.inc
+include/rpl/reconnect.inc
 [connection server2]
 UNINSTALL PLUGIN clone;
 SET SESSION sql_log_bin=0;

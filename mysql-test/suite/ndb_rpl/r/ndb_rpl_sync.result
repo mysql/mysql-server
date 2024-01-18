@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -58,7 +58,7 @@ CHANGE REPLICATION SOURCE TO
 SOURCE_LOG_FILE = 'master-bin.000001',
 SOURCE_LOG_POS = <the_pos> ;
 START REPLICA;
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 hex(c1)	hex(c2)	c3
 1	1	row1
@@ -79,4 +79,4 @@ Position	File	epoch	inserts	updates	deletes	schemaops	orig_server_id	orig_epoch	
 RESET REPLICA;
 select * from mysql.ndb_apply_status;
 server_id	epoch	log_name	start_pos	end_pos
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -11,7 +11,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, data JSON,
 UNIQUE KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1(c1,data) VALUES (1,'[0,1,2]');
 INSERT INTO t1(c1,data) VALUES (2,'[100,101]');
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # Checking the conflict case.
@@ -20,9 +20,9 @@ include/rpl_sync.inc
 # 0. Initial setup and checks.
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
-include/gtid_step_reset.inc
+include/rpl/gtid_step_reset.inc
 
 ############################################################
 # 1. Set a debug sync before broadcast message to group on
@@ -62,7 +62,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 # 6. Wait for remote transaction to be executed succesfully
 on local server.
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ############################################################
 # 7. If the test case is conflict scenario, local transaction
 #    will end up in an error stating that it was aborted,
@@ -75,7 +75,7 @@ ERROR 40000: Plugin instructed the server to rollback the current transaction.
 SET @@GLOBAL.DEBUG=@debug_save;
 ############################################################
 # 8. Sync everything
-include/rpl_sync.inc
+include/rpl/sync.inc
 ############################################################
 # 9. Assert that number of certified transactions are the
 #    expected ones.
@@ -83,10 +83,10 @@ include/assert.inc [The value of Count_Transactions_Checked should be 5 after st
 include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
 ############################################################
 # 10. Assert that GTID is increased as expected
-include/gtid_step_assert.inc [count=1, only_count=1]
+include/rpl/gtid_step_assert.inc [count=1, only_count=1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 ############################################################
 # 11. Cleanup (restore the connection back to original)
@@ -99,9 +99,9 @@ SET SESSION sql_log_bin= 1;
 # 0. Initial setup and checks.
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
-include/gtid_step_reset.inc
+include/rpl/gtid_step_reset.inc
 
 ############################################################
 # 1. Set a debug sync before broadcast message to group on
@@ -141,7 +141,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 # 6. Wait for remote transaction to be executed succesfully
 on local server.
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ############################################################
 # 7. If the test case is conflict scenario, local transaction
 #    will end up in an error stating that it was aborted,
@@ -154,7 +154,7 @@ ERROR 40000: Plugin instructed the server to rollback the current transaction.
 SET @@GLOBAL.DEBUG=@debug_save;
 ############################################################
 # 8. Sync everything
-include/rpl_sync.inc
+include/rpl/sync.inc
 ############################################################
 # 9. Assert that number of certified transactions are the
 #    expected ones.
@@ -162,10 +162,10 @@ include/assert.inc [The value of Count_Transactions_Checked should be 7 after st
 include/assert.inc [The value of Count_Conflicts_Detected should be 2 after starting group replication]
 ############################################################
 # 10. Assert that GTID is increased as expected
-include/gtid_step_assert.inc [count=1, only_count=1]
+include/rpl/gtid_step_assert.inc [count=1, only_count=1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 ############################################################
 # 11. Cleanup (restore the connection back to original)
@@ -178,9 +178,9 @@ SET SESSION sql_log_bin= 1;
 # 0. Initial setup and checks.
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
-include/gtid_step_reset.inc
+include/rpl/gtid_step_reset.inc
 
 ############################################################
 # 1. Set a debug sync before broadcast message to group on
@@ -220,7 +220,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 # 6. Wait for remote transaction to be executed succesfully
 on local server.
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ############################################################
 # 7. If the test case is conflict scenario, local transaction
 #    will end up in an error stating that it was aborted,
@@ -232,7 +232,7 @@ include/sync_slave_sql_with_master.inc
 SET @@GLOBAL.DEBUG=@debug_save;
 ############################################################
 # 8. Sync everything
-include/rpl_sync.inc
+include/rpl/sync.inc
 ############################################################
 # 9. Assert that number of certified transactions are the
 #    expected ones.
@@ -240,10 +240,10 @@ include/assert.inc [The value of Count_Transactions_Checked should be 9 after st
 include/assert.inc [The value of Count_Conflicts_Detected should be 2 after starting group replication]
 ############################################################
 # 10. Assert that GTID is increased as expected
-include/gtid_step_assert.inc [count=2, only_count=1]
+include/rpl/gtid_step_assert.inc [count=2, only_count=1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 ############################################################
 # 11. Cleanup (restore the connection back to original)
@@ -256,9 +256,9 @@ SET SESSION sql_log_bin= 1;
 # 0. Initial setup and checks.
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
-include/gtid_step_reset.inc
+include/rpl/gtid_step_reset.inc
 
 ############################################################
 # 1. Set a debug sync before broadcast message to group on
@@ -298,7 +298,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 # 6. Wait for remote transaction to be executed succesfully
 on local server.
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ############################################################
 # 7. If the test case is conflict scenario, local transaction
 #    will end up in an error stating that it was aborted,
@@ -310,7 +310,7 @@ include/sync_slave_sql_with_master.inc
 SET @@GLOBAL.DEBUG=@debug_save;
 ############################################################
 # 8. Sync everything
-include/rpl_sync.inc
+include/rpl/sync.inc
 ############################################################
 # 9. Assert that number of certified transactions are the
 #    expected ones.
@@ -318,10 +318,10 @@ include/assert.inc [The value of Count_Transactions_Checked should be 11 after s
 include/assert.inc [The value of Count_Conflicts_Detected should be 2 after starting group replication]
 ############################################################
 # 10. Assert that GTID is increased as expected
-include/gtid_step_assert.inc [count=2, only_count=1]
+include/rpl/gtid_step_assert.inc [count=2, only_count=1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 ############################################################
 # 11. Cleanup (restore the connection back to original)

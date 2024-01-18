@@ -5,11 +5,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 [connection server1]
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
@@ -21,9 +21,9 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
 [connection server1]
 include/assert.inc [GTID_EXECUTED must contain three transactions, the new one from the insert.]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 [connection server2]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 include/stop_group_replication.inc
 [connection server1]
 SET GTID_NEXT= "32e12bc9-01d2-11e6-a992-02420ef39c5b:4";
@@ -36,20 +36,20 @@ include/stop_group_replication.inc
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
 include/start_group_replication.inc
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 [connection server1]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/rpl/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 include/assert.inc [The GTID EXECUTED must not contain holes.]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server1]
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin= 0;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 include/group_replication_end.inc

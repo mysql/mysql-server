@@ -48,7 +48,7 @@ while ($_rpl_server <= $_rpl_server_max)
 
 
 # Compute group members.
-# Order is from last to first server like on rpl_init.inc.
+# Order is from last to first server like on rpl/init.inc.
 --let $_rpl_server= $_rpl_gcs_server_number
 while ($_rpl_server)
 {
@@ -80,7 +80,7 @@ while ($_rpl_server)
 --let $_group_replication_ip_allowlist= $_group_replication_ip_allowlist/8
 
 # Set XCom configuration on all servers.
-# Order is from last to first server like on rpl_init.inc.
+# Order is from last to first server like on rpl/init.inc.
 --let $_rpl_server= $_rpl_gcs_server_number
 while ($_rpl_server)
 {
@@ -134,14 +134,14 @@ while ($_rpl_server)
   if ($rpl_privilege_checks_user != '')
   {
     --let $rpl_server_number= $_rpl_server
-    --source include/rpl_get_instance_priv_checks_user.inc
+    --source include/rpl/get_instance_priv_checks_user.inc
     if ($rpl_instance_privilege_checks_user != '' )
     {
 
       # If PRIVILEGE_CHECKS_USER is not NULL configure the account
       if (`SELECT "$rpl_instance_privilege_checks_user" != "NULL"`)
       {
-        --source include/rpl_priv_checks_user_configuration.inc
+        --source include/rpl/priv_checks_user_configuration.inc
       }
 
       if (!$skip_recovery_configuration)

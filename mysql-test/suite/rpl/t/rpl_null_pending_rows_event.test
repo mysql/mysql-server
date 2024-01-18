@@ -69,15 +69,15 @@ PROCEDURE
 
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (id INT, p INT);
 CREATE TABLE t2 (id INT, p INT);
 CREATE INDEX i ON t2 (id);
 ALTER TABLE t2 PARTITION BY KEY (id) PARTITIONS 100;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 --let $statement = INSERT
 --let $error_number = ER_BINLOG_ROW_LOGGING_FAILED
@@ -104,15 +104,15 @@ ALTER TABLE t2 PARTITION BY KEY (id) PARTITIONS 100;
 --let $assert_text= There are 2 records in t2
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
 --let $diff_tables= master:t2, slave:t2
 --source include/diff_tables.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 DROP TABLE t2;
 --remove_file $MYSQLTEST_VARDIR/tmp/execute_operation.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

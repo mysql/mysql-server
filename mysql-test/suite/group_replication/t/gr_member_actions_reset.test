@@ -24,7 +24,7 @@
 --echo ############################################################
 --echo # 1. Disable `mysql_disable_super_read_only_if_primary` action.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");

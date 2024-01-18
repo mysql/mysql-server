@@ -68,7 +68,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Part 1 - Checking the execution of the command when group_replication is ON.
 
 --echo
@@ -144,7 +144,7 @@ START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replicat
 # Part 2 - Checking the execution of the command when group_replication is OFF
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --echo
@@ -211,14 +211,14 @@ SHOW REPLICA STATUS FOR CHANNEL 'group_replication_applier';
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 # Checking the RESET REPLICA [ALL] commands execution.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # RESET REPLICA [ALL] command is blocked only when channel is running.

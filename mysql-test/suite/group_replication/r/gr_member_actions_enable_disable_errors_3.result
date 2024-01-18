@@ -22,7 +22,7 @@ include/gr_assert_secondary_member.inc
 # 2. Kill server2, server1 will lose group majority.
 [connection server2]
 # Kill and restart
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 ############################################################
 # 3. Check that server1 sees server2 UNREACHABLE.

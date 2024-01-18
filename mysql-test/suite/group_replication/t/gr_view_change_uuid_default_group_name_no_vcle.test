@@ -36,7 +36,7 @@
 --echo #    Check on server 2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= group_replication_group_replication_view_change_uuid is AUTOMATIC
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_view_change_uuid]" = "AUTOMATIC"

@@ -1,7 +1,7 @@
 # Test of a transaction mixing the two engines
 
 -- source include/have_ndb.inc
--- source suite/ndb_rpl/ndb_master-slave.inc
+-- source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 create table t1 (a int, b int, unique(b)) engine=ndbcluster;
 create table t2 (a int, b int, unique(b)) engine=innodb;
@@ -63,4 +63,4 @@ connection master;
 
 drop table t1,t2;
 sync_slave_with_master;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

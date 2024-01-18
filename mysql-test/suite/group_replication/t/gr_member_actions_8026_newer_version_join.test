@@ -22,7 +22,7 @@
 --echo # 1. Bootstrap a group with server1 as the primary, faking
 --echo #    that this server has 8.0.26 version.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Fake that this is a 8.0.26 server by deleting the member action
 # "mysql_start_failover_channels_if_primary".
@@ -56,7 +56,7 @@ SET session sql_log_bin=1;
 --echo #    "mysql_start_failover_channels_if_primary" before and
 --echo #    after join the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= There must be two member actions
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2

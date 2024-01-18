@@ -30,16 +30,16 @@ INSERT INTO test.t2 VALUES (1);
 # 4.1 start replica and verify for error ER_REPLICA_FATAL_ERROR
 [connection server2]
 START REPLICA FOR CHANNEL 'ch3_2';
-include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
-include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
+include/rpl/wait_for_receiver_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
+include/rpl/wait_for_applier_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 4.2 start replica io and verify for error ER_REPLICA_FATAL_ERROR
 START REPLICA IO_THREAD FOR CHANNEL 'ch3_2';
-include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
+include/rpl/wait_for_receiver_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 4.3 start replica sql and verify for error ER_REPLICA_FATAL_ERROR
 START REPLICA SQL_THREAD FOR CHANNEL 'ch3_2';
-include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
+include/rpl/wait_for_applier_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 5. Verify occurrence of error message
 Occurrences of 'Can't start replica IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
@@ -50,7 +50,7 @@ include/assert.inc [Verify channel ch3_2 IO_THREAD is OFF]
 include/assert.inc [Verify channel ch3_2 SQL_THREAD is OFF]
 
 # 7. Verifying data(t2 table) didn't replicated from server3 to server1 & 2
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/assert.inc [Verify only single table present i.e. t1]
 [connection server1]

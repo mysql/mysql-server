@@ -1,5 +1,5 @@
 
-source include/force_binlog_format_statement.inc;
+source include/rpl/force_binlog_format_statement.inc;
 RESET BINARY LOGS AND GTIDS;
 
 --echo # Bug#33048 Not able to recover binary/blob data correctly using mysqlbinlog
@@ -170,4 +170,4 @@ RESET BINARY LOGS AND GTIDS;
 --remove_file $binlog_uuid_filename
 --remove_file $MYSQLTEST_VARDIR/tmp/my.sql
 
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

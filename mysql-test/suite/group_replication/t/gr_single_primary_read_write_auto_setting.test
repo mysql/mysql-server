@@ -26,7 +26,7 @@
 --echo ## START SERVER 1
 --let $rpl_connection_name= server1
 --let $server1_uuid= `SELECT @@server_uuid`
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -40,7 +40,7 @@
 while($server_num<$ceiling)
 {
   --let $rpl_connection_name= server$server_num
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --source include/start_group_replication.inc
 
   --let $group_replication_expected_uuid= $server1_uuid
@@ -59,7 +59,7 @@ while($server_num<$ceiling)
 while($server_num<$ceiling)
 {
   --let $rpl_connection_name= server$server_num
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --error $expect_error
   --eval CREATE TABLE test$server_num(`id` INT PRIMARY KEY AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL);
@@ -73,7 +73,7 @@ while($server_num<$ceiling)
   --error $expect_error
   --eval UPDATE test$server_num SET `name`="2 ROW" WHERE `name` LIKE '%Second%';
 
-  --source include/rpl_sync.inc
+  --source include/rpl/sync.inc
   --let $expect_error=ER_OPTION_PREVENTS_STATEMENT
 
   --inc $server_num
@@ -82,7 +82,7 @@ while($server_num<$ceiling)
 --echo
 --echo ## STOP SERVER 1 AND START IT AGAIN (MAKE IT TO SECONDARY NODE)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 
@@ -100,14 +100,14 @@ if (!$group_replication_found_primary_out_var)
 --let $rpl_primary_server_name= $group_replication_primary_connection_out_var
 
 --let $rpl_connection_name= $rpl_primary_server_name
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO test1(`name`) VALUES("First ROW created in third query"), ("Second ROW created in third query");
 INSERT INTO test1(`name`) VALUES("First ROW created in fourth query"), ("Second ROW created in fourth query");
 UPDATE test1 SET `name`="3 query" WHERE `name` LIKE '%third query%';
 UPDATE test1 SET `name`="Second ROW" WHERE `name` LIKE '%2 ROW%';
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ## CHECK SECONDARY SERVERS THAT ARE SET IN READ ONLY MODE
@@ -130,7 +130,7 @@ while($server_num<5)
 --echo ## CHECK IF TABLE test1 IS IT PRESENT ON ALL SERVERS
 --echo [connection new primary]
 --let $rpl_connection_name= $rpl_primary_server_name
---source include/rpl_connection.inc
+--source include/connection.inc
 SELECT * FROM test1;
 
 --let $server_num= 2
@@ -148,7 +148,7 @@ while($server_num<$ceiling)
 while($server_num<$ceiling)
 {
   --let $rpl_connection_name= server$server_num
-  --source include/rpl_connection.inc
+  --source include/connection.inc
 
   --let $assert_text= 'Number of tables in current schema should be equal 1, it should be only "test1" table'
   --let $assert_cond= [SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = schema(), count, 1] = 1
@@ -159,9 +159,9 @@ while($server_num<$ceiling)
 --echo
 --echo ## CLEANUP
 --let $rpl_connection_name= $rpl_primary_server_name
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE `test1`;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_silent=0
 

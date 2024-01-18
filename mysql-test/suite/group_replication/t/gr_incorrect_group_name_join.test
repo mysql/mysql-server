@@ -16,7 +16,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The request to add .*:[0-9]* to the group has been rejected because it is aimed at another group");
@@ -24,7 +24,7 @@ call mtr.add_suppression("The request to remove .*:[0-9]* from the group has bee
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Timeout on wait for view after joining group");
 call mtr.add_suppression("Timeout while waiting for the group communication engine to be ready!");
@@ -43,7 +43,7 @@ START GROUP_REPLICATION;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
 

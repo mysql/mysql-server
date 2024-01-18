@@ -14,55 +14,55 @@
 # not assert.
 ###############################################################################
 --source include/have_semisync_plugin.inc
---source include/master-slave.inc
---source include/install_semisync.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/install_semisync.inc
 
 call mtr.add_suppression("Timeout waiting for reply of binlog*");
 call mtr.add_suppression("Read semi-sync reply network error");
 call mtr.add_suppression("Semi-sync source failed on net_flush.. before waiting for replica reply");
 CALL mtr.add_suppression("Could not find first log file name in binary log");
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT);
 --let $binlog_pos= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
 --let $master_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1)
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --send INSERT INTO t1 VALUES(0)
 
---source include/rpl_connection_master1.inc
+--source include/rpl/connection_source1.inc
 --let $status_var= rpl_semi_sync_source_wait_sessions
 --let $status_var_value= 1
 --source include/wait_for_status_var.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='master-bin.000002', SOURCE_LOG_POS=4, SOURCE_AUTO_POSITION=0;
 START REPLICA;
 --let $slave_io_errno=13114
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --reap
 INSERT INTO t1 VALUES (20);
 
 # Since dump thread has exited and no slaves are connected, master_clients
 # must be zero.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $master_clients=[show status like "Rpl_semi_sync_source_clients", Value, 1]
 --let assert_cond= $master_clients = 0
 --let assert_text= semi sync master clients should be 0.
 --source include/assert.inc
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 --replace_regex /SOURCE_LOG_FILE=[^,]+/SOURCE_LOG_FILE=FILE/ /SOURCE_LOG_POS=[0-9]+/ SOURCE_LOG_POS= POS/
 eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='$master_binlog', SOURCE_LOG_POS=$binlog_pos, SOURCE_AUTO_POSITION=0;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/uninstall_semisync.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/uninstall_semisync.inc
+--source include/rpl/deinit.inc

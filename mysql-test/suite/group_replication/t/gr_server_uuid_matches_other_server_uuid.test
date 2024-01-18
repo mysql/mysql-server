@@ -25,7 +25,7 @@
 --echo # 1. Bootstrap a group on server1, forcing server1 uuid to
 --echo #    "cccccccc-cccc-cccc-cccc-cccccccccccc".
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,group_replication_force_member_uuid';
 
@@ -43,7 +43,7 @@ SET GLOBAL group_replication_bootstrap_group= 1;
 --echo # 2. Try to join a second member to the group with the same
 --echo #    server uuid as server1. The join must fail.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There is already a member with server_uuid cccccccc-cccc-cccc-cccc-cccccccccccc. The member will now exit the group.");
 SET SESSION sql_log_bin= 1;
@@ -62,7 +62,7 @@ START GROUP_REPLICATION;
 --echo # 3. Assert that group membership is reported properly on
 --echo #    both servers.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= Member2 only reports one member
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members] = 1
 --source include/assert.inc
@@ -73,7 +73,7 @@ START GROUP_REPLICATION;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= Member1 only reports one member
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members] = 1
 --source include/assert.inc
@@ -88,11 +88,11 @@ START GROUP_REPLICATION;
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --source include/group_replication_end.inc

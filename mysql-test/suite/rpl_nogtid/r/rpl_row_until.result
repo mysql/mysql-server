@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,38 +10,38 @@ CREATE TABLE t2(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t2 VALUES (1),(2);
 INSERT INTO t2 VALUES (3),(4);
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=master_pos_drop_t1;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 SELECT * FROM t1;
 n
 1
 2
 3
 4
-include/check_slave_param.inc [Exec_Source_Log_Pos]
+include/rpl/assert_replica_status.inc [Exec_Source_Log_Pos]
 START REPLICA UNTIL SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 SELECT * FROM t1;
 n
 1
 2
 3
 4
-include/check_slave_param.inc [Exec_Source_Log_Pos]
+include/rpl/assert_replica_status.inc [Exec_Source_Log_Pos]
 START REPLICA;
-include/wait_for_slave_to_start.inc
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/wait_for_replica_to_start.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=master_pos_create_t2
-include/wait_for_slave_param.inc [Until_Log_Pos]
-include/wait_for_slave_sql_to_stop.inc
-include/check_slave_param.inc [Exec_Source_Log_Pos]
+include/rpl/wait_for_replica_status.inc [Until_Log_Pos]
+include/rpl/wait_for_applier_to_stop.inc
+include/rpl/assert_replica_status.inc [Exec_Source_Log_Pos]
 START REPLICA UNTIL SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=SOURCE_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS, RELAY_LOG_POS=RELAY_LOG_POS;
@@ -53,20 +53,20 @@ ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA 
 START REPLICA UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', SOURCE_LOG_POS=SOURCE_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
-include/start_slave.inc
-include/rpl_reset.inc
+include/rpl/start_replica.inc
+include/rpl/reset.inc
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/sync_to_replica_received.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [table t1 should have two rows.]
-include/start_slave.inc
+include/rpl/start_replica.inc
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

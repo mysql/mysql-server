@@ -1,7 +1,7 @@
 # test to see if replication can continue when master sporadically fails on
 # COM_BINLOG_DUMP and additionally limits the number of events per dump
 
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 create table t2(n int);
 create table t1(n int not null auto_increment primary key);
@@ -9,18 +9,18 @@ insert into t1 values (NULL),(NULL);
 truncate table t1;
 # We have to use 4 in the following to make this test work with all table types
 insert into t1 values (4),(NULL);
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 connection master;
 insert into t1 values (NULL),(NULL);
 flush logs;
 truncate table t1;
 insert into t1 values (10),(NULL),(NULL),(NULL),(NULL),(NULL);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 select * from t1 ORDER BY n;
 connection master;
 drop table t1,t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,5 +1,5 @@
-include/begin_replace_gtid_combination.inc [gtid_mode=off/on -> binlog_direct_non_transactional_updates=0/1]
-include/rpl_init.inc [topology=none]
+include/rpl/begin_replace_gtid_combination.inc [gtid_mode=off/on -> binlog_direct_non_transactional_updates=0/1]
+include/rpl/init.inc [topology=none]
 SET @old_sql_notes= @@GLOBAL.SQL_NOTES;
 SET GLOBAL SQL_NOTES= 0;
 SET SESSION SQL_NOTES= 0;
@@ -2807,5 +2807,5 @@ Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 SET GLOBAL SQL_NOTES = @old_sql_notes;
-include/rpl_end.inc
-include/end_replace_gtid_combination.inc [gtid_mode=off/on -> binlog_direct_non_transactional_updates=0/1]
+include/rpl/deinit.inc
+include/rpl/end_replace_gtid_combination.inc [gtid_mode=off/on -> binlog_direct_non_transactional_updates=0/1]

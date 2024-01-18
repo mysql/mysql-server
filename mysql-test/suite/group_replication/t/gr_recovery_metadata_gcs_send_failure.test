@@ -33,7 +33,7 @@
 --echo #    gr_force_recovery_metadata_send_failure to simulate send message failure.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Error while sending message. Context: Failed to send the recovery metadata. Sending ERROR message to the joiner to leave the group.");
@@ -52,7 +52,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_recovery_metadata_module_delete_one_sto
 --echo #    metadata message error message is received.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Error the group was unable to send Recovery Metadata to joining member.");
@@ -73,7 +73,7 @@ SET SESSION sql_log_bin= 1;
 --echo # 3. Sender cleans the metadata.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_recovery_metadata_module_delete_one_stored_metadata_reached";
 

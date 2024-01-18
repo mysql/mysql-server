@@ -40,7 +40,7 @@
 --echo # 2. Load plugin replication observers example on server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/install_replication_observers_example.inc
 
@@ -54,7 +54,7 @@
 --echo #    over GR send service
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SELECT group_replication_service_message_send("tag", "$big_string")
 
@@ -109,7 +109,7 @@ DROP TABLE test.t1;
 --echo #    delivery
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_big_message.2.err
 --let $assert_count = 1
@@ -135,7 +135,7 @@ DROP TABLE test.t1;
 --source include/uninstall_replication_observers_example.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 

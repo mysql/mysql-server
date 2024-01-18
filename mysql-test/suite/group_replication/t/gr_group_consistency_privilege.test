@@ -37,7 +37,7 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'group_rpl_user';
 --echo # 2. Connect to server using group_rpl_user
 
 --let $rpl_connection_name= con_group_rpl_user
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo
 --echo # 3. Set group_replication_consistency at a global scope shall fail due
@@ -56,7 +56,7 @@ SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
 --echo # 5. Grant GROUP_REPLICATION_ADMIN privileges to group_rpl_user
 
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'group_rpl_user';
 
@@ -64,7 +64,7 @@ GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'group_rpl_user';
 --echo # 6. Set group_replication_consistency at a global scope shall succeed
 
 --let $rpl_connection_name= con_group_rpl_user
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
 
@@ -72,7 +72,7 @@ SET @@GLOBAL.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
 --echo # 7. Cleanup
 
 --let $rpl_connection_name= default
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.group_replication_consistency= DEFAULT;
 

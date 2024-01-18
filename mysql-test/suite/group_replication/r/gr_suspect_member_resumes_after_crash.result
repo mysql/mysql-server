@@ -33,7 +33,7 @@ set session sql_log_bin=1;
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ############################################################
 # 3. Crash server 3 and it will restart.
@@ -41,7 +41,7 @@ include/rpl_sync.inc
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
 #
 # Restarting server 3
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 ############################################################
 # 4. Check that all members are still in the group on
@@ -89,7 +89,7 @@ SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 #    table t1 which should be replicated to servers 1 and 2.
 [connection server3]
 INSERT INTO t1 VALUES (3);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server1:t1, server2:t1, server3:t1]
 
 ############################################################

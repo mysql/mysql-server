@@ -31,14 +31,14 @@
 # One Master and 8 Slaves in the semi sync topology.
 #
 --let rpl_topology=1->2, 1->3, 1->4, 1->5, 1->6, 1->7, 1->8, 1->9
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --echo #
 --echo # 1. Initial data.
 --echo #
 call mtr.add_suppression("Timeout waiting for reply of binlog");
 CREATE TABLE t1(c1 INT);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #
 --echo # 2. Install semisync on all the 9 servers.
@@ -47,17 +47,17 @@ CREATE TABLE t1(c1 INT);
 while ($i < 10)
 {
   --let $rpl_connection_name= server_$i
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   if ( $i == 1)
   {
     --connect(server1_1, localhost,root,,,$MASTER_MYPORT)
     CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
-    --source include/install_semisync_source.inc
+    --source include/rpl/install_semisync_source.inc
   }
   if ( $i != 1 )
   {
     CALL mtr.add_suppression("Semi-sync replica net_flush.*");
-    --source include/install_semisync_replica.inc
+    --source include/rpl/install_semisync_replica.inc
   }
   --inc $i
 }
@@ -66,7 +66,7 @@ while ($i < 10)
 --echo # 3. Make Master aware of 8 semisync slaves.
 --echo #
 --let $rpl_connection_name= server1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $slaves = 8
 --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
 
@@ -90,14 +90,14 @@ while ( $iter < 50 )
   # Random server_id generator ( server_id will between [2-9]
   --let $server_id=`SELECT FLOOR(2 + ((RAND() * 100) % 8))`
   --let $rpl_connection_name= server_$server_id
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --let $service_state= `SELECT service_state FROM performance_schema.replication_connection_status`
   if ($service_state == 'ON')
   {
     # If the replication state is ON, bring it down.
-    --source include/stop_slave.inc
+    --source include/rpl/stop_replica.inc
     --let $rpl_connection_name= server1_1
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     # Adjust rpl_semi_sync_source_wait_for_replica_count variable.
     --dec $slaves
     --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
@@ -105,9 +105,9 @@ while ( $iter < 50 )
   if ($service_state == 'OFF')
   {
     # If the replication state is OFF, bring it up.
-    --source include/start_slave.inc
+    --source include/rpl/start_replica.inc
     --let $rpl_connection_name= server1_1
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     # Adjust rpl_semi_sync_source_wait_for_replica_count variable.
     --inc $slaves
     --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
@@ -125,13 +125,13 @@ while ( $iter < 50 )
 while ($iter <= 9)
 {
   --let $rpl_connection_name= server_$iter
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   --let $service_state= `SELECT service_state FROM performance_schema.replication_connection_status`
   if ($service_state == 'OFF')
   {
-    --source include/start_slave.inc
+    --source include/rpl/start_replica.inc
     --let $rpl_connection_name= server1_1
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     # Adjust rpl_semi_sync_source_wait_for_replica_count variable.
     --inc $slaves
     --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
@@ -148,12 +148,12 @@ while ($iter <= 9)
 --echo # 7. Make sure the data is synced on Master without any issues.
 --echo #
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_timeout= 60
 --let $wait_condition= SELECT count(*) = 1000 FROM t1
 --source include/wait_condition.inc
 --let $slave_timeout=600
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo #
 --echo # 8. Check on all servers semisync is enabled after the
@@ -164,20 +164,20 @@ while ($iter <= 9)
 while ($i >= 1)
 {
   --let $rpl_connection_name= server_$i
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   if ( $i == 1)
   {
     --let $assert_variable_name= rpl_semi_sync_source_enabled
     --let $assert_variable_value= 1
     --source include/assert_variable.inc
-    --source include/uninstall_semisync_source.inc
+    --source include/rpl/uninstall_semisync_source.inc
   }
   if ( $i != 1 )
   {
     --let $assert_variable_name= rpl_semi_sync_replica_enabled
     --let $assert_variable_value= 1
     --source include/assert_variable.inc
-    --source include/uninstall_semisync_replica.inc
+    --source include/rpl/uninstall_semisync_replica.inc
   }
   --dec $i
 }
@@ -186,6 +186,6 @@ while ($i >= 1)
 --echo # 9. Cleanup time.
 --echo #
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

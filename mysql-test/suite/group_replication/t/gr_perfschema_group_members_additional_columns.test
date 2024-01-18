@@ -58,7 +58,7 @@
 --echo #####################################################################
 ## Start server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 ## Assert MEMBER_ROLE and MEMBER_VERSION are not set on server2
 
@@ -88,7 +88,7 @@
 
 ## Assert MEMBER_ROLE and MEMBER_VERSION are correct on server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Assert MEMBER_ROLE
 --let $_member_role_= query_get_value(SELECT MEMBER_ROLE FROM performance_schema.replication_group_members where member_id='$server1_uuid', MEMBER_ROLE, 1)
@@ -118,7 +118,7 @@
 
 ## Assert MEMBER_ROLE and MEMBER_VERSION are correct on server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Assert MEMBER_ROLE
 --let $_member_role_= query_get_value(SELECT MEMBER_ROLE FROM performance_schema.replication_group_members where member_id='$server1_uuid', MEMBER_ROLE, 1)

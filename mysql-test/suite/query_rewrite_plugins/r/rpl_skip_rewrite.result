@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 # Install plugin and add rewrite rule on replica
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Query rewrite plugin was installed.
 SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_VERSION, PLUGIN_TYPE_VERSION
 FROM information_schema.plugins
@@ -27,16 +27,16 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 SET SESSION binlog_format = 'STATEMENT';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CREATE USER 'replication_applier'@'localhost';
 GRANT SYSTEM_VARIABLES_ADMIN, REPLICATION_APPLIER, CREATE, INSERT, DELETE, SKIP_QUERY_REWRITE on *.* to 'replication_applier'@'localhost';
 FLUSH PRIVILEGES;
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
-include/start_slave.inc
+include/rpl/start_replica.inc
 CREATE TABLE test.t1 ( a INT, b INT , c INT, PRIMARY KEY(a));
 INSERT INTO test.t1 (a, b) VALUES (1, 2);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Replicated INSERTs are not rewritten, so rows at replica match source
 #
@@ -49,7 +49,7 @@ REVOKE SKIP_QUERY_REWRITE ON *.* FROM 'replication_applier'@'localhost';
 FLUSH PRIVILEGES;
 DELETE FROM test.t1;
 INSERT INTO test.t1 (a, b) VALUES (3, 4);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Replicated INSERTs are rewritten, so rows at replica do not match source
 #
@@ -59,12 +59,12 @@ include/assert.inc [Replicated INSERT should be rewritten]
 # rewriter_enabled_for_threads_without_privilege_checks = OFF
 #
 SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = OFF;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
-include/start_slave.inc
+include/rpl/start_replica.inc
 DELETE FROM test.t1;
 INSERT INTO test.t1 (a, b) VALUES (5, 6);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Replicated INSERTs are not rewritten, so rows at replica match source
 #
@@ -76,7 +76,7 @@ include/assert.inc [Replicated INSERT should not be rewritten]
 SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = ON;
 DELETE FROM test.t1;
 INSERT INTO test.t1 (a, b) VALUES (7, 8);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Replicated INSERTs are rewritten, so rows at replica do not match source
 #
@@ -90,9 +90,9 @@ DROP TABLE test.t1;
 SET GLOBAL binlog_format=@saved_binlog_format;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = DEFAULT;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
 # Query rewrite plugin was queued for uninstalling.
-include/rpl_end.inc
+include/rpl/deinit.inc

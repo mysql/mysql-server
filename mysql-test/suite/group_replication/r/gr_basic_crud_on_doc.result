@@ -320,7 +320,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 send Mysqlx.Crud.Update {
   collection {
     name: "characters"
@@ -510,7 +510,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 send Mysqlx.Crud.Insert {
   collection {
     name: "characters"
@@ -694,7 +694,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-include/rpl_sync.inc
+include/rpl/sync.inc
 Stopping GR on server 1
 RUN STOP GROUP_REPLICATION;
 

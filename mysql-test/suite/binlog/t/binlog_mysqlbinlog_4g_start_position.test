@@ -56,7 +56,7 @@ FLUSH LOGS;
 --echo #
 --echo # 4) Get the filename of the binary log.
 --echo #
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo #
 --echo # 5) Run a query to get events in mysqlbinlog greater than 4GB.

@@ -15,15 +15,15 @@ source include/have_binlog_format_statement.inc;
 --source include/not_have_privilege_checks_user.inc
 
 --let $rpl_topology= 1->2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= master
 --let $rpl_server_number= 1
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $rpl_connection_name= slave
 --let $rpl_server_number= 2
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --disable_query_log
 --connection server_1
@@ -62,49 +62,49 @@ connection conn1;
 --echo # [On conn1]
 --echo # Verify 'REVOKE ALL' statement
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM CURRENT_USER();
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_user, server_2:v_user, server_3:v_user;
 source include/diff_tables.inc;
 
 --echo 
 --echo # Verify 'GRANT ... ON TABLE ...' statement
 GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv;
 source include/diff_tables.inc;
 
 --echo 
 --echo # Verify 'GRANT ... ON PROCEDURE...' statement
 GRANT ALTER ROUTINE, EXECUTE ON PROCEDURE p1 TO CURRENT_USER();
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv;
 source include/diff_tables.inc;
 
 --echo 
 --echo # Verify 'GRANT ... ON *.* ...' statement
 GRANT ALL PRIVILEGES ON *.* TO CURRENT_USER() WITH GRANT OPTION;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv;
 source include/diff_tables.inc;
 
 --echo 
 --echo # Verify 'REVOKE ... ON TABLE ...' statement
 REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv;
 source include/diff_tables.inc;
 
 --echo 
 --echo # Verify 'REVOKE ... ON PROCEDURE...' statement
 REVOKE ALTER ROUTINE, EXECUTE ON PROCEDURE p1 FROM CURRENT_USER();
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv;
 source include/diff_tables.inc;
 
 --echo 
 --echo # Verify 'REVOKE ... ON *.* ...' statement
 REVOKE ALL PRIVILEGES ON *.* FROM CURRENT_USER();
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_user, server_2:v_user, server_3:v_user;
 source include/diff_tables.inc;
 
@@ -113,7 +113,7 @@ source include/diff_tables.inc;
 CREATE PROCEDURE my_grant()
   GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
 call my_grant;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv;
 source include/diff_tables.inc;
 
@@ -122,14 +122,14 @@ source include/diff_tables.inc;
 CREATE PROCEDURE my_revoke()
   REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
 call my_revoke;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv;
 source include/diff_tables.inc;
 
 --echo 
 --echo # Verify 'RENAME USER ...' statement
 RENAME USER CURRENT_USER TO 'bug48321_2'@'localhost';
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_user, server_2:v_user, server_3:v_user;
 source include/diff_tables.inc;
 
@@ -142,7 +142,7 @@ GRANT CREATE USER ON *.* TO 'bug48321_2'@'localhost';
 connect (conn1, 127.0.0.1, 'bug48321_2'@'localhost',,);
 connection conn1;
 DROP USER CURRENT_USER();
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_user, server_2:v_user, server_3:v_user;
 source include/diff_tables.inc;
 
@@ -153,7 +153,7 @@ CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT * FROM t1;
 
 --echo # Explicitly assign CURRENT_USER() to definer
 ALTER DEFINER=CURRENT_USER() EVENT e1 ENABLE;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_event, server_2:v_event, server_3:v_event;
 source include/diff_tables.inc;
 
@@ -161,7 +161,7 @@ source include/diff_tables.inc;
 --echo # Session user will be set as definer, if the statement does not assign
 --echo # a definer
 ALTER EVENT e1 ENABLE;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 let $diff_tables= server_1:v_event, server_2:v_event, server_3:v_event;
 source include/diff_tables.inc;
 
@@ -172,25 +172,25 @@ connection master;
 --echo # [On master]
 INSERT INTO t1 VALUES(CURRENT_USER()), ('1234');
 SELECT * FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection slave
 --echo # [On slave]
 SELECT * FROM t1;
 --echo # [On server_3]
 --let $sync_slave_connection= server_3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 
 connection master;
 --echo # [On master]
 UPDATE t1 SET c1=CURRENT_USER() WHERE c1='1234';
 SELECT * FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection slave
 --echo # [On slave]
 SELECT * FROM t1;
 --let $sync_slave_connection= server_3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo # [On server_3]
 SELECT * FROM t1;
 
@@ -198,12 +198,12 @@ connection master;
 --echo # [On master]
 DELETE FROM t1 WHERE c1=CURRENT_USER();
 SELECT * FROM t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection slave
 --echo # [On slave]
 SELECT * FROM t1;
 --let $sync_slave_connection= server_3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo # [On server_3]
 SELECT * FROM t1;
 
@@ -223,13 +223,13 @@ DELIMITER ;|
 INSERT INTO t1 VALUES(my_user());
 SELECT * FROM t1;
 SELECT * FROM t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection slave
 --echo # [On slave]
 SELECT * FROM t1;
 SELECT * FROM t2;
 --let $sync_slave_connection= server_3
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo # [On server_3]
 SELECT * FROM t1;
 SELECT * FROM t2;
@@ -244,5 +244,5 @@ DROP PROCEDURE my_grant;
 DROP PROCEDURE my_revoke;
 DROP FUNCTION my_user;
 DROP EVENT e1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

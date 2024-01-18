@@ -6,7 +6,7 @@
 #
 # ==== Implementation ====
 #
-# Please see binlog_rotate_binlog_master_key_errors.inc
+# Please see common/binlog/rotate_common/binlog/master_key_errors.inc
 #
 # ==== References ====
 #
@@ -28,7 +28,7 @@ CREATE TABLE t1 (c1 INT);
 
 --let $first_encrypted_binary_log=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$first_encrypted_binary_log
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=the first encrypted binary log is encrypted using first master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
@@ -45,7 +45,7 @@ CREATE TABLE t1 (c1 INT);
 --let $rotated_master_key_id=2
 --let $rotated_comparison_digit=2
 --let $rotate_binary_log=0
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
 # is emitted to the client side when executing the command
@@ -56,7 +56,7 @@ CREATE TABLE t1 (c1 INT);
 --let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
 --let $current_master_key_id=3
 --let $rotated_master_key_id=4
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
 # is emitted to the client side when executing the command
@@ -67,7 +67,7 @@ CREATE TABLE t1 (c1 INT);
 --let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
 --let $current_master_key_id=5
 --let $rotated_master_key_id=6
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
 # is emitted to the client side when executing the command
@@ -79,7 +79,7 @@ CREATE TABLE t1 (c1 INT);
 --let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
 --let $current_master_key_id=7
 --let $rotated_master_key_id=8
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
 # is emitted to the client side when executing the command
@@ -91,7 +91,7 @@ CREATE TABLE t1 (c1 INT);
 --let $current_master_key_id=9
 --let $rotated_master_key_id=10
 --let $rotated_comparison_digit=3
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
 # is emitted to the client side when executing the command
@@ -103,7 +103,7 @@ CREATE TABLE t1 (c1 INT);
 --let $current_master_key_id=11
 --let $current_comparison_digit=3
 --let $rotated_master_key_id=12
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
 # is emitted to the client side when executing the command
@@ -115,7 +115,7 @@ CREATE TABLE t1 (c1 INT);
 --let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
 --let $current_master_key_id=13
 --let $rotated_master_key_id=14
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
 # is emitted to the client side when executing the command
@@ -126,7 +126,7 @@ CREATE TABLE t1 (c1 INT);
 --let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
 --let $current_master_key_id=15
 --let $rotated_master_key_id=16
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
 # is emitted to the client side when executing the command
@@ -137,7 +137,7 @@ CREATE TABLE t1 (c1 INT);
 --let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
 --let $current_master_key_id=17
 --let $rotated_master_key_id=18
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_ROTATE_LOGS'
 # is emitted to the client side when executing the command
@@ -149,7 +149,7 @@ CREATE TABLE t1 (c1 INT);
 --let $current_master_key_id=19
 --let $rotated_master_key_id=20
 --let $rotate_binary_log=1
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
 # is emitted to the client side when executing the command
@@ -160,7 +160,7 @@ CREATE TABLE t1 (c1 INT);
 --let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
 --let $current_master_key_id=20
 --let $rotated_master_key_id=21
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
 # is emitted to the client side when executing the command
@@ -217,7 +217,7 @@ ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 FLUSH BINARY LOGS;
 --let $current_master_key_id=21
 --let $rotated_master_key_id=22
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 --echo #
 --echo # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
@@ -263,7 +263,7 @@ FLUSH BINARY LOGS;
 --let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
 --let $current_master_key_id=22
 --let $rotated_master_key_id=23
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
 # is emitted to the client side when executing the command
@@ -274,7 +274,7 @@ FLUSH BINARY LOGS;
 --let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
 --let $current_master_key_id=24
 --let $rotated_master_key_id=25
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that a warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS'
 # is emitted to the client side when executing the command
@@ -285,7 +285,7 @@ FLUSH BINARY LOGS;
 --let $expected_error=0
 --let $current_master_key_id=26
 --let $rotated_master_key_id=27
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 # The following test cases do not need to rotate binary log.
 --let $rotate_binary_log=0
 
@@ -298,7 +298,7 @@ FLUSH BINARY LOGS;
 --let $expected_error=0
 --let $current_master_key_id=28
 --let $rotated_master_key_id=29
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that a warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS'
 # is emitted to the client side when executing the command
@@ -309,7 +309,7 @@ FLUSH BINARY LOGS;
 --let $expected_error=0
 --let $current_master_key_id=30
 --let $rotated_master_key_id=31
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that a warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS'
 # is emitted to the client side when executing the command
@@ -320,7 +320,7 @@ FLUSH BINARY LOGS;
 --let $expected_error=0
 --let $current_master_key_id=32
 --let $rotated_master_key_id=33
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY'
 # is emitted to the client side when executing the command
@@ -331,7 +331,7 @@ FLUSH BINARY LOGS;
 --let $expected_error=0
 --let $current_master_key_id=34
 --let $rotated_master_key_id=35
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY'
 # is emitted to the client side when executing the command
@@ -342,7 +342,7 @@ FLUSH BINARY LOGS;
 --let $expected_error=0
 --let $current_master_key_id=36
 --let $rotated_master_key_id=37
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that a warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS'
 # is emitted to the client side when executing the command
@@ -353,7 +353,7 @@ FLUSH BINARY LOGS;
 --let $expected_error=0
 --let $current_master_key_id=38
 --let $rotated_master_key_id=39
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
 # is emitted to the client side when executing the command
@@ -383,7 +383,7 @@ ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 
 --let $current_master_key_id=39
 --let $rotated_master_key_id=41
---source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+--source common/binlog/rotate_binlog_master_key_work.inc
 
 
 # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
@@ -395,7 +395,7 @@ ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 --let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
 --let $current_master_key_id=42
 --let $rotated_master_key_id=43
---source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+--source common/binlog/rotate_binlog_master_key_errors.inc
 
 DROP TABLE t1;
 --source ../mysql-test/suite/component_keyring_file/inc/teardown_component.inc

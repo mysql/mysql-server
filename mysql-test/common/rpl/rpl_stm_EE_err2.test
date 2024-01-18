@@ -1,0 +1,45 @@
+###################################
+# Author: JBM
+# Date: 2006-01-11
+# Purpose: Second test case from
+#          rpl_EE_err.test split out
+#          from orginal to make the
+#          first work with both RBR and SBR
+###################################
+#REQUIREMENT: An INSERT with a faked duplicate entry error on
+#master should be replicated to slave and force the slave to stop
+#(since the slave can't cause a faked error to re-occur).
+###################################
+
+-- source include/rpl/init_source_replica.inc
+
+connection master;
+eval create table t1 (a int, unique(a)) engine=$engine_type;
+set sql_log_bin=0;
+insert into t1 values(2);
+set sql_log_bin=1;
+
+--error ER_DUP_ENTRY
+insert into t1 values(1),(2);
+drop table t1;
+
+connection slave;
+--let $err= convert_error(ER_INCONSISTENT_ERROR)
+--eval call mtr.add_suppression("Replica SQL.*Query caused different errors on source and replica.*Error on source:.* error code=1062.*Error on replica:.* Error_code: MY-0$err")
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+--echo (expect different error codes on master and slave)
+--let $slave_sql_errno= $err
+# can't print error text. MTS reports a separate error in this case.
+# Todo: to fix single-threaded-slave BUG#57287.
+--let $show_slave_sql_error= 0
+--source include/rpl/wait_for_applier_error.inc
+drop table t1;
+--source include/rpl/stop_replica.inc
+# Clear error messages.
+RESET REPLICA;
+
+# End of 4.1 tests
+
+--let $rpl_only_running_threads= 1
+--source include/rpl/deinit.inc

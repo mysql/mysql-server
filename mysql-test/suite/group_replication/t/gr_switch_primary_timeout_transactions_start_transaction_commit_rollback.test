@@ -52,7 +52,7 @@
 --echo # 1. Setup group of 2 servers, M1(primary) and M2(secondary).
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -61,7 +61,7 @@
 CREATE TABLE t1(c1 int primary key);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -73,7 +73,7 @@ CREATE TABLE t1(c1 int primary key);
 --echo #    Execute primary change from server2(secondary).
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START TRANSACTION;
 INSERT INTO t1 values(1);
@@ -81,12 +81,12 @@ SET DEBUG_SYNC="after_implicit_pre_commit SIGNAL reached_after_implicit_pre_comm
 --send COMMIT;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR reached_after_implicit_pre_commit";
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --eval SELECT group_replication_set_as_primary("$server2_uuid", 0);
@@ -96,12 +96,12 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_after_implicit_pre_commit";
 --echo #    Assert data is not present on M1 and M2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -118,12 +118,12 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_after_implicit_pre_commit";
 --echo #    and client connection dropped.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL continue_from_after_implicit_pre_commit";
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error CR_SERVER_LOST
 --reap
 
@@ -136,7 +136,7 @@ SET DEBUG_SYNC= 'RESET';
 --echo #    Begin change of primary from server2(primary).
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,trans_delegate_before_commit_before_before_call_observers';
 
@@ -145,7 +145,7 @@ INSERT INTO t1 values(1);
 --send COMMIT;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.trans_delegate_before_commit_before_before_call_observers_reached";
 SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observers';
@@ -158,12 +158,12 @@ SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observer
 --echo #    Assert data is not present on M1 and M2.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -182,7 +182,7 @@ SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observer
 SET DEBUG_SYNC= "now SIGNAL signal.trans_delegate_before_commit_before_before_call_observers_waiting";
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error CR_SERVER_LOST
 --reap
@@ -197,7 +197,7 @@ SET DEBUG_SYNC= 'RESET';
 --echo #    Execute primary change from server2(secondary).
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START TRANSACTION;
 SELECT * FROM t1;
@@ -205,12 +205,12 @@ SET DEBUG_SYNC="after_implicit_pre_commit SIGNAL reached_after_implicit_pre_comm
 --send COMMIT;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR reached_after_implicit_pre_commit";
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --eval SELECT group_replication_set_as_primary("$server2_uuid", 0);
@@ -219,12 +219,12 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_after_implicit_pre_commit";
 --echo # 9. Assert primary changed.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -234,12 +234,12 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_after_implicit_pre_commit";
 --echo #    and client connection dropped.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL continue_from_after_implicit_pre_commit";
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --error CR_SERVER_LOST
 --reap
 
@@ -253,7 +253,7 @@ SET DEBUG_SYNC= 'RESET';
 --echo #    Execute primary change from server2(primary).
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START TRANSACTION;
 SELECT * FROM t1;
@@ -261,7 +261,7 @@ SET DEBUG_SYNC="after_implicit_pre_commit SIGNAL reached_after_implicit_pre_comm
 --send COMMIT;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR reached_after_implicit_pre_commit";
 
@@ -272,12 +272,12 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_after_implicit_pre_commit";
 --echo # 12. Assert primary changed.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -289,7 +289,7 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_after_implicit_pre_commit";
 SET DEBUG_SYNC= "now SIGNAL continue_from_after_implicit_pre_commit";
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error CR_SERVER_LOST
 --reap
@@ -302,9 +302,9 @@ SET DEBUG_SYNC= 'RESET';
 --echo # 14. Cleanup.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --source include/group_replication_end.inc

@@ -26,7 +26,7 @@
 --source include/not_group_replication_plugin.inc
 --let $rpl_skip_start_slave= 1
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Initialize ====
 --connection slave
@@ -44,13 +44,13 @@ SET @old_relay_log_purge= @@global.relay_log_purge;
 
 # the relay log contains CREATE SCHEMA db1; CREATE PROCEDURE p_...
 --let $fake_relay_log = $MYSQL_TEST_DIR/std_data/bug27213339-bin.000001
---source include/setup_fake_relay_log.inc
+--source include/rpl/setup_fake_relay_log.inc
 
 --echo ==== Test ====
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 --let $slave_param= Exec_Source_Log_Pos
 --let $slave_param_value=11102
---source include/wait_for_slave_param.inc
+--source include/rpl/wait_for_replica_status.inc
 
 --echo ==== Check ====
 
@@ -107,8 +107,8 @@ SHOW CREATE TRIGGER db1.t1;
 
 DROP SCHEMA db1;
 
---source include/stop_slave_sql.inc
---source include/cleanup_fake_relay_log.inc
+--source include/rpl/stop_applier.inc
+--source include/rpl/cleanup_fake_relay_log.inc
 
 #
 # Dump the relay binlog file using mysqlbinlog to show sql_mode filtering:
@@ -120,9 +120,9 @@ DROP SCHEMA db1;
 #
 let $MYSQLD_DATADIR= `select @@datadir`;
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQL_TEST_DIR/std_data/bug27213339-bin.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 
 SET @@global.relay_log_purge= @old_relay_log_purge;
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

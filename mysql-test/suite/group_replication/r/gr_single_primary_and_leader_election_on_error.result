@@ -34,7 +34,7 @@ include/gr_wait_primary_member_uuid.inc
 #
 [connection server1]
 CREATE TABLE `table1`(`id` INT PRIMARY KEY AUTO_INCREMENT, `value` VARCHAR(50));
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ## INSERT SAME ROW ON SERVER1 AND SERVER2
 SET SQL_LOG_BIN= 0;

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,16 +13,16 @@ SET SESSION sql_log_bin = 1;
 #
 CREATE TABLE t (a INT);
 CREATE DATABASE ignored;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements*");
 SET SESSION sql_log_bin = 1;
 # 2. On replica: Stop replica and create ignore_db replication filter for
 #    database 'ignored'. Start replica.
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = (ignored);
-include/start_slave.inc
+include/rpl/start_replica.inc
 # 3. On source: Start a new XA transaction, insert data in test.t table.
 #
 [connection master]
@@ -39,16 +39,16 @@ USE ignored;
 XA END 'a';
 XA PREPARE 'a';
 XA COMMIT 'a';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # 5. Confirm data is replicated successfully.
 #
 include/assert.inc ['There is a value 1 in table t']
 # 6. Cleanup.
 #
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE test.t;
 DROP DATABASE ignored;
-include/rpl_end.inc
+include/rpl/deinit.inc

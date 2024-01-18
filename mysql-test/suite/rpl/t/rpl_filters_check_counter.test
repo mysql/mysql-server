@@ -24,12 +24,12 @@
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Setup filters on the Slave.
 --echo #
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=        ((db1, db2));
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=      (test.itable);
 CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=          (test.t1, db2.t1);
@@ -47,12 +47,12 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=             (test, db1, db2);
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
 --replace_result $rpl_do_tab_rule test.t1,db2.t1
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_NAME;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo #
 --echo # Execute transactions on the Master.
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE test.t1 (a INT);      # Counter: REPLICATE_DO_DB=1, REPLICATE_DO_TABLE=1.
 CREATE TABLE test.t2 (a INT);      # Counter: REPLICATE_DO_DB=2, REPLICATE_WILD_DO_TABLE=1.
 CREATE TABLE test.itable (a INT);  # Counter: REPLICATE_DO_DB=3, REPLICATE_IGNORE_TABLE=1.
@@ -94,7 +94,7 @@ DROP DATABASE db1;  # Counter: REPLICATE_DO_DB=21.
 DROP DATABASE db2;  # Counter: REPLICATE_DO_DB=22.
 DROP DATABASE nodb; # Counter: Should not increase based on existing implementation.
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo #
 --echo # Verify the filter couter on the Slave.
 --echo # REPLICATE_DO_DB=22,       REPLICATE_IGNORE_DB=0,     REPLICATE_DO_TABLE=12,
@@ -110,7 +110,7 @@ SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.
 --echo #
 --echo # Clean up and Verify filter couter after unsetting the rules. Expect 0 count.
 --echo #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 # Unset filter rules.
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=        ();
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=      ();
@@ -122,5 +122,5 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=             ();
 --echo
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_NAME;
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

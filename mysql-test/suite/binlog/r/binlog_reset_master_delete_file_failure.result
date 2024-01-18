@@ -7,7 +7,7 @@ RESET BINARY LOGS AND GTIDS;
 #           as binlog file name
 #
 # 1.1. Save current binlog file name
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 #
 # 1.2 Generate new binlog
 FLUSH BINARY LOGS;

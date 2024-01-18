@@ -10,8 +10,8 @@
 
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_statement.inc;
---source include/set_privilege_checks_user_as_system_user.inc
-source include/master-slave.inc;
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+source include/rpl/init_source_replica.inc;
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 
@@ -23,7 +23,7 @@ DROP TRIGGER IF EXISTS tr1;
 DROP FUNCTION IF EXISTS f1;
 --enable_warnings
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection master
 
 
@@ -75,14 +75,14 @@ delimiter ;//
 --let $mask_binlog_commit_events= 1
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 CALL p1();
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 --let $mask_binlog_commit_events= 0
 
 echo # Result on master;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 echo # Result on slave;
 SELECT * FROM t1;
@@ -97,14 +97,14 @@ DROP TRIGGER tr1;
 --let $mask_binlog_commit_events= 1
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 CALL p2();
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 --let $mask_binlog_commit_events= 0
 
 echo # Result on master;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 echo # Result on slave;
 SELECT * FROM t1;
@@ -119,5 +119,5 @@ DROP PROCEDURE IF EXISTS p2;
 DROP FUNCTION IF EXISTS f1;
 DROP TRIGGER IF EXISTS tr1;
 enable_warnings;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression('.*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*');
 SET SESSION sql_log_bin= 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 [connection master]
@@ -17,14 +17,14 @@ CREATE TABLE t1 (id INT, c INT, j JSON NOT NULL,
 UNIQUE INDEX i1((CAST(CAST(j AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
 Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
@@ -37,14 +37,14 @@ UNIQUE INDEX i1((CAST(CAST(j AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 INSERT INTO t1 VALUES (3, 3, NULL);
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
 Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
@@ -57,14 +57,14 @@ INDEX i1((CAST(CAST(j AS JSON) AS UNSIGNED ARRAY))));
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
 Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
@@ -77,14 +77,14 @@ INDEX i1((CAST(CAST(j AS JSON) AS UNSIGNED ARRAY)), id));
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
 Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
@@ -92,4 +92,4 @@ Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DROP TABLE t1;
 FLUSH LOGS;
-include/rpl_end.inc
+include/rpl/deinit.inc

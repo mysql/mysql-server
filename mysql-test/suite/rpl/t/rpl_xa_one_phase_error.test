@@ -20,7 +20,7 @@
 ###############################################################################
 # This test case is specific to binlog_format=statement
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Suppression of error messages
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
@@ -31,11 +31,11 @@ XA START 'xatest';
 DELETE FROM t1 where id=1;
 XA END 'xatest';
 XA COMMIT 'xatest' ONE PHASE;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let diff_tables=master:test.t1, slave:test.t1
 --source include/diff_tables.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -30,7 +30,7 @@
 --echo #    group_replication_view_change_uuid, thence it will not
 --echo #    send it to group on join the handshake.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_view_change_uuid';
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -41,7 +41,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_view_change_uuid';
 --echo #    group_replication_view_change_uuid = UUID
 --echo #    to the group, it shall pass.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
@@ -67,12 +67,12 @@ SET @@GLOBAL.group_replication_view_change_uuid = AUTOMATIC;
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG='-d,group_replication_skip_encode_view_change_uuid';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
 

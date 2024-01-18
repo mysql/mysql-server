@@ -1,6 +1,6 @@
 #multi delete replication bugs 
 --source include/not_group_replication_plugin.inc
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 #BUG#11139 - improper wild-table and table rules
 #checking for multi deletes with an alias
@@ -26,7 +26,7 @@ SELECT * FROM a;
 insert into a values(2),(3);
 delete alias FROM a alias where alias.i=2;
 select * from a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 use mysqltest_to;
 select * from a;
@@ -63,4 +63,4 @@ drop database mysqltest_to;
 
 # End of 4.1 tests
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

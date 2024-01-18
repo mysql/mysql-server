@@ -1,16 +1,16 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 # Adding debug point 'rpl_ps_tables' to @@GLOBAL.debug
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 [connection master]
 CREATE TABLE t (a int);
 [connection slave]
 # Adding debug point 'rpl_ps_tables_queue' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 SET debug_sync= 'now WAIT_FOR signal.rpl_ps_tables_queue_before';
 # Removing debug point 'rpl_ps_tables_queue' from @@GLOBAL.debug
 SET debug_sync= 'now SIGNAL signal.rpl_ps_tables_queue_finish';
@@ -66,12 +66,12 @@ include/assert.inc [Assert that the OCT of the last applied and currently applyi
 include/assert.inc [Assert that the ICT of the last applied and currently applying is the same]
 include/assert.inc [Assert that the start time of the last applied and currently applying is the same]
 include/assert.inc [Assert that the end time of the last applied was cleared]
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 [connection master]
 INSERT INTO t VALUES(1);
 [connection slave]
 # Adding debug point 'rpl_ps_tables_queue' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 SET debug_sync= 'now WAIT_FOR signal.rpl_ps_tables_queue_before';
 # Removing debug point 'rpl_ps_tables_queue' from @@GLOBAL.debug
 SET debug_sync= 'now SIGNAL signal.rpl_ps_tables_queue_finish';
@@ -127,12 +127,12 @@ include/assert.inc [Assert that the OCT of the last applied and currently applyi
 include/assert.inc [Assert that the ICT of the last applied and currently applying is the same]
 include/assert.inc [Assert that the start time of the last applied and currently applying is the same]
 include/assert.inc [Assert that the end time of the last applied was cleared]
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 [connection master]
 UPDATE t SET a=2;
 [connection slave]
 # Adding debug point 'rpl_ps_tables_queue' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 SET debug_sync= 'now WAIT_FOR signal.rpl_ps_tables_queue_before';
 # Removing debug point 'rpl_ps_tables_queue' from @@GLOBAL.debug
 SET debug_sync= 'now SIGNAL signal.rpl_ps_tables_queue_finish';
@@ -188,12 +188,12 @@ include/assert.inc [Assert that the OCT of the last applied and currently applyi
 include/assert.inc [Assert that the ICT of the last applied and currently applying is the same]
 include/assert.inc [Assert that the start time of the last applied and currently applying is the same]
 include/assert.inc [Assert that the end time of the last applied was cleared]
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 [connection master]
 DELETE FROM t WHERE a=2;
 [connection slave]
 # Adding debug point 'rpl_ps_tables_queue' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 SET debug_sync= 'now WAIT_FOR signal.rpl_ps_tables_queue_before';
 # Removing debug point 'rpl_ps_tables_queue' from @@GLOBAL.debug
 SET debug_sync= 'now SIGNAL signal.rpl_ps_tables_queue_finish';
@@ -249,12 +249,12 @@ include/assert.inc [Assert that the OCT of the last applied and currently applyi
 include/assert.inc [Assert that the ICT of the last applied and currently applying is the same]
 include/assert.inc [Assert that the start time of the last applied and currently applying is the same]
 include/assert.inc [Assert that the end time of the last applied was cleared]
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 [connection master]
 DROP TABLE t;
 [connection slave]
 # Adding debug point 'rpl_ps_tables_queue' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 SET debug_sync= 'now WAIT_FOR signal.rpl_ps_tables_queue_before';
 # Removing debug point 'rpl_ps_tables_queue' from @@GLOBAL.debug
 SET debug_sync= 'now SIGNAL signal.rpl_ps_tables_queue_finish';
@@ -311,13 +311,13 @@ include/assert.inc [Assert that the ICT of the last applied and currently applyi
 include/assert.inc [Assert that the start time of the last applied and currently applying is the same]
 include/assert.inc [Assert that the end time of the last applied was cleared]
 # Removing debug point 'rpl_ps_tables' from @@GLOBAL.debug
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 include/assert.inc [Assert that the gtid is kept while the slave is stopped]
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc [Assert that the gtid is clear because the slave was stopped and started]
 [connection master]
 SET SESSION GTID_NEXT= AUTOMATIC;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET SQL_LOG_BIN= 0;
 CREATE TABLE t1(i INT);
@@ -330,24 +330,24 @@ call mtr.add_suppression("Replica SQL for channel '': ... The replica coordinato
 [connection master]
 DROP TABLE t1;
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=1051]
+include/rpl/wait_for_applier_error.inc [errno=1051]
 include/assert.inc [LAST_APPLIED_TRANSACTION did not change after the failed DDL]
 include/assert.inc [APPLYING_TRANSACTION is equal to the failed transaction GTID]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 [connection master]
-include/rpl_reset.inc
+include/rpl/reset.inc
 SET SQL_LOG_BIN= 0;
 CREATE TABLE t1(i INT);
 SET SQL_LOG_BIN= 1;
 INSERT INTO t1 VALUES (1);
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=1146]
+include/rpl/wait_for_applier_error.inc [errno=1146]
 include/assert.inc [LAST_APPLIED_TRANSACTION did not change after the failed DML]
 include/assert.inc [APPLYING_TRANSACTION is equal to the failed transaction GTID]
 [connection master]
 SET SQL_LOG_BIN= 0;
 DROP TABLE t1;
 SET SQL_LOG_BIN= 1;
-include/rpl_reset.inc
+include/rpl/reset.inc
 [connection master]
-include/rpl_end.inc
+include/rpl/deinit.inc

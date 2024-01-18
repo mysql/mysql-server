@@ -23,12 +23,12 @@
 
 # Boostrap start GR on server1 (Primary)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # Start GR on server2 (Secondary)
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo
@@ -36,13 +36,13 @@
 
 # server1: create table t1 and add data
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO test.t1 VALUES (1);
 
 # server3: create table t2 and add data
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO test.t2 VALUES (1);
 
@@ -50,12 +50,12 @@ INSERT INTO test.t2 VALUES (1);
 --echo
 --echo # 3. Create and start new channel ch3_1: server1(slave), server3(master)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
 
 --let $rpl_channel_name='ch3_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --echo
@@ -73,17 +73,17 @@ INSERT INTO test.t2 VALUES (1);
 
 # Sync slave(server1) with master(server3)
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch3_1'
 --let $sync_slave_connection=server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_channel_name=
 
 # Wait for all servers to be in sync
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Verify two tables (t1 & t2) are present in test database
 --let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
@@ -95,7 +95,7 @@ INSERT INTO test.t2 VALUES (1);
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Verify two tables (t1 & t2) are present in test database
 --let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
@@ -110,7 +110,7 @@ INSERT INTO test.t2 VALUES (1);
 --echo # 6. Clean Up
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 STOP REPLICA FOR CHANNEL 'ch3_1';
 RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 
@@ -118,7 +118,7 @@ DROP TABLE test.t1;
 DROP TABLE test.t2;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE test.t2;
 
 --source include/group_replication_end.inc

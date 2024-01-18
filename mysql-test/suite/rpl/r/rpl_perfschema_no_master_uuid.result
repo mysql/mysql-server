@@ -1,10 +1,10 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 #
 # Explicitly simulate a NULL Source_UUID return value i.e., fake as a pre-5.6 master.
 #
@@ -17,7 +17,7 @@ include/assert.inc [source_uuid field should be non-empty.]
 #
 # START REPLICA will return a NULL for Source_UUID now as per our debug behaviour.
 #
-include/start_slave.inc
+include/rpl/start_replica.inc
 #
 # We dont have a Source_UUID now, so should see an empty output as the Source_UUID value.
 #
@@ -29,9 +29,9 @@ SET GLOBAL debug= @save_debug;
 #
 # After de-activating, the Source_UUID value should be there.
 #
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 #
 # Verify that we have the Source_UUID now.
 #
-include/rpl_end.inc
+include/rpl/deinit.inc

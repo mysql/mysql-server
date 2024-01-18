@@ -25,19 +25,19 @@
 --source include/have_binlog_format_row.inc
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo # Set heartbeat to a small value.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1)
 --eval CHANGE REPLICATION SOURCE TO source_heartbeat_period = 0.1
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo
 --echo # Simulate a delay before signal that binlog is updated
@@ -47,14 +47,14 @@ CREATE TABLE t1 (a INT);
 --echo
 --echo # Generate an update event - Insert value into t1
 INSERT INTO t1 VALUES (1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # assertion: Table has been replicated successfully
 --let $diff_tables=master:t1,slave:t1
 --source include/diff_tables.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --echo
 --echo # Turn off the delay.
 --let $debug_point=simulate_delay_in_binlog_signal_update
@@ -63,12 +63,12 @@ INSERT INTO t1 VALUES (1);
 --echo
 --echo # Clean up
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 --replace_result $heartbeat_timeout HEARTBEAT_PERIOD
 --eval CHANGE REPLICATION SOURCE TO source_heartbeat_period=$heartbeat_timeout
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

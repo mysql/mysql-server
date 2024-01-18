@@ -39,7 +39,7 @@ reset binary logs and gtids;
 
 select * from mysql.ndb_binlog_index order by epoch;
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 show variables like 'ndb_log_empty_epochs';
 
 set global ndb_log_empty_epochs=1;
@@ -72,7 +72,7 @@ where
      bi1.File != bi2.File;
 
 --echo Show that we have no epochs in the Binlog
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo Disable
 set global ndb_log_empty_epochs=0;

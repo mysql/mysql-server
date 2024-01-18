@@ -44,9 +44,9 @@
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $_init_server2_auto_increment= `SELECT @@GLOBAL.AUTO_INCREMENT_INCREMENT`
 --let $_init_server2_auto_offset= `SELECT @@GLOBAL.AUTO_INCREMENT_OFFSET`
@@ -56,7 +56,7 @@
 
 --source include/stop_group_replication.inc
 
-# A RESET BINARY LOGS AND GTIDS was executed in the context of include/master-slave.inc after
+# A RESET BINARY LOGS AND GTIDS was executed in the context of include/rpl/init_source_replica.inc after
 # the server auto started group replication.
 # The server applier logs will be reset to avoid recovery problems.
 RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
@@ -133,7 +133,7 @@ SET DEBUG_SYNC= 'RESET';
 --connection server2
 DROP TABLE t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 #Stop group replication and set the auto_increment values recorded on start
 --source include/stop_group_replication.inc

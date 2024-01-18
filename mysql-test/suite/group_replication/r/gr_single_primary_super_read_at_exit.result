@@ -14,7 +14,7 @@ include/gr_wait_primary_member_uuid.inc
 [connection server1]
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO first(c1) VALUES(2),(4);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 SELECT * FROM first;
 c1

@@ -37,14 +37,14 @@
 --echo # Step-1) Initial Setup which is required for the test.
 --echo #
 RESET BINARY LOGS AND GTIDS;
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
 --let $gtid_event= Anonymous_Gtid
 if ($gtid_mode == 'ON')
 {
-  --source include/gtid_step_reset.inc
+  --source include/rpl/gtid_step_reset.inc
   --let $gtid_event= Gtid
-  --source include/gtid_utils.inc
+  --source include/rpl/gtid_utils.inc
 }
 --echo #
 --echo # Step-1.1) Create four client connections.
@@ -97,7 +97,7 @@ while ($j <= 3)
   while ($i <= 5)
   {
     --let $rpl_connection_name= conn1
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     BEGIN;
     INSERT INTO t1 VALUES (1);
     if ($i == 1)
@@ -127,7 +127,7 @@ while ($j <= 3)
     #            generates signal 'reached'.
     #
     --let $rpl_connection_name= conn2
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     SET debug_sync="now WAIT_FOR reached";
 
     #
@@ -151,12 +151,12 @@ while ($j <= 3)
     if ($i != 1)
     {
       --let $rpl_connection_name= conn3
-      --source include/rpl_connection.inc
+      --source include/connection.inc
       --let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist WHERE STATE LIKE 'Waiting for commit lock'
       --source include/wait_condition.inc
       SET debug_sync="now SIGNAL insert_continue";
       --let $rpl_connection_name= conn2
-      --source include/rpl_connection.inc
+      --source include/connection.inc
       --reap
     }
     if ($j == 2)
@@ -167,17 +167,17 @@ while ($j <= 3)
     if ($j == 3)
     {
       --let $rpl_connection_name= conn4
-      --source include/rpl_connection.inc
+      --source include/connection.inc
       RESET BINARY LOGS AND GTIDS;
       --let $rpl_connection_name= conn2
-      --source include/rpl_connection.inc
+      --source include/connection.inc
       UNLOCK TABLES;
     }
     #
     # Step-2.3) Wait till the transaction is finished.
     #
     --let $rpl_connection_name= conn1
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     --reap
 
     #
@@ -195,28 +195,28 @@ while ($j <= 3)
     if ($i == 1)
     {
       --let $event_sequence= $gtid_event # !Begin # !Insert # !Commit
-      --source include/assert_binlog_events.inc
+      --source include/rpl/assert_binlog_events.inc
       if ($gtid_mode == 'ON')
       {
         --let $gtid_step_count= 1
-        --source include/gtid_step_assert.inc
+        --source include/rpl/gtid_step_assert.inc
       }
     }
     if ($i != 1)
     {
       --let $event_sequence= ()
-      --source include/assert_binlog_events.inc
+      --source include/rpl/assert_binlog_events.inc
       if ($gtid_mode == 'ON')
       {
         --let $gtid_step_count= 0
-        --source include/gtid_step_assert.inc
+        --source include/rpl/gtid_step_assert.inc
       }
     }
     --echo #
     --echo # Step-2.4) Reset the debug signals for the next iteration
     --echo #
     --let $rpl_connection_name= conn2
-    --source include/rpl_connection.inc
+    --source include/connection.inc
     SET debug_sync="RESET";
     --inc $i
   }
@@ -242,7 +242,7 @@ UNLOCK TABLES;
 DROP TABLE t1;
 if ($gtid_mode == 'ON')
 {
-  --source include/gtid_utils_end.inc
+  --source include/rpl/gtid_utils_end.inc
 }
 --disconnect conn1
 --disconnect conn2

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -29,9 +29,9 @@ include/assert.inc ['Auto_position is enabled']
 #    error logged in error log.
 #
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
-include/rpl_restart_server.inc [server_number=2 parameters: --gtid-mode=off_permissive]
+include/rpl/restart_server.inc [server_number=2 parameters: --gtid-mode=off_permissive]
 include/assert_grep.inc [Replication channel '' could not be started as GTID_MODE was not ON.]
-include/check_slave_param.inc [Replica_IO_Running FOR CHANNEL '']
+include/rpl/assert_replica_status.inc [Replica_IO_Running FOR CHANNEL '']
 #
 # 5. Verify start replica after restart server also does not start
 #    replica threads and fails with with
@@ -45,4 +45,4 @@ ERROR HY000: Failed to enable Asynchronous Replication Connection Failover featu
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0;
 SET @@global.gtid_mode = ON_PERMISSIVE;
 SET @@global.gtid_mode = ON;
-include/rpl_end.inc
+include/rpl/deinit.inc

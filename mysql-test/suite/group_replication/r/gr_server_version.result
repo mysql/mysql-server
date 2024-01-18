@@ -5,18 +5,18 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server2]
 include/start_and_bootstrap_group_replication.inc
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection server3]
 include/start_group_replication.inc
 [connection server2]
 CREATE TABLE t1(a INT PRIMARY KEY);
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server3]
 # Adding debug point 'gr_fixed_server_version' to @@GLOBAL.debug
 DROP TABLE t1;
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server4]
 include/start_group_replication.inc
 [connection server2]
@@ -42,11 +42,11 @@ include/assert.inc [server4 immediate_server_version must be equal to its own se
 # Adding debug point 'fixed_server_version' to @@GLOBAL.debug
 CREATE TABLE t2 (a INT PRIMARY KEY);
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server2]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server1]
 [connection server2]
 [connection server3]
@@ -64,7 +64,7 @@ include/assert.inc [server4 immediate_server_version must be equal to its own se
 [connection server3]
 # Removing debug point 'gr_fixed_server_version' from @@GLOBAL.debug
 [connection server2]
-include/stop_slave.inc [FOR CHANNEL 'channel_1']
-include/rpl_reset_slave.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'channel_1']
+include/rpl/reset_replica.inc
 include/group_replication_end.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';

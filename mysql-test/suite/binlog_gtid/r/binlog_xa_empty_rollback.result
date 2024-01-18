@@ -3,7 +3,7 @@ RESET BINARY LOGS AND GTIDS;
 # USE-CASE 1 - rollback empty transaction as first statement and GTID_NEXT
 # set to autotmatic:
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 #
 # S1. Set GTID_NEXT to 'AUTOMATIC'.
 #
@@ -20,7 +20,7 @@ XA ROLLBACK 'trx';
 #
 # S4. Check binlog for related event (should not be found).
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 include/assert.inc [Empty transaction, binlog position is the same]
 #
 # S5. Check for an unchanged GTID_EXECUTED set.
@@ -30,7 +30,7 @@ include/assert.inc [GTID_EXECUTED has not changed]
 # USE-CASE 2 - rollback empty transaction as first statement and GTID_NEXT
 # set to specific UUID:
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 #
 # S1. Set GTID_NEXT to a specific UUID.
 #
@@ -48,7 +48,7 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 #
 # S4. Check binlog for related event (should not be found).
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 include/assert.inc [Empty transaction, binlog position is the same]
 #
 # S5. Check GTID_EXECUTED for the specific UUID (should not be found).
@@ -72,7 +72,7 @@ XA END 'trx';
 # S3. Commit the XA transaction with 'XA COMMIT ... ONE PHASE'.
 #
 XA COMMIT 'trx' ONE PHASE;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 #
 # S4. Set GTID_NEXT to a specific UUID.
 #
@@ -90,7 +90,7 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 #
 # S7. Check binlog for related event (should not be found).
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 include/assert.inc [Empty transaction, binlog position is the same]
 #
 # S8. Check GTID_EXECUTED for the specific UUID (should not be found).
@@ -114,7 +114,7 @@ XA END 'trx';
 # S3. Commit the XA transaction with 'XA COMMIT ... ONE PHASE'.
 #
 XA COMMIT 'trx' ONE PHASE;
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 #
 # S4. Set GTID_NEXT to a specific UUID.
 #
@@ -132,7 +132,7 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 #
 # S7. Check binlog for related event (should not be found).
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 include/assert.inc [Empty transaction, binlog position is the same]
 #
 # S8. Check GTID_EXECUTED for the specific UUID (should not be found).
@@ -156,7 +156,7 @@ XA END 'trx';
 #
 XA PREPARE 'trx';
 XA COMMIT 'trx';
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 #
 # S4. Set GTID_NEXT to a specific UUID.
 #
@@ -174,7 +174,7 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 #
 # S7. Check binlog for related event (should not be found).
 #
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 include/assert.inc [Empty transaction, binlog position is the same]
 #
 # S8. Check GTID_EXECUTED for the specific UUID (should not be found).
@@ -215,7 +215,7 @@ XA ROLLBACK 'trx';
 #
 # S8. Check binlog for related event (should be found).
 #
-include/assert_binlog_events.inc [Gtid/SET.* # Query/use.* # Gtid/SET.* # Query/XA START.* # Table_map/.* # Write_rows/.* # Query/XA END.* # XA_prepare/XA PREPARE.* # Gtid/SET.* # Query/XA ROLLBACK.*]
+include/rpl/assert_binlog_events.inc [Gtid/SET.* # Query/use.* # Gtid/SET.* # Query/XA START.* # Table_map/.* # Write_rows/.* # Query/XA END.* # XA_prepare/XA PREPARE.* # Gtid/SET.* # Query/XA ROLLBACK.*]
 #
 # S9. Check GTID_EXECUTED for the executed UUID (should be found).
 #

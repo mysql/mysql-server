@@ -1,14 +1,14 @@
 include/have_replication_observers_example_plugin.inc
-include/rpl_init.inc [topology=1->2]
+include/rpl/init.inc [topology=1->2]
 RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_1_PORT, SOURCE_AUTO_POSITION=1 FOR CHANNEL "example_channel";
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/assert.inc ['The example_channel is ON']
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'example_channel']
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'example_channel']
 include/install_replication_observers_example.inc
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_server_channel_io_thread';
@@ -19,4 +19,4 @@ RESET REPLICA ALL;
 DROP TABLE t1;
 include/uninstall_replication_observers_example.inc
 DROP TABLE t1;
-include/stop_dump_threads.inc
+include/rpl/stop_dump_threads.inc

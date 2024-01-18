@@ -40,26 +40,26 @@
 # it for the testing purpose.
 --let $use_gtids=0
 
-# Start Master-slave replication
---source include/master-slave.inc
+# Start Source-replica replication
+--source include/rpl/init_source_replica.inc
 
 # Initial setup
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE t2 (c1 INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 FLUSH RELAY LOGS;
 CALL mtr.add_suppression("@@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON");
 CALL mtr.add_suppression("When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK");
 CALL mtr.add_suppression("Cannot execute the current event group");
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 ###################################################
 # Step-1: Execute a XA transaction on Master.
 ###################################################
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 XA START 'trx1';
 --disable_warnings
 INSERT INTO t1 VALUES (1);
@@ -74,7 +74,7 @@ XA COMMIT 'trx1';
 #         between the transaction (exactly before XA_PREPARE event which is
 #         needed to test step 3.1.
 ###############################################################################
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $rpl_after_received_events_action= flush
 --let $rpl_skip_event_count_print_in_result_log= 1
 if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
@@ -85,15 +85,15 @@ if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 {
   --let $rpl_event_count= 5
 }
---source include/rpl_receive_event_count.inc
+--source include/rpl/receive_event_count.inc
 
 # Assert that the XA_PREPARE is in the expected relay log file
 --let $binlog_limit= 2, 3
 --let $binlog_file=slave-relay-bin.000005
---source include/show_relaylog_events.inc
+--source include/rpl/deprecated/show_relaylog_events.inc
 
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 ###############################################################################
 # Step-3: Test the XA transaction on Slave that can go through four
@@ -105,7 +105,7 @@ if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 #         3.4>  gtid_pre_statement_checks returns GTID_STATEMENT_SKIP
 ###############################################################################
 # Stop IO thread which is not needed for the rest of this step.
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 
 ###############################################################################
 # Step 3.1: Make gtid_pre_statement_post_implicit_commit_checks to return
@@ -119,7 +119,7 @@ START REPLICA SQL_THREAD;
 --let $sts_error= convert_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON)
 --let $mts_error= convert_error(ER_MTA_CANT_PARALLEL)
 --let $slave_sql_errno= $sts_error, $mts_error
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 ###############################################################################
 # Step 3.2: Make gtid_pre_statement_checks to return GTID_STATEMENT_CANCEL.
@@ -134,13 +134,13 @@ ALTER TABLE t1 engine=MyISAM;
 
 # Start SQL thread from the begining of the XA transaction.
 START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 START REPLICA SQL_THREAD;
 
 # SQL thread should fail with ER_GTID_NEXT_TYPE_UNDEFINED_GTID
 --let $slave_sql_errno= convert_error(ER_GTID_NEXT_TYPE_UNDEFINED_GTID)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Cleanup the mess created by this testcase
 ALTER TABLE t1 engine=Innodb;
@@ -153,9 +153,9 @@ RESET BINARY LOGS AND GTIDS;
 #           without any issues.
 ###############################################################################
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
---source include/start_slave_sql.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # Assert that the data was inserted into slave's tables.
 # (i.e., the GTID transaction wasn't skipped)
@@ -171,12 +171,12 @@ CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_
 #           without any issues (as the gtid transactions are already
 #           executed once).
 ###############################################################################
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 # Check that SQL thread reached end point.
---source include/sync_slave_sql_with_io.inc
+--source include/rpl/sync_with_recieved.inc
 
 # Assert that no new data was inserted into slave's tables.
 # (i.e., the GTID transaction was skipped)
@@ -189,8 +189,8 @@ CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_
 ###########
 # Cleanup
 ###########
---source include/start_slave_io.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2;
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

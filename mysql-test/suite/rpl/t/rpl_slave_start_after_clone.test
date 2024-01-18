@@ -20,9 +20,9 @@
 --source include/have_mysqld_monitoring_process.inc
 --source include/have_clone_plugin.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source extra/rpl_tests/rpl_replica_start_after_clone.inc
---source extra/rpl_tests/rpl_replica_start_after_clone_cleanup.inc
+--source common/rpl/replica_start_after_clone.inc
+--source common/rpl/replica_start_after_clone_cleanup.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

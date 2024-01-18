@@ -17,105 +17,105 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 #
 # Step 1
 #
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Suppression of error messages
 CALL mtr.add_suppression('Failed to create Rotate_event .out of memory');
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1);
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 DROP TABLE t1;
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 SET @@GLOBAL.debug="+d,fail_generating_rotate_event_on_write_rotate_to_source_pos";
 --let $slave_io_errno= convert_error(ER_REPLICA_CREATE_EVENT_FAILURE)
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 SET @@GLOBAL.debug="-d,fail_generating_rotate_event_on_write_rotate_to_source_pos";
 
 --let $slave_io_errno= convert_error(ER_REPLICA_CREATE_EVENT_FAILURE)
 --let $show_slave_io_error= 1
 --disable_warnings
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 --enable_warnings
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 (c1) VALUES (1);
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_reset.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/reset.inc
 
 #
 # Step 2
 #
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 # Suppression of error messages
 CALL mtr.add_suppression('failed to write a Rotate event to the relay log');
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1);
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 DROP TABLE t1;
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 SET @@GLOBAL.debug="+d,fail_to_write_ignored_event_to_relay_log";
 --let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 SET @@GLOBAL.debug="-d,fail_to_write_ignored_event_to_relay_log";
 
 --let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
 --let $show_slave_io_error= 1
 --disable_warnings
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 --enable_warnings
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 (c1) VALUES (1);
 DROP TABLE t1;
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 #
 # Step 3
 #
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 # Suppression of error messages
 CALL mtr.add_suppression('Failed to flush connection metadata repository');
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1);
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 DROP TABLE t1;
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 SET @@GLOBAL.debug="+d,fail_to_flush_source_info";
---source include/stop_slave_io.inc
+--source include/rpl/stop_receiver.inc
 SET @@GLOBAL.debug="-d,fail_to_flush_source_info";
 
 # The failure while flushing master info is not considered an I/O thread error
 
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 (c1) VALUES (1);
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,13 +1,13 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 # Preparing the relaylog
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 SET @save_debug=@@global.debug;
 SET GLOBAL DEBUG='+d,stop_io_after_reading_gtid_log_event';
 # Create a transaction on the master
@@ -15,25 +15,25 @@ SET GLOBAL DEBUG='+d,stop_io_after_reading_gtid_log_event';
 [connection master]
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 [connection slave]
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 SET GLOBAL DEBUG=@save_debug;
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Create other transaction on the master
 [connection master]
 CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Restart the SQL thread until the beginning of the last relay log file
 [connection slave]
 START REPLICA SQL_THREAD UNTIL
 RELAY_LOG_FILE= 'slave-relay-bin.000003',
 RELAY_LOG_POS= 4;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 # Restart the SQL thread
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [t1 should be replicated]
 # Cleanup
 [connection master]
 DROP TABLE t1, t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

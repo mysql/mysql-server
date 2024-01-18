@@ -42,7 +42,7 @@ CREATE TABLE t1(c1 int primary key);
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 SET @debug_save_m2= @@GLOBAL.DEBUG;
@@ -55,13 +55,13 @@ SET @debug_save_m2= @@GLOBAL.DEBUG;
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_observer_trans';
 --send INSERT INTO t1 values(1)
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
 # Debug point group_replication_wait_on_observer_trans is present in begin hook.
@@ -75,13 +75,13 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --echo # 3. Begin change of primary from server2(secondary) with timeout of 1800.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --send_eval SELECT group_replication_set_as_primary("$server2_uuid", 1800);
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Stopped new transactions"
 --source include/wait_condition.inc
@@ -90,7 +90,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --echo # 4. Now unblock transaction on server1.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_continue";
 
@@ -99,20 +99,20 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo #    It should pass since it will move to commit state during timeout.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 SET GLOBAL DEBUG= @debug_save_m1;
 
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET GLOBAL DEBUG= @debug_save_m2;
 SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server2_uuid SERVER2_UUID
 --reap
 
@@ -121,12 +121,12 @@ SET DEBUG_SYNC= 'RESET';
 --echo #    Assert data is present on M1 and M2.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -143,13 +143,13 @@ SET DEBUG_SYNC= 'RESET';
 --echo #    It is yet not known if a transaction will be binlogged or not.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_observer_trans';
 --send INSERT INTO t1 values(2)
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
 # Debug point group_replication_wait_on_observer_trans is present in begin hook.
@@ -163,13 +163,13 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --echo # 8. Begin change of primary from server2(primary) with timeout of 1800.
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid SERVER1_UUID
 --send_eval SELECT group_replication_set_as_primary("$server1_uuid", 1800);
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor" AND PROCESSLIST_INFO = "Group replication transaction monitor: Stopped new transactions"
 --source include/wait_condition.inc
@@ -178,7 +178,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 --echo # 9. Now unblock transaction on server2.
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_continue";
 
@@ -188,17 +188,17 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --echo #     Also reap the change primary operation it should succeed.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
 --let $rpl_connection_name= server_2_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server1_uuid SERVER1_UUID
 --reap
 
@@ -207,12 +207,12 @@ SET DEBUG_SYNC= 'RESET';
 --echo #     Assert data is present on M1 and M2.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -226,7 +226,7 @@ SET DEBUG_SYNC= 'RESET';
 --echo
 --echo # 12. Cleanup.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

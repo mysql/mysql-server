@@ -65,7 +65,7 @@ include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
 [connection server1]
 DROP TABLE test.t1;
 SET @@GLOBAL.group_replication_advertise_recovery_endpoints = DEFAULT;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/stop_group_replication.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';

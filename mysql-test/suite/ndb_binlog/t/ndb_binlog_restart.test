@@ -57,7 +57,7 @@ reset binary logs and gtids;
 #############################################################
 --echo Wait for binlog rotate to indicate disconnect
 --let $wait_binlog_event= binlog.000002
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 
 #############################################################
 # Until the binlog injector has completed the restart all tables
@@ -74,7 +74,7 @@ reset binary logs and gtids;
 --echo
 --echo Check that the binlog was rotated:
 --echo There should be a 'LOST EVENT', then 'Rotate ... binlog.000002'
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 
 #############################################################
@@ -115,7 +115,7 @@ reset binary logs and gtids;
 
 --echo Wait for binlog rotate to indicate disconnect
 --let $wait_binlog_event= binlog.000002
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 
 --echo Wait to get out of read-only mode
 --source include/ndb_not_readonly.inc
@@ -123,7 +123,7 @@ reset binary logs and gtids;
 --echo
 --echo Check that the binlog was rotated:
 --echo There should be a 'LOST EVENT', then 'Rotate ... binlog.000002'
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 disable_query_log;
 if ($have_debug)
@@ -177,12 +177,12 @@ enable_query_log;
 connection server1;
 --echo Wait for 'server1' binlog rotate to indicate disconnect
 --let $wait_binlog_event= binlog.000002
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 
 connection server2;
 --echo Wait for 'server2' binlog rotate to indicate disconnect
 --let $wait_binlog_event= binlog.000002
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 
 connection server1;
 --echo Wait for 'server1' to complete setup and get out of read-only mode
@@ -235,12 +235,12 @@ enable_query_log;
 connection server1;
 --echo Wait for 'server1' binlog rotate to indicate disconnect
 --let $wait_binlog_event= binlog.000002
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 
 connection server2;
 --echo Wait for 'server2' binlog rotate to indicate disconnect
 --let $wait_binlog_event= binlog.000002
---source include/wait_for_binlog_event.inc
+--source include/rpl/wait_for_binlog_event.inc
 
 connection server1;
 --echo Wait for (fast) 'server1' to complete setup and get out of read-only mode

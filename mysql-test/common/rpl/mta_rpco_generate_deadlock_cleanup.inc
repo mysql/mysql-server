@@ -1,0 +1,15 @@
+--source include/rpl/connection_replica.inc
+--replace_result '$saved_replica_parallel_type' SAVED_REPLICA_PARALLEL_TYPE
+--eval SET GLOBAL replica_parallel_type = '$saved_replica_parallel_type'
+--disable_warnings
+--replace_result $saved_replica_parallel_workers SAVED_REPLICA_PARALLEL_WORKERS
+--eval SET GLOBAL replica_parallel_workers = $saved_replica_parallel_workers
+--enable_warnings
+--replace_result $saved_replica_preserve_commit_order SAVED_REPLICA_PRESERVE_COMMIT_ORDER
+--eval SET GLOBAL replica_preserve_commit_order = $saved_replica_preserve_commit_order
+--replace_result $saved_replica_transaction_retries SAVED_REPLICA_TRANSACTION_RETRIES
+--eval SET GLOBAL replica_transaction_retries = $saved_replica_transaction_retries
+--replace_result $saved_innodb_lock_wait_timeout SAVED_INNODB_LOCK_WAIT_TIMEOUT
+--eval SET GLOBAL innodb_lock_wait_timeout = $saved_innodb_lock_wait_timeout
+--replace_result $saved_read_only SAVED_READ_ONLY
+--eval SET GLOBAL read_only = $saved_read_only

@@ -27,7 +27,7 @@
 # Test does not depend on binlog_format, so should only run once.
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # do not run with binlog compression on, otherwise it will make
 # this test fail, since it needs large transactions
 --source include/not_binlog_transaction_compression_on.inc
@@ -123,7 +123,7 @@ SET sql_log_bin = 1;
 # --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $change_master_level = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $replica_compressed_protocol = [0|1]
-# --source $script_dir/configure_slave.inc
+# --source $script_dir/configure_replica.inc
 #
 # Parameters:
 #
@@ -141,12 +141,12 @@ SET sql_log_bin = 1;
 #   $replica_compressed_protocol
 #     Set @@global.replica_compressed_protocol to this value.
 #
---write_file $script_dir/configure_slave.inc
+--write_file $script_dir/configure_replica.inc
   # Make the 'source ...' files less noisy
   --let $rpl_connection_silent = 1
   --let $include_silent = 1
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   --disable_warnings
   --disable_query_log
   eval $change_master_base;
@@ -175,13 +175,13 @@ EOF
 # --let $replica_compressed_protocol = [0|1]
 # --let $data_size = size of data in event
 # --let $expected_algorithm = [zlib|zstd|uncompressed]
-# --source $script_dir/test_master_slave_compression.inc
+# --source $script_dir/test_source_replica_compression.inc
 #
 # Parameters:
 #
 #   $change_master_base, $change_master_algorithm, $change_master_level,
 #   $replica_compressed_protocol
-#     See configure_slave.inc
+#     See configure_replica.inc
 #
 #   $data_size
 #     The size of the data that was inserted on master.
@@ -201,27 +201,27 @@ EOF
 # - If the expected algorithm is compressed, assert that it sent less
 #   than $data_size bytes (we assume that compression saves more than
 #   the overhead).
---write_file $script_dir/test_master_slave_compression.inc
+--write_file $script_dir/test_source_replica_compression.inc
 
-  --source $script_dir/configure_slave.inc
+  --source $script_dir/configure_replica.inc
 
   # Get initial value for number of bytes sent.
-  --source include/rpl_connection_master.inc
-  --source include/save_master_pos.inc
+  --source include/rpl/connection_source.inc
+  --source include/rpl/save_server_position.inc
 
   --let $bytes_before = `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
 
   --echo START REPLICA IO_THREAD
   # Verify that slave can connect
-  --source include/rpl_connection_slave.inc
-  --source include/start_slave_io.inc
+  --source include/rpl/connection_replica.inc
+  --source include/rpl/start_receiver.inc
 
   # Replicate
-  --source include/sync_slave_io.inc
-  --source include/stop_slave_io.inc
+  --source include/rpl/sync_received_with_saved.inc
+  --source include/rpl/stop_receiver.inc
 
   # Get final value for total number of bytes sent.
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
   --let $bytes_after = `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
   --let $bytes_sent = `SELECT $bytes_after - $bytes_before`
@@ -238,7 +238,7 @@ EOF
   --let $include_silent = 0
   --source include/assert.inc
 
-  --source include/rpl_connection_slave.inc
+  --source include/rpl/connection_replica.inc
   --disable_query_log
   RESET BINARY LOGS AND GTIDS;
   RESET REPLICA ALL;
@@ -248,7 +248,7 @@ EOF
 
 # ---- Purpose ----
 #
-# Do the same as $script_dir/test_master_slave_compression.inc, and
+# Do the same as $script_dir/test_source_replica_compression.inc, and
 # in addition verify requirement R5.
 #
 # ---- Usage ----
@@ -266,7 +266,7 @@ EOF
 #
 #   $change_master_base, $change_master_algorithm, $change_master_level,
 #   $replica_compressed_protocol, $data_size, $expected_algorithm
-#     See test_master_slave_compression.inc, above.
+#     See test_source_replica_compression.inc, above.
 #
 #   $level_it
 #     Row number in the 'levels' table which contains the compression
@@ -285,12 +285,12 @@ EOF
 #   to be the same. Otherwise (i.e. the 'position' column is greater
 #   than that of the previous row), then we expect the compression
 #   ratio of the current test to be better than that of the last test.
---write_file $script_dir/test_master_slave_compression_with_level.inc
-  --source include/rpl_connection_master.inc
+--write_file $script_dir/test_source_replica_compression_with_level.inc
+  --source include/rpl/connection_source.inc
 
-  --source $script_dir/test_master_slave_compression.inc
+  --source $script_dir/test_source_replica_compression.inc
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
   # If this is not the first run with this algorithm, compare with previous
   # run.  If the 'position' value for this row in the 'levels' table equals
@@ -326,24 +326,24 @@ EOF
 #
 # --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
-# --source $script_dir/test_master_slave_compression_error.inc
+# --source $script_dir/test_source_replica_compression_error.inc
 #
-# Parameters: See test_master_slave_compression.inc.
+# Parameters: See test_source_replica_compression.inc.
 #
 # ---- Implementation ----
 #
 # - Execute the CHANGE REPLICATION SOURCE statement
 # - Execute START REPLICA IO_THREAD
 # - Wait until error happens.
---write_file $script_dir/test_master_slave_compression_error.inc
+--write_file $script_dir/test_source_replica_compression_error.inc
 
-  --source $script_dir/configure_slave.inc
+  --source $script_dir/configure_replica.inc
 
   START REPLICA IO_THREAD;
   --let $slave_io_errno = 3922, 2066
   # 3922 = ER_WRONG_COMPRESSION_ALGORITHM_CLIENT
   # 2066 = CR_COMPRESSION_WRONGLY_CONFIGURED
-  --source include/wait_for_slave_io_error.inc
+  --source include/rpl/wait_for_receiver_error.inc
   --echo got error
   RESET REPLICA ALL;
 EOF
@@ -362,7 +362,7 @@ eval INSERT INTO t VALUES (REPEAT('a', $data_size));
 # Iterate over all the algorithms on master
 --let $master_algorithm_it = 1
 while ($master_algorithm_it <= $algorithm_count) {
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   --let $master_algorithm_text = `SELECT name FROM algorithms WHERE id = $master_algorithm_it`
   --let $master_algorithm = $master_algorithm_text
   if ($master_algorithm == default) {
@@ -371,7 +371,7 @@ while ($master_algorithm_it <= $algorithm_count) {
 
   --echo ==== master:$master_algorithm_text ====
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   if ($master_algorithm_text == default) {
     eval SET @@global.protocol_compression_algorithms = DEFAULT;
   }
@@ -383,7 +383,7 @@ while ($master_algorithm_it <= $algorithm_count) {
   # Iterate over all algorithms on slave
   --let $slave_algorithm_it = 1
   while ($slave_algorithm_it <= $algorithm_count) {
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
     --let $slave_algorithm_text = `SELECT name FROM algorithms WHERE id = $slave_algorithm_it`
     --let $slave_algorithm = $slave_algorithm_text
     --let $change_master_algorithm = CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = '$slave_algorithm'
@@ -399,12 +399,12 @@ while ($master_algorithm_it <= $algorithm_count) {
     }
 
     while ($replica_compressed_protocol < $replica_compressed_protocol_iterations) {
-      --source include/rpl_connection_slave.inc
+      --source include/rpl/connection_replica.inc
       if ($replica_compressed_protocol) {
         --let $slave_algorithm = zlib
       }
 
-      --source include/rpl_connection_master.inc
+      --source include/rpl/connection_source.inc
       --let $intersection = `SELECT set_intersection('$master_algorithm', '$slave_algorithm')`
 
       if ($intersection != '') {
@@ -429,20 +429,20 @@ while ($master_algorithm_it <= $algorithm_count) {
 
             --echo ---- master:$master_algorithm slave:$slave_algorithm slave_option:$replica_compressed_protocol expect:$expected_algorithm level:$level ----
 
-            --source $script_dir/test_master_slave_compression_with_level.inc
+            --source $script_dir/test_source_replica_compression_with_level.inc
 
             --inc $level_it
           }
         }
         if ($expected_algorithm != zstd) {
           --echo ---- master:$master_algorithm slave:$slave_algorithm_text slave_option:$replica_compressed_protocol expected:$expected_algorithm ----
-          --source $script_dir/test_master_slave_compression.inc
+          --source $script_dir/test_source_replica_compression.inc
         }
       }
 
       if ($intersection == '') {
         --echo ---- master:$master_algorithm slave:$slave_algorithm_text slave_option:$replica_compressed_protocol expect:error ----
-        --source $script_dir/test_master_slave_compression_error.inc
+        --source $script_dir/test_source_replica_compression_error.inc
       }
       --inc $replica_compressed_protocol
     }
@@ -453,7 +453,7 @@ while ($master_algorithm_it <= $algorithm_count) {
 
 --echo #### Clean up ####
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval SET @@global.protocol_compression_algorithms = "$saved_protocol_compression_algorithms";
 
 SET sql_log_bin = 0;
@@ -463,16 +463,16 @@ DROP TABLE t;
 DROP FUNCTION set_intersection;
 SET sql_log_bin = 1;
 
---remove_file $script_dir/configure_slave.inc
---remove_file $script_dir/test_master_slave_compression.inc
---remove_file $script_dir/test_master_slave_compression_with_level.inc
---remove_file $script_dir/test_master_slave_compression_error.inc
+--remove_file $script_dir/configure_replica.inc
+--remove_file $script_dir/test_source_replica_compression.inc
+--remove_file $script_dir/test_source_replica_compression_with_level.inc
+--remove_file $script_dir/test_source_replica_compression_error.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --disable_query_log
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = $SERVER_MYPORT_1, SOURCE_USER = 'root';
 --enable_query_log
 
 # Tell rpl_end to not try to sync
 --let $rpl_skip_sync = 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

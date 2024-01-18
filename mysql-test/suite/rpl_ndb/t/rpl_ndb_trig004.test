@@ -8,8 +8,8 @@
 
 # Includes
 -- source include/have_ndb.inc
--- source suite/ndb_rpl/ndb_master-slave.inc
+-- source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 let $engine_type=NDB;
--- source extra/rpl_tests/rpl_trig004.test
+-- source common/rpl/rpl_trig004.test
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

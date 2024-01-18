@@ -25,13 +25,13 @@
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # Setup filters on the Slave.
 --echo #
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=        ((db1, db2));
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=      (test.itable);
 CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=          (test.t1);
@@ -127,5 +127,5 @@ SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replicati
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 # Per channel filters are same as global filters reset above.
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_NAME;
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

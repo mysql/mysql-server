@@ -63,7 +63,7 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo # Verify that the failed GRANT statement is not binlogged
 --echo #
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 
 GRANT SELECT(a) ON t1 TO u1@h;
@@ -94,7 +94,7 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo # Verify that the partially failed REVOKE statement is not binlogged
 --echo #
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # Check-3: DROP USER
 --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
@@ -116,7 +116,7 @@ SELECT user FROM mysql.user where user='u1';
 --echo # Verify failed DROP USER statement is not binlogged
 --echo #
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # Check-4: RENAME TABLE
 --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
@@ -139,7 +139,7 @@ SHOW CREATE TABLE t1;
 --echo # Verify that the failed RENAME TABLE statement is not binlogged
 --echo #
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # Check-5: OPTIMIZE TABLE
 --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
@@ -161,7 +161,7 @@ OPTIMIZE TABLE t1, t_non_existent;
 --echo # statement is binlogged.
 --echo #
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # Check-6: ANALYZE TABLE
 --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
@@ -183,7 +183,7 @@ ANALYZE TABLE t1, t_non_existent;
 --echo # statement is binlogged.
 --echo #
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # Check-7: REPARE TABLE
 --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
@@ -205,7 +205,7 @@ REPAIR TABLE t1, t_non_existent;
 --echo # statement is binlogged.
 --echo #
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # Check-8: CHECKSUM TABLE
 --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
@@ -227,7 +227,7 @@ CHECKSUM TABLE t1, t_non_existent;
 --echo # statement is not binlogged.
 --echo #
 --let $binlog_start= $saved_master_pos
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # Clean up
 DROP TABLE t1;

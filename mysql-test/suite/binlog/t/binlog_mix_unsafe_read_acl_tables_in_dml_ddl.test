@@ -87,35 +87,35 @@ while($i <= 4)
     --echo "Test using $acl_table"
     let tmp_table_name= `SELECT REPLACE('$acl_table','.','_')`;
 
-    --source include/save_binlog_position.inc
+    --source include/rpl/save_binlog_file_position.inc
     eval CREATE TABLE $tmp_table_name AS SELECT * FROM $acl_table;
     --let $event_sequence = !Gtid_or_anon # !Begin # Query # Table_map # Write_rows # Xid
-    --source include/assert_binlog_events.inc
+    --source include/rpl/assert_binlog_events.inc
     eval DELETE FROM $tmp_table_name;
 
-    --source include/save_binlog_position.inc
+    --source include/rpl/save_binlog_file_position.inc
     eval INSERT INTO $tmp_table_name SELECT * FROM $acl_table;
     --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Write_rows # Xid
-    --source include/assert_binlog_events.inc
+    --source include/rpl/assert_binlog_events.inc
     eval DROP TABLE $tmp_table_name;
 
     eval CREATE TABLE tmp (f1 INT);
     eval INSERT INTO tmp VALUES (10);
 
-    --source include/save_binlog_position.inc
+    --source include/rpl/save_binlog_file_position.inc
     eval UPDATE tmp SET f1=20 WHERE EXISTS (SELECT * FROM $acl_table);
     --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Update_rows # Xid
-    --source include/assert_binlog_events.inc
+    --source include/rpl/assert_binlog_events.inc
 
-    --source include/save_binlog_position.inc
+    --source include/rpl/save_binlog_file_position.inc
     eval UPDATE tmp SET f1=22 WHERE EXISTS (SELECT * FROM t1 WHERE func1() = 1);
     --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Update_rows # Xid
-    --source include/assert_binlog_events.inc
+    --source include/rpl/assert_binlog_events.inc
 
-    --source include/save_binlog_position.inc
+    --source include/rpl/save_binlog_file_position.inc
     eval DELETE FROM tmp WHERE EXISTS (SELECT * FROM $acl_table);
     --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid
-    --source include/assert_binlog_events.inc
+    --source include/rpl/assert_binlog_events.inc
     DROP TABLE tmp;
 
     --inc $t

@@ -22,7 +22,7 @@
 --echo ###############################################################################
 --echo # 2. Verify M2 joins group. Remove M2 from group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 --source include/stop_group_replication.inc
@@ -30,18 +30,18 @@
 --echo ###############################################################################
 --echo # 3. Downgrade group protocol to 8.0.14, verify M2 joins group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_set_communication_protocol("8.0.14");
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --echo ###############################################################################
 --echo # 4. Cleanup
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/group_replication_end.inc

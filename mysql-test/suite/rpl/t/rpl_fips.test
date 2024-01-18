@@ -10,7 +10,7 @@
 --source include/not_windows.inc
 --source include/have_fips.inc
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CALL mtr.add_suppression("Failed to set up SSL because of the following *");
 CALL mtr.add_suppression("Replica SQL for channel '': Request to stop replica SQL Thread received while *");
@@ -24,37 +24,37 @@ connection slave;
 SET PERSIST_ONLY ssl_fips_mode=ON;
 
 # Restart master
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_server_number=1
---source include/rpl_restart_server.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/save_binlog_position.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --echo [on master]
 connection master;
 
 --echo [on slave]
 connection slave;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --let $rpl_server_number=2
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --echo # R1: Set the ssl connection OFF
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;
-source include/start_slave.inc;
---source include/check_slave_no_error.inc
+source include/rpl/start_replica.inc;
+--source include/rpl/assert_replica_no_error.inc
 
 --echo [on slave]
 connection slave;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 --echo # R3: Set the ssl connection ON and strong cipher
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'ECDHE-RSA-AES128-GCM-SHA256'
-source include/start_slave.inc;
---source include/check_slave_no_error.inc
+source include/rpl/start_replica.inc;
+--source include/rpl/assert_replica_no_error.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --echo ==== Cleanup (Note that slave IO thread is not running) ====
 # cleanup: slave io thread has stopped so we reset replication
@@ -63,7 +63,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_
 
 # clear Slave_IO_Errno
 --let $rpl_only_running_threads= 1
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --echo [on master]
 connection master;
@@ -80,5 +80,5 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --echo [on master]
 connection master;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --source include/force_restart.inc

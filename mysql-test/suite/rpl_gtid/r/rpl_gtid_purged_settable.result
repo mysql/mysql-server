@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-include/gtid_utils.inc
-include/rpl_reset.inc
+include/rpl/gtid_utils.inc
+include/rpl/reset.inc
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 CREATE DATABASE db;
@@ -22,19 +22,19 @@ COMMIT;
 SET @@GTID_NEXT=AUTOMATIC;
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP DATABASE db;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
 BEGIN;
 COMMIT;
 SET @@GTID_NEXT=AUTOMATIC;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 [connection slave]
 include/assert.inc [The slave's GTID_PURGED must be equal to the master's one]
 include/assert.inc [The slave's GTID_EXECUTED must be equal to the master's one]
-include/gtid_utils_end.inc
-include/rpl_end.inc
+include/rpl/gtid_utils_end.inc
+include/rpl/deinit.inc

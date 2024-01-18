@@ -46,7 +46,7 @@ if (!$have_xcom_stack) {
 --echo ############################################################
 --echo # 1. Deploy group A in single-primary mode on server1 and server2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("This server is not able to reach a majority of members in the group. This server will skip the replication failover channels handling until this server is back to the group majority.");
@@ -61,7 +61,7 @@ SET SESSION sql_log_bin = 1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= `SELECT @@server_uuid`
 
 # Get server2 pid.
@@ -90,7 +90,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    Configure server4 as part of group B but not join it to
 --echo #    the group.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server3_uuid= `SELECT @@server_uuid`
 --let $group_replication_group_name= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
 --let $group_b= $group_replication_group_name
@@ -100,7 +100,7 @@ SET SESSION sql_log_bin= 1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 --eval SET GLOBAL group_replication_group_seeds= $group_b_group_seeds
 --enable_query_log
@@ -111,7 +111,7 @@ SET SESSION sql_log_bin= 1;
 --echo # 3. Configure a failover channel on server1 that replicates
 --echo #    from server3.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
@@ -119,7 +119,7 @@ SET SESSION sql_log_bin= 1;
 --eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_b', '127.0.0.1', $SERVER_MYPORT_3, '', 85, 65);
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server3
 --let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name=\'ch1\' AND source_uuid=\'$server3_uuid\', SERVICE_STATE, 1]" = "ON"
@@ -144,7 +144,7 @@ SET SESSION sql_log_bin= 1;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
@@ -167,11 +167,11 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 4. Suspend server2, server1 will see it UNREACHABLE.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec kill -19 $server2_pid
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $server2_uuid
@@ -185,7 +185,7 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 5. Add server4 to group B.
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
@@ -197,7 +197,7 @@ SET SESSION sql_log_bin= 1;
 --echo # 6. Since group A does not have a ONLINE majority, server1
 --echo #    will not detect the membership changes on group B.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $failover_version_step6= `SELECT version FROM performance_schema.replication_group_configuration_version WHERE name='replication_asynchronous_connection_failover'`
 
 # Give some time to Monitor IO thread to attempt reach group B
@@ -222,11 +222,11 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 7. Resume server2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --exec kill -18 $server2_pid
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
 --source include/wait_condition.inc
 
@@ -238,7 +238,7 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 8. server1 will update group B membership.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
@@ -269,7 +269,7 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 9. server2 will also update group B membership.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
@@ -291,33 +291,33 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 10. Clean up.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_channel_name='ch1'
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_channel_name='ch1'
 --let $rpl_multi_source= 1
 --let $rpl_reset_slave_all= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

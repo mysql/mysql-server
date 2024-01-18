@@ -5,4 +5,4 @@
 
 
 let $engine_type=MyISAM;
--- source extra/rpl_tests/rpl_loaddata.test
+-- source common/rpl/rpl_loaddata.test

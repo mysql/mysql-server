@@ -21,7 +21,7 @@ update t1 set i = 3 where i < 3;
 commit;
 
 --echo *** Results of the test: the binlog must have only Write_rows events not any Update_rows ***
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 # part 2: insert can cause the dup key
 
@@ -36,7 +36,7 @@ insert into t1 values (3),(4),(1),(2);
 commit;
 
 --echo *** Results of the test: the binlog must have only one Write_rows event not two ***
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 drop table t1;
 
@@ -61,7 +61,7 @@ DROP TABLE t1;
 -- echo ###############################################
 -- echo ### assertion: No event for 'TRUNCATE TABLE t2'
 -- echo ###############################################
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 -- echo ###############################################
 
 RESET BINARY LOGS AND GTIDS;
@@ -74,6 +74,6 @@ DROP TEMPORARY TABLE t1;
 -- echo ###############################################
 -- echo ### assertion: No event for 'TRUNCATE TABLE t1'
 -- echo ###############################################
--- source include/show_binlog_events.inc
+-- source include/rpl/deprecated/show_binlog_events.inc
 -- echo ###############################################
 

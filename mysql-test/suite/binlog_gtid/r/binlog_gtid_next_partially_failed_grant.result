@@ -23,6 +23,6 @@ include/assert.inc [Does not generate Source_UUID:4 and commit it into @@GLOBAL.
 #
 # Verify that the partially failed GRANT statement is not binlogged.
 #
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP USER u1@h;
 DROP TABLE t1;

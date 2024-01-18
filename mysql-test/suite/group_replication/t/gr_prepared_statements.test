@@ -42,12 +42,12 @@ DEALLOCATE PREPARE stmt1;
 DEALLOCATE PREPARE stmt2;
 DEALLOCATE PREPARE stmt3;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Connect to server2
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check table t1 exist on server 2'
 --let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\"]" = 1
@@ -94,12 +94,12 @@ DEALLOCATE PREPARE stmt5;
 DEALLOCATE PREPARE stmt6;
 DEALLOCATE PREPARE stmt7;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Connect to server1 and verify the data with server2
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'Check all records exists on server 1'
 --let $assert_cond= "[SELECT COUNT(*) FROM test.t1 WHERE a>10]" = 4

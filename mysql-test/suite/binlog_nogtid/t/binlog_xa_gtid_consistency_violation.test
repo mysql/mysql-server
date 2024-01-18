@@ -41,7 +41,7 @@
 
 --source include/have_debug.inc
 --let $rpl_gtid_mode= OFF
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
 --connect (verify,127.0.0.1,root,,test,$MASTER_MYPORT,)
 

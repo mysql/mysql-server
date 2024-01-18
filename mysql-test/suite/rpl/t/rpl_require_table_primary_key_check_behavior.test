@@ -89,10 +89,10 @@
 --let $rpl_skip_grant_privilege_checks_user_roles = 1
 --let $rpl_skip_start_slave = 1
 --let $rpl_multi_source= 1
---source include/rpl_init.inc
+--source include/rpl/init.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval GRANT REPLICATION_APPLIER,CREATE,DROP ON *.* TO $applier_user
 
@@ -107,7 +107,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM FOR CHANNE
 --echo #    The replica applier fails while replicating.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sql_require_primary_key = `SELECT @@global.sql_require_primary_key`
 SET @@global.sql_require_primary_key = 1;
@@ -115,12 +115,12 @@ SET @@global.sql_require_primary_key = 1;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START REPLICA;
 
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo
 --echo # 2. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
@@ -132,11 +132,11 @@ STOP REPLICA;
 START REPLICA;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= 'channel_1'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # 3. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON.
@@ -151,29 +151,29 @@ STOP REPLICA;
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON FOR CHANNEL 'channel_1';
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t2 (a INT);
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START REPLICA;
 
 --let $slave_sql_errno = convert_error(ER_TABLE_WITHOUT_PK)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Cleanup for step 3
 # Make the source and replica forget about table t2
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t2;
 RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 STOP REPLICA;
 RESET REPLICA;
@@ -185,22 +185,22 @@ RESET BINARY LOGS AND GTIDS;
 --echo #    The replica applier is working properly
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@global.sql_require_primary_key = 0;
 CREATE TABLE t3 (a INT PRIMARY KEY);
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START REPLICA;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= 'channel_1'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # 5. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF.
@@ -214,7 +214,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL '
 START REPLICA;
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@global.sql_require_primary_key = 1;
 CREATE TABLE t4 (a INT PRIMARY KEY);
@@ -223,7 +223,7 @@ CREATE TABLE t5 (a INT);
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= 'channel_1'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $column_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t5';`
 --let $assert_text= The table t5 contains only 1 column (no PK)
@@ -239,30 +239,30 @@ CREATE TABLE t5 (a INT);
 --echo #    The channel from server 1 shall had a GIPK while the applier on the channel from server 3 fails
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name= 'channel_1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name= 'channel_3'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE FOR CHANNEL 'channel_1';
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON FOR CHANNEL 'channel_3';
 
 --let $rpl_channel_name= 'channel_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name= 'channel_3'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@global.sql_require_primary_key = 0;
 CREATE TABLE t6 (a INT);
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= 'channel_1'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $column_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t6';`
 --let $assert_text= The table contains 2 columns
@@ -275,21 +275,21 @@ CREATE TABLE t6 (a INT);
 --source include/assert.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t7 (a INT);
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_channel_name= 'channel_3'
 --let $slave_sql_errno = convert_error(ER_TABLE_WITHOUT_PK)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo
 --echo # 7. Cleanup
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 DROP TABLE t3;
@@ -301,21 +301,21 @@ DROP TABLE t6;
 --eval SET @@global.sql_require_primary_key = $sql_require_primary_key
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t7;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression(".*Unable to create or change a table without a primary key*");
 
 --let $rpl_channel_name= 'channel_1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 --let $rpl_channel_name= 'channel_3'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --replace_result $_pk_key_check_value PRIMARY_KEY_CHECK_VALUE
 --eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value FOR CHANNEL 'channel_1'
@@ -325,23 +325,23 @@ CALL mtr.add_suppression(".*Unable to create or change a table without a primary
 --eval GRANT SESSION_VARIABLES_ADMIN ON *.* TO $applier_user
 
 --let $rpl_channel_name= 'channel_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name= 'channel_3'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= 'channel_1'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $sync_slave_connection= server_2
 --let $rpl_channel_name= 'channel_3'
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -34,7 +34,7 @@ REVOKE PROXY ON u1 FROM unknown_user IGNORE UNKNOWN USER;
 REVOKE r1 FROM unknown_user;
 REVOKE r1 FROM unknown_user IGNORE UNKNOWN USER;
 SELECT COUNT(*) FROM mysql.user where user = 'unknown_user';
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # FR1.1.2: REVOKE ... IGNORE UNKNOWN USER where privilege does not exist
 RESET BINARY LOGS AND GTIDS;
@@ -42,7 +42,7 @@ RESET BINARY LOGS AND GTIDS;
 REVOKE ALL ON wl14690.* FROM u1;
 --error ER_NONEXISTING_GRANT
 REVOKE ALL ON wl14690.* FROM u1 IGNORE UNKNOWN USER;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 GRANT SELECT, INSERT (i) ON wl14690.t TO u1, u2;
 GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO u2;
@@ -56,7 +56,7 @@ SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
 RESET BINARY LOGS AND GTIDS;
 REVOKE INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --echo # check that INSERT (i) is revoked.
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
@@ -78,7 +78,7 @@ SHOW GRANTS FOR u2;
 REVOKE r1 FROM unknown_user, u2 IGNORE UNKNOWN USER;
 REVOKE SELECT, INSERT (i) ON wl14690.t FROM u1, u2, unknown_user IGNORE UNKNOWN USER;
 REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM unknown_user, u2 IGNORE UNKNOWN USER;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --echo # check that SELECT, INSERT (i) are revoked.
 SHOW GRANTS FOR u1;
 --echo # check that r1 grant is revoked for u2
@@ -95,7 +95,7 @@ SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
 --error ER_NONEXISTING_GRANT
 REVOKE EVENT, TRIGGER ON wl14690.* FROM u2, u3, unknown_user IGNORE UNKNOWN USER;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --echo # check that existing privileges are not revoked.
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
@@ -129,7 +129,7 @@ REVOKE r1, role1 FROM u1;
 --echo # check that r1 grant is not revoked to u1
 SHOW GRANTS FOR u1;
 REVOKE IF EXISTS role1, r1 FROM u1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --echo # check that r1 grant is revoked from u1
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
@@ -141,13 +141,13 @@ RESET BINARY LOGS AND GTIDS;
 REVOKE SELECT ON *.* FROM unknown_user;
 --error ER_NONEXISTING_GRANT
 REVOKE IF EXISTS SELECT ON *.* FROM unknown_user;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # FR1.3.3: REVOKE IF EXISTS where target user/role exists and
 --echo #          privilege being revoked is granted
 RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS SELECT, INSERT, UPDATE ON *.* FROM u1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # FR1.4.1: REVOKE IF EXISTS where multiple target users/roles exists and
 --echo #          privilege being revoked is granted
@@ -162,7 +162,7 @@ REVOKE IF EXISTS SELECT ON wl14690.* FROM u1, u2, u3;
 --error ER_UNKNOWN_AUTHID
 REVOKE role1 FROM u1, u2;
 REVOKE IF EXISTS role1 FROM u1, u2;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --echo # SELECT should be revoked for all 3 users
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
@@ -185,7 +185,7 @@ REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM r1;
 --echo # for global level privleges IF EXISTS is implicit, so no warning
 REVOKE IF EXISTS SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN
 ON *.* FROM u1,u2,u3,u4,r1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --echo # SELECT should be revoked for u3
 SHOW GRANTS FOR u3;
 
@@ -207,7 +207,7 @@ RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS UPDATE, SELECT ON *.* FROM u1, u2, unknown_user;
 --error ER_NONEXISTING_GRANT
 REVOKE IF EXISTS TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* FROM unknown_user, u3, u1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --echo # grants should be same
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
@@ -220,7 +220,7 @@ RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS UPDATE, SELECT ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER;
 --echo # missing privileges and target user
 REVOKE IF EXISTS PROXY ON u1 FROM unknown_user IGNORE UNKNOWN USER;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # FR1.6.1: REVOKE IF EXISTS ... IGNORE UNKNOWN USER with multiple target
 --echo #          user (present) and privilege being revoked is granted
@@ -231,7 +231,7 @@ RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER;
 REVOKE IF EXISTS TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* FROM u1, u3
 IGNORE UNKNOWN USER;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 --echo # INSERT should be revoked
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
@@ -245,13 +245,13 @@ REVOKE IF EXISTS SYSTEM_VARIABLES_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN
 ON *.* FROM u1, u2 IGNORE UNKNOWN USER;
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # FR1.6.3: REVOKE IF EXISTS ... IGNORE UNKNOWN USER with multiple target
 --echo #          user (not present) and privilege being revoked is granted
 RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS SELECT ON wl14690.t FROM u1, unknown_user IGNORE UNKNOWN USER;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Bug #33899136: WL#14690 Revoking illegal privilege with IF EXISTS
@@ -269,7 +269,7 @@ REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user;
 REVOKE DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER;
 --echo # should report warnings
 REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo #
 --echo # Bug #33899156: WL#14690 Revoking mandatory role with IF EXISTS doesn't
@@ -287,7 +287,7 @@ REVOKE r1 FROM u1,u2,u3,r2;
 REVOKE IF EXISTS r1 FROM u1;
 REVOKE IF EXISTS r1 FROM r2;
 REVOKE IF EXISTS r1 FROM u1,u2,u3,r2;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 SET GLOBAL mandatory_roles=default;
 SET GLOBAL partial_revokes=default;
 

@@ -1,2 +1,2 @@
---source include/master-slave.inc
---source include/rpl_end.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/deinit.inc

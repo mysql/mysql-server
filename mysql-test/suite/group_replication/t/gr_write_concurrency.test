@@ -36,7 +36,7 @@ INSERT INTO t1 VALUES (4, 201);
 --echo ###############################################################################
 --echo # 2. Confirm default value on M1, M2
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text = write_concurrency is supposed to be $gr_write_concurrency_default by default
 --let $assert_cond = [SELECT group_replication_get_write_concurrency()] = $gr_write_concurrency_default
@@ -48,7 +48,7 @@ INSERT INTO t1 VALUES (4, 201);
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Could not execute Write_rows event on table test.t2; Duplicate entry '11'*");
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
@@ -73,7 +73,7 @@ SET SESSION sql_log_bin = 1;
 --let $gr_new_write_concurrency= 42
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --eval SELECT group_replication_set_write_concurrency($gr_new_write_concurrency)
 
@@ -86,7 +86,7 @@ SET SESSION sql_log_bin = 1;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT group_replication_get_write_concurrency() = $gr_new_write_concurrency
 --source include/wait_condition.inc
@@ -111,7 +111,7 @@ SET SESSION sql_log_bin = 1;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT group_replication_get_write_concurrency() = $gr_new_write_concurrency
 --source include/wait_condition.inc
@@ -175,14 +175,14 @@ SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=4;
 
 # Stop GR on M2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --echo ###############################################################################
 --echo # 7. Check that it is not possible to modify/query write_concurrency value when server is in RECOVERING state.
 # Start GR on M2, It should be in RECOVERING state.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 
 --let $group_replication_start_member_state= RECOVERING
@@ -200,7 +200,7 @@ SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 --echo ###############################################################################
 --echo # 8. Check that it is not possible to update wc value when a member is in ERROR state.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
 SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
@@ -217,22 +217,22 @@ SET DEBUG_SYNC= 'RESET';
 
 # Create a table.
 CREATE TABLE t2 (a INT PRIMARY KEY);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Insert some data onto t2 with sql_log_bin=0 so that M2 goes to ERROR state.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET SESSION sql_log_bin=0;
 INSERT INTO t2 values(11);
 SET SESSION sql_log_bin=1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t2 values(11);
 
 # Wait until M2 goes to ERROR state.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --echo wait until server2 goes to ERROR state.
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ERROR"
 --source include/wait_condition.inc
@@ -256,12 +256,12 @@ SET SESSION sql_log_bin=1;
 
 DROP TABLE t1;
 DROP TABLE t2;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo ###############################################################################
 --echo # 9. Stop GR and try to call group_replication_{get,set}_write_concurrency outside of a group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/group_replication_end.inc
 

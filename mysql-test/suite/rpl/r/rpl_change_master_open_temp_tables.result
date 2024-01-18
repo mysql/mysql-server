@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,14 +7,14 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # create a temporary table, replicate at slave for all the tests below.
 
 CREATE TEMPORARY TABLE t1(a int);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 # Make sure STOP REPLICA generates a warning.
 
 STOP REPLICA;
 Warnings:
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
-include/wait_for_slave_to_stop.inc
+include/rpl/wait_for_replica_to_stop.inc
 
 # Make sure STOP REPLICA SQL_THREAD generates a warning.
 
@@ -22,7 +22,7 @@ STOP REPLICA SQL_THREAD;
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 
 # Make sure STOP REPLICA IO_THREAD generates a warning.
 
@@ -30,7 +30,7 @@ STOP REPLICA IO_THREAD;
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 
 # No warning here since we are changing a configuration parameter only.
 
@@ -57,6 +57,6 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= SAVE_AUTOPOSITION;
 
 # cleanup
 
-include/start_slave.inc
+include/rpl/start_replica.inc
 DROP TEMPORARY TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

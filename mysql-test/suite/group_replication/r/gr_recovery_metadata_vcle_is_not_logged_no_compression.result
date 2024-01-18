@@ -39,7 +39,7 @@ include/assert.inc ['Assert GTID is same on M1 and M2']
 [connection server1]
 DROP TABLE t1;
 [connection server1]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server2]
 SET @@GLOBAL.DEBUG= '-d,group_replication_no_vcle_no_compression';
 [connection server1]

@@ -41,7 +41,7 @@ SET SESSION sql_log_bin= 1;
 connect(server1_disconnect,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_1);
 
 --let $rpl_connection_name= server1_disconnect
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $connection_id= `SELECT CONNECTION_ID()`
 
@@ -50,7 +50,7 @@ connect(server1_disconnect,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_
 --echo # 2. Enable debug point to block group action before send
 --echo #    message to the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point=group_replication_coordinate_action_execution_start
 --source include/add_debug_point.inc
@@ -60,7 +60,7 @@ connect(server1_disconnect,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_
 --echo # 3. Execute on server 1 change to single primary mode
 --echo #    with server 1 being primary.
 --let $rpl_connection_name= server1_disconnect
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid SERVER1_UUID
 --send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
@@ -69,7 +69,7 @@ connect(server1_disconnect,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_
 --echo ############################################################
 --echo # 4. Wait to server 1 reach debug point.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
@@ -85,7 +85,7 @@ connect(server1_disconnect,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_
 --echo ############################################################
 --echo # 6. Remove debug point and unlock debug point.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point=group_replication_coordinate_action_execution_start
 --source include/remove_debug_point.inc
@@ -98,7 +98,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.action_continue';
 --echo #     server.
 
 --let $rpl_connection_name= server1_disconnect
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error ER_GRP_RPL_UDF_ERROR
 --reap
@@ -108,7 +108,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.action_continue';
 --echo # 8. Wait for all stage from UDF to finish on server 1 and
 --echo #    assert is on multi primary mode.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -122,7 +122,7 @@ SET DEBUG_SYNC='RESET';
 --echo # 9. Wait for all stage from UDF to finish on server 2 and
 --echo #    assert is on multi primary mode.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc

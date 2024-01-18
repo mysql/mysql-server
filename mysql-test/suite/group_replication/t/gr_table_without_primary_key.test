@@ -49,7 +49,7 @@ CREATE TABLE `t1` (
   key (`col_text_utf8_key` (255)),
   key (`col_bit_64_key`)
 ) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ############################################################

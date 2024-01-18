@@ -8,4 +8,4 @@
 source include/not_ndb_default.inc;
 source include/have_binlog_format_row.inc;
 
-source extra/rpl_tests/rpl_max_relay_size.test;
+source common/rpl/rpl_max_relay_size.test;

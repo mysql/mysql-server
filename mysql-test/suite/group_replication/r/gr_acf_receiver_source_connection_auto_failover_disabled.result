@@ -40,7 +40,7 @@ The UDF asynchronous_connection_failover_add_source() executed successfully.
 
 # 5. Start replica for channel ch1.
 
-include/start_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1']
 
 # 6. Verify replication_asynchronous_connection_failover on
 #    server1 has one row.
@@ -58,7 +58,7 @@ include/start_slave.inc [FOR CHANNEL 'ch1']
 # 9. Stop replication channel ch1.
 
 [connection server1]
-include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
 
 # 10. Disable SOURCE_CONNECTION_AUTO_FAILOVER for replication channel ch1.
 
@@ -84,7 +84,7 @@ include/gr_wait_primary_member_uuid.inc
 SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', SERVER_MYPORT_3, '');
 asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', SERVER_MYPORT_3, '')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 [connection server1]
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 include/group_replication_end.inc

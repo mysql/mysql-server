@@ -25,7 +25,7 @@
 --source include/have_debug.inc
 
 --source include/save_error_log_position.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== 1. Setup semi-sync replication on source and replica ====
 
@@ -34,14 +34,14 @@
 SET GLOBAL rpl_semi_sync_source_enabled = 1;
 SET GLOBAL rpl_semi_sync_source_timeout = 10000;
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 --replace_result $SEMISYNC_REPLICA_PLUGIN SEMISYNC_REPLICA_PLUGIN
 eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
 SET GLOBAL rpl_semi_sync_replica_enabled = 1;
 
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1(id int, number int);
@@ -64,17 +64,17 @@ DROP TABLE t2;
 DROP DATABASE db1;
 
 CALL mtr.add_suppression("Got an error reading communication packets*");
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET GLOBAL rpl_semi_sync_replica_enabled = OFF;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 UNINSTALL PLUGIN rpl_semi_sync_replica;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL rpl_semi_sync_source_enabled = OFF;
 UNINSTALL PLUGIN rpl_semi_sync_source;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

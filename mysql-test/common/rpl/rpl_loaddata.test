@@ -1,0 +1,265 @@
+# See if replication of a "LOAD DATA in an autoincrement column"
+# Honours autoincrement values
+# i.e. if the master and slave have the same sequence
+#
+# check replication of load data for temporary tables with additional
+# parameters
+#
+# check if duplicate entries trigger an error (they should unless IGNORE or
+# REPLACE was used on the master) (bug 571).
+#
+# check if START REPLICA, RESET REPLICA, CHANGE REPLICATION SOURCE reset Last_slave_error and
+# Last_slave_errno in SHOW REPLICA STATUS (1st and 3rd commands did not: bug 986)
+
+-- source include/have_binlog_format_statement.inc
+-- source include/rpl/init_source_replica.inc
+source include/have_myisam.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
+# MTR is not case-sensitive.
+let $lower_stmt_head= load data;
+let $UPPER_STMT_HEAD= LOAD DATA;
+if ($lock_option)
+{
+  #if $lock_option is null, an extra blank is added into the statement,
+  #this will change the result of rpl_loaddata test case. so $lock_option
+  #is set only when it is not null.
+  let $lower_stmt_head= load data $lock_option;
+  let $UPPER_STMT_HEAD= LOAD DATA $lock_option;
+}
+
+select last_insert_id();
+create table t1(a int not null auto_increment, b int, primary key(a) );
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
+# verify that LAST_INSERT_ID() is set by LOAD DATA INFILE
+select last_insert_id();
+
+create temporary table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60));
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
+
+create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60));
+--disable_warnings
+insert into t3 select * from t2;
+--enable_warnings
+
+--source include/rpl/sync_to_replica.inc
+
+select * from t1;
+select * from t3;
+
+connection master;
+
+drop table t1;
+drop table t2;
+drop table t3;
+create table t1(a int, b int, unique(b));
+
+--source include/rpl/sync_to_replica.inc
+
+# See if slave stops when there's a duplicate entry for key error in LOAD DATA
+
+insert into t1 values(1,10);
+
+connection master;
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
+
+save_master_pos;
+connection slave;
+# 1062 = ER_DUP_ENTRY
+--let $er_inconsistent_error= convert_error(ER_INCONSISTENT_ERROR)
+call mtr.add_suppression("Replica SQL.*Error .Duplicate entry .10. for key .t1.b.. on query.* Error_code: MY-001062");
+--eval call mtr.add_suppression("Replica SQL.*Query caused different errors on source and replica.*Error on source:.*error code=1062.*Error on replica:.*Error_code: MY-0$er_inconsistent_error")
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+--let $slave_sql_errno= 1062
+--source include/rpl/wait_for_applier_error_and_skip.inc
+
+# Skip the bad event and see if error is cleared in SHOW REPLICA STATUS by START
+# SLAVE, even though we are not executing any event (as sql_replica_skip_counter
+# takes us directly to the end of the relay log).
+
+sync_with_master;
+--source include/rpl/assert_replica_no_error.inc
+
+# Trigger error again to test CHANGE REPLICATION SOURCE
+
+connection master;
+set sql_log_bin=0;
+delete from t1;
+set sql_log_bin=1;
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
+save_master_pos;
+connection slave;
+# The SQL slave thread should be stopped now. 
+# Exec_Source_Log_Pos should point to the start of Execute event
+# for last load data.
+# 1062 = ER_DUP_ENTRY
+--let $slave_sql_errno= 1062
+--source include/rpl/wait_for_applier_error.inc
+
+# CHANGE REPLICATION SOURCE and see if error is cleared in SHOW REPLICA STATUS.
+--source include/rpl/stop_receiver.inc
+--replace_column 2 ####
+CHANGE REPLICATION SOURCE to SOURCE_USER='test';
+--replace_column 2 ####
+CHANGE REPLICATION SOURCE to SOURCE_USER='root';
+--source include/rpl/assert_replica_no_error.inc
+
+# Trigger error again to test RESET REPLICA
+
+set global sql_replica_skip_counter=1;
+START REPLICA;
+sync_with_master;
+connection master;
+set sql_log_bin=0;
+delete from t1;
+set sql_log_bin=1;
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
+save_master_pos;
+connection slave;
+# The SQL slave thread should be stopped now.
+# 1062 = ER_DUP_ENTRY
+--let $slave_sql_errno= 1062
+--source include/rpl/wait_for_applier_error.inc
+
+# RESET REPLICA and see if error is cleared in SHOW REPLICA STATUS.
+STOP REPLICA;
+RESET REPLICA;
+--source include/rpl/assert_replica_no_error.inc
+
+# Finally, see if logging is done ok on master for a failing LOAD DATA INFILE
+
+connection master;
+reset binary logs and gtids;
+eval create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
+unique(day)) engine=$engine_type; # no transactions
+--error ER_DUP_ENTRY
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
+terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
+'\n##\n' starting by '>' ignore 1 lines;
+select * from t2;
+save_master_pos;
+connection slave;
+START REPLICA;
+sync_with_master;
+select * from t2;
+
+# verify that if no error on slave, this is an error
+
+alter table t2 drop key day;
+connection master;
+delete from t2;
+--error ER_DUP_ENTRY
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
+terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
+'\n##\n' starting by '>' ignore 1 lines;
+connection slave;
+
+if (`SELECT @@global.binlog_format != 'ROW'`)
+{
+  # Query causes error on master but not on slave. This causes the slave to
+  # stop with error code 0 (which is wrong: see BUG#57287)
+  # A new error code ER_INCONSISTENT_ERROR has been introduced instead of 0. 
+  --let $slave_sql_errno= $er_inconsistent_error
+  --source include/rpl/wait_for_applier_error.inc
+  drop table t1, t2;
+}
+
+connection master;
+drop table t1, t2;
+
+connection slave;
+# Execute RESET REPLICA before calling rpl/reset.inc
+# To avoid failure in MTS and rpl-priv_checks_user runs
+--source include/rpl/stop_receiver.inc
+RESET REPLICA;
+# BUG#48297: Schema name is ignored when LOAD DATA is written into binlog,
+# replication aborts
+-- let $rpl_only_running_threads= 1
+-- source include/rpl/reset.inc
+
+-- let $db1= b48297_db1
+-- let $db2= b42897_db2
+ 
+-- connection master
+
+-- disable_warnings
+-- eval drop database if exists $db1
+-- eval drop database if exists $db2
+-- enable_warnings
+
+-- eval create database $db1
+-- eval create database $db2
+
+-- eval use $db1
+-- eval CREATE TABLE t1 (c1 VARCHAR(256)) engine=$engine_type;
+
+-- eval use $db2
+
+-- echo ### assertion: works with cross-referenced database
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval $UPPER_STMT_HEAD LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
+
+-- eval use $db1
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- echo ### assertion: works with fully qualified name on current database
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval $UPPER_STMT_HEAD LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
+
+-- echo ### assertion: works without fully qualified name on current database
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval $UPPER_STMT_HEAD LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE t1
+
+-- echo ### create connection without default database
+-- echo ### connect (conn2,localhost,root,,*NO-ONE*);
+connect (conn2,localhost,root,,*NO-ONE*);
+-- connection conn2
+-- echo ### assertion: works without stating the default database
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval $UPPER_STMT_HEAD LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
+
+# We cannot disconnect right away because when inserting
+# concurrently in a MyISAM table, the server is sending an OK 
+# to the client before updating the table state (where the 
+# number of records is kept). See: BUG#37521 and BUG#29334.
+# So we need to wait, otherwise we would be having sporadic 
+# failures as reported here: BUG#50451.
+
+# 12 = 3 rows per each LOAD DATA executed x 4
+-- let $count= 12
+-- let $table= $db1.t1
+--source include/wait_until_rows_count.inc
+
+-- echo ### disconnect and switch back to master connection
+-- disconnect conn2
+-- connection master
+
+-- source include/rpl/sync_to_replica.inc
+-- eval use $db1
+
+let $diff_tables= master:$db1.t1, slave:$db1.t1;
+source include/diff_tables.inc;
+
+-- connection master
+
+-- eval DROP DATABASE $db1
+-- eval DROP DATABASE $db2
+
+-- source include/rpl/sync_to_replica.inc
+
+# BUG#49479: LOAD DATA INFILE is binlogged without escaping field names
+-- source include/rpl/reset.inc
+-- connection master
+use test;
+CREATE TABLE t1 (`key` TEXT, `text` TEXT);
+
+LOAD DATA INFILE '../../std_data/loaddata2.dat' REPLACE INTO TABLE `t1` FIELDS TERMINATED BY ',';
+SELECT * FROM t1;
+
+-- source include/rpl/sync_to_replica.inc
+-- connection master
+DROP TABLE t1;
+
+--source include/rpl/deinit.inc

@@ -23,7 +23,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 RESET BINARY LOGS AND GTIDS;
 --let $binlog_number= 000001
---source suite/binlog/include/binlog_reset_master_to_option.inc
+--source common/binlog/reset_binary_logs_and_gtids_to_option.inc
 
 # Extension to the existing command, this will delete the old
 # binary log and create a new one with index 1234,
@@ -35,7 +35,7 @@ RESET BINARY LOGS AND GTIDS TO 1234;
 file_exists $MYSQLD_DATADIR/binlog.000001;
 
 --let $binlog_number= 001234
---source suite/binlog/include/binlog_reset_master_to_option.inc
+--source common/binlog/reset_binary_logs_and_gtids_to_option.inc
 
 # Testing the boundary cases:
 #
@@ -51,7 +51,7 @@ RESET BINARY LOGS AND GTIDS TO -123;
 # Check with numbers around the upper limit to show it passes.
 RESET BINARY LOGS AND GTIDS TO 2000000000;
 --let $binlog_number= 2000000000
---source suite/binlog/include/binlog_reset_master_to_option.inc
+--source common/binlog/reset_binary_logs_and_gtids_to_option.inc
 
 # Checking with 2000000001
 --error ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE
@@ -97,19 +97,19 @@ RESET BINARY LOGS AND GTIDS TO 100;
 
 --connection default
 --let $binlog_number= 000100
---source suite/binlog/include/binlog_reset_master_to_option.inc
+--source common/binlog/reset_binary_logs_and_gtids_to_option.inc
 
 # 8) Test with hexa decimal numbers
 RESET BINARY LOGS AND GTIDS TO 0xF;
 --let $binlog_number= 000015
---source suite/binlog/include/binlog_reset_master_to_option.inc
+--source common/binlog/reset_binary_logs_and_gtids_to_option.inc
 
 -- error ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE
 RESET BINARY LOGS AND GTIDS TO 0x0;
 
 RESET BINARY LOGS AND GTIDS TO 0xFFFF;
 --let $binlog_number= 065535
---source suite/binlog/include/binlog_reset_master_to_option.inc
+--source common/binlog/reset_binary_logs_and_gtids_to_option.inc
 
 -- error ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE
 RESET BINARY LOGS AND GTIDS TO 0x7FFFFFFF;

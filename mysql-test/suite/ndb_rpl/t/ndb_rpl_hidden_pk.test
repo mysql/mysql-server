@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 
 --echo #
@@ -23,22 +23,22 @@
 # NOTE! There is no guarantee that the two statements are binlogged in a single
 # epoch transaction (and so testing the fix),
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT, b INT) engine = NDB;
 INSERT INTO t1 VALUES (1, 1);
 UPDATE t1 SET a=NULL where b=1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 2) This tests show that applying changes to table with hidden pk
 --echo # ignore error(s) from previously defined changes (in the same epoch
 --echo # transaction) as they should.
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT) engine = NDB;
 CREATE TABLE t2_hidden_pk (a INT, b INT) engine = NDB;
 CREATE TABLE t3_hidden_pk_unique (a INT, b INT, unique(b)) engine = NDB;
@@ -47,9 +47,9 @@ INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
 INSERT INTO t2_hidden_pk VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
 INSERT INTO t3_hidden_pk_unique VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
 INSERT INTO t4_hidden_pk_index VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --echo ## Delete rows on replica to make it possible to change something
 --echo ## on the source that would then fail when applied on the replica.
 DELETE FROM t1 WHERE a = 5;
@@ -62,36 +62,36 @@ DELETE FROM t4_hidden_pk_index WHERE a = 5;
 --echo ## - update pk table -> direct update
 # NOTE! relative order in binlog is not guaranteed, so whether the
 # error op is first or second in the batch is unknown.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
 UPDATE t1 SET b = 10 WHERE a = 1;
 COMMIT;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ## Case 2, hidden pk table
 --echo ## - update row that does not exist on replica
 --echo ## - update hidden pk table -> uses scan
 # NOTE! relative order in binlog is not guaranteed, so whether the
 # error op is first or second in the batch is unknown.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
 UPDATE t2_hidden_pk SET b = 10 WHERE a = 1;
 COMMIT;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ## Case 3, hidden pk table with unique index
 --echo ## - update row that does not exist on replica
 --echo ## - update hidden pk table with unique index -> uses index scan
 # NOTE! relative order in binlog is not guaranteed, so whether the
 # error op is first or second in the batch is unknown.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
 UPDATE t3_hidden_pk_unique SET a = 30 WHERE b < 3;
 COMMIT;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ## Case 4, hidden pk table with index
 --echo ## - update row that does not exist on replica
@@ -100,16 +100,16 @@ COMMIT;
 # error op is first or second in the batch is unknown. Howevere, the use
 # of < may mean that there are multiple 'keyless' events in the
 # epoch, so the chance of one of them following the failing pk op is higher
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
 UPDATE t4_hidden_pk_index SET a = 40 WHERE b < 4;
 COMMIT;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1, t2_hidden_pk, t3_hidden_pk_unique, t4_hidden_pk_index;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

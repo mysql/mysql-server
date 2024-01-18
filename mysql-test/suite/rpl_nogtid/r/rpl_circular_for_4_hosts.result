@@ -1,5 +1,5 @@
 *** Set up circular replication on four servers *** 
-include/rpl_init.inc [topology=1->2->3->4->1]
+include/rpl/init.inc [topology=1->2->3->4->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -27,7 +27,7 @@ SET auto_increment_increment= 4;
 SET auto_increment_offset= 1;
 *** Preparing data ***
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Replica SQL: Coordinator thread of multi-threaded replica is exiting seeing a failed Worker to apply an event");
 call mtr.add_suppression("Replica worker thread has failed to apply an event");
@@ -36,7 +36,7 @@ call mtr.add_suppression("Replica SQL.*Duplicate entry .6. for key t1.PRIMARY.* 
 * Transactions with commits *
 BEGIN;
 BEGIN;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
 Master A	b	COUNT(*)
 Master A	A	100
@@ -65,7 +65,7 @@ Master D	D	100
 * Transactions with rollbacks *
 BEGIN;
 BEGIN;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
 Master A	b	COUNT(*)
 Master A	B	100
@@ -85,4 +85,4 @@ Master D	D	100
 
 *** Clean up ***
 DROP TABLE t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

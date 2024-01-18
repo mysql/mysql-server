@@ -12,10 +12,10 @@
 #
 # Parameters:
 #   $rpl_server_count
-#     See include/master-slave.inc
+#     See include/rpl/init_source_replica.inc
 #
 #   $rpl_skip_group_replication_start
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 #
 #   $rpl_group_replication_single_primary_mode
 #     Sets configuration for single primary mode
@@ -28,7 +28,7 @@ if ($rpl_server_count)
 --source include/begin_include_file.inc
 
 # Setup and start group.
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Reset group_replication_bootstrap_group option on all servers.
 --source include/gr_clear_bootstrap_group.inc
@@ -46,4 +46,4 @@ if ($rpl_group_replication_single_primary_mode)
 # Set the default connection to 'server1'. Do this after
 # end_include_file.inc, so that it gets printed to the query log.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc

@@ -8,8 +8,8 @@
 
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 
 # Begin clean up test section
@@ -39,7 +39,7 @@ select test.f1(2);
 select * from test.t1;
 
 save_master_pos;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 #show create table test.t1;
 select * from test.t1;
@@ -53,7 +53,7 @@ connection master;
 
 DROP FUNCTION test.f1;
 DROP TABLE test.t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 5.0 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 drop table if exists t1,v1;
 drop view if exists t1,v1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create table t1 (a int);
 insert into t1 values (1);
 create view v1 as select a from t1;
@@ -14,7 +14,7 @@ select * from v1 order by a;
 a
 1
 2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from v1 order by a;
 a
 1
@@ -24,7 +24,7 @@ select * from v1 order by a;
 a
 2
 3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from v1 order by a;
 a
 2
@@ -33,21 +33,21 @@ delete from v1 where a=2;
 select * from v1 order by a;
 a
 3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from v1 order by a;
 a
 3
 alter view v1 as select a as b from t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from v1 order by 1;
 b
 3
 drop view v1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from v1 order by a;
 ERROR 42S02: Table 'test.v1' doesn't exist
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ---> Test for BUG#20438
 
@@ -57,7 +57,7 @@ DROP TABLE IF EXISTS t1;
 DROP VIEW IF EXISTS v1;
 
 ---> Synchronizing slave with master...
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 ---> connection: master
 
@@ -74,7 +74,7 @@ c
 1
 
 ---> Synchronizing slave with master...
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ---> connection: master
 
 ---> Checking on slave...
@@ -87,11 +87,11 @@ c
 ---> Cleaning up...
 DROP VIEW v1;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create table t1(a int, b int);
 insert into t1 values (1, 1), (1, 2), (1, 3);
 create view  v1(a, b) as select a, sum(b) from t1 group by a;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 explain v1;
 Field	Type	Null	Key	Default	Extra
 a	int	YES		NULL	
@@ -104,14 +104,14 @@ a	b
 1	6
 drop table t1;
 drop view v1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t1(a INT);
 CREATE VIEW v1 AS SELECT * FROM t1;
 CREATE VIEW v1 AS SELECT * FROM t1;
 ERROR 42S01: Table 'v1' already exists
 DROP VIEW v1;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t1 (a INT);
 # create view as output from mysqldump 10.11 (5.0.62)
 /*!50001 CREATE ALGORITHM=UNDEFINED */
@@ -121,12 +121,12 @@ CREATE TABLE t1 (a INT);
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` < 3) WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_0900_ai_ci
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` < 3) WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1;
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 End of 5.0 tests
-include/rpl_end.inc
+include/rpl/deinit.inc

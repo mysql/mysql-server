@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,4 +8,4 @@ being passed the alias ignore_ddl_errors and a numeric error code
 SHOW VARIABLES LIKE 'replica_skip_errors';
 Variable_name	Value
 replica_skip_errors	1003,1007,1008,1050,1051,1054,1060,1061,1068,1091,1146
-include/rpl_end.inc
+include/rpl/deinit.inc

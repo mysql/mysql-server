@@ -1,5 +1,5 @@
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 #
 # Test add column
@@ -119,4 +119,4 @@ SELECT * FROM t1 ORDER BY a;
 # cleanup
 --connection master
 DROP TABLE t1;
--- source include/rpl_end.inc
+-- source include/rpl/deinit.inc

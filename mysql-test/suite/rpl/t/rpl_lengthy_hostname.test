@@ -14,11 +14,11 @@
 
 # we will configure the hostname ourselves
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $lengthy_hostname=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 #
 # 1. Assertion: CHANGE REPLICATION SOURCE TO (CRST) accepts a lengthy hostname
 #
@@ -65,6 +65,6 @@ while($i>0)
 }
 
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1"
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

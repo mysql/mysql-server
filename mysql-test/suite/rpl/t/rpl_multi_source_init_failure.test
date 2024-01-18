@@ -1,7 +1,7 @@
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 #
 # Testing how well MSR handles initialization failures.
 # Specifically it's proved that a failure to initialize mi in one of
@@ -14,7 +14,7 @@ CALL mtr.add_suppression("Error during --relay-log-recovery.*");
 CALL mtr.add_suppression("Server was not able to find a rotate event from source server.*");
 CALL mtr.add_suppression("Recovery from source pos.* and file");
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --replace_result $MASTER_MYPORT SOURCE_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_a';
@@ -26,11 +26,11 @@ STOP REPLICA FOR CHANNEL 'ch_a';
 # --relay-log-recovery is a source of the following mi initialization failure
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --skip-replica-start
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 RESET REPLICA ALL;
 
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

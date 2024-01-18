@@ -36,7 +36,7 @@
 --echo #    fail.
 --echo #    Bootstrap a group on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Install the clone plugin
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
@@ -62,7 +62,7 @@ INSERT INTO t1 VALUES (2);
 
 # Install the clone plugin
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -94,16 +94,16 @@ START GROUP_REPLICATION;
 --source include/wait_until_disconnected.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Commit one transaction on server1 that will need to be replicated through
 # `group_replication_recovery` channel.
 INSERT INTO t1 VALUES (3);
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
 
@@ -115,11 +115,11 @@ INSERT INTO t1 VALUES (3);
 --echo ############################################################
 --echo # 4. Cleanup.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 DROP TABLE t1;
 

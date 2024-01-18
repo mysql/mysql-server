@@ -83,7 +83,7 @@ SET DEBUG_SYNC= 'RESET';
 #    2 members.
 [connection server2]
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=1 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_force_members=127.0.0.1:10000
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/assert.inc [Member 2 is OFFLINE]
 
 ############################################################
@@ -102,11 +102,11 @@ SET GLOBAL group_replication_force_members= "";
 include/assert.inc [group_replication_force_members is empty]
 include/start_group_replication.inc
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/assert.inc [Server 1 must be present on group members]
 include/assert.inc [Server 2 must be present on group members]
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/assert.inc [Server 1 must be present on group members]
 include/assert.inc [Server 2 must be present on group members]
 include/assert.inc [group_replication_force_members must be empty]
@@ -115,7 +115,7 @@ include/assert.inc [group_replication_force_members must be empty]
 # 10. Kill and restart a member to group loose majority.
 [connection server1]
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS1 --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server2]
 include/gr_wait_for_member_state.inc
 

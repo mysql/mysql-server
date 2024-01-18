@@ -21,7 +21,7 @@
 #  WL#12966 Replication with Restricted Privileges
 
 --source include/not_have_privilege_checks_user.inc
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 source include/have_binlog_format_mixed.inc;
 
 let $assert_text= On master, the table should return an empty set.;
@@ -49,7 +49,7 @@ source include/assert.inc;
 --echo # Verify that the value of this field is correct after STOP REPLICA.
 --echo
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 let $sss_value= query_get_value(SHOW REPLICA STATUS, SQL_Delay, 1);
 let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration, Desired_Delay, 1);
@@ -62,7 +62,7 @@ source include/assert.inc;
 --echo
 
 eval CHANGE REPLICATION SOURCE to SOURCE_DELAY= 2;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 let $sss_value= query_get_value(SHOW REPLICA STATUS, SQL_Delay, 1);
 let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration, Desired_Delay, 1);
@@ -74,7 +74,7 @@ source include/assert.inc;
 --echo # Verify that the value is preserved after STOP REPLICA.
 --echo
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 let $ss_value= query_get_value(SHOW REPLICA STATUS, SQL_Delay, 1);
 let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration, Desired_Delay, 1);
@@ -87,7 +87,7 @@ source include/assert.inc;
 --echo
 
 eval CHANGE REPLICATION SOURCE to SOURCE_DELAY= 0;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 let $sss_value= query_get_value(SHOW REPLICA STATUS, SQL_Delay, 1);
 let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration, Desired_Delay, 1);
@@ -140,4 +140,4 @@ let $assert_text= Value for Assign_gtids_to_anonymous_transactions_value is init
 let $assert_cond= "NULL" = "$ps_value";
 source include/assert.inc;
 
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

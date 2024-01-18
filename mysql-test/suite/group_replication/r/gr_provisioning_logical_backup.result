@@ -9,7 +9,7 @@ include/start_and_bootstrap_group_replication.inc
 
 [connection server2]
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 USE test;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
@@ -20,13 +20,13 @@ UPDATE t1 SET c1=2 WHERE c1=0;
 include/assert.inc ['There is a value 1 in table t1']
 include/assert.inc ['There is a value 2 in table t1']
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 USE test;
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t2 VALUES (0);
 INSERT INTO t2 VALUES (1);
 UPDATE t2 SET c1=2 WHERE c1=0;
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 [connection server1]
 include/assert.inc ['Checking the number of records in test.t2']

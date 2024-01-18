@@ -27,8 +27,8 @@
 # WL#12475 - Protocol Changes to specify compression configuration for
 #              connections
 
---source include/master-slave.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/connection_replica.inc
 
 --echo ##### TEST FOR NEW CHANNEL #####
 
@@ -251,7 +251,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 --echo
 --echo # cleanup
 --echo
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA ALL FOR CHANNEL 'c1';
 RESET REPLICA ALL FOR CHANNEL 'c10';
 RESET REPLICA ALL FOR CHANNEL 'c11';
@@ -271,5 +271,5 @@ RESET REPLICA ALL FOR CHANNEL 'c7';
 RESET REPLICA ALL FOR CHANNEL 'c8';
 RESET REPLICA ALL FOR CHANNEL 'c9';
 
---source include/start_slave.inc
---source include/rpl_end.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

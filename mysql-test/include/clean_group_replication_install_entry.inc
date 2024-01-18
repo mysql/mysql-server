@@ -21,7 +21,7 @@
 while ($_install_rpl_server)
 {
 #  --let $rpl_connection_name= server_$_install_rpl_server
-#  --source include/rpl_connection.inc
+#  --source include/connection.inc
   --connection server_$_install_rpl_server
   --let $_install_tmp= query_get_value(SELECT COUNT(*) AS count FROM mysql.plugin WHERE name="group_replication", count, 1)
   if ($_install_tmp)

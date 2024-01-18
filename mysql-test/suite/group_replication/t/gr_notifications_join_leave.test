@@ -57,7 +57,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # lets add the debug points and create the table into which
 # the notifications will be logged.
@@ -69,7 +69,7 @@ CREATE TABLE test.gms_listener_example(log_message TEXT);
 SET SQL_LOG_BIN=1;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/add_debug_point.inc
@@ -86,7 +86,7 @@ SET SQL_LOG_BIN=1;
 
 # start the group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # view change + server moved to recovering then to online
@@ -102,7 +102,7 @@ SET SQL_LOG_BIN=1;
 # server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 
@@ -115,7 +115,7 @@ SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 # server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $expected_notifications= 1,VIEW %:2|1,STATE %:2
 --source ../include/assert_notifications.inc
@@ -127,7 +127,7 @@ SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 --echo ##########################################################################
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
 SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
@@ -140,7 +140,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 --source ../include/assert_notifications.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $expected_notifications= 1,STATE %:2
 --source ../include/assert_notifications.inc
@@ -153,7 +153,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 
 # server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Table 'tab1' already exists");
@@ -170,12 +170,12 @@ SET SESSION sql_log_bin=1;
 
 # server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE test.tab1 (a INT PRIMARY KEY);
 
 # server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
@@ -185,14 +185,14 @@ CREATE TABLE test.tab1 (a INT PRIMARY KEY);
 
 # server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $expected_notifications= 1,VIEW %:3
 --source ../include/assert_notifications.inc
 
 # server2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -213,7 +213,7 @@ SET SESSION sql_log_bin=1;
 # server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -225,7 +225,7 @@ SET SESSION sql_log_bin=1;
 # server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/remove_debug_point.inc
@@ -235,6 +235,6 @@ SET DEBUG_SYNC= 'RESET';
 
 DROP TABLE gms_listener_example;
 DROP TABLE test.tab1;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --source include/group_replication_end.inc

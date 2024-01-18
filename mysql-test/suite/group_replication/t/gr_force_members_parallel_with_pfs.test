@@ -27,14 +27,14 @@
 --echo # 1. Save members variables
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member1_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member2_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
@@ -43,17 +43,17 @@
 --echo # 2. Kill and restart a member to group loose majority.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $restart_parameters=restart:--group_replication_local_address=$member1_group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
 --replace_result $member1_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS1 $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # confirm member is unreachable
 --let $group_replication_member_state= UNREACHABLE
@@ -78,7 +78,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_check_force_members';
 --echo # 5. Wait for debug point is reached
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Wait for the debug sync to be reached.
 SET DEBUG_SYNC= "now WAIT_FOR signal.reached_group_replication_wait_on_check_force_members";
 
@@ -103,7 +103,7 @@ SELECT PROTOCOL_VERSION FROM performance_schema.replication_group_communication_
 SET DEBUG_SYNC= 'now SIGNAL signal.resume_group_replication_wait_on_check_force_members';
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --echo

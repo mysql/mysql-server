@@ -40,7 +40,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
 --echo #    complete on all members
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: waiting for operation to complete on all members%"
 --source include/wait_condition.inc
@@ -49,7 +49,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
 --echo # 4. Kill the query
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 
@@ -65,7 +65,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 --echo # 6. Check the action returns successfully.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid MEMBER1_UUID
 --reap
@@ -73,7 +73,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -81,7 +81,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 --echo # 7. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 

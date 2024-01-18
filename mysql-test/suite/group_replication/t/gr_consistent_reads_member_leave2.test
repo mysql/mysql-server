@@ -32,7 +32,7 @@
 --echo ############################################################
 --echo # 01. Create a table on the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 
@@ -42,7 +42,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo #     will allow us to deterministically remove server3 before
 --echo #     any member send its acknowledge.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
 
 
@@ -53,7 +53,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier
 --echo #     group while others are waiting for its acknowledge.
 --echo #     The not acknowledged transaction must rollback on server3.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_supress_message_send_after_applier_prepare';
 
 SET SESSION sql_log_bin= 0;
@@ -76,7 +76,7 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 04. Execute T1 on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --send INSERT INTO t1 VALUES (1)
 
 
@@ -84,7 +84,7 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 05. Wait until T1 is prepared on server2.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Wait for the debug sync to be reached.
 SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
 
@@ -93,7 +93,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_pre
 --echo ############################################################
 --echo # 06. Wait until T1 is prepared on server3.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Wait for the debug sync to be reached.
 SET DEBUG_SYNC= "now WAIT_FOR signal.after_supress_message_send_after_applier_prepare_waiting";
 
@@ -103,7 +103,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.after_supress_message_send_after_applier_pr
 --echo # 07. Make server3 do not send its prepare message and remove
 --echo #     it from the group.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Signal debug sync to continue.
 SET DEBUG_SYNC= 'now SIGNAL signal.after_supress_message_send_after_applier_prepare_continue';
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_supress_message_send_after_applier_prepare';
@@ -122,7 +122,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_supress_message_send_after_app
 --echo ############################################################
 --echo # 08. Make server2 resume and send its prepare message.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Signal debug sync to continue.
 SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
@@ -133,12 +133,12 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier
 --echo # 09. Wait until server3 is removed from the group. T1 will
 --echo #     commit on server 1 and 2.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $assert_text= 'There is 1 value in table t1'
@@ -146,7 +146,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'There is 1 value in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
 --source include/assert.inc
@@ -159,11 +159,11 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier
 --echo ############################################################
 --echo # 10. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --source include/group_replication_end.inc

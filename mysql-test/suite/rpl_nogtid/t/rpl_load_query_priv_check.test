@@ -59,7 +59,7 @@ if ($grant_to == '')
 --let $rpl_privilege_checks_user = 2:$applier_user
 --let $rpl_skip_start_slave=1
 --source include/skip_config_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # TC1. Execute Begin_load_query and Execute_load with and without the
@@ -73,20 +73,20 @@ SET @@SESSION.sql_log_bin = ON;
 --let $source_log_pos_1= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
---source include/save_master_pos.inc
+--source include/rpl/save_server_position.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("The PRIVILEGE_CHECKS_USER for channel '' would need FILE");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 CREATE TABLE t1(word CHAR(20) NOT NULL);
 
 START REPLICA;
 --let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --eval GRANT FILE, INSERT  ON *.* TO $grant_to
 START REPLICA;
---source include/sync_slave_sql.inc
+--source include/rpl/sync_with_saved.inc
 
 # Now check for the privilege required by Execute_load_query_log_event separately.
 
@@ -103,7 +103,7 @@ eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPOR
 START REPLICA;
 SET DEBUG_SYNC= "now WAIT_FOR skipped_the_priv_check_in_begin_load";
 --let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
 STOP REPLICA;
@@ -112,12 +112,12 @@ STOP REPLICA;
 --replace_result $MASTER_MYPORT SOURCE_PORT $source_log_pos_1 SOURCE_LOG_POS
 eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, SOURCE_LOG_POS= $source_log_pos_1;
 START REPLICA;
---source include/sync_slave_sql.inc
+--source include/rpl/sync_with_saved.inc
 DROP TABLE t1;
 STOP REPLICA;
 
 --eval REVOKE FILE, INSERT  ON *.* FROM $grant_to
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo #
 --echo # TC2. Execute Begin_load_query and Delete_file with and without the
@@ -142,7 +142,7 @@ EOF
 --error ER_DUP_ENTRY
 --eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/data01' INTO TABLE t1
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CREATE TABLE t1 (c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE = MyISAM;
 
 # We want to replicate only from the last LOAD DATA INFILE statement
@@ -150,12 +150,12 @@ CREATE TABLE t1 (c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE = MyISAM;
 
 START REPLICA;
 --let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --eval GRANT FILE  ON *.* TO $grant_to
 
 START REPLICA;
---source include/sync_slave_sql.inc
+--source include/rpl/sync_with_saved.inc
 
 # Now check for the privilege required by Delete_file event separately.
 
@@ -171,7 +171,7 @@ eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPOR
 START REPLICA;
 SET DEBUG_SYNC = "now WAIT_FOR skipped_the_priv_check_in_begin_load";
 --let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
 STOP REPLICA;
@@ -180,7 +180,7 @@ STOP REPLICA;
 eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, SOURCE_LOG_POS= $source_log_pos_1;
 
 START REPLICA;
---source include/sync_slave_sql.inc
+--source include/rpl/sync_with_saved.inc
 DROP TABLE t1;
 STOP REPLICA;
 connection master;
@@ -188,6 +188,6 @@ DROP TABLE t1;
 --let $rpl_only_running_threads=1
 --remove_file $MYSQLTEST_VARDIR/tmp/data01
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp SQL_LOAD*
---source include/rpl_connection_master.inc
---source include/rpl_reset.inc
---source include/rpl_end.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/reset.inc
+--source include/rpl/deinit.inc

@@ -22,7 +22,7 @@ set @b= 14632475938453979136;
 execute stmt using @a, @b;
 deallocate prepare stmt;
 drop table t1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 
 #
@@ -56,7 +56,7 @@ END//
 DELIMITER ;//
 
 CALL p1();
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 DROP PROCEDURE p1;
 DROP TABLE t1;
@@ -143,7 +143,7 @@ use test;
 # subsequent statements in row format.
 connect (other,localhost,root,,test);
 connection other;
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 connection default;
 disconnect other;
 
@@ -194,7 +194,7 @@ iOtVZR4UAAAAKAAAAPIEAAAAAG8AAAAAAAEAAgAB/wACAAAAB2NFFg==
 
 # Show binlog events to check that server ids are correct.
 --let $show_binlog_events_mask_columns= 1,2,5
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 DROP TABLE t1;
 

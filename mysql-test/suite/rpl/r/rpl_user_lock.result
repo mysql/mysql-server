@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -40,7 +40,7 @@ SIGNAL SQLSTATE '45000'
 END IF;
 END;|
 INSERT INTO t1 VALUES (6,6), (7,7), (8,8);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # FT_RPL-3: Check that there is no diff in table content between master
 #           and slave in case binlog_format != 'statement'.
 DROP TRIGGER trig_t1_ins;
@@ -48,4 +48,4 @@ DROP TABLE t1;
 #
 # End of tests
 #
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -37,7 +37,7 @@ insert into t2 values (bug23333(),1);
 # the binlog_limit is used to hide the differences between the mixed
 # and row logging formats after BUG#53259
 let $binlog_limit= 2, 4;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 select count(*),@a from t1 /* must be 1,1 */;
 
 # clean-up

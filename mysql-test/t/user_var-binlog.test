@@ -1,5 +1,5 @@
 # Requires statement logging
--- source include/force_binlog_format_statement.inc
+-- source include/rpl/force_binlog_format_statement.inc
 # TODO: Create row based version once $MYSQL_BINLOG has new RB version
 
 # Check that user variables are binlogged correctly (BUG#3875)
@@ -11,7 +11,7 @@ INSERT INTO t1 VALUES(@`a b`);
 set @var1= "';aaa";
 SET @var2=char(ascii('a'));
 insert into t1 values (@var1),(@var2);
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 # more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
 # absolutely need variables names to be quoted and strings to be
@@ -19,8 +19,8 @@ source include/show_binlog_events.inc;
 let $MYSQLD_DATADIR= `select @@datadir`;
 flush logs;
 --let $mysqlbinlog_parameters= --short-form $MYSQLD_DATADIR/binlog.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 drop table t1;
 
 # End of 4.1 tests
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc

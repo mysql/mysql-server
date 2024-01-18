@@ -19,7 +19,7 @@
 --source include/have_mysqld_monitoring_process.inc
 --source include/have_clone_plugin.inc
 --source include/force_restart.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -34,7 +34,7 @@
 --echo #    Commit some data and then purge all binary logs.
 --echo #    Bootstrap a group on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Install the clone plugin
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
@@ -47,7 +47,7 @@ INSERT INTO t1 VALUES (2);
 
 # Purge binary logs.
 SET sql_log_bin = 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET sql_log_bin = 1;
 
 FLUSH BINARY LOGS;
@@ -68,7 +68,7 @@ FLUSH BINARY LOGS;
 
 # Install the clone plugin
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -99,7 +99,7 @@ START GROUP_REPLICATION;
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --source include/start_group_replication.inc
 
@@ -114,7 +114,7 @@ START GROUP_REPLICATION;
 --echo ############################################################
 --echo # 4. Cleanup.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
@@ -123,8 +123,8 @@ RESET PERSIST IF EXISTS group_replication_communication_stack;
 
 
 DROP TABLE t1;
---source include/gtid_utils_end.inc
---source include/rpl_sync.inc
+--source include/rpl/gtid_utils_end.inc
+--source include/rpl/sync.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("This member will start distributed recovery using clone. It is due to no ONLINE member has the missing data for recovering in its binary logs.");

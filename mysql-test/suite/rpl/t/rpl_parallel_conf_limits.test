@@ -17,7 +17,7 @@
 
 # no support for Query-log-event in this test
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 connection slave;
 
@@ -29,7 +29,7 @@ create view coord_wait_list as
 
 let $workers= 4;
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 eval set @@global.replica_parallel_workers= $workers;
 
@@ -43,14 +43,14 @@ create view worker_wait_list as
        SELECT id from Information_Schema.processlist
               where state like 'Waiting for an event from Coordinator';
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 # relates to B preparation
 let $mts_max_q_size=1024;
 set @save_replica_pending_jobs_size_max = @@global.replica_pending_jobs_size_max;
 eval set @@global.replica_pending_jobs_size_max= $mts_max_q_size;
 
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 let $count= $workers;
 let $table= worker_wait_list;
@@ -67,7 +67,7 @@ connection master;
 create database d0;
 create table d0.t0 (a int auto_increment primary key, b text null) engine=innodb;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 begin;
@@ -125,7 +125,7 @@ connection master;
 
 drop database d0;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #connection slave;
 
 drop view coord_wait_list;
@@ -134,4 +134,4 @@ drop view worker_wait_list;
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 --enable_warnings
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

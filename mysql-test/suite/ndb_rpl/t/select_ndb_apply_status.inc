@@ -36,7 +36,7 @@ if ($binlog_file != $source_file) {
   eval SELECT log_name, start_pos, end_pos
     FROM mysql.ndb_apply_status WHERE server_id = $source_server_id;
   SELECT * FROM mysql.ndb_apply_status;
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   show binlog events;
   die Mismatching log_name in ndb_apply_status;
 }
@@ -49,7 +49,7 @@ if ($binlog_start != $source_start_pos) {
   eval SELECT log_name, start_pos, end_pos
     FROM mysql.ndb_apply_status WHERE server_id = $source_server_id;
   SELECT * FROM mysql.ndb_apply_status;
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   show binlog events;
   die Mismatching start_pos in ndb_apply_status;
 }
@@ -62,7 +62,7 @@ if ($binlog_end != $source_end_pos) {
   eval SELECT log_name, start_pos, end_pos
     FROM mysql.ndb_apply_status WHERE server_id = $source_server_id;
   SELECT * FROM mysql.ndb_apply_status;
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   show binlog events;
   die Mismatching end_pos in ndb_apply_status;
 }

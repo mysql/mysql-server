@@ -57,12 +57,12 @@ call mtr.add_suppression("Could not find a valid tablespace file for");
 --let $gtid_mode_on= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
 # To use by gtid_assert
 --let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 # Instructing gtid_step_assert called by sourced file
 # to work in gtid-mode OFF as well.
 # Besides, there's a reason for a bug to fix  'cos setting $gtid_mode
 # turns out insufficient for $gtid_step_assert to keep the value 1 for
-# an internal "_"-var of include/gtid_step_assert.inc.
+# an internal "_"-var of include/rpl/gtid_step_assert.inc.
 --let $gtid_step_gtid_mode_agnostic=`SELECT '$gtid_mode' != 'ON'`
 
 # The post_prepare crash is  simulated only when the correspoding feature
@@ -77,7 +77,7 @@ call mtr.add_suppression("Could not find a valid tablespace file for");
 # E.g CREATE|DROP|ALTER|RENAME table.
 
 --let $table=t_2
---source extra/binlog_tests/binlog_ddl_half_atomic.inc
+--source common/binlog/ddl_half_atomic.inc
 
 # Cleanup.
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc

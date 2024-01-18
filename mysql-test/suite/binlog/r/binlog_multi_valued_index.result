@@ -1,4 +1,4 @@
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLE t1 (id INT, c INT, j JSON NOT NULL,
 UNIQUE INDEX i1((CAST(CAST(j AS JSON) AS UNSIGNED ARRAY))));
 SET @@session.binlog_row_image = MINIMAL;
@@ -13,7 +13,7 @@ INSERT INTO t1 VALUES (100, 100, '[100,200,300,400]'),
 UPDATE t1 SET j = '[101,201,301,401]' WHERE JSON_CONTAINS(CAST(j AS JSON),'200');
 DROP TABLE t1;
 FLUSH LOGS;
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 ### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1
@@ -69,7 +69,7 @@ include/mysqlbinlog.inc
 ###   @1=100
 ###   @2=100
 ###   @3='[101, 201, 301, 401]'
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 # Check that when the only unique NOT NULL index is a functional index,
 # the binary log contains a full before-image regardless of
 # binlog_row_image.
@@ -84,7 +84,7 @@ SET binlog_row_image = NOBLOB;
 UPDATE t1 SET j = '[2,13,14]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 DROP TABLE t1;
 FLUSH LOGS;
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 ### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1

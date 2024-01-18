@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 [connection master]
 CREATE DATABASE db;
 USE db;
@@ -15,13 +15,13 @@ CALL insertParallely();;
 [connection server_1]
 [connection master]
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 UPDATE db.t SET num2=2 WHERE num2=1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 include/assert.inc [The row count with num2=2 must be 10000 on slave]
 include/assert.inc [The slave's GTID_EXECUTED must be equal to the master's one]
 [connection master]
 DROP DATABASE db;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,7 +20,7 @@ FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag
 MASTER_UUID	1	4	
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # connection slave
 #
@@ -139,4 +139,4 @@ SLAVE_UUID	1	2
 SLAVE_UUID	3	3	
 SET @@session.binlog_transaction_compression= SAVED;
 DROP TABLE t1,t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,14 +10,14 @@ INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 Warning	1265	Data truncated for column 'b' at row 1
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 Warning	1265	Data truncated for column 'b' at row 1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

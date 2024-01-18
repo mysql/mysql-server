@@ -12,7 +12,7 @@
 # mysql_show_binlog_events function scope.
 #
 --source include/have_debug_sync.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo [connection slave]
 --connection slave
@@ -34,4 +34,4 @@ SET DEBUG_SYNC= 'RESET';
 SET DEBUG_SYNC= 'RESET';
 
 --connection master
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

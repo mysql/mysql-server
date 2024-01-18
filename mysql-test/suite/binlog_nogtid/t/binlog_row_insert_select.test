@@ -10,5 +10,5 @@
 # The use of the ps protocol causes extra table maps in the binlog, so
 # we disable the ps-protocol for this statement.
 --disable_ps_protocol
--- source extra/binlog_tests/insert_select-binlog.test
+-- source common/binlog/insert_select-binlog.test
 --enable_ps_protocol

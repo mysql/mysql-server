@@ -205,7 +205,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 --source include/assert.inc
 
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 SET SESSION sql_log_bin= 1;
 
 --echo [ The value of stable_set must be equal to the member GTID executed set ]
@@ -222,7 +222,7 @@ SET SESSION sql_log_bin= 1;
 --source include/assert.inc
 
 SET SESSION sql_log_bin= 0;
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 
 --connection server1

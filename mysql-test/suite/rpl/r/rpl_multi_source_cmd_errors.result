@@ -1,7 +1,7 @@
 #
 # set up masters server_1 and server_3 with server_2 being a slave.
 #.
-include/rpl_init.inc [topology=1->2,3->2]
+include/rpl/init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -66,6 +66,6 @@ ERROR HY000: CHANGE REPLICATION SOURCE with the given parameters cannot be perfo
 # Assert that channels are not created for failed CHANGE REPLICATION SOURCE command.
 # and number of channels configured must be 2
 include/assert.inc [there shall be only two rows representing 2 channels.]
-include/rpl_end.inc
+include/rpl/deinit.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 RESET REPLICA ALL FOR CHANNEL 'channel_3';

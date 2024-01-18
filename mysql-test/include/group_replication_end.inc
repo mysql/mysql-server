@@ -16,10 +16,10 @@
 #     See include/install_group_replication_plugin.inc
 #
 #   $rpl_debug
-#     See include/rpl_init.inc
+#     See include/rpl/init.inc
 #
 #   $rpl_group_replication
-#     See include/rpl_end.inc
+#     See include/rpl/deinit.inc
 #
 #   $rpl_group_replication_single_primary_mode
 #     This instructs this script to run the script that
@@ -40,7 +40,7 @@ if ($install_clean_up_required)
 }
 
 # Shut down Group Replication
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 # Clean Group Replication XCom options on all servers to avoid false
 # errors on MTR check testcase.

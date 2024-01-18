@@ -73,7 +73,7 @@ if (!$_ael_server_number) {
 --let $include_filename = assert_error_log_sequence.inc [server: $_ael_server_number, pattern: $error_pattern]
 --source include/begin_include_file.inc
 
---source include/disable_binlog.inc
+--source include/rpl/disable_binlog.inc
 
 if (!$rpl_debug) {
   --disable_query_log
@@ -228,7 +228,7 @@ if ($error_pattern != SAVEPOS) {
 DROP TEMPORARY TABLE mtr.error_log;
 
 --let $error_log_filename = $_ael_error_log_filename_save
---source include/restore_binlog.inc
+--source include/rpl/restore_binlog.inc
 
 --let $include_filename = assert_error_log_sequence.inc
 --source include/end_include_file.inc

@@ -23,7 +23,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @saved_recovery_retry_count = @@GLOBAL.group_replication_recovery_retry_count;
 SET @@GLOBAL.group_replication_recovery_retry_count = 1;
 SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
@@ -37,12 +37,12 @@ SET sql_log_bin = 1;
 
 # Bootstrap the rest of the group (minus M1)
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # Suppress expected errors and warnings
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET sql_log_bin = 0;
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Error 'Table 't1'*");
@@ -64,12 +64,12 @@ SET sql_log_bin = 1;
 --echo
 # Create and replicate a table on the group
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE t1 (a INT PRIMARY KEY);
 
 # Add M1 to the group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
 
@@ -87,7 +87,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 
 # Lastly, verify that the member is not viewed as part of the group on M2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
 
@@ -97,7 +97,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $skip_assert_offline_mode= 1
 --source include/stop_group_replication.inc
 

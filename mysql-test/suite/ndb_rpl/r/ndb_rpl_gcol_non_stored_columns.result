@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 [connection master]
 SET @@session.default_storage_engine = 'ndbcluster';
 # Case 1. All non-stored columns.
@@ -258,4 +258,4 @@ DROP FUNCTION IF EXISTS f1;
 DROP TRIGGER IF EXISTS trg1;
 DROP TRIGGER IF EXISTS trg2;
 set sql_warnings = 0;
-include/rpl_end.inc
+include/rpl/deinit.inc

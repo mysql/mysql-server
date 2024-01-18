@@ -6,8 +6,8 @@
 # ################################################################################
 --source include/not_group_replication_plugin.inc
 --source include/have_debug_sync.inc
---source include/master-slave.inc
---source include/install_semisync.inc
+--source include/rpl/init_source_replica.inc
+--source include/rpl/install_semisync.inc
 
 --echo # Initialization
 SET @debug_save= @@GLOBAL.DEBUG;
@@ -16,13 +16,13 @@ SET GLOBAL rpl_semi_sync_source_timeout= 6000000;
 --echo #
 --echo # Verify no deadlock at AFTER_SYNC
 --echo #
---source extra/rpl_tests/rpl_semi_sync_deadlock.test
+--source common/rpl/rpl_semi_sync_deadlock.test
 
 --echo #
 --echo # Verify no deadlock at AFTER_COMMIT
 --echo #
 SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
---source extra/rpl_tests/rpl_semi_sync_deadlock.test
+--source common/rpl/rpl_semi_sync_deadlock.test
 
 --echo # Cleanup
 SET GLOBAL rpl_semi_sync_source_timeout= 600000;
@@ -39,7 +39,7 @@ while ($i < $n)
 --enable_result_log
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --connection master
 SET GLOBAL debug= '+d,semi_sync_3-way_deadlock';
@@ -113,7 +113,7 @@ while ($i < $n)
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/uninstall_semisync.inc
---source include/rpl_end.inc
+--source include/rpl/uninstall_semisync.inc
+--source include/rpl/deinit.inc

@@ -10,7 +10,7 @@
 #######################################################################
 
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/count_sessions.inc
 --source include/xplugin_create_user.inc
 
@@ -232,7 +232,7 @@ EOF
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #-- connection slave
 --echo # Connection:slave - Row with value 2 is expected on slave.
 USE xplugintest;
@@ -249,6 +249,6 @@ DROP DATABASE IF EXISTS xplugintest;
 
 --source ../include/xplugin_cleanup.inc
 --source include/wait_until_count_sessions.inc
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc
 

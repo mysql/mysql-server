@@ -62,10 +62,10 @@ include/assert.inc ['There is 1 value in table t1']
 ############################################################
 # 09. T1 did not complete on server 2 and 3.
 [connection server_2]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/assert.inc ['There are no values in table t1']
 [connection server_3]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/assert.inc ['There are no values in table t1']
 
 ############################################################

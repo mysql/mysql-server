@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [on slave]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 ==== Create some events on master ====
 [on master]
 create table t1(n int not null auto_increment primary key);
@@ -18,42 +18,42 @@ drop table t2;
 ==== Replicate one event at a time on slave ====
 [on slave]
 START REPLICA until SOURCE_LOG_FILE='SOURCE_LOG_FILE', SOURCE_LOG_POS=SOURCE_LOG_POS;
-include/wait_for_slave_io_to_start.inc
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/wait_for_applier_to_stop.inc
 select * from t1;
 n
 1
 2
 3
 4
-include/check_slave_param.inc [Exec_Source_Log_Pos]
+include/rpl/assert_replica_status.inc [Exec_Source_Log_Pos]
 START REPLICA until SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
-include/wait_for_slave_io_to_start.inc
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/wait_for_applier_to_stop.inc
 select * from t1;
 n
 1
 2
 3
 4
-include/check_slave_param.inc [Exec_Source_Log_Pos]
+include/rpl/assert_replica_status.inc [Exec_Source_Log_Pos]
 START REPLICA until relay_log_file='slave-relay-bin.000003', relay_log_pos=RELAY_LOG_POS;
-include/wait_for_slave_io_to_start.inc
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/wait_for_applier_to_stop.inc
 select * from t2;
 n
 1
 2
-include/check_slave_param.inc [Exec_Source_Log_Pos]
+include/rpl/assert_replica_status.inc [Exec_Source_Log_Pos]
 START REPLICA;
 [on master]
 [on slave]
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 START REPLICA until SOURCE_LOG_FILE='SOURCE_LOG_FILE', SOURCE_LOG_POS=SOURCE_LOG_POS;
-include/wait_for_slave_io_to_start.inc
-include/wait_for_slave_sql_to_stop.inc
-include/check_slave_param.inc [Exec_Source_Log_Pos]
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/wait_for_applier_to_stop.inc
+include/rpl/assert_replica_status.inc [Exec_Source_Log_Pos]
 ==== Test various error conditions ====
 START REPLICA until SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=SOURCE_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
@@ -69,7 +69,7 @@ START REPLICA sql_thread;
 START REPLICA until SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
 Warnings:
 Note	3083	Replication thread(s) for channel '' are already runnning.
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 drop table if exists t1;
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
@@ -81,7 +81,7 @@ drop table if exists t1;
 reset binary logs and gtids;
 create table t1 (a int primary key auto_increment);
 START REPLICA;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 master and slave are in sync now
 select 0 as zero;
 zero
@@ -92,7 +92,7 @@ select count(*) as two from t1;
 two
 2
 START REPLICA until SOURCE_LOG_FILE='SOURCE_LOG_FILE', SOURCE_LOG_POS= UNTIL_POS;;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 slave stopped at the prescribed position
 select 0 as zero;
 zero
@@ -106,34 +106,34 @@ START REPLICA;
 # Make sure the master will put the new events in a new binlog file
 FLUSH LOGS;
 # Testing the execution until the last transaction of the master binlog
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 [connection master]
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Start SQL thread until it executed the CREATE TABLE
 START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE = "MASTER_FILE", SOURCE_LOG_POS = MASTER_POS;
 # Wait until SQL thread reaches last master binlog file
-include/wait_for_slave_param.inc [Relay_Source_Log_File]
+include/rpl/wait_for_replica_status.inc [Relay_Source_Log_File]
 # Wait until SQL thread reaches desired master binlog position
-include/wait_for_slave_param.inc [Exec_Source_Log_Pos]
+include/rpl/wait_for_replica_status.inc [Exec_Source_Log_Pos]
 # If the desired position was reached, SQL thread should stop.
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [t1 should be replicated]
 # Testing the execution until the last transaction of the slave relaylog
 [connection master]
 CREATE TABLE t2 (a INT) ENGINE=InnoDB;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # Start SQL thread until it executed the CREATE TABLE
 START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE = "SLAVE_FILE", RELAY_LOG_POS = SLAVE_POS;
 # Wait until SQL thread reaches last slave relaylog file
-include/wait_for_slave_param.inc [Relay_Log_File]
+include/rpl/wait_for_replica_status.inc [Relay_Log_File]
 # Wait until SQL thread reaches desired slave relaylog position
-include/wait_for_slave_param.inc [Relay_Log_Pos]
+include/rpl/wait_for_replica_status.inc [Relay_Log_Pos]
 # If the desired position was reached, SQL thread should stop.
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [t2 should be replicated]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection master]
 DROP TABLE t1, t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

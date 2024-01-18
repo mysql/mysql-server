@@ -37,19 +37,19 @@
 --echo #    Set higher member weight on M3 and start GR with higher patch version.
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 SET @debug1_save= @@GLOBAL.DEBUG;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -75,7 +75,7 @@ SET SESSION sql_log_bin = 1;
 # M4     - OFF  - -.-.--   - 50     - S
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -96,7 +96,7 @@ SET SESSION sql_log_bin = 1;
 # M4     - OFF   - -.-.--  - 50     - S
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @member_weight1_save= @@GLOBAL.group_replication_member_weight;
 --eval SET GLOBAL group_replication_member_weight= 60
@@ -104,12 +104,12 @@ SET @member_weight1_save= @@GLOBAL.group_replication_member_weight;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -130,17 +130,17 @@ SET @member_weight1_save= @@GLOBAL.group_replication_member_weight;
 # M4     - ON    - 8.0.17  - 50     - S
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_next_primary_uuid= query_get_value("SELECT Member_id FROM performance_schema.replication_group_members WHERE Member_id <> '$server3_uuid' ORDER BY Member_id ASC LIMIT 1", Member_id, 1)
 
@@ -158,20 +158,20 @@ SET @member_weight1_save= @@GLOBAL.group_replication_member_weight;
 # M4     - ON    - 8.0.17  - 50     - P/S (CANDIDATE)
 
 --let $rpl_connection_name= server4
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= @debug1_save;
 SET @@GLOBAL.group_replication_member_weight = @member_weight1_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Stop GR because version is different.
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_member_weight = @member_weight3_save;

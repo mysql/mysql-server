@@ -27,7 +27,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
 SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
 

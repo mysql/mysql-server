@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,8 +12,8 @@ SELECT * FROM t1 INTO OUTFILE "DATA_PATH/wl9218.txt"
 LOAD DATA INFILE "DATA_PATH/wl9218.txt" INTO TABLE t2
 FIELDS TERMINATED BY '\b' ENCLOSED BY '\0'
      LINES TERMINATED BY '\n\r';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, master:t2, slave:t2]
 [connection master]
 DROP TABLE t1, t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

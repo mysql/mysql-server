@@ -11,7 +11,7 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # Suppress recovery warning messages
 CALL mtr.add_suppression('Recovery from source pos');
 CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
@@ -26,15 +26,15 @@ INSERT INTO t1 VALUES (1);
 DROP TABLE t1;
 
 # Start and sync the I/O thread before restarting the slave
---source include/rpl_connection_slave.inc
---source include/start_slave_io.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # Restart the slave, relay_log_recovery enabled in the .opt file
 --let $rpl_server_number= 2
 --let $rpl_server_parameters=
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
@@ -47,7 +47,7 @@ DROP TABLE t1;
 --source include/assert_grep.inc
 
 # Cleanup
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

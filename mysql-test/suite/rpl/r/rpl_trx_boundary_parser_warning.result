@@ -1,5 +1,5 @@
 call mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,7 +9,7 @@ call mtr.add_suppression("An unexpected event sequence was detected by the IO th
 call mtr.add_suppression("GTID_LOG_EVENT.* is not expected in an event stream");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since*");
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 [connection master]
 SET @var= 10;
@@ -25,7 +25,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 XA END 'xa_trx';
 XA PREPARE 'xa_trx';
 XA ROLLBACK 'xa_trx';
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
@@ -54,102 +54,102 @@ master-bin.000001	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START REPLICA IO_THREAD;
 # This is the event #3 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Rotate	#	#	master-bin.000001;pos=POS
 # This is the event #4 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
 # This is the event #5 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 # This is the event #6 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	User var	#	#	@`var`=10
 # This is the event #7 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT ev1 ON SCHEDULE EVERY @var HOUR DO INSERT INTO t1 VALUES (0)
 # This is the event #8 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 # This is the event #9 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
 # This is the event #10 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 # This is the event #11 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	BEGIN
 # This is the event #12 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1)
 # This is the event #13 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Xid	#	#	COMMIT /* XID */
 # This is the event #14 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 # This is the event #15 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	use `test`; CREATE TABLE t2 (c1 INT) ENGINE= MyISAM
 # This is the event #16 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 # This is the event #17 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	BEGIN
 # This is the event #18 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (1)
 # This is the event #19 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	COMMIT
 # This is the event #20 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 # This is the event #21 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	XA START X'78615f747278',X'',1
 # This is the event #22 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(2)
 # This is the event #23 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	XA END X'78615f747278',X'',1
 # This is the event #24 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	XA_prepare	#	#	XA PREPARE X'78615f747278',X'',1
 # This is the event #25 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 [connection master]
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 # This is the event #26 of current slave relay log file
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
 
@@ -157,23 +157,23 @@ slave-relay-bin.000002	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
 # Case 1: GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#8):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 496, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#8):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/assert_grep.inc [Case 1 found the expected warning line in the error log.]
@@ -182,23 +182,23 @@ include/assert_grep.inc [Case 1 found the expected warning line in the error log
 # Case 2: GTID_LOG_EVENT is not expected in an event stream in the middle of a DDL.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#6):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 496, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#8):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/assert_grep.inc [Case 2 found the expected warning line in the error log.]
@@ -207,23 +207,23 @@ include/assert_grep.inc [Case 2 found the expected warning line in the error log
 # Case 3: GTID_LOG_EVENT is not expected in an event stream in the middle of a DML.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#11):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	BEGIN
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 700, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#10):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/assert_grep.inc [Case 3 found the expected warning line in the error log.]
@@ -232,23 +232,23 @@ include/assert_grep.inc [Case 3 found the expected warning line in the error log
 # Case 4: QUERY(BEGIN) is not expected in an event stream in the middle of a DDL.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#6):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 779, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#11):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	BEGIN
 include/assert_grep.inc [Case 4 found the expected warning line in the error log.]
@@ -257,23 +257,23 @@ include/assert_grep.inc [Case 4 found the expected warning line in the error log
 # Case 5: QUERY(BEGIN) is not expected in an event stream in the middle of a DML.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#11):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	BEGIN
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 779, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#11):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	BEGIN
 include/assert_grep.inc [Case 5 found the expected warning line in the error log.]
@@ -282,23 +282,23 @@ include/assert_grep.inc [Case 5 found the expected warning line in the error log
 # Case 6.a: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream outside a transaction.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#9):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 963, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#13):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Xid	#	#	COMMIT /* XID */
 include/assert_grep.inc [Case 6.a found the expected warning line in the error log.]
@@ -307,23 +307,23 @@ include/assert_grep.inc [Case 6.a found the expected warning line in the error l
 # Case 6.b: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream outside a transaction.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#9):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1452, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#19):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	COMMIT
 include/assert_grep.inc [Case 6.b found the expected warning line in the error log.]
@@ -332,23 +332,23 @@ include/assert_grep.inc [Case 6.b found the expected warning line in the error l
 # Case 7.a: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#8):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 963, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#13):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Xid	#	#	COMMIT /* XID */
 include/assert_grep.inc [Case 7.a found the expected warning line in the error log.]
@@ -357,23 +357,23 @@ include/assert_grep.inc [Case 7.a found the expected warning line in the error l
 # Case 7.b: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#8):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1452, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#19):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	COMMIT
 include/assert_grep.inc [Case 7.b found the expected warning line in the error log.]
@@ -382,23 +382,23 @@ include/assert_grep.inc [Case 7.b found the expected warning line in the error l
 # Case 8.a: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream in the middle of a DDL.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#6):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 963, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#13):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Xid	#	#	COMMIT /* XID */
 include/assert_grep.inc [Case 8.a found the expected warning line in the error log.]
@@ -407,23 +407,23 @@ include/assert_grep.inc [Case 8.a found the expected warning line in the error l
 # Case 8.b: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream in the middle of a DDL.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#6):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1452, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#19):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	COMMIT
 include/assert_grep.inc [Case 8.b found the expected warning line in the error log.]
@@ -432,23 +432,23 @@ include/assert_grep.inc [Case 8.b found the expected warning line in the error l
 # Case 9.a: QUERY(XA ROLLBACK) is not expected in an event stream in the middle of a DDL.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#6):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 2039, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#26):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
 include/assert_grep.inc [Case 9.a found the expected warning line in the error log.]
@@ -457,23 +457,23 @@ include/assert_grep.inc [Case 9.a found the expected warning line in the error l
 # Case 9.b: QUERY(XA ROLLBACK) is not expected in an event stream outside a transaction.
 #
 # Cleaning up and reseting the slave
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 # Stopped IO thread after queuing the following event (#9):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 2039, RELAY_LOG_FILE = 'slave-relay-bin.000001';
-include/start_slave_io.inc
-include/sync_slave_io_with_master.inc
+include/rpl/start_receiver.inc
+include/rpl/sync_to_replica_received.inc
 # Restarted queuing the following event (#26):
-include/show_relaylog_events.inc
+include/rpl/deprecated/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
 include/assert_grep.inc [Case 9.b found the expected warning line in the error log.]
@@ -481,18 +481,18 @@ include/assert_grep.inc [Case 9.b found the expected warning line in the error l
 #
 # Prepare the slave to correctly replicate again after the test case
 #
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --debug=d,dbug_disable_relay_log_truncation]
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 DROP TABLE IF EXISTS t1, t2;
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
-include/start_slave.inc
+include/rpl/start_replica.inc
 DROP TABLE saved_positions;
 [connection master]
 DROP TABLE t1, t2;
 DROP EVENT ev1;
-include/rpl_end.inc
+include/rpl/deinit.inc

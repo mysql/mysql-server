@@ -6,12 +6,12 @@
 --source include/not_group_replication_plugin.inc
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 connection slave;
 
 SET DEBUG_SYNC= 'RESET';
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 --let $debug_point= dbug.before_get_running_status_yes
 --source include/add_debug_point.inc
@@ -44,7 +44,7 @@ select rcs.SERVICE_STATE as Replica_IO_Running, ras.SERVICE_STATE as Replica_SQL
 SET DEBUG_SYNC='now SIGNAL signal.io_thread_let_running'; # unblock IO thread now
 let $slave_param= Replica_IO_Running;
 let $slave_param_value= YES;
-source include/wait_for_slave_param.inc;
+source include/rpl/wait_for_replica_status.inc;
 
 --echo # Replica_IO_Running, Replica_SQL_Running, must be ON, OFF in the following queries
 
@@ -54,7 +54,7 @@ select rcs.SERVICE_STATE as Replica_IO_Running, ras.SERVICE_STATE as Replica_SQL
 #         and SQL thread is started
 
 START REPLICA sql_thread;
-source include/wait_for_slave_sql_to_start.inc;
+source include/rpl/wait_for_applier_to_start.inc;
 
 --echo # Replica_IO_Running, Replica_SQL_Running, must be ON, ON in the following queries
 
@@ -69,11 +69,11 @@ connection master;
 # Hence, before a client thread set @@global.debug we have to ensure that:
 # (a) the slave threads are stopped, or (b) the slave threads are in
 # sync and waiting.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $debug_point= dbug.before_get_running_status_yes
 --source include/remove_debug_point.inc
 
 SET DEBUG_SYNC= 'RESET';
 --echo End of tests
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

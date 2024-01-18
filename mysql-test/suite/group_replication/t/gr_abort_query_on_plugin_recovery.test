@@ -85,7 +85,7 @@ SET DEBUG_SYNC= 'RESET';
 
 INSERT INTO test.t1 (b) VALUES (1);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo #######################################################################

@@ -15,96 +15,96 @@ FLUSH LOGS;
 RESET BINARY LOGS AND GTIDS;
 # Initial setup
 connect (connection_for_table_check,127.0.0.1,root,,test,$MASTER_MYPORT);
---source include/gtid_utils.inc
+--source include/rpl/gtid_utils.inc
 let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`;
 
 # Remember the current gtid_executed context
 --connection connection_for_table_check
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 
 # Check-1: CREATE TABLE
 --let $statement= CREATE TABLE t1( i INT) engine=INNODB
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-2: INSERT
 --let $statement= INSERT INTO t1 VALUES (12)
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-3: INSERT SELECT
 --let $statement= INSERT INTO t1 SELECT * FROM t1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-4: UPDATE
 --let $statement= UPDATE t1 SET i=13 WHERE i=12
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-5: DELETE
 --let $statement= DELETE FROM t1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-6: ALTER
 --let $statement= ALTER TABLE t1 ADD COLUMN other_column INT
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-7: CREATE INDEX
 --let $statement= CREATE INDEX t_index ON t1(i)
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-8: DROP INDEX
 --let $statement= DROP INDEX t_index ON t1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-9: RENAME TABLE
 --let $statement= RENAME TABLE t1 TO t2
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-10: DROP TABLE
 --let $statement= DROP TABLE t2
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-11: CREATE TEMPORARY TABLE
 --let $statement= CREATE TEMPORARY TABLE t1(i INT)
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-12: DROP TEMPORARY TABLE
 --let $statement= DROP TEMPORARY TABLE t1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-13: CREATE VIEW
 --let $statement= CREATE VIEW v1 as SELECT 1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-14: DROP VIEW
 --let $statement= DROP VIEW v1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-15: CREATE USER
 --let $statement= CREATE USER user1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-16: ALTER USER
 --let $statement= ALTER USER user1 IDENTIFIED BY \'passwd\'
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-17: GRANT
 --let $statement= GRANT ALL ON *.* TO user1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-18: REVOKE
 --let $statement= REVOKE ALL PRIVILEGES ON *.* FROM user1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-19: DROP USER
 --let $statement= DROP USER user1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-20: CREATE DATABASE
 --let $statement= CREATE DATABASE db1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Check-21: DROP DATABASE
 --let $statement= DROP DATABASE db1
---source include/gtid_prepare_and_execute_stmt.inc
+--source include/rpl/gtid_prepare_and_execute_stmt.inc
 
 # Cleanup
---source include/gtid_utils_end.inc
+--source include/rpl/gtid_utils_end.inc

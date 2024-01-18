@@ -2,7 +2,7 @@
 # Check LOAD DATA + character sets + replication
 #
 --source include/not_group_replication_plugin.inc
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 #
 # Bug#15126 character_set_database is not replicated
@@ -24,12 +24,12 @@ load data infile '../../std_data/loaddata6.dat' into table t1 character set koi8
 
 select hex(a) from t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 select hex(a) from t1;
 connection master;
 drop table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # Bug#45516 
@@ -42,9 +42,9 @@ echo -------------test bug#45516------------------;
 
 # LOAD DATA INFILE
 let $LOAD_LOCAL=1;
-source include/rpl_loaddata_charset.inc;
+source common/rpl/loaddata_charset.inc;
 
 # LOAD DATA LOCAL INFILE
 let $LOAD_LOCAL=0;
-source include/rpl_loaddata_charset.inc;
---source include/rpl_end.inc
+source common/rpl/loaddata_charset.inc;
+--source include/rpl/deinit.inc

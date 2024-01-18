@@ -41,7 +41,7 @@ XA PREPARE '1';
 --let $debug_point = crash_commit_before_log
 --let $statement = INSERT INTO t1 VALUES (13)
 --let $restart_parameters=restart
---source suite/binlog/include/binlog_server_crash_recovery.inc
+--source common/binlog/server_crash_recovery.inc
 
 --let $assert_text = Check performance_schema.memory_summary_global_by_event_name 'memory/sql/Binlog_recovery::recover'
 --let $assert_cond = "[SELECT COUNT_ALLOC FROM performance_schema.memory_summary_global_by_event_name WHERE event_name = \'memory/sql/Binlog_recovery::recover\']" <> "0"

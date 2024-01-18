@@ -18,4 +18,4 @@ use test;
 create table test.t1 (a int primary key) engine=ndb;
 insert into test.t1 values (1);
 drop table test.t1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc

@@ -2,12 +2,12 @@
 # The aim of this test is to verify that action type and trigger time for
 # multiple triggers on a table is same across multiple nodes in GR.
 ################################################################################
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 
 --let $master= server1
 --let $slave= server2
---source extra/rpl_tests/rpl_multiple_trigger.inc
+--source common/rpl/multiple_trigger.inc
 
 --source include/group_replication_end.inc

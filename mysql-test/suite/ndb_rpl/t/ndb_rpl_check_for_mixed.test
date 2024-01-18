@@ -10,7 +10,7 @@
 
 --source include/have_ndb.inc
 --source include/have_log_bin.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 disable_query_log;
 # so that both ROW and MIXED is output as MIXED
@@ -19,4 +19,4 @@ disable_query_log;
 show variables like 'binlog_format';
 enable_query_log;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

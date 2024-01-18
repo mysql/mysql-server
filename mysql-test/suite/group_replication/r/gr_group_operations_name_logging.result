@@ -38,14 +38,14 @@ SET GLOBAL group_replication_group_name= 'GROUP_NAME';
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= TRUE;
 START GROUP_REPLICATION;
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 4. Start replica on server 1. Replica will fail to start.
 #    Replica cannot start while an action is being executed.
 [connection server_1]
 START REPLICA FOR CHANNEL 'ch1';
-include/wait_for_slave_io_error.inc [errno=13117]
-include/wait_for_slave_sql_error.inc [errno=13117]
+include/rpl/wait_for_receiver_error.inc [errno=13117]
+include/rpl/wait_for_applier_error.inc [errno=13117]
 
 # 5. Unlock the action on server 1 and reap the result.
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';

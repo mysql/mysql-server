@@ -119,7 +119,7 @@ SET GLOBAL group_replication_recovery_use_ssl=1;
 --echo # Check the data is there
 --echo #
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $assert_text= On the recovered member, the table should exist and have 1 elements;
 --let $assert_cond= [SELECT COUNT(*) FROM t1] = 1;

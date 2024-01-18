@@ -1,0 +1,66 @@
+source include/have_log_bin.inc;
+source include/have_debug.inc;
+
+# Checking that the drop of a database does not replicate anything in
+# addition to the drop of the database
+
+reset binary logs and gtids;
+create database testing_1;
+use testing_1;
+create table t1 (a int);
+create function sf1 (a int) returns int return a+1;
+create trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a);
+create procedure sp1 (a int) insert into t1 values(a);
+drop database testing_1;
+--let $mask_binlog_commit_events= 1
+source include/rpl/deprecated/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
+
+# BUG#38773: DROP DATABASE cause switch to stmt-mode when there are
+# temporary tables open
+
+use test;
+reset binary logs and gtids;
+create temporary table tt1 (a int);
+create table t1 (a int);
+insert into t1 values (1);
+disable_warnings;
+drop database if exists mysqltest1;
+enable_warnings;
+insert into t1 values (1);
+drop table tt1, t1;
+--let $mask_binlog_commit_events= 1
+source include/rpl/deprecated/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
+
+FLUSH STATUS;
+
+--echo #
+--echo # Bug#11765416 58381: FAILED DROP DATABASE CAN BREAK STATEMENT
+--echo #              BASED REPLICATION
+--echo #
+
+USE test;
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT) engine=innodb;
+CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
+RESET BINARY LOGS AND GTIDS;
+
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+--error ER_UNKNOWN_ERROR
+DROP DATABASE db1;
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+# Both t1 and t2 remain as the whole statement is rolled back.
+SHOW TABLES FROM db1;
+--let $mask_binlog_commit_events= 1
+--source include/rpl/deprecated/show_binlog_events.inc # Check that the binlog is empty.
+--let $mask_binlog_commit_events= 0
+
+# Cleanup
+DROP DATABASE db1;
+RESET BINARY LOGS AND GTIDS;

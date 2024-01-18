@@ -19,7 +19,7 @@ USE test1;
 --source suite/funcs_1/include/memory_tb2.inc
 USE test;
 
---source suite/funcs_1/views/views_master.inc
+--source suite/funcs_1/views/views_main.inc
 DROP DATABASE test1;
 DROP TABLE test.tb2;
 

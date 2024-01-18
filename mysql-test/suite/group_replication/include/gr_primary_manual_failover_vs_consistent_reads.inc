@@ -53,7 +53,7 @@ if (!$transaction_T1_consistency)
 --echo ############################################################
 --echo # 1. Create a table on the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
@@ -64,7 +64,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo #    the backlog apply on server2 once it is elected the
 --echo #    primary.
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --source include/start_group_replication.inc
@@ -77,7 +77,7 @@ LOCK TABLES t1 READ;
 --echo #    server2 will be unable to apply it since table t1 is
 --echo #    locked.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
 
 
@@ -86,7 +86,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 4. Validate that server2 did certify but did not apply the
 --echo #    transaction.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked = 1 AND count_transactions_remote_in_applier_queue = 1
 --source include/wait_condition.inc
 
@@ -95,7 +95,7 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 5. Switch primary to server2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $member2_uuid MEMBER2_UUID
 --send_eval SELECT group_replication_set_as_primary("$member2_uuid")
 
@@ -104,7 +104,7 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 6. Validate that primary election is executing
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Switch: executing Primary election%"
 --source include/wait_condition.inc
 
@@ -125,7 +125,7 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 8. Validate transaction is on hold
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='Executing hook on transaction begin.' AND INFO='SELECT COUNT(*) FROM t1'
 --source include/wait_condition.inc
 
@@ -134,7 +134,7 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 9. UNLOCK tables to allow backlog to be applied on server2
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @group_replication_consistency_save_failover_consistent_read= @@SESSION.group_replication_consistency;
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
@@ -146,7 +146,7 @@ SET @@SESSION.group_replication_consistency= @group_replication_consistency_save
 --echo # 10. The hold SELECT will now be done and will return the
 --echo #     correct value 1.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 SET @@SESSION.group_replication_consistency= DEFAULT;
 
@@ -155,7 +155,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --echo ############################################################
 --echo # 11. Reap with success the primary switch.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $member2_uuid MEMBER2_UUID
 --reap
 
@@ -164,7 +164,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --echo ############################################################
 --echo # 12. Cleanup
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT @@GLOBAL.read_only = 0
 --source include/wait_condition_or_abort.inc
 DROP TABLE t1;

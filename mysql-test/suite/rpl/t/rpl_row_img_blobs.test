@@ -8,7 +8,7 @@
 #
 
 --let $rpl_topology= 1->2->3
---source include/rpl_init.inc
+--source include/rpl/init.inc
 -- source include/have_binlog_format_row.inc
 
 -- connection server_1
@@ -33,26 +33,26 @@
 ## NOBLOB
 
 -- let $row_img_set=server_1:NOBLOB:N,server_2:NOBLOB:Y,server_3:NOBLOB:Y
--- source include/rpl_row_img_set.inc
+-- source include/rpl/row_img_set.inc
 
--- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
--- source include/rpl_row_img_general_loop.inc
+-- let $row_img_test_script= common/rpl/rpl_row_img_blobs.test
+-- source common/rpl/row_img_general_loop.inc
 
 ## MINIMAL
 
 -- let $row_img_set=server_1:MINIMAL:N,server_2:MINIMAL:Y,server_3:MINIMAL:Y
--- source include/rpl_row_img_set.inc
+-- source include/rpl/row_img_set.inc
 
--- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
--- source include/rpl_row_img_general_loop.inc
+-- let $row_img_test_script= common/rpl/rpl_row_img_blobs.test
+-- source common/rpl/row_img_general_loop.inc
 
 ## FULL
 
 -- let $row_img_set=server_1:FULL:N,server_2:FULL:Y,server_3:FULL:Y
--- source include/rpl_row_img_set.inc
+-- source include/rpl/row_img_set.inc
 
--- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
--- source include/rpl_row_img_general_loop.inc
+-- let $row_img_test_script= common/rpl/rpl_row_img_blobs.test
+-- source common/rpl/row_img_general_loop.inc
 
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

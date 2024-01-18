@@ -29,7 +29,7 @@ include/start_group_replication.inc
 #
 # Check the data is there
 #
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [On the recovered member, the table should exist and have 1 elements;]
 #
 # Clean up

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,15 +10,15 @@ CREATE TABLE t (a int, b int, c int);
 INSERT INTO t VALUES (1,2,4);
 INSERT INTO t VALUES (4,3,4);
 DELETE FROM t;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/rpl/sync_to_replica.inc
+include/rpl/reset.inc
 CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NOT NULL, c3 INT, UNIQUE KEY(c1,c3), KEY(c2));
 INSERT INTO t1(c1,c2) VALUES(1,1);
 INSERT INTO t1(c1,c2) VALUES(1,2);
 UPDATE t1 SET c1=1000 WHERE c2=2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE t1;
 #
@@ -27,11 +27,11 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 ( id INT, KEY idx_id(id) );
 INSERT INTO t1 VALUES (1), (2), (3);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Alter idx_id index on slave to invisible.
 ALTER TABLE t1 ALTER INDEX idx_id INVISIBLE;
 DELETE FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # check whether invisible attribute is respected
 SELECT table_name, index_name, is_visible
 FROM information_schema.statistics
@@ -47,4 +47,4 @@ WHERE index_name = 'idx_id';
 rows_selected
 0
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

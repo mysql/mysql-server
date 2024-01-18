@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -24,6 +24,6 @@ a	b
 1	0
 2	1
 UPDATE t1, t2 SET t1.b = t2.b WHERE t1.a = t2.a;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 drop table t1, t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

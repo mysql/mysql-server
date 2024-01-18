@@ -90,7 +90,7 @@ include/start_and_bootstrap_group_replication.inc
 # 14. Validate SQL command SHUTDOWN will not block
 SET @@GLOBAL.DEBUG= '+d,launch_hook_trans_begin_assert_if_hold';
 SHUTDOWN;
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 15. Cleanup
 SET @@GLOBAL.DEBUG= '-d,launch_hook_trans_begin_assert_if_hold';

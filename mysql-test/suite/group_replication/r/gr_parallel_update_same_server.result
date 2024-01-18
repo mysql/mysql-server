@@ -12,7 +12,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 (c1,c2) VALUES (0,0);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 ################################################################
 # 3. Update the same row on server 1 in parallel by all clients.

@@ -8,8 +8,8 @@
 
 
 # Includes
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 
 # Begin clean up test section
@@ -47,7 +47,7 @@ delimiter ;|
 CALL test.p1();
 SELECT * FROM test.t1 ORDER BY a;
 SELECT * FROM test.t2 ORDER BY a;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1 ORDER BY a;
 SELECT * FROM test.t2 ORDER BY a;
 
@@ -56,7 +56,7 @@ CALL test.p2();
 USE test;
 SHOW TABLES;
 #SELECT * FROM test.t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 USE test;
 SHOW TABLES;
 #SELECT * FROM test.t3;
@@ -66,7 +66,7 @@ CALL test.p1();
 SELECT * FROM test.t1 ORDER BY a;
 SELECT * FROM test.t2 ORDER BY a;
 #SELECT * FROM test.t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM test.t1 ORDER BY a;
 SELECT * FROM test.t2 ORDER BY a;
 #SELECT * FROM test.t3;
@@ -82,7 +82,7 @@ DROP PROCEDURE IF EXISTS test.p2;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # If the test fails, you will need to diff the dumps to see why.
 
@@ -92,4 +92,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/sp004_master.sql $MYSQLTEST_VARDIR/tmp/sp004_sl
 --remove_file $MYSQLTEST_VARDIR/tmp/sp004_master.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/sp004_slave.sql
 # End of 5.0 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

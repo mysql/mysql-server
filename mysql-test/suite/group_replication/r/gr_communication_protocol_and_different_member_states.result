@@ -60,18 +60,18 @@ ERROR HY000: Can't initialize function 'group_replication_get_communication_prot
 ###############################################################################
 # 9. Cleanup
 [connection server1]
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server_2]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER2";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER2";
 SET @@global.group_replication_group_name="GROUP_REPLICATION_GROUP_NAME";
 include/start_group_replication.inc
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 [connection server_3]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER3";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER3";
 SET @@global.group_replication_group_name="GROUP_REPLICATION_GROUP_NAME";
 include/start_group_replication.inc
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 include/group_replication_end.inc

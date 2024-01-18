@@ -21,7 +21,7 @@
 # if ($group_replication_found_primary_out_var)
 # {
 #   --let $rpl_connection_name= $group_replication_primary_connection_out_var
-#   --source include/rpl_connection.inc
+#   --source include/connection.inc
 #   # now on primary
 # }
 
@@ -48,7 +48,7 @@ while ($_retry_find_primary)
   {
     # connect to the server
     --let $rpl_connection_name=server$_i_find_primary
-    --source include/rpl_connection.inc
+    --source include/connection.inc
 
     let $_is_primary= `SELECT COUNT(*)=1 FROM performance_schema.replication_group_members
                        WHERE MEMBER_ROLE="PRIMARY" AND MEMBER_ID=@@server_uuid`;
@@ -76,7 +76,7 @@ while ($_retry_find_primary)
 }
 
 --let $rpl_connection_name=$_saved_current_connection
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $include_filename= group_replication_wait_until_role.inc
 --source include/end_include_file.inc

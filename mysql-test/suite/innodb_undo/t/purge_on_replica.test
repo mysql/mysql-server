@@ -2,7 +2,7 @@
 # The test requires a debug build, in order to trigger
 # a purge using innodb_purge_run_now=ON .
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo # 1: Set replica parameters
 connection slave;
@@ -68,4 +68,4 @@ set global read_only = 0;
 connection master;
 drop procedure insert_data;
 drop table t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

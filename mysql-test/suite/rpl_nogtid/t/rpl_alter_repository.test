@@ -6,16 +6,16 @@
 
 --source include/not_group_replication_plugin.inc
 --source include/no_valgrind_without_big.inc
---source include/not_mts_replica_parallel_workers.inc
---source include/master-slave.inc
+--source include/not_replica_parallel_workers.inc
+--source include/rpl/init_source_replica.inc
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 --let $saved_sync_master= `SELECT @@global.sync_source_info`
 SET @@global.sync_source_info= 1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 CREATE TABLE t_innodb (id INTEGER) engine= Innodb;
@@ -55,7 +55,7 @@ call mtr.add_suppression("Failed to initialize the connection metadata structure
 #
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
@@ -63,8 +63,8 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 # ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2 1805
 --let $slave_sql_errno= 1805
 --let $show_slave_sql_error= 1
---source include/wait_for_slave_sql_error.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_applier_error.inc
+--source include/rpl/stop_receiver.inc
 
 #
 #  2 - Shows that it is possible to restart the server although replication
@@ -72,7 +72,7 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --sync-source-info=1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --connection slave
 --error ER_REPLICA_CONFIGURATION
 START REPLICA SQL_THREAD;
@@ -85,9 +85,9 @@ UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --sync-source-info=1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 #  4 - Shows that trying to fix the problem with START REPLICA, RESET REPLICA may
 #      not work and requires to manually back up positions to restart
@@ -95,7 +95,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 #
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
@@ -103,8 +103,8 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 # ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2 1805
 --let $slave_sql_errno= 1805
 --let $show_slave_sql_error= 1
---source include/wait_for_slave_sql_error.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_applier_error.inc
+--source include/rpl/stop_receiver.inc
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 START REPLICA SQL_THREAD;
 
@@ -125,9 +125,9 @@ RESET REPLICA ALL;
 --replace_result $_slave_source_host SOURCE_HOST $_slave_source_user SOURCE_USER $_slave_source_port SOURCE_PORT $_slave_source_log_file SOURCE_LOG_FILE $_slave_source_log_pos SOURCE_LOG_POS
 --replace_column 2 ####
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_source_host', SOURCE_USER= '$_slave_source_user', SOURCE_PORT= $_slave_source_port, SOURCE_LOG_FILE= '$_slave_source_log_file', SOURCE_LOG_POS= $_slave_source_log_pos
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 ###############################################################################
 #          Checking if replication can fail safely (I/O Thread)
@@ -155,8 +155,8 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 # ER_REPLICA_FATAL_ERROR
 --let $slave_io_errno= 13117
 --let $show_slave_io_error= 1
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 
 #
 #  2 - Shows that it is possible to restart the server although replication
@@ -164,7 +164,7 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --sync-source-info=1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --connection slave
 --error ER_REPLICA_CONFIGURATION
 START REPLICA SQL_THREAD;
@@ -177,10 +177,10 @@ UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --sync-source-info=1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --connection slave
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 #  4 - Shows that trying to fix the problem with START REPLICA, RESET REPLICA may
 #      not work and requires to manually back up positions to restart
@@ -194,8 +194,8 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 # ER_REPLICA_FATAL_ERROR
 --let $slave_io_errno= 13117
 --let $show_slave_io_error= 1
---source include/wait_for_slave_io_error.inc
---source include/stop_slave_sql.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/stop_applier.inc
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 START REPLICA SQL_THREAD;
 
@@ -216,9 +216,9 @@ RESET REPLICA ALL;
 --replace_result $_slave_source_host SOURCE_HOST $_slave_source_user SOURCE_USER $_slave_source_port SOURCE_PORT $_slave_source_log_file SOURCE_LOG_FILE $_slave_source_log_pos SOURCE_LOG_POS
 --replace_column 2 ####
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_source_host', SOURCE_USER= '$_slave_source_user', SOURCE_PORT= $_slave_source_port, SOURCE_LOG_FILE= '$_slave_source_log_file', SOURCE_LOG_POS= $_slave_source_log_pos
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 ###############################################################################
 # Checking ANALYZE TABLE, CHECK TABLE, CHECKSUM TABLE, OPTIMIZE TABLE,
@@ -265,9 +265,9 @@ EOF
 ###############################################################################
 --connection master
 DROP TABLE t_innodb;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --disable_query_log
 --eval SET @@global.sync_source_info=$saved_sync_master
 --enable_query_log
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

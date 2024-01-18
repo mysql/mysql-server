@@ -18,7 +18,7 @@
 # Start group replication on two servers
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET sql_log_bin=0;
 CREATE TABLE test.t1 (a int primary key);
 SET sql_log_bin=1;
@@ -26,7 +26,7 @@ SET sql_log_bin=1;
 
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET sql_log_bin=0;
 CREATE TABLE test.t1 (a int primary key);
 SET sql_log_bin=1;
@@ -37,7 +37,7 @@ SET sql_log_bin=1;
 # Connect to server1 and add some data
 --echo
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 USE test;
 --disable_query_log
 --let $i=100
@@ -51,7 +51,7 @@ while($i)
 # Start GR on server3
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 SET sql_log_bin=0;
 CREATE TABLE test.t1 (a int primary key);
 SET sql_log_bin=1;
@@ -77,7 +77,7 @@ if (`SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHE
 
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --echo
@@ -103,11 +103,11 @@ let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_
 --echo
 --echo #Validating the records in server3#
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_timeout= 300
 --let $wait_condition= SELECT COUNT(*)=200 FROM test.t1;
 --source include/wait_condition.inc
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Drop the tables
 --echo

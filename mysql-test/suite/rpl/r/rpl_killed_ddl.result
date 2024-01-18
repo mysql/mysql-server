@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -54,81 +54,81 @@ END;
 //
 CREATE INDEX i1 ON t1 (a);
 CREATE VIEW v1 AS SELECT a FROM t1 WHERE a < 100;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [on master]
 [on master1]
 CREATE DATABASE d2;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 ALTER DATABASE d1
 DEFAULT CHARACTER SET = 'utf8';
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP DATABASE d1;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP DATABASE IF EXISTS d2;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 CREATE EVENT e2
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
 DO INSERT INTO test.t1 VALUES (2);
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 ALTER EVENT e1
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 DAY;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP EVENT e1;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP EVENT IF EXISTS e2;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 CREATE FUNCTION f2 () RETURNS INT DETERMINISTIC
 RETURN 1;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 ALTER FUNCTION f1 SQL SECURITY INVOKER;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP FUNCTION f1;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP FUNCTION IF EXISTS f2;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 CREATE PROCEDURE p2 (OUT rownum INT)
 BEGIN
 SELECT COUNT(*) INTO rownum FROM t2;
 END;
 //
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 ALTER PROCEDURE p1 SQL SECURITY INVOKER COMMENT 'return rows of table t1';
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP PROCEDURE p1;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP PROCEDURE IF EXISTS p2;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 CREATE TABLE t2 (b int);
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 ALTER TABLE t1 ADD (d int);
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 RENAME TABLE t3 TO t4;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 CREATE INDEX i2 on t1 (a);
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP INDEX i1 on t1;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 CREATE TABLE IF NOT EXISTS t4 (a int);
 CREATE TRIGGER tr2 BEFORE INSERT ON t4
 FOR EACH ROW BEGIN
@@ -136,28 +136,28 @@ DELETE FROM t1 WHERE a=NEW.a;
 END;
 //
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP TRIGGER tr1;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP TRIGGER IF EXISTS tr2;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 CREATE VIEW v2 AS SELECT a FROM t1 WHERE a > 100;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP VIEW v1;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP VIEW IF EXISTS v2;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP TABLE t1;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP TABLE IF EXISTS t2;
 source include/kill_query.inc;
-include/rpl_diff.inc
+include/rpl/diff.inc
 DROP DATABASE IF EXISTS d1;
 DROP DATABASE IF EXISTS d2;
 DROP DATABASE IF EXISTS d3;
@@ -184,4 +184,4 @@ DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 DROP PROCEDURE IF EXISTS p3;
 DROP PROCEDURE IF EXISTS p4;
-include/rpl_end.inc
+include/rpl/deinit.inc

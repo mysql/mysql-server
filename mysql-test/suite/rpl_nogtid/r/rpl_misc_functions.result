@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ insert into t1 values(6, 0, rand(), rand(), "");
 delete from t1 where id=6;
 set sql_log_bin=1;
 select * into outfile 'rpl_misc_functions.outfile' from t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create temporary table t2 like t1;
 load data local infile 'MYSQLD_DATADIR/test/rpl_misc_functions.outfile' into table t2;
 select * from t1, t2 where (t1.id=t2.id) and not(t1.i=t2.i and t1.r1=t2.r1 and t1.r2=t2.r2 and t1.p=t2.p);
@@ -40,7 +40,7 @@ CALL test_replication_sp2();
 INSERT INTO t1 (col_a) VALUES (test_replication_sf());
 INSERT INTO t1 (col_a) VALUES (test_replication_sf());
 INSERT INTO t1 (col_a) VALUES (test_replication_sf());
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 into outfile "../../tmp/t1_slave.txt";
 create temporary table t1_slave select * from t1 where 1=0;
 load data infile '../../tmp/t1_slave.txt' into table t1_slave;
@@ -59,12 +59,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `ST_POINTFROMGEOHASH("0123", 4326)` point NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `ST_POINTFROMGEOHASH("0123", 4326)` point NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

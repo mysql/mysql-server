@@ -2,7 +2,7 @@
 ##############################################################
 # 1. In the replica enable, in the session and globally:
 #    - sql_generate_invisible_primary_key
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,9 +18,9 @@ SET SESSION sql_generate_invisible_primary_key = ON;
 [connection master]
 CREATE TABLE t1(a int);
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The table only contains a column]
 include/assert.inc [The table does not contain a generated invisilble primary key]
 
@@ -41,9 +41,9 @@ include/assert.inc [The table contains a generated invisilble primary key]
 ##############################################################
 # 4. Enable the creation of GIPKs in the replica by setting
 #    REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 
 ##############################################################
 # 5. Create a table without a primary key on the source
@@ -51,14 +51,14 @@ include/start_slave_sql.inc
 #    This still applies if sql_generate_invisible_primary_key = OFF
 [connection master]
 CREATE TABLE t3(a int);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The table only contains an extra column]
 include/assert.inc [The table contains a generated invisilble primary key]
 SET GLOBAL sql_generate_invisible_primary_key = OFF;
-include/restart_slave.inc
+include/rpl/restart_applier.inc
 [connection master]
 CREATE TABLE t4(a int);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The table only contains an extra column]
 include/assert.inc [The table contains a generated invisilble primary key]
 
@@ -69,37 +69,37 @@ include/assert.inc [The table contains a generated invisilble primary key]
 [connection master]
 ALTER TABLE t4 RENAME COLUMN a TO my_row_id;
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=1060]
+include/rpl/wait_for_applier_error.inc [errno=1060]
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t5(a int);
 ALTER TABLE t5 ADD PRIMARY KEY `k` (a);
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=1068]
+include/rpl/wait_for_applier_error.inc [errno=1068]
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t6 (my_row_id TEXT);
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 START REPLICA;
-include/wait_for_slave_sql_error.inc [errno=4108]
+include/rpl/wait_for_applier_error.inc [errno=4108]
 
 ##############################################################
 # 7. Cleanup
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 [connection slave]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = PRIMARY_KEY_CHECK_VALUE;
-include/start_slave.inc
+include/rpl/start_replica.inc
 include/restore_sysvars.inc
 DROP TABLE t2;
 include/suppress_messages.inc
@@ -118,7 +118,7 @@ DROP TABLE t1;
 DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLE t5;
-include/disable_binlog.inc
+include/rpl/disable_binlog.inc
 DROP TABLE t6;
-include/restore_binlog.inc
-include/rpl_end.inc
+include/rpl/restore_binlog.inc
+include/rpl/deinit.inc

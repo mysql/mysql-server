@@ -33,7 +33,7 @@ include/start_group_replication.inc
 [connection server2]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
 include/assert.inc ['There is a value 1 in table t1']
 [connection server1]

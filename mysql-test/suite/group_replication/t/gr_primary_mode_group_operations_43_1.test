@@ -30,7 +30,7 @@
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
@@ -45,14 +45,14 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo
 --echo # 2. Fake a stopped applier in server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 
 # Inform MTR that we are expecting an abort and that it should wait before
@@ -63,14 +63,14 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_for_gtid_execution_force_error';
 --echo # 3. Change to multi primary mode
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_switch_to_multi_primary_mode();
 
 --echo
 --echo # 4. Server2 shall abort and 'exit' the group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
@@ -79,12 +79,12 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo # 5. Wait for server 2 to disconnect/abort and restart
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_disconnected.inc
 # Inform MTR that it should restart the aborted member
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 
 --echo

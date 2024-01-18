@@ -1,4 +1,4 @@
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 RESET BINARY LOGS AND GTIDS;
 SET GTID_NEXT='00000000-0000-0000-0000-000000000000:1';
 CREATE TABLE t1 (c1 INT);
@@ -43,4 +43,4 @@ SET GTID_NEXT=AUTOMATIC;
 [  PASSED  ] 5 tests.
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc

@@ -67,14 +67,14 @@
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_statement.inc
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Known errors that will be logged
 CALL mtr.add_suppression('Duplicate entry');
 --let $master_uuid=`SELECT @@GLOBAL.server_uuid`
 
 # Save global variables that will be changed during the test
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SET @saved_sync_relay_log_info= @@GLOBAL.sync_relay_log_info;
 
@@ -84,7 +84,7 @@ SET @saved_sync_relay_log_info= @@GLOBAL.sync_relay_log_info;
 SET @@GLOBAL.sync_relay_log_info= 0;
 --let $storage_engine= InnoDB
 --let $rpl_relay_log_info_expected_update= UUUUUUNNUUNNUUNNUUUUNNNUU
---source extra/rpl_tests/rpl_sync_relay_log_info.inc
+--source common/rpl/sync_relay_log_info.inc
 
 --echo #
 --echo # sync_relay_log_info= 1, transactional (InnoDB) storage engine
@@ -92,9 +92,9 @@ SET @@GLOBAL.sync_relay_log_info= 0;
 SET @@GLOBAL.sync_relay_log_info= 1;
 --let $storage_engine= InnoDB
 --let $rpl_relay_log_info_expected_update= UUUUUUNNUUNNUUNNUUUUNNNUU
---source extra/rpl_tests/rpl_sync_relay_log_info.inc
+--source common/rpl/sync_relay_log_info.inc
 
 # Cleanup
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @@GLOBAL.sync_relay_log_info= @saved_sync_relay_log_info;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -46,7 +46,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("A member cannot join the group while a group configuration operation 'Change to single primary mode' is running initiated by *");
@@ -56,13 +56,13 @@ set session sql_log_bin=1;
 --echo # 2. Execute action to change group to single primary mode
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid MEMBER1_UUID
 --send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: waiting for%"
 --source include/wait_condition.inc
@@ -72,7 +72,7 @@ set session sql_log_bin=1;
 --echo #    A new member cannot join group while an action is being executed.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $group_replication_group_name GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= '$group_replication_group_name'
@@ -91,7 +91,7 @@ START GROUP_REPLICATION;
 --echo #    Replica cannot start while an action is being executed.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START REPLICA FOR CHANNEL 'ch1';
 
@@ -101,8 +101,8 @@ START REPLICA FOR CHANNEL 'ch1';
 --let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_sql_error= 0
 
---source include/wait_for_slave_io_error.inc
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_receiver_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo
 --echo # 5. Unlock the action on server 1 and reap the result.
@@ -111,7 +111,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid MEMBER1_UUID
 --reap
@@ -120,7 +120,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 --echo # 6. Assert messages are present in the logs.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-013208' AND data LIKE "%A member is joining the group while a group configuration operation 'Change to single primary mode' is running initiated by 'SELECT group_replication_switch_to_single_primary_mode()'. The member will now leave the group.%"
 --source include/wait_condition.inc
@@ -132,7 +132,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-013207' AND data LIKE "%A member cannot join the group while a group configuration operation 'Change to single primary mode' is running initiated by 'SELECT group_replication_switch_to_single_primary_mode()'.%"
 --source include/wait_condition.inc
@@ -141,7 +141,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 --echo # 7. Cleanup
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 RESET REPLICA ALL FOR CHANNEL 'ch1';
 

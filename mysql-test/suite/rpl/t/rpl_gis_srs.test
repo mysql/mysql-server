@@ -24,7 +24,7 @@
 #
 #############################################################################
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection master
 
@@ -48,7 +48,7 @@ DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84"
 
 SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 # Check whether SRS created in master is available on slave server(should exist)
@@ -71,7 +71,7 @@ DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84"
 
 SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID = 1000000002;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 # Check whether SRS modified in master is available on slave server(should exist)
@@ -87,7 +87,7 @@ DROP SPATIAL REFERENCE SYSTEM IF EXISTS 1000000002;
 # Result should be empty
 SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 # Check whether the SRS dropped on master is available on slave server(shouldn't exist)
@@ -116,7 +116,7 @@ DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84"
 
 SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 # Check whether SRS created in master is available on slave server(should exist)
@@ -136,7 +136,7 @@ DROP SPATIAL REFERENCE SYSTEM 1000000000;
 DROP SPATIAL REFERENCE SYSTEM 1000000001;
 DROP SPATIAL REFERENCE SYSTEM IF EXISTS 1000000002;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
 
 SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
@@ -163,5 +163,5 @@ COMMIT;
 SELECT @number_of_srss = COUNT(*) AS should_be_true
 FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

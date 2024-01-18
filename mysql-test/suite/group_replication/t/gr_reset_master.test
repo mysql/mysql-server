@@ -35,7 +35,7 @@ RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --connection server2
 INSERT INTO t1 VALUES (1);
@@ -44,13 +44,13 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
 
 --let $sync_slave_connection=server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --connection server2
 INSERT INTO t1 VALUES (3);
 
 --let $sync_slave_connection=server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #Both members must have the same GTID set
 --let $server_count=2
@@ -96,11 +96,11 @@ while ($server_count)
 
 INSERT INTO t1 VALUES (4);
 --let $sync_slave_connection=server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 INSERT INTO t1 VALUES (5);
 --let $sync_slave_connection=server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $server_count=2
 while ($server_count)

@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2, 1->3, 1->4]
+include/rpl/init.inc [topology=1->2, 1->3, 1->4]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -15,7 +15,7 @@ CALL mtr.add_suppression("Semi-sync source failed on net_flush().*");
 # without any live slave connection and also test ON, OFF can be set
 # more than once without problems.
 ####################################################################
-include/install_semisync_source.inc
+include/rpl/install_semisync_source.inc
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 SET GLOBAL rpl_semi_sync_source_enabled= OFF;
@@ -25,9 +25,9 @@ SET GLOBAL rpl_semi_sync_source_enabled= OFF;
 # before semisync master enabled.
 ####################################################################
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_2]
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 [connection server_1]
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 [connection server_1]
@@ -36,29 +36,29 @@ INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
 include/assert.inc [rpl_semi_sync_source_yes_tx increases 4]
-include/rpl_sync.inc
+include/rpl/sync.inc
 ####################################################################
 # Test Case: Semisync should work when more than one semisync slaves
 # connectted.
 ####################################################################
 [connection server_3]
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 [connection server_1]
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
 include/assert.inc [rpl_semi_sync_source_yes_tx increases 4]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_4]
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 [connection server_1]
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
 include/assert.inc [rpl_semi_sync_source_yes_tx increases 4]
-include/rpl_sync.inc
+include/rpl/sync.inc
 ###################################################################
 # Test Case: Semisync should work after semisync master is disabled
 # and enabled again.
@@ -73,53 +73,53 @@ INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
 include/assert.inc [rpl_semi_sync_source_yes_tx increases 4]
-include/rpl_sync.inc
+include/rpl/sync.inc
 ###################################################################
 # Test Case: Semisync should still work after some semisync slaves
 # reconnected
 ###################################################################
 [connection server_2]
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 [connection server_1]
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
 include/assert.inc [rpl_semi_sync_source_yes_tx increases 4]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_3]
-include/stop_slave_io.inc
-include/start_slave_io.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
 [connection server_1]
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
 include/assert.inc [rpl_semi_sync_source_yes_tx increases 4]
-include/rpl_sync.inc
+include/rpl/sync.inc
 ###################################################################
 # Test Case: Semisync should still work after some semisync slaves
 # disconnected
 ###################################################################
 [connection server_2]
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_1]
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
 include/assert.inc [rpl_semi_sync_source_yes_tx increases 4]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server_3]
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_1]
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
 include/assert.inc [rpl_semi_sync_source_yes_tx increases 4]
-include/rpl_sync.inc
+include/rpl/sync.inc
 #####################################################################
 # Test Case: PS threads table includes ACK thread's status correctly.
 #####################################################################
@@ -143,7 +143,7 @@ SET GLOBAL debug = @save_debug;
 # Status: Waiting for semisync slave to connect
 #
 [connection server_4]
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 [connection server_1]
 CALL mtr.add_suppression("Timeout waiting for reply of binlog.*");
 INSERT INTO t1 VALUES(1);
@@ -190,25 +190,25 @@ SET GLOBAL debug= '-d,rpl_semisync_simulate_thread_join_failure';
 SET GLOBAL debug= '+d,rpl_semisync_simulate_add_replica_failure';
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 [connection server_2]
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 1, SOURCE_CONNECT_RETRY = 5;
 SET @save_debug= @@GLOBAL.debug;
 SET GLOBAL debug= '+d,dbug.before_get_SOURCE_UUID';
-include/install_semisync_replica.inc
+include/rpl/install_semisync_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 SET GLOBAL debug= @save_debug;
 SET debug_sync= 'now SIGNAL signal.get_source_uuid';
-include/wait_for_slave_io_to_stop.inc
+include/rpl/wait_for_receiver_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 10,
 SOURCE_CONNECT_RETRY = 1;
-include/uninstall_semisync_replica.inc
+include/rpl/uninstall_semisync_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 [connection server_1]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET GLOBAL debug= @save_debug;
-include/uninstall_semisync_source.inc
-include/rpl_end.inc
+include/rpl/uninstall_semisync_source.inc
+include/rpl/deinit.inc

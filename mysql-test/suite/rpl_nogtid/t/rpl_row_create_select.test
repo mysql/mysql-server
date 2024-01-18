@@ -1,7 +1,7 @@
 # Testing table creations for row-based replication.
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # BUG#17994219: CREATE TABLE .. SELECT PRODUCES INVALID STRUCTURE, 
@@ -24,4 +24,4 @@ connection master;
 DROP TABLE t1;
 DROP TABLE t2;
 SET sql_mode = default;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -8,7 +8,7 @@ create table test.myisamt3s1 (a int primary key, b int) engine=myisam;
 create table test.myisamt3s2 (a int primary key, b int) engine=myisam;
 insert into ndbt1 values (1,1);
 Show + reset Binlog contents on Server 1
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; create table test.ndbt1 (a int primary key, b int) engine=ndb
 binlog.000001	#	Query	#	#	use `test`; create table test.myisamt3s1 (a int primary key, b int) engine=myisam
@@ -20,7 +20,7 @@ binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
 reset binary logs and gtids;
 Show + reset Binlog contents on Server 2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; create table test.ndbt1 (a int primary key, b int) engine=ndb
 binlog.000001	#	Query	#	#	use `test`; create table test.myisamt3s2 (a int primary key, b int) engine=myisam
@@ -37,7 +37,7 @@ insert into test.myisamt3s1 values (3,3);
 FLUSH TABLES WITH READ LOCK;
 The MyIsam change definitely will be in the local
 binlog as it occurred 'before' the lock
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.myisamt3s1)
@@ -49,7 +49,7 @@ use test;
 insert into ndbt1 values (4,4);
 Look at the Binlog events on Server 2 - contains
 rows written at Server2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.ndbt1)
@@ -60,7 +60,7 @@ binlog.000001	#	Query	#	#	COMMIT
 insert into myisamt3s2 values (5,5);
 Look at the Binlog events on Server 2 - contains
 rows written at Server2
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.ndbt1)
@@ -73,7 +73,7 @@ binlog.000001	#	Table_map	#	#	table_id: # (test.myisamt3s2)
 binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
 Now look at the Binlog events on Server 1
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.myisamt3s1)
@@ -86,7 +86,7 @@ Local event to ensure show binlog events sees
 insert into ndbt1 values (6,6);
 Show that server 1 binlog now contains all the relevant
 events.
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Table_map	#	#	table_id: # (test.myisamt3s1)

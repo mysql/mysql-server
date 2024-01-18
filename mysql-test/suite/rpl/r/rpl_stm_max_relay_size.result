@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -22,7 +22,7 @@ select @@global.max_relay_log_size;
 @@global.max_relay_log_size
 4096
 START REPLICA;
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 #
 # Test 2
 #
@@ -32,7 +32,7 @@ set global max_relay_log_size=(5*4096);
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	20480
 START REPLICA;
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 #
 # Test 3: max_relay_log_size = 0
 #
@@ -42,7 +42,7 @@ set global max_relay_log_size=0;
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	0
 START REPLICA;
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 #
 # Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
 #
@@ -56,15 +56,15 @@ RESET REPLICA;
 START REPLICA;
 flush logs;
 create table t1 (a int);
-include/sync_slave_sql_with_master.inc
-include/check_slave_is_running.inc
+include/rpl/sync_to_replica.inc
+include/rpl/assert_replica_running.inc
 #
 # Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
 #
 flush logs;
 drop table t1;
-include/sync_slave_sql_with_master.inc
-include/check_slave_is_running.inc
+include/rpl/sync_to_replica.inc
+include/rpl/assert_replica_running.inc
 flush logs;
 show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
@@ -73,4 +73,4 @@ set global max_binlog_size= @my_max_binlog_size;
 #
 # End of 4.1 tests
 # 
-include/rpl_end.inc
+include/rpl/deinit.inc

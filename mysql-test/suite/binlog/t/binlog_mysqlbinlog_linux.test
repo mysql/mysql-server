@@ -42,10 +42,10 @@ DROP TABLE t1;
 --let $compressed_result_file = $MYSQL_TMP_DIR/binlog-compress.000001
 
 --let $mysqlbinlog_parameters = --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file > $not_compressed_result_file
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --let $mysqlbinlog_parameters = --compress --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file > $compressed_result_file
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 --let NOT_COMPRESSED=not_compressed_result_file
 --let COMPRESSED=$compressed_result_file
@@ -72,13 +72,13 @@ DROP TABLE t;
 --let $before= `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
 # Execute mysqlbinlog with compression
 --let $mysqlbinlog_parameters = --compress --read-from-remote-server --user=root --socket=$MASTER_MYSOCK $binlog_file
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 # Get the byte count through socket after executing mysqlbinlog with compression
 --let $after_compression= `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
 
 # Execute mysqlbinlog without compression
 --let $mysqlbinlog_parameters = --read-from-remote-server --user=root --socket=$MASTER_MYSOCK $binlog_file
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 # Get the byte count through socket after executing mysqlbinlog without compression
 --let $after_no_compression= `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
 

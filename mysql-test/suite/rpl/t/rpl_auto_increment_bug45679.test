@@ -5,7 +5,7 @@
 # is replication unsafe.
 #
 
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 source include/have_binlog_format_mixed.inc;
 
 
@@ -28,6 +28,6 @@ show warnings;
 
 drop table ti;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

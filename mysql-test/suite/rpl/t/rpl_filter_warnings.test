@@ -28,24 +28,24 @@
 # Inorder to grep a specific error pattern in error log a fresh error log
 # needs to be generated.
 --source include/force_restart.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_debug.inc
 
 CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO test.t2 VALUES (100);
 INSERT INTO test.t2 VALUES (200);
 INSERT INTO test.t2 VALUES (300);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $debug_saved= `SELECT @@GLOBAL.DEBUG`
 SET @@GLOBAL.DEBUG= '+d,simulate_error_throttle_expiry';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SET @@GLOBAL.DEBUG= '$debug_saved';
 
@@ -54,4 +54,4 @@ SET @@GLOBAL.DEBUG= '$debug_saved';
 --let $grep_pattern=Replica SQL thread ignored the query because of replicate
 --source include/grep_pattern.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

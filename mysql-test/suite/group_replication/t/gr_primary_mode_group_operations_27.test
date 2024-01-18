@@ -36,10 +36,10 @@
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -48,7 +48,7 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --echo #    weight to be chosen as primary on single primary mode
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.group_replication_member_weight= 90;
 
@@ -58,7 +58,7 @@ LOCK TABLE t1 READ;
 --echo # 3. Insert a row on a group
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -75,7 +75,7 @@ LOCK TABLE t1 READ;
 --echo #    super_read_only and executing primary election
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/sql/Waiting for global read lock%"
 --source include/wait_condition.inc
@@ -91,7 +91,7 @@ LOCK TABLE t1 READ;
 --source include/assert.inc
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Waiting for members to enable super_read_only%"
 --source include/wait_condition.inc
@@ -111,7 +111,7 @@ LOCK TABLE t1 READ;
 --echo #    single primary
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -122,13 +122,13 @@ LOCK TABLE t1 READ;
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # 7. Wait group detect exit of server3
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -144,7 +144,7 @@ UNLOCK TABLES;
 --echo # 9. Check that the action finishes
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server3_uuid MEMBER3_UUID
 --reap
@@ -154,12 +154,12 @@ UNLOCK TABLES;
 --echo #     election
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -167,12 +167,12 @@ UNLOCK TABLES;
 --echo # 11. Cleanup
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 DROP TABLE t1;

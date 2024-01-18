@@ -7,8 +7,8 @@
 --echo # option are replicated to the secondary nodes successfully
 --echo #
 
-source include/set_privilege_checks_user_as_system_user.inc;
-source include/master-slave.inc;
+source include/rpl/set_privilege_checks_user_as_system_user.inc;
+source include/rpl/init_source_replica.inc;
 
 --disable_warnings
 connection master;
@@ -24,7 +24,7 @@ SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPAC
   WHERE NAME like '%t1%';
 
 # Sync the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection slave;
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -40,7 +40,7 @@ SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPAC
   WHERE NAME like '%t1%';
 
 # Sync the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
   WHERE NAME like '%t1%';
@@ -52,7 +52,7 @@ DROP TABLE t1;
 --echo # is visible on slave nodes
 CREATE TABLESPACE myspace AUTOEXTEND_SIZE 4M;
 # Sync the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
   WHERE NAME like '%myspace%';
@@ -60,7 +60,7 @@ SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPAC
 connection master;
 ALTER TABLESPACE myspace AUTOEXTEND_SIZE 0;
 # Sync the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
   WHERE NAME like '%myspace%';
@@ -88,7 +88,7 @@ SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPAC
   WHERE NAME like '%tsubpart%';
 
 # Sync the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
   WHERE NAME like '%tpart%';
@@ -118,7 +118,7 @@ ALTER TABLE tsubpart
     PARTITION p2 VALUES LESS THAN maxvalue);
 
 # Sync the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE from INFORMATION_SCHEMA.INNODB_TABLESPACES
   WHERE NAME like '%tpart%';
@@ -130,4 +130,4 @@ DROP TABLE tpart;
 DROP TABLE tsubpart;
 
 DROP DATABASE test1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

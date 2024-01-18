@@ -33,7 +33,7 @@
 --echo #    Reset source.
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SQL_LOG_BIN=0;
 CREATE USER 'u1'@'localhost';

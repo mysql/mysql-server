@@ -1,7 +1,7 @@
 -- source include/not_ndb_default.inc
 --source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 ##############################################################################
 # The test is dependent on binlog positions. The test is divided into two
@@ -34,10 +34,10 @@ INSERT INTO t2 VALUES (3),(4);
 DROP TABLE t2;
 # Save source log position for query DROP TABLE t2;
 let $master_pos_drop_t2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #show binlog events;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 # Reset replica.
 RESET REPLICA;
 --disable_query_log
@@ -50,31 +50,31 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_CONNECT_RETRY=1, SO
 connection slave;
 --replace_result $master_pos_drop_t1 master_pos_drop_t1
 eval START REPLICA UNTIL SOURCE_LOG_FILE='$source_log_file', SOURCE_LOG_POS=$master_pos_drop_t1;
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 # Here table should be still not deleted
 SELECT * FROM t1;
 --let $slave_param= Exec_Source_Log_Pos
 --let $slave_param_value= $master_pos_drop_t1
---source include/check_slave_param.inc
+--source include/rpl/assert_replica_status.inc
 
 # This should fail right after start
 --replace_result 291 SOURCE_LOG_POS
 START REPLICA UNTIL SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=291;
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 # again this table should be still not deleted
 SELECT * FROM t1;
 
 --let $slave_param= Exec_Source_Log_Pos
 --let $slave_param_value= $master_pos_drop_t1
---source include/check_slave_param.inc
+--source include/rpl/assert_replica_status.inc
 
 # clean up
 START REPLICA;
---source include/wait_for_slave_to_start.inc
+--source include/rpl/wait_for_replica_to_start.inc
 connection master;
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 # This should stop immediately as we are already there
 echo START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE='$source_log_file', SOURCE_LOG_POS=master_pos_create_t2;
@@ -83,12 +83,12 @@ eval START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE='$source_log_file', SOURCE_L
 --enable_query_log
 let $slave_param= Until_Log_Pos;
 let $slave_param_value= $master_pos_create_t2;
---source include/wait_for_slave_param.inc
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_replica_status.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 # here the sql slave thread should be stopped
 --let $slave_param= Exec_Source_Log_Pos
 --let $slave_param_value= $master_pos_drop_t2
---source include/check_slave_param.inc
+--source include/rpl/assert_replica_status.inc
 
 #testing various error conditions
 --replace_result 561 SOURCE_LOG_POS
@@ -108,9 +108,9 @@ START REPLICA UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', SOURCE_LOG_POS=561;
 --replace_result 740 SOURCE_LOG_POS
 START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=740;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET REPLICA;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 ##############################################################################
 # The second section - checks START REPLICA UNTIL RELAY_LOG_FILE =# 'log_name',
@@ -122,37 +122,37 @@ RESET REPLICA;
 #    stops at the correct position.
 ##############################################################################
 
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 
 --connection master
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 
 --connection master
 INSERT INTO t1 VALUES (2);
 --let $source_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 INSERT INTO t1 VALUES (3);
 
---source include/sync_slave_io_with_master.inc
+--source include/rpl/sync_to_replica_received.inc
 
 --let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File,1)
---source include/get_relay_log_pos.inc
+--source include/rpl/convert_binlog_position_to_relay_log_position.inc
 
 --disable_query_log
 --eval START REPLICA until relay_log_file='$relay_log_file', relay_log_pos=$relay_log_pos
 --enable_query_log
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 --let $assert_cond= COUNT(*) = 2 FROM t1
 --let $assert_text= table t1 should have two rows.
 --source include/assert.inc
 
 #cleanup
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --connection master
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

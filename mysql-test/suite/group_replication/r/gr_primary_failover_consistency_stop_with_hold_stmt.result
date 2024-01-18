@@ -45,7 +45,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_cancel_apply_backlog';
 
 # 10. Wait for server2 to exit group
 [connection server3]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 
 # 11. Now that server2 stopped all connections should have default
 #     behavior after GR stop

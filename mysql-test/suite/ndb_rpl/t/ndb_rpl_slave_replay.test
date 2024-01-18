@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 --source include/have_debug.inc
 
 
@@ -112,7 +112,7 @@ select count(1) - @init_skipped_err_count as skipped_err_count from test.server_
 STOP REPLICA;
 RESET REPLICA;
 
---source include/rpl_start_slaves.inc
+--source include/rpl/start_all_replicas.inc
 --connection master
 --sync_slave_with_master
 --connection slave
@@ -165,7 +165,7 @@ call mtr.add_suppression("Replica: Got error 173 .*");
 
 --echo Check that slave stopped with an error
 --let $slave_sql_errno=1296
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo Let's look at the warnings and errors now...
 
@@ -246,7 +246,7 @@ call mtr.add_suppression(".*The replica coordinator and worker threads are stopp
 
 --echo Check that slave stopped with an error
 --let $slave_sql_errno=1296
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo Let's look at the warnings and errors now...
 --echo Should be increase in repeat error count.
@@ -327,7 +327,7 @@ call mtr.add_suppression("Replica: Got error 173 .*");
 
 --echo Check that slave stopped with an error
 --let $slave_sql_errno=1296
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 --echo Let's look at the warnings and errors now...
 --echo Should be increase in repeat error count.
@@ -380,4 +380,4 @@ drop table test.server_error_log;
 drop table test.t1;
 --sync_slave_with_master
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -19,7 +19,7 @@ while (!$mysql_errno)
   {
     if ($show_rpl_debug_info)
     {
-      --source include/show_rpl_debug_info.inc
+      --source include/rpl/debug/show_debug_info.inc
     }
     --die "Waited too long for query to fail";
   }

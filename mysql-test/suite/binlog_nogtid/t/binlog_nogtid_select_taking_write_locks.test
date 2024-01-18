@@ -17,11 +17,11 @@
 
 --let $rpl_gtid_mode=OFF_PERMISSIVE
 --let $rpl_set_enforce_gtid_consistency=0
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
---source extra/binlog_tests/binlog_select_taking_write_locks.inc
+--source common/binlog/select_taking_write_locks.inc
 
 --let $rpl_gtid_mode=$current_mode
 --let $rpl_set_enforce_gtid_consistency=$current_enforce_consistency
 --let $no_extra_info=1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc

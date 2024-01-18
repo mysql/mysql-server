@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -16,7 +16,7 @@ ERROR 42S02: Unknown table 'test.not_exist_view'
 drop view v1, not_exist_view;
 ERROR 42S02: Unknown table 'test.not_exist_view'
 drop view v1, v2, v3;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from v1;
 ERROR 42S02: Table 'test.v1' doesn't exist
 select * from v2;
@@ -25,5 +25,5 @@ select * from v3;
 ERROR 42S02: Table 'test.v3' doesn't exist
 ==== clean up ====
 drop table t1, t2, t3;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

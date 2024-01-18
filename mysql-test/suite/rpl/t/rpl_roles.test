@@ -11,9 +11,9 @@
 # by using roles to grant privileges to user.                        #
 ######################################################################
 
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 # Create roles, user and role hierarchy on master
 CREATE ROLE r1, r2, r3;
 CREATE USER u1@localhost;
@@ -21,7 +21,7 @@ GRANT r1 TO r2;
 GRANT r2 TO u1@localhost;
 GRANT r3 TO u1@localhost;
 ALTER USER u1@localhost DEFAULT ROLE ALL;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # On slave, check if all objects created on master are
 # replicated to slave or not. Also do basic operations on
@@ -31,41 +31,41 @@ ALTER USER u1@localhost DEFAULT ROLE ALL;
 # Hence only this table is checked on slave.
 SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 REVOKE r3 FROM u1@localhost;
 GRANT r1 TO u1@localhost;
 ALTER USER u1@localhost DEFAULT ROLE r1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 ALTER USER u1@localhost DEFAULT ROLE NONE;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 REVOKE r1 FROM r2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
 
 # Start replication by using roles to grant priviliges to user
 # STOP REPLICA
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 set sql_log_bin=0;
 call mtr.add_suppression(".*Replica I/O for channel '': Source command COM_REGISTER_REPLICA failed.*");
 call mtr.add_suppression(".*Replica I/O thread couldn't register on source");
 set sql_log_bin=1;
 
 # Create role,user on master for replication
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE ROLE r4;
 GRANT REPLICATION SLAVE ON *.* TO r4;
 GRANT r4 to u1@localhost;
 SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER='u1';
 START REPLICA;
 
@@ -75,37 +75,37 @@ START REPLICA;
 
 # Error ER_REPLICA_SOURCE_COM_FAILURE as user 'u1' doesn't have REPLICATION SLAVE privilege
 --let $slave_io_errno=convert_error(ER_REPLICA_SOURCE_COM_FAILURE)
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 # Enable role 'r4' for user 'u1'
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 ALTER USER u1@localhost DEFAULT ROLE ALL;
 SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 START REPLICA IO_THREAD;
---source include/wait_for_slave_io_to_start.inc
+--source include/rpl/wait_for_receiver_to_start.inc
 
 --echo
 --echo # Verify if 'DEFAULT ROLE' clause is bin-logged.
 --echo
 --enable_connect_log
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE USER u2@localhost DEFAULT ROLE r1, r2;
 CREATE USER u3@localhost DEFAULT ROLE r1;
 --echo
 SHOW GRANTS FOR u2@localhost;
 --echo
 SHOW GRANTS FOR u3@localhost;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Check if roles are granted to the users on slave
 SHOW GRANTS FOR u2@localhost;
 SHOW GRANTS FOR u3@localhost;
 --echo
 SHOW CREATE USER u2@localhost;
 SHOW CREATE USER u3@localhost;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --echo
 ALTER USER u2@localhost DEFAULT ROLE NONE;
 SHOW GRANTS FOR u3@localhost;
@@ -118,7 +118,7 @@ ALTER USER u3@localhost DEFAULT ROLE r2;
 SHOW GRANTS FOR u2@localhost;
 SHOW GRANTS FOR u3@localhost;
 --echo
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # u2 and u3 should have only one role on slave as well
 SHOW GRANTS FOR u2@localhost;
 SHOW GRANTS FOR u3@localhost;
@@ -129,17 +129,17 @@ SHOW CREATE USER u3@localhost;
 
 --echo
 --echo # Cleanup Statement
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP ROLE r1, r2, r3,r4;
 DROP USER u1@localhost, u2@localhost, u3@localhost;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
 --let $mask_grant_as_events=1
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -25,12 +25,12 @@
 --echo ############################################################
 --echo # 1. Deploy a 2 members group in single primary mode.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 
@@ -39,7 +39,7 @@
 --echo # 2. Configure replica to manage the asynchronous connection
 --echo #    to group.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1 $group_replication_group_name GROUP_NAME
 --eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_replication_group_name', '127.0.0.1', $SERVER_MYPORT_1, '', 90, 70)
@@ -57,12 +57,12 @@
 --echo ############################################################
 --echo # 2. Create and start the managed channel.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
 
 --let $rpl_channel_name='ch1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
@@ -78,7 +78,7 @@
 --echo # 3. Try disable the SOURCE_CONNECTION_AUTO_FAILOVER option
 --echo #    without stopping the channel.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --error ER_REPLICA_CHANNEL_MUST_STOP
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0 FOR CHANNEL 'ch1';
 
@@ -91,13 +91,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0 FOR CHANNEL 'ch1'
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $rpl_channel_name='ch1'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
@@ -114,11 +114,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0 FOR CHANNEL 'ch1'
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

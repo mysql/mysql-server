@@ -25,7 +25,7 @@
 # Start group replication on server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Creating a connection on the first server to be used by the recovery channel
 SET sql_log_bin=0;
@@ -42,7 +42,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # CHANGE REPLICATION SOURCE with options apart from the Source_User and
 --echo # SOURCE_PASSWORD will cause error.
@@ -87,7 +87,7 @@ SET sql_log_bin=1;
 --connection server1
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $diff_tables=server1:t1,server2:t1
 --source include/diff_tables.inc

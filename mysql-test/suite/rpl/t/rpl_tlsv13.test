@@ -17,8 +17,8 @@
 --let $rpl_multi_source= 1
 --let $rpl_skip_start_slave= 1
 --let $rpl_privilege_checks_user_grant_option = 1
---source include/set_privilege_checks_user_as_system_user.inc
---source include/master-slave.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ########################################################################
 --echo # 1. Check replication with TLSv1.3 and some default ciphersuite.
@@ -31,11 +31,11 @@ SET @tls_version_saved= @@GLOBAL.tls_version;
 SET GLOBAL tls_version='TLSv1.3';
 ALTER INSTANCE RELOAD TLS;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='replssl', SOURCE_PASSWORD='password', SOURCE_SSL=1 FOR CHANNEL 'my_channel'
 --let $rpl_channel_name= 'my_channel'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $tls_ciphersuites= query_get_value(SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'my_channel', TLS_CIPHERSUITES, 1)
 --let $assert_text = TLS_CIPHERSUITES has the default NULL value
@@ -45,16 +45,16 @@ ALTER INSTANCE RELOAD TLS;
 --echo ########################################################################
 --echo # 2. Check replication with TLSv1.3 and a non-default ciphersuite.
 --let $rpl_channel_name= 'my_channel'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
 SET GLOBAL tls_ciphersuites='TLS_AES_128_GCM_SHA256';
 ALTER INSTANCE RELOAD TLS;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_GCM_SHA256' FOR CHANNEL 'my_channel';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $assert_text = TLS_CIPHERSUITES has the value TLS_AES_128_GCM_SHA256
 --let $assert_cond = "[SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = \'my_channel\']" = "TLS_AES_128_GCM_SHA256"
@@ -62,9 +62,9 @@ CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_GCM_SHA256' FO
 
 --echo ########################################################################
 --echo # 3. RESET REPLICA does not clean SOURCE_TLS_CIPHERSUITES.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $rpl_channel_name= 'my_channel'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 RESET REPLICA FOR CHANNEL 'my_channel';
 
@@ -80,16 +80,16 @@ START REPLICA IO_THREAD FOR CHANNEL 'my_channel';
 
 #CR_SSL_CONNECTION_ERROR
 --let $slave_io_errno= 2026
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --echo ########################################################################
 --echo # 5. Check replication with TLSv1.3 and empty ciphersuite on slave will
 --echo #    fail.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
 ALTER INSTANCE RELOAD TLS;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='' FOR CHANNEL 'my_channel';
 --let $assert_text = TLS_CIPHERSUITES has the value ""
 --let $assert_cond = "[SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = \'my_channel\']" = ""
@@ -98,12 +98,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='' FOR CHANNEL 'my_channel'
 START REPLICA IO_THREAD FOR CHANNEL 'my_channel';
 #CR_SSL_CONNECTION_ERROR
 --let $slave_io_errno= 2026
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 --echo ########################################################################
 --echo # 6. Clean-up.
 # Clean error state.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES=NULL FOR CHANNEL 'my_channel';
 
 --let $tls_ciphersuites= query_get_value(SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'my_channel', TLS_CIPHERSUITES, 1)
@@ -111,10 +111,10 @@ CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES=NULL FOR CHANNEL 'my_channe
 --let $assert_cond = "$tls_ciphersuites" = "NULL"
 --source include/assert.inc
 
---source include/start_slave.inc
---source include/stop_slave.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/stop_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@GLOBAL.tls_version= @tls_version_saved;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
 ALTER INSTANCE RELOAD TLS;
@@ -124,7 +124,7 @@ DROP USER 'replssl';
 SET SESSION sql_log_bin=1;
 
 --let $rpl_skip_sync= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 RESET REPLICA ALL FOR CHANNEL 'my_channel';

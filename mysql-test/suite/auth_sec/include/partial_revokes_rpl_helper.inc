@@ -1,7 +1,7 @@
 if($TEST_MODE == RPL)
 {
 --connection default
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection slave
 --echo [connection slave]
 --let $user = bar

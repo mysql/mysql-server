@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -40,19 +40,19 @@ DROP TABLE t1;
 DROP DATABASE db1;
 USE test;
 ---- Verify there is an error on slave ----
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=3001]
+include/rpl/sync_to_replica_received.inc
+include/rpl/wait_for_applier_error.inc [errno=3001]
 ---- Verify that nothing was inserted on slave -----
 include/assert.inc [Nothing should be inserted on slave]
 ---- Clean up ----
-include/stop_slave_io.inc
+include/rpl/stop_receiver.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 DROP DATABASE db1;
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 ==== Case 2: Master kills query -> no error if slave filters by db ====
 include/assert.inc [Test only works if binlog_format is statement]
@@ -89,7 +89,7 @@ DROP TABLE t1;
 DROP DATABASE ignored_db;
 USE test;
 ---- Verify all was replicated ok ----
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 ==== Case 3: Master kills query -> no error if slave filters by table ====
 include/assert.inc [Test only works if binlog_format is statement]
@@ -126,5 +126,5 @@ DROP TABLE ignored_table;
 DROP DATABASE db1;
 USE test;
 ---- Verify all was replicated ok ----
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

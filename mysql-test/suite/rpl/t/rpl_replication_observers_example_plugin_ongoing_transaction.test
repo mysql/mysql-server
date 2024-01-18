@@ -28,7 +28,7 @@
 --connect(con6,localhost,root,,test)
 
 --let $rpl_connection_name= con1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -37,12 +37,12 @@ CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo # 2. Lock a table so one query will block, this one is not counted
 
 --let $rpl_connection_name= con2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 LOCK TABLE t1 WRITE;
 
 --let $rpl_connection_name= con3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --send INSERT INTO t1 VALUES (2);
 
@@ -50,7 +50,7 @@ LOCK TABLE t1 WRITE;
 --echo # 3. Leave a transaction open without commit (counted)
 
 --let $rpl_connection_name= con4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 BEGIN;
 INSERT INTO t2 VALUES(1);
@@ -59,14 +59,14 @@ INSERT INTO t2 VALUES(1);
 --echo # 4. Leave a transaction stuck on after commit
 
 --let $rpl_connection_name= con5
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG='+d,bgc_after_after_commit_stage';
 
 --send INSERT INTO t2 VALUES (3);
 
 --let $rpl_connection_name= con1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Ensuring that the insert actually hangs at the after commit hook (trans_after_commit).
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
@@ -86,7 +86,7 @@ SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_counts_transaction
 --send INSERT INTO t2 VALUES (10);
 
 --let $rpl_connection_name= con6
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= '-d,validate_replication_observers_plugin_counts_transactions';
 
@@ -97,42 +97,42 @@ SET @@GLOBAL.DEBUG= '-d,validate_replication_observers_plugin_counts_transaction
 --echo # 6. Clean up
 
 --let $rpl_connection_name= con2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 UNLOCK TABLES;
 
 --disconnect con2
 
 --let $rpl_connection_name= con4
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET DEBUG_SYNC='now SIGNAL continue_commit';
 
 COMMIT;
 
 --let $rpl_connection_name= con3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
 --disconnect con3
 
 --let $rpl_connection_name= con1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
 --disconnect con4
 
 --let $rpl_connection_name= con5
---source include/rpl_connection.inc
+--source include/connection.inc
 
  --reap
 
 --disconnect con5
 
 --let $rpl_connection_name= con1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 DROP TABLE t2;

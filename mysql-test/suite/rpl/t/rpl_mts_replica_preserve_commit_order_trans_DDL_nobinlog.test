@@ -32,7 +32,7 @@
 --source include/have_debug_sync.inc
 
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = INNODB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = INNODB;
 
@@ -45,11 +45,11 @@
 --let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
 
 --let $mts_spco_rollback_statement = UNLOCK TABLES;
---source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
+--source common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
 
 
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= Verify table t1 has data
 --let $assert_cond= "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "2"
@@ -64,19 +64,19 @@
 --echo # Cleanup
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 DROP TABLE t2;
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 SET GLOBAL replica_parallel_type= @save_replica_parallel_type;
 --disable_warnings
 SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
 --enable_warnings
 SET GLOBAL replica_preserve_commit_order= @save_replica_preserve_commit_order;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

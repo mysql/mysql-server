@@ -57,7 +57,7 @@
 
 --let $rpl_server_number= 1
 --let $rpl_connection_name= server_1
---source include/rpl_connect.inc
+--source include/rpl/connect.inc
 
 --let $skip_recovery_configuration= 1
 --source include/gr_clear_configuration.inc

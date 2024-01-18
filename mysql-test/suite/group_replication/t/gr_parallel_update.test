@@ -22,7 +22,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
 
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ############################################################
 --echo # 2. Executing the same transaction on both server (almost)
@@ -54,9 +54,9 @@ while ($transactions > 0)
   # Sync both servers to ensure that next transaction does not fail
   # with mismatch where clause.
   --let $sync_slave_connection= server1
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
   --let $sync_slave_connection= server2
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
 
   --dec $transactions
   --inc $value_old

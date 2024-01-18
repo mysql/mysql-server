@@ -21,17 +21,17 @@
 --echo # 1. Assert that last_conflict_free_transaction is correct
 --echo #    when last transaction GTID was generated.
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= On server1, the value of last_conflict_free_transaction must be the last positively certified transaction (group generated)
 # Transaction GNO is 3 since 1 and 2 were used on view change log events for server 1 and 2 join.
 --let $assert_cond= "[SELECT last_conflict_free_transaction FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)]" = "$group_replication_group_name:1"
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= On server2, the value of last_conflict_free_transaction must be the last positively certified transaction (group generated)
 --let $assert_cond= "[SELECT last_conflict_free_transaction FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)]" = "$group_replication_group_name:1"
 --source include/assert.inc
@@ -44,16 +44,16 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 SET GTID_NEXT= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1";
 INSERT INTO t1 VALUES (1);
 SET GTID_NEXT= AUTOMATIC;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= On server1, the value of last_conflict_free_transaction must be the last positively certified transaction (specified GTID)
 --let $assert_cond= "[SELECT last_conflict_free_transaction FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)]" = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1"
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= On server2, the value of last_conflict_free_transaction must be the last positively certified transaction (specified GTID)
 --let $assert_cond= "[SELECT last_conflict_free_transaction FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)]" = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1"
 --source include/assert.inc

@@ -34,7 +34,7 @@
 --echo
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
@@ -52,19 +52,19 @@ INSERT INTO test.t1 (b) VALUES (1);
 --echo
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 LOCK TABLES t1 READ;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $member2_uuid = `SELECT @@GLOBAL.server_uuid`
 
@@ -77,7 +77,7 @@ LOCK TABLES t1 READ;
 --echo
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
@@ -95,7 +95,7 @@ set session sql_log_bin=1;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 FOR CHANNEL 'ch1_3'
 
 --let $rpl_channel_name='ch1_3'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let $rpl_channel_name=
 
 --echo
@@ -123,7 +123,7 @@ set session sql_log_bin=1;
 --echo
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 UNLOCK TABLES;
 
@@ -131,7 +131,7 @@ UNLOCK TABLES;
 --source include/gr_wait_for_member_state.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 COUNT FROM performance_schema.replication_connection_status WHERE channel_name = "ch1_3" AND source_uuid = "$member2_uuid"
 --source include/wait_condition.inc
@@ -148,11 +148,11 @@ SET SESSION sql_log_bin = 1;
 
 
 --let $rpl_channel_name='ch1_3'
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
---source include/rpl_reset_slave.inc
+--source include/rpl/reset_replica.inc
 --let $rpl_channel_name=
 --let $rpl_reset_slave_all=
 --let $rpl_multi_source=
@@ -165,7 +165,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL 'ch1_3';
 DROP TABLE t1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

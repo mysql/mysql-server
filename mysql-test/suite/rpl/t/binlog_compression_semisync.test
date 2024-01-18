@@ -26,38 +26,38 @@
 #
 # WL#3549: binlog compression
 #
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 #
 # Setup
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
---source include/install_semisync_source.inc
+--source include/rpl/install_semisync_source.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
---source include/install_semisync_replica.inc
+--source include/rpl/install_semisync_replica.inc
 
 #
 # 1. Run a sanity test
 #
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 
 SET SESSION binlog_transaction_compression=ON;
 
 # DDL
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # DML
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
 --let $nrows = 10
 while ($nrows > 0)
@@ -68,7 +68,7 @@ while ($nrows > 0)
 COMMIT;
 --let $checksum_master = query_get_value(CHECKSUM TABLE t1 EXTENDED, Checksum, 1)
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $checksum_slave = query_get_value(CHECKSUM TABLE t1 EXTENDED, Checksum, 1)
 
 --let $assert_cond= $checksum_master = $checksum_slave
@@ -76,16 +76,16 @@ COMMIT;
 --source include/assert.inc
 
 # DDL
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $i = 4
 while ($i > 0)
 {
   if ($i == 1)
   {
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
     --let $actual=`SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_source_yes_tx'`
     # The 1 DML and 2 DDL transactions
     --let $expected=3
@@ -94,7 +94,7 @@ while ($i > 0)
 
   if ($i == 2)
   {
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
     --let $actual=`SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_source_clients'`
     --let $expected=1
     --let $assert_text= Assert that the slave is still there
@@ -102,7 +102,7 @@ while ($i > 0)
 
   if ($i == 3)
   {
-    --source include/rpl_connection_master.inc
+    --source include/rpl/connection_source.inc
     --let $actual=`SELECT variable_value = "ON" FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_source_status'`
     --let $expected=1
     --let $assert_text= Assert that semisync is still up and running on the master
@@ -110,7 +110,7 @@ while ($i > 0)
 
   if ($i == 4)
   {
-    --source include/rpl_connection_slave.inc
+    --source include/rpl/connection_replica.inc
     --let $actual=`SELECT variable_value = "ON" FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_replica_status'`
     --let $expected=1
     --let $assert_text= Assert that semisync is still up and running on the slave
@@ -124,12 +124,12 @@ while ($i > 0)
 #
 # Clean up
 #
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
---source include/uninstall_semisync_replica.inc
---source include/start_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/uninstall_semisync_replica.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
---source include/uninstall_semisync_source.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/uninstall_semisync_source.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

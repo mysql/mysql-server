@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -19,7 +19,7 @@ UPDATE mysql.slave_master_info SET IGNORED_SERVER_IDS= "1 10";
 #
 # 3) Restart the server
 #
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start=false]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip-replica-start=false]
 #
 # 4) Assert the error is emitted while restarting the server.
 #
@@ -44,7 +44,7 @@ UPDATE mysql.slave_master_info SET IGNORED_SERVER_IDS= "1 10";
 #
 # 9) Restart the server
 #
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start=true]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip-replica-start=true]
 #
 # 10) No error emitted on setting GTID_MODE!=ON in an INVALID configuration
 #
@@ -58,6 +58,6 @@ ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because there is at leas
 #
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
 SET @@GLOBAL.GTID_MODE=ON;
-include/rpl_end.inc
+include/rpl/deinit.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.

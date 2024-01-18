@@ -61,7 +61,7 @@
 # server 1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/add_debug_point.inc
@@ -81,7 +81,7 @@ SET SQL_LOG_BIN=1;
 # server 2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/add_debug_point.inc
@@ -96,7 +96,7 @@ SET SQL_LOG_BIN=1;
 # server 3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/add_debug_point.inc
@@ -117,19 +117,19 @@ SET SQL_LOG_BIN=1;
 # server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # server3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 # wait for the new view to be installed
@@ -139,7 +139,7 @@ SET SQL_LOG_BIN=1;
 # server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # wait for the new view to be installed
 --let $group_replication_number_of_members= 3
@@ -148,7 +148,7 @@ SET SQL_LOG_BIN=1;
 # server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # wait for the new view to be installed
 --let $group_replication_number_of_members= 3
@@ -157,13 +157,13 @@ SET SQL_LOG_BIN=1;
 # clear notification table everywhere
 TRUNCATE gms_listener_example;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
 --shutdown_server 0
@@ -171,7 +171,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 # server2
@@ -193,7 +193,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 # view.
 #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # wait for the new view to be installed
 --let $group_replication_number_of_members= 2
@@ -211,10 +211,10 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 # server2
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
@@ -222,11 +222,11 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # wait for server2 to become unreachable
 # at this point we have lost quorum
@@ -245,7 +245,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo ##########################################################
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Unblock the group by reconfiguring it forcefully to a
 # single server.
@@ -286,7 +286,7 @@ SET GLOBAL group_replication_force_members= "";
 
 # start1: start group
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 RESET BINARY LOGS AND GTIDS;
@@ -300,7 +300,7 @@ RESET BINARY LOGS AND GTIDS;
 # server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 RESET BINARY LOGS AND GTIDS;
@@ -316,10 +316,10 @@ RESET BINARY LOGS AND GTIDS;
 # server2
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
@@ -327,13 +327,13 @@ RESET BINARY LOGS AND GTIDS;
 --source include/wait_until_connected_again.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/wait_until_connected_again.inc
 
 # server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # wait for server2 to become unreachable.
 # at this point we have lost quorum
@@ -368,7 +368,7 @@ SET SQL_LOG_BIN=1;
 # server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/remove_debug_point.inc
@@ -385,7 +385,7 @@ RESET BINARY LOGS AND GTIDS;
 # server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 RESET BINARY LOGS AND GTIDS;
@@ -399,7 +399,7 @@ RESET BINARY LOGS AND GTIDS;
 # server3
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --disable_query_log
 RESET BINARY LOGS AND GTIDS;
@@ -411,9 +411,9 @@ RESET BINARY LOGS AND GTIDS;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE gms_listener_example;
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --source include/group_replication_end.inc

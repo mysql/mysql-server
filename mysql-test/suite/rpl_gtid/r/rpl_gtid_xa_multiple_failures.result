@@ -1,7 +1,7 @@
 include/only_with_option.inc [GLOBAL.replica_parallel_type = 'LOGICAL_CLOCK']
 include/only_with_option.inc [GLOBAL.replica_parallel_workers != 0]
 include/only_with_option.inc [GLOBAL.binlog_order_commits = 1]
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,7 +13,7 @@ include/save_sysvars.inc [
 ]
 SET @@GLOBAL.replica_preserve_commit_order = 0;
 SET @@GLOBAL.replica_parallel_workers = 4;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 include/suppress_messages.inc
 # Connection 1 suppresses message <Found .* prepared XA transactions>.
@@ -26,8 +26,8 @@ INSERT INTO t1 VALUES (2);
 XA END 'xid0';
 XA PREPARE 'xid0';
 XA COMMIT 'xid0';
-include/sync_slave_sql_with_master.inc
-include/save_binlog_position.inc
+include/rpl/sync_to_replica.inc
+include/rpl/save_binlog_file_position.inc
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
 XA START 'xid1';
@@ -53,19 +53,19 @@ XA PREPARE 'xid4';
 [connection slave]
 # Kill the server
 # restart:--replica-preserve-commit-order=0
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/assert.inc [Found log message(s) for "Rolling back trx with id %, 1 rows to undo"]
 include/assert.inc [Found 1 log message(s) for "Successfully rolled back 1, prepared 2 XA transaction"]
 include/assert.inc [2 XA transaction(s) in PREPARED state]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 XA ROLLBACK 'xid1';
 XA ROLLBACK 'xid2';
 XA ROLLBACK 'xid3';
 XA ROLLBACK 'xid4';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 XA START 'xid5';
 INSERT INTO t1 VALUES (7);
@@ -79,7 +79,7 @@ XA START 'xid7';
 INSERT INTO t1 VALUES (9);
 XA END 'xid7';
 XA PREPARE 'xid7';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_xa_trx]
 XA COMMIT 'xid5';
 include/execute_to_conditional_timestamp_sync_point.inc [before_invoke_before_commit_hook]
@@ -89,12 +89,12 @@ XA COMMIT 'xid7';
 [connection slave]
 # Kill the server
 # restart:--replica-preserve-commit-order=0
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/assert.inc [Found 1 log message(s) for "Successfully committed 1, prepared 2 XA transaction"]
 include/assert.inc [2 XA transaction(s) in PREPARED state]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 XA START 'xid8';
 INSERT INTO t1 VALUES (10);
 XA END 'xid8';
@@ -107,7 +107,7 @@ XA START 'xid10';
 INSERT INTO t1 VALUES (12);
 XA END 'xid10';
 XA PREPARE 'xid10';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_xa_trx]
 XA ROLLBACK 'xid8';
 include/execute_to_conditional_timestamp_sync_point.inc [before_invoke_before_commit_hook]
@@ -117,13 +117,13 @@ XA ROLLBACK 'xid10';
 [connection slave]
 # Kill the server
 # restart:--replica-preserve-commit-order=0
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/assert.inc [Found 1 log message(s) for "Successfully rolled back 1, prepared 2 XA transaction"]
 include/assert.inc [2 XA transaction(s) in PREPARED state]
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 UPDATE t1 SET c1 = 200 WHERE c1 = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 XA START 'xid11';
 INSERT INTO t1 VALUES (13);
 XA END 'xid11';
@@ -142,13 +142,13 @@ XA COMMIT 'xid13' ONE PHASE;
 [connection slave]
 # Kill the server
 # restart:--replica-preserve-commit-order=0
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/assert.inc [Found log message(s) for "Rolling back trx with id %, 1 rows to undo"]
 include/assert.inc [Found 1 log message(s) for "Successfully committed 1, rolled back 1 XA transaction"]
 include/assert.inc [No XA transactions in PREPARED state]
 include/restore_sysvars.inc
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

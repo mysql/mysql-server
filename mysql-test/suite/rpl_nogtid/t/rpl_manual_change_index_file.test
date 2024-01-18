@@ -1,6 +1,6 @@
 source include/not_windows.inc;
 --source include/not_group_replication_plugin.inc
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 CALL mtr.add_suppression("Failed to open log");
 #
 # BUG#28421 Infinite loop on slave relay logs
@@ -19,7 +19,7 @@ FLUSH LOGS;
 CREATE TABLE t1(c1 INT);
 # Now, the current dump file(master-bin.000002) is the second line of index
 # file
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Now, all events has been replicate to slave. As current dump file
 # (master-bin.000002) is the last binlog file, so master is waiting for new
 # events.
@@ -65,7 +65,7 @@ connection slave;
 --let $show_slave_io_error= 1
 # Mask line numbers
 --let $slave_io_error_replace= / at [0-9]*/ at XXX/
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 connection master;
 
@@ -99,15 +99,15 @@ CREATE TABLE t4(c1 INT);
 
 connection slave;
 START REPLICA IO_THREAD;
-source include/wait_for_slave_io_to_start.inc;
+source include/rpl/wait_for_receiver_to_start.inc;
 
 connection master;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SHOW TABLES;
 
 connection master;
 DROP TABLE t1, t2, t3, t4;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo # BUG#21437 server_errno=29 error message flood mysqld error log
@@ -116,7 +116,7 @@ DROP TABLE t1, t2, t3, t4;
 --echo # insteads of EE_FILENOTFOUND error is sent to slave, so that the slave
 --echo # I/O thread stops immediately.
 
---source include/rpl_reset.inc
+--source include/rpl/reset.inc
 connection master;
 --echo [ on master ]
 call mtr.add_suppression("Got fatal error 1236 from source when reading data from binary log:");
@@ -128,9 +128,9 @@ FLUSH LOGS;
 
 CREATE TABLE t2(c1 int);
 DROP TABLE t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [ on slave ]
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 connection master;
 --echo [ on master ]
@@ -146,7 +146,7 @@ START REPLICA IO_THREAD;
 --echo # and the specific information are sent to slave.
 --let $slave_io_errno= 13114
 --let $show_slave_io_error= 1
---source include/wait_for_slave_io_error.inc
+--source include/rpl/wait_for_receiver_error.inc
 
 connection master;
 --echo [ on master ]
@@ -156,17 +156,17 @@ move_file $MASTER_DATADIR/master-bin.bak $MASTER_DATADIR/master-bin.000001;
 connection slave;
 --echo [ on slave ]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='master-bin.000002';
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 connection master;
 --echo [ on master ]
 CREATE TABLE t1(c1 INT);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [ on slave ]
 SELECT * FROM t1;
 
 connection master;
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

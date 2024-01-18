@@ -1,12 +1,12 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/install_semisync.inc
+include/rpl/install_semisync.inc
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Test on AFTER_SYNC wait point
 # #######################################################################
@@ -25,7 +25,7 @@ Variable_name	Value
 Rpl_semi_sync_source_yes_tx	2
 include/assert.inc [rpl_semi_sync_source_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Table has 1 record]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
@@ -47,7 +47,7 @@ COMMIT;
 SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
 include/assert.inc [rpl_semi_sync_source_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Table has two records]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
@@ -75,7 +75,7 @@ SET DEBUG_SYNC= "RESET";
 SET DEBUG_SYNC= "RESET";
 SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 TRUNCATE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET GLOBAL binlog_order_commits = OFF;
 #
@@ -96,7 +96,7 @@ Variable_name	Value
 Rpl_semi_sync_source_yes_tx	8
 include/assert.inc [rpl_semi_sync_source_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Table has 1 record]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
@@ -118,7 +118,7 @@ COMMIT;
 SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
 include/assert.inc [rpl_semi_sync_source_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Table has two records]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
@@ -146,7 +146,7 @@ SET DEBUG_SYNC= "RESET";
 SET DEBUG_SYNC= "RESET";
 SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 TRUNCATE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET GLOBAL binlog_order_commits= 1;
 #
@@ -160,11 +160,11 @@ c1
 1
 SET GLOBAL debug= @saved_debug;
 CALL mtr.add_suppression("Failed to run 'after_sync' hook");
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 [connection slave]
-include/start_slave_io.inc
+include/rpl/start_receiver.inc
 [connection master]
 CALL mtr.add_suppression("An error occurred during sync stage of the commit.");
 DROP TABLE t1;
-include/uninstall_semisync.inc
-include/rpl_end.inc
+include/rpl/uninstall_semisync.inc
+include/rpl/deinit.inc

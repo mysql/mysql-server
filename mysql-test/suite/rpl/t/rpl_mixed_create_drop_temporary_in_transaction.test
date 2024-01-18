@@ -12,4 +12,4 @@
 # WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
 
 --source include/have_binlog_format_mixed.inc
---source extra/rpl_tests/rpl_create_drop_temporary_in_transaction.test
+--source common/rpl/rpl_create_drop_temporary_in_transaction.test

@@ -38,7 +38,7 @@
 
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_mixed.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
@@ -52,19 +52,19 @@ source include/assert.inc;
 --echo # Setup MTS and perform testing on a fresh slave.
 --echo
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --connection slave
 
 # PB2 runs the tests with slave-parallel-worker=4 in a combination.
 # Reset it to 0 beacause the following test for empty set is valid only
 # in non-MTS slave.
 
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 SET @save_replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=0;
 # to avoid warnings
 set @save_replica_transaction_retries= @@global.replica_transaction_retries;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 # Post Bug#20001173 fix in case of Single Threaded Slave(STS) mode SQL
 # thread's staus will be reported as part of
@@ -76,12 +76,12 @@ source include/assert.inc;
 let $assert_text= In non-MTS mode(SQL thread), the table should return empty result set;
 let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 0;
 source include/assert.inc;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 
 SET @@global.replica_parallel_workers=1;
 # to avoid warnings
 set @save_replica_transaction_retries= @@global.replica_transaction_retries;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 let $ps_value= query_get_value(select Worker_Id from performance_schema.replication_applier_status_by_worker, Worker_Id, 1);
 let $assert_text= Worker_Id should be 1;
@@ -144,7 +144,7 @@ drop table t;
 insert into t values(1);
 --connection slave
 let $slave_sql_errno=1146;
-source include/wait_for_slave_sql_error.inc;
+source include/rpl/wait_for_applier_error.inc;
 
 --echo
 --echo # Extract the error related fields from SRS and PS table and compare
@@ -247,7 +247,7 @@ reset binary logs and gtids;
 
 --let $rpl_skip_sync= 1
 --let $rpl_set_enforce_gtid_consistency= 1
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 --let $rpl_skip_sync= 0
 
 --connection slave
@@ -272,11 +272,11 @@ sync_slave_with_master;
 --echo # BUG#20513547 REPLICATION_APPLIER_STATUS_BY_WORKER SHOWS
 --echo #              WRONG WORKER_ID WHEN SLAVE STOPS
 --echo #
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SET @@GLOBAL.replica_parallel_workers = 3;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 SELECT worker_id from performance_schema.replication_applier_status_by_worker;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 SELECT worker_id from performance_schema.replication_applier_status_by_worker;
 
 --echo
@@ -291,10 +291,10 @@ DROP DATABASE d1;
 set @@global.replica_parallel_workers= @save_replica_parallel_workers;
 --enable_warnings
 set @@global.replica_transaction_retries= @save_replica_transaction_retries;
-source include/start_slave.inc;
+source include/rpl/start_replica.inc;
 
 --let $rpl_gtid_mode= OFF
 --let $rpl_set_enforce_gtid_consistency= 0
---source include/rpl_set_gtid_mode.inc
+--source include/rpl/set_gtid_mode.inc
 
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;

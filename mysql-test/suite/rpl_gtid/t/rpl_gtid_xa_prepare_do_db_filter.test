@@ -2,9 +2,9 @@
 # The purpose of this test is to check XA PREPARE are not filtered
 # by do-db filters.
 #
-# Check extra/rpl_tests/rpl_gtid_xa_cmd_do_db_filter.test
+# Check common/rpl/rpl_gtid_xa_cmd_do_db_filter.test
 # for more details.
 #
 
 --let $rpl_use_before_xa_cmd=XA PREPARE
---source extra/rpl_tests/rpl_gtid_xa_cmd_do_db_filter.test
+--source common/rpl/rpl_gtid_xa_cmd_do_db_filter.test

@@ -2472,7 +2472,7 @@
   should begin with this command:
 
   @verbatim
-  --source include/master-slave.inc
+  --source include/rpl/init_source_replica.inc
   @endverbatim
 
   To switch between the master and slave, use these commands:
@@ -2503,7 +2503,7 @@
   Several include files are available for use in tests that enable
   better control over the behavior of slave server I/O and SQL
   threads. The files are located in the <b>include</b> directory and
-  have names of the form <b>wait_for_slave_*.inc</b>. By using these
+  have names of the form <b>rpl/wait_for_(replica|receiver|applier)*.inc</b>. By using these
   files, you can help make replication tests more stable because it
   will be more likely that test failures are due to replication
   failures, not due to problems with the tests themselves.
@@ -2538,14 +2538,14 @@
 
   @verbatim
   START REPLICA
-  --source include/wait_for_slave_to_start.inc
+  --source include/rpl/wait_for_replica_to_start.inc
   @endverbatim
 
   Similarly, to stop both slave threads, do this:
 
   @verbatim
   STOP REPLICA;
-  --source include/wait_for_slave_to_stop.inc
+  --source include/rpl/wait_for_replica_to_stop.inc
   @endverbatim
 
   The following list describes the include files that are available
@@ -2553,35 +2553,35 @@
 
   <ul>
     <li>
-      <tt>wait_for_slave_to_start.inc</tt>
+      <tt>rpl/wait_for_replica_to_start.inc</tt>
 
       Waits for both slave threads (I/O and SQL) to start. Should be
       preceded by a <b>START REPLICA</b> statement.
     </li>
 
     <li>
-      <tt>wait_for_slave_to_stop.inc</tt>
+      <tt>rpl/wait_for_replica_to_stop.inc</tt>
 
       Waits for both slave threads (I/O and SQL) to stop. Should be
       preceded by a <b>STOP REPLICA</b> statement.
     </li>
 
     <li>
-      <tt>wait_for_slave_sql_to_stop.inc</tt>
+      <tt>rpl/wait_for_applier_to_stop.inc</tt>
 
       Waits for the slave SQL thread to stop. Should be preceded by
       a <b>STOP REPLICA SQL_THREAD</b> statement.
     </li>
 
     <li>
-      <tt>wait_for_slave_io_to_stop.inc</tt>
+      <tt>rpl/wait_for_receiver_to_stop.inc</tt>
 
       Waits for the slave I/O thread to stop. Should be preceded by
       a <b>STOP REPLICA IO_THREAD</b> statement.
     </li>
 
     <li>
-      <tt>wait_for_slave_param.inc</tt>
+      <tt>rpl/wait_for_replica_status.inc</tt>
 
       Waits until <b>SHOW REPLICA STATUS</b> output contains a given
       value or a timeout occurs. Before including the file, you should
@@ -2595,12 +2595,12 @@
       @verbatim
   --let $slave_param= Replica_SQL_Running
   --let $slave_param_value= No
-  --source include/slave_wait_slave_param.inc
+  --source include/rpl/wait_for_replica_status.inc
       @endverbatim
     </li>
 
     <li>
-      <tt>wait_for_slave_sql_error.inc</tt>
+      <tt>rpl/wait_for_applier_error.inc</tt>
 
       Waits until the SQL thread for the current connection has gotten
       an error or a timeout occurs. Occurrence of an error is

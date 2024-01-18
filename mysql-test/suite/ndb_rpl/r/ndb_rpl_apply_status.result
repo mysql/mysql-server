@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -65,7 +65,7 @@ select count(1) from mysql.ndb_apply_status;
 count(1)
 0
 reset binary logs and gtids;
-include/rpl_start_slaves.inc
+include/rpl/start_all_replicas.inc
 *** Test reset replica all ***
 insert into test.t1 values (2);
 Add a dummy entry
@@ -81,11 +81,11 @@ count(1)
 0
 reset binary logs and gtids;
 RESET REPLICA ALL zapped Master info - re-set it.
-include/rpl_change_topology.inc [new topology=1->2]
+include/rpl/change_topology.inc [new topology=1->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/rpl_start_slaves.inc
+include/rpl/start_all_replicas.inc
 *** Test effect of ndb_clear_apply_status = 0 ***
 set global ndb_clear_apply_status=0;
 insert into test.t1 values (3);
@@ -102,7 +102,7 @@ count(1)
 2
 delete from mysql.ndb_apply_status;
 reset binary logs and gtids;
-include/rpl_start_slaves.inc
+include/rpl/start_all_replicas.inc
 *** Test reset replica all ***
 insert into test.t1 values (4);
 Add a dummy entry
@@ -118,14 +118,14 @@ count(1)
 2
 reset binary logs and gtids;
 RESET REPLICA ALL zapped Master info - re-set it.
-include/rpl_change_topology.inc [new topology=1->2]
+include/rpl/change_topology.inc [new topology=1->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/rpl_start_slaves.inc
+include/rpl/start_all_replicas.inc
 set global ndb_clear_apply_status=1;
 drop table test.t1;
-include/rpl_end.inc
+include/rpl/deinit.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

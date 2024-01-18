@@ -22,11 +22,11 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --let rpl_skip_start_slave=1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Step 1) Set a simulation on Slave SQL thread so that it enters
 # into faulty code (before fix) path.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Relay log read failure");
 SET @save_debug=@@GLOBAL.debug;
 SET GLOBAL debug="+d,force_sql_thread_error";
@@ -38,17 +38,17 @@ START REPLICA SQL_THREAD;
 # Before fix, SQL thread would not have released
 # relay_log.log_lock.
 --let $slave_sql_errno= convert_error(ER_REPLICA_RELAY_LOG_READ_FAILURE)
---source include/wait_for_slave_sql_to_stop.inc
+--source include/rpl/wait_for_applier_to_stop.inc
 
 # Step 3) Before fix, when SQL thread is trying to acquire
 # relay_log.log_lock which was not released will hang
 # forever.
 SET GLOBAL debug=@save_debug;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Step 4) Execute dummy statements on master and see that it
 #         replication is working fine.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1(i INT);
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

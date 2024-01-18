@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 --source include/have_debug.inc
 
 connection master;
@@ -44,4 +44,4 @@ DROP TABLE t3;
 
 --connection master
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,7 +1,7 @@
 #
 # 0. Create asynchronous replication topology between server 1 and 2
 #.
-include/rpl_init.inc [topology=1->2->1]
+include/rpl/init.inc [topology=1->2->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,7 +20,7 @@ include/assert.inc [The value of xa_detach_on_prepare should be 1]
 #
 [connection server_1]
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # 3. On server1 create and prepare an XA transaction which inserts a value on
 #    the table.
@@ -30,7 +30,7 @@ XA START 'trx1';
 INSERT INTO t1 VALUES (1);
 XA END 'trx1';
 XA PREPARE 'trx1';
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # 4. On server2 commit the XA transaction.
 #
@@ -38,7 +38,7 @@ include/rpl_sync.inc
 XA COMMIT 'trx1';
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
-include/rpl_sync.inc
+include/rpl/sync.inc
 #
 # 5. Verify that insert was replicated to server1.
 #
@@ -50,5 +50,5 @@ include/rpl_sync.inc
 SET @@session.xa_detach_on_prepare=0;
 [connection server_1]
 DROP TABLE t1;
-include/rpl_sync.inc
-include/rpl_end.inc
+include/rpl/sync.inc
+include/rpl/deinit.inc

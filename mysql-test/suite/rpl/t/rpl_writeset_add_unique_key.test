@@ -27,20 +27,20 @@
 # Bug#31636339 MTS IS UNUSABLE; ERRNO 3030, AND WORKER HA_ERR_FOUND_DUPP_KEY OR HA_ERR_LOCK_WAIT_TIMEOUT
 #
 --source include/have_binlog_format_row.inc
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 --let $skip_configuration_privilege_checks_user= 'skip'
 --let $rpl_privilege_checks_user_grant_all= 1
 --echo #
 --echo # 1. Create source-replica topology.
 --let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Configure replica options
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @old_replica_transaction_retries = @@global.replica_transaction_retries;
 SET @@global.replica_transaction_retries = 3;
---source include/start_slave.inc
---source include/rpl_connection_master.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
 
 --echo
 --echo # 2. Save the current variables on source.
@@ -80,26 +80,26 @@ delimiter ;|
 --echo #
 --echo #
 --echo # 5. Switch to source and call procedure.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 call p(1000);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 6. Clear system variables on source.
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET SESSION binlog_row_image= @old_binlog_row_image;
 
 # Supress the error warning on replica.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Worker .* failed executing transaction.*");
 
 # 7. Cleanup.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
 DROP PROCEDURE p;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 eval SET @@global.replica_transaction_retries = @old_replica_transaction_retries;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

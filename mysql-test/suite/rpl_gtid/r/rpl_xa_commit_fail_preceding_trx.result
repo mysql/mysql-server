@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,10 +9,10 @@ XA START 'T2';
 INSERT INTO t1 VALUES (1);
 XA END 'T2';
 XA PREPARE 'T2';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection server_2]
 INSERT INTO t1 VALUES (2);
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 BEGIN;
 [connection default]
@@ -29,19 +29,19 @@ BEGIN;
 [connection server_2]
 ROLLBACK;
 SET @@gtid_next = 'AUTOMATIC';
-include/wait_for_slave_sql_error.inc [errno=3030]
+include/rpl/wait_for_applier_error.inc [errno=3030]
 include/assert.inc [gtid_owned should be empty]
 include/assert.inc [GTID_EXECUTED has not been updated]
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	2	0	T2
 include/assert.inc [t1 should have 1 row]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 include/assert.inc [Binary log has not been updated]
 DELETE FROM t1 WHERE a = 2;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET REPLICA;
-include/start_slave.inc
+include/rpl/start_replica.inc
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

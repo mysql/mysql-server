@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -27,7 +27,7 @@ a	c	c2
 2	it	is
 3	Friday	TGIF
 CREATE TABLE mysqltest1.t10 (a INT, PRIMARY KEY(a));
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM mysqltest1.v2;
 qty	price	value
 3	50	150
@@ -50,7 +50,7 @@ a	c	c2
 1	Thank	GOD
 2	it	is
 3	Friday	TGIF
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM mysqltest1.t5 ORDER BY qty;
 qty	price	total
 3	50	150
@@ -73,7 +73,7 @@ a	c
 2	it
 3	Friday
 4	TEST
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM mysqltest1.t1 ORDER BY a;
 a	c
 1	Thank
@@ -95,5 +95,5 @@ DROP TABLE IF EXISTS mysqltest1.t2;
 DROP TABLE IF EXISTS mysqltest1.t4;
 DROP TABLE IF EXISTS mysqltest1.t10;
 DROP DATABASE mysqltest1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

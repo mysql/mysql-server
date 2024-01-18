@@ -30,7 +30,7 @@ let $message= Attention: The nesting level @max_level in Testcase 3.3.1.A6
               MyISAM(only) performance issues Bug#11948;
 --source include/show_msg80.inc
 SET @limit1 = 20;
---source suite/funcs_1/views/views_master.inc
+--source suite/funcs_1/views/views_main.inc
 
 DROP DATABASE test1;
 DROP TABLE test.tb2;

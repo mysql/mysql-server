@@ -6,7 +6,7 @@
 # ==== Usage ====
 #
 # --let $group_replication_error_connection_number= value
-# --source include/rpl_gr_error_out.inc
+# --source include/rpl/gr_error_out.inc
 #
 --let $_cnt= 1
 while ($_cnt <= $group_replication_error_connection_number)

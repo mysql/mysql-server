@@ -30,7 +30,7 @@
 
 CREATE TABLE t1(a INT, b INT) engine=memory;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -45,7 +45,7 @@ CREATE TABLE t1(a INT, b INT) engine=memory;
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --source include/start_group_replication.inc
 
@@ -57,7 +57,7 @@ CREATE TABLE t1(a INT, b INT) engine=memory;
 
 CREATE TABLE t2 LIKE t1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ############################################################
@@ -76,7 +76,7 @@ CREATE TABLE t2 LIKE t1;
 --let $limit= 0, 4
 --let $binlog_file= server-binary-log.000001
 --let $event_sequence= Gtid # !Q(CREATE.*)
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 
 --echo
@@ -87,7 +87,7 @@ CREATE TABLE t2 LIKE t1;
 --let $limit= 0, 6
 --let $binlog_file= server-binary-log.000002
 --let $event_sequence= Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 
 --echo
@@ -96,12 +96,12 @@ CREATE TABLE t2 LIKE t1;
 --echo #    create table, a view, a truncate table and a create table
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $limit=
 --let $binlog_file= server-binary-log.000001
 --let $event_sequence= Gtid # !Q(CREATE.*) # Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 
 --echo

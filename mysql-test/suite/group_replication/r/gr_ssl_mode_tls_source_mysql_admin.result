@@ -27,7 +27,7 @@ Occurrences of 'Group communication SSL configuration: group_replication_ssl_mod
 #    will be able to join the group.
 SET GLOBAL group_replication_ssl_mode= REQUIRED;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"' in the input file: 1
 include/stop_group_replication.inc
 
@@ -37,7 +37,7 @@ include/stop_group_replication.inc
 #    member will be able to join the group.
 SET GLOBAL group_replication_ssl_mode= VERIFY_CA;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_CA"' in the input file: 1
 include/stop_group_replication.inc
 
@@ -49,7 +49,7 @@ include/stop_group_replication.inc
 #    the group.
 SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_IDENTITY"' in the input file: 1
 include/stop_group_replication.inc
 

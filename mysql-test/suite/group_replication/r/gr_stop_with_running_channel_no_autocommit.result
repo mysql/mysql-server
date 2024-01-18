@@ -17,7 +17,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch1']
+include/rpl/start_replica.inc [FOR CHANNEL 'ch1']
 
 ############################################################
 # 3. Stop Group Replication on server1 with autocommit disabled.
@@ -38,5 +38,5 @@ include/assert.inc [STOP GROUP_REPLICATION did not generate a GTID]
 # 5. Clean up.
 [connection server1]
 SET @@SESSION.autocommit = @saved_autocommit;
-include/rpl_reset_slave.inc
+include/rpl/reset_replica.inc
 include/group_replication_end.inc

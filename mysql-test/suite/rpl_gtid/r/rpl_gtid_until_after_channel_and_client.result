@@ -1,12 +1,12 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 include/only_with_option.inc [GLOBAL.replica_parallel_workers > 1]
 CREATE TABLE t1(c1 INTEGER PRIMARY KEY) ENGINE= Innodb;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 
 ##############################################################
 # 1. REPLICATE ALL SOURCE DATA
@@ -20,7 +20,7 @@ INSERT INTO t2 VALUES(2);
 INSERT INTO t2 VALUES(3);
 INSERT INTO t2 VALUES(4);
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:1-4,REPLICA_UUID:1-4";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [3 rows in t1 must be replicated now]
 include/assert.inc [3 rows in t2 must be replicated now]
 
@@ -28,7 +28,7 @@ include/assert.inc [3 rows in t2 must be replicated now]
 # 2. DATA IS ALREADY PRESENT
 [connection slave]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:1-2,REPLICA_UUID:1-2";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [3 rows in t1 must be replicated now]
 include/assert.inc [3 rows in t2 must be replicated now]
 
@@ -45,7 +45,7 @@ INSERT INTO t2 VALUES(6);
 INSERT INTO t2 VALUES(7);
 INSERT INTO t2 VALUES(8);
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:7,REPLICA_UUID:7";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [Atleast 6 rows in t1 must be replicated now]
 include/assert.inc [7 rows in t2 must be replicated now]
 
@@ -56,7 +56,7 @@ INSERT INTO t1 VALUES(9);
 [connection slave]
 INSERT INTO t2 VALUES(9);
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:1-8,REPLICA_UUID:1-8";
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [Atleast 7 rows in t1 must be replicated now]
 include/assert.inc [8 rows in t2 must be replicated now]
 
@@ -64,12 +64,12 @@ include/assert.inc [8 rows in t2 must be replicated now]
 # 5. REPLICATE MISSING SOURCE DATA WAITING WITH ALREADY KNOW GTIDS
 [connection slave]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:1-10,REPLICA_UUID:1-10";
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 [connection master]
 INSERT INTO t1 VALUES(10);
 [connection slave]
 INSERT INTO t2 VALUES(10);
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [9 rows in t1 must be replicated now]
 include/assert.inc [9 rows in t2 must be replicated now]
 
@@ -77,12 +77,12 @@ include/assert.inc [9 rows in t2 must be replicated now]
 # 6. REPLICATE MISSING SOURCE DATA WAITING ON A SINGLE GTID
 [connection slave]
 START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:11,REPLICA_UUID:11";
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 [connection master]
 INSERT INTO t1 VALUES(11);
 [connection slave]
 INSERT INTO t2 VALUES(11);
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [10 rows in t1 must be replicated now]
 include/assert.inc [10 rows in t2 must be replicated now]
 
@@ -96,9 +96,9 @@ INSERT INTO t1 VALUES(13);
 INSERT INTO t1 VALUES(14);
 INSERT INTO t1 VALUES(15);
 [connection slave]
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [14 rows in t1 must be replicated now]
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 [connection master]
 INSERT INTO t1 VALUES(16);
 INSERT INTO t1 VALUES(17);
@@ -115,7 +115,7 @@ INSERT INTO t2 VALUES(17);
 INSERT INTO t2 VALUES(18);
 INSERT INTO t2 VALUES(19);
 INSERT INTO t2 VALUES(20);
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [19 rows in t1 must be replicated now]
 include/assert.inc [19 rows in t2 must be replicated now]
 
@@ -125,5 +125,5 @@ include/assert.inc [19 rows in t2 must be replicated now]
 DROP TABLE t1;
 [connection slave]
 DROP TABLE t2;
-include/start_slave_sql.inc
-include/rpl_end.inc
+include/rpl/start_applier.inc
+include/rpl/deinit.inc

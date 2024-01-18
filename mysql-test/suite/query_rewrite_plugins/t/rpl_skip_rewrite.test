@@ -33,14 +33,14 @@
 # WL#14527: System variable to disable query rewrites for system users
 
 --source include/not_group_replication_plugin.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/xplugin_wait_for_interfaces.inc
 
 --echo #
 --echo # Install plugin and add rewrite rule on replica
 --echo #
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
 --source suite/query_rewrite_plugins/include/install_rewriter.inc
 
@@ -63,21 +63,21 @@ connection master;
 SET @saved_binlog_format=@@global.binlog_format;
 SET SESSION binlog_format = 'STATEMENT';
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 CREATE USER 'replication_applier'@'localhost';
 GRANT SYSTEM_VARIABLES_ADMIN, REPLICATION_APPLIER, CREATE, INSERT, DELETE, SKIP_QUERY_REWRITE on *.* to 'replication_applier'@'localhost';
 FLUSH PRIVILEGES;
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 
 CREATE TABLE test.t1 ( a INT, b INT , c INT, PRIMARY KEY(a));
 INSERT INTO test.t1 (a, b) VALUES (1, 2);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Replicated INSERTs are not rewritten, so rows at replica match source
@@ -100,7 +100,7 @@ connection master;
 DELETE FROM test.t1;
 INSERT INTO test.t1 (a, b) VALUES (3, 4);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Replicated INSERTs are rewritten, so rows at replica do not match source
@@ -117,16 +117,16 @@ INSERT INTO test.t1 (a, b) VALUES (3, 4);
 
 SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = OFF;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 
 DELETE FROM test.t1;
 INSERT INTO test.t1 (a, b) VALUES (5, 6);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Replicated INSERTs are not rewritten, so rows at replica match source
@@ -147,7 +147,7 @@ connection master;
 DELETE FROM test.t1;
 INSERT INTO test.t1 (a, b) VALUES (7, 8);
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # Replicated INSERTs are rewritten, so rows at replica do not match source
@@ -168,8 +168,8 @@ connection master;
 DROP TABLE test.t1;
 SET GLOBAL binlog_format=@saved_binlog_format;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = DEFAULT;
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --source include/disconnect_connections.inc

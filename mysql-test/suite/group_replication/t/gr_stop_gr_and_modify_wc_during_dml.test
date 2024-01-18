@@ -26,13 +26,13 @@
 # Note: based off gr_stop_gr_during_dml_01
 ################################################################################
 --source include/big_test.inc
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo ###############################################################################
 --echo # 2. Increase write_concurrency via M1
@@ -46,7 +46,7 @@
 CREATE TABLE test.t1 (a int primary key);
 
 # Ensure server2 already contains table test.t1 on step 4a.
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 USE test;
 delimiter $$;
@@ -70,7 +70,7 @@ delimiter ;$$
 --echo # 4. While inserts are happening on M1:
 --echo # 4a. Decrease write_concurrency via M2 once at least 50 records are replicated
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition= SELECT COUNT(*)>=50 FROM test.t1
 --source include/wait_condition.inc
 
@@ -79,7 +79,7 @@ delimiter ;$$
 
 --echo # 4b. Modify write_concurrency and stop group replication on M3
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $gr_write_concurrency_m3= 23
 --eval SELECT group_replication_set_write_concurrency($gr_write_concurrency_m3)
@@ -89,7 +89,7 @@ delimiter ;$$
 --echo ###############################################################################
 --echo # 5. Modify write_concurrency via M2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $gr_write_concurrency_m2= 10
 --eval SELECT group_replication_set_write_concurrency($gr_write_concurrency_m2)
@@ -107,7 +107,7 @@ delimiter ;$$
 --echo # 6. Check the number of servers online and status of servers
 # reap has to be done after send
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --reap
 
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
@@ -115,7 +115,7 @@ delimiter ;$$
 
 --echo
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
 --source include/wait_condition.inc
@@ -124,7 +124,7 @@ delimiter ;$$
 --echo # 7. Start group replication again on M3
 --echo
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # M3 will download, in the worst case, all 499 records.
 # We set $wait_timeout to prevent include/start_group_replication.inc from
 # timing out.
@@ -140,7 +140,7 @@ delimiter ;$$
 
 # server 2
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'server2 is supposed to have 499 records in test.t1'
 --let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 499
@@ -148,7 +148,7 @@ delimiter ;$$
 
 # server 1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= 'server1 is supposed to have 499 records in test.t1'
 --let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 499

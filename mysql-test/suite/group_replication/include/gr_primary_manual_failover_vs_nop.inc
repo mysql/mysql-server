@@ -69,12 +69,12 @@ if (!$nop_statement)
 --echo # 1. Deploy a group in single-primary mode.  server1 is the
 --echo #    primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --source include/start_group_replication.inc
 
@@ -85,7 +85,7 @@ if (!$nop_statement)
 --echo #    but do not let it complete yet.
 # server_1_1: Send some NOP to server1, and use debug feature to make it "hang".
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 if ($nop_preparation_statement)
 {
@@ -99,7 +99,7 @@ SET DEBUG_SYNC= 'execute_command_before_main_switch SIGNAL nop_running WAIT_FOR 
 
 # server1: Wait for test statement to complete on server1.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'now WAIT_FOR nop_running';
 
 
@@ -109,7 +109,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR nop_running';
 --echo #    succeed immediately; it should NOT wait until the
 --echo #    NOP is complete.
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server2_uuid SERVER2_UUID
 --eval SELECT group_replication_set_as_primary("$server2_uuid");
 
@@ -118,7 +118,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR nop_running';
 --echo ############################################################
 --echo # 4. Assert that server2 is now the primary.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Show that server2 is now the primary.
 --let $assert_text= 'server2 is now the primary'
@@ -129,7 +129,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR nop_running';
 --source include/gr_assert_secondary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_primary_member.inc
 
 
@@ -137,11 +137,11 @@ SET DEBUG_SYNC= 'now WAIT_FOR nop_running';
 --echo ############################################################
 --echo # 5. Resume the NOP.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= 'now SIGNAL nop_resume';
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_result_log
 --reap
 --enable_result_log
@@ -152,20 +152,20 @@ SET DEBUG_SYNC= 'RESET';
 --echo ############################################################
 --echo # 6. Clean up.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 if ($nop_cleanup_statement)
 {
   --echo # The clean-up statement for our earlier test statement:
   --eval $nop_cleanup_statement
-  --source include/rpl_sync.inc
+  --source include/rpl/sync.inc
 }
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

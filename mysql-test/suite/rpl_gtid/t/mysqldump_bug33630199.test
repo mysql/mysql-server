@@ -44,7 +44,7 @@
 --let $rpl_gtid_utils= 1
 --let $rpl_skip_start_slave= 1
 --disable_warnings
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --enable_warnings
 
 # Step 1
@@ -81,7 +81,7 @@ DELIMITER ;$
 --send CALL insertParallely();
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Dump on fast machines could be empty.
 # Make sure that somethings inserted.
@@ -91,23 +91,23 @@ DELIMITER ;$
 # Start dump
 --exec $MYSQL_DUMP --compact --single-transaction --set-gtid-purged=ON -ER --databases db > $mysqldumpfile
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --reap
 
 # End of Step 1
 
 # Step 2
-# Restoring the dump file, and syncing master-slave
+# Restoring the dump file, and syncing source-replica
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 --exec $MYSQL_SLAVE --force < $mysqldumpfile
 --remove_file $mysqldumpfile
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Make sure that replication is working.
 # Execute an UPDATE that updates all the table data.
@@ -117,9 +117,9 @@ UPDATE db.t SET num2=2 WHERE num2=1;
 
 --let $masters_gtid_executed=`SELECT @@GLOBAL.gtid_executed`
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Conclusion:
 # Executed GTIDs on the master and the slave are equal
@@ -136,9 +136,9 @@ UPDATE db.t SET num2=2 WHERE num2=1;
 --let $assert_cond= $is_equal
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP DATABASE db;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 
 # End of Step 2

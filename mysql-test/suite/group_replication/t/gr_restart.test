@@ -108,14 +108,14 @@ INSERT INTO t1 VALUES (2);
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/kill_and_restart_mysqld.inc
 
-#Needed as we are not using rpl_restart_server.inc
+#Needed as we are not using rpl/restart_server.inc
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Wait until group has only 1 member, that is, server2 death is detected by
 # the group.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member2_uuid
@@ -133,7 +133,7 @@ INSERT INTO t1 VALUES (2);
 --source include/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG= '+d,certifier_assert_next_seqno_equal_7';
 --source include/start_group_replication.inc
 SET @@GLOBAL.DEBUG= @debug_saved;
@@ -148,7 +148,7 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t1;
 
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --connection server1
 --source include/stop_group_replication.inc

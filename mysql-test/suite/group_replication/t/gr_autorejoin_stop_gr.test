@@ -34,7 +34,7 @@
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET sql_log_bin = 0;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
@@ -99,7 +99,7 @@ SET GLOBAL group_replication_local_address = "128.0.0.1:3306";
 --echo
 # Verify the view on server 2
 --let $rpl_connection_name = server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
@@ -110,7 +110,7 @@ SET GLOBAL group_replication_local_address = "128.0.0.1:3306";
 
 # Then on server 3
 --let $rpl_connection_name = server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
@@ -126,7 +126,7 @@ SET GLOBAL group_replication_local_address = "128.0.0.1:3306";
 --echo ####
 --echo
 --let $rpl_connection_name = server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
 

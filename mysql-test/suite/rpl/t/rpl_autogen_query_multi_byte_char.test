@@ -20,7 +20,7 @@
 ###############################################################################
 
 --source include/not_windows.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let iter=1
 # Change iteration to 4 after fixing Bug #22280214
@@ -85,4 +85,4 @@ while ($iter <= 2)
   --inc $iter
 }
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

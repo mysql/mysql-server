@@ -20,7 +20,7 @@ SET debug_sync = "now SIGNAL admin_continue,insert_continue";
 [connection admin_conn]
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [3 4]
+include/include/rpl/assert_logical_timestamps.inc [3 4]
 #
 # Verify INSERT after ALTER DATABASE logs correct last_committed
 #
@@ -39,7 +39,7 @@ SET debug_sync = "now SIGNAL admin_continue,insert_continue";
 [connection admin_conn]
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [5 6]
+include/include/rpl/assert_logical_timestamps.inc [5 6]
 #
 # Verify INSERT after DROP DATABASE logs correct last_committed
 #
@@ -58,5 +58,5 @@ SET debug_sync = "now SIGNAL admin_continue,insert_continue";
 [connection admin_conn]
 [connection insert_conn]
 SET debug_sync = "RESET";
-include/include/assert_logical_timestamps.inc [7 8]
+include/include/rpl/assert_logical_timestamps.inc [7 8]
 DROP TABLE t1;

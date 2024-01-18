@@ -254,9 +254,9 @@ SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 1;
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
-# Needed as we are not using rpl_restart_server.inc
+# Needed as we are not using rpl/restart_server.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 9;
 

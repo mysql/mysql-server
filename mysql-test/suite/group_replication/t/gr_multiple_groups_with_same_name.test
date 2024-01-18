@@ -17,7 +17,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 # Bootstrap start GR on server1.
 --source include/start_and_bootstrap_group_replication.inc
 --let $group_name_server1 = `SELECT @@GLOBAL.group_replication_group_name`
@@ -26,7 +26,7 @@
 SELECT CHANNEL_NAME, MEMBER_STATE, COUNT(*) AS COUNT from performance_schema.replication_group_members GROUP BY CHANNEL_NAME, MEMBER_STATE;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 # Start GR on server2.
 --source include/start_group_replication.inc
 --echo #
@@ -45,7 +45,7 @@ RESET BINARY LOGS AND GTIDS;
 SELECT CHANNEL_NAME, MEMBER_STATE, COUNT(*) AS COUNT from performance_schema.replication_group_members GROUP BY CHANNEL_NAME, MEMBER_STATE;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 # Bootstrap start GR on server3.
 --source include/start_and_bootstrap_group_replication.inc
 --let $group_name_server3 = `SELECT @@GLOBAL.group_replication_group_name`
@@ -69,12 +69,12 @@ SELECT CHANNEL_NAME, MEMBER_STATE, COUNT(*) AS COUNT from performance_schema.rep
 --echo #
 --echo # Restart GR (not bootstrap) on server2 and server3.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 
 --echo #

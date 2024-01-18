@@ -10,7 +10,7 @@
 # Relies on pipe redirection such as 2>&1
 --source include/linux.inc
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 
 --disable_abort_on_error
 --echo mysqlbinlog --read-from-remote-source: expect no warning

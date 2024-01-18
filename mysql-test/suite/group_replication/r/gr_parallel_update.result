@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    to be synchronized.
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ############################################################
 # 2. Executing the same transaction on both server (almost)
 #    in parallel, one will be committed, the other will be

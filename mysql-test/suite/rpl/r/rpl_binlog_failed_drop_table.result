@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -24,9 +24,9 @@ DROP TABLE `t3`, `t1`, `t2`;
 ERROR HY000: Unknown error
 SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 include/assert.inc [Drop with multiple InnoDB-only tables should not be written to the binary log if the query execution fails]
-include/show_binlog_events.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/deprecated/show_binlog_events.inc
+include/rpl/sync_to_replica.inc
 Cleanup
 [connection master]
 DROP DATABASE `db1`;
-include/rpl_end.inc
+include/rpl/deinit.inc

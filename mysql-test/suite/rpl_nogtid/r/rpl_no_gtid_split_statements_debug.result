@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,9 +14,9 @@ CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
 CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
 CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
 CREATE TABLE base_4_a (pk INT PRIMARY KEY) ENGINE = InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ---- GTID_MODE=AUTOMATIC ----
-include/gtid_step_reset.inc
+include/rpl/gtid_step_reset.inc
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
 ERROR HY000: Unknown error
@@ -25,7 +25,7 @@ SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 # two statements for each of MyISAM tables.
 # There should be no statement for dropping base_3_a or
 # base_4_a as their removal is rolled back.
-include/gtid_step_assert.inc [count=2., only_count=0]
+include/rpl/gtid_step_assert.inc [count=2., only_count=0]
 # base_3_a and base_4_a should still be there on master
 SHOW CREATE TABLE base_3_a;
 Table	Create Table
@@ -38,7 +38,7 @@ base_4_a	CREATE TABLE `base_4_a` (
   `pk` int NOT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-include/rpl_sync.inc
+include/rpl/sync.inc
 # base_3_a and base_4_a should still be there on slave
 SHOW CREATE TABLE base_3_a;
 Table	Create Table
@@ -53,9 +53,9 @@ base_4_a	CREATE TABLE `base_4_a` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
 CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ---- GTID_NEXT=non-automatic ----
-include/gtid_step_reset.inc
+include/rpl/gtid_step_reset.inc
 SET GTID_NEXT = '#';
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
@@ -64,7 +64,7 @@ SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 SET GTID_NEXT= 'AUTOMATIC';
 # Without GTID assigned the above statement should be split into
 # two as in AUTOMATIC mode.
-include/gtid_step_assert.inc [count=2, only_count=0]
+include/rpl/gtid_step_assert.inc [count=2, only_count=0]
 # base_3_a and base_4_a should still be there on master
 SHOW CREATE TABLE base_3_a;
 Table	Create Table
@@ -77,7 +77,7 @@ base_4_a	CREATE TABLE `base_4_a` (
   `pk` int NOT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-include/rpl_sync.inc
+include/rpl/sync.inc
 # base_3_a and base_4_a should still be there on slave
 SHOW CREATE TABLE base_3_a;
 Table	Create Table
@@ -92,14 +92,14 @@ base_4_a	CREATE TABLE `base_4_a` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ---- Clean up ----
 DROP TABLE base_4_a, base_3_a;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ==== Case 3: DROP DATABASE ====
 ---- Initialize ----
 # db1, db2, db3: no tables.
 CREATE DATABASE db1;
 CREATE DATABASE db2;
 CREATE DATABASE db3;
-include/rpl_sync.inc
+include/rpl/sync.inc
 # db4, db5, db6: one table.
 CREATE DATABASE db4;
 CREATE DATABASE db5;
@@ -107,7 +107,7 @@ CREATE DATABASE db6;
 CREATE TABLE db4.t1 (a INT);
 CREATE TABLE db5.t1 (a INT);
 CREATE TABLE db6.t1 (a INT);
-include/rpl_sync.inc
+include/rpl/sync.inc
 # db7, db8, db9: one MyISAM and one InnoDB table.
 CREATE DATABASE db7;
 CREATE DATABASE db8;
@@ -118,7 +118,7 @@ CREATE TABLE db9.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db7.t2 (a INT) ENGINE=MyISAM;
 CREATE TABLE db8.t2 (a INT) ENGINE=MyISAM;
 CREATE TABLE db9.t2 (a INT) ENGINE=MyISAM;
-include/rpl_sync.inc
+include/rpl/sync.inc
 # db10, db11, db12: two MyISAM and one InnoDB table.
 CREATE DATABASE db10;
 CREATE DATABASE db11;
@@ -132,10 +132,10 @@ CREATE TABLE db12.t2 (a INT) ENGINE=MyISAM;
 CREATE TABLE db10.t3 (a INT) ENGINE=InnoDB;
 CREATE TABLE db11.t3 (a INT) ENGINE=InnoDB;
 CREATE TABLE db12.t3 (a INT) ENGINE=InnoDB;
-include/rpl_sync.inc
+include/rpl/sync.inc
 # db13, db14: not a database, but the directory and the entry exist.
 # db15 is not a database, but the empty directory exists on master.
-include/rpl_sync.inc
+include/rpl/sync.inc
 # db19, db20: one MyISAM and one InnoDB table (successfull case).
 CREATE DATABASE db19;
 CREATE DATABASE db20;
@@ -143,143 +143,143 @@ CREATE TABLE db19.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db20.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db19.t2 (a INT) ENGINE=MyISAM;
 CREATE TABLE db20.t2 (a INT) ENGINE=MyISAM;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ---- DROP DATABASE is split on master; GTID_NEXT=AUTOMATIC ----
 # db1: no table.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db1;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [()]
+include/rpl/assert_binlog_events.inc [()]
 # db4: one InnoDB table.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db4;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [()]
+include/rpl/assert_binlog_events.inc [()]
 # db7: one MyISAM and one InnoDB table.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db7;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*)]
+include/rpl/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*)]
 # db10: two MyISAM and one InnoDB table.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db10;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)]
+include/rpl/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)]
 # db13: not a database, but directory exists.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db13;
 ERROR HY000: Schema 'db13' does not exist, but schema directory './db13/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
-include/assert_binlog_events.inc [()]
+include/rpl/assert_binlog_events.inc [()]
 # db16: not a database.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db16;
 ERROR HY000: Can't drop database 'db16'; database doesn't exist
-include/assert_binlog_events.inc [()]
+include/rpl/assert_binlog_events.inc [()]
 # db19: Successfull DROP DATABASE for one MyISAM and one InnoDB table.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db19;
-include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP DATABASE.*)]
+include/rpl/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP DATABASE.*)]
 ---- DROP DATABASE is split on master; GTID_NEXT=non-automatic ----
 # db2: no table.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = '#';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db2;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [()]
+include/rpl/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
 # db5: one InnoDB table.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = '#';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db5;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [()]
+include/rpl/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
 # db8: one MyISAM and one InnoDB table.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = '#';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db8;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*)]
+include/rpl/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*)]
 SET GTID_NEXT = 'AUTOMATIC';
 # db11: two MyISAM and one InnoDB tables.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = '#';
 SET DEBUG= '+d, rm_db_fail_after_dropping_tables';
 DROP DATABASE db11;
 ERROR HY000: Unknown error
 SET DEBUG= '-d, rm_db_fail_after_dropping_tables';
-include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)]
+include/rpl/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)]
 SET GTID_NEXT = 'AUTOMATIC';
 # db14: not a database, but directory exists.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = '#';
 DROP DATABASE db14;
 ERROR HY000: Schema 'db14' does not exist, but schema directory './db14/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
-include/assert_binlog_events.inc [()]
+include/rpl/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
 # db17: not a database.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = '#';
 DROP DATABASE db17;
 ERROR HY000: Can't drop database 'db17'; database doesn't exist
-include/assert_binlog_events.inc [()]
+include/rpl/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
 # db20: Successfull DROP DATABASE for one MyISAM and one InnoDB table.
 #       No splitting if GTID is assigned.
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 SET GTID_NEXT = '#';
 DROP DATABASE db20;
-include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP DATABASE.*)]
+include/rpl/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP DATABASE.*)]
 SET GTID_NEXT = 'AUTOMATIC';
-include/rpl_sync.inc
+include/rpl/sync.inc
 ---- DROP DATABASE is split on slave ----
 SET GTID_NEXT = 'AUTOMATIC';
 SET GLOBAL DEBUG= '+d, rm_db_fail_after_dropping_tables';
 [connection master]
 # db3: no table.
 DROP DATABASE db3;
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=1105]
-include/include/rpl_skip_to_end_of_relay_log.inc
+include/rpl/sync_to_replica_received.inc
+include/rpl/wait_for_applier_error.inc [errno=1105]
+include/include/rpl/skip_to_end_of_relay_log.inc
 [connection master]
 # db6: one InnoDB table.
 DROP DATABASE db6;
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=1105]
-include/include/rpl_skip_to_end_of_relay_log.inc
+include/rpl/sync_to_replica_received.inc
+include/rpl/wait_for_applier_error.inc [errno=1105]
+include/include/rpl/skip_to_end_of_relay_log.inc
 [connection master]
 # db9: one MyISAM and one InnoDB table.
 DROP DATABASE db9;
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=1105]
-include/include/rpl_skip_to_end_of_relay_log.inc
+include/rpl/sync_to_replica_received.inc
+include/rpl/wait_for_applier_error.inc [errno=1105]
+include/include/rpl/skip_to_end_of_relay_log.inc
 [connection master]
 # db12: two MyISAM and one InnoDB table.
 DROP DATABASE db12;
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=1105]
-include/include/rpl_skip_to_end_of_relay_log.inc
+include/rpl/sync_to_replica_received.inc
+include/rpl/wait_for_applier_error.inc [errno=1105]
+include/include/rpl/skip_to_end_of_relay_log.inc
 SET GLOBAL DEBUG= '-d, rm_db_fail_after_dropping_tables';
 [connection master]
 # db15: not a database, but an empty directory exists.
@@ -306,5 +306,5 @@ DROP DATABASE db11;
 DROP DATABASE IF EXISTS db12;
 Warnings:
 Note	1008	Can't drop database 'db12'; database doesn't exist
-include/rpl_sync.inc
-include/rpl_end.inc
+include/rpl/sync.inc
+include/rpl/deinit.inc

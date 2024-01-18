@@ -23,7 +23,7 @@ include/start_group_replication.inc
 [connection server1]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server4]
 set session sql_log_bin=0;
 call mtr.add_suppression("Timeout on wait for view after joining group");
@@ -128,5 +128,5 @@ include/start_group_replication.inc
 # 9. Clean up.
 [connection server1]
 DROP TABLE t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/group_replication_end.inc

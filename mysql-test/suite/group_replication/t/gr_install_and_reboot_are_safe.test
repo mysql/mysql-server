@@ -46,7 +46,7 @@ SET SESSION sql_log_bin=1;
 --source include/assert.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # 3. Verify no ERROR is logged.
@@ -72,7 +72,7 @@ SET SESSION sql_log_bin=1;
 --source include/assert.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # 6. Verify ERROR is logged.

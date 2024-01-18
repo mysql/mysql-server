@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -32,8 +32,8 @@ include/assert.inc [Value returned by SRS and PS table for Connection_Retry_Coun
 
 create user replssl@localhost require ssl;
 grant replication slave on *.* to replssl@localhost;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to
 SOURCE_USER= 'replssl',
 SOURCE_PASSWORD= '',
@@ -64,8 +64,8 @@ include/assert.inc [Value returned by SRS and PS table for TLS version should be
 
 # Test with servers in gtid-mode=on.
 
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/rpl_restart_server.inc [server_number=2 gtids=on]
+include/rpl/restart_server.inc [server_number=1 gtids=on]
+include/rpl/restart_server.inc [server_number=2 gtids=on]
 
 # 1) Test for Auto_position= 0.
 
@@ -87,7 +87,7 @@ SOURCE_SSL_CRLPATH= '',
 SOURCE_SSL_CA= '',
 SOURCE_SSL_CERT= '',
 SOURCE_SSL_KEY='';
-include/rpl_set_gtid_mode.inc
+include/rpl/set_gtid_mode.inc
 drop user replssl@localhost;
 drop user replssl@localhost;
-include/rpl_end.inc
+include/rpl/deinit.inc

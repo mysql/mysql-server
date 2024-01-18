@@ -4,7 +4,7 @@
 
 --source include/have_binlog_format_mixed_or_row.inc
 --source include/have_ndb.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 --echo --- Doing pre test setup and CREATE TABLE ---
 
@@ -107,5 +107,5 @@ connection master;
 drop table test_gcol_stored;
 drop table test_gcol_virtual;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

@@ -61,31 +61,31 @@
 # by altering the length of the Query_log_event. These events are enclosed in
 # a Transaction_payload event when compression is on.
 --source include/not_binlog_transaction_compression_on.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo
 --echo # T1.1. On the replica: set up test configuration
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @@global.max_relay_log_size = 256;
 
 --echo
 --echo # T1.2. On the source: execute several large transactions
 --echo
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $string_length=128
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE=InnoDB;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/stop_slave_io.inc
---source include/stop_slave_sql.inc
+--source include/rpl/stop_receiver.inc
+--source include/rpl/stop_applier.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 BEGIN;
 --eval INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length))
@@ -104,18 +104,18 @@ COMMIT;
 --echo         a transaction before writing to the relay log
 --echo
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Make the I/O to stop in the middle of the transaction
 # right after the QUERY(BEGIN)
 --let $rpl_after_received_events_action= stop
 --let $rpl_event_count= 2
 --let $rpl_count_only_event_type= Query
---source include/rpl_receive_event_count.inc
+--source include/rpl/receive_event_count.inc
 
 --let $debug_point= simulate_truncated_relay_log_event
 --source include/add_debug_point.inc
---source include/start_slave_io.inc
+--source include/rpl/start_receiver.inc
 
 --echo
 --echo # T1.4. On the replica: Kill the server, restart replication
@@ -123,14 +123,14 @@ COMMIT;
 
 --source include/kill_and_restart_mysqld.inc
 --let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # T1.5. On the replica: Wait for the replica to replicate all of the
 --echo #       transactions
 --echo
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $wait_timeout = 60
 --let $wait_condition=SELECT COUNT(*)=6 FROM t1
@@ -142,7 +142,7 @@ COMMIT;
 
 SET @@global.max_relay_log_size = DEFAULT;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

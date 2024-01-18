@@ -36,12 +36,12 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --echo # 2. Start server2 and server3
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -49,7 +49,7 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --echo # 3. Begin a transaction on server1
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 BEGIN;
 INSERT INTO t1 VALUES(1);
@@ -58,7 +58,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 4. Execute action to switch to multi primary
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --send SELECT group_replication_switch_to_multi_primary_mode()
 
@@ -66,7 +66,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 5. Assert that action is waiting for a member
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%waiting on another member step%"
 --source include/wait_condition.inc
@@ -80,7 +80,7 @@ INSERT INTO t1 VALUES(1);
 --echo # 6. Restart a member, won't impact the success of action
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -89,19 +89,19 @@ INSERT INTO t1 VALUES(1);
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 3
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 --echo
 --echo # 7. COMMIT pending transaction to action switch to multi primary  be
 --echo #    executed
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 COMMIT;
 
 --let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --reap
 
@@ -111,7 +111,7 @@ COMMIT;
 --source include/gr_assert_multi_primary_mode.inc
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_multi_primary_mode.inc
 
@@ -121,11 +121,11 @@ COMMIT;
 DROP TABLE t1;
 
 --let $rpl_connection_name= server_3
---source include/rpl_connection.inc
+--source include/connection.inc
 DROP TABLE t1;
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $rpl_group_replication_reset_persistent_vars=1
 --source include/group_replication_end.inc

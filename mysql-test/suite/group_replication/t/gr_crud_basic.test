@@ -38,15 +38,15 @@
 
 # Install Mysqlx plugin on all servers.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/xplugin_wait_for_interfaces.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/xplugin_wait_for_interfaces.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/xplugin_wait_for_interfaces.inc
 
 # File for starting GR through X-protocol
@@ -269,7 +269,7 @@ EOF
 
 --echo Performing DDL/DML operations on server 1
 --exec $MYSQLXTEST --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/ddl_dml_on_server1.tmp 2>&1
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Temp file for performing ddl and dml on server2
 # Copying the contents of the "macro.tmp" so that the macros available can be
@@ -359,7 +359,7 @@ EOF
 
 --echo Performing DDL/DML operations on server 2
 --exec $MYSQLXTEST --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/ddl_dml_on_server2.tmp 2>&1
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Temp file for performing ddl and dml on server3
 # Copying the contents of the "macro.tmp" so that the macros available can be
@@ -475,12 +475,12 @@ EOF
 
 # Wait for synchronization between the nodes.
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Asserts for values on each table.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= 'Checking the Value on T1'
 --let $assert_cond= [SELECT C2 FROM test.T1 WHERE C1=1, C2, 1] = 12345
 --source include/assert.inc
@@ -509,7 +509,7 @@ EOF
 # Deleting tables
 --echo Deleting all the tables.
 --exec $MYSQLXTEST --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Creating temp file to stop GR.
 --write_file $MYSQL_TMP_DIR/stop_group_replication.tmp
@@ -527,15 +527,15 @@ EOF
 
 # Uninstall mysqlx on all servers
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 
 # clean-up

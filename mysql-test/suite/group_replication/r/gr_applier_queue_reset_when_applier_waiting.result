@@ -71,7 +71,7 @@ SET DEBUG_SYNC = "now SIGNAL signal.continue";
 [connection server_2]
 [connection server3]
 include/gr_wait_for_member_state.inc
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 7. Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on all servers.
 [connection server1]
@@ -79,7 +79,7 @@ include/rpl_sync.inc
 [connection server3]
 include/diff_tables.inc [server1:test.t1, server2:test.t1, server3:test.t1]
 [connection server1]
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Previous_gtids	#	#	
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
@@ -98,7 +98,7 @@ server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
 server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
 [connection server2]
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Previous_gtids	#	#	
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
@@ -117,7 +117,7 @@ server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
 server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
 [connection server3]
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Previous_gtids	#	#	
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'

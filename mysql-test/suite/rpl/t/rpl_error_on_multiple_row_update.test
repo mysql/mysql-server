@@ -24,14 +24,14 @@
 --let $skip_configuration_privilege_checks_user= 'skip'
 --let $rpl_privilege_checks_user_grant_all= 1
 # 1. Create source-replica topology.
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # 2. Set binlog_row_value_options value to PARTIAL_JSON.
 SET @old_binlog_row_value_options= @@session.BINLOG_ROW_VALUE_OPTIONS;
 SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
 
 # 3. Create tables, procedures and insert data.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT UNIQUE KEY, b JSON);
 INSERT INTO t1 VALUES (1, '{ "long string": "long string", "x": 2}');
 CREATE TABLE t2 (a INT);
@@ -50,7 +50,7 @@ INSERT INTO t2 VALUES (f());
 COMMIT;
 
 # 4. Sync replica with source server.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let diff_tables=master:test.t1, slave:test.t1
 --source include/diff_tables.inc
@@ -61,9 +61,9 @@ COMMIT;
 SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
 
 # 6. Cleanup.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP FUNCTION f;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

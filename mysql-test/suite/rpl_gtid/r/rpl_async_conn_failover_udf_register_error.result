@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,27 +8,27 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    service failure.
 #
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
-include/rpl_restart_server.inc [server_number=1 parameters: --debug=+d,rpl_async_udf_register_service_error]
-include/rpl_reconnect.inc
+include/rpl/restart_server.inc [server_number=1 parameters: --debug=+d,rpl_async_udf_register_service_error]
+include/rpl/reconnect.inc
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
 include/assert_grep.inc [Server2 receive a message from itself when server1 was OFFLINE.]
 #
 # 2. Checks for ER_UDF_REGISTER_ERROR error for UDF registration failure.
 #
-include/rpl_restart_server.inc [server_number=1 parameters: --debug=+d,rpl_async_udf_register_error]
-include/rpl_reconnect.inc
+include/rpl/restart_server.inc [server_number=1 parameters: --debug=+d,rpl_async_udf_register_error]
+include/rpl/reconnect.inc
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
 include/assert_grep.inc [Server2 receive a message from itself when server1 was OFFLINE.]
 #
 # 3. Checks for ER_UDF_UNREGISTER_ERROR error for UDF unregister failure.
 #
-include/rpl_restart_server.inc [server_number=1 parameters: --debug=+d,rpl_async_udf_unregister_error]
-include/rpl_reconnect.inc
+include/rpl/restart_server.inc [server_number=1 parameters: --debug=+d,rpl_async_udf_unregister_error]
+include/rpl/reconnect.inc
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
-include/rpl_stop_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=1]
 Occurrences of 'Could not uninstall UDF functions. Try to remove them manually if present.' in the input file: 0
 #
 # 4. Cleanup
 #
-include/rpl_start_server.inc [server_number=1]
-include/rpl_end.inc
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deinit.inc

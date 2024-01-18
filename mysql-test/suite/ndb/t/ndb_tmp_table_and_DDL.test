@@ -8,4 +8,4 @@
 source include/have_ndb.inc;
 
 LET $ENGINE_TYPE= NDB;
-source extra/rpl_tests/rpl_tmp_table_and_DDL.test;
+source common/rpl/rpl_tmp_table_and_DDL.test;

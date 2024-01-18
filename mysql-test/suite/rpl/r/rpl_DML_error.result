@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,44 +13,44 @@ INSERT INTO t2 VALUES(1);
 # Nothing is inserted.
 INSERT INTO t1 VALUES(1),(2);
 ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 
 # A row is inserted.
 INSERT INTO t1 VALUES(2),(1);
 ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:test.t1, slave:test.t1]
 
 # Nothing is inserted.
 INSERT INTO t1 SELECT 1 UNION SELECT 2;
 ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 
 # A row is inserted.
 INSERT INTO t1 SELECT 3 UNION SELECT 2;
 ERROR 23000: Duplicate entry '2' for key 't1.PRIMARY'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:test.t1, slave:test.t1]
 
 # A row is updated.
 UPDATE t1 SET c1=4;
 ERROR 23000: Duplicate entry '4' for key 't1.PRIMARY'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:test.t1, slave:test.t1]
 # Nothing is updated.
 UPDATE t1 SET c1=4;
 ERROR 23000: Duplicate entry '4' for key 't1.PRIMARY'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 
 # A row is updated.
 UPDATE t1, t2 SET t1.c1= 5, t2.c1=5;
 ERROR 23000: Duplicate entry '5' for key 't1.PRIMARY'
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:test.t1, slave:test.t1]
 
 Nothing is updated.
 UPDATE t1, t2 SET t1.c1= 5, t2.c1=5;
 ERROR 23000: Duplicate entry '5' for key 't1.PRIMARY'
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 DROP TABLE t1, t2;
-include/rpl_end.inc
+include/rpl/deinit.inc

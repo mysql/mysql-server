@@ -28,7 +28,7 @@
 --echo #     performance_schema.replication_group_communication_information
 --echo #     itable, then wait on sync point.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $_group_replication_leaders= query_get_value(SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information, write_consensus_leaders_preferred, 1)
 
 --let $debug_point=group_replication_wait_before_group_communication_information_read_column_value
@@ -42,7 +42,7 @@
 --connect (server_1_2,127.0.0.1,root,,test,$MASTER_MYPORT,,)
 
 --let $rpl_connection_name= server_1_2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now' and info = "SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information"
 --source include/wait_condition.inc
 
@@ -63,7 +63,7 @@ SELECT write_consensus_leaders_preferred FROM performance_schema.replication_gro
 SET DEBUG_SYNC= 'now SIGNAL signal.after_group_communication_information_read_column_value_continue';
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $_group_replication_leaders LEADERS
 --reap
 

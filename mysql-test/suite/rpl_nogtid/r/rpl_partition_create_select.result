@@ -1,26 +1,26 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #### Create a table using CREATE..SELECT clause #####
 CREATE TABLE store (store_id INT) PARTITION BY RANGE (store_id) ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO store VALUES (5);
 INSERT INTO store VALUES (12);
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 CREATE TABLE emp (m INT) PARTITION BY RANGE (store_id) ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))
 SELECT store_id FROM store;
-include/rpl_partition_info.inc
+include/rpl/partition_info.inc
 include/assert.inc [Check that the partition count is same in both tables]
-include/save_binlog_position.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO emp values (3, 12);
-include/rpl_partition_info.inc
-include/save_binlog_position.inc
+include/rpl/partition_info.inc
+include/rpl/save_binlog_file_position.inc
 INSERT INTO emp values (4, 6), (5, 13) ;
-include/rpl_partition_info.inc
+include/rpl/partition_info.inc
 DROP TABLE store;
 DROP TABLE emp;
 RESET BINARY LOGS AND GTIDS;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -29,19 +29,19 @@
 --echo
 --echo 1. Setup a simple replication topology : source -> replica
 --echo
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 
 --echo
 --echo 2. Setup heartbeat period to 1 ms
 --echo
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 --let $saved_heartbeat_period = `SELECT Heartbeat FROM mysql.slave_master_info`
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.001;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE test.t(a INT);
 
 --echo
@@ -53,7 +53,7 @@ CREATE TABLE test.t(a INT);
 --let $i = 0
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 while ($i < $mysqlslap_total_iters)
 {
@@ -65,8 +65,8 @@ while ($i < $mysqlslap_total_iters)
 --echo
 --echo 4. Sync the replica
 --echo
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo 5. Verify that Dump thread was not restarted between
@@ -85,13 +85,13 @@ while ($i < $mysqlslap_total_iters)
 --echo
 
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 --replace_result $saved_heartbeat_period SAVED_HEARTBEAT_PERIOD
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=$saved_heartbeat_period
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE test.t;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -45,14 +45,14 @@ SET GLOBAL GTID_PURGED= "c234f752-1ee4-11e6-adee-00212844d44e:1-9223372036854775
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775804]
 include/start_and_bootstrap_group_replication.inc
 INSERT INTO t1 values(0);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775805]
 [connection server2]
 SET GLOBAL GTID_PURGED= "c234f752-1ee4-11e6-adee-00212844d44e:1-9223372036854775804";
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775804]
 include/start_group_replication.inc
 DELETE FROM t1;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775806]
 [connection server1]
 INSERT INTO t1 VALUES (1);
@@ -81,7 +81,7 @@ SET GLOBAL GTID_PURGED= "c234f752-1ee4-11e6-adee-00212844d44e:1-9223372036854775
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775805]
 include/start_and_bootstrap_group_replication.inc
 INSERT INTO t1 values(0);
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775806]
 [connection server2]
 RESET BINARY LOGS AND GTIDS;

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 [connection master]
 ####### TEST gcol after blob
 CREATE TABLE gcol_after_blob (
@@ -170,4 +170,4 @@ select i from gcol_first where j is null;
 i
 2
 DROP TABLE gcol_first;
-include/rpl_end.inc
+include/rpl/deinit.inc

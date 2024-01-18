@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -37,4 +37,4 @@ TRUNCATE performance_schema.events_waits_summary_by_instance;
 [connection server_1_10]
 include/assert.inc [The group commit should acquire sidno_lock for 2 times]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

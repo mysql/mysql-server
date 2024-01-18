@@ -48,18 +48,18 @@
 # This test case is not compatible with SBR.
 --source include/have_binlog_format_mixed_or_row.inc
 --let $rpl_skip_start_slave = 1
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/not_rpl_gtid_only.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $MASTER_DATADIR= `select @@datadir`
 
 # Restart the master to make it use the 5.6 binary log file as its own.
 --let $rpl_server_number= 1
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 --remove_file $MASTER_DATADIR/master-bin.000001
 --copy_file std_data/binlog_56_gtid_reserved_word.000001 $MASTER_DATADIR/master-bin.000001
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
 # Assert that all 6 transactions are assumed as already applied.
 --let $assert_text= All transactions are assumed as applied on master
@@ -67,15 +67,15 @@
 --source include/assert.inc
 
 # Start and sync slave's receiver thread
---source include/rpl_connection_slave.inc
---source include/start_slave_io.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
 
 # Start replica's applier thread. It should stop with ER_PARSE_ERROR.
 START REPLICA SQL_THREAD;
 --let $slave_sql_errno= convert_error(ER_PARSE_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Assert that only 1st transaction is applied.
 --let $assert_text= Only 1st transaction is applied on slave
@@ -102,7 +102,7 @@ COMMIT;
 SET GTID_NEXT=AUTOMATIC;
 
 # Restart applier thread that shall sync without issues.
---source include/start_slave_sql.inc
---source include/sync_slave_sql_with_io.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/sync_with_recieved.inc
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

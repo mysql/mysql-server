@@ -2,5 +2,5 @@
 # For both statement and row based bin logs 9/19/2005 [jbm]
 
 -- source include/have_binlog_format_row.inc
--- source extra/binlog_tests/ctype_ucs_binlog.test
+-- source common/binlog/ctype_ucs_binlog.test
 

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,7 +14,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 100))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (f1) VALUES(20);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -35,7 +35,7 @@ t1	CREATE TABLE `t1` (
 update t1 set f1 = 80;
 [connection slave]
 # t1_chk_2 check constraint validation for update fails at slave.
-include/wait_for_slave_sql_error.inc [errno=3819]
+include/rpl/wait_for_applier_error.inc [errno=3819]
 SELECT * from t1;
 f1
 20
@@ -43,7 +43,7 @@ f1
 insert into t1 values(90);
 [connection slave]
 # t1_chk_2 check constraint validation for insert fails at slave.
-include/wait_for_slave_sql_error.inc [errno=3819]
+include/rpl/wait_for_applier_error.inc [errno=3819]
 SELECT * from t1;
 f1
 20
@@ -51,5 +51,5 @@ f1
 DROP TABLE t1;
 [connection slave]
 DROP TABLE t1;
-include/rpl_reset.inc
-include/rpl_end.inc
+include/rpl/reset.inc
+include/rpl/deinit.inc

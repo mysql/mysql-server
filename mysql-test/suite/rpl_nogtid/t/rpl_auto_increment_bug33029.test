@@ -18,7 +18,7 @@
 --source include/not_group_replication_plugin.inc
 --let $rpl_skip_start_slave= 1
 --source include/not_have_privilege_checks_user.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo ==== Initialize ====
 --connection slave
@@ -35,13 +35,13 @@ SET @old_relay_log_purge= @@global.relay_log_purge;
 
 # the relay log contains create t1, t2 tables and load data infile
 --let $fake_relay_log = $MYSQL_TEST_DIR/std_data/bug33029-slave-relay-bin.000001
---source include/setup_fake_relay_log.inc
+--source include/rpl/setup_fake_relay_log.inc
 
 --echo ==== Test ====
 START REPLICA sql_thread;
 --let $slave_param= Exec_Source_Log_Pos
 --let $slave_param_value= 3776
---source include/wait_for_slave_param.inc
+--source include/rpl/wait_for_replica_status.inc
 
 
 echo # Result on slave;
@@ -51,7 +51,7 @@ SELECT * FROM t2;
 --echo ==== Clean up ====
 
 STOP REPLICA sql_thread;
---source include/cleanup_fake_relay_log.inc
+--source include/rpl/cleanup_fake_relay_log.inc
 
 DROP TABLE t1, t2;
 DROP PROCEDURE p1;
@@ -60,4 +60,4 @@ DROP FUNCTION f1;
 
 SET @@global.relay_log_purge= @old_relay_log_purge;
 --let $rpl_only_running_threads= 1
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

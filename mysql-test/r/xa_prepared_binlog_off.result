@@ -1,6 +1,6 @@
 include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 0]
 call mtr.add_suppression("You need to use --log-bin to make --log-replica-updates work.");
-include/gtid_utils.inc
+include/rpl/gtid_utils.inc
 CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where type = 'FOREGROUND';
 call mtr.add_suppression("Found 10 prepared XA transactions");
 call mtr.add_suppression("Found 1 prepared XA transactions");
@@ -828,4 +828,4 @@ SET @@SESSION.pseudo_replica_mode=1;
 ERROR HY000: The system variable pseudo_replica_mode cannot be set when there is an ongoing transaction.
 XA COMMIT 'xa1';
 DROP TABLE t;
-include/gtid_utils_end.inc
+include/rpl/gtid_utils_end.inc

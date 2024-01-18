@@ -9,7 +9,7 @@
 --disable_query_log
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 UNLOCK TABLES;
 
 --let $group_replication_member_state= ONLINE

@@ -2,7 +2,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/not_group_replication_plugin.inc
 --source include/not_have_privilege_checks_user.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 --disable_warnings
 call mtr.add_suppression(".* since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica. Statement: insert into t2 set data=repeat.*'a', @act_size.*");
@@ -21,10 +21,10 @@ set @@global.source_verify_checksum = 1;
 # Sync mtr suppressions before stopping the slave or else we can get "Slave
 # SQL Thread stopped with incomplete event group having non-transactional
 # changes" error.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # restart replica to force the dump thread to verify events (on master side)
-source include/stop_slave.inc;
-source include/start_slave.inc;
+source include/rpl/stop_replica.inc;
+source include/rpl/start_replica.inc;
 
 connection master;
 
@@ -86,7 +86,7 @@ show status like "binlog_cache_use";
 --echo *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
@@ -98,7 +98,7 @@ begin;
 delete from t1;
 commit;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # 2. the event size is bigger than the cache's buffer
@@ -127,7 +127,7 @@ show status like "binlog_cache_use";
 --echo *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t2, slave:t2
 source include/diff_tables.inc;
 
@@ -138,7 +138,7 @@ begin;
 delete from t2;
 commit;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 #
 # 3. the event size if approximately the same as the cache's buffer
 #
@@ -167,7 +167,7 @@ show status like "binlog_cache_use";
 --echo *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t3, slave:t3
 source include/diff_tables.inc;
 
@@ -178,7 +178,7 @@ begin;
 delete from t3;
 commit;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # 4. all in above
@@ -224,7 +224,7 @@ show status like "binlog_cache_use";
 --echo *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables= master:t1, slave:t1
 source include/diff_tables.inc;
@@ -251,4 +251,4 @@ set @@global.source_verify_checksum = @save_source_verify_checksum;
 drop procedure test.p_init;
 drop procedure test.p1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

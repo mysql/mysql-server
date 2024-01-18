@@ -34,7 +34,7 @@
 # group_rpl on stage to continue
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
@@ -58,7 +58,7 @@
 --eval SELECT group_replication_set_as_primary("$server1_uuid")
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
@@ -67,7 +67,7 @@
 --echo #    multi primary mode
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SELECT group_replication_switch_to_multi_primary_mode();
 

@@ -27,7 +27,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo
 --echo ############################################################
@@ -49,7 +49,7 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --connection server1
 --let $assert_text= 'There is no value 2 in table t1 on server 1'
@@ -116,7 +116,7 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t1;
 
 --let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --connection server1
 --let $assert_text= 'Aborted transaction should not have increased GNO to 5 on server 1'

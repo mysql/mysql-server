@@ -29,7 +29,7 @@
 --echo # 3. Start server 2 that will block on recovery
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: A member is joining the group, wait for it to be ONLINE.");
@@ -45,7 +45,7 @@ SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
 --echo #    is blocked on recovery
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. A member is joining the group.*");
@@ -59,7 +59,7 @@ set session sql_log_bin=1;
 --echo # 5. Resume recovery on server2
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
 SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";

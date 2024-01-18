@@ -94,7 +94,7 @@ RESET BINARY LOGS AND GTIDS;
 
 --let $gtid_executed_count= `SELECT COUNT(*) FROM mysql.gtid_executed`
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $pre_commit_position= $binlog_position
 --echo #
 --echo # S1. Set GTID_NEXT to 'AUTOMATIC'.
@@ -113,7 +113,7 @@ XA ROLLBACK 'trx';
 --echo #
 --echo # S4. Check binlog for related event (should not be found).
 --echo #
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $assert_cond= $pre_commit_position = $binlog_position
 --let $assert_text= Empty transaction, binlog position is the same
 --source include/assert.inc
@@ -130,7 +130,7 @@ XA ROLLBACK 'trx';
 --echo # set to specific UUID:
 --echo #
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $pre_commit_position= $binlog_position
 --echo #
 --echo # S1. Set GTID_NEXT to a specific UUID.
@@ -150,7 +150,7 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 --echo #
 --echo # S4. Check binlog for related event (should not be found).
 --echo #
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $assert_cond= $pre_commit_position = $binlog_position
 --let $assert_text= Empty transaction, binlog position is the same
 --source include/assert.inc
@@ -182,7 +182,7 @@ XA END 'trx';
 --echo #
 XA COMMIT 'trx' ONE PHASE;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $pre_commit_position= $binlog_position
 --echo #
 --echo # S4. Set GTID_NEXT to a specific UUID.
@@ -202,7 +202,7 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 --echo #
 --echo # S7. Check binlog for related event (should not be found).
 --echo #
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $assert_cond= $pre_commit_position = $binlog_position
 --let $assert_text= Empty transaction, binlog position is the same
 --source include/assert.inc
@@ -234,7 +234,7 @@ XA END 'trx';
 --echo #
 XA COMMIT 'trx' ONE PHASE;
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $pre_commit_position= $binlog_position
 --echo #
 --echo # S4. Set GTID_NEXT to a specific UUID.
@@ -254,7 +254,7 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 --echo #
 --echo # S7. Check binlog for related event (should not be found).
 --echo #
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $assert_cond= $pre_commit_position = $binlog_position
 --let $assert_text= Empty transaction, binlog position is the same
 --source include/assert.inc
@@ -286,7 +286,7 @@ XA END 'trx';
 XA PREPARE 'trx';
 XA COMMIT 'trx';
 
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $pre_commit_position= $binlog_position
 --echo #
 --echo # S4. Set GTID_NEXT to a specific UUID.
@@ -306,7 +306,7 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 --echo #
 --echo # S7. Check binlog for related event (should not be found).
 --echo #
---source include/save_binlog_position.inc
+--source include/rpl/save_binlog_file_position.inc
 --let $assert_cond= $pre_commit_position = $binlog_position
 --let $assert_text= Empty transaction, binlog position is the same
 --source include/assert.inc
@@ -363,7 +363,7 @@ XA ROLLBACK 'trx';
 --echo #
 
 --let $event_sequence= Gtid/SET.* # Query/use.* # Gtid/SET.* # Query/XA START.* # Table_map/.* # Write_rows/.* # Query/XA END.* # XA_prepare/XA PREPARE.* # Gtid/SET.* # Query/XA ROLLBACK.*
---source include/assert_binlog_events.inc
+--source include/rpl/assert_binlog_events.inc
 
 --echo #
 --echo # S9. Check GTID_EXECUTED for the executed UUID (should be found).

@@ -23,10 +23,10 @@
 --echo # 1. Create table t1 and LOCK it on server2.
 
 CREATE TABLE test.t1 (c1 int primary key);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 LOCK TABLE test.t1 READ;
 
@@ -34,7 +34,7 @@ LOCK TABLE test.t1 READ;
 --echo # 2. Create some transactions on server1.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO test.t1 VALUES (1);
 INSERT INTO test.t1 VALUES (2);
@@ -43,13 +43,13 @@ INSERT INTO test.t1 VALUES (2);
 --echo # 3. Wait for transactions to appear on applier queue on server2.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
 --source include/wait_condition_or_abort.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE > 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
 --source include/wait_condition_or_abort.inc
@@ -63,13 +63,13 @@ UNLOCK TABLES;
 --echo # 5. Wait for applier queue on both servers to be 0.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
 --source include/wait_condition_or_abort.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
 --source include/wait_condition_or_abort.inc
@@ -78,12 +78,12 @@ UNLOCK TABLES;
 --echo # 6. Stop GR on server1 and server2.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -91,12 +91,12 @@ UNLOCK TABLES;
 --echo # 7. Start GR on server1 and server2.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/start_group_replication.inc
 
@@ -105,13 +105,13 @@ UNLOCK TABLES;
 --echo #    when all servers are online.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
 --source include/wait_condition_or_abort.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
 --source include/wait_condition_or_abort.inc
@@ -120,7 +120,7 @@ UNLOCK TABLES;
 --echo # 9. Cleanup.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE test.t1;
 

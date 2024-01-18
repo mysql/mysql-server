@@ -8,7 +8,7 @@
 
 # Also we are using SBR to check that statements are executed
 # in proper order.
---source include/force_binlog_format_statement.inc
+--source include/rpl/force_binlog_format_statement.inc
 
 --source include/count_sessions.inc
 
@@ -108,11 +108,11 @@ set debug_sync='alter_table_before_main_binlog SIGNAL parked WAIT_FOR go';
 set debug_sync='RESET';
 
 # Check that all statements were logged in correct order
-source include/show_binlog_events.inc;
+source include/rpl/deprecated/show_binlog_events.inc;
 
 
 --echo End of 5.1 tests
---source include/restore_default_binlog_format.inc
+--source include/rpl/restore_default_binlog_format.inc
 
 
 --echo #

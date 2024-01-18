@@ -29,7 +29,7 @@
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Failed to fetch Transaction_context_log_event containing required transaction info for certification");
@@ -49,7 +49,7 @@ SET @@GLOBAL.DEBUG= '+d,certification_handler_force_error_on_pipeline';
 --echo #     applied through member 2 Group Replication applier.
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
@@ -57,7 +57,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --echo # Wait until member 2 Group Replication applier errors out.
 --echo #
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
 --source include/wait_condition.inc
@@ -74,9 +74,9 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 --echo # 3.  Commit a transaction to validate that everything is OK
 --echo #
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (1);
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 
 --echo
@@ -85,7 +85,7 @@ INSERT INTO t1 VALUES (1);
 --echo #     transactions.
 --echo #     Also check that data is on tables.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= GTID_EXECUTED must contain all committed GTIDs
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-2"
 --source include/assert.inc
@@ -101,7 +101,7 @@ INSERT INTO t1 VALUES (1);
 --echo #     transactions.
 --echo #     Also check that data is on tables.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $assert_text= GTID_EXECUTED must contain all committed GTIDs
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-2"
 --source include/assert.inc

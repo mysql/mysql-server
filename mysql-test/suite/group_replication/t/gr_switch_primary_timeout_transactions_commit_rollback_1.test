@@ -29,7 +29,7 @@
 --echo # 1. Setup group of 2 servers, M1(primary) and M2(secondary).
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -38,7 +38,7 @@ CREATE TABLE t1(c1 int primary key);
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -49,7 +49,7 @@ CREATE TABLE t1(c1 int primary key);
 --echo # 2. Start a transaction on connection-server1. Do not commit it.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START TRANSACTION;
 INSERT INTO t1 values(1);
@@ -58,7 +58,7 @@ INSERT INTO t1 values(1);
 --echo # 3. Change the group primary to server2 with timeout of 2 seconds.
 
 --let $rpl_connection_name= server_1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --eval SELECT group_replication_set_as_primary("$server2_uuid", 2);
@@ -67,7 +67,7 @@ INSERT INTO t1 values(1);
 --echo # 4. Move to connection-server1 and continue the transaction.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error CR_SERVER_LOST
 SELECT * FROM test.t1;
@@ -86,12 +86,12 @@ INSERT INTO t1 values(1);
 
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -107,7 +107,7 @@ INSERT INTO t1 values(1);
 --echo # 6. Start a transaction on connection-server2. Do not commit it.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 START TRANSACTION;
 INSERT INTO t1 values(1);
@@ -116,7 +116,7 @@ INSERT INTO t1 values(1);
 --echo # 7. Change the group primary to server1 with timeout of 5 seconds.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --replace_result $server1_uuid SERVER1_UUID
 --eval SELECT group_replication_set_as_primary("$server1_uuid", 5);
@@ -126,7 +126,7 @@ INSERT INTO t1 values(1);
 --echo # 8. Move to connection-server2 and continue the transaction.
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --error CR_SERVER_LOST
 INSERT INTO t1 values(2);
@@ -144,12 +144,12 @@ INSERT INTO t1 values(1);
 --echo #    Assert data is not present on M1 and M2.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_primary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/gr_assert_secondary_member.inc
 
@@ -169,7 +169,7 @@ INSERT INTO t1 values(1);
 --echo # 10. Cleanup.
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE t1;
 

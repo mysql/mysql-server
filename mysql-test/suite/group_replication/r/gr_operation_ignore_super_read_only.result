@@ -30,7 +30,7 @@ include/assert.inc [On the recovered member, the table should contain 1 element]
 include/stop_group_replication.inc
 include/assert.inc [The read mode should still be on]
 [connection server1]
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 #
 # Cleaning up
 #

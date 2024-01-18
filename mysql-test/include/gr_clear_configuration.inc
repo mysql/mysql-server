@@ -32,9 +32,9 @@ while ($_rpl_server <= $_rpl_server_max)
   {
     --let $rpl_connection_name= server_aux_$_rpl_server
     --let $rpl_server_number= $_rpl_server
-    --source include/rpl_connect.inc
+    --source include/rpl/connect.inc
     --let $rpl_connection_name= server_aux_$_rpl_server
-    --source include/rpl_connection.inc
+    --source include/connection.inc
 
     --disable_query_log
     SET GLOBAL group_replication_local_address= "";
@@ -59,18 +59,18 @@ while ($_rpl_server <= $_rpl_server_max)
     # Clear the configuration of privilege_checks_user account
     if ($rpl_privilege_checks_user != '')
     {
-      --source include/rpl_get_instance_priv_checks_user.inc
+      --source include/rpl/get_instance_priv_checks_user.inc
       if ($rpl_instance_privilege_checks_user != '')
       {
         if ($rpl_instance_privilege_checks_user != NULL)
         {
-          --source include/rpl_clear_priv_checks_user_configuration.inc
+          --source include/rpl/clear_priv_checks_user_configuration.inc
         }
       }
     }
 
     # Clear replication asynchronous failover configuration tables
-    --source include/rpl_clear_asynchronous_failover_configuration.inc
+    --source include/rpl/clear_asynchronous_failover_configuration.inc
 
     # Clear GR member actions configuration
     --disable_result_log ONCE

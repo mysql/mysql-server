@@ -20,11 +20,11 @@
 ###############################################################################
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Initial setup
 CREATE TABLE t (i INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Step-1 : Setup DEBUG simulation point on Slave to bring the server down
 # if the INSERT enters old style autoinc locking method.
@@ -32,15 +32,15 @@ SET @save_debug=@@debug;
 SET GLOBAL DEBUG='+d,die_if_autoinc_old_lock_style_used';
 
 # Step-2 :Execute AUTOINC related work on Master.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t VALUES (1);
 DROP TABLE t;
 
 # Step-3: Due to above DEBUG simulation point, server will go down if it enters
 # old autoinc lock style. After fix, sync on Slave happens without any issues.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Cleanup
 # Reset the simulation point on Slave.
 SET GLOBAL DEBUG=@save_debug;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

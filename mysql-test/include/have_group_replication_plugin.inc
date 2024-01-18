@@ -43,20 +43,20 @@
 --source include/have_group_replication_plugin_base.inc
 
 # Allow $SERVER_MYPORT_1 as alias for $MASTER_MYPORT
-# necessary for the rpl_group_replication_default_connections.inc file.
+# necessary for the rpl/group_replication_default_connections.inc file.
 if (!$SERVER_MYPORT_1)
 {
   --let SERVER_MYPORT_1= $MASTER_MYPORT
 }
 
 # Allow $SERVER_MYPORT_2 as alias for $SLAVE_MYPORT
-# necessary for the rpl_group_replication_default_connections.inc file.
+# necessary for the rpl/group_replication_default_connections.inc file.
 if (!$SERVER_MYPORT_2)
 {
   --let SERVER_MYPORT_2= $SLAVE_MYPORT
 }
 
---source include/rpl_group_replication_default_connections.inc
+--source include/rpl/group_replication_default_connections.inc
 
 # Generate group name if not defined yet.
 if ($group_replication_group_name == '')

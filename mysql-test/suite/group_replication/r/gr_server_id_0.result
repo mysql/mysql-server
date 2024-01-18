@@ -23,7 +23,7 @@ SET SESSION sql_log_bin= 1;
 # 1. Restart server with server_id=0, slave infrastructure
 #    will not be initialized.
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --server_id=0
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 ############################################################
 # 2. Both start and install plugin must fail.
@@ -49,5 +49,5 @@ ERROR HY000: The server is not configured properly to be an active member of the
 #    slave infrastructure will be initialized, and RESET
 #    SLAVE operations on group_replication_end.inc do work.
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --server_id=1
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/group_replication_end.inc

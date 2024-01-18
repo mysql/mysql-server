@@ -20,7 +20,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_statement.inc
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 ##########################################################################
 #                            Loading data
@@ -58,7 +58,7 @@ connection slave;
 call mtr.add_suppression("LOAD DATA INFILE in the replica SQL Thread can only read from --replica-load-tmpdir");
 call mtr.add_suppression("The MySQL server is running with the --replica-load-tmpdir option so it cannot execute this statement.*Error_code: MY-001290");
 --let $slave_sql_errno= 29, 13, 1290
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 ##########################################################################
 #                             Clean up
@@ -67,8 +67,8 @@ connection master;
 
 drop table t1;
 
---source include/sync_slave_io_with_master.inc
---source include/stop_slave_io.inc
+--source include/rpl/sync_to_replica_received.inc
+--source include/rpl/stop_receiver.inc
 RESET REPLICA;
 
 drop table t1;
@@ -84,5 +84,5 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 --let $debug_point= remove_replica_load_file_before_write
 --source include/remove_debug_point.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 

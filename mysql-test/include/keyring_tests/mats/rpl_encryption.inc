@@ -63,9 +63,9 @@ CALL mtr.add_suppression('Can\'t find key from keyring');
 
 # Setup test case variables
 --let $MASTER_DATADIR= `select @@datadir`
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $SLAVE_DATADIR= `select @@datadir`
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 
 --echo # Part 1
@@ -85,7 +85,7 @@ SET @@GLOBAL.binlog_encryption = ON;
 --let $assert_cond= "$before_master_file" = "$after_master_file"
 --source include/assert.inc
 --let $rpl_log_file=$MASTER_DATADIR$after_master_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=Binary log is not encrypted
 --let $assert_cond= "$rpl_encryption_key_id" = "None"
 --source include/assert.inc
@@ -95,7 +95,7 @@ SET @@GLOBAL.binlog_encryption = ON;
 
 # Stop the source server
 --let $rpl_server_number= 1
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 # The source will not be able to process some MTR include requests
 --connection slave
 
@@ -129,7 +129,7 @@ SET @@GLOBAL.binlog_encryption = ON;
 --let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 --connection master
 
 --let $assert_text=binlog_encryption option shall be ON
@@ -143,7 +143,7 @@ SET @@GLOBAL.binlog_encryption = ON;
 
 --let $after_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$after_master_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=Binary log is encrypted using 1st master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
@@ -160,7 +160,7 @@ SET PERSIST binlog_encryption = ON;
 --let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $assert_text=binlog_encryption option shall be ON
 --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
@@ -173,7 +173,7 @@ SET PERSIST binlog_encryption = ON;
 
 --let $after_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$after_master_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=Binary log is encrypted using 1st master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
@@ -183,7 +183,7 @@ SET PERSIST binlog_encryption = ON;
 --source include/assert.inc
 
 # Restart the replica loading the keyring
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --let $assert_text= 1st binary log is not encrypted on replica
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 1]" = "No"
 --source include/assert.inc
@@ -191,7 +191,7 @@ SET PERSIST binlog_encryption = ON;
 --let $relay_log_base=`SELECT @@GLOBAL.relay_log`
 --let $relay_log_suffix=.000001
 --let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=Relay log is not encrypted for $relay_log_base$relay_log_suffix
 --let $assert_cond= "$rpl_encryption_key_id" = "None"
 --source include/assert.inc
@@ -201,7 +201,7 @@ SET PERSIST binlog_encryption = ON;
 --let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --skip-replica-start
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $assert_text=binlog_encryption option shall be OFF
 --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
@@ -214,7 +214,7 @@ SET PERSIST binlog_encryption = ON;
 
 --let $relay_log_suffix=.000002
 --let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=Relay log is not encrypted for $relay_log_base$relay_log_suffix
 --let $assert_cond= "$rpl_encryption_key_id" = "None"
 --source include/assert.inc
@@ -235,19 +235,19 @@ SET GLOBAL binlog_encryption = ON;
 --let $assert_cond= RIGHT("$after_master_file", 6) = "000003"
 --source include/assert.inc
 --let $rpl_log_file=$SLAVE_DATADIR$after_master_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=New binary log is encrypted using 1st master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
 --let $relay_log_suffix=.000004
 --let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=Relay log rotated as expected at server startup
 --let $assert_cond= "$rpl_encryption_key_id" = "Error: unable to open the file"
 --source include/assert.inc
 --let $relay_log_suffix=.000003
 --let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=Relay log is encrypted for $relay_log_base$relay_log_suffix
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
@@ -262,28 +262,28 @@ ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 
 --let $relay_log_suffix=.000003
 --let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=The third relay log is re-encrypted using second master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
 
 --let $relay_log_suffix=.000004
 --let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=The after relay log is encrypted using second master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
 
 --echo # Part 3
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 # Slave can replicate from encrypted binary log file
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
 INSERT INTO t1 (c1) VALUES (1), (2), (3);
 INSERT INTO t1 (c1) VALUES (4), (5), (6);
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --let $gtid_mode= `SELECT @@GLOBAL.gtid_mode`
 --let $AUTO_POSITION=1
 if ($gtid_mode == 'OFF') {
@@ -293,7 +293,7 @@ if ($gtid_mode == 'OFF') {
 }
 
 --echo # Part 4
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # Simulate keyring removal
 # 1. backup existing data
 --let KEYRING_FILE_PATH = $REPLICA_KEYRING_FILE_PATH
@@ -302,8 +302,8 @@ if ($gtid_mode == 'OFF') {
 ALTER INSTANCE RELOAD KEYRING;
 # 3. Lock keyring to block WRITE operations
 SET GLOBAL keyring_operations = OFF;
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 # Make SQL thread to read next relay log file
 FLUSH LOGS;
@@ -316,19 +316,19 @@ FLUSH LOGS;
 --let $assert_cond=RIGHT("$encrypted_master_file", 6) = "000005"
 --source include/assert.inc
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_master_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=New binary log is still encrypted
 --let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
 --let $slave_sql_errno= convert_error(ER_REPLICA_RELAY_LOG_READ_FAILURE)
---source include/wait_for_slave_sql_error.inc
---source include/stop_slave_io.inc
+--source include/rpl/wait_for_applier_error.inc
+--source include/rpl/stop_receiver.inc
 
 RESET REPLICA ALL;
 # A new relay log file is always created for the default channel
 --let $encrypted_relay_file=`SELECT CONCAT(@@GLOBAL.relay_log,'.000001')`
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_relay_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=New relay log is still encrypted
 --let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
@@ -338,7 +338,7 @@ RESET REPLICA ALL;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --let $encrypted_relay_file=`SELECT CONCAT(@@GLOBAL.relay_log,'.000001')`
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_relay_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=New relay log is still encrypted
 --let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
@@ -346,7 +346,7 @@ RESET REPLICA ALL;
 # SQL thread is still not able to read encrypted relay log files
 START REPLICA SQL_THREAD;
 --let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Disable the option to not rely on keyring anymore
 SET GLOBAL binlog_encryption = OFF;
@@ -359,7 +359,7 @@ SET GLOBAL binlog_encryption = OFF;
 --let $assert_cond=RIGHT("$disabled_master_file", 6) = "000006"
 --source include/assert.inc
 --let $rpl_log_file=$SLAVE_DATADIR$disabled_master_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=New binary log is not encrypted
 --let $assert_cond="$rpl_encryption_key_id" = "None"
 --source include/assert.inc
@@ -367,7 +367,7 @@ RESET REPLICA ALL;
 # A new relay log file is always created for the default channel
 --let $encrypted_relay_file=`SELECT CONCAT(@@GLOBAL.relay_log,'.000001')`
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_relay_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=New relay log is not encrypted
 --let $assert_cond="$rpl_encryption_key_id" = "None"
 --source include/assert.inc
@@ -376,7 +376,7 @@ RESET REPLICA ALL;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --let $encrypted_relay_file=`SELECT CONCAT(@@GLOBAL.relay_log,'.000001')`
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_relay_file
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=New relay log is not encrypted
 --let $assert_cond="$rpl_encryption_key_id" = "None"
 --source include/assert.inc
@@ -391,17 +391,17 @@ if (!$AUTO_POSITION) {
   --enable_query_log
 }
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Restore original file
 --source include/keyring_tests/helper/local_keyring_file_restore.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --let $third_binary_log=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --echo third_binary_log: $third_binary_log
 --let $rpl_log_file=$MASTER_DATADIR$third_binary_log
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=the third binary log is encrypted using first master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
@@ -416,14 +416,14 @@ ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 --source include/assert.inc
 
 --let $rpl_log_file=$MASTER_DATADIR$third_binary_log
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=the third binary log is re-encrypted using second master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
 
 --let $fourth_binary_log=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$fourth_binary_log
---source include/rpl_get_log_encryption_key_id.inc
+--source include/rpl/get_log_encryption_key_id.inc
 --let $assert_text=the fourth binary log is encrypted using second master key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
@@ -440,10 +440,10 @@ ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 
 # Cleanup
 RESET PERSIST;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL binlog_encryption= OFF;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET GLOBAL keyring_operations= ON;

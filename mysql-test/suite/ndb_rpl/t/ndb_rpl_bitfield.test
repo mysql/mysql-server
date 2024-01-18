@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
 
 #
 # Verifies replication of bit fields
@@ -86,4 +86,4 @@ hex(b50),hex(b51),hex(b52),hex(b53),hex(b54),hex(b55),hex(b56),hex(b57),hex(b58)
 --connection master
 DROP TABLE t1;
 
--- source include/rpl_end.inc
+-- source include/rpl/deinit.inc

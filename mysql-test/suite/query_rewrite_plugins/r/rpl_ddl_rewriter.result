@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ FROM information_schema.plugins
 WHERE plugin_name LIKE 'ddl_rewriter';
 PLUGIN_NAME	PLUGIN_TYPE	PLUGIN_VERSION	PLUGIN_TYPE_VERSION
 ddl_rewriter	AUDIT	1.0	4.1
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_VERSION, PLUGIN_TYPE_VERSION
 FROM information_schema.plugins
 WHERE plugin_name LIKE 'ddl_rewriter';
@@ -49,7 +49,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # Tables on slave.
 #
@@ -76,5 +76,5 @@ DROP SCHEMA mysqltest_ddl_rewriter;
 UNINSTALL PLUGIN ddl_rewriter;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

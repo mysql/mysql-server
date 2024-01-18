@@ -16,8 +16,8 @@
 
 # Includes
 -- source include/have_binlog_format_row.inc
--- source include/set_privilege_checks_user_as_system_user.inc
--- source include/master-slave.inc
+-- source include/rpl/set_privilege_checks_user_as_system_user.inc
+-- source include/rpl/init_source_replica.inc
 
 
 # Begin clean up test section
@@ -47,7 +47,7 @@ delimiter ;//
 INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
 #select * from test.t1;
 #save_master_pos;
-#--source include/sync_slave_sql_with_master.inc
+#--source include/rpl/sync_to_replica.inc
 #connection slave;
 #select * from test.t1;
 #connection master;
@@ -57,7 +57,7 @@ SET TIMESTAMP=2;
 INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
 #select * from test.t1;
 #save_master_pos;
-#--source include/sync_slave_sql_with_master.inc
+#--source include/rpl/sync_to_replica.inc
 #connection slave;
 #select * from test.t1;
 #connection master;
@@ -67,7 +67,7 @@ SET TIMESTAMP=1;
 INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
 #select * from test.t1;
 #save_master_pos;
-#--source include/sync_slave_sql_with_master.inc
+#--source include/rpl/sync_to_replica.inc
 #connection slave;
 #select * from test.t1;
 #connection master;
@@ -78,7 +78,7 @@ INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
 
 # We need a sync to ensure that the slave has caught up before
 # dumping the database.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection master;
 #Used for debugging
@@ -93,7 +93,7 @@ connection master;
 DROP FUNCTION test.f1;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # the test will show that the diff statement failed and no reject file
 # will be created. You will need to go to the mysql-test dir and diff
@@ -104,5 +104,5 @@ diff_files $MYSQLTEST_VARDIR/tmp/func002_master.sql $MYSQLTEST_VARDIR/tmp/func00
 
 --remove_file $MYSQLTEST_VARDIR/tmp/func002_master.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/func002_slave.sql
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 # End of 5.0 test case

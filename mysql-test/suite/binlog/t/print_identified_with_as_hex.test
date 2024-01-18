@@ -1,18 +1,18 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --connection master
 
 --echo # This corresponds to CREATE USER foo@localhost IDENTIFIED BY 'bar'
 --echo # But because of the salt we peg the whole hash instead.
 CREATE USER foo@localhost IDENTIFIED WITH 'caching_sha2_password' AS 0x244124303035240C4D7A6D25436F2C0A08515310644615383E2A123961484C6276734178425A446172436B58446A582F6178544A692E6F644E4F2F4E596E666276454B563336 PASSWORD HISTORY DEFAULT;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo [On Slave]
 --echo # The statement should be printed without the hex, according to the default value for the option
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo # cleanup
 --connection master
 DROP USER foo@localhost;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

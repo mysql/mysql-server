@@ -84,7 +84,7 @@ SET GLOBAL group_replication_recovery_ssl_cipher= 'ECDHE-RSA-AES256-GCM-SHA384';
 #
 # Check the data is there
 #
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/assert.inc [On the recovered member, the table should exist and have 1 elements;]
 #
 # Clean up

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,8 +7,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 ##############################################################
 # 1. Create table t1 in SOURCE and synch with REPLICA
 CREATE TABLE test.t1(c1 INTEGER PRIMARY KEY) ENGINE= Innodb;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 
 ##############################################################
 # 2. Create table t2 in REPLICA
@@ -44,7 +44,7 @@ INSERT INTO test.t2 VALUES(1);
 #    Check worker thread is still executing the transaction SOURCE:2.
 #    Check channel is still running, waiting for SOURCE:2 to be applied.
 [connection slave]
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 
 ##############################################################
 # 7. Unlock tables.
@@ -52,7 +52,7 @@ include/check_slave_is_running.inc
 #    channel will STOP.
 [connection slave1]
 UNLOCK TABLES;
-include/wait_for_slave_sql_to_stop.inc
+include/rpl/wait_for_applier_to_stop.inc
 
 ##############################################################
 # 8. Cleanup
@@ -60,5 +60,5 @@ include/wait_for_slave_sql_to_stop.inc
 DROP TABLE t1;
 [connection slave]
 DROP TABLE t2;
-include/start_slave_sql.inc
-include/rpl_end.inc
+include/rpl/start_applier.inc
+include/rpl/deinit.inc

@@ -21,7 +21,7 @@ SET GLOBAL debug= '-d,gr_recovery_skip_purge_logs';
 ############################################################
 # 3. Validate that server2 recovery channel relay logs have
 #    checksums.
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [recovery channel relay logs have checksums]
 
 ############################################################
@@ -29,21 +29,21 @@ include/assert_grep.inc [recovery channel relay logs have checksums]
 #    server2 applier channel relay logs do not have checksums.
 [connection server1]
 INSERT INTO t1 VALUES (1);
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection server2]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [applier channel relay logs do not have checksums]
 
 ############################################################
 # 5. Validate that server2 binary log have checksums.
 [connection server2]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [binary log have checksums]
 
 ############################################################
 # 6. Validate that server1 binary log have checksums.
 [connection server1]
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 include/assert_grep.inc [binary log have checksums]
 
 ############################################################

@@ -38,12 +38,12 @@
 
 # Boostrap start GR on server2 (Primary)
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 # Start GR on server1 (Secondary)
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 SET @@GLOBAL.DEBUG= @debug_save;
 
@@ -55,7 +55,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
 
 --let $rpl_channel_name='ch3_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 
 --echo
@@ -63,13 +63,13 @@ SET @@GLOBAL.DEBUG= @debug_save;
 
 # server3: create table t1 and add data
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO test.t1 VALUES (1);
 
 # server2: create table t2 and add data
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO test.t2 VALUES (1);
 
@@ -79,21 +79,21 @@ INSERT INTO test.t2 VALUES (1);
 
 # Sync slave(server1) with master(server3)
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection=server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_channel_name=
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection=server1
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Wait for all servers to be in sync
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $assert_text= Verify two tables (t1 & t2) are present in test database
 --let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
@@ -108,7 +108,7 @@ INSERT INTO test.t2 VALUES (1);
 --echo # 5. Restart server1 with missing group_replication_group_name variable value
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $allow_rpl_inited=1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -119,7 +119,7 @@ INSERT INTO test.t2 VALUES (1);
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 
 --echo
@@ -136,7 +136,7 @@ let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAM
 --echo # 7. Verify that channel ch3_1 can be started
 
 --let $rpl_channel_name='ch3_1'
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 --let rpl_channel_name=
 
 
@@ -159,13 +159,13 @@ SET SESSION sql_log_bin= 1;
 --echo #     Server 1 will leave
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 INSERT INTO t2 VALUES (2);
 
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --echo # Expect ERROR state.
 --let $group_replication_member_state= ERROR
@@ -176,7 +176,7 @@ INSERT INTO t2 VALUES (2);
 --echo # 11. Restart server1 with group replication start on boot
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --let $allow_rpl_inited=1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -187,7 +187,7 @@ INSERT INTO t2 VALUES (2);
 --source include/restart_mysqld.inc
 
 --let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/rpl/reconnect.inc
 
 
 --echo
@@ -204,7 +204,7 @@ SET GLOBAL read_only= OFF;
 
 --let $rpl_channel_name= 'ch3_1'
 --let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 --let rpl_channel_name=
 
 --let $grep_pattern= The replica applier thread of channel 'ch3_1' will error out as the member failed to come ONLINE
@@ -217,7 +217,7 @@ SET GLOBAL read_only= OFF;
 --echo # 14. Clean Up
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 
 --source include/stop_group_replication.inc
 
@@ -225,7 +225,7 @@ DROP TABLE test.t2;
 DROP TABLE test.t1;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 
@@ -255,7 +255,7 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server3
---source include/rpl_connection.inc
+--source include/connection.inc
 
 DROP TABLE test.t1;
 

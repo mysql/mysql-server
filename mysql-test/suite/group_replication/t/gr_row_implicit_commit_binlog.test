@@ -28,7 +28,7 @@
 # 3. Checking the consistency on the two members.
 # 4. Clean up.
 ################################################################################
---source include/set_privilege_checks_user_as_system_user.inc
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
@@ -207,7 +207,7 @@ while ($ddl_cases >= 1)
   --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
   --let $mask_user_password_events=1
   --let $mask_grant_as_events=1
-  --source include/show_binlog_events.inc
+  --source include/rpl/deprecated/show_binlog_events.inc
   --let $mask_user_password_events=0
   --let $mask_grant_as_events=0
   --echo -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
@@ -219,7 +219,7 @@ SET AUTOCOMMIT= 1;
 --echo ###################################################################################
 --echo #                               CHECK CONSISTENCY
 --echo ###################################################################################
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 # Checking the consistency on the two members.
 
@@ -241,5 +241,5 @@ DROP TABLE tt_1;
 DROP TABLE tt_2;
 DROP TABLE nt_1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 --source include/group_replication_end.inc

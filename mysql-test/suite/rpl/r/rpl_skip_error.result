@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -7,12 +7,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [on master]
 create table t1 (n int not null primary key);
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 insert into t1 values (1);
 [on master]
 insert into t1 values (1);
 insert into t1 values (2),(3);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [on slave]
 select * from t1 order by n;
 n
@@ -27,7 +27,7 @@ Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 insert into t1 values (7), (8), (9);
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 order by n;
 n
 1
@@ -35,10 +35,10 @@ n
 3
 7
 8
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 ==== Clean Up ====
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create table t1(a int primary key);
 insert into t1 values (1),(2);
 SET SQL_LOG_BIN=0;
@@ -49,15 +49,15 @@ Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 insert into t1 values (1), (2), (3);
 [on slave]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1
 2
-include/check_slave_is_running.inc
+include/rpl/assert_replica_running.inc
 ==== Clean Up ====
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ==== Using Innodb ====
 SET SQL_LOG_BIN=0;
 CREATE TABLE t1(id INT NOT NULL PRIMARY KEY, data INT) Engine=InnoDB;
@@ -86,11 +86,11 @@ SET SQL_LOG_BIN=0;
 DELETE FROM t1 WHERE id = 4;
 SET SQL_LOG_BIN=1;
 UPDATE t1 SET id= id + 3, data = 2;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 
 **** We cannot execute a select as there are differences in the 
 **** behavior between STMT and RBR.
 ==== Clean Up ====
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

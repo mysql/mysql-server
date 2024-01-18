@@ -25,20 +25,20 @@
 --disable_query_log
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
---source include/rpl_sync.inc
+--source include/connection.inc
+--source include/rpl/sync.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 INSERT INTO t1 VALUES (NULL);
 
 --let $rpl_connection_name= server_2
---source include/rpl_connection.inc
+--source include/connection.inc
 LOCK TABLE t1 READ;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
 

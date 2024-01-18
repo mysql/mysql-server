@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 
 # 1. Create table t1 and sync on group
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
-include/rpl_sync.inc
+include/rpl/sync.inc
 
 # 2. Lock table on server2 to block action
 [connection server2]
@@ -24,7 +24,7 @@ SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
 #    on boot
 [connection server2]
 # Kill and restart:--group-replication-start-on-boot=0 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 
 # 6. Wait for members be unreachable
 [connection server_1]

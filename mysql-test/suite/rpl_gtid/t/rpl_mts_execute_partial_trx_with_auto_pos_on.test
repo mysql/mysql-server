@@ -6,7 +6,7 @@
 #
 # ==== Implementation ====
 #
-# See extra/rpl_tests/rpl_mts_execute_partial_trx_in_relay_log.inc
+# See common/rpl/mta_execute_partial_trx_in_relay_log.inc
 #
 # ==== References ====
 #
@@ -23,11 +23,11 @@
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to SOURCE_AUTO_POSITION=1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source extra/rpl_tests/rpl_mts_execute_partial_trx_in_relay_log.inc
+--source common/rpl/mta_execute_partial_trx_in_relay_log.inc

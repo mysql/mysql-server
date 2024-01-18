@@ -16,7 +16,7 @@
 --echo ###########################
 --echo # Create a table on server1
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 CREATE TABLE t1 (
   u_str VARCHAR(32) NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (u_str)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo
 --echo ######################################################################

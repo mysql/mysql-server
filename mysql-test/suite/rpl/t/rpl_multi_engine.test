@@ -6,7 +6,7 @@
 -- source include/not_group_replication_plugin.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 connection slave;
 
@@ -20,87 +20,87 @@ VARCHAR(255), bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, f FLOAT DEFAULT
 0, total BIGINT UNSIGNED, y YEAR, t TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP 
 ON UPDATE CURRENT_TIMESTAMP,PRIMARY KEY(id));
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # MyISAM to MyISAM then InnoDB then MEMORY
 
 connection master;
 alter table t1 engine=myisam;
 show create table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection slave;
 alter table t1 engine=myisam;
 show create table t1;
 
---source include/rpl_multi_engine.inc
+--source common/rpl/multi_engine.inc
 
 connection slave;
 alter table t1 engine=innodb;
 show create table t1;
 
---source include/rpl_multi_engine.inc
+--source common/rpl/multi_engine.inc
 
 connection slave;
 alter table t1 engine=memory;
 show create table t1;
 
---source include/rpl_multi_engine.inc
+--source common/rpl/multi_engine.inc
 
 # MEMORY to ...
 
 connection master;
 alter table t1 engine=memory;
 show create table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection slave;
 alter table t1 engine=myisam;
 show create table t1;
 
---source include/rpl_multi_engine.inc
+--source common/rpl/multi_engine.inc
 
 connection slave;
 alter table t1 engine=innodb;
 show create table t1;
 
---source include/rpl_multi_engine.inc
+--source common/rpl/multi_engine.inc
 
 connection slave;
 alter table t1 engine=memory;
 show create table t1;
 
---source include/rpl_multi_engine.inc
+--source common/rpl/multi_engine.inc
 
 # InnoDB to ...
 
 connection master;
 alter table t1 engine=innodb;
 show create table t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection slave;
 alter table t1 engine=myisam;
 show create table t1;
 
---source include/rpl_multi_engine.inc
+--source common/rpl/multi_engine.inc
 
 connection slave;
 alter table t1 engine=innodb;
 show create table t1;
 
---source include/rpl_multi_engine.inc
+--source common/rpl/multi_engine.inc
 
 connection slave;
 alter table t1 engine=memory;
 show create table t1;
 
---source include/rpl_multi_engine.inc
+--source common/rpl/multi_engine.inc
 
 # cleanup
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # End of 5.1 test case
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -20,13 +20,13 @@
 --echo # 1. Start group with group_replication_preemptive_garbage_collection
 --echo #    enabled.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $server2_uuid= `SELECT @@server_uuid`
 SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
@@ -37,14 +37,14 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
 --echo ############################################################
 --echo # 2. Change the primary to server2.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --replace_result $server2_uuid SERVER2_UUID
 --eval SELECT group_replication_set_as_primary("$server2_uuid")
 
 --source include/gr_assert_secondary_member.inc
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/gr_assert_primary_member.inc
 
 
@@ -52,12 +52,12 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
 --echo ############################################################
 --echo # 3. Clean up.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
 
