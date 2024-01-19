@@ -464,7 +464,7 @@ bool Prepared_statement_handle::internal_execute() {
 bool Prepared_statement_handle::internal_fetch() {
   DBUG_TRACE;
   DBUG_PRINT("Prepared_statement_handle",
-             ("Asked for %lu rows\n", m_num_rows_per_fetch));
+             ("Asked for %zu rows\n", m_num_rows_per_fetch));
 
   m_diagnostics_area->reset_diagnostics_area();
   m_diagnostics_area->reset_condition_info(m_thd);
