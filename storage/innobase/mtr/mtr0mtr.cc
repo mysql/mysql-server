@@ -531,8 +531,10 @@ struct mtr_write_log_t {
       // char* redo_log_remote_buf_latch = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
 
       redo_log_remote_buf_reserved = true;
-      // 分配空间，OS_FILE_LOG_BLOCK_SIZE为4KB，先分个32MB看看
-      redo_log_remote_buf = new char[8 * 1024 * OS_FILE_LOG_BLOCK_SIZE];
+      // 分配空间，OS_FILE_LOG_BLOCK_SIZE为512B，先分个32MB看看
+      // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE)
+      // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)
+      redo_log_remote_buf = new byte[64 * 1024 * OS_FILE_LOG_BLOCK_SIZE];
       
     }
 
