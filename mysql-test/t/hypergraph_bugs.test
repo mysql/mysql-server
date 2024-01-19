@@ -1269,6 +1269,34 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 LEFT JOIN t1 x2
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#35855573 Assertion `false && "Inconsistent row counts for
+--echo # different AccessPath objects."'
+--echo #
+
+CREATE TABLE t(pk INT PRIMARY KEY AUTO_INCREMENT, x INT);
+INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), (), (), ();
+ANALYZE TABLE t;
+
+# Since t1.pk = t2.x and pk is the primary key, there is a functional
+# dependency t2.x->t1.x. Therefore, some candidate plans group on {t2.x, t1.x}
+# and others on {t1.x}, which are both valid. But EstimateDistinctRows() will
+# give different row estimates for these two sets of fields, as it does not take
+# functional depdenencies into account. This triggered the assert.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT DISTINCT t1.x, t2.x FROM t AS t1, t AS t2
+  WHERE t1.pk = t2.x ORDER BY t2.x;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
+  WHERE t1.pk = t2.x ORDER BY t1.x;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
+  WHERE t1.pk = t2.x ORDER BY t2.x;
+
+DROP TABLE t;
+
+--echo #
 --echo # Bug#35991881 Hypergraph: Wrong init_cost for nested loop join
 --echo #
 

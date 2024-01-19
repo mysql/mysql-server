@@ -116,7 +116,17 @@ inline FilterCost EstimateFilterCost(
 
 double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
                                 double num_output_rows);
-void EstimateSortCost(THD *thd, AccessPath *path);
+
+/**
+  Estimate costs and output rows for a SORT AccessPath.
+  @param thd Current thread.
+  @param path the AccessPath.
+  @param distinct_rows An estimate of the number of distinct rows, if
+     remove_duplicates==true and we have an estimate already.
+*/
+void EstimateSortCost(THD *thd, AccessPath *path,
+                      double distinct_rows = kUnknownRowCount);
+
 void EstimateMaterializeCost(THD *thd, AccessPath *path);
 
 /**

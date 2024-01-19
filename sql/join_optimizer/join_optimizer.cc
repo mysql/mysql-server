@@ -6565,11 +6565,12 @@ struct ApplyDistinctParameters final {
      @param root_path The path that needs sorting.
      @param ordering_idx The order to sort by.
      @param ordering_state The ordering state of the new path.
+     @param output_rows The number of (distinct) output row from the new path.
      @returns The sort path.
   */
   AccessPath MakeSortPathForDistinct(
       AccessPath *root_path, int ordering_idx,
-      LogicalOrderings::StateIndex ordering_state) const;
+      LogicalOrderings::StateIndex ordering_state, double output_rows) const;
 
   /**
      Add a parent path to root_path to ensure that the output is grouped
@@ -6578,10 +6579,11 @@ struct ApplyDistinctParameters final {
      several relevant sort-ahead orders.
      @param group_items This items we group on.
      @param root_path The input path.
+     @param output_rows The number of (distinct) output rows.
      @param new_root_candidates We add parent paths to this.
   */
   void ProposeDistinctPaths(const Bounds_checked_array<Item *> group_items,
-                            AccessPath *root_path,
+                            AccessPath *root_path, double output_rows,
                             AccessPathArray *new_root_candidates) const;
 };
 
@@ -6629,7 +6631,8 @@ ApplyDistinctParameters::DistinctOrderingState(
 
 AccessPath ApplyDistinctParameters::MakeSortPathForDistinct(
     AccessPath *root_path, int ordering_idx,
-    LogicalOrderings::StateIndex ordering_state) const {
+    LogicalOrderings::StateIndex ordering_state, double output_rows) const {
+  assert(output_rows != kUnknownRowCount);
   AccessPath sort_path;
   sort_path.type = AccessPath::SORT;
   sort_path.count_examined_rows = false;
@@ -6663,18 +6666,22 @@ AccessPath ApplyDistinctParameters::MakeSortPathForDistinct(
   // reduced ordering is always non-empty here.
   assert(sort_path.sort().order != nullptr);
 
-  EstimateSortCost(thd, &sort_path);
+  EstimateSortCost(thd, &sort_path, output_rows);
   return sort_path;
 }
 
 void ApplyDistinctParameters::ProposeDistinctPaths(
     const Bounds_checked_array<Item *> group_items, AccessPath *root_path,
-    AccessPathArray *new_root_candidates) const {
+    double output_rows, AccessPathArray *new_root_candidates) const {
   // If the access path contains a GROUP_INDEX_SKIP_SCAN which has
   // subsumed an aggregation, the subsumed aggregation could be either a
   // a group-by or a deduplication. If there is no group-by in the query
   // block, then the deduplication has been subsumed.
   if (root_path->has_group_skip_scan && !query_block->is_explicitly_grouped()) {
+    // A path using group skip scan should give the same number of result
+    // rows as any other path. So we set the same number to get a fair
+    // comparison.
+    root_path->set_num_output_rows(output_rows);
     receiver->ProposeAccessPath(root_path, new_root_candidates,
                                 /*obsolete_orderings=*/0,
                                 "deduplication elided");
@@ -6706,10 +6713,7 @@ void ApplyDistinctParameters::ProposeDistinctPaths(
         thd, root_path, group_items_copy.data(), group_items_copy.size());
 
     CopyBasicProperties(*root_path, dedup_path);
-
-    dedup_path->set_num_output_rows(
-        EstimateDistinctRows(thd, root_path->num_output_rows(),
-                             {group_items.data(), group_items.size()}));
+    dedup_path->set_num_output_rows(output_rows);
 
     dedup_path->set_cost(dedup_path->cost() +
                          kAggregateOneRowCost * root_path->num_output_rows());
@@ -6730,8 +6734,9 @@ void ApplyDistinctParameters::ProposeDistinctPaths(
     const std::optional<LogicalOrderings::StateIndex> ordering_state{
         DistinctOrderingState(group_items.size(), sort_ahead_ordering)};
     if (ordering_state.has_value()) {
-      AccessPath sort_path{MakeSortPathForDistinct(
-          root_path, sort_ahead_ordering.ordering_idx, ordering_state.value())};
+      AccessPath sort_path{
+          MakeSortPathForDistinct(root_path, sort_ahead_ordering.ordering_idx,
+                                  ordering_state.value(), output_rows)};
 
       receiver->ProposeAccessPath(&sort_path, new_root_candidates,
                                   /*obsolete_orderings=*/0, "");
@@ -6763,9 +6768,28 @@ AccessPathArray ApplyDistinctParameters::ApplyDistinct() const {
     return array;
   }()};
 
+  // Calculate a single number of distinct rows for all combinations of
+  // root_candidates and sort_ahead_ordering. That way, we cannot get
+  // inconsistent row counts for alternative paths. This may happen
+  // if different sort-ahead-orders have different elements
+  // (cf. bug#35855573). It is also faster since we only call
+  // EstimateDistinctRows() once.
+  const double distinct_rows{[&]() {
+    // Group-skip-scan paths have row estimates that includes deduplication
+    // but not filtering. Therefore we ignore those.
+    auto iter{root_candidates->cbegin()};
+    while ((*iter)->has_group_skip_scan && iter < root_candidates->cend() - 1) {
+      ++iter;
+    }
+
+    return EstimateDistinctRows(thd, (*iter)->num_output_rows(),
+                                {group_items.data(), group_items.size()});
+  }()};
+
   AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
   for (AccessPath *root_path : *root_candidates) {
-    ProposeDistinctPaths(group_items, root_path, &new_root_candidates);
+    ProposeDistinctPaths(group_items, root_path, distinct_rows,
+                         &new_root_candidates);
   }
   return new_root_candidates;
 }

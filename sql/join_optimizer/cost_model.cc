@@ -92,13 +92,34 @@ double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
                            /*worst_seeks=*/DBL_MAX);
 }
 
-void EstimateSortCost(THD *thd, AccessPath *path) {
-  AccessPath *child = path->sort().child;
-  const double num_input_rows = child->num_output_rows();
-  const double num_output_rows =
-      path->sort().limit != HA_POS_ERROR
-          ? std::min<double>(num_input_rows, path->sort().limit)
-          : num_input_rows;
+void EstimateSortCost(THD *thd, AccessPath *path, double distinct_rows) {
+  const auto &sort{path->sort()};
+  assert(sort.remove_duplicates || distinct_rows == kUnknownRowCount);
+
+  const double limit{sort.limit == HA_POS_ERROR
+                         ? std::numeric_limits<double>::max()
+                         : sort.limit};
+
+  const double num_input_rows{sort.child->num_output_rows()};
+
+  if (sort.remove_duplicates && distinct_rows == kUnknownRowCount) {
+    Prealloced_array<const Item *, 4> sort_items(PSI_NOT_INSTRUMENTED);
+    for (const ORDER *order = sort.order; order != nullptr;
+         order = order->next) {
+      sort_items.push_back(*order->item);
+    }
+
+    distinct_rows = EstimateDistinctRows(
+        thd, num_input_rows, {sort_items.cbegin(), sort_items.size()});
+  }
+
+  /*
+    If remove_duplicates is set, we incur the cost of sorting the entire
+    input, even if 'limit' is set. (See check_if_pq_applicable() for details.)
+   */
+  const double sort_result_rows{sort.remove_duplicates
+                                    ? num_input_rows
+                                    : std::min(limit, num_input_rows)};
 
   double sort_cost;
   if (num_input_rows <= 1.0) {
@@ -113,27 +134,17 @@ void EstimateSortCost(THD *thd, AccessPath *path) {
     // large values of n. So we always calculate it as n + k log k:
     sort_cost = kSortOneRowCost *
                 (num_input_rows +
-                 num_output_rows * std::max(log2(num_output_rows), 1.0));
+                 sort_result_rows * std::max(log2(sort_result_rows), 1.0));
   }
 
-  if (path->sort().remove_duplicates) {
-    Prealloced_array<const Item *, 4> sort_items(PSI_NOT_INSTRUMENTED);
-    for (const ORDER *order = path->sort().order; order != nullptr;
-         order = order->next) {
-      sort_items.push_back(*order->item);
-    }
-
-    const double aggregate_rows = EstimateDistinctRows(
-        thd, num_input_rows, {sort_items.cbegin(), sort_items.size()});
-
-    path->set_num_output_rows(std::min(num_output_rows, aggregate_rows));
-  } else {
-    path->set_num_output_rows(num_output_rows);
-  }
-
-  path->set_cost(child->cost() + sort_cost);
+  path->set_cost(sort.child->cost() + sort_cost);
   path->set_init_cost(path->cost());
   path->set_init_once_cost(0.0);
+
+  path->set_num_output_rows(sort.remove_duplicates
+                                ? std::min(distinct_rows, limit)
+                                : std::min(num_input_rows, limit));
+
   path->num_output_rows_before_filter = path->num_output_rows();
   path->set_cost_before_filter(path->cost());
 }
@@ -657,13 +668,6 @@ double EstimateDistinctRowsFromStatistics(THD *thd, TermArray terms,
 
   output_rows *= non_field_values;
 
-  if (TraceStarted(thd)) {
-    Trace(thd) << StringPrintf(
-        "Estimating %.1f distinct values for %zu non-field terms"
-        " and %.1f in total.\n",
-        non_field_values, remaining_term_cnt, output_rows);
-  }
-
   // The estimate could exceed 'child_rows' if there e.g. is a restrictive
   // WHERE-condition, as estimates from indexes or histograms will not reflect
   // that.
@@ -671,10 +675,17 @@ double EstimateDistinctRowsFromStatistics(THD *thd, TermArray terms,
     // Combining estimates from different sources introduces uncertainty.
     // We therefore assume that there will be some reduction in the number
     // of rows.
-    return std::min(output_rows, std::pow(child_rows, 0.9));
+    output_rows = std::min(output_rows, std::pow(child_rows, 0.9));
   } else {
-    return std::min(output_rows, child_rows);
+    output_rows = std::min(output_rows, child_rows);
   }
+
+  if (TraceStarted(thd)) {
+    Trace(thd) << "Estimating " << non_field_values << " distinct values for "
+               << remaining_term_cnt << " non-field terms and " << output_rows
+               << " in total.\n";
+  }
+  return output_rows;
 }
 
 /**

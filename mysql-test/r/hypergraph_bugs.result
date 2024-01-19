@@ -1552,6 +1552,40 @@ EXPLAIN
 
 DROP TABLE t1;
 #
+# Bug#35855573 Assertion `false && "Inconsistent row counts for
+# different AccessPath objects."'
+#
+CREATE TABLE t(pk INT PRIMARY KEY AUTO_INCREMENT, x INT);
+INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), (), (), ();
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT DISTINCT t1.x, t2.x FROM t AS t1, t AS t2
+WHERE t1.pk = t2.x ORDER BY t2.x;
+EXPLAIN
+-> Sort with duplicate removal: t2.x  (rows=7.96)
+    -> Nested loop inner join  (rows=12)
+        -> Table scan on t2  (rows=12)
+        -> Single-row index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
+WHERE t1.pk = t2.x ORDER BY t1.x;
+EXPLAIN
+-> Sort with duplicate removal: t1.x, t1.pk  (rows=9.36)
+    -> Nested loop inner join  (rows=12)
+        -> Table scan on t2  (rows=12)
+        -> Single-row index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
+WHERE t1.pk = t2.x ORDER BY t2.x;
+EXPLAIN
+-> Sort with duplicate removal: t2.x  (rows=3.46)
+    -> Nested loop inner join  (rows=12)
+        -> Table scan on t2  (rows=12)
+        -> Single-row covering index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+
+DROP TABLE t;
+#
 # Bug#35991881 Hypergraph: Wrong init_cost for nested loop join
 #
 CREATE TABLE t1 (
