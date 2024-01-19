@@ -165,6 +165,8 @@ struct PossibleRORScan {
   OverflowBitset subsumed_predicates;
 };
 
+using AccessPathArray = Prealloced_array<AccessPath *, 4>;
+
 /**
   CostingReceiver contains the main join planning logic, selecting access paths
   based on cost. It receives subplans from DPhyp (see enumerate_subgraph.h),
@@ -244,7 +246,7 @@ class CostingReceiver {
   // Called EmitCsgCmp() in the DPhyp paper.
   bool FoundSubgraphPair(NodeMap left, NodeMap right, int edge_idx);
 
-  const Prealloced_array<AccessPath *, 4> root_candidates() {
+  const AccessPathArray root_candidates() {
     const auto it =
         m_access_paths.find(TablesBetween(0, m_graph->nodes.size()));
     if (it == m_access_paths.end()) {
@@ -282,9 +284,10 @@ class CostingReceiver {
     return it != m_access_paths.end() && it->second.always_empty;
   }
 
-  AccessPath *ProposeAccessPath(
-      AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
-      OrderingSet obsolete_orderings, const char *description_for_trace) const;
+  AccessPath *ProposeAccessPath(AccessPath *path,
+                                AccessPathArray *existing_paths,
+                                OrderingSet obsolete_orderings,
+                                const char *description_for_trace) const;
 
   bool HasSecondaryEngineCostHook() const {
     return m_secondary_engine_cost_hook != nullptr;
@@ -307,7 +310,7 @@ class CostingReceiver {
     due to the use of a union.
    */
   struct AccessPathSet {
-    Prealloced_array<AccessPath *, 4> paths;
+    AccessPathArray paths;
     FunctionalDependencySet active_functional_dependencies{0};
 
     // Once-interesting orderings that we don't care about anymore,
@@ -5441,7 +5444,7 @@ void CostingReceiver::CommitBitsetsToHeap(AccessPath *path) const {
   work only for access paths that were kept.)
  */
 AccessPath *CostingReceiver::ProposeAccessPath(
-    AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
+    AccessPath *path, AccessPathArray *existing_paths,
     OrderingSet obsolete_orderings, const char *description_for_trace) const {
   if (m_secondary_engine_cost_hook != nullptr) {
     // If an error was raised by a previous invocation of the hook, reject all
@@ -5643,9 +5646,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
   // Insert an empty array if none exists.
   {
     const auto [it, inserted] = m_access_paths.emplace(
-        nodes,
-        AccessPathSet{Prealloced_array<AccessPath *, 4>{PSI_NOT_INSTRUMENTED},
-                      fd_set, obsolete_orderings});
+        nodes, AccessPathSet{AccessPathArray{PSI_NOT_INSTRUMENTED}, fd_set,
+                             obsolete_orderings});
     path_set = &it->second;
     if (!inserted) {
       assert(fd_set == path_set->active_functional_dependencies);
@@ -6284,7 +6286,7 @@ bool IsFinalPredicate(const Predicate &predicate) {
   can be skipped, but let's skip it if our only candidate is an EQ_REF with no
   filter predicates, so that we don't waste time in point selects.
  */
-bool SkipFinalPredicates(const Prealloced_array<AccessPath *, 4> &candidates,
+bool SkipFinalPredicates(const AccessPathArray &candidates,
                          const JoinHypergraph &graph) {
   return candidates.size() == 1 &&
          candidates.front()->type == AccessPath::EQ_REF &&
@@ -6299,10 +6301,12 @@ bool SkipFinalPredicates(const Prealloced_array<AccessPath *, 4> &candidates,
   FILTER access paths for all predicates (not only the final ones) in the entire
   access path tree of the candidates.
  */
-void ApplyFinalPredicatesAndExpandFilters(
-    THD *thd, const CostingReceiver &receiver, const JoinHypergraph &graph,
-    const LogicalOrderings &orderings, FunctionalDependencySet *fd_set,
-    Prealloced_array<AccessPath *, 4> *root_candidates) {
+void ApplyFinalPredicatesAndExpandFilters(THD *thd,
+                                          const CostingReceiver &receiver,
+                                          const JoinHypergraph &graph,
+                                          const LogicalOrderings &orderings,
+                                          FunctionalDependencySet *fd_set,
+                                          AccessPathArray *root_candidates) {
   if (TraceStarted(thd)) {
     Trace(thd) << "Adding final predicates\n";
   }
@@ -6316,7 +6320,7 @@ void ApplyFinalPredicatesAndExpandFilters(
 
   // Add all the final predicates to filter_predicates, and expand FILTER access
   // paths for all predicates in the access path tree of each candidate.
-  Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+  AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
   for (const AccessPath *root_path : *root_candidates) {
     for (bool materialize_subqueries : {false, true}) {
       AccessPath path = *root_path;
@@ -6414,11 +6418,11 @@ void SplitHavingCondition(THD *thd, Item *cond, Item **having_cond,
   *having_cond_wf = CreateConjunction(&cond_parts_wf);
 }
 
-void ApplyHavingOrQualifyCondition(
-    THD *thd, Item *having_cond, Query_block *query_block,
-    const char *description_for_trace,
-    Prealloced_array<AccessPath *, 4> *root_candidates,
-    CostingReceiver *receiver) {
+void ApplyHavingOrQualifyCondition(THD *thd, Item *having_cond,
+                                   Query_block *query_block,
+                                   const char *description_for_trace,
+                                   AccessPathArray *root_candidates,
+                                   CostingReceiver *receiver) {
   if (having_cond == nullptr) {
     return;
   }
@@ -6427,7 +6431,7 @@ void ApplyHavingOrQualifyCondition(
     Trace(thd) << description_for_trace;
   }
 
-  Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+  AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
   for (AccessPath *root_path : *root_candidates) {
     AccessPath filter_path;
     filter_path.type = AccessPath::FILTER;
@@ -6461,10 +6465,171 @@ void ApplyHavingOrQualifyCondition(
   *root_candidates = std::move(new_root_candidates);
 }
 
-AccessPath MakeSortPathForDistinct(
-    THD *thd, AccessPath *root_path, int ordering_idx,
-    bool aggregation_is_unordered, const LogicalOrderings &orderings,
-    LogicalOrderings::StateIndex ordering_state) {
+JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
+  for (JoinHypergraph::Node &node : graph->nodes) {
+    if (node.table() == table) {
+      return &node;
+    }
+  }
+  return nullptr;
+}
+
+/// If we have both ORDER BY and GROUP BY, we need a materialization step
+/// after the grouping (if windowing hasn't already given us one) -- although
+/// in most cases, we only need to materialize one row at a time (streaming),
+/// so the performance loss should be very slight. This is because when
+/// filesort only really deals with fields, not values; when it is to “output”
+/// a row, it puts back the contents of the sorted table's (or tables')
+/// row buffer(s). For expressions that only depend on the current row, such as
+/// (f1 + 1), this is fine, but aggregate functions (Item_sum) depend on
+/// multiple rows, so we need a field where filesort can put back its value
+/// (and of course, subsequent readers need to read from that field
+/// instead of trying to evaluate the Item_sum). A temporary table provides
+/// just that, so we create one based on the current field list;
+/// StreamingIterator (or MaterializeIterator, if we actually need to
+/// materialize) will evaluate all the Items in turn and put their values
+/// into the temporary table's fields.
+///
+/// For simplicity, we materialize all items in the SELECT list, even those
+/// that are not aggregate functions. This is a tiny performance loss,
+/// but makes things simpler.
+///
+/// The test on join->sum_funcs is mainly to avoid having to create temporary
+/// tables in unit tests; the rationale is that if there are no aggregate
+/// functions, we also cannot sort on them, and thus, we don't get the
+/// problem. Note that we can't do this if sorting by row IDs, as
+/// AggregateIterator doesn't preserve them (doing so would probably not be
+/// worth it for something that's fairly niche).
+bool ForceMaterializationBeforeSort(const Query_block &query_block,
+                                    bool need_rowid) {
+  const JOIN &join{*query_block.join};
+  // Also materialize before sorting of table value constructors. Filesort needs
+  // a table, and a table value constructor has no associated TABLE object, so
+  // we have to stream the rows through a temporary table before sorting them.
+  return query_block.is_table_value_constructor ||
+         ((query_block.is_explicitly_grouped() &&
+           (*join.sum_funcs != nullptr ||
+            join.rollup_state != JOIN::RollupState::NONE || need_rowid)) &&
+          join.m_windows.is_empty());
+}
+
+/** This struct implements a builder pattern for creating paths that
+    do DISTINCT (sort with duplicate removal) and adding them as
+    parent of the current candidate paths (except for candidate paths
+    that do DISTINCT already). The struct eliminates overly long
+    parameter lists, and makes it easy to divide the task into a set
+    of simpler functions.
+*/
+struct ApplyDistinctParameters final {
+  /// The current thread.
+  THD *thd;
+  /// The planning context.
+  const CostingReceiver *receiver;
+  /// The set of interesting orders.
+  const LogicalOrderings *orderings;
+  /// Aggregation (GROUP BY and DISTINCT) do not require ordered inputs and
+  /// create unordered outputs (@see SecondaryEngineFlag).
+  bool aggregation_is_unordered;
+  /// The order by which the result should be ordered (or -1 if none).
+  int order_by_ordering_idx;
+  /// The order by which the result should be grouped.
+  int distinct_ordering_idx;
+  /// The orders we may sort by.
+  const Mem_root_array<SortAheadOrdering> *sort_ahead_orderings;
+  /// The functional dependencies that apply here.
+  FunctionalDependencySet fd_set;
+  /// The enclosing query block.
+  Query_block *query_block;
+  /// True if we need rowids.
+  bool need_rowid;
+  /// The candidate paths.
+  const AccessPathArray *root_candidates;
+
+  /// Create new root paths as needed to do DISTINCT.
+  /// @returns The new root paths.
+  AccessPathArray ApplyDistinct() const;
+
+ private:
+  /**
+     Check if 'sort_ahead_ordering' is a useful order to sort by.
+     @param grouping_size The size of the DISTINCT projection.
+     @param sort_ahead_ordering The candidate ordering.
+     @returns The ordering state if we should sort by this order,
+          and an empty object otherwise.
+   */
+  std::optional<LogicalOrderings::StateIndex> DistinctOrderingState(
+      size_t grouping_size, const SortAheadOrdering &sort_ahead_ordering) const;
+
+  /**
+     Create a sort part on top of 'root_path'.
+     @param root_path The path that needs sorting.
+     @param ordering_idx The order to sort by.
+     @param ordering_state The ordering state of the new path.
+     @returns The sort path.
+  */
+  AccessPath MakeSortPathForDistinct(
+      AccessPath *root_path, int ordering_idx,
+      LogicalOrderings::StateIndex ordering_state) const;
+
+  /**
+     Add a parent path to root_path to ensure that the output is grouped
+     (by distinct_ordering_idx) if this is not the case already.
+     Note that we may add multiple alternative parent paths if there are
+     several relevant sort-ahead orders.
+     @param group_items This items we group on.
+     @param root_path The input path.
+     @param new_root_candidates We add parent paths to this.
+  */
+  void ProposeDistinctPaths(const Bounds_checked_array<Item *> group_items,
+                            AccessPath *root_path,
+                            AccessPathArray *new_root_candidates) const;
+};
+
+std::optional<LogicalOrderings::StateIndex>
+ApplyDistinctParameters::DistinctOrderingState(
+    size_t grouping_size, const SortAheadOrdering &sort_ahead_ordering) const {
+  if (sort_ahead_ordering.sort_ahead_only) {
+    return {};
+  }
+  const LogicalOrderings::StateIndex ordering_state = orderings->ApplyFDs(
+      orderings->SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
+  // A broader DISTINCT could help elide ORDER BY. Not vice versa. Note
+  // that ORDER BY would generally be subset of DISTINCT, but not always.
+  // E.g. using ANY_VALUE() in ORDER BY would allow it to be not part of
+  // DISTINCT.
+  if (sort_ahead_ordering.ordering_idx == distinct_ordering_idx) {
+    // The ordering derived from DISTINCT. Always propose this one,
+    // regardless of whether it also satisfies the ORDER BY ordering.
+    return ordering_state;
+  }
+
+  if (grouping_size <
+      orderings->ordering(sort_ahead_ordering.ordering_idx).size()) {
+    // This sort-ahead ordering is too wide and may cause duplicates to be
+    // returned. Don't propose it.
+    return {};
+  }
+
+  if (order_by_ordering_idx == -1) {
+    // There is no ORDER BY to satisfy later, so there is no point in
+    // trying to find a sort that satisfies both DISTINCT and ORDER BY.
+    return {};
+  }
+
+  if (!orderings->DoesFollowOrder(ordering_state, distinct_ordering_idx) ||
+      !orderings->DoesFollowOrder(ordering_state, order_by_ordering_idx)) {
+    // The ordering does not satisfy both of the orderings that are
+    // interesting to us. So it's no better than the distinct_ordering_idx
+    // one. Don't propose it.
+    return {};
+  }
+
+  return ordering_state;
+}
+
+AccessPath ApplyDistinctParameters::MakeSortPathForDistinct(
+    AccessPath *root_path, int ordering_idx,
+    LogicalOrderings::StateIndex ordering_state) const {
   AccessPath sort_path;
   sort_path.type = AccessPath::SORT;
   sort_path.count_examined_rows = false;
@@ -6490,275 +6655,209 @@ AccessPath MakeSortPathForDistinct(
   // doesn't accidentally rewrite the items in a sort on the same
   // sort-ahead ordering before the materialization.
   sort_path.sort().order = BuildSortAheadOrdering(
-      thd, &orderings, ReduceFinalOrdering(thd, orderings, ordering_idx));
+      thd, orderings, ReduceFinalOrdering(thd, *orderings, ordering_idx));
 
-  // If the distinct grouping can be satisfied with an empty ordering, we should
-  // already have elided the sort in ApplyDistinctAndOrder(), so we expect that
-  // the reduced ordering is always non-empty here.
+  // If the distinct grouping can be satisfied with an empty ordering,
+  // we should already have elided the sort in
+  // ApplyDistinctParameters::ProposeDistinctPaths(), so we expect that the
+  // reduced ordering is always non-empty here.
   assert(sort_path.sort().order != nullptr);
 
   EstimateSortCost(thd, &sort_path);
   return sort_path;
 }
 
-JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
-  for (JoinHypergraph::Node &node : graph->nodes) {
-    if (node.table() == table) {
-      return &node;
+void ApplyDistinctParameters::ProposeDistinctPaths(
+    const Bounds_checked_array<Item *> group_items, AccessPath *root_path,
+    AccessPathArray *new_root_candidates) const {
+  // If the access path contains a GROUP_INDEX_SKIP_SCAN which has
+  // subsumed an aggregation, the subsumed aggregation could be either a
+  // a group-by or a deduplication. If there is no group-by in the query
+  // block, then the deduplication has been subsumed.
+  if (root_path->has_group_skip_scan && !query_block->is_explicitly_grouped()) {
+    receiver->ProposeAccessPath(root_path, new_root_candidates,
+                                /*obsolete_orderings=*/0,
+                                "deduplication elided");
+    return;
+  }
+
+  if (group_items.size() == 0) {
+    // Only const fields.
+    AccessPath *limit_path =
+        NewLimitOffsetAccessPath(thd, root_path, /*limit=*/1, /*offset=*/0,
+                                 query_block->join->calc_found_rows,
+                                 /*reject_multiple_rows=*/false,
+                                 /*send_records_override=*/nullptr);
+    receiver->ProposeAccessPath(limit_path, new_root_candidates,
+                                /*obsolete_orderings=*/0, "");
+    return;
+  }
+  if (!aggregation_is_unordered &&
+      orderings->DoesFollowOrder(root_path->ordering_state,
+                                 distinct_ordering_idx)) {
+    // We don't need the sort, and can do with a simpler deduplication.
+    // TODO(sgunders): In some cases, we could apply LIMIT 1,
+    // which would be slightly more efficient; see e.g. the test for
+    // bug #33148369.
+    Bounds_checked_array<Item *> group_items_copy{
+        group_items.Clone(thd->mem_root)};
+
+    AccessPath *dedup_path = NewRemoveDuplicatesAccessPath(
+        thd, root_path, group_items_copy.data(), group_items_copy.size());
+
+    CopyBasicProperties(*root_path, dedup_path);
+
+    dedup_path->set_num_output_rows(
+        EstimateDistinctRows(thd, root_path->num_output_rows(),
+                             {group_items.data(), group_items.size()}));
+
+    dedup_path->set_cost(dedup_path->cost() +
+                         kAggregateOneRowCost * root_path->num_output_rows());
+    receiver->ProposeAccessPath(dedup_path, new_root_candidates,
+                                /*obsolete_orderings=*/0, "sort elided");
+    return;
+  }
+
+  root_path = GetSafePathToSort(
+      thd, query_block->join, root_path, need_rowid,
+      ForceMaterializationBeforeSort(*query_block, need_rowid));
+
+  // We need to sort. Try all sort-ahead, not just the one directly
+  // derived from DISTINCT clause, because the DISTINCT clause might
+  // help us elide the sort for ORDER BY later, if the DISTINCT clause
+  // is broader than the ORDER BY clause.
+  for (const SortAheadOrdering &sort_ahead_ordering : *sort_ahead_orderings) {
+    const std::optional<LogicalOrderings::StateIndex> ordering_state{
+        DistinctOrderingState(group_items.size(), sort_ahead_ordering)};
+    if (ordering_state.has_value()) {
+      AccessPath sort_path{MakeSortPathForDistinct(
+          root_path, sort_ahead_ordering.ordering_idx, ordering_state.value())};
+
+      receiver->ProposeAccessPath(&sort_path, new_root_candidates,
+                                  /*obsolete_orderings=*/0, "");
     }
   }
-  return nullptr;
 }
 
-Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
-    THD *thd, const CostingReceiver &receiver,
-    const LogicalOrderings &orderings, bool aggregation_is_unordered,
-    int order_by_ordering_idx, int distinct_ordering_idx,
-    const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
-    FunctionalDependencySet fd_set, Query_block *query_block, bool need_rowid,
-    bool force_sort_rowids, Prealloced_array<AccessPath *, 4> root_candidates) {
-  JOIN *join = query_block->join;
-  assert(join->select_distinct || join->order.order != nullptr);
+AccessPathArray ApplyDistinctParameters::ApplyDistinct() const {
+  JOIN *const join = query_block->join;
+  assert(join->select_distinct);
 
-  if (root_candidates.empty()) {
-    // Nothing to do if the secondary engine has rejected all candidates.
-    assert(receiver.HasSecondaryEngineCostHook());
-    return root_candidates;
+  if (TraceStarted(thd)) {
+    Trace(thd) << "Applying sort for DISTINCT\n";
   }
 
-  // If we have both ORDER BY and GROUP BY, we need a materialization step
-  // after the grouping (if windowing hasn't already given us one) -- although
-  // in most cases, we only need to materialize one row at a time (streaming),
-  // so the performance loss should be very slight. This is because when
-  // filesort only really deals with fields, not values; when it is to “output”
-  // a row, it puts back the contents of the sorted table's (or tables')
-  // row buffer(s). For expressions that only depend on the current row, such as
-  // (f1 + 1), this is fine, but aggregate functions (Item_sum) depend on
-  // multiple rows, so we need a field where filesort can put back its value
-  // (and of course, subsequent readers need to read from that field
-  // instead of trying to evaluate the Item_sum). A temporary table provides
-  // just that, so we create one based on the current field list;
-  // StreamingIterator (or MaterializeIterator, if we actually need to
-  // materialize) will evaluate all the Items in turn and put their values
-  // into the temporary table's fields.
-  //
-  // For simplicity, we materialize all items in the SELECT list, even those
-  // that are not aggregate functions. This is a tiny performance loss,
-  // but makes things simpler.
-  //
-  // The test on join->sum_funcs is mainly to avoid having to create temporary
-  // tables in unit tests; the rationale is that if there are no aggregate
-  // functions, we also cannot sort on them, and thus, we don't get the
-  // problem. Note that we can't do this if sorting by row IDs, as
-  // AggregateIterator doesn't preserve them (doing so would probably not be
-  // worth it for something that's fairly niche).
-  bool force_materialization_before_sort =
-      (query_block->is_explicitly_grouped() &&
-       (*join->sum_funcs != nullptr ||
-        join->rollup_state != JOIN::RollupState::NONE || need_rowid)) &&
-      join->m_windows.is_empty();
+  // Remove redundant elements from the grouping before it is applied.
+  // Specifically, we want to remove elements that are constant after all
+  // predicates have been applied.
+  const Ordering grouping =
+      ReduceFinalOrdering(thd, *orderings, distinct_ordering_idx);
 
-  // Also materialize before sorting of table value constructors. Filesort needs
-  // a table, and a table value constructor has no associated TABLE object, so
-  // we have to stream the rows through a temporary table before sorting them.
-  force_materialization_before_sort |= query_block->is_table_value_constructor;
+  using ItemArray = Bounds_checked_array<Item *>;
+  const ItemArray group_items{[&]() -> ItemArray {
+    ItemArray array{ItemArray::Alloc(thd->mem_root, grouping.size())};
 
-  // Now create iterators for DISTINCT, if applicable.
-  if (join->select_distinct) {
-    if (TraceStarted(thd)) {
-      Trace(thd) << "Applying sort for DISTINCT\n";
+    for (size_t i = 0; i < grouping.size(); ++i) {
+      array[i] = orderings->item(grouping.GetElements()[i].item);
     }
+    return array;
+  }()};
 
-    // Remove redundant elements from the grouping before it is applied.
-    // Specifically, we want to remove elements that are constant after all
-    // predicates have been applied.
-    const Ordering grouping =
-        ReduceFinalOrdering(thd, orderings, distinct_ordering_idx);
+  AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
+  for (AccessPath *root_path : *root_candidates) {
+    ProposeDistinctPaths(group_items, root_path, &new_root_candidates);
+  }
+  return new_root_candidates;
+}
 
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
-    for (AccessPath *root_path : root_candidates) {
-      // If the access path contains a GROUP_INDEX_SKIP_SCAN which has
-      // subsumed an aggregation, the subsumed aggregation could be either a
-      // a group-by or a deduplication. If there is no group-by in the query
-      // block, then the deduplication has been subsumed.
-      if (root_path->has_group_skip_scan &&
-          !query_block->is_explicitly_grouped()) {
-        receiver.ProposeAccessPath(root_path, &new_root_candidates,
-                                   /*obsolete_orderings=*/0,
-                                   "deduplication elided");
-        continue;
-      }
+/**
+   Apply the ORDER BY clause. For each of 'root_candidates' add a
+   parent sort path if the candidate does not have the right order
+   already. Also, add a limit/offset path on top of that if needed.
+   @param thd The current thread.
+   @param receiver The planning context.
+   @param orderings The set of interesting orders.
+   @param order_by_ordering_idx The order by which the result should be ordered.
+   @param query_block The enclosing query block.
+   @param force_sort_rowids True if row IDs must be preserved through the
+       ORDER BY clause (for UPDATE OR DELETE).
+   @param need_rowid True if we need rowids.
+   @param root_candidates The candidate paths.
+   @returns The new root paths.
+*/
+AccessPathArray ApplyOrderBy(THD *thd, const CostingReceiver &receiver,
+                             const LogicalOrderings &orderings,
+                             int order_by_ordering_idx,
+                             const Query_block &query_block, bool need_rowid,
+                             bool force_sort_rowids,
+                             const AccessPathArray &root_candidates) {
+  JOIN *join = query_block.join;
+  assert(join->order.order != nullptr);
+  assert(!root_candidates.empty());
 
-      if (grouping.GetElements().empty()) {
-        // Only const fields.
-        AccessPath *limit_path = NewLimitOffsetAccessPath(
-            thd, root_path, /*limit=*/1, /*offset=*/0, join->calc_found_rows,
-            /*reject_multiple_rows=*/false,
-            /*send_records_override=*/nullptr);
-        receiver.ProposeAccessPath(limit_path, &new_root_candidates,
-                                   /*obsolete_orderings=*/0, "");
-        continue;
-      }
-      if (!aggregation_is_unordered &&
-          orderings.DoesFollowOrder(root_path->ordering_state,
-                                    distinct_ordering_idx)) {
-        // We don't need the sort, and can do with a simpler deduplication.
-        // TODO(sgunders): In some cases, we could apply LIMIT 1,
-        // which would be slightly more efficient; see e.g. the test for
-        // bug #33148369.
-        Item **group_items =
-            thd->mem_root->ArrayAlloc<Item *>(grouping.GetElements().size());
-        for (size_t i = 0; i < grouping.GetElements().size(); ++i) {
-          group_items[i] = orderings.item(grouping.GetElements()[i].item);
-        }
-        AccessPath *dedup_path = NewRemoveDuplicatesAccessPath(
-            thd, root_path, group_items, grouping.GetElements().size());
-        CopyBasicProperties(*root_path, dedup_path);
-
-        dedup_path->set_num_output_rows(
-            EstimateDistinctRows(thd, root_path->num_output_rows(),
-                                 {group_items, grouping.GetElements().size()}));
-
-        dedup_path->set_cost(dedup_path->cost() +
-                             kAggregateOneRowCost *
-                                 root_path->num_output_rows());
-        receiver.ProposeAccessPath(dedup_path, &new_root_candidates,
-                                   /*obsolete_orderings=*/0, "sort elided");
-        continue;
-      }
-
-      root_path = GetSafePathToSort(thd, join, root_path, need_rowid,
-                                    force_materialization_before_sort);
-
-      // We need to sort. Try all sort-ahead, not just the one directly
-      // derived from DISTINCT clause, because the DISTINCT clause might
-      // help us elide the sort for ORDER BY later, if the DISTINCT clause
-      // is broader than the ORDER BY clause.
-      for (const SortAheadOrdering &sort_ahead_ordering :
-           sort_ahead_orderings) {
-        if (sort_ahead_ordering.sort_ahead_only) {
-          continue;
-        }
-        LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
-            orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
-        // A broader DISTINCT could help elide ORDER BY. Not vice versa. Note
-        // that ORDER BY would generally be subset of DISTINCT, but not always.
-        // E.g. using ANY_VALUE() in ORDER BY would allow it to be not part of
-        // DISTINCT.
-        if (sort_ahead_ordering.ordering_idx == distinct_ordering_idx) {
-          // The ordering derived from DISTINCT. Always propose this one,
-          // regardless of whether it also satisfies the ORDER BY ordering.
-        } else if (grouping.size() <
-                   orderings.ordering(sort_ahead_ordering.ordering_idx)
-                       .size()) {
-          // This sort-ahead ordering is too wide and may cause duplicates to be
-          // returned. Don't propose it.
-          continue;
-        } else if (order_by_ordering_idx == -1) {
-          // There is no ORDER BY to satisfy later, so there is no point in
-          // trying to find a sort that satisfies both DISTINCT and ORDER BY.
-          continue;
-        } else if (!orderings.DoesFollowOrder(ordering_state,
-                                              distinct_ordering_idx) ||
-                   !orderings.DoesFollowOrder(ordering_state,
-                                              order_by_ordering_idx)) {
-          // The ordering does not satisfy both of the orderings that are
-          // interesting to us. So it's no better than the distinct_ordering_idx
-          // one. Don't propose it.
-          continue;
-        }
-
-        // The force_sort_rowids flag is only set for UPDATE and DELETE,
-        // which don't have any syntax for specifying DISTINCT.
-        assert(!force_sort_rowids);
-        AccessPath sort_path = MakeSortPathForDistinct(
-            thd, root_path, sort_ahead_ordering.ordering_idx,
-            aggregation_is_unordered, orderings, ordering_state);
-        receiver.ProposeAccessPath(&sort_path, &new_root_candidates,
-                                   /*obsolete_orderings=*/0, "");
-      }
-    }
-    root_candidates = std::move(new_root_candidates);
+  Mem_root_array<TABLE *> tables =
+      CollectTables(thd, root_candidates[0]);  // Should be same for all paths.
+  if (TraceStarted(thd)) {
+    Trace(thd) << "Applying sort for ORDER BY\n";
   }
 
-  // Apply ORDER BY, if applicable.
-  if (join->order.order != nullptr) {
-    if (root_candidates.empty()) {
-      // The secondary engine has rejected all candidates.
-      assert(receiver.HasSecondaryEngineCostHook());
-      return root_candidates;
+  // If we have LIMIT or OFFSET, we apply them here. This is done so that we
+  // can push the LIMIT clause down to the SORT node in order to let Filesort
+  // take advantage of it.
+  const Query_expression *query_expression = join->query_expression();
+  const ha_rows limit_rows = query_expression->select_limit_cnt;
+  const ha_rows offset_rows = query_expression->offset_limit_cnt;
+
+  AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
+  for (AccessPath *root_path : root_candidates) {
+    // No sort is needed if the candidate already follows the
+    // required ordering.
+    const bool sort_needed{!orderings.DoesFollowOrder(root_path->ordering_state,
+                                                      order_by_ordering_idx)};
+
+    const bool push_limit_to_filesort{
+        sort_needed && limit_rows != HA_POS_ERROR && !join->calc_found_rows};
+
+    if (sort_needed) {
+      root_path = GetSafePathToSort(
+          thd, join, root_path, need_rowid,
+          ForceMaterializationBeforeSort(query_block, need_rowid));
+
+      AccessPath *sort_path = new (thd->mem_root) AccessPath;
+      sort_path->type = AccessPath::SORT;
+      sort_path->count_examined_rows = false;
+      sort_path->immediate_update_delete_table =
+          root_path->immediate_update_delete_table;
+      sort_path->sort().child = root_path;
+      sort_path->sort().filesort = nullptr;
+      sort_path->sort().remove_duplicates = false;
+      sort_path->sort().unwrap_rollup = false;
+      sort_path->sort().limit =
+          push_limit_to_filesort ? limit_rows : HA_POS_ERROR;
+      sort_path->sort().order = join->order.order;
+      sort_path->has_group_skip_scan = root_path->has_group_skip_scan;
+      EstimateSortCost(thd, sort_path);
+
+      // If this is a DELETE or UPDATE statement, row IDs must be preserved
+      // through the ORDER BY clause, so that we know which rows to delete or
+      // update.
+      sort_path->sort().force_sort_rowids = force_sort_rowids;
+      root_path = sort_path;
     }
-    Mem_root_array<TABLE *> tables = CollectTables(
-        thd, root_candidates[0]);  // Should be same for all paths.
-    if (TraceStarted(thd)) {
-      Trace(thd) << "Applying sort for ORDER BY\n";
+
+    if (offset_rows != 0 || (limit_rows != HA_POS_ERROR &&
+                             (!sort_needed || !push_limit_to_filesort))) {
+      root_path = NewLimitOffsetAccessPath(thd, root_path, limit_rows,
+                                           offset_rows, join->calc_found_rows,
+                                           /*reject_multiple_rows=*/false,
+                                           /*send_records_override=*/nullptr);
     }
 
-    // If we have LIMIT or OFFSET, we apply them here. This is done so that we
-    // can push the LIMIT clause down to the SORT node in order to let Filesort
-    // take advantage of it.
-    const Query_expression *query_expression = join->query_expression();
-    const ha_rows limit_rows = query_expression->select_limit_cnt;
-    const ha_rows offset_rows = query_expression->offset_limit_cnt;
-
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
-    for (AccessPath *root_path : root_candidates) {
-      // No sort is needed if the candidate already follows the
-      // required ordering.
-      if (orderings.DoesFollowOrder(root_path->ordering_state,
-                                    order_by_ordering_idx)) {
-        if (limit_rows != HA_POS_ERROR || offset_rows != 0) {
-          root_path = NewLimitOffsetAccessPath(
-              thd, root_path, limit_rows, offset_rows, join->calc_found_rows,
-              /*reject_multiple_rows=*/false,
-              /*send_records_override=*/nullptr);
-        }
-        receiver.ProposeAccessPath(root_path, &new_root_candidates,
-                                   /*obsolete_orderings=*/0, "sort elided");
-      } else {
-        const bool push_limit_to_filesort =
-            limit_rows != HA_POS_ERROR && !join->calc_found_rows;
-
-        root_path = GetSafePathToSort(thd, join, root_path, need_rowid,
-                                      force_materialization_before_sort);
-
-        AccessPath *sort_path = new (thd->mem_root) AccessPath;
-        sort_path->type = AccessPath::SORT;
-        sort_path->count_examined_rows = false;
-        sort_path->immediate_update_delete_table =
-            root_path->immediate_update_delete_table;
-        sort_path->sort().child = root_path;
-        sort_path->sort().filesort = nullptr;
-        sort_path->sort().remove_duplicates = false;
-        sort_path->sort().unwrap_rollup = false;
-        sort_path->sort().limit =
-            push_limit_to_filesort ? limit_rows : HA_POS_ERROR;
-        sort_path->sort().order = join->order.order;
-        sort_path->has_group_skip_scan = root_path->has_group_skip_scan;
-        EstimateSortCost(thd, sort_path);
-
-        // If this is a DELETE or UPDATE statement, row IDs must be preserved
-        // through the ORDER BY clause, so that we know which rows to delete or
-        // update.
-        sort_path->sort().force_sort_rowids = force_sort_rowids;
-
-        // If we have a LIMIT clause that is not pushed down to the filesort, or
-        // if we have an OFFSET clause, we need to add a LIMIT_OFFSET path on
-        // top of the SORT node.
-        if ((limit_rows != HA_POS_ERROR && !push_limit_to_filesort) ||
-            offset_rows != 0) {
-          sort_path = NewLimitOffsetAccessPath(
-              thd, sort_path, limit_rows, offset_rows, join->calc_found_rows,
-              /*reject_multiple_rows=*/false,
-              /*send_records_override=*/nullptr);
-        }
-        receiver.ProposeAccessPath(sort_path, &new_root_candidates,
-                                   /*obsolete_orderings=*/0, "");
-      }
-    }
-    root_candidates = std::move(new_root_candidates);
+    receiver.ProposeAccessPath(root_path, &new_root_candidates,
+                               /*obsolete_orderings=*/0,
+                               sort_needed ? "" : "sort elided");
   }
-  return root_candidates;
+  return new_root_candidates;
 }
 
 static AccessPath *ApplyWindow(THD *thd, AccessPath *root_path, Window *window,
@@ -7011,14 +7110,14 @@ AccessPath *MakeSortPathAndApplyWindows(
   it is easier to have multiple different orderings for the temporary table
   parameters later.
  */
-static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
+static AccessPathArray ApplyWindowFunctions(
     THD *thd, const CostingReceiver &receiver,
     const LogicalOrderings &orderings, FunctionalDependencySet fd_set,
     bool aggregation_is_unordered, int order_by_ordering_idx,
     int distinct_ordering_idx, const JoinHypergraph &graph,
     const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
     Query_block *query_block, int num_where_predicates, bool need_rowid,
-    Prealloced_array<AccessPath *, 4> root_candidates) {
+    AccessPathArray root_candidates) {
   JOIN *join = query_block->join;
 
   // Figure out if windows need row IDs or not; we won't create
@@ -7053,7 +7152,7 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
   if (TraceStarted(thd)) {
     Trace(thd) << "\n";
   }
-  Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+  AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
   for (AccessPath *root_path : root_candidates) {
     if (TraceStarted(thd)) {
       Trace(thd) << "Considering window order on top of "
@@ -7422,7 +7521,7 @@ bool ApplyAggregation(
     const LogicalOrderings &orderings,
     const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
     FunctionalDependencySet fd_set, Query_block *query_block,
-    Prealloced_array<AccessPath *, 4> &root_candidates) {
+    AccessPathArray &root_candidates) {
   JOIN *join = query_block->join;
   // Apply GROUP BY, if applicable. We currently always do this by sorting
   // first and then using streaming aggregation.
@@ -7446,7 +7545,7 @@ bool ApplyAggregation(
 
   // Reuse this, so that we do not have to recalculate it for each
   // alternative aggregate path.
-  Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+  AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
   double aggregate_rows = kUnknownRowCount;
 
   for (AccessPath *root_path : root_candidates) {
@@ -7764,8 +7863,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   // may be no candidates, as the hook may have rejected so many access paths
   // that we could not build a complete plan, or the hook may have rejected
   // the plan as not offloadable.
-  Prealloced_array<AccessPath *, 4> root_candidates =
-      receiver.root_candidates();
+  AccessPathArray root_candidates = receiver.root_candidates();
   if (query_block->is_table_value_constructor) {
     assert(root_candidates.empty());
     AccessPath *path = NewTableValueConstructorAccessPath(thd, join);
@@ -7880,9 +7978,9 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
 
   // If we have GROUP BY followed by a window function (which might include
   // ORDER BY), we might need to materialize before the first ordering -- see
-  // the comment near the top of ApplyDistinctAndOrder() for why.
+  // ForceMaterializationBeforeSort() for why.
   if (query_block->is_explicitly_grouped() && !join->m_windows.is_empty()) {
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       root_path =
           CreateMaterializationOrStreamingPath(thd, join, root_path, need_rowid,
@@ -7941,20 +8039,49 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
 
   graph.secondary_engine_costing_flags |=
       SecondaryEngineCostingFlag::HANDLING_DISTINCT_ORDERBY_LIMITOFFSET;
-  if (join->select_distinct || join->order.order != nullptr) {
+  if (root_candidates.empty()) {
+    // Nothing to do if the secondary engine has rejected all candidates.
+    assert(receiver.HasSecondaryEngineCostHook());
+  } else {
     // UPDATE and DELETE must preserve row IDs through ORDER BY in order to keep
     // track of which rows to update or delete.
     const bool force_sort_rowids = update_delete_target_tables != 0;
 
-    root_candidates = ApplyDistinctAndOrder(
-        thd, receiver, orderings, aggregation_is_unordered,
-        order_by_ordering_idx, distinct_ordering_idx, sort_ahead_orderings,
-        fd_set, query_block, need_rowid, force_sort_rowids,
-        std::move(root_candidates));
+    if (join->select_distinct) {
+      // The force_sort_rowids flag is only set for UPDATE and DELETE,
+      // which don't have any syntax for specifying DISTINCT.
+      assert(!force_sort_rowids);
+
+      const ApplyDistinctParameters params{
+          .thd = thd,
+          .receiver = &receiver,
+          .orderings = &orderings,
+          .aggregation_is_unordered = aggregation_is_unordered,
+          .order_by_ordering_idx = order_by_ordering_idx,
+          .distinct_ordering_idx = distinct_ordering_idx,
+          .sort_ahead_orderings = &sort_ahead_orderings,
+          .fd_set = fd_set,
+          .query_block = query_block,
+          .need_rowid = need_rowid,
+          .root_candidates = &root_candidates};
+
+      root_candidates = params.ApplyDistinct();
+    }
+
+    if (root_candidates.empty()) {
+      // Nothing to do if the secondary engine has rejected all candidates.
+      assert(receiver.HasSecondaryEngineCostHook());
+    } else {
+      if (join->order.order != nullptr) {
+        root_candidates = ApplyOrderBy(
+            thd, receiver, orderings, order_by_ordering_idx, *query_block,
+            need_rowid, force_sort_rowids, root_candidates);
+      }
+    }
   }
 
   // Apply LIMIT and OFFSET, if applicable. If the query block is ordered, they
-  // are already applied by ApplyDistinctAndOrder().
+  // are already applied by ApplyOrderBy().
   Query_expression *query_expression = join->query_expression();
   if (join->order.order == nullptr &&
       (query_expression->select_limit_cnt != HA_POS_ERROR ||
@@ -7962,7 +8089,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
     if (TraceStarted(thd)) {
       Trace(thd) << "Applying LIMIT\n";
     }
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       AccessPath *limit_path = NewLimitOffsetAccessPath(
           thd, root_path, query_expression->select_limit_cnt,
@@ -7978,7 +8105,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   // Add a DELETE_ROWS or UPDATE_ROWS access path if this is the topmost query
   // block of a DELETE statement or an UPDATE statement.
   if (is_delete) {
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       table_map immediate_tables = 0;
       if (root_path->immediate_update_delete_table != -1) {
@@ -7994,7 +8121,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
     }
     root_candidates = std::move(new_root_candidates);
   } else if (is_update) {
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       table_map immediate_tables = 0;
       if (root_path->immediate_update_delete_table != -1) {
