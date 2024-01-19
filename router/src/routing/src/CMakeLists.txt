@@ -64,7 +64,6 @@ ADD_LIBRARY(routing SHARED
   classic_auth_cleartext.cc
   classic_auth_caching_sha2.cc
   classic_auth_native.cc
-  classic_auth_sha256_password.cc
   classic_command.cc
   classic_connect.cc
   classic_flow.cc
@@ -76,7 +75,6 @@ ADD_LIBRARY(routing SHARED
   classic_auth_caching_sha2_forwarder.cc
   classic_auth_forwarder.cc
   classic_auth_native_forwarder.cc
-  classic_auth_sha256_password_forwarder.cc
   classic_binlog_dump_forwarder.cc
   classic_change_user_forwarder.cc
   classic_clone_forwarder.cc
@@ -103,7 +101,6 @@ ADD_LIBRARY(routing SHARED
   classic_auth_cleartext_sender.cc
   classic_auth_caching_sha2_sender.cc
   classic_auth_native_sender.cc
-  classic_auth_sha256_password_sender.cc
   classic_change_user_sender.cc
   # classic_greeting_sender.cc
   classic_init_schema_sender.cc

@@ -31,7 +31,6 @@
 #include "classic_auth_cleartext.h"
 #include "classic_auth_forwarder.h"
 #include "classic_auth_native.h"
-#include "classic_auth_sha256_password.h"
 #include "classic_connect.h"
 #include "classic_connection_base.h"
 #include "classic_frame.h"
@@ -197,8 +196,6 @@ static std::optional<std::string> scramble_them_all(
     return AuthCachingSha2Password::scramble(nonce, pwd);
   } else if (auth_method == AuthNativePassword::kName) {
     return AuthNativePassword::scramble(nonce, pwd);
-  } else if (auth_method == AuthSha256Password::kName) {
-    return AuthSha256Password::scramble(nonce, pwd);
   } else if (auth_method == AuthCleartextPassword::kName) {
     return AuthCleartextPassword::scramble(nonce, pwd);
   } else {

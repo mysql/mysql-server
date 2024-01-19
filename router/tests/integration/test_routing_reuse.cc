@@ -423,8 +423,6 @@ class SharedServer {
     create_account(cli, native_empty_password_account());
     create_account(cli, caching_sha2_password_account());
     create_account(cli, caching_sha2_empty_password_account());
-    create_account(cli, sha256_password_account());
-    create_account(cli, sha256_empty_password_account());
   }
 
   void setup_mysqld_xproto_test_env() {
@@ -539,14 +537,6 @@ class SharedServer {
 
   [[nodiscard]] static Account native_empty_password_account() {
     return {"native_empty", "", "mysql_native_password"};
-  }
-
-  [[nodiscard]] static Account sha256_password_account() {
-    return {"sha256_pass", "sha256pass", "sha256_password"};
-  }
-
-  [[nodiscard]] static Account sha256_empty_password_account() {
-    return {"sha256_empty", "", "sha256_password"};
   }
 
   [[nodiscard]] static Account admin_account() {
@@ -987,60 +977,6 @@ TEST_P(ReuseConnectionTest, classic_protocol_change_user_caching_sha2) {
       // Authentication requires secure connection.
     } else {
       ASSERT_NO_ERROR(change_user_res);
-    }
-  }
-}
-
-TEST_P(ReuseConnectionTest,
-       classic_protocol_change_user_sha256_password_empty) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  {
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    ASSERT_NO_ERROR(connect_res);
-  }
-
-  {
-    auto account = shared_server_->sha256_empty_password_account();
-    auto change_user_res =
-        cli.change_user(account.username, account.password, "");
-    ASSERT_NO_ERROR(change_user_res);
-  }
-}
-
-TEST_P(ReuseConnectionTest, classic_protocol_change_user_sha256_password) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  {
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-
-    ASSERT_NO_ERROR(connect_res);
-  }
-
-  auto expect_success = !(GetParam().client_ssl_mode == kDisabled &&
-                          (GetParam().server_ssl_mode == kRequired ||
-                           GetParam().server_ssl_mode == kPreferred));
-
-  {
-    auto account = shared_server_->sha256_password_account();
-    auto change_user_res =
-        cli.change_user(account.username, account.password, "");
-    if (expect_success) {
-      ASSERT_NO_ERROR(change_user_res);
-    } else {
-      ASSERT_ERROR(change_user_res);
-      EXPECT_EQ(change_user_res.error().value(), 1045)
-          << change_user_res.error();
     }
   }
 }
@@ -2061,201 +1997,6 @@ TEST_P(ReuseConnectionTest,
     auto connect_res =
         cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
     ASSERT_NO_ERROR(connect_res);  // should succeed
-  }
-}
-
-//
-// sha256_password
-//
-
-TEST_P(ReuseConnectionTest, classic_protocol_sha256_password_no_pass) {
-  auto account = shared_server_->sha256_empty_password_account();
-
-  std::string username(account.username);
-  std::string password(account.password);
-
-  {
-    SCOPED_TRACE("// user exists, with pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(password);
-
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    ASSERT_NO_ERROR(connect_res);
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(wrong_password_);
-
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    ASSERT_FALSE(connect_res);
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
-  }
-
-  // should reuse connection.
-  {
-    SCOPED_TRACE("// user exists, with pass, reuse");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(password);
-
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    ASSERT_NO_ERROR(connect_res);
-  }
-}
-
-TEST_P(ReuseConnectionTest, classic_protocol_sha256_password_with_pass) {
-  auto account = shared_server_->sha256_password_account();
-
-  std::string username(account.username);
-  std::string password(account.password);
-
-  {
-    SCOPED_TRACE("// user exists, with pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(password);
-
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    if (GetParam().client_ssl_mode == kDisabled &&
-        (GetParam().server_ssl_mode == kPreferred ||
-         GetParam().server_ssl_mode == kRequired)) {
-      ASSERT_ERROR(connect_res);
-      EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-      // Access denied for user '...'@'localhost' (using password: YES)
-    } else {
-      ASSERT_NO_ERROR(connect_res);
-    }
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(wrong_password_);
-
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    ASSERT_FALSE(connect_res);
-
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-empty-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(empty_password_);
-
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    ASSERT_FALSE(connect_res);
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
-  }
-
-  // should reuse connection.
-  {
-    SCOPED_TRACE("// user exists, with pass, reuse");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(password);
-
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    if (GetParam().client_ssl_mode == kDisabled &&
-        (GetParam().server_ssl_mode == kPreferred ||
-         GetParam().server_ssl_mode == kRequired)) {
-      ASSERT_ERROR(connect_res);
-      EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-      // Access denied for user '...'@'localhost' (using password: YES)
-    } else {
-      ASSERT_NO_ERROR(connect_res);
-    }
-  }
-}
-
-/**
- * Check, caching-sha2-password over plaintext works with get-server-key.
- */
-TEST_P(ReuseConnectionTest,
-       classic_protocol_sha256_password_over_plaintext_with_get_server_key) {
-  if (GetParam().client_ssl_mode == kRequired) {
-    GTEST_SKIP() << "test requires plaintext connection.";
-  }
-
-  bool expect_success =
-#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 0, 2)
-      // DISABLED/DISABLED will get the public-key from the server.
-      //
-      // other modes that should fail, will fail as the router can't get the
-      // public-key from the ssl-certs in openssl 1.0.1
-      (GetParam().client_ssl_mode == kDisabled &&
-       (GetParam().server_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kAsClient)) ||
-      (GetParam().client_ssl_mode == kPassthrough) ||
-      (GetParam().client_ssl_mode == kPreferred &&
-       (GetParam().server_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kAsClient));
-#else
-      !(GetParam().client_ssl_mode == kDisabled &&
-        (GetParam().server_ssl_mode == kRequired ||
-         GetParam().server_ssl_mode == kPreferred));
-#endif
-
-  auto account = shared_server_->sha256_password_account();
-
-  std::string username(account.username);
-  std::string password(account.password);
-
-  SCOPED_TRACE("// first connection");
-  {
-    MysqlClient cli;
-    cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
-    cli.set_option(MysqlClient::GetServerPublicKey(true));
-
-    cli.username(username);
-    cli.password(password);
-
-    auto connect_res =
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-    if (!expect_success) {
-      // server will treat the public-key-request as wrong password.
-      ASSERT_ERROR(connect_res);
-    } else {
-      ASSERT_NO_ERROR(connect_res);
-
-      ASSERT_NO_ERROR(cli.ping());
-    }
-  }
-
-  SCOPED_TRACE("// reuse");
-  if (expect_success) {
-    MysqlClient cli;
-    cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
-    cli.set_option(MysqlClient::GetServerPublicKey(true));
-
-    cli.username(username);
-    cli.password(password);
-
-    ASSERT_NO_ERROR(
-        cli.connect(shared_router_->host(), shared_router_->port(GetParam())));
   }
 }
 
@@ -3715,56 +3456,6 @@ TEST_P(ReuseConnectionTest, x_protocol_session_authenticate_start_native) {
 }
 
 TEST_P(ReuseConnectionTest,
-       x_protocol_session_authenticate_start_sha256_password_empty) {
-  SCOPED_TRACE("// connect");
-
-  auto sess_res = xsess(GetParam());
-  ASSERT_NO_ERROR(sess_res);
-
-  auto sess = std::move(sess_res.value());
-
-  SCOPED_TRACE("// session::auth_start()");
-  {
-    auto account = shared_server_->sha256_empty_password_account();
-
-    auto xerr = sess->reauthenticate(account.username.c_str(),
-                                     account.password.c_str(), "");
-    if (GetParam().client_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kDisabled) {
-      ASSERT_EQ(xerr.error(), 1045) << xerr;
-      // Access denied for user ...@'localhost'
-    } else {
-      ASSERT_EQ(xerr.error(), 0) << xerr;
-    }
-  }
-}
-
-TEST_P(ReuseConnectionTest,
-       x_protocol_session_authenticate_start_sha256_password) {
-  SCOPED_TRACE("// connect");
-
-  auto sess_res = xsess(GetParam());
-  ASSERT_NO_ERROR(sess_res);
-
-  auto sess = std::move(sess_res.value());
-
-  SCOPED_TRACE("// session::auth_start()");
-  {
-    auto account = shared_server_->sha256_password_account();
-
-    auto xerr = sess->reauthenticate(account.username.c_str(),
-                                     account.password.c_str(), "");
-    if (GetParam().client_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kDisabled) {
-      ASSERT_EQ(xerr.error(), 1045) << xerr;
-      // Access denied for user ...@'localhost'
-    } else {
-      ASSERT_EQ(xerr.error(), 0) << xerr;
-    }
-  }
-}
-
-TEST_P(ReuseConnectionTest,
        x_protocol_session_authenticate_start_caching_sha2_password_empty) {
   // reset auth-cache for caching-sha2-password
   shared_server_->flush_prileges();
@@ -3856,57 +3547,6 @@ TEST_P(ReuseConnectionTest, x_protocol_connect_native) {
         sess->connect(shared_router_->host(), shared_router_->xport(GetParam()),
                       account.username.c_str(), account.password.c_str(), "");
     ASSERT_EQ(xerr.error(), 0) << xerr;
-  }
-}
-
-TEST_P(ReuseConnectionTest, x_protocol_connect_sha256_password_empty) {
-  // reset auth-cache for caching-sha2-password
-  shared_server_->flush_prileges();
-
-  SCOPED_TRACE("// setup");
-  auto sess = xcl::create_session();
-  auto account = shared_server_->sha256_empty_password_account();
-
-  SCOPED_TRACE("// connect");
-  {
-    auto xerr =
-        sess->connect(shared_router_->host(), shared_router_->xport(GetParam()),
-                      account.username.c_str(), account.password.c_str(), "");
-    if (GetParam().client_ssl_mode == kDisabled) {
-      ASSERT_EQ(xerr.error(), 2510) << xerr;
-      // Authentication failed, check username and password or try a secure
-      // connection
-    } else if (GetParam().server_ssl_mode == kDisabled) {
-      ASSERT_EQ(xerr.error(), 1251) << xerr;
-      // Invalid authentication method PLAIN
-    } else {
-      ASSERT_EQ(xerr.error(), 0) << xerr;
-    }
-  }
-}
-
-TEST_P(ReuseConnectionTest, x_protocol_connect_sha256_password) {
-  // reset auth-cache for caching-sha2-password
-  shared_server_->flush_prileges();
-
-  auto sess = xcl::create_session();
-  auto account = shared_server_->sha256_password_account();
-
-  SCOPED_TRACE("// connect");
-  {
-    auto xerr =
-        sess->connect(shared_router_->host(), shared_router_->xport(GetParam()),
-                      account.username.c_str(), account.password.c_str(), "");
-    if (GetParam().client_ssl_mode == kDisabled) {
-      ASSERT_EQ(xerr.error(), 2510) << xerr;
-      // Authentication failed, check username and password or try a secure
-      // connection
-    } else if (GetParam().server_ssl_mode == kDisabled) {
-      ASSERT_EQ(xerr.error(), 1251) << xerr;
-      // Invalid authentication method PLAIN
-    } else {
-      ASSERT_EQ(xerr.error(), 0) << xerr;
-    }
   }
 }
 

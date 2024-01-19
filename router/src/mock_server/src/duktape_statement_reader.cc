@@ -1084,6 +1084,7 @@ DuktapeStatementReader::handshake(bool is_greeting) {
   stdx::expected<classic_protocol::message::server::Greeting, std::error_code>
       server_greeting_res = default_server_greeting();
   std::chrono::microseconds exec_time{};
+  std::optional<std::string> auth_method_name;
   std::error_code ec{};
 
   duk_get_prop_string(ctx, -1, "handshake");
@@ -1160,6 +1161,15 @@ DuktapeStatementReader::handshake(bool is_greeting) {
         duk_pop(ctx);
       }
       duk_pop(ctx);
+
+      duk_get_prop_literal(ctx, -1, "method_name");
+      if (duk_is_string(ctx, -1)) {
+        auth_method_name = std::string(duk_to_string(ctx, -1));
+      } else if (!duk_is_undefined(ctx, -1)) {
+        ec = make_error_code(std::errc::invalid_argument);
+      }
+      duk_pop(ctx);
+
     } else if (!duk_is_undefined(ctx, -1)) {
       ec = make_error_code(std::errc::invalid_argument);
     }
@@ -1181,8 +1191,10 @@ DuktapeStatementReader::handshake(bool is_greeting) {
   }
 
   return handshake_data{
-      *server_greeting_res, username,    password, cert_required,
-      cert_subject,         cert_issuer, exec_time};
+      *server_greeting_res, username,     password,
+      auth_method_name,     std::nullopt, cert_required,
+      cert_subject,         cert_issuer,  exec_time,
+  };
 }
 
 // @pre on the stack is an object

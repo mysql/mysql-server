@@ -112,7 +112,7 @@ class DuktapeStatementReader : public StatementReaderBase {
   std::vector<AsyncNotice> get_async_notices() override;
 
   stdx::expected<handshake_data, ErrorResponse> handshake(
-      bool with_tls) override;
+      bool is_greeting) override;
 
  private:
   stdx::expected<classic_protocol::message::server::Greeting, std::error_code>

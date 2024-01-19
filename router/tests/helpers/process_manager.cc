@@ -515,6 +515,56 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
                                   wait_for_notify_ready);
 }
 
+ProcessWrapper &ProcessManager::MysqlServerMockSpawner::spawn() {
+  std::vector<std::string> server_params{
+      "--filename",       filename_,                      //
+      "--port",           std::to_string(classic_port_),  //
+      "--bind-address",   bind_address_,
+      "--logging-folder", logging_folder_,
+  };
+
+  server_params.emplace_back("--module-prefix");
+  if (module_prefix_.empty()) {
+    server_params.emplace_back(get_data_dir().str());
+  } else {
+    server_params.emplace_back(module_prefix_);
+  }
+
+  if (http_port_ > 0) {
+    server_params.emplace_back("--http-port");
+    server_params.emplace_back(std::to_string(http_port_));
+  }
+
+  if (x_port_ > 0) {
+    server_params.emplace_back("--xport");
+    server_params.emplace_back(std::to_string(x_port_));
+  }
+
+  if (enable_ssl_) {
+    server_params.emplace_back("--ssl-mode");
+    server_params.emplace_back("PREFERRED");
+    server_params.emplace_back("--ssl-key");
+    server_params.emplace_back(SSL_TEST_DATA_DIR "server-key.pem");
+    server_params.emplace_back("--ssl-cert");
+    server_params.emplace_back(SSL_TEST_DATA_DIR "server-cert.pem");
+  }
+
+  if (debug_mode_) {
+    server_params.emplace_back("--verbose");
+  }
+
+  auto &result = spwnr_.expected_exit_code(expected_exit_code_)
+                     .wait_for_notify_ready(wait_for_notify_ready_)
+                     .catch_stderr(true)
+                     .with_core_dump(true)
+                     .spawn(server_params);
+
+  result.set_logging_path(
+      logging_folder_, "mock_server_" + std::to_string(classic_port_) + ".log");
+
+  return result;
+}
+
 std::map<std::string, std::string> ProcessManager::get_DEFAULT_defaults()
     const {
   return {

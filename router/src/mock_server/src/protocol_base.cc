@@ -97,7 +97,7 @@ bool ProtocolBase::authenticate(const std::string &auth_method_name,
   } else {
     // there is also
     // - old_password (3.23, 4.0)
-    // - sha256_password (5.6, ...)
+    // - sha256_password (5.6, 8.3)
     // - windows_authentication (5.6, ...)
     return false;
   }

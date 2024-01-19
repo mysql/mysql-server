@@ -45,11 +45,18 @@
 #include "mysqlxclient/xsession.h"
 #include "plugin/x/client/mysqlxclient/xerror.h"
 #include "router/src/routing/src/ssl_mode.h"
+#include "router/src/routing/tests/mysql_client.h"
 #include "router_component_test.h"  // ProcessManager
 #include "router_component_testutils.h"
+#include "stdx_expected_no_error.h"
 
 using namespace std::string_literals;
 using namespace std::chrono_literals;
+
+std::ostream &operator<<(std::ostream &os, MysqlError e) {
+  os << e.sql_state() << " (" << e.value() << ") " << e.message();
+  return os;
+}
 
 class SplicerTest : public RouterComponentTest {
  protected:
@@ -109,6 +116,270 @@ TEST_F(SplicerTest, ssl_mode_default_preferred) {
 
   launch_router({"-c", conf_file});
   EXPECT_TRUE(wait_for_port_ready(router_port));
+}
+
+TEST_F(SplicerTest, auth_switch_unknown_auth_method) {
+  RecordProperty("Worklog", "16192");
+  RecordProperty("RequirementId", "FR1");
+  RecordProperty(
+      "Requirement",
+      "If `client_ssl_mode` is not `PASSTHROUGH` and the server switch to "
+      "`sha256_password`, "
+      "router MUST drop the server-connection and "
+      "fail the authentication with the client.");
+  RecordProperty("Description",
+                 "let the mock-server return 'unknown_method' as "
+                 "auth-switch-method. Router should then return the proper "
+                 "error to the client as the method isn't known.");
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  mysql_server_mock_spawner()
+      .filename(get_data_dir().join("unknown_auth_method.js").str())
+      .classic_port(server_port)
+      .with_ssl(false)
+      .spawn();
+
+  auto writer = config_writer(conf_dir_.name());
+  writer.section("routing",
+                 {
+                     {"bind_port", std::to_string(router_port)},
+                     {"destinations",
+                      mock_server_host_ + ":" + std::to_string(server_port)},
+                     {"routing_strategy", "round-robin"},
+                     {"client_ssl_mode", "PREFERRED"},
+                     {"server_ssl_mode", "PREFERRED"},
+                     {"client_ssl_key", valid_ssl_key_},
+                     {"client_ssl_cert", valid_ssl_cert_},
+                 });
+  router_spawner().spawn({"-c", writer.write()});
+
+  MysqlClient cli;
+  cli.username("user");
+  cli.password("pass");
+
+  {
+    auto connect_res = cli.connect("127.0.0.1", router_port);
+    ASSERT_ERROR(connect_res);
+    EXPECT_EQ(connect_res.error().value(), CR_AUTH_PLUGIN_CANNOT_LOAD)
+        << connect_res.error();
+  }
+}
+
+TEST_F(SplicerTest, auth_switch_unknown_auth_method_passthrough_without_ssl) {
+  RecordProperty("Worklog", "16192");
+  RecordProperty("RequirementId", "FR2.1");
+  RecordProperty(
+      "Requirement",
+      "If `client_ssl_mode` is `PASSTHROUGH` and the client-connection is NOT "
+      "encrypted and the server switches to `sha256_password`, "
+      "router MUST drop the server-connection and "
+      "fail the authentication with the client.");
+  RecordProperty("Description",
+                 "let the mock-server return 'unknown_method' as "
+                 "auth-switch-method. Router should then return the proper "
+                 "error to the client as the method isn't known.");
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  mysql_server_mock_spawner()
+      .filename(get_data_dir().join("unknown_auth_method.js").str())
+      .classic_port(server_port)
+      .with_ssl(false)
+      .spawn();
+
+  auto writer = config_writer(conf_dir_.name());
+  writer.section("routing",
+                 {
+                     {"bind_port", std::to_string(router_port)},
+                     {"destinations",
+                      mock_server_host_ + ":" + std::to_string(server_port)},
+                     {"routing_strategy", "round-robin"},
+                     {"client_ssl_mode", "PASSTHROUGH"},
+                     {"server_ssl_mode", "AS_CLIENT"},
+                 });
+  router_spawner().spawn({"-c", writer.write()});
+
+  MysqlClient cli;
+  cli.username("user");
+  cli.password("pass");
+
+  {
+    auto connect_res = cli.connect("127.0.0.1", router_port);
+    ASSERT_ERROR(connect_res);
+    EXPECT_EQ(connect_res.error().value(), CR_AUTH_PLUGIN_CANNOT_LOAD)
+        << connect_res.error();
+    EXPECT_THAT(connect_res.error().message(),
+                testing::HasSubstr("not supported by router"))
+        << connect_res.error();
+  }
+}
+
+TEST_F(SplicerTest, auth_switch_unknown_auth_method_passthrough_with_ssl) {
+  RecordProperty("Worklog", "16192");
+  RecordProperty("RequirementId", "FR2.2");
+  RecordProperty(
+      "Requirement",
+      "If `client_ssl_mode` is `PASSTHROUGH` and the client-connection IS "
+      "encrypted and the server switches to `sha256_password`, "
+      "router MUST drop the server-connection and "
+      "fail the authentication with the client.");
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  mysql_server_mock_spawner()
+      .filename(get_data_dir().join("unknown_auth_method.js").str())
+      .classic_port(server_port)
+      .with_ssl(true)
+      .spawn();
+
+  auto writer = config_writer(conf_dir_.name());
+  writer.section("routing:passthrough",
+                 {
+                     {"bind_port", std::to_string(router_port)},
+                     {"destinations",
+                      mock_server_host_ + ":" + std::to_string(server_port)},
+                     {"routing_strategy", "round-robin"},
+                     {"client_ssl_mode", "PASSTHROUGH"},
+                     {"server_ssl_mode", "AS_CLIENT"},
+                 });
+  router_spawner().spawn({"-c", writer.write()});
+
+  MysqlClient cli;
+  cli.username("user");
+  cli.password("pass");
+  cli.set_option(MysqlClient::SslMode(SSL_MODE_REQUIRED));
+
+  {
+    auto connect_res = cli.connect("127.0.0.1", router_port);
+    ASSERT_ERROR(connect_res);
+    EXPECT_EQ(connect_res.error().value(), CR_AUTH_PLUGIN_CANNOT_LOAD)
+        << connect_res.error();
+    EXPECT_THAT(connect_res.error().message(),
+                testing::Not(testing::HasSubstr("not supported by router")))
+        << connect_res.error();
+  }
+}
+
+TEST_F(SplicerTest, initial_unknown_auth_method) {
+  RecordProperty(
+      "Description",
+      "If the client starts with a unknown authentication method, it should be "
+      "ignored and left the server to switch to something known.");
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  mysql_server_mock_spawner()
+      .filename(get_data_dir().join("my_port.js").str())
+      .classic_port(server_port)
+      .with_ssl(true)
+      .spawn();
+
+  auto writer = config_writer(conf_dir_.name());
+  writer.section("routing:preferred",
+                 {
+                     {"bind_port", std::to_string(router_port)},
+                     {"destinations",
+                      mock_server_host_ + ":" + std::to_string(server_port)},
+                     {"routing_strategy", "round-robin"},
+                     {"client_ssl_mode", "PREFERRED"},
+                     {"server_ssl_mode", "PREFERRED"},
+                     {"client_ssl_key", valid_ssl_key_},
+                     {"client_ssl_cert", valid_ssl_cert_},
+                 });
+  router_spawner().spawn({"-c", writer.write()});
+
+  MysqlClient cli;
+
+  // creds of my_port.js
+  cli.username("username");
+  cli.password("password");
+  cli.set_option(MysqlClient::DefaultAuthentication("unknown_method"));
+
+  {
+    auto connect_res = cli.connect("127.0.0.1", router_port);
+    ASSERT_NO_ERROR(connect_res);
+  }
+}
+
+TEST_F(SplicerTest, initial_unknown_auth_method_passthrough_without_ssl) {
+  RecordProperty(
+      "Description",
+      "If the client starts with a unknown authentication method, it should be "
+      "ignored and left the server to switch to something known.");
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  mysql_server_mock_spawner()
+      .filename(get_data_dir().join("my_port.js").str())
+      .classic_port(server_port)
+      .with_ssl(false)
+      .spawn();
+
+  auto writer = config_writer(conf_dir_.name());
+  writer.section("routing:passthrough",
+                 {
+                     {"bind_port", std::to_string(router_port)},
+                     {"destinations",
+                      mock_server_host_ + ":" + std::to_string(server_port)},
+                     {"routing_strategy", "round-robin"},
+                     {"client_ssl_mode", "PASSTHROUGH"},
+                     {"server_ssl_mode", "AS_CLIENT"},
+                 });
+  router_spawner().spawn({"-c", writer.write()});
+
+  MysqlClient cli;
+
+  // creds of my_port.js
+  cli.username("username");
+  cli.password("password");
+  cli.set_option(MysqlClient::DefaultAuthentication("unknown_method"));
+  cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
+
+  {
+    auto connect_res = cli.connect("127.0.0.1", router_port);
+    ASSERT_NO_ERROR(connect_res);
+  }
+}
+
+TEST_F(SplicerTest, initial_unknown_auth_method_passthrough_with_ssl) {
+  RecordProperty(
+      "Description",
+      "If the client starts with a unknown authentication method, it should be "
+      "ignored and left the server to switch to something known.");
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  mysql_server_mock_spawner()
+      .filename(get_data_dir().join("my_port.js").str())
+      .classic_port(server_port)
+      .with_ssl(true)
+      .spawn();
+
+  auto writer = config_writer(conf_dir_.name());
+  writer.section("routing:passthrough",
+                 {
+                     {"bind_port", std::to_string(router_port)},
+                     {"destinations",
+                      mock_server_host_ + ":" + std::to_string(server_port)},
+                     {"routing_strategy", "round-robin"},
+                     {"client_ssl_mode", "PASSTHROUGH"},
+                     {"server_ssl_mode", "AS_CLIENT"},
+                 });
+  router_spawner().spawn({"-c", writer.write()});
+
+  MysqlClient cli;
+
+  // creds of my_port.js
+  cli.username("username");
+  cli.password("password");
+  cli.set_option(MysqlClient::DefaultAuthentication("unknown_method"));
+  cli.set_option(MysqlClient::SslMode(SSL_MODE_REQUIRED));
+
+  {
+    auto connect_res = cli.connect("127.0.0.1", router_port);
+    ASSERT_NO_ERROR(connect_res);
+  }
 }
 
 /**

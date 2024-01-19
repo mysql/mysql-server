@@ -38,8 +38,6 @@
 #include "classic_auth_cleartext_sender.h"
 #include "classic_auth_native_forwarder.h"
 #include "classic_auth_native_sender.h"
-#include "classic_auth_sha256_password_forwarder.h"
-#include "classic_auth_sha256_password_sender.h"
 #include "classic_frame.h"
 #include "harness_assert.h"
 #include "hexify.h"
@@ -244,6 +242,8 @@ AuthGenericForwarder::error() {
   return Result::Again;
 }
 
+// AuthForwarder
+
 stdx::expected<Processor::Result, std::error_code> AuthForwarder::process() {
   switch (stage()) {
     case Stage::Init:
@@ -299,10 +299,7 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::init() {
         Tracer::Event().stage("auth::forwarder::direct: " + auth_method_name));
   }
 
-  if (auth_method_name == AuthSha256Password::kName) {
-    connection()->push_processor(std::make_unique<AuthSha256Forwarder>(
-        connection(), initial_auth_method_data, true));
-  } else if (auth_method_name == AuthCachingSha2Password::kName) {
+  if (auth_method_name == AuthCachingSha2Password::kName) {
     connection()->push_processor(std::make_unique<AuthCachingSha2Forwarder>(
         connection(), initial_auth_method_data, true,
         client_requested_full_auth_));
@@ -313,8 +310,17 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::init() {
     connection()->push_processor(std::make_unique<AuthCleartextForwarder>(
         connection(), initial_auth_method_data, true));
   } else {
-    connection()->push_processor(std::make_unique<AuthGenericForwarder>(
-        connection(), auth_method_name, initial_auth_method_data, true));
+    // an unknown auth-method.
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        dst_conn, {2059,  // CR_AUTH_PLUGIN_CANNOT_LOAD
+                   "Authentication plugin '" + auth_method_name +
+                       "' cannot be loaded: not supported by router",
+                   "28000"});
+    if (!send_res) return send_client_failed(send_res.error());
+
+    stage(Stage::Done);
+    return Result::SendToClient;
   }
 
   stage(Stage::Response);
@@ -350,18 +356,7 @@ AuthForwarder::auth_method_switch() {
   // invalidates 'msg'
   discard_current_msg(src_conn);
 
-  if (auth_method_name == AuthSha256Password::kName) {
-    dst_protocol.auth_method_name(auth_method_name);
-    dst_protocol.auth_method_data(auth_method_data);
-
-    if (dst_protocol.password().has_value()) {
-      connection()->push_processor(std::make_unique<AuthSha256Sender>(
-          connection(), auth_method_data, dst_protocol.password().value()));
-    } else {
-      connection()->push_processor(std::make_unique<AuthSha256Forwarder>(
-          connection(), auth_method_data, false));
-    }
-  } else if (auth_method_name == AuthCachingSha2Password::kName) {
+  if (auth_method_name == AuthCachingSha2Password::kName) {
     dst_protocol.auth_method_name(auth_method_name);
     dst_protocol.auth_method_data(auth_method_data);
 
@@ -399,8 +394,16 @@ AuthForwarder::auth_method_switch() {
     dst_protocol.auth_method_name(auth_method_name);
     dst_protocol.auth_method_data(auth_method_data);
 
-    connection()->push_processor(std::make_unique<AuthGenericForwarder>(
-        connection(), auth_method_name, auth_method_data));
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        dst_conn, {2059,  // CR_AUTH_PLUGIN_CANNOT_LOAD
+                   "Authentication plugin '" + auth_method_name +
+                       "' cannot be loaded: not supported by router",
+                   "28000"});
+    if (!send_res) return send_client_failed(send_res.error());
+
+    stage(Stage::Done);
+    return Result::SendToClient;
   }
 
   stage(Stage::Response);

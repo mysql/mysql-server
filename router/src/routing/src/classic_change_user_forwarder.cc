@@ -26,12 +26,6 @@
 
 #include <optional>
 
-#include "classic_auth.h"
-#include "classic_auth_caching_sha2.h"
-#include "classic_auth_cleartext.h"
-#include "classic_auth_forwarder.h"
-#include "classic_auth_native.h"
-#include "classic_auth_sha256_password.h"
 #include "classic_change_user_sender.h"
 #include "classic_connect.h"
 #include "classic_connection_base.h"
