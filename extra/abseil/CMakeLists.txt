@@ -35,6 +35,14 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
+# absl/crc/internal/crc_memcpy_x86_64.cc:91:34:
+# warning: ignoring attributes on template argument __m128i [-Wignored-attributes]
+#    91 |   std::array<__m128i, vec_regions> data
+MY_CHECK_CXX_COMPILER_WARNING("-Wignored-attributes" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
 IF(FREEBSD)
   # Missing posix_memalign()
   ADD_DEFINITIONS(-D_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION)
