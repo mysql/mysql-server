@@ -534,8 +534,10 @@ struct mtr_write_log_t {
       // 分配空间，OS_FILE_LOG_BLOCK_SIZE为512B，先分个32MB看看
       // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE)
       // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)
-      unsigned char* redo_log_remote_buf = new unsigned char[64 * 1024 * OS_FILE_LOG_BLOCK_SIZE];
-      
+      const size_t redo_log_remote_buf_size = 64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
+      // unsigned char* redo_log_remote_buf = new unsigned char[redo_log_remote_buf_size];
+      // TODO: 这里和ATT分离部分不同，缺少thd，怎么调用rdma_buffer_allocator？？
+      unsigned char* redo_log_remote_buf = (unsigned char*)thd->rdma_buffer_allocator->Alloc(redo_log_remote_buf_size);
     }
 
 
