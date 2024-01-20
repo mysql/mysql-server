@@ -30,7 +30,7 @@
 
 # Refactors configuration options set on all Protobuf targets
 function(protobuf_configure_target target)
-    target_compile_features("${target}" PUBLIC cxx_std_14)
+    target_compile_features("${target}" PUBLIC cxx_std_17)
     if (MSVC)
         # Build with multiple processes
         if (NOT WIN32_CLANG)

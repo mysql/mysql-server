@@ -640,7 +640,8 @@ int main() { return 0; }
 if(ABSL_INTERNAL_AT_LEAST_CXX17)
   set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_17)
 else()
-  set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_14)
+  MESSAGE(WARNING "Upgrading from cxx_std_14 to cxx_std_17")
+  set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_17)
 endif()
 
 function(absl_internal_dll_contains)
