@@ -541,7 +541,7 @@ struct mtr_write_log_t {
       // unsigned char* redo_log_remote_buf = new unsigned char[redo_log_remote_buf_size];
       // 创建了一个新线程，调用rdma_buffer_allocator
       unsigned char* redo_log_remote_buf = (unsigned char*)remote_buf_thd->rdma_buffer_allocator->Alloc(redo_log_remote_buf_size);
-      
+
     }
 
 

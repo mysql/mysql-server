@@ -2228,6 +2228,10 @@ void log_writer(log_t *log_ptr) {
 
   ut_d(log.m_writer_thd = create_internal_thd());
 
+  if (log.m_remote_buf_thd == nullptr) {
+      log.m_remote_buf_thd = create_internal_thd();
+  }
+
   log_writer_mutex_enter(log);
 
   Log_thread_waiting waiting{log, log.writer_event, srv_log_writer_spin_delay,

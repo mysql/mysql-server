@@ -329,6 +329,11 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 #ifdef UNIV_DEBUG
   /** THD used by the log_writer thread. */
   THD *m_writer_thd;
+
+  /**
+   * @StateReplicate: A THD for managing remote redo log buffer
+   */
+  THD *m_remote_buf_thd;
 #endif /* UNIV_DEBUG */
 
   alignas(ut::INNODB_CACHE_LINE_SIZE) os_event_t writer_event;
