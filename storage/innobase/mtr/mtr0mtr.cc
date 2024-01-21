@@ -525,7 +525,7 @@ struct mtr_write_log_t {
      * 有可能很多个mtr共用一个log buffer，而且在该buf的不同位置并发读写
      */
 
-    // TODO: 是否应该在这里预分配空间？还是在其他地方？
+    // TODO: 在这里预分配空间不太对，应该是多个mtr共用一个大log buffer，应该再上去一层
     if (!redo_log_remote_buf_reserved) {
       // 此处应该加锁，但是暂时先不考虑并发
       // char* redo_log_remote_buf_latch = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
