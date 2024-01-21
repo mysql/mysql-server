@@ -86,6 +86,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "ut0byte.h"
 
 #include "sql/sql_class.h"
+// TODO: 暂时用这个头文件，之后换成log的
+#include "state/state_store/txn_list.h"
+#include "state/util/txn_list_util.h"
 
 // clang-format off
 /**************************************************/ /**
@@ -912,23 +915,21 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   return handle;
 }
 
-
-
 /**
  * [Deprecated] Reserve space in the redo log buffer for remote State Node
  * @StateReplicate 在状态层给 redo log 分配空间，以供接下来的写操作
  * 不要逐个log/mtr分配空间，而是直接分配一大块空间供使用
  * 把方法写到mtr0mtr.cc中，而不是log0buf
 
- * @param log 
- * @param len 
- * @return Log_handle 
+ * @param log
+ * @param len
+ * @return Log_handle
  *
  */
 Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   Log_handle handle;
-  // TODO: 这里需要有 log_buffer_s_lock_enter_reserve -> log_buffer_s_lock_wait 中的逻辑
-  // 即需要加锁，准备先实现功能后，再考虑多事务并发的问题
+  // 这里需要有 log_buffer_s_lock_enter_reserve -> log_buffer_s_lock_wait
+  // 中的逻辑 即需要加锁，准备先实现功能后，再考虑多事务并发的问题
 
   const sn_t start_sn = log.sn.fetch_add(len);
 
@@ -940,7 +941,7 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   /* 不判断，直接进入 log_wait_for_space_in_log_buf 的逻辑
   if (unlikely(end_sn > log.buf_limit_sn.load())) {
     log_wait_for_space_after_reserving(log, handle);
-  }  
+  }
   */
 
   // 状态层buffer暂不需扩容，每条log分配一定空间即可
@@ -949,29 +950,28 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   // Allocate memory for these redo logs in the remote State Node
   // if(trx->mysql_thd != nullptr) {
   //   THD* thd = trx->mysql_thd;
-  //   node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
-  //   RCQP* qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
+  //   node_id_t primary_node_id =
+  //   MetaManager::get_instance()->GetPrimaryNodeID(); RCQP* qp =
+  //   thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
   //   MetaManager* meta_mgr = MetaManager::get_instance();
 
-  //   // TODO: 怎么判断需要给 redo log 分配多少空间？分配空间能不能集成在写log buffer操作的函数中？
+  //   // TODO: 怎么判断需要给 redo log 分配多少空间？分配空间能不能集成在写log
+  //   buffer操作的函数中？
   //   // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
 
-  //   char* redo_log_remote_buf = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
-
-
+  //   char* redo_log_remote_buf =
+  //   thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
 
   //   }
-
 
   return handle;
 }
 
-
 /**
  * [Deprecated] Reserve space in the redo log buffer for remote State Node
  * @param[in,out]  log             redo log
- * @param[in]      handle          handle for the reservation 
- * 
+ * @param[in]      handle          handle for the reservation
+ *
  */
 // 参考 log_wait_for_space_in_log_buf 的辅助函数
 static void log_wait_for_space_in_remote_log_buf(log_t &log, sn_t end_sn) {
@@ -998,11 +998,10 @@ static void log_wait_for_space_in_remote_log_buf(log_t &log, sn_t end_sn) {
   // Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk);
   wait_stats = log_write_up_to(log, lsn, false);
 
-
   // MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_BUFFER_SPACE_, wait_stats);
 
   // ut_a(end_sn + OS_FILE_LOG_BLOCK_SIZE <=
-      // log_translate_lsn_to_sn(log.write_lsn.load()) + buf_size_sn);
+  // log_translate_lsn_to_sn(log.write_lsn.load()) + buf_size_sn);
 }
 
 /** @} */
@@ -1013,10 +1012,10 @@ static void log_wait_for_space_in_remote_log_buf(log_t &log, sn_t end_sn) {
 
  *******************************************************/
 
- /**
-  * @StateReplicate: Separate redo log, send them to StateNode by RDMA
-  * 
-  */
+/**
+ * @StateReplicate: Separate redo log, send them to StateNode by RDMA
+ *
+ */
 
 /** @{ */
 
@@ -1105,46 +1104,58 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     std::memcpy(ptr, str, len);
 
     /**
-     *  @StateReplicate: 
-     *  当一个事务需要写 log 时，首先需要获取 remote_addr，即需要向状态层的哪个位置写log，
-     *  然后通过 RDMA 操作将数据写入到该地址中。
-     *  
+     *  @StateReplicate:
+     *  当一个事务需要写 log 时，首先需要获取
+     * remote_addr，即需要向状态层的哪个位置写log， 然后通过 RDMA
+     * 操作将数据写入到该地址中。
+     *
      *  在此过程中，需要考虑数据结构共享访问的正确性，
      *  即，当多个事务都要读/写数据时，如何处理冲突，如何保证正确性
      *
      *  TODO: 将下面新写的逻辑抽象出一个函数，准备等全部写完跑通后再进行
      */
 
-
-    // 分配空间的函数已经抽到了 Log_handle log_remote_buf_reserve(log_t &log, size_t len)
-    // Allocate memory for these redo logs in the remote State Node
     if (log.m_remote_buf_thd == nullptr) {
-        log.m_remote_buf_thd = create_internal_thd();
+      log.m_remote_buf_thd = create_internal_thd();
     }
 
-      THD* thd = log.m_remote_buf_thd;
-      node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
-      RCQP* qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
-      MetaManager* meta_mgr = MetaManager::get_instance();
+    THD *thd = log.m_remote_buf_thd;
+    node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
+    RCQP *qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
+    MetaManager *meta_mgr = MetaManager::get_instance();
 
-      // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
+    // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
+    // 分配空间，OS_FILE_LOG_BLOCK_SIZE为512B，先分个32MB看看
+    // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE)
+    // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)
+    if (!thd->redo_log_remote_buf_reserved) {
+      thd->redo_log_remote_buf_reserved = true;
+      const size_t redo_log_remote_buf_size =
+          64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
+      l unsigned char *redo_log_remote_buf =
+          (unsigned char *)thd->rdma_buffer_allocator->Alloc(
+              redo_log_remote_buf_size);
+    }
 
-      // Get latch for redo_log_remote_buf
-      // 为锁分配空间，但是目前还没有锁
-      char* redo_log_remote_buf_latch = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
-      *(rwlatch_t*)redo_log_remote_buf_latch = REDOLOG_LOCKED; // REDOLOG_LOCKED 还未定义，这里先参考ATT分离写的
+    // Get latch for redo_log_remote_buf
+    // 为锁分配空间，但是目前还没有锁
+    char *redo_log_remote_buf_latch =
+        thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+    *(rwlatch_t *)redo_log_remote_buf_latch =
+        REDOLOG_LOCKED;  // REDOLOG_LOCKED 还未定义，这里先参考ATT分离写的
 
-      // Write redo logs into State Node and release latch
-      // 与ATT bitmap不同，log在写之前无需读取
-      // TODO: Need to change to real size of redo log.
-      size_t redo_log_size = 1024; // meta_mgr->GetTxnBitmapSize();
-      char* redo_log_remote_buf = thd->rdma_buffer_allocator->Alloc(redo_log_size);
-      // TODO: Need to change to remote address.
-      if(!thd->coro_sched->RDMAReadSync(0, qp, redo_log_remote_buf, meta_mgr->GetTxnListBitmapAddr(), redo_log_size)) {
-        return;
-      }
-
-
+    // Write redo logs into State Node and release latch
+    // 与ATT bitmap不同，log在写之前无需读取
+    // TODO: Need to change to real size of redo log.
+    size_t redo_log_size = 1024;  // meta_mgr->GetTxnBitmapSize();
+    char *redo_log_remote_buf =
+        thd->rdma_buffer_allocator->Alloc(redo_log_size);
+    // TODO: Need to change to remote address.
+    if (!thd->coro_sched->RDMAReadSync(0, qp, redo_log_remote_buf,
+                                       meta_mgr->GetTxnListBitmapAddr(),
+                                       redo_log_size)) {
+      return;
+    }
 
     // 状态分离部分截止，下面为原有逻辑
 

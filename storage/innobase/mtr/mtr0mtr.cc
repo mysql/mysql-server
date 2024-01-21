@@ -523,27 +523,33 @@ struct mtr_write_log_t {
 
     /**
      * @StateReplicate: mtr在这里调用log_buffer_write，将log写入buffer中
-     * 
+     *
      * 有可能很多个mtr共用一个log buffer，而且在该buf的不同位置并发读写
      */
+    /*
+        THD *remote_buf_thd = create_internal_thd();
+        // TODO: 在这里预分配空间不太对，应该是多个mtr共用一个大log
+       buffer，应该在哪分配呢？ if (!redo_log_remote_buf_reserved) {
+          // 此处应该加锁，但是暂时先不考虑并发
+          // char* redo_log_remote_buf_latch =
+       remote_buf_thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
 
-    THD *remote_buf_thd = create_internal_thd();
-    // TODO: 在这里预分配空间不太对，应该是多个mtr共用一个大log buffer，应该在哪分配呢？
-    if (!redo_log_remote_buf_reserved) {
-      // 此处应该加锁，但是暂时先不考虑并发
-      // char* redo_log_remote_buf_latch = remote_buf_thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+          redo_log_remote_buf_reserved = true;
+          // 分配空间，OS_FILE_LOG_BLOCK_SIZE为512B，先分个32MB看看
+          //
+       在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE)
+          //
+       每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)
+          const size_t redo_log_remote_buf_size = 64 * 1024 *
+       OS_FILE_LOG_BLOCK_SIZE;
+          // unsigned char* redo_log_remote_buf = new unsigned
+       char[redo_log_remote_buf_size];
+          // 创建了一个新线程，调用rdma_buffer_allocator
+          unsigned char* redo_log_remote_buf = (unsigned
+       char*)remote_buf_thd->rdma_buffer_allocator->Alloc(redo_log_remote_buf_size);
 
-      redo_log_remote_buf_reserved = true;
-      // 分配空间，OS_FILE_LOG_BLOCK_SIZE为512B，先分个32MB看看
-      // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE)
-      // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)
-      const size_t redo_log_remote_buf_size = 64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
-      // unsigned char* redo_log_remote_buf = new unsigned char[redo_log_remote_buf_size];
-      // 创建了一个新线程，调用rdma_buffer_allocator
-      unsigned char* redo_log_remote_buf = (unsigned char*)remote_buf_thd->rdma_buffer_allocator->Alloc(redo_log_remote_buf_size);
-
-    }
-
+        }
+    */
 
     // 以下为原有逻辑，不需要变更
 
@@ -583,7 +589,7 @@ struct mtr_write_log_t {
   lsn_t m_lsn;
   ulint m_left_to_write;
 
-  bool redo_log_remote_buf_reserved; // 是否已经预分配了空间
+  // bool redo_log_remote_buf_reserved;  // 是否已经预分配了空间
 };
 #endif /* !UNIV_HOTBACKUP */
 
@@ -867,14 +873,14 @@ void mtr_t::Command::add_dirty_blocks_to_flush_list(lsn_t start_lsn,
 }
 /**
  * @StateReplicate mtr的提交过程
- * 
+ *
  * mtr提交最重要的是cmd.execute()，首先通过prepare_write得到最终要写入的日志长度，分为5步：
  * log_buffer_reserve：等待recent_written的空间，预留logbuffer的空间，如果空间不够，会调用log_write_up_to清理LogBuffer空间；
  * log_write_up_to通过设置writer_event，异步触发log_writer写。
  * write_log：将m_log的内容memcpy到LogBuffer中，然后在recent_written加一个link。
  * log_wait_for_space_in_log_recent_closed：等待recent_closed的空间add_dirty_block_to_flush_list：将该mtr对应的脏页添加到flushlist中
  * log_buffer_close：在recent_closed中加一个link。
- * 
+ *
  */
 /** Write the redo log record, add dirty pages to the flush list and release
 the resources. */

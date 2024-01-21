@@ -331,7 +331,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   THD *m_writer_thd;
 
   /**
-   * @StateReplicate: A THD for managing remote redo log buffer
+   * @StateReplicate: A THD of log_t for managing remote redo log buffer
    */
   THD *m_remote_buf_thd;
 #endif /* UNIV_DEBUG */
