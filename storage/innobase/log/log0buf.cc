@@ -1125,6 +1125,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     MetaManager *meta_mgr = MetaManager::get_instance();
 
     // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
+
     // 分配空间，OS_FILE_LOG_BLOCK_SIZE为512B，先分个32MB看看
     // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE)
     // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)
@@ -1132,7 +1133,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       thd->redo_log_remote_buf_reserved = true;
       const size_t redo_log_remote_buf_size =
           64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
-      l unsigned char *redo_log_remote_buf =
+      unsigned char *redo_log_remote_buf =
           (unsigned char *)thd->rdma_buffer_allocator->Alloc(
               redo_log_remote_buf_size);
     }
