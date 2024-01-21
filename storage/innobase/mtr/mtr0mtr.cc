@@ -528,10 +528,10 @@ struct mtr_write_log_t {
      */
 
     THD *remote_buf_thd = create_internal_thd();
-    // TODO: 在这里预分配空间不太对，应该是多个mtr共用一个大log buffer，应该再上去一层？
+    // TODO: 在这里预分配空间不太对，应该是多个mtr共用一个大log buffer，应该在哪分配呢？
     if (!redo_log_remote_buf_reserved) {
       // 此处应该加锁，但是暂时先不考虑并发
-      // char* redo_log_remote_buf_latch = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+      // char* redo_log_remote_buf_latch = remote_buf_thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
 
       redo_log_remote_buf_reserved = true;
       // 分配空间，OS_FILE_LOG_BLOCK_SIZE为512B，先分个32MB看看
@@ -541,6 +541,7 @@ struct mtr_write_log_t {
       // unsigned char* redo_log_remote_buf = new unsigned char[redo_log_remote_buf_size];
       // 创建了一个新线程，调用rdma_buffer_allocator
       unsigned char* redo_log_remote_buf = (unsigned char*)remote_buf_thd->rdma_buffer_allocator->Alloc(redo_log_remote_buf_size);
+      
     }
 
 
