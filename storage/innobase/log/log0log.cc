@@ -658,7 +658,8 @@ static void log_sys_create() {
   /**
     * @StateReplicate: 这里是原有的分配log buffer的地方，我们也在这里分配空间
    */
-   
+
+
 
   // 以下为原有逻辑
 

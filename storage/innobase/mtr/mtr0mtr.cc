@@ -52,6 +52,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include "sql/sql_class.h"
+
 static_assert(static_cast<int>(MTR_MEMO_PAGE_S_FIX) ==
                   static_cast<int>(RW_S_LATCH),
               "");
@@ -525,7 +527,8 @@ struct mtr_write_log_t {
      * 有可能很多个mtr共用一个log buffer，而且在该buf的不同位置并发读写
      */
 
-    // TODO: 在这里预分配空间不太对，应该是多个mtr共用一个大log buffer，应该再上去一层
+    THD *remote_buf_thd = create_internal_thd();
+    // TODO: 在这里预分配空间不太对，应该是多个mtr共用一个大log buffer，应该再上去一层？
     if (!redo_log_remote_buf_reserved) {
       // 此处应该加锁，但是暂时先不考虑并发
       // char* redo_log_remote_buf_latch = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
@@ -536,8 +539,8 @@ struct mtr_write_log_t {
       // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)
       const size_t redo_log_remote_buf_size = 64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
       // unsigned char* redo_log_remote_buf = new unsigned char[redo_log_remote_buf_size];
-      // TODO: 这里和ATT分离部分不同，缺少thd，怎么调用rdma_buffer_allocator？？
-      unsigned char* redo_log_remote_buf = (unsigned char*)thd->rdma_buffer_allocator->Alloc(redo_log_remote_buf_size);
+      // 创建了一个新线程，调用rdma_buffer_allocator
+      unsigned char* redo_log_remote_buf = (unsigned char*)remote_buf_thd->rdma_buffer_allocator->Alloc(redo_log_remote_buf_size);
     }
 
 
