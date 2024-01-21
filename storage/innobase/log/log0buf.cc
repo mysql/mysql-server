@@ -1142,21 +1142,9 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // 为锁分配空间，但是目前还没有锁
     char *redo_log_remote_buf_latch =
         thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
-    *(rwlatch_t *)redo_log_remote_buf_latch =
-        REDOLOG_LOCKED;  // REDOLOG_LOCKED 还未定义，这里先参考ATT分离写的
+    *(rwlatch_t *)redo_log_remote_buf_latch = REDOLOG_LOCKED;
 
     // Write redo logs into State Node and release latch
-    // 与ATT bitmap不同，log在写之前无需读取
-    // TODO: Need to change to real size of redo log.
-    size_t redo_log_size = 1024;  // meta_mgr->GetTxnBitmapSize();
-    char *redo_log_remote_buf =
-        thd->rdma_buffer_allocator->Alloc(redo_log_size);
-    // TODO: Need to change to remote address.
-    if (!thd->coro_sched->RDMAReadSync(0, qp, redo_log_remote_buf,
-                                       meta_mgr->GetTxnListBitmapAddr(),
-                                       redo_log_size)) {
-      return;
-    }
 
     // 状态分离部分截止，下面为原有逻辑
 
