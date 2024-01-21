@@ -85,6 +85,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* ut_uint64_align_down */
 #include "ut0byte.h"
 
+#include "sql/sql_class.h"
+
 // clang-format off
 /**************************************************/ /**
  @page PAGE_INNODB_REDO_LOG_BUF Redo log buffer
@@ -942,15 +944,6 @@ Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
   */
 
   // 状态层buffer暂不需扩容，每条log分配一定空间即可
-  // TODO: 是按照mtr分配空间，还是按照单条log？？
-
-  const sn_t start_sn = log_translate_lsn_to_sn(handle.start_lsn);
-  const sn_t end_sn = log_translate_lsn_to_sn(handle.end_lsn);
-  const sn_t len_sn = end_sn - start_sn;
-
-  // TODO: 这里需要等待可用空间吗？暂时默认State Node具有充足空间，直接分配
-  log_wait_for_space_in_remote_log_buf(log, start_sn);
-  log_wait_for_space_in_remote_log_buf(log, end_sn);
 
   // 分配空间
   // Allocate memory for these redo logs in the remote State Node
@@ -1125,19 +1118,21 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
 
     // 分配空间的函数已经抽到了 Log_handle log_remote_buf_reserve(log_t &log, size_t len)
     // Allocate memory for these redo logs in the remote State Node
-    if(trx->mysql_thd != nullptr) {
-      THD* thd = trx->mysql_thd;
+    if (log.m_remote_buf_thd == nullptr) {
+        log.m_remote_buf_thd = create_internal_thd();
+    }
+
+      THD* thd = log.m_remote_buf_thd;
       node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
       RCQP* qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
       MetaManager* meta_mgr = MetaManager::get_instance();
 
-      // TODO: 怎么判断需要给 redo log 分配多少空间？分配空间能不能集成在写log buffer操作的函数中？
       // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
 
       // Get latch for redo_log_remote_buf
       // 为锁分配空间，但是目前还没有锁
       char* redo_log_remote_buf_latch = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
-      *(rwlatch_t*)bitmap_latch_buf = REDOLOG_LOCKED; // REDOLOG_LOCKED 还未定义，这里先参考ATT分离写的
+      *(rwlatch_t*)redo_log_remote_buf_latch = REDOLOG_LOCKED; // REDOLOG_LOCKED 还未定义，这里先参考ATT分离写的
 
       // Write redo logs into State Node and release latch
       // 与ATT bitmap不同，log在写之前无需读取
@@ -1148,7 +1143,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       if(!thd->coro_sched->RDMAReadSync(0, qp, redo_log_remote_buf, meta_mgr->GetTxnListBitmapAddr(), redo_log_size)) {
         return;
       }
-    }
+
 
 
     // 状态分离部分截止，下面为原有逻辑
