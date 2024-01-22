@@ -457,13 +457,13 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     if (parent_object->kind == KindType::PARAMETERS) {
       auto parameter_field =
           dynamic_cast<entry::ParameterField *>(dfield.get());
-      parameter_field->mode = ModeType::NONE;
+      parameter_field->mode = ModeType::kNONE;
       if (parameter_in && parameter_out)
-        parameter_field->mode = ModeType::IN_OUT;
+        parameter_field->mode = ModeType::kIN_OUT;
       else if (parameter_in)
-        parameter_field->mode = ModeType::IN;
+        parameter_field->mode = ModeType::kIN;
       else if (parameter_out)
-        parameter_field->mode = ModeType::OUT;
+        parameter_field->mode = ModeType::kOUT;
     }
     CONVERT_WITH_DEFAULT(&column->srid, static_cast<uint32_t>(0));
     row.unserialize(&dfield->allow_filtering);

@@ -61,7 +61,7 @@ enum class ColumnType {
 
 enum class KindType { PARAMETERS, RESULT };
 
-enum class ModeType { NONE, IN, OUT, IN_OUT };
+enum class ModeType { kNONE, kIN, kOUT, kIN_OUT };
 
 class Column {
  public:
@@ -180,7 +180,7 @@ class ParameterField : public DataField {
 
   ParameterField &operator=(const ParameterField &) = default;
 
-  ModeType mode{ModeType::NONE};
+  ModeType mode{ModeType::kNONE};
 };
 
 class Object {

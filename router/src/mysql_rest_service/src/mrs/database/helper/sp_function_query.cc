@@ -88,7 +88,7 @@ ColumnValues create_function_argument_list(
         (ownership.user_ownership_column == pfiled->source->name)) {
       if (!user_id) throw std::invalid_argument("Authentication is required.");
       result.push_back(to_sqlstring(*user_id));
-    } else if (pfiled->mode == entry::ModeType::IN) {
+    } else if (pfiled->mode == entry::ModeType::kIN) {
       auto it = doc.FindMember(pfiled->name.c_str());
       if (it == doc.MemberEnd())
         throw std::invalid_argument("Missing required field '"s + pfiled->name +
@@ -177,7 +177,7 @@ ColumnValues create_function_argument_list(
         (ownership.user_ownership_column == pfiled->source->name)) {
       if (!user_id) throw std::invalid_argument("Authentication is required.");
       result.push_back(to_sqlstring(*user_id));
-    } else if (pfiled->mode == entry::ModeType::IN) {
+    } else if (pfiled->mode == entry::ModeType::kIN) {
       auto it = url_query.find(ofield->name);
 
       if (url_query.end() == it)
