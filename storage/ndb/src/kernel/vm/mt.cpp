@@ -1800,6 +1800,14 @@ struct thr_send_thread_instance {
   /* 'true': More trps became available -> Need recheck ::get_trp() */
   bool m_more_trps;
 
+  /**
+   * The send thread has a list of transporters to neighbour nodes which
+   * are given extra priority when sending. The neighbour list is simply
+   * an array of the neighbour trps and we will send on one of these
+   * transporters if it is_in_queue() AND 'm_next_is_high_prio_trp'. Else we
+   * pick a transporter from the head of the queue (which could also turn out to
+   * be a neighbour)
+   */
 #define MAX_NEIGHBOURS (3 * MAX_NODE_GROUP_TRANSPORTERS)
   Uint32 m_num_neighbour_trps;
   Uint32 m_neighbour_trp_index;
@@ -1832,9 +1840,10 @@ struct thr_send_thread_instance {
 
 struct thr_send_trps {
   /**
-   * 'm_next' implements a list of 'send_trps' with PENDING'
+   * 'm_prev' & 'm_next' implements a list of 'send_trps' with PENDING
    * data, not yet assigned to a send thread. 0 means NULL.
    */
+  TrpId m_prev;
   TrpId m_next;
 
   /**
@@ -1881,31 +1890,8 @@ struct thr_send_trps {
    */
   Uint16 m_data_available;
 
-  /**
-   * This variable shows which trp is actually sending for the moment.
-   * This will be reset again immediately after sending is completed.
-   * It is used to ensure that neighbour trps aren't taken out for
-   * sending by more than one thread. The neighbour list is simply
-   * an array of the neighbours and we will send if data is available
-   * to send AND no one else is sending which is checked by looking at
-   * this variable.
-   */
-  Uint16 m_thr_no_sender;
-
   /* Send to this trp has caused a Transporter overload */
   Uint16 m_send_overload;
-
-  /**
-   * This is neighbour trp in the same node group as ourselves. This means
-   * that we are likely to communicate with this trp more heavily than
-   * other trps. Also delays in this communication will make the updates
-   * take much longer since updates has to traverse this link and the
-   * corresponding link back 6 times as part of an updating transaction.
-   *
-   * Thus for good performance of updates it is essential to prioritise this
-   * link a bit.
-   */
-  bool m_neighbour_trp;
 
   /**
    * Further sending to this trp should be delayed until
@@ -1987,6 +1973,9 @@ class thr_send_threads {
   TrpId get_trp(Uint32 instance_no, NDB_TICKS now,
                 struct thr_send_thread_instance *send_instance);
 
+  /* Is the TrpId inserted in the list of trps */
+  bool is_enqueued(TrpId trp_id, struct thr_send_thread_instance *) const;
+
   /* Update rusage parameters for send thread. */
   void update_rusage(struct thr_send_thread_instance *this_send_thread,
                      Uint64 elapsed_time);
@@ -2056,16 +2045,28 @@ class thr_send_threads {
     elapsed_time_os = m_send_threads[send_instance].m_elapsed_time_os;
     NdbMutex_Unlock(m_send_threads[send_instance].send_thread_mutex);
   }
+
+  /**
+   * The send threads may give higher priorities to send over trps connecting
+   * neighbour nodes. Such nodes are in the same node group as ourselves.
+   * This means that we are likely to communicate with this trp more heavily
+   * than other trps. Also delays in this communication will make the updates
+   * take much longer since updates has to traverse this link and the
+   * corresponding link back 6 times as part of an updating transaction.
+   *
+   * Thus for good performance of updates it is essential to prioritise
+   * these links a bit.
+   *
+   * The '*NeighbourNode()' methods below are the interface to set up
+   * up such neighbours.
+   */
   void startChangeNeighbourNode() {
     for (Uint32 i = 0; i < globalData.ndbMtSendThreads; i++) {
       NdbMutex_Lock(m_send_threads[i].send_thread_mutex);
-      for (Uint32 j = 0; j < MAX_NEIGHBOURS; j++) {
+      for (Uint32 j = 0; j < m_send_threads[i].m_num_neighbour_trps; j++) {
         m_send_threads[i].m_neighbour_trps[j] = 0;
       }
       m_send_threads[i].m_num_neighbour_trps = 0;
-    }
-    for (Uint32 i = 0; i < MAX_NTRANSPORTERS; i++) {
-      m_trp_state[i].m_neighbour_trp = false;
     }
   }
   void setNeighbourNode(NodeId nodeId) {
@@ -2077,9 +2078,8 @@ class thr_send_threads {
     globalTransporterRegistry.get_trps_for_node(nodeId, &trpId[0], num_ids,
                                                 MAX_NODE_GROUP_TRANSPORTERS);
     for (Uint32 index = 0; index < num_ids; index++) {
-      TrpId this_id = trpId[index];
-      Uint32 send_instance = get_send_instance(this_id);
-      m_trp_state[this_id].m_neighbour_trp = true;
+      const TrpId this_id = trpId[index];
+      const Uint32 send_instance = get_send_instance(this_id);
       for (Uint32 i = 0; i < MAX_NEIGHBOURS; i++) {
         require(m_send_threads[send_instance].m_neighbour_trps[i] != this_id);
         if (m_send_threads[send_instance].m_neighbour_trps[i] == 0) {
@@ -2097,23 +2097,12 @@ class thr_send_threads {
     }
   }
   void endChangeNeighbourNode() {
-    /**
-     * If a transporter was in the transporter list before (don't think it
-     * should be possible) it doesn't represent an issue since it will simply
-     * be handled twice, first from neighbour list and second from list of
-     * transporters.
-     *
-     * The opposite behaviour that a transporter goes from neighbour to not
-     * a neighbour transporter any more should only happen in node failures
-     * and in that case the transporter should not have any data to send
-     * and the transporter will be cleared before the node is allowed to
-     * restart again.
-     */
     for (Uint32 i = 0; i < globalData.ndbMtSendThreads; i++) {
       m_send_threads[i].m_neighbour_trp_index = 0;
       NdbMutex_Unlock(m_send_threads[i].send_thread_mutex);
     }
   }
+
   void setNodeOverloadStatus(OverloadStatus new_status) {
     /**
      * The read of this variable is unsafe, but has no dire consequences
@@ -2148,12 +2137,11 @@ thr_send_threads::thr_send_threads()
   struct thr_repository *rep = g_thr_repository;
 
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_trp_state); i++) {
+    m_trp_state[i].m_prev = 0;
     m_trp_state[i].m_next = 0;
     m_trp_state[i].m_data_available = 0;
-    m_trp_state[i].m_thr_no_sender = Uint16(NO_OWNER_THREAD);
     m_trp_state[i].m_send_overload = false;
     m_trp_state[i].m_micros_delayed = 0;
-    m_trp_state[i].m_neighbour_trp = false;
     m_trp_state[i].m_overload_counter = 0;
     NdbTick_Invalidate(&m_trp_state[i].m_inserted_time);
   }
@@ -2356,26 +2344,72 @@ thr_send_threads::get_send_thread_instance_by_trp(TrpId trp_id) {
 void thr_send_threads::insert_trp(
     TrpId trp_id, struct thr_send_thread_instance *send_instance) {
   struct thr_send_trps &trp_state = m_trp_state[trp_id];
+  assert(trp_state.m_data_available > 0);
 
   send_instance->m_more_trps = true;
   /* Ensure the lock free ::data_available see 'm_more_trps == true' */
   wmb();
 
-  if (trp_state.m_neighbour_trp) return;
+  // Not in list already
+  assert(!is_enqueued(trp_id, send_instance));
 
-  TrpId first_trp = send_instance->m_first_trp;
-  struct thr_send_trps &last_trp_state = m_trp_state[send_instance->m_last_trp];
-  assert(trp_state.m_next == 0);                // Not already inserted
-  assert(send_instance->m_last_trp != trp_id);  // Not already inserted
+  // Inserts trp_id last in the TrpId list
+  const TrpId first_trp = send_instance->m_first_trp;
+  const TrpId last_trp = send_instance->m_last_trp;
+  struct thr_send_trps &last_trp_state = m_trp_state[last_trp];
+  trp_state.m_prev = 0;
   trp_state.m_next = 0;
   send_instance->m_last_trp = trp_id;
-  assert(trp_state.m_data_available > 0);
 
   if (first_trp == 0) {
+    // TrpId list was empty
     send_instance->m_first_trp = trp_id;
   } else {
     last_trp_state.m_next = trp_id;
+    trp_state.m_prev = last_trp;
   }
+}
+
+/**
+ * Check whether the specified TrpId is inserted in the list of
+ * trps available to be picked up by a (assist-)send-thread.
+ *
+ * With DEBUG enabled some consistency check of the list
+ * structures is also performed.
+ *
+ * It is a prereq. that the specified send_instance must be
+ * the send_thread assigned to handle this TrpId
+ *
+ * Called under mutex protection of send_thread_mutex
+ */
+bool thr_send_threads::is_enqueued(
+    const TrpId trp_id, struct thr_send_thread_instance *send_instance) const {
+#ifndef NDEBUG
+  // Verify consistency of TrpId list
+  if (send_instance->m_first_trp == 0 || send_instance->m_last_trp == 0) {
+    assert(send_instance->m_first_trp == 0);
+    assert(send_instance->m_last_trp == 0);
+    assert(m_trp_state[trp_id].m_prev == 0);
+    assert(m_trp_state[trp_id].m_next == 0);
+  }
+  if (send_instance->m_last_trp != 0 && m_trp_state[trp_id].m_next != 0) {
+    TrpId id = trp_id;
+    while (m_trp_state[id].m_next != 0) {
+      id = m_trp_state[id].m_next;
+    }
+    assert(id == send_instance->m_last_trp);
+  }
+  if (send_instance->m_first_trp != 0 && m_trp_state[trp_id].m_prev != 0) {
+    TrpId id = trp_id;
+    while (m_trp_state[id].m_prev != 0) {
+      id = m_trp_state[id].m_prev;
+    }
+    assert(id == send_instance->m_first_trp);
+  }
+#endif
+
+  return send_instance->m_first_trp == trp_id ||
+         m_trp_state[trp_id].m_prev != 0;
 }
 
 /**
@@ -2477,13 +2511,13 @@ static const Uint64 MAX_SEND_BUFFER_SIZE_TO_DELAY = (20 * 1024);
  * Called under mutex protection of send_thread_mutex
  */
 static constexpr TrpId DELAYED_PREV_NODE_IS_NEIGHBOUR = UINT_MAX16;
+
 TrpId thr_send_threads::get_trp(
     Uint32 instance_no, NDB_TICKS now,
     struct thr_send_thread_instance *send_instance) {
   TrpId next;
   TrpId trp_id;
   bool retry = false;
-  TrpId prev = 0;
   TrpId delayed_trp = 0;
   TrpId delayed_prev_trp = 0;
   Uint32 min_wait_usec = UINT_MAX32;
@@ -2496,8 +2530,8 @@ TrpId thr_send_threads::get_trp(
         neighbour_trp_index++;
         if (neighbour_trp_index == num_neighbour_trps) neighbour_trp_index = 0;
         send_instance->m_neighbour_trp_index = neighbour_trp_index;
-        if (m_trp_state[trp_id].m_data_available > 0 &&
-            m_trp_state[trp_id].m_thr_no_sender == NO_OWNER_THREAD) {
+
+        if (is_enqueued(trp_id, send_instance)) {
           const Uint32 send_delay = check_delay_expired(trp_id, now);
           if (likely(send_delay == 0)) {
             /**
@@ -2571,7 +2605,6 @@ TrpId thr_send_threads::get_trp(
      * Search for a trp ready to be sent to among the non-neighbour trps.
      * If none found, remember the one with the smallest delay.
      */
-    prev = 0;
     while (trp_id) {
       next = m_trp_state[trp_id].m_next;
 
@@ -2590,10 +2623,8 @@ TrpId thr_send_threads::get_trp(
       if (min_wait_usec > send_delay) {
         min_wait_usec = send_delay;
         delayed_trp = trp_id;
-        delayed_prev_trp = prev;
+        delayed_prev_trp = m_trp_state[trp_id].m_prev;
       }
-
-      prev = trp_id;
       trp_id = next;
     }
 
@@ -2648,64 +2679,63 @@ found_delayed_trp:
    * neighbour trps.
    */
   assert(delayed_trp != 0);
+  assert(is_enqueued(delayed_trp, send_instance));
   trp_id = delayed_trp;
   if (delayed_prev_trp == DELAYED_PREV_NODE_IS_NEIGHBOUR) {
     /**
-     * Go to handling of found neighbour as we have decided to return
-     * this delayed neighbour trp.
+     * If we now returns a priority neighbour,
+     * return from head of queue next time.
      */
     send_instance->m_next_is_high_prio_trp = false;
-    goto found_neighbour;
   } else {
     send_instance->m_next_is_high_prio_trp = true;
   }
-
-  prev = delayed_prev_trp;
-  next = m_trp_state[trp_id].m_next;
-
   /**
-   * Fall through to found_non_neighbour since we have decided that this
+   * Fall through to found_neighbour since we have decided that this
    * delayed trp will be returned.
    */
 
+found_neighbour:
+  next = m_trp_state[trp_id].m_next;
+
 found_non_neighbour:
   /**
-   * We are going to return a non-neighbour trp, either delayed
-   * or not. We need to remove it from the list of non-neighbour
-   * trps to send to.
+   * We found a TrpId to send to, either delayed or not.
+   * Both neighbour and non-neighbour trps are in the list
+   * of trps to send to, need to remove it now.
    */
+  struct thr_send_trps &trp_state = m_trp_state[trp_id];
+  const TrpId first_trp = send_instance->m_first_trp;
+  const TrpId last_trp = send_instance->m_last_trp;
+  const TrpId prev = trp_state.m_prev;
+  assert(next == trp_state.m_next);
 
-  if (likely(trp_id == send_instance->m_first_trp)) {
-    send_instance->m_first_trp = next;
+  // Remove from TrpId list
+  if (trp_id == first_trp) {
     assert(prev == 0);
+    send_instance->m_first_trp = next;
+    m_trp_state[next].m_prev = prev;
   } else {
     assert(prev != 0);
     m_trp_state[prev].m_next = next;
   }
 
-  if (trp_id == send_instance->m_last_trp) send_instance->m_last_trp = prev;
-
-  /**
-   * Fall through for non-neighbour trps to same return handling as
-   * neighbour trps.
-   */
-
-found_neighbour:
-  /**
-   * We found a trp to return, we will update the data available,
-   * we also need to set m_thr_no_sender to indicate which thread
-   * is owning the right to send to this trp for the moment.
-   *
-   * Neighbour trps can go directly here since they are not
-   * organised in any lists, but we come here also for
-   * non-neighbour trps.
-   */
-  struct thr_send_trps &trp_state = m_trp_state[trp_id];
-
-  assert(trp_state.m_data_available > 0);
-  assert(trp_state.m_thr_no_sender == NO_OWNER_THREAD);
+  if (trp_id == last_trp) {
+    assert(next == 0);
+    send_instance->m_last_trp = prev;
+  } else {
+    m_trp_state[next].m_prev = prev;
+  }
+  trp_state.m_prev = 0;
   trp_state.m_next = 0;
+
+  /**
+   * We have a trp ready to be returned, we will update the data_available
+   * such that an ACTIVE-state is reflected.
+   */
+  assert(trp_state.m_data_available > 0);
   trp_state.m_data_available = 1;
+  assert(!is_enqueued(trp_id, send_instance));
   return trp_id;
 }
 
@@ -2809,7 +2839,7 @@ Uint32 thr_send_threads::alert_send_thread(
     return 0;
   }
   assert(!trp_state.m_send_overload);  // Caught above as ACTIVE
-  assert(m_trp_state[trp_id].m_thr_no_sender == NO_OWNER_THREAD);
+  assert(!is_enqueued(trp_id, send_instance));
   insert_trp(trp_id, send_instance);  // IDLE -> PENDING
 
   /**
@@ -3137,19 +3167,12 @@ bool thr_send_threads::assist_send_thread(
     if (!handle_send_trp(trp_id, num_trps_sent, thr_no, now, watchdog_counter,
                          send_instance)) {
       /**
-       * Neighbour trps are locked through setting
-       * m_trp_state[id].m_thr_no_sender to thr_no while holding
-       * the mutex. This flag is set between start of send and end
-       * of send. In this case there was no send so the flag isn't
-       * set now, since we insert it back immediately it will simply
-       * remain unset. We assert on this just in case.
-       *
        * Only transporters waiting for delay to expire was waiting to send,
        * we will skip sending in this case and leave it for the send
        * thread to handle it. No reason to set pending_send to true since
        * there is no hurry to send (through setting id = 0 below).
        */
-      assert(m_trp_state[trp_id].m_thr_no_sender == NO_OWNER_THREAD);
+      assert(!is_enqueued(trp_id, send_instance));
       insert_trp(trp_id, send_instance);
       trp_id = 0;
       break;
@@ -3183,7 +3206,7 @@ bool thr_send_threads::handle_send_trp(
     TrpId trp_id, Uint32 &num_trps_sent, Uint32 thr_no, NDB_TICKS &now,
     Uint32 &watchdog_counter, struct thr_send_thread_instance *send_instance) {
   assert(send_instance == get_send_thread_instance_by_trp(trp_id));
-  assert(m_trp_state[trp_id].m_thr_no_sender == NO_OWNER_THREAD);
+  assert(!is_enqueued(trp_id, send_instance));
   if (m_trp_state[trp_id].m_micros_delayed > 0)  // Trp send is delayed
   {
     /**
@@ -3229,8 +3252,7 @@ bool thr_send_threads::handle_send_trp(
 #ifdef VM_TRACE
   my_thread_yield();
 #endif
-  assert(m_trp_state[trp_id].m_thr_no_sender == NO_OWNER_THREAD);
-  m_trp_state[trp_id].m_thr_no_sender = thr_no;
+  assert(!is_enqueued(trp_id, send_instance));
   NdbMutex_Unlock(send_instance->send_thread_mutex);
 
   watchdog_counter = 6;
@@ -3281,8 +3303,7 @@ bool thr_send_threads::handle_send_trp(
 #ifdef VM_TRACE
   my_thread_yield();
 #endif
-  assert(m_trp_state[trp_id].m_thr_no_sender == thr_no);
-  m_trp_state[trp_id].m_thr_no_sender = NO_OWNER_THREAD;
+  assert(!is_enqueued(trp_id, send_instance));
   if (more ||                   // ACTIVE   -> PENDING
       !check_done_trp(trp_id))  // ACTIVE-P -> PENDING
   {
@@ -3489,14 +3510,9 @@ void thr_send_threads::run_send_thread(Uint32 instance_no) {
       /**
        * The trp was locked during our sleep. We now release the
        * lock again such that we can acquire the lock again after
-       * a short sleep. For non-neighbour trps the insert_trp is
-       * sufficient. For neighbour trps we need to ensure that
-       * m_trp_state[trp_id].m_thr_no_sender is set to NO_OWNER_THREAD
-       * since this is the manner in releasing the lock on those
-       * trps.
+       * a short sleep.
        */
-      assert(m_trp_state[trp_id].m_thr_no_sender == thr_no);
-      m_trp_state[trp_id].m_thr_no_sender = NO_OWNER_THREAD;
+      assert(!is_enqueued(trp_id, this_send_thread));
       insert_trp(trp_id, this_send_thread);
       trp_id = 0;
     }
@@ -3509,21 +3525,18 @@ void thr_send_threads::run_send_thread(Uint32 instance_no) {
                            this_send_thread->m_watchdog_counter,
                            this_send_thread)) {
         /**
-         * Neighbour trps are not locked by get_trp and insert_trp.
-         * They are locked by setting
-         * m_trp_state[trp_id].m_thr_no_sender to thr_no.
-         * Here we returned false from handle_send_trp since we were
-         * not allowed to send to trp at this time. We want to keep
-         * lock on trp as get_trp does for non-neighbour trps, so
-         * we set this flag to retain lock even after we release mutex.
-         * We also use asserts to ensure the state transitions are ok.
-         *
-         * The transporter is reinserted into the list of transporters
-         * ready to transmit above in the code since id != 0 when we
-         * return after sleep.
+         * For now we keep this trp_id for ourself, without a re-insert
+         * into the trps lists. Thus it is effectively locked for other
+         * (assist-)send-threads. This trp has the shortest m_micros_delayed
+         * among the waiting transporters, thus we are going to yield
+         * for this periode.
+         * When we wake up again, the transporter is reinserted into the
+         * list of transporters (above) and get_trp() will find the
+         * transporter now being the most suitable - Possibly the same
+         * we just waited for, now with the wait time expired.
          */
-        assert(m_trp_state[trp_id].m_thr_no_sender == NO_OWNER_THREAD);
-        m_trp_state[trp_id].m_thr_no_sender = thr_no;
+        assert(m_trp_state[trp_id].m_micros_delayed > 0);
+        assert(!is_enqueued(trp_id, this_send_thread));
         break;
       }
 
