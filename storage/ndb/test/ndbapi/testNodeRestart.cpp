@@ -2337,6 +2337,9 @@ int runBug27466(NDBT_Context *ctx, NDBT_Step *step) {
 
     res.startNodes(&node1, 1);
     if (res.waitClusterStarted()) return NDBT_FAILED;
+    // Error is consumed only in one DBTC block.
+    // Force error to be cleared in all DBTC instances.
+    CHECK(res.insertErrorInNode(node2, 0) == 0, "Failed to clear insertError");
   }
 
   return NDBT_OK;
