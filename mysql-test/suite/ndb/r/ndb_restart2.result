@@ -1,0 +1,19 @@
+CREATE TABLE test.t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL,
+attr2 INT,
+attr3 VARCHAR(10)
+) ENGINE=ndb;
+INSERT INTO t1 VALUES (9410, 9412, NULL, '9412'), (9411, 9413, 17, '9413');
+-- Restart all data nodes to not-started state
+-- Inject error while system is restarting
+
+Start all data nodes
+NDB Cluster is being started.
+NDB Cluster is being started.
+
+Wait for nodes to recover
+
+Wait for mysqld to connect to the cluster
+Clean up
+DROP TABLE test.t1;
