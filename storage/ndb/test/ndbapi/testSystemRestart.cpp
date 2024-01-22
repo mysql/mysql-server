@@ -3877,6 +3877,137 @@ int runCheckLaggardShutdown(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+/**
+ * Calibrate the system restart time
+ * Stops the data nodes
+ * Loops :
+ *   Starting data nodes
+ *   Crashing a random data node at a random *time* before the SR completes
+ *   Wait for nodes to fail
+ * Finally start the nodes and check that they do recover
+ */
+int runCrashNodeDuringSR(NDBT_Context *ctx, NDBT_Step *step) {
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  const unsigned timeout = 180;
+
+  g_err << "Calibrating the system restart time" << endl;
+  /**
+   * First get all data nodes into NOT STARTED state as we are not
+   * interested in the time spent stoppig the nodes
+   */
+  CHK(restarter.restartAll(false, true) == 0, "Restart all failed");
+  CHK(restarter.waitClusterNoStart(timeout) == 0,
+      "Nodes failed to reach NoStart state");
+
+  /* Cause restart to run slower (NDBCNTR) */
+  const int errorInsertSlowRestart = 1029;
+  restarter.insertErrorInAllNodes(errorInsertSlowRestart);
+
+  /**
+   * Now time SR with 'slow restart' error insert to make
+   * the restart steps more testable
+   */
+  g_err << "Nodes in NoStart state, now performing SR" << endl;
+
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
+  CHK(restarter.startAll() == 0, "Start all failed");
+  CHK(restarter.waitClusterStarted() == 0, "Wait cluster started failed");
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  const Uint64 restart_time_ms = NdbTick_Elapsed(start, now).milliSec();
+  g_err << "Restart time (estimate after calibration) : " << restart_time_ms
+        << endl;
+
+  /* Return cluster to Not Started state */
+  CHK(restarter.restartAll(false, true) == 0, "Starting all nodes failed");
+  CHK(restarter.waitClusterNoStart(timeout) == 0,
+      "Nodes fail to reach NoStart state");
+
+  /* Define parameters for testing */
+
+  /**
+   * We don't test right up to the calibrated SR time as we are
+   * more likely then to accidentally have a successful SR which
+   * can itself mask problems with unsuccessful SRs
+   * Go to 75% of the calibrated time instead
+   */
+  const unsigned int reduced_restart_time_ms = (restart_time_ms * 3) / 4;
+
+  /* Number of times to loop whole test */
+  const unsigned int loops = ctx->getNumLoops();
+
+  /* Number of consecutive times to test each loop */
+  const unsigned int repeatsPerLoop = restarter.getNumDbNodes();
+
+  g_err << "Loops: " << loops << " repeatsPerLoop: " << repeatsPerLoop << endl;
+
+  for (unsigned l = 0; l < loops; l++) {
+    for (unsigned r = 0; r < repeatsPerLoop; r++) {
+      /* Time to wait prior to crashing node, with 10 millis minimum */
+      const unsigned wait_err_insert = 10 + (rand() % reduced_restart_time_ms);
+      g_err << "Loop: " << l << " repeat: " << r
+            << " wait millis : " << wait_err_insert << endl;
+
+      /* Make sure that error insert crash insertions result in
+       * Angel restarting node */
+      const int RestartNoStart[] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert,
+                                    1};
+      restarter.dumpStateAllNodes(RestartNoStart, 2);
+
+      /* Cause restart to run slower (NDBCNTR) */
+      restarter.insertErrorInAllNodes(errorInsertSlowRestart);
+
+      /**
+       * Cause other nodes detection of node failure to result in CRASH
+       * INSERTION failure rather than real failure
+       */
+      const int errorInsertOnOtherFail = 932;
+      restarter.insertErrorInAllNodes(errorInsertOnOtherFail);
+
+      CHK(restarter.startAll() == 0, "Starting all nodes failed");
+
+      NdbSleep_MilliSleep(wait_err_insert);
+      const int kill[] = {9999};
+      int victim = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+      restarter.dumpStateOneNode(victim, kill, 1);
+
+      g_err << "Waiting for the node to enter NoStart state" << endl;
+      CHK(restarter.waitNodesNoStart(&victim, 1, timeout) == 0,
+          "Failure waiting for node to enter NOT STARTED state");
+
+      g_err << "Node " << victim << " failed, now making sure all nodes "
+            << "enter NOT STARTED state" << endl;
+
+      g_err << "First give nodes some time to enter NOT STARTED.  "
+            << "If that does not happen, force it." << endl;
+      if (restarter.waitClusterNoStart(10) != 0) {
+        g_err << "Triggering nodes to restart again" << endl;
+        restarter.dumpStateAllNodes(RestartNoStart, 2);
+        restarter.dumpStateAllNodes(kill, 1);
+        g_err << "Waiting for nodes to enter NotStarted state" << endl;
+      }
+
+      CHK(restarter.waitClusterNoStart(timeout) == 0,
+          "Wait for all nodes to enter NOT STARTED failed");
+
+      g_err << "All nodes in NoStart state" << endl;
+    }
+  }
+
+  if (result == NDBT_OK) {
+    g_err << "Loops done: Cleaning up." << endl;
+    g_err << "Starting all nodes..." << endl;
+    CHK(restarter.startAll() == 0, "Starting all nodes at the end failed");
+    CHK(restarter.waitClusterStarted(timeout) == 0,
+        "Failed waiting for data nodes to start");
+    g_err << "Test ok." << endl;
+  } else {
+    g_err << "Test failed." << endl;
+  }
+  ctx->stopTest();
+  return result;
+}
+
 /**************************************************************************/
 
 NDBT_TESTSUITE(testSystemRestart);
@@ -4361,6 +4492,11 @@ TESTCASE("StaleNodeTakeoverDuringSR",
 }
 TESTCASE("LaggardShutdown", "One node is slow during a shutdown") {
   STEP(runCheckLaggardShutdown);
+}
+TESTCASE("SystemDownDuringSR",
+         "Check recoverability when system goes down "
+         "during system restart") {
+  STEP(runCrashNodeDuringSR);
 }
 NDBT_TESTSUITE_END(testSystemRestart)
 

@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 Next QMGR 950
-Next NDBCNTR 1028
+Next NDBCNTR 1030
 Next NDBFS 2002
 Next DBACC 3006
 Next DBTUP 4039
@@ -850,6 +850,8 @@ NDBCNTR:
 1025 Crash insertion on open secretsfile
 1026 Change user provided filesystem password to a wrong one
 1027 Crash insertion on secretsfile reading
+1028: Crash insertion during system restart after writing the SYSFILE
+1029: Slow down restart phase transitions
 
 SUMA:
 13036: Simulate report MISSING_DATA at node failure

@@ -1,0 +1,39 @@
+-- source include/have_multi_ndb.inc
+-- source ndb_mgm.inc
+-- source ndb_waiter.inc
+-- source have_ndb_error_insert.inc
+
+
+CREATE TABLE test.t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL,
+  attr2 INT,
+  attr3 VARCHAR(10)
+) ENGINE=ndb;
+
+INSERT INTO t1 VALUES (9410, 9412, NULL, '9412'), (9411, 9413, 17, '9413');
+
+# Check whether the cluster is able to recover
+# when a node fails during the SYSFILE write.
+
+--echo -- Restart all data nodes to not-started state
+--exec $_mgm_cmd -e "ALL RESTART -n" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started > $NDB_TOOLS_OUTPUT
+
+--echo -- Inject error while system is restarting
+# and writing sysfile
+--exec $_mgm_cmd -e "all ERROR 1028"
+
+--echo Start all data nodes
+--exec $_mgm_cmd -e "ALL START"
+
+--echo Wait for nodes to recover
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+--exec $_mgm_cmd -e "all ERROR 0"
+
+--echo Wait for mysqld to connect to the cluster
+--source include/ndb_not_readonly.inc
+
+--echo Clean up
+DROP TABLE test.t1;
+--remove_file $NDB_TOOLS_OUTPUT
