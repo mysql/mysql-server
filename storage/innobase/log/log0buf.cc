@@ -1114,6 +1114,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
      *  即，当多个事务都要读/写数据时，如何处理冲突，如何保证正确性
      *
      *  TODO: 将下面新写的逻辑抽象出一个函数，准备等全部写完跑通后再进行
+     *
+     *  log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
      */
 
     if (log.m_remote_buf_thd == nullptr) {
@@ -1125,10 +1127,14 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     RCQP *qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
     MetaManager *meta_mgr = MetaManager::get_instance();
 
-    // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
+    // 加锁，并发控制
+    // Get latch for redo_log_remote_buf
+    char *redo_log_remote_buf_latch =
+        thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+    *(rwlatch_t *)redo_log_remote_buf_latch = REDOLOG_LOCKED;
 
-    // 分配空间，OS_FILE_LOG_BLOCK_SIZE为512B，先分个32MB看看
-    // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE)
+    // 如果没有分配的话就先分配空间，先分个32MB看看
+    // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE=512B)
     // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)，需要换算LSN和SN
     if (!thd->redo_log_remote_buf_reserved) {
       thd->redo_log_remote_buf_reserved = true;
@@ -1138,12 +1144,6 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
           (unsigned char *)thd->rdma_buffer_allocator->Alloc(
               redo_log_remote_buf_size);
     }
-
-    // Get latch for redo_log_remote_buf
-    // 为锁分配空间，但是目前还没有锁
-    char *redo_log_remote_buf_latch =
-        thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
-    *(rwlatch_t *)redo_log_remote_buf_latch = REDOLOG_LOCKED;
 
     // Write redo logs into State Node and release latch
 
