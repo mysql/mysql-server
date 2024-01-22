@@ -1136,6 +1136,9 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // 如果没有分配的话就先分配空间，先分个32MB看看
     // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE=512B)
     // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)，需要换算LSN和SN
+
+    // 在状态节点分配空间
+    // TODO: 我有点混淆在状态节点和本地分配空间
     if (!thd->redo_log_remote_buf_reserved) {
       thd->redo_log_remote_buf_reserved = true;
       const size_t redo_log_remote_buf_size =
