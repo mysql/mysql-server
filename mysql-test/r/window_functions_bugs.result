@@ -1894,3 +1894,18 @@ NULL
 NULL
 NULL
 DROP TABLE t0;
+#
+# Bug#36200398: Wrong empty result set with hypergraph, windowing
+#               and derived tables
+#
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (1), (2), (3);
+SELECT i, COUNT(*) OVER w FROM (SELECT i, i = 2 AS cmp FROM t) AS dt
+WHERE cmp > 0 WINDOW w AS (PARTITION BY cmp);
+i	COUNT(*) OVER w
+2	1
+SELECT i, COUNT(*) OVER w FROM (SELECT i, i = 2 AS cmp FROM t) AS dt
+WHERE cmp > 0 WINDOW w AS (ORDER BY cmp);
+i	COUNT(*) OVER w
+2	1
+DROP TABLE t;

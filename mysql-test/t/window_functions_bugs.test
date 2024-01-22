@@ -1307,3 +1307,19 @@ INSERT INTO t0(c1) VALUES (135), (206), (193), (244), (255), (255), (255);
 SELECT NTH_VALUE(c1, 2) OVER (ORDER BY c1 RANGE BETWEEN 60 FOLLOWING AND 100 FOLLOWING) FROM t0;
 
 DROP TABLE t0;
+
+--echo #
+--echo # Bug#36200398: Wrong empty result set with hypergraph, windowing
+--echo #               and derived tables
+--echo #
+
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (1), (2), (3);
+
+SELECT i, COUNT(*) OVER w FROM (SELECT i, i = 2 AS cmp FROM t) AS dt
+WHERE cmp > 0 WINDOW w AS (PARTITION BY cmp);
+
+SELECT i, COUNT(*) OVER w FROM (SELECT i, i = 2 AS cmp FROM t) AS dt
+WHERE cmp > 0 WINDOW w AS (ORDER BY cmp);
+
+DROP TABLE t;
