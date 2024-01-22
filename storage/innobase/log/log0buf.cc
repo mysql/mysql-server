@@ -88,6 +88,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "sql/sql_class.h"
 // TODO: 暂时用这个头文件，之后换成log的
 #include "state/state_store/txn_list.h"
+#include "state/util/redo_log_util.h"
 #include "state/util/txn_list_util.h"
 
 // clang-format off
@@ -1128,7 +1129,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
 
     // 分配空间，OS_FILE_LOG_BLOCK_SIZE为512B，先分个32MB看看
     // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE)
-    // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)
+    // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)，需要换算LSN和SN
     if (!thd->redo_log_remote_buf_reserved) {
       thd->redo_log_remote_buf_reserved = true;
       const size_t redo_log_remote_buf_size =
