@@ -516,3 +516,42 @@ QUALIFY field1 <=> 'M';
 field1	field2
 SET @@sql_mode = @orig_sql_mode;
 DROP TABLE cc;
+#
+# Bug#36172350: Wrong result with QUALIFY referencing columns not present
+#               in the SELECT list
+#
+CREATE TABLE t(id INT PRIMARY KEY, x INT, b BLOB);
+INSERT INTO t(id, x) VALUES (1,1),(2,1),(3,1),(4,1),(5,0);
+SELECT id, b FROM t GROUP BY id WINDOW w AS (ORDER BY id) QUALIFY x <> 1;
+id	b
+5	NULL
+SELECT id, b, ROW_NUMBER() OVER w FROM t
+GROUP BY id WINDOW w AS (ORDER BY id) QUALIFY x <> 1;
+id	b	ROW_NUMBER() OVER w
+5	NULL	5
+SELECT id, b, ROW_NUMBER() OVER w FROM t
+WINDOW w AS (ORDER BY id) QUALIFY x + SUM(x) OVER w <> 4;
+id	b	ROW_NUMBER() OVER w
+1	NULL	1
+2	NULL	2
+4	NULL	4
+SELECT id, x, ROW_NUMBER() OVER w FROM t GROUP BY id, x
+WINDOW w AS (ORDER BY id) QUALIFY x <> 1;
+id	x	ROW_NUMBER() OVER w
+5	0	5
+SELECT id, x, ROW_NUMBER() OVER w FROM t GROUP BY id, x WITH ROLLUP
+WINDOW w AS (ORDER BY id) QUALIFY x <> 1;
+id	x	ROW_NUMBER() OVER w
+5	0	10
+SELECT id FROM t GROUP BY id, x WINDOW w AS (ORDER BY id) QUALIFY x <> 1;
+id
+5
+SELECT id, x, ROW_NUMBER() OVER w FROM (SELECT * FROM t) AS dt
+GROUP BY id, x WITH ROLLUP WINDOW w AS (ORDER BY id) QUALIFY x <> 1;
+id	x	ROW_NUMBER() OVER w
+5	0	10
+SELECT id, ROW_NUMBER() OVER w FROM (SELECT * FROM t) AS dt
+GROUP BY id, x WITH ROLLUP WINDOW w AS (ORDER BY id) QUALIFY x <> 1;
+id	ROW_NUMBER() OVER w
+5	10
+DROP TABLE t;

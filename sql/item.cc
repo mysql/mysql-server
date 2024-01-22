@@ -8317,35 +8317,44 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
       thd, context->view_error_handler, context->view_error_handler_arg);
 
   if (m_ref_item == nullptr) {
-    assert(context->query_block == thd->lex->current_query_block());
-    if (resolve_ref_in_select_and_group(thd, this, context->query_block,
-                                        &m_ref_item)) {
+    Query_block *qb = context->query_block;
+    assert(qb == thd->lex->current_query_block());
+    if (resolve_ref_in_select_and_group(thd, this, qb, &m_ref_item)) {
       return true;  // Some error occurred (e.g. ambiguous names).
     }
-    if (m_ref_item == nullptr) /* This reference was not resolved. */
-    {
-      Name_resolution_context *last_checked_context = context;
-      Name_resolution_context *outer_context = context->outer_context;
-
-      if (context->query_block->resolve_place == Query_block::RESOLVE_QUALIFY) {
-        Field *from_field = find_field_in_tables(
-            thd, this, context->first_name_resolution_table,
-            context->last_name_resolution_table, reference,
-            thd->lex->use_only_table_context ? REPORT_ALL_ERRORS
-                                             : IGNORE_EXCEPT_NON_UNIQUE,
-            thd->want_privilege, true);
-        if (thd->is_error()) return true;
-        if (from_field != nullptr && from_field != not_found_field) {
-          if (from_field != view_ref_found) {
-            Item_field *fld = new Item_field(
-                thd, context, from_field->table->pos_in_table_list, from_field);
-            if (fld == nullptr) return true;
-            *reference = fld;
-          }
-          return false;
+    if (m_ref_item == nullptr &&
+        qb->resolve_place == Query_block::RESOLVE_QUALIFY) {
+      Field *from_field = find_field_in_tables(
+          thd, this, context->first_name_resolution_table,
+          context->last_name_resolution_table, reference,
+          thd->lex->use_only_table_context ? REPORT_ALL_ERRORS
+                                           : IGNORE_EXCEPT_NON_UNIQUE,
+          thd->want_privilege, true);
+      if (thd->is_error()) return true;
+      if (from_field != nullptr && from_field != not_found_field) {
+        // This field is not resolved against an expression that is
+        // already present in the select list. So it needs to be
+        // added to the select list as hidden item.
+        if (from_field == view_ref_found) {
+          // When an expression is resolved against a field from a merged
+          // derived table, the newly created view reference is
+          // assigned to "reference" object passed to find_field_in_tables().
+          // Add the view reference to the select expression list as hidden
+          // item.
+          m_ref_item = qb->add_hidden_item(*reference);
+          *reference = this;
+        } else {
+          Item_field *fld = new Item_field(
+              thd, context, from_field->table->pos_in_table_list, from_field);
+          if (fld == nullptr) return true;
+          m_ref_item = qb->add_hidden_item(fld);
         }
       }
+    }
 
+    if (m_ref_item == nullptr) {
+      Name_resolution_context *last_checked_context = context;
+      Name_resolution_context *outer_context = context->outer_context;
       if (outer_context == nullptr) {
         /* The current reference cannot be resolved in this query. */
         my_error(ER_BAD_FIELD_ERROR, MYF(0), this->full_name(), thd->where);
