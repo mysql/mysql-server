@@ -99,9 +99,9 @@ SET GLOBAL innodb_file_per_table=OFF;
 CREATE TABLE t17(
 c1 iNT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 SET GLOBAL innodb_file_per_table=default;
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t18(హి  INT, శరెెనిక BLOB);
 #
 # Bug#29020745: INNODB TABLESPACES WITH SUBPARTITIONS DO NOT

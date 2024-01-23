@@ -11,7 +11,7 @@ SET SESSION foreign_key_checks=0;
 -- disable_query_log
 -- disable_result_log
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 -- let $t1_name = bug12661768_1ä1111111111111111111111111111111111111111111111111
 # We would also like to test with a name like #mysql50#bug12661768_2ä (the

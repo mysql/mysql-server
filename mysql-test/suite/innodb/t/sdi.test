@@ -147,7 +147,7 @@ CREATE TABLE t17(
 
 SET GLOBAL innodb_file_per_table=default;
 
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 CREATE TABLE t18(హి  INT, శరెెనిక BLOB);
 
 

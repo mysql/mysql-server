@@ -22,7 +22,7 @@ LET $data_directory_clause = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 SET default_storage_engine=InnoDB;
 SET GLOBAL innodb_file_per_table=ON;
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t1 (

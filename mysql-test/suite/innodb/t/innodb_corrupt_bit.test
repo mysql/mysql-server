@@ -10,7 +10,7 @@
 call mtr.add_suppression("Flagged corruption of.* in table .* in CHECK TABLE");
 --enable_query_log
 
-set names utf8;
+set names utf8mb3;
 
 CREATE TABLE corrupt_bit_test_ā(
        a INT AUTO_INCREMENT PRIMARY KEY,
@@ -69,7 +69,7 @@ drop index idxā on corrupt_bit_test_ā;
 
 check table corrupt_bit_test_ā;
 
-set names utf8;
+set names utf8mb3;
 
 -- error ER_INDEX_CORRUPT
 select z from corrupt_bit_test_ā;

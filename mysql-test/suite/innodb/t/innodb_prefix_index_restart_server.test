@@ -103,7 +103,7 @@ DROP TABLE worklog5743;
 # Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
 create table t1(f1 varchar(3800) binary not null, key(f1))
-  character set utf8 collate utf8_general_ci row_format=dynamic;
+  character set utf8mb3 COLLATE utf8mb3_general_ci row_format=dynamic;
 insert into t1 values('aaa');
 drop table t1;
 SET sql_mode=default;

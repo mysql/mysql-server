@@ -946,24 +946,24 @@ ROLLBACK;
 DROP PROCEDURE DELETE_insert_t;
 DROP PROCEDURE UPDATE_t;
 DROP TABLE t;
-CREATE TABLE t(a TEXT CHARSET UTF8)ENGINE=INNODB;
+CREATE TABLE t(a TEXT CHARSET utf8mb3)ENGINE=INNODB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t ADD COLUMN b BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 ALTER TABLE t ADD FULLTEXT INDEX (a) ;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE t ADD INDEX (b(1)) ;
 DROP TABLE t;
-CREATE TABLE t(a TEXT CHARSET UTF8, FULLTEXT INDEX(a))ENGINE=INNODB;
+CREATE TABLE t(a TEXT CHARSET utf8mb3, FULLTEXT INDEX(a))ENGINE=INNODB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t ADD COLUMN b BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 ALTER TABLE t ADD INDEX (b(1)) ;
 DROP TABLE t;
-CREATE TABLE t(a TEXT CHARSET UTF8)ENGINE=INNODB;
+CREATE TABLE t(a TEXT CHARSET utf8mb3)ENGINE=INNODB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t ADD COLUMN FTS_DOC_ID BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 ALTER TABLE t ADD FULLTEXT INDEX (a) ;
 ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
@@ -1736,10 +1736,10 @@ DROP TABLE t;
 #
 CREATE TABLE t1(
 a VARCHAR(45) CHARACTER SET LATIN1,
-b VARCHAR(115) CHARACTER SET UTF8 GENERATED ALWAYS AS ('f1') VIRTUAL,
+b VARCHAR(115) CHARACTER SET utf8mb3 GENERATED ALWAYS AS ('f1') VIRTUAL,
 UNIQUE KEY (b,a))ENGINE=INNODB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1(a) VALUES ('');
 ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(85);
 SELECT * FROM t1;

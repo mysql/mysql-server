@@ -286,7 +286,7 @@ insert into t1 set a=0;
 replace into t1 set b ='1';
 DROP TABLE t1;
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE t1 (
         a VARCHAR(1000) GENERATED ALWAYS AS ('1') VIRTUAL,
         b VARCHAR(1000) NOT NULL,

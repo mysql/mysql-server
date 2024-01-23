@@ -8,7 +8,7 @@ set old_alter_table=0;
 
 create table bug53592(a int) engine=innodb row_format=compact;
 
-alter table bug53592 add column b text charset utf8;
+alter table bug53592 add column b text charset utf8mb3;
 
 alter table bug53592 add column c blob not null;
 
@@ -38,7 +38,7 @@ set old_alter_table=1;
 
 create table bug53592(a int) engine=innodb row_format=compact;
 
-alter table bug53592 add column b text charset utf8;
+alter table bug53592 add column b text charset utf8mb3;
 
 alter table bug53592 add column c blob not null;
 

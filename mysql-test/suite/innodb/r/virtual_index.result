@@ -363,9 +363,9 @@ replace into t1 set b ='1';
 Warnings:
 Warning	1364	Field 'a' doesn't have a default value
 DROP TABLE t1;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (
 a VARCHAR(1000) GENERATED ALWAYS AS ('1') VIRTUAL,
 b VARCHAR(1000) NOT NULL,

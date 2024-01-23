@@ -8,7 +8,7 @@
 --echo #
 
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 

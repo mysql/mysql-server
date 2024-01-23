@@ -236,7 +236,7 @@ select * from t2;
 
 drop table t2,t4,t3,t1;
 
--- let charset = utf8
+-- let charset = utf8mb3
 -- source include/innodb-index.inc
 
 create table t1(a int not null, b int) engine = innodb;
