@@ -1036,10 +1036,6 @@ install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}/%{_bindir}/
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %endif # with_router
 
-# Remove files pages we explicitly do not want to package
-rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
-rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
-
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
 pushd release
