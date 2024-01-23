@@ -30,8 +30,7 @@
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Option binlog_cache_size ");
 call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
-call mtr.add_suppression("The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log. An incident event has been written to the binary log which will stop the replicas.");
-call mtr.add_suppression("Error happend while resetting the transaction cache for a rolled back transaction or a single statement not inside a transaction. An incident event has been written to the binary log which will stop the replicas.");
+call mtr.add_suppression("Non-transactional changes were not written to the binlog. An incident event has been written to the binary log which will stop the replicas.");
 
 let $old_max_binlog_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_cache_size", Value, 1);
 let $old_binlog_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_cache_size", Value, 1);

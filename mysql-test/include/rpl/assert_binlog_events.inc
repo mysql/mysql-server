@@ -7,6 +7,7 @@
 # --let $event_sequence= SEQUENCE_OF_EVENTS
 # [--let $event_separator= CHAR]
 # [--let $invert= 1]
+# [--let $somewhere= 0]
 # [--let $limit= [OFFSET,] ROW_COUNT]
 # [--let $binlog_file= FILE]
 # [--let $binlog_position= POSITION]
@@ -91,6 +92,12 @@
 #     By default, this script asserts that SHOW BINLOG EVENTS matches
 #     the specification. If $invert is set, this scripts instead asserts
 #     that SHOW BINLOG EVENTS does *not* match the specification.
+#
+#   $somewhere
+#     By default, this script asserts that SHOW BINLOG EVENTS matches
+#     the specification from start to end. If $somewhere is set, this scripts
+#     instead asserts that SHOW BINLOG EVENTS *somewhere* contains
+#     the specification.
 #
 #   $limit
 #     Pass this as the LIMIT clause of SHOW BINLOG EVENTS.
@@ -197,6 +204,7 @@ while ($_abe_verdict != 'ok')
   --let _ABE_FILE= $output_file
   --let _ABE_EVENT_SEQUENCE= $event_sequence
   --let _ABE_INVERT= $invert
+  --let _ABE_SOMEWHERE= $somewhere
   --let _ABE_DEBUG= $rpl_debug
   --let _ABE_EVENT_SEPARATOR= $event_separator
   --let _ABE_INCLUDE_HEADER_EVENTS= $include_header_events
@@ -207,6 +215,7 @@ while ($_abe_verdict != 'ok')
   my $event_sequence = $ENV{'_ABE_EVENT_SEQUENCE'};
   my $file = $ENV{'_ABE_FILE'};
   my $invert = $ENV{'_ABE_INVERT'};
+  my $somewhere = $ENV{'_ABE_SOMEWHERE'};
   my $debug = $ENV{'_ABE_DEBUG'};
   my $include_header_events = $ENV{'_ABE_INCLUDE_HEADER_EVENTS'};
   my $event_separator= $ENV{'_ABE_EVENT_SEPARATOR'};
@@ -243,12 +252,15 @@ while ($_abe_verdict != 'ok')
   # (e.g., 'Query' instead of 'Query/xyz').
   $event_sequence =~ s{\n}{(?:/[^\n]*)?\n}g;
 
-  # Allow 'Type' without 'Info' at the end. Require match until the
-  # end. Allow missing \n at the end.
-  $event_sequence .= "(?:/[^\n]*)?\n?" . '$';
+  # Allow 'Type' without 'Info' at the end. Allow missing \n at the end.
+  $event_sequence .= "(?:/[^\n]*)?\n?";
 
-  # Require match from the beginning.
-  $event_sequence = '^' . $event_sequence;
+  if (!$somewhere)
+  {
+    # Require match from the beginning or starting position. Require match until
+    # the end.
+    $event_sequence = '^' . $event_sequence . '$';
+  }
 
   if ($debug)
   {
@@ -330,6 +342,7 @@ while ($_abe_verdict != 'ok')
       --echo binlog_file=<$binlog_file>
       --echo statement=$statement
       --echo invert=$invert
+      --echo somewhere=$somewhere
       --echo include_header_events=$include_header_events
       --echo include_trx_payload_events=$include_trx_payload_events
       --echo event_separator=$_ABE_EVENT_SEPARATOR

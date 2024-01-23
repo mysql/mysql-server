@@ -262,6 +262,8 @@ void Binlog_group_commit_ctx::mark_as_already_waited() {
 void Binlog_group_commit_ctx::reset() {
   this->m_session_ticket = binlog::BgcTicket(binlog::BgcTicket::kTicketUnset);
   this->m_has_waited = false;
+  m_max_size_exceeded = false;
+  m_force_rotate = false;
 }
 
 std::string Binlog_group_commit_ctx::to_string() const {
@@ -282,6 +284,17 @@ void Binlog_group_commit_ctx::format(std::ostream &out) const {
 memory::Aligned_atomic<bool> &Binlog_group_commit_ctx::manual_ticket_setting() {
   static memory::Aligned_atomic<bool> flag{false};
   return flag;
+}
+
+std::pair<bool, bool> Binlog_group_commit_ctx::aggregate_rotate_settings(
+    THD *queue) {
+  bool exceeded = false;
+  bool force_rotate = false;
+  for (THD *thd = queue; thd; thd = thd->next_to_commit) {
+    exceeded |= thd->rpl_thd_ctx.binlog_group_commit_ctx().m_max_size_exceeded;
+    force_rotate |= thd->rpl_thd_ctx.binlog_group_commit_ctx().m_force_rotate;
+  }
+  return {exceeded, force_rotate};
 }
 
 void Rpl_thd_context::init() {

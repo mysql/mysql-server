@@ -3,16 +3,18 @@ SET SESSION binlog_transaction_compression = ON;
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000));
 RESET BINARY LOGS AND GTIDS;
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+include/rpl/log_file_max_number.inc
 # Adding debug point 'binlog_compression_inject_incident' to @@GLOBAL.debug
 INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
+Check that Incident has been written
+Incident
 # Removing debug point 'binlog_compression_inject_incident' from @@GLOBAL.debug
-include/assert.inc [Expected event type Query]
-include/assert.inc [Expected event type Table_map]
-include/assert.inc [Expected event type Write_rows]
-include/assert.inc [Expected event type Xid]
+include/assert.inc [Expected event type Anonymous_Gtid]
 include/assert.inc [Expected event type Incident]
 include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 0 for compression_type != NONE (because of incident event)]
 include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1 for compression_type = NONE]
+include/rpl/log_file_max_number.inc
+include/assert.inc [incident rotated binlog]
 DROP TABLE t1;
 SET SESSION binlog_transaction_compression = SAVED;
 RESET BINARY LOGS AND GTIDS;
