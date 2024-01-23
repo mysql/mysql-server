@@ -52,7 +52,10 @@ BEGIN;;
 [connection server_2]
 
 # 12. UNLOCK tables to allow backlog to be applied
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 # 12. Reap with success execution of set as primary server2
 [connection server1]

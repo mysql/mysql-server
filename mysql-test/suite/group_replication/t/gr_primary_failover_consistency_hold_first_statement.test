@@ -132,7 +132,10 @@ SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
 --echo
 --echo # 12. UNLOCK tables to allow backlog to be applied
 
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 --echo
 --echo # 12. Reap with success execution of set as primary server2

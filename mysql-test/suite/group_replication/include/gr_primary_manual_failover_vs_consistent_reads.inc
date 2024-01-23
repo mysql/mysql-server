@@ -135,8 +135,11 @@ INSERT INTO t1 VALUES (1);
 --echo # 9. UNLOCK tables to allow backlog to be applied on server2
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
-UNLOCK TABLES;
 
+SET @group_replication_consistency_save_failover_consistent_read= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
+UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save_failover_consistent_read;
 
 --echo
 --echo ############################################################

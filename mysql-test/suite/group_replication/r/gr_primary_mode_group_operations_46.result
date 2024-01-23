@@ -34,7 +34,10 @@ include/stop_group_replication.inc
 
 # 8. Unlock table on server2
 [connection server_2]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 # 9. Server2 will apply buffered transactions and disable read only mode
 

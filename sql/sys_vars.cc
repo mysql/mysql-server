@@ -7125,9 +7125,9 @@ static Sys_var_enum Sys_group_replication_consistency(
     "BEFORE_ON_PRIMARY_FAILOVER, BEFORE, AFTER, BEFORE_AND_AFTER",
     SESSION_VAR(group_replication_consistency), CMD_LINE(OPT_ARG),
     group_replication_consistency_names,
-    DEFAULT(GROUP_REPLICATION_CONSISTENCY_EVENTUAL), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_group_replication_consistency),
-    ON_UPDATE(nullptr));
+    DEFAULT(GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_group_replication_consistency), ON_UPDATE(nullptr));
 
 static bool check_binlog_encryption_admin(sys_var *, THD *thd, set_var *) {
   DBUG_TRACE;

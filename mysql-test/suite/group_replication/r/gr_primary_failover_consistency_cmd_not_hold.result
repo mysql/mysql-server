@@ -16,7 +16,7 @@ SET @@GLOBAL.DEBUG= '+d,launch_hook_trans_begin_assert_if_hold';
 # 2. Validate SQL command SHOW will not block
 SHOW GLOBAL VARIABLES LIKE 'group_replication_consistency';
 Variable_name	Value
-group_replication_consistency	EVENTUAL
+group_replication_consistency	BEFORE_ON_PRIMARY_FAILOVER
 SHOW PROCESSLIST;
 SHOW STATUS;
 SHOW ENGINE INNODB LOGS;

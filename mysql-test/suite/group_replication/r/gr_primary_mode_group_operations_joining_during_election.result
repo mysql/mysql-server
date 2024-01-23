@@ -67,7 +67,10 @@ ERROR HY000: The function 'group_replication_switch_to_multi_primary_mode' faile
 
 # 8. Unlock the table to unblock the election
 [connection server2]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 # 9. Check the election results are the expected
 include/gr_assert_primary_member.inc

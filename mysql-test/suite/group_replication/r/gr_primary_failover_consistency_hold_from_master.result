@@ -60,7 +60,10 @@ SELECT COUNT(*)=1 FROM t1 WHERE a = 1;
 
 # 12. Validate statement is on hold
 [connection server_2]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 LOCK TABLES t1 READ;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
@@ -72,11 +75,17 @@ INSERT INTO t2 VALUES (1);
 [connection server_2_1]
 
 # 15. Table t2 will be empty until backlog is applied
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 include/assert.inc ['There are no values in table t2']
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 # 16. UNLOCK tables to allow backlog to be applied
 [connection server_2]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 # 17. Reap with success read of last value inserted on group
 [connection server2]

@@ -135,7 +135,10 @@ SELECT * FROM t1;
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 --echo
 --echo # 11. Reap with success read of last value inserted on group
@@ -230,7 +233,10 @@ SELECT * FROM t1;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 --echo
 --echo # 22. Reap with success insert after backlog is applied

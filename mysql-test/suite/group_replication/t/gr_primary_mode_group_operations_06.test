@@ -129,7 +129,12 @@ SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET @group_replication_consistency_save2= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
+
 UNLOCK TABLES;
+
+SET @@SESSION.group_replication_consistency = @group_replication_consistency_save2;
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%super_read_only%"
 --source include/wait_condition.inc
@@ -155,6 +160,8 @@ SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
 --let $rpl_connection_name= server_2_1
 --source include/rpl_connection.inc
 
+SET @group_replication_consistency_save2_1= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 --send INSERT INTO t2 VALUES (1)
 
 --let $rpl_connection_name= server_2
@@ -192,6 +199,7 @@ SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 
 --error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
 --reap
+SET @@SESSION.group_replication_consistency = @group_replication_consistency_save2_1;
 
 --echo
 --echo # 11. The group_replication_set_as_primary will succeed

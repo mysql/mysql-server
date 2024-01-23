@@ -55,10 +55,16 @@ include/start_group_replication.inc
 # 5. Insert a transaction on server 2. Since the server is
 #  still in read mode, it shall fail.
 [connection server2]
+SET @group_replication_consistency_save_auto_failover_inc= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 INSERT INTO t1 VALUES(1,2);
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save_auto_failover_inc;
 [connection server_2]
+SET @group_replication_consistency_save_auto_failover_inc= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save_auto_failover_inc;
 include/assert.inc ['The value of Count_conflicts_detected should be 0 on server 2']
 
 ###########################################################

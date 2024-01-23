@@ -46,7 +46,10 @@ a
 
 # 10. UNLOCK tables to allow backlog to be applied
 [connection server_2]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 # 11. Reap with success read of last value inserted on group
 [connection server2]
@@ -94,7 +97,10 @@ a
 
 # 21. UNLOCK tables to allow apply backlog
 [connection server_1]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 # 22. Reap with success insert after backlog is applied
 [connection server1]

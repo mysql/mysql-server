@@ -41,7 +41,10 @@ LOCK TABLE t1 READ;
 [connection server_1_1]
 INSERT INTO t1 VALUES (2);
 [connection server_2]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 include/assert.inc [The stage should be "Primary Election: waiting for members to enable super_read_only"]
 include/assert.inc [The estimated work is 3]
 include/assert.inc [The completed work is 2]
@@ -54,9 +57,15 @@ include/assert.inc [The completed work is 2]
 # Unlock the table on the secondary (server1) that will block on server2
 # Check election is on Stabilizing transactions from former primaries stage
 [connection server_2]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 LOCK TABLE t1 READ;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 [connection server_1]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 [connection server_1_1]
 [connection server2]
 include/assert.inc [The stage should be "Primary Election: stabilizing transactions from former primaries"]
@@ -69,7 +78,10 @@ include/assert.inc [The completed work is 0]
 
 # 1.4 Unblock to end the action.
 [connection server_2]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 [connection server1]
 group_replication_set_as_primary("MEMBER2_UUID")
 Primary server switched to: MEMBER2_UUID
@@ -102,7 +114,10 @@ include/assert.inc [The completed work is 0]
 # 2.2 Unblock the table
 # Check the election ends and there are no more stages.
 [connection server1]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 include/gr_assert_primary_member.inc
 include/assert.inc [There is no stage present]
 [connection server3]

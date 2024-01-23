@@ -44,7 +44,10 @@ INSERT INTO t2 VALUES (1);
 #    The member shall unset the read mode
 #    The member shall now wait for server1 to be in read mode
 [connection server2]
+SET @group_replication_consistency_save2= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency = @group_replication_consistency_save2;
 include/assert.inc [stage/group_rpl/Primary Election: waiting for members to enable super_read_only]
 include/assert.inc [The super_read_only mode should be 0 here.]
 
@@ -53,6 +56,8 @@ include/assert.inc [The super_read_only mode should be 0 here.]
 [connection server_2]
 SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
 [connection server_2_1]
+SET @group_replication_consistency_save2_1= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 INSERT INTO t2 VALUES (1);
 [connection server_2]
 
@@ -69,6 +74,7 @@ SET DEBUG_SYNC='now SIGNAL waiting';
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 [connection server_2_1]
 ERROR 40000: Plugin instructed the server to rollback the current transaction.
+SET @@SESSION.group_replication_consistency = @group_replication_consistency_save2_1;
 
 # 11. The group_replication_set_as_primary will succeed
 [connection server1]

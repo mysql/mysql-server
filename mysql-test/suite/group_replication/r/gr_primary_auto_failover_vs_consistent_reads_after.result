@@ -55,7 +55,10 @@ SELECT COUNT(*) FROM t1;
 ############################################################
 # 9. UNLOCK tables to allow backlog to be applied on server2
 [connection server_2]
+SET @group_replication_consistency_save_auto_failover_inc= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save_auto_failover_inc;
 
 ############################################################
 # 10. The hold SELECT will now be done and will return the

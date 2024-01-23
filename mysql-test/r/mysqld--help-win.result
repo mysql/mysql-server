@@ -1722,7 +1722,7 @@ generated-random-password-length 20
 global-connection-memory-limit 18446744073709551615
 global-connection-memory-tracking FALSE
 group-concat-max-len 1024
-group-replication-consistency EVENTUAL
+group-replication-consistency BEFORE_ON_PRIMARY_FAILOVER
 gtid-executed-compression-period 0
 gtid-mode OFF
 help TRUE

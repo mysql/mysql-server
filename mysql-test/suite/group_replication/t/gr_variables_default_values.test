@@ -325,12 +325,12 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 # group_replication_consistency
---let $assert_text= Default group_replication_consistency is EVENTUAL
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_consistency]" = "EVENTUAL"
+--let $assert_text= Default group_replication_consistency is BEFORE_ON_PRIMARY_FAILOVER
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_consistency]" = "BEFORE_ON_PRIMARY_FAILOVER"
 --source include/assert.inc
 
---let $assert_text= Default group_replication_consistency is EVENTUAL
---let $assert_cond= "[SELECT @@SESSION.group_replication_consistency]" = "EVENTUAL"
+--let $assert_text= Default group_replication_consistency is BEFORE_ON_PRIMARY_FAILOVER
+--let $assert_cond= "[SELECT @@SESSION.group_replication_consistency]" = "BEFORE_ON_PRIMARY_FAILOVER"
 --source include/assert.inc
 
 # group_replication_communication_max_message_size
