@@ -767,6 +767,7 @@ int runDirtyRead(NDBT_Context *ctx, NDBT_Step *step) {
     restarter.waitClusterStarted(60);
     CHK_NDB_READY(pNdb);
   }
+  CHECK(restarter.insertErrorInAllNodes(0) == 0, "Failed to clear insertError");
   return result;
 err:
   hugoOps.closeTransaction(pNdb);
