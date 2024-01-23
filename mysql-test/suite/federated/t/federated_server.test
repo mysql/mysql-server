@@ -354,13 +354,13 @@ CREATE TABLE db_remote.t1 (
     );
 INSERT INTO db_remote.t1 VALUES ('1','this is remote');
 
---character_set utf8
-SET NAMES utf8;
+--character_set utf8mb3
+SET NAMES utf8mb3;
 CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 grant all on *.* to очень_очень_очень_длинный_юзер__@localhost;
 
 connection master;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval create server 's1' foreign data wrapper 'mysql' options
@@ -378,14 +378,14 @@ grant select on federated.* to user_name_len_32_012345678901234@localhost;
 CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `name` varchar(64) NOT NULL default ''
-    ) ENGINE = FEDERATED CONNECTION = 's1' CHARACTER SET utf8;
+    ) ENGINE = FEDERATED CONNECTION = 's1' CHARACTER SET utf8mb3;
 
 select * from federated.t1;
 
 connect (conn_remote,127.0.0.1,user_name_len_32_012345678901234,,federated,$MASTER_MYPORT);
 
 connection conn_remote;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 select * from federated.t1;
 
 # clean up test

@@ -1916,12 +1916,12 @@ engine = federated
 connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/test';
 drop table federated.test1, federated.test2;
 drop table federated.test;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-create table federated.t1 (a varchar(64)) DEFAULT CHARSET=utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table federated.t1 (a varchar(64)) DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into federated.t1 values (0x6DC3A56E6164);
 select hex(a) from federated.t1;
 hex(a)
@@ -1929,12 +1929,12 @@ hex(a)
 create table federated.t1 (a varchar(64))
 ENGINE=FEDERATED 
 connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
-DEFAULT CHARSET=utf8;
+DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-set names utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(a) from federated.t1;
 hex(a)
 6DC3A56E6164
@@ -1994,15 +1994,15 @@ categoryId
 drop table federated.t1;
 drop table federated.t1;
 create table federated.t1 (a int primary key, b varchar(64))
-DEFAULT CHARSET=utf8;
+DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table federated.t1 (a int primary key, b varchar(64))
 ENGINE=FEDERATED
 connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
-  DEFAULT CHARSET=utf8;
+  DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert ignore into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe");
 select * from federated.t1;
 a	b
@@ -2022,15 +2022,15 @@ a	b
 drop table federated.t1;
 drop table federated.t1;
 create table federated.t1 (a int primary key, b varchar(64))
-DEFAULT CHARSET=utf8;
+DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table federated.t1 (a int primary key, b varchar(64))
 ENGINE=FEDERATED
 connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
-  DEFAULT CHARSET=utf8;
+  DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe")
 on duplicate key update a=a+100;
 ERROR 23000: Can't write; duplicate key in table 't1'
@@ -2054,15 +2054,15 @@ select * from federated.t2;
 a
 1
 drop table federated.t1, federated.t2;
-CREATE TABLE federated.t1 (a INT PRIMARY KEY) DEFAULT CHARSET=utf8;
+CREATE TABLE federated.t1 (a INT PRIMARY KEY) DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE federated.t1 (a INT PRIMARY KEY)
 ENGINE=FEDERATED
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
-  DEFAULT CHARSET=utf8;
+  DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT transactions FROM information_schema.engines WHERE engine="FEDERATED";
 transactions
 NO
@@ -2292,9 +2292,9 @@ connection slave;
 CREATE TABLE federated.t2 (a INT PRIMARY KEY, b varchar(64))
 ENGINE=FEDERATED
 connection='mysql://root@127.0.0.1:SOURCE_PORT/federated/t1'
-  DEFAULT CHARSET=utf8;
+  DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 connection master;
 INSERT INTO federated.t1 VALUES (1,"Larry"), (2,"Curly"), (3,"Moe");
 CREATE TABLE federated.t1_child(a int);

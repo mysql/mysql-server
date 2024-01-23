@@ -1684,11 +1684,11 @@ connection slave;
 drop table federated.test;
 
 #
-# BUG# 17044 Federated Storage Engine not UTF8 clean
+# BUG# 17044 Federated Storage Engine not utf8mb3 clean
 #
 connection slave;
-set names utf8;
-create table federated.t1 (a varchar(64)) DEFAULT CHARSET=utf8;
+set names utf8mb3;
+create table federated.t1 (a varchar(64)) DEFAULT CHARSET=utf8mb3;
 
 insert into federated.t1 values (0x6DC3A56E6164);
 select hex(a) from federated.t1;
@@ -1698,8 +1698,8 @@ connection master;
 eval create table federated.t1 (a varchar(64))
 ENGINE=FEDERATED 
 connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1'
-DEFAULT CHARSET=utf8;
-set names utf8;
+DEFAULT CHARSET=utf8mb3;
+set names utf8mb3;
 select hex(a) from federated.t1;
 insert into federated.t1 values (0xC3A4C3B6C3BCC39F);
 insert into federated.t1 values (0xD18DD184D184D0B5D0BAD182D0B8D0B2D0BDD183D18E);
@@ -1760,13 +1760,13 @@ drop table federated.t1;
 #
 connection slave;
 create table federated.t1 (a int primary key, b varchar(64))
-  DEFAULT CHARSET=utf8;
+  DEFAULT CHARSET=utf8mb3;
 connection master;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval create table federated.t1 (a int primary key, b varchar(64))
   ENGINE=FEDERATED
   connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1'
-  DEFAULT CHARSET=utf8;
+  DEFAULT CHARSET=utf8mb3;
 
 insert ignore into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe");
 select * from federated.t1;
@@ -1790,13 +1790,13 @@ drop table federated.t1;
 #
 connection slave;
 create table federated.t1 (a int primary key, b varchar(64))
-  DEFAULT CHARSET=utf8;
+  DEFAULT CHARSET=utf8mb3;
 connection master;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval create table federated.t1 (a int primary key, b varchar(64))
   ENGINE=FEDERATED
   connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1'
-  DEFAULT CHARSET=utf8;
+  DEFAULT CHARSET=utf8mb3;
 
 --error ER_DUP_KEY
 insert into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe")
@@ -1826,13 +1826,13 @@ drop table federated.t1, federated.t2;
 # BUG#29875 Disable support for transactions
 #
 connection slave;
-CREATE TABLE federated.t1 (a INT PRIMARY KEY) DEFAULT CHARSET=utf8;
+CREATE TABLE federated.t1 (a INT PRIMARY KEY) DEFAULT CHARSET=utf8mb3;
 connection master;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE federated.t1 (a INT PRIMARY KEY)
   ENGINE=FEDERATED
   CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1'
-  DEFAULT CHARSET=utf8;
+  DEFAULT CHARSET=utf8mb3;
 
 SELECT transactions FROM information_schema.engines WHERE engine="FEDERATED";
 INSERT INTO federated.t1 VALUES (1);
@@ -2017,7 +2017,7 @@ connection slave;
 eval CREATE TABLE federated.t2 (a INT PRIMARY KEY, b varchar(64))
   ENGINE=FEDERATED
   connection='mysql://root@127.0.0.1:$MASTER_MYPORT/federated/t1'
-  DEFAULT CHARSET=utf8;
+  DEFAULT CHARSET=utf8mb3;
 connection master;
 INSERT INTO federated.t1 VALUES (1,"Larry"), (2,"Curly"), (3,"Moe");
 CREATE TABLE federated.t1_child(a int);
