@@ -6190,13 +6190,13 @@ select st_intersects(st_geomfromtext(@geom2), st_buffer(st_geomfromtext(@geom1),
 DROP TABLE IF EXISTS `t`;
 CREATE TABLE `t` (
   `geo` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 insert into t values (st_geomfromtext(@geom1));
 
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `geo` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 insert into t1 values (st_geomfromtext(@geom2));
 
 select t1.geo from t,t1 where st_intersects(t1.geo, st_buffer(t.geo,50));
