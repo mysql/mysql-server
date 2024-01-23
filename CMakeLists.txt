@@ -76,7 +76,7 @@ ELSEIF(APPLE)
   # We must postpone the version test until we have called 'uname -r' below.
 ELSEIF(UNIX)
   # This is currently minimum version on all supported platforms.
-  IF(CMAKE_VERSION VERSION_LESS 3.5.1)
+  IF(CMAKE_VERSION VERSION_LESS 3.14.6)
     # Default cmake is 2.8.12.2 on RedHat
     IF(EXISTS "/etc/redhat-release")
       MESSAGE(WARNING "Please use cmake3 rather than cmake on this platform")
@@ -90,7 +90,7 @@ ELSEIF(UNIX)
       # On SunOS /opt/csw/bin/cmake is (most likely) too old.
       FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin /sbin)
       IF(MY_UNAME)
-        EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
+        EXECUTE_PROCESS(COMMAND uname -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
         IF(MY_HOST_SYSTEM_NAME MATCHES "SunOS")
           FIND_PROGRAM(MY_CMAKE cmake /usr/bin
             NO_CMAKE_ENVIRONMENT_PATH
@@ -98,7 +98,7 @@ ELSEIF(UNIX)
             )
           IF(MY_CMAKE)
             MESSAGE(STATUS "Found ${MY_CMAKE}")
-            EXEC_PROGRAM(${MY_CMAKE} ARGS --version)
+            EXECUTE_PROCESS(COMMAND ${MY_CMAKE} --version)
           ELSE()
             MESSAGE(STATUS "Please install /usr/bin/cmake ")
           ENDIF()
@@ -211,7 +211,8 @@ IF(UNIX)
       OUTPUT_STRIP_TRAILING_WHITESPACE
       RESULT_VARIABLE MY_UNAME_MACHINE_RESULT
       )
-    EXEC_PROGRAM(${MY_UNAME} ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
+    EXECUTE_PROCESS(COMMAND ${MY_UNAME} -r
+      OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
   ENDIF()
   FIND_PROGRAM(MY_DPKG_BUILDFLAGS dpkg-buildflags /bin /usr/bin)
   FIND_PROGRAM(MY_RPM rpm /bin /usr/bin)
