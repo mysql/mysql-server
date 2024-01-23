@@ -25,8 +25,7 @@
 
 #include "my_compiler.h"
 #include "mysql/service_mysql_alloc.h"
-#include "sql/binlog.h"     // mysql_bin_log
-#include "sql/log_event.h"  // Incident_log_event
+#include "sql/binlog.h"  // mysql_bin_log
 #include "sql/mdl.h"
 #include "sql/psi_memory_key.h"
 #include "sql/rpl_write_set_handler.h"  // add_pke
@@ -317,10 +316,6 @@ void injector::new_trans(THD *thd, injector::transaction *ptr) {
   ptr->swap(trans);
 }
 
-int injector::record_incident(
-    THD *thd, binary_log::Incident_event::enum_incident incident,
-    LEX_CSTRING const message) {
-  Incident_log_event ev(thd, incident, message);
-  return mysql_bin_log.write_incident(&ev, thd, true /*need_lock_log=true*/,
-                                      message.str);
+int injector::record_incident(THD *thd, std::string_view message) {
+  return mysql_bin_log.write_incident_commit(thd, message);
 }

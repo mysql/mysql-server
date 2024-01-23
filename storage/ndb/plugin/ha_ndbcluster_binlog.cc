@@ -6098,9 +6098,7 @@ void Ndb_binlog_thread::inject_incident(
   log_error("%s", errmsg);
 
   // Record incident in injector
-  LEX_CSTRING const msg = {errmsg, strlen(errmsg)};
-  if (inj->record_incident(
-          thd, binary_log::Incident_event::INCIDENT_LOST_EVENTS, msg) != 0) {
+  if (inj->record_incident(thd, errmsg) != 0) {
     log_error("Failed to record incident");
   }
 }
@@ -7087,9 +7085,12 @@ void Ndb_binlog_thread::do_wakeup() {
 
 bool Ndb_binlog_thread::check_reconnect_incident(
     THD *thd, injector *inj, Reconnect_type incident_id) const {
+  std::string_view msg = "cluster disconnect";
   log_verbose(1, "Check for incidents");
 
   if (incident_id == MYSQLD_STARTUP) {
+    msg = "mysqld startup";
+
     LOG_INFO log_info;
     mysql_bin_log.get_current_log(&log_info);
     log_verbose(60, " - current binlog file: %s", log_info.log_file_name);
@@ -7110,18 +7111,8 @@ bool Ndb_binlog_thread::check_reconnect_incident(
 
   // Write an incident event to the binlog since it's not possible to know what
   // has happened in the cluster while not being connected.
-  LEX_CSTRING msg;
-  switch (incident_id) {
-    case MYSQLD_STARTUP:
-      msg = {STRING_WITH_LEN("mysqld startup")};
-      break;
-    case CLUSTER_DISCONNECT:
-      msg = {STRING_WITH_LEN("cluster disconnect")};
-      break;
-  }
-  log_verbose(20, "Writing incident for %s", msg.str);
-  (void)inj->record_incident(
-      thd, binary_log::Incident_event::INCIDENT_LOST_EVENTS, msg);
+  log_verbose(20, "Writing incident for %.*s", (int)msg.length(), msg.data());
+  if (inj->record_incident(thd, msg)) log_error("Failed to record incident");
 
   return true;  // Incident written
 }
@@ -7945,6 +7936,12 @@ restart_cluster_failure:
     // Self test functionality
     DBUG_EXECUTE_IF("ndb_binlog_log_table_maps",
                     { dbug_log_table_maps(i_ndb, current_epoch); });
+
+    DBUG_EXECUTE_IF("ndb_binlog_inject_incident", {
+      // Test rpl_injector function for writing incident to binlog
+      const std::string message{"Epoch: " + std::to_string(current_epoch)};
+      inj->record_incident(thd, message.c_str());
+    });
   }
 
   // Check if loop has been terminated without properly handling all events

@@ -25,9 +25,8 @@
 #define INJECTOR_H
 
 #include <stddef.h>
+#include <string_view>
 
-#include "lex_string.h"
-#include "libbinlogevents/include/control_events.h"  // enum_incidents
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/table.h"  // TABLE
@@ -378,8 +377,7 @@ class injector {
    */
   void new_trans(THD *, transaction *);
 
-  int record_incident(THD *, binary_log::Incident_event::enum_incident incident,
-                      LEX_CSTRING const message);
+  int record_incident(THD *, std::string_view message);
 
  private:
   explicit injector();
