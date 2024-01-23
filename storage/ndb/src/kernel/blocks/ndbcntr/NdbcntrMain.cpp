@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5215,6 +5215,16 @@ void Ndbcntr::Missra::execSTTORRY(Signal* signal){
   }    
   
   currentBlockIndex++;
+#ifdef ERROR_INSERT
+  if (cntr.cerrorInsert == 1029) {
+    signal->theData[0] = ZBLOCK_STTOR;
+    g_eventLogger->info(
+        "NdbCntrMain stalling Next STTOR on phase %u blockIndex %u",
+        currentStartPhase, currentBlockIndex);
+    cntr.sendSignalWithDelay(cntr.reference(), GSN_CONTINUEB, signal, 100, 1);
+    return;
+  }
+#endif
   sendNextSTTOR(signal);
 }
 
@@ -6058,6 +6068,11 @@ Ndbcntr::sendWriteLocalSysfileConf(Signal *signal)
       signal->theData[0] = restorable_gci;
       execRESTORABLE_GCI_REP(signal);
     }
+  }
+
+  if (ERROR_INSERTED(1028) && ctypeOfStart == NodeState::ST_SYSTEM_RESTART) {
+    jam();
+    CRASH_INSERTION(1028);
   }
 }
 
