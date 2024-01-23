@@ -28,14 +28,14 @@
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
-call mtr.add_suppression("The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log. An incident event has been written to the binary log which will stop the replicas.");
+call mtr.add_suppression("Non-transactional changes were not written to the binlog. An incident event has been written to the binary log which will stop the replicas.");
 
 --let $old_max_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_stmt_cache_size", Value, 1)
 --let $old_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_stmt_cache_size", Value, 1)
 SET GLOBAL max_binlog_stmt_cache_size = 4096;
 SET GLOBAL binlog_stmt_cache_size = 4096;
 
---let $debug_point= simulate_write_incident_event_into_binlog_directly
+--let $debug_point= simulate_write_trans_without_gtid
 --source include/add_debug_point.inc
 
 --disconnect master
@@ -72,7 +72,7 @@ eval INSERT INTO t1 (c1, data) VALUES (1,
 --source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---let $debug_point= simulate_write_incident_event_into_binlog_directly
+--let $debug_point= simulate_write_trans_without_gtid
 --source include/remove_debug_point.inc
 
 --replace_result $old_max_binlog_stmt_cache_size ORIGINAL_VALUE

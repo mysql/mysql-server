@@ -5,12 +5,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
-call mtr.add_suppression("The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log. An incident event has been written to the binary log which will stop the replicas.");
+call mtr.add_suppression("Non-transactional changes were not written to the binlog. An incident event has been written to the binary log which will stop the replicas.");
 SET GLOBAL max_binlog_stmt_cache_size = 4096;
 Warnings:
 Warning	1745	Option binlog_stmt_cache_size (32768) is greater than max_binlog_stmt_cache_size (4096); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size.
 SET GLOBAL binlog_stmt_cache_size = 4096;
-# Adding debug point 'simulate_write_incident_event_into_binlog_directly' to @@GLOBAL.debug
+# Adding debug point 'simulate_write_trans_without_gtid' to @@GLOBAL.debug
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
 #
 # A single statement on non-transactional table causes to log an incident
@@ -29,7 +29,7 @@ master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
 include/rpl/sync_to_replica.inc
 [connection master]
 DROP TABLE t1;
-# Removing debug point 'simulate_write_incident_event_into_binlog_directly' from @@GLOBAL.debug
+# Removing debug point 'simulate_write_trans_without_gtid' from @@GLOBAL.debug
 SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;
 include/rpl/deinit.inc

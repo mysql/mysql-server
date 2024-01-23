@@ -25,13 +25,12 @@
 #define INJECTOR_H
 
 #include <stddef.h>
+#include <string_view>
 
-#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_io.h"                              // FN_REFLEN
-#include "mysql/binlog/event/control_events.h"  // enum_incidents
-#include "sql/table.h"                          // TABLE
+#include "my_io.h"      // FN_REFLEN
+#include "sql/table.h"  // TABLE
 
 class THD;
 struct MY_BITMAP;
@@ -334,9 +333,7 @@ class injector {
     const bool m_calc_writeset_hash{false};
   };
 
-  int record_incident(
-      THD *, mysql::binlog::event::Incident_event::enum_incident incident,
-      const LEX_CSTRING &message);
+  int record_incident(THD *, std::string_view message);
 
  private:
   explicit injector();

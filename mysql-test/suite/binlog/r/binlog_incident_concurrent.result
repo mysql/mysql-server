@@ -1,0 +1,184 @@
+call mtr.add_suppression("Non-transactional changes were not written to the binlog. An incident event has been written to the binary log which will stop the replicas.");
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+Warnings:
+Warning	1745	Option binlog_stmt_cache_size (32768) is greater than max_binlog_stmt_cache_size (4096); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size.
+SET GLOBAL binlog_stmt_cache_size = 4096;
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
+CREATE TABLE t2 (a INT PRIMARY KEY, b VARCHAR(400)) engine=InnoDB;
+CREATE PROCEDURE dmlload (seconds int)
+begin
+set @x=time_to_sec(current_time()) + seconds;
+repeat
+start transaction;
+insert into t2 values (2, repeat('I', 400));
+commit;
+start transaction;
+update t2 set b=repeat('Z', 400) where a=2;
+commit;
+start transaction;
+delete from t2 where a=2;
+commit;
+until @x <= time_to_sec(current_time())
+end repeat;
+end%
+RESET BINARY LOGS AND GTIDS;
+# Start running background load for 5 seconds
+call dmlload(5);
+# i: 1
+Got one of the listed errors
+# i: 2
+Got one of the listed errors
+# i: 3
+Got one of the listed errors
+# i: 4
+Got one of the listed errors
+# i: 5
+Got one of the listed errors
+# i: 6
+Got one of the listed errors
+# i: 7
+Got one of the listed errors
+# i: 8
+Got one of the listed errors
+# i: 9
+Got one of the listed errors
+# i: 10
+Got one of the listed errors
+# i: 11
+Got one of the listed errors
+# i: 12
+Got one of the listed errors
+# i: 13
+Got one of the listed errors
+# i: 14
+Got one of the listed errors
+# i: 15
+Got one of the listed errors
+# i: 16
+Got one of the listed errors
+# i: 17
+Got one of the listed errors
+# i: 18
+Got one of the listed errors
+# i: 19
+Got one of the listed errors
+# i: 20
+Got one of the listed errors
+# i: 21
+Got one of the listed errors
+# i: 22
+Got one of the listed errors
+# i: 23
+Got one of the listed errors
+# i: 24
+Got one of the listed errors
+# i: 25
+Got one of the listed errors
+# i: 26
+Got one of the listed errors
+# i: 27
+Got one of the listed errors
+# i: 28
+Got one of the listed errors
+# i: 29
+Got one of the listed errors
+# i: 30
+Got one of the listed errors
+# i: 31
+Got one of the listed errors
+# i: 32
+Got one of the listed errors
+# i: 33
+Got one of the listed errors
+# i: 34
+Got one of the listed errors
+# i: 35
+Got one of the listed errors
+# i: 36
+Got one of the listed errors
+# i: 37
+Got one of the listed errors
+# i: 38
+Got one of the listed errors
+# i: 39
+Got one of the listed errors
+# i: 40
+Got one of the listed errors
+# i: 41
+Got one of the listed errors
+# i: 42
+Got one of the listed errors
+# i: 43
+Got one of the listed errors
+# i: 44
+Got one of the listed errors
+# i: 45
+Got one of the listed errors
+# i: 46
+Got one of the listed errors
+# i: 47
+Got one of the listed errors
+# i: 48
+Got one of the listed errors
+# i: 49
+Got one of the listed errors
+# i: 50
+Got one of the listed errors
+# There should now be 50 incidents in the binlog
+# Collect background load result
+# Check that binlogs contain Gtid + Incident
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+include/rpl/assert_binlog_events.inc [!Gtid_or_anon # Incident]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE dmlload;
+SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
+SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;

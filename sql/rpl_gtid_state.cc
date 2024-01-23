@@ -721,8 +721,7 @@ int Gtid_state::save_gtids_of_last_binlog_into_table() {
   if (!ret) {
     logged_gtids_last_binlog.remove_gtid_set(&previous_gtids_logged);
     logged_gtids_last_binlog.remove_gtid_set(&gtids_only_in_table);
-    if (!logged_gtids_last_binlog.is_empty() ||
-        mysql_bin_log.is_rotating_caused_by_incident) {
+    if (!logged_gtids_last_binlog.is_empty()) {
       /* Prepare previous_gtids_logged for next binlog always. Need it
       even during shutdown to synchronize with innodb GTID persister. */
       if (previous_gtids_logged.add_gtid_set(&logged_gtids_last_binlog))

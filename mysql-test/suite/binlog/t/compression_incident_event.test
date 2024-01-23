@@ -24,39 +24,33 @@ CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000));
 RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table
 
+--let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.1/data/*binlog*.0*
+--source include/rpl/log_file_max_number.inc
+--let $max_log_file_before_incident = $log_file_max_number
+
 --let $debug_point=binlog_compression_inject_incident
 --source include/add_debug_point.inc
 
 INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
 
+# Prior to Bug#35671897 the Incident would not be written until subseqent
+# query, this check verifies that it has already been written by reading the
+# fourth event and showing it's type, before any other query is executed.
+--echo Check that Incident has been written
+--let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 4)
+echo $evt;
+
 --let $debug_point=binlog_compression_inject_incident
 --source include/remove_debug_point.inc
 
-# 1 - Format_desc event, 2 - Previous_gtids event, 3 - Gtid event
+# 1 - Format_desc event, 2 - Previous_gtids event
+
+--let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 3)
+--let $assert_text = Expected event type Anonymous_Gtid
+--let $assert_cond = "$evt" = "Anonymous_Gtid" OR "$evt" = "Gtid"
+--source include/assert.inc
 
 --let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 4)
---let $assert_text = Expected event type Query
---let $assert_cond = "$evt" = "Query"
---source include/assert.inc
-
---let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 5)
---let $assert_text = Expected event type Table_map
---let $assert_cond = "$evt" = "Table_map"
---source include/assert.inc
-
---let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 6)
---let $assert_text = Expected event type Write_rows
---let $assert_cond = "$evt" = "Write_rows"
---source include/assert.inc
-
---let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 7)
---let $assert_text = Expected event type Xid
---let $assert_cond = "$evt" = "Xid"
---source include/assert.inc
-
-# 8 - Gtid event
-
---let $evt= query_get_value(SHOW BINLOG EVENTS, Event_type, 9)
 --let $assert_text = Expected event type Incident
 --let $assert_cond = "$evt" = "Incident"
 --source include/assert.inc
@@ -71,6 +65,13 @@ INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
 --let $nrows = `SELECT COUNT(*) FROM $pfs_table WHERE log_type ='BINARY' AND compression_type='NONE'`
 --let $assert_cond = $nrows = 1
 --let $assert_text = Number of rows in $pfs_table = 1 for compression_type = NONE
+--source include/assert.inc
+
+# assert the log file number increased, this shows that binlog was rotated
+--source include/rpl/log_file_max_number.inc
+--let $max_log_file_after_incident = $log_file_max_number
+--let $assert_text = incident rotated binlog
+--let $assert_cond = $max_log_file_before_incident + 1 = $max_log_file_after_incident
 --source include/assert.inc
 
 # clean up
