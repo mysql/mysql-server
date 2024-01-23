@@ -9040,6 +9040,8 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
     HugoTransactions trans(* pDict->getTable(tab.getName()));
     trans.loadTable(pNdb, ctx->getNumRecords());
     trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
+    CHECK(restarter.insertErrorInNode(node_1, 0) == 0,
+          "Failed to clear insertError");
     return NDBT_OK;
   }
   /**
