@@ -722,10 +722,6 @@ install -d -m 0755 %{buildroot}/var/run/mysqlrouter
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %endif
 
-# Remove files pages we explicitly do not want to package
-rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
-rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
-
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
 ln -sf %{_sbindir}/service %{buildroot}%{_sbindir}/rcmysql
