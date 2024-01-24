@@ -2855,6 +2855,8 @@ int runBug22696(NDBT_Context* ctx, NDBT_Step* step)
     {
       NdbSleep_SecSleep(5); // Wait for a few gcp
     }
+    ndbout << "Clear error insert 7072" << endl;
+    CHECK(restarter.insertErrorInAllNodes(0) == 0);
   }
   
   ctx->stopTest();  
