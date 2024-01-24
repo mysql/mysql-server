@@ -173,7 +173,7 @@ BuildRequires:  cmake3 >= 3.6.1
 %{?el7:BuildRequires:  devtoolset-11-gcc}
 %{?el7:BuildRequires:  devtoolset-11-gcc-c++}
 %{?el7:BuildRequires:  devtoolset-11-binutils}
-%{?el8:BuildRequires:  devtoolset-11-dwz}
+%{?el7:BuildRequires:  devtoolset-11-dwz}
 %endif
 %{?el8:BuildRequires:  gcc-toolset-12-annobin-annocheck}
 %{?el8:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
