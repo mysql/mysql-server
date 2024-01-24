@@ -32,6 +32,9 @@
 %global with_meb    1
 %endif
 
+# PGO option
+%{?with_pgo:   %global pgo 1}
+
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -42,6 +45,15 @@
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
+
+%ifarch aarch64
+%{?el7:%global __strip /opt/rh/devtoolset-10/root/usr/bin/strip}
+%else
+%{?el7:%global __strip /opt/rh/devtoolset-11/root/usr/bin/strip}
+%endif
+%{?el8:%global __strip /opt/rh/gcc-toolset-12/root/usr/bin/strip}
+%{?el9:%global __strip /opt/rh/gcc-toolset-12/root/usr/bin/strip}
+%global __brp_strip_static_archive %{nil}
 
 %{!?product_suffix:              %global product_suffix community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
@@ -83,19 +95,23 @@ BuildRequires:  cmake3 >= 3.6.1
 %{?el7:BuildRequires:  devtoolset-10-gcc}
 %{?el7:BuildRequires:  devtoolset-10-gcc-c++}
 %{?el7:BuildRequires:  devtoolset-10-binutils}
+%{?el7:BuildRequires:  devtoolset-10-dwz}
 %else
 %{?el7:BuildRequires:  devtoolset-11-gcc}
 %{?el7:BuildRequires:  devtoolset-11-gcc-c++}
 %{?el7:BuildRequires:  devtoolset-11-binutils}
+%{?el7:BuildRequires:  devtoolset-11-dwz}
 %endif
 %{?el8:BuildRequires:  gcc-toolset-12-annobin-annocheck}
 %{?el8:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
 %{?el8:BuildRequires:  gcc-toolset-12-binutils}
+%{?el8:BuildRequires:  gcc-toolset-12-dwz}
 %{?el8:BuildRequires:  gcc-toolset-12-gcc-c++}
 %{?el8:BuildRequires:  gcc-toolset-12-gcc}
 %{?el9:BuildRequires:  gcc-toolset-12-annobin-annocheck}
 %{?el9:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
 %{?el9:BuildRequires:  gcc-toolset-12-binutils}
+%{?el9:BuildRequires:  gcc-toolset-12-dwz}
 %{?el9:BuildRequires:  gcc-toolset-12-gcc-c++}
 %{?el9:BuildRequires:  gcc-toolset-12-gcc}
 BuildRequires:  bison >= 2.1
@@ -192,6 +208,7 @@ mkdir release
 (
   cd release
   %{cmake3} ../%{src_dir} \
+           %{?pgo:-DFPROFILE_GENERATE=1} \
            -DBUILD_CONFIG=mysql_release \
            -DREPRODUCIBLE_BUILD=OFF \
            -DINSTALL_LAYOUT=RPM \
@@ -219,6 +236,52 @@ mkdir release
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
+
+%if 0%{?pgo}
+(
+  # Run some MTR load to generate profile data
+  [ -d profile-data ] && rm -rf profile-data
+  pushd release/mysql-test
+  ./mtr \
+    --mem --parallel=auto --force --retry=0 \
+    --mysqld=--binlog-format=row \
+    --clean-vardir --suite=main || true
+  rm -r $(readlink var)
+  popd
+
+  # Build again with profile data present
+  rm -rf release
+  mkdir release && pushd release
+  %{cmake3} ../%{src_dir} \
+           -DFPROFILE_USE=1 \
+           -DBUILD_CONFIG=mysql_release \
+           -DREPRODUCIBLE_BUILD=OFF \
+           -DINSTALL_LAYOUT=RPM \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DCMAKE_C_FLAGS="%{optflags}" \
+           -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DINSTALL_MYSQLTESTDIR="" \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
+           -DWITH_ROUTER=OFF \
+           -DWITH_NUMA=OFF \
+           %{?mecab_option} \
+%if 0%{?cluster}
+           -DWITH_NDB=1 \
+           -DNDB_UTILS_LINK_DYNAMIC=1 \
+%endif
+%if 0%{?commercial}
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_CURL=system \
+           %{?aws_sdk_option} \
+%endif
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
+           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
+           -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
+  make %{?_smp_mflags} VERBOSE=1
+)
+%endif # pgo
 
 %install
 MBD=$RPM_BUILD_DIR/%{src_dir}
