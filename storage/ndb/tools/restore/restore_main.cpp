@@ -2379,11 +2379,7 @@ int do_restore(RestoreThreadData *thrdata) {
 
   unsigned j;
   for (j = 0; j < g_consumers.size(); j++) {
-    if (g_consumers[j]->has_temp_error()) {
-      ndbout_c(
-          "\nRestore successful, but encountered temporary error, "
-          "please look at configuration.");
-    }
+    g_consumers[j]->log_temp_errors();
   }
 
   if (ga_rebuild_indexes) {
