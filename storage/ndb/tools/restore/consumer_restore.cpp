@@ -1459,7 +1459,21 @@ bool BackupRestore::object(Uint32 type, const void *ptr) {
   return true;
 }
 
-bool BackupRestore::has_temp_error() { return m_temp_error; }
+void BackupRestore::log_temp_errors() {
+  restoreLogger.log_info("Data and log restore successful");
+  if (m_tempErrors.size()) {
+    Uint64 totalDelayMillis = 0;
+    restoreLogger.log_info("Transient delays due to :");
+    for (Uint32 i = 0; i < m_tempErrors.size(); i++) {
+      restoreLogger.log_info("  Code %u  Count %llu  Delay millis %llu",
+                             m_tempErrors[i].code, m_tempErrors[i].count,
+                             m_tempErrors[i].sleepMillis);
+      totalDelayMillis += m_tempErrors[i].sleepMillis;
+    }
+    restoreLogger.log_info("Total transient delay millis : %llu",
+                           totalDelayMillis);
+  }
+}
 
 struct TransGuard {
   NdbTransaction *pTrans;
@@ -3698,13 +3712,30 @@ bool BackupRestore::errorHandler(restore_callback_t *cb) {
       return false;
       // ERROR!
 
-    case NdbError::TemporaryError:
-      restoreLogger.log_error("Temporary error: %u %s", error.code,
-                              error.message);
-      m_temp_error = true;
+    case NdbError::TemporaryError: {
+      struct TempErrorStat *errStat = nullptr;
+      for (Uint32 i = 0; i < m_tempErrors.size(); i++) {
+        if (m_tempErrors[i].code == error.code) {
+          errStat = &m_tempErrors[i];
+          break;
+        }
+      }
+      if (!errStat) {
+        TempErrorStat newStat;
+        newStat.code = error.code;
+        newStat.count = 0;
+        newStat.sleepMillis = 0;
+        m_tempErrors.push_back(newStat);
+        errStat = &m_tempErrors[m_tempErrors.size() - 1];
+      }
+
+      errStat->count++;
+      errStat->sleepMillis += sleepTime;
+
       NdbSleep_MilliSleep(sleepTime);
       return true;
       // RETRY
+    }
 
     case NdbError::UnknownResult:
       restoreLogger.log_error("Unknown: %u %s", error.code, error.message);
