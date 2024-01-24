@@ -28,8 +28,10 @@
 #ifndef jtie_gcalls_hpp
 #define jtie_gcalls_hpp
 
+#include <stdint.h>
+#include <new>  // bad_array_new_length
+
 #include "helpers.hpp"
-#include "jtie_stdint.h"
 #include "jtie_tconv_impl.hpp"
 #include "jtie_tconv_object_impl.hpp"
 
@@ -756,7 +758,8 @@ struct ArrayHelper<C *> {
     TRACE("C * ArrayHelper::ccreate(int32_t)");
     if (p0 < 0) throw std::bad_array_new_length();
     if constexpr (INT32_MAX > SIZE_MAX / sizeof(C)) {
-      if (uint32(p0) > SIZE_MAX / sizeof(C)) throw std::bad_array_new_length();
+      if (uint32_t(p0) > SIZE_MAX / sizeof(C))
+        throw std::bad_array_new_length();
     }
     // ISO C++: 'new' throws std::bad_alloc if unsuccessful
     return new C[p0];
