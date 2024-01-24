@@ -3452,7 +3452,6 @@ runBug54611(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 loops = ctx->getNumLoops();
   Ndb* pNdb = GETNDB(step);
   int rows = ctx->getNumRecords();
-
   HugoTransactions hugoTrans(*ctx->getTab());
 
   for (Uint32 l = 0; l<loops; l++)
@@ -3478,6 +3477,9 @@ runBug54611(NDBT_Context* ctx, NDBT_Step* step)
     res.startAll();
     res.waitClusterStarted();
     CHK_NDB_READY(pNdb);
+
+    ndbout << "Clear error insert 5055" << endl;
+    res.insertErrorInAllNodes(0);
   }
 
   return NDBT_OK;
