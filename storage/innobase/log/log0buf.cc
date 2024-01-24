@@ -1106,9 +1106,9 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
 
     /**
      *  @StateReplicate:
-     *  当一个事务需要写 log 时，首先需要获取
-     * remote_addr，即需要向状态层的哪个位置写log， 然后通过 RDMA
-     * 操作将数据写入到该地址中。
+     *  当一个事务需要写 log
+     * 时，首先需要获取remote_addr，即需要向状态层的哪个位置写log，然后通过
+     * RDMA 操作将数据写入到该地址中。
      *
      *  在此过程中，需要考虑数据结构共享访问的正确性，
      *  即，当多个事务都要读/写数据时，如何处理冲突，如何保证正确性
@@ -1118,14 +1118,15 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
      *  log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
      */
 
-    // TODO: 每个log一个线程不合理，但不知道该放到什么位置，暂时先这样写了
+    // TODO:每个log一个线程不合理，但不知道怎么让所有log共享该线程，暂时先这样写了
     if (log.m_remote_buf_thd == nullptr) {
       log.m_remote_buf_thd = create_internal_thd();
     }
 
     THD *thd = log.m_remote_buf_thd;
+
     node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
-    RCQP *qp = thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
+    RCQP *qp = thd->qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
     MetaManager *meta_mgr = MetaManager::get_instance();
 
     // 加锁，并发控制
@@ -1143,8 +1144,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     unsigned char *redo_log_remote_buf = nullptr;
 
     // 在状态节点分配空间
-    // TODO:
-    // 这里怎么做到多个log共享一个redo_log_remote_buf？这样写的话肯定会每次产生新的buffer
+    // TODO:这里怎么做到多个log共享一个redo_log_remote_buf？这样写的话肯定会每次产生新的buffer
     if (!thd->redo_log_remote_buf_reserved) {
       thd->redo_log_remote_buf_reserved = true;
 
@@ -1156,20 +1156,20 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // TODO: 这里写log的位置显然不对，全写到buffer头部了，需要修正
     byte *remote_ptr = redo_log_remote_buf;
 
+    // TODO: 应该改写为ATT_sep中类似TxnItem复制的逻辑
     std::memcpy(remote_ptr, str, len);
 
     // Write redo logs into State Node and release latch
-    if (!thd->coro_sched->RDMAWriteSync(
-            0, qp, (char *)redo_log_remote_buf,
-            meta_mgr->GetTxnListBitmapAddr(),  // TODO:需要修改为对应方法
-            meta_mgr->GetRedoLogRemoteBufSize())) {
-      // return;
-    }
+    //    if (!thd->coro_sched->RDMAWriteSync(
+    //            0, qp, (char *)redo_log_remote_buf,
+    //            meta_mgr->GetTxnListBitmapAddr(),  // 需要修改为对应方法
+    //            meta_mgr->GetRedoLogRemoteBufSize())) {
+    //      // return;
+    //    }
 
-    if (!thd->coro_sched->RDMACASSync(
-            0, qp, redo_log_remote_buf_latch,
-            meta_mgr->GetTxnListLatchAddr(),  // TODO:需要修改为对应方法
-            REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
+    if (!thd->coro_sched->RDMACASSync(0, qp, redo_log_remote_buf_latch,
+                                      meta_mgr->GetRedoLogRemoteBufLatchAddr(),
+                                      REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
       // return;
     }
 
