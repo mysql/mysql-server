@@ -97,6 +97,20 @@ class MetaManager {
     return redo_log_remote_buf_latch_addr;
   }
 
+  // TODO: redo log并非定长的，这样写不太正确
+  ALWAYS_INLINE
+  offset_t GetRedoLogAddrByIndex(int index) {
+    return redo_log_base_addr + index * log_size;
+  }
+
+  ALWAYS_INLINE
+  offset_t GetRedoLogCurrAddr() { return redo_log_curr_addr; }
+
+  ALWAYS_INLINE
+  void SetRedoLogCurrAddr(offset_t redo_log_curr_addr_) {
+    redo_log_curr_addr = redo_log_curr_addr_;
+  }
+
  private:
   MetaManager();
   ~MetaManager() {}
@@ -120,8 +134,12 @@ class MetaManager {
   size_t txn_bitmap_size;         // size for txn_list bitmap, initiated
 
   // meta info for redo log
-  offset_t redo_log_remote_buf_latch_addr;  // base address for txn_list_latch
-  size_t redo_log_remote_buf_size = 64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
+  offset_t redo_log_remote_buf_latch_addr;  // base address for redo log latch
+  size_t redo_log_remote_buf_size =
+      64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;  // size of redo log buffer, initiated
+  offset_t redo_log_base_addr;             // base address for redo log buffer
+  size_t log_size;              // size of each log in redo log buffer
+  offset_t redo_log_curr_addr;  // current address of redo log buffer
 
  public:
   RNicHandler *opened_rnic;

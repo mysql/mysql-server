@@ -1118,7 +1118,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
      *  log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
      */
 
-    // TODO:每个log一个线程不合理，但不知道怎么让所有log共享该线程，暂时先这样写了
+    // TODO:每条log一个线程显然不合理，但不知道怎么让所有log共享该线程，暂时先这样写了
     if (log.m_remote_buf_thd == nullptr) {
       log.m_remote_buf_thd = create_internal_thd();
     }
@@ -1135,16 +1135,25 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
         thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
     *(rwlatch_t *)redo_log_remote_buf_latch = REDOLOG_LOCKED;
 
+    while (*(rwlatch_t *)redo_log_remote_buf_latch != REDOLOG_UNLOCKED) {
+      if (!thd->coro_sched->RDMACASSync(
+              0, qp, redo_log_remote_buf_latch,
+              meta_mgr->GetRedoLogRemoteBufLatchAddr(),
+              (uint64_t)REDOLOG_UNLOCKED, (uint64_t)REDOLOG_LOCKED)) {
+        // return;
+      }
+    }
+
     // 如果没有分配的话就先分配空间，先分个32MB看看
+
     // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE=512B)
     // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)，需要换算LSN和SN
-    // const size_t redo_log_remote_buf_size = 64 * 1024 *
-    // OS_FILE_LOG_BLOCK_SIZE;
+    // size_t redo_log_remote_buf_size = 64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
 
     unsigned char *redo_log_remote_buf = nullptr;
 
     // 在状态节点分配空间
-    // TODO:这里怎么做到多个log共享一个redo_log_remote_buf？这样写的话肯定会每次产生新的buffer
+    // TODO:这里怎么做到多个log共享一个redo_log_remote_buf？这样写的话肯定会每次产生新的buffer，不正确
     if (!thd->redo_log_remote_buf_reserved) {
       thd->redo_log_remote_buf_reserved = true;
 
@@ -1156,22 +1165,30 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // TODO: 这里写log的位置显然不对，全写到buffer头部了，需要修正
     byte *remote_ptr = redo_log_remote_buf;
 
-    // TODO: 应该改写为ATT_sep中类似TxnItem复制的逻辑
+    // 将 log 复制一份到本地的新 buffer（与原有逻辑的buffer不同）
+    // 只用于和状态层的 remote buffer 同步，来回传
     std::memcpy(remote_ptr, str, len);
 
     // Write redo logs into State Node and release latch
-    //    if (!thd->coro_sched->RDMAWriteSync(
-    //            0, qp, (char *)redo_log_remote_buf,
-    //            meta_mgr->GetTxnListBitmapAddr(),  // 需要修改为对应方法
-    //            meta_mgr->GetRedoLogRemoteBufSize())) {
-    //      // return;
-    //    }
+    // TODO: 这样每次都需要把整个buffer从本地和状态层之间来回传，有点浪费资源
+    // TODO: 可能需要改写为ATT_sep中类似TxnItem复制的逻辑？
+    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
+                                        meta_mgr->GetRedoLogCurrAddr(),
+                                        meta_mgr->GetRedoLogRemoteBufSize())) {
+      // return;
+    }
+
+    // 设置状态层新的 redo log 存放地址
+    // meta_mgr->SetRedoLogCurrAddr(0);
 
     if (!thd->coro_sched->RDMACASSync(0, qp, redo_log_remote_buf_latch,
                                       meta_mgr->GetRedoLogRemoteBufLatchAddr(),
                                       REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
       // return;
     }
+
+    // this CAS must succeed, because only one thread can obtain the authority
+    assert(*(rwlatch_t *)redo_log_remote_buf_latch == REDOLOG_LOCKED);
 
     // 状态分离部分截止，下面为原有逻辑
 
