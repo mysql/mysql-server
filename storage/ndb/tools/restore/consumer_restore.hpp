@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,6 @@ public:
     m_parallelism = parallelism;
     m_callback = 0;
     m_free_callback = 0;
-    m_temp_error = false;
     m_no_upgrade = false;
     m_tableChangesMask = 0;
     m_preserve_trailing_spaces = false;
@@ -135,7 +134,7 @@ public:
   virtual bool finalize_staging(const TableS &);
   virtual bool finalize_table(const TableS &);
   virtual bool rebuild_indexes(const TableS&);
-  virtual bool has_temp_error();
+  virtual void log_temp_errors();
   virtual bool createSystable(const TableS & table);
   virtual bool table_compatible_check(TableS & tableS);
   virtual bool check_blobs(TableS & tableS); 
@@ -294,6 +293,14 @@ public:
   Vector<const NdbDictionary::ForeignKey*> m_fks;
 
   static const PromotionRules m_allowed_promotion_attrs[];
+  /* TempErrorStat : Counts of temporary errors and their impact to restore */
+  struct TempErrorStat {
+    int code;
+    Uint64 count;
+    Uint64 sleepMillis;
+  };
+
+  Vector<struct TempErrorStat> m_tempErrors;
 };
 
 #endif

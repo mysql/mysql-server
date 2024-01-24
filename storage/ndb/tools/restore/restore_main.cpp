@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2742,12 +2742,7 @@ main(int argc, char** argv)
   unsigned j;
   for(j= 0; j < g_consumers.size(); j++) 
   {
-    if (g_consumers[j]->has_temp_error())
-    {
-      clearConsumers();
-      ndbout_c("\nRestore successful, but encountered temporary error, "
-               "please look at configuration.");
-    }               
+    g_consumers[j]->log_temp_errors();
   }
 
   if (ga_rebuild_indexes)

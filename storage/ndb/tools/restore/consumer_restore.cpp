@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1871,9 +1871,21 @@ BackupRestore::object(Uint32 type, const void * ptr)
   return true;
 }
 
-bool
-BackupRestore::has_temp_error(){
-  return m_temp_error;
+void
+BackupRestore::log_temp_errors(){
+  restoreLogger.log_info("Data and log restore successful");
+  if (m_tempErrors.size()) {
+    Uint64 totalDelayMillis = 0;
+    restoreLogger.log_info("Transient delays due to :");
+    for (Uint32 i = 0; i < m_tempErrors.size(); i++) {
+      restoreLogger.log_info("  Code %u  Count %llu  Delay millis %llu",
+                             m_tempErrors[i].code, m_tempErrors[i].count,
+                             m_tempErrors[i].sleepMillis);
+      totalDelayMillis += m_tempErrors[i].sleepMillis;
+    }
+    restoreLogger.log_info("Total transient delay millis : %llu",
+                           totalDelayMillis);
+  }
 }
 
 struct TransGuard
@@ -4126,12 +4138,30 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
     return false;
     // ERROR!
     
-  case NdbError::TemporaryError:
-    restoreLogger.log_error("Temporary error: %u", error.code);
-    m_temp_error = true;
+  case NdbError::TemporaryError: {
+    struct TempErrorStat *errStat = NULL;;
+    for (Uint32 i = 0; i < m_tempErrors.size(); i++) {
+      if (m_tempErrors[i].code == error.code) {
+        errStat = &m_tempErrors[i];
+        break;
+      }
+    }
+    if (!errStat) {
+      TempErrorStat newStat;
+      newStat.code = error.code;
+      newStat.count = 0;
+      newStat.sleepMillis = 0;
+      m_tempErrors.push_back(newStat);
+      errStat = &m_tempErrors[m_tempErrors.size() - 1];
+    }
+
+    errStat->count++;
+    errStat->sleepMillis += sleepTime;
+
     NdbSleep_MilliSleep(sleepTime);
     return true;
     // RETRY
+  }
     
   case NdbError::UnknownResult:
     restoreLogger.log_error("Unknown: %u", error.code);

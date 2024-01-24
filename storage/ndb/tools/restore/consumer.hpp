@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ public:
   virtual bool isMissingTable(const TableS &){return false;}
   NODE_GROUP_MAP *m_nodegroup_map;
   uint            m_nodegroup_map_len;
-  virtual bool has_temp_error() {return false;}
+  virtual void log_temp_errors() {return;}
   virtual bool table_equal(const TableS &) { return true; }
   virtual bool table_compatible_check(TableS &) {return true;}
   virtual bool check_blobs(TableS &) {return true;}
