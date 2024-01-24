@@ -1163,7 +1163,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
             meta_mgr
                 ->GetTxnListBitmapAddr(),  // TODO:需要修改为redo_log_util中的对应方法
             redo_log_remote_buf_size)) {
-      return;
+      // return;
     }
 
     if (!thd->coro_sched->RDMACASSync(
@@ -1171,7 +1171,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
             meta_mgr
                 ->GetTxnListLatchAddr(),  // TODO:需要修改为redo_log_util中的对应方法
             REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
-      return;
+      // return;
     }
 
     // 状态分离部分截止，下面为原有逻辑
