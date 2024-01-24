@@ -1165,6 +1165,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
             redo_log_remote_buf_size)) {
       return;
     }
+
     if (!thd->coro_sched->RDMACASSync(
             0, qp, redo_log_remote_buf_latch,
             meta_mgr
@@ -1172,6 +1173,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
             REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
       return;
     }
+
     // 状态分离部分截止，下面为原有逻辑
 
     ut_a(len <= str_len);
