@@ -1224,6 +1224,8 @@ int runSystemRestart1(NDBT_Context *ctx, NDBT_Step *step) {
     CHECK(restarter.waitClusterStarted(timeout) == 0);
     CHECK(pNdb->waitUntilReady(timeout) == 0);
 
+    ndbout << "Clear error insert 5020" << endl;
+    CHECK(restarter.insertErrorInAllNodes(0) == 0);
     i++;
   }
 
