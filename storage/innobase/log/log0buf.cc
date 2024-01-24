@@ -1118,6 +1118,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
      *  log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
      */
 
+    // TODO: 每个log一个线程不合理，但不知道该放到什么位置，暂时先这样写了
     if (log.m_remote_buf_thd == nullptr) {
       log.m_remote_buf_thd = create_internal_thd();
     }
@@ -1136,20 +1137,41 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // 如果没有分配的话就先分配空间，先分个32MB看看
     // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE=512B)
     // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)，需要换算LSN和SN
+    const size_t redo_log_remote_buf_size = 64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
+
+    unsigned char *redo_log_remote_buf = nullptr;
 
     // 在状态节点分配空间
-    // TODO: 我有点混淆在状态节点和本地分配空间
+    // TODO:
+    // 这里怎么做到多个log共享一个redo_log_remote_buf？这样写的话肯定会每次产生新的buffer
     if (!thd->redo_log_remote_buf_reserved) {
       thd->redo_log_remote_buf_reserved = true;
-      const size_t redo_log_remote_buf_size =
-          64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
-      unsigned char *redo_log_remote_buf =
-          (unsigned char *)thd->rdma_buffer_allocator->Alloc(
-              redo_log_remote_buf_size);
+
+      redo_log_remote_buf = (unsigned char *)thd->rdma_buffer_allocator->Alloc(
+          redo_log_remote_buf_size);
     }
 
-    // Write redo logs into State Node and release latch
+    // 把log先转发到本地
+    // TODO: 这里写log的位置显然不对，全写到buffer头部了，需要修正
+    byte *remote_ptr = redo_log_remote_buf;
 
+    std::memcpy(remote_ptr, str, len);
+
+    // Write redo logs into State Node and release latch
+    if (!thd->coro_sched->RDMAWriteSync(
+            0, qp, (char *)redo_log_remote_buf,
+            meta_mgr
+                ->GetTxnListBitmapAddr(),  // TODO:需要修改为redo_log_util中的对应方法
+            redo_log_remote_buf_size)) {
+      return;
+    }
+    if (!thd->coro_sched->RDMACASSync(
+            0, qp, redo_log_remote_buf_latch,
+            meta_mgr
+                ->GetTxnListLatchAddr(),  // TODO:需要修改为redo_log_util中的对应方法
+            REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
+      return;
+    }
     // 状态分离部分截止，下面为原有逻辑
 
     ut_a(len <= str_len);
