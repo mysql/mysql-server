@@ -563,7 +563,7 @@ void warn_on_deprecated_user_defined_collation(
   2. We should not introduce new shift/reduce conflicts any more.
 */
 
-%expect 63
+%expect 59
 
 /*
    MAINTAINER:
@@ -1502,7 +1502,7 @@ void warn_on_deprecated_user_defined_collation(
 %right  NOT_SYM NOT2_SYM
 %right  BINARY_SYM COLLATE_SYM
 %left  INTERVAL_SYM
-%left SUBQUERY_AS_EXPR
+%left  PREFER_PARENTHESES
 %left '(' ')'
 
 %left EMPTY_FROM_CLAUSE
@@ -7491,7 +7491,7 @@ field_length:
         | '(' NUM ')'           { $$= $2.str; };
 
 opt_field_length:
-          %empty { $$= nullptr; /* use default length */ }
+          %empty %prec PREFER_PARENTHESES { $$= nullptr; /* use default length */ }
         | field_length
         ;
 
@@ -10009,7 +10009,7 @@ select_stmt_with_into:
 
   Even if we define a query_expression not to have outer parentheses, we still
   get a shift/reduce conflict for the <subquery> rule, but we solve this by
-  using an artifical token SUBQUERY_AS_EXPR that has less priority than
+  using an artifical token PREFER_PARENTHESES that has less priority than
   parentheses. This ensures that the parser consumes as many parentheses as it
   can, and only when that fails will it try to reduce, and by then it will be
   clear from the lookahead token whether we have a subquery or just a
@@ -10046,7 +10046,7 @@ query_expression_body:
           {
             $$ = {$1, false};
           }
-        | query_expression_parens %prec SUBQUERY_AS_EXPR
+        | query_expression_parens %prec PREFER_PARENTHESES
           {
             $$ = {$1, true};
           }
@@ -17672,7 +17672,7 @@ table_subquery:
         ;
 
 subquery:
-          query_expression_parens %prec SUBQUERY_AS_EXPR
+          query_expression_parens %prec PREFER_PARENTHESES
           {
             $$= NEW_PTN PT_subquery(@$, $1);
           }
