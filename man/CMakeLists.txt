@@ -34,7 +34,6 @@ SET(MAN1
   mysql_config.1
   mysql_config_editor.1
   mysql_secure_installation.1
-  mysql_ssl_rsa_setup.1
   mysql_tzinfo_to_sql.1
   mysqladmin.1
   mysqlbinlog.1

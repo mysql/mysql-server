@@ -89,10 +89,6 @@ install_db () {
 		     --datadir="$datadir" --user=@MYSQLD_USER@ --init-file="$initfile"
     rm -f "$initfile"
 
-    # Generate certs if needed
-    if [ -x @bindir@/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
-        @bindir@/mysql_ssl_rsa_setup --datadir="$datadir" --uid=@MYSQLD_USER@ >/dev/null 2>&1
-    fi
     exit 0
 }
 

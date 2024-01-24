@@ -689,7 +689,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlman.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %attr(644, root, root) %{_mandir}/man1/perror.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
 
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
@@ -702,7 +701,6 @@ fi
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
-%attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysqldumpslow
 %attr(755, root, root) %{_bindir}/perror
@@ -1233,6 +1231,9 @@ fi
 %endif # with_router
 
 %changelog
+* Thu Jan 25 2024 Georgi "Joro" Kodinov <Georgi.Kodinov@oracle.com> - 8.4.0-1
+- Removed mysql_ssl_rsa_setup
+
 * Tue Jan 02 2024 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.4.0-1
 - Removed references to WITH_AUTHENTICATION_FIDO
 

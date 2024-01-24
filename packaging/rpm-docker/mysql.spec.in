@@ -489,7 +489,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqldump
 %attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/mysql_migrate_keyring
@@ -627,6 +626,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Thu Jan 25 2024 Georgi "Joro" Kodinov <Georgi.Kodinov@oracle.com> - 8.4.0-1
+- Removed mysql_ssl_rsa_setup
+
 * Tue Jan 09 2024 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.4.0-1
 - Removed openssl_udf plugin
 

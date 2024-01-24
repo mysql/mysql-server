@@ -170,9 +170,6 @@ EOF
 		rm -f "$SQL"
 	fi
 
-	if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${MYSQLDATA}/server-key.pem" ]; then
-		mysql_ssl_rsa_setup --datadir="${MYSQLDATA}" --uid=mysql >/dev/null 2>&1
-	fi
 }
 
 verify_server () {

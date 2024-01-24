@@ -327,7 +327,6 @@ our $default_vardir;
 our $excluded_string;
 our $exe_libtool;
 our $exe_mysql;
-our $exe_mysql_ssl_rsa_setup;
 our $exe_mysql_migrate_keyring;
 our $exe_mysql_keyring_encryption_test;
 our $exe_mysqladmin;
@@ -2756,8 +2755,6 @@ sub executable_setup () {
   # Look for the client binaries
   $exe_mysqladmin = mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql      = mtr_exe_exists("$path_client_bindir/mysql");
-  $exe_mysql_ssl_rsa_setup =
-    mtr_exe_exists("$path_client_bindir/mysql_ssl_rsa_setup");
   $exe_mysql_migrate_keyring =
     mtr_exe_exists("$path_client_bindir/mysql_migrate_keyring");
   $exe_mysql_keyring_encryption_test =
@@ -3304,7 +3301,6 @@ sub environment_setup {
   $ENV{'MYSQL_SHOW'}          = client_arguments("mysqlshow");
   $ENV{'MYSQL_SLAP'}          = mysqlslap_arguments();
   $ENV{'MYSQL_SLAVE'}         = client_arguments("mysql", ".2");
-  $ENV{'MYSQL_SSL_RSA_SETUP'} = $exe_mysql_ssl_rsa_setup;
   $ENV{'MYSQLADMIN'}          = native_path($exe_mysqladmin);
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
   $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
