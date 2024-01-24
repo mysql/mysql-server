@@ -671,6 +671,8 @@ int runCreateAndDropAtRandom(NDBT_Context *ctx, NDBT_Step *step) {
       numExists--;
       if (numExists == 0) bias = 1;
     }
+    g_info << "Clear error insert 4013" << endl;
+    CHECK(restarter.insertErrorInAllNodes(0) == 0);
     i++;
   }
 
