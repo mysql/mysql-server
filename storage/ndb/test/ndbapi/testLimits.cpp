@@ -430,6 +430,7 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   CHECKEQUAL(0, trans->getNdbError().code);
 
   trans->close();
+  CHECK(restarter.insertErrorInAllNodes(0) == 0);
 
   return NDBT_OK;
 }
@@ -849,6 +850,7 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   CHECKEQUAL(0, trans->getNdbError().code);
 
   trans->close();
+  CHECK(restarter.insertErrorInAllNodes(0) == 0);
 
   return NDBT_OK;
 }
@@ -965,6 +967,7 @@ int testSegmentedSectionScan(NDBT_Context* ctx, NDBT_Step* step){
   CHECKEQUAL(0, trans->getNdbError().code);
 
   trans->close();
+  CHECK(restarter.insertErrorInAllNodes(0) == 0);
 
   return NDBT_OK;
 }
