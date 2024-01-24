@@ -29,8 +29,8 @@
 #define jtie_tconv_xwidth_hpp
 
 #include <jni.h>
+#include <stdint.h>
 
-#include "jtie_stdint.h"
 #include "jtie_tconv_ptrbybb.hpp"
 #include "jtie_tconv_ptrbyval.hpp"
 #include "jtie_tconv_refbybb.hpp"

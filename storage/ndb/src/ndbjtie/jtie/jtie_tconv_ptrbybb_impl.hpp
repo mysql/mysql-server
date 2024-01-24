@@ -29,12 +29,12 @@
 #ifndef jtie_tconv_ptrbybb_impl_hpp
 #define jtie_tconv_ptrbybb_impl_hpp
 
-#include <assert.h>  // not using namespaces yet
+#include <assert.h>
 #include <jni.h>
-#include <string.h>  // not using namespaces yet
+#include <stdint.h>
+#include <string.h>
 
 #include "helpers.hpp"
-#include "jtie_stdint.h"
 #include "jtie_tconv_idcache_impl.hpp"
 #include "jtie_tconv_impl.hpp"
 #include "jtie_tconv_ptrbybb.hpp"

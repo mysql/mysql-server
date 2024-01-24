@@ -41,7 +41,7 @@
  * As a pure trait type, this class consist of type members only and
  * is not instantiated at runtime.  The members of this class are...
  *
- * @see http://www.research.att.com/~bs/glossary.html
+ * @see https://www.stroustrup.com/glossary.html
  */
 // XXX document conversion requirements:
 //   JF_t <-> JA_t conversions by cast<>

@@ -29,20 +29,10 @@
 #define myjapi_MyJapi_hpp
 
 #include <jni.h>
+#include <stdint.h>
 
 // API to implement against
 #include "myapi.hpp"
-
-/*
- * This test uses the C99 exact-width type aliases s int8_t, uint8_t,
- * ... int64_t, uint64_t as defined in <stdint.h>.
- *
- * Unfortunately, some C/C++ compiler still lack a stdint.h header file.
- * (For instance, MS Visual Studio until VS2010.)  We delegate to a helper
- * file that handles the absence of the <stdint.h> (without introducing
- * a dependency upon JTie or NDB API).
- */
-#include "mystdint.h"  // not using namespaces yet
 
 // libraries
 #include "helpers.hpp"

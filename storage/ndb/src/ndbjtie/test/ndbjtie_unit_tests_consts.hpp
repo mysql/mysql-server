@@ -25,7 +25,7 @@
  * ndbjtie_unit_tests_consts.hpp
  */
 
-#include "jtie_stdint.h"
+#include <stdint.h>
 
 #ifndef ndbjtie_unit_tests_consts_hpp
 #define ndbjtie_unit_tests_consts_hpp
