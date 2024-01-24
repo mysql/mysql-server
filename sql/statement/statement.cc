@@ -713,7 +713,7 @@ bool Prepared_statement_handle::set_parameter(
   }
 
   if (idx >= m_stmt->m_param_count) {
-    my_error(ER_PARAMETER_INDEX_OUT_OF_RANGE, MYF(0), idx);
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "Parameter index", "statement");
     return true;
   }
 
@@ -760,7 +760,7 @@ Item_param *Prepared_statement_handle::get_parameter(size_t index) {
     /* purecov: end */
   }
   if (index >= m_stmt->m_param_count) {
-    my_error(ER_PARAMETER_INDEX_OUT_OF_RANGE, MYF(0), index);
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "Parameter index", "statement");
     return nullptr;
   }
   return m_stmt->m_param_array[index];

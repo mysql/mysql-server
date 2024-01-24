@@ -70,12 +70,12 @@ SELECT test_execute_prepared_statement("SELECT col_a, ?, col_c FROM mle_db.my_ta
 
 
 SET SESSION DEBUG = '+d,parameter_set';
---error ER_PARAMETER_INDEX_OUT_OF_RANGE
+--error ER_DATA_OUT_OF_RANGE
 SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11);
 SET SESSION DEBUG = '-d,parameter_set';
 
 SET SESSION DEBUG = '+d,parameter_get';
---error ER_PARAMETER_INDEX_OUT_OF_RANGE
+--error ER_DATA_OUT_OF_RANGE
 SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11);
 SET SESSION DEBUG = '-d,parameter_get';
 --echo ###################################### Set/get attribute tests ######################################

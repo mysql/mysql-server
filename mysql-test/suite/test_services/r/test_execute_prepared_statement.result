@@ -130,11 +130,11 @@ row_a	col_b	15
 
 SET SESSION DEBUG = '+d,parameter_set';
 SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11);
-ERROR HY000: Parameter index 2 is out of range
+ERROR 22003: Parameter index value is out of range in 'statement'
 SET SESSION DEBUG = '-d,parameter_set';
 SET SESSION DEBUG = '+d,parameter_get';
 SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_a = ? AND col_c > ?", "row_a", 11);
-ERROR HY000: Parameter index 2 is out of range
+ERROR 22003: Parameter index value is out of range in 'statement'
 SET SESSION DEBUG = '-d,parameter_get';
 ###################################### Set/get attribute tests ######################################
 SET SESSION DEBUG = '+d,attribute_set_after_prepare';
