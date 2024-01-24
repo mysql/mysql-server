@@ -1137,7 +1137,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // 如果没有分配的话就先分配空间，先分个32MB看看
     // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE=512B)
     // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)，需要换算LSN和SN
-    const size_t redo_log_remote_buf_size = 64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
+    // const size_t redo_log_remote_buf_size = 64 * 1024 *
+    // OS_FILE_LOG_BLOCK_SIZE;
 
     unsigned char *redo_log_remote_buf = nullptr;
 
@@ -1148,7 +1149,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       thd->redo_log_remote_buf_reserved = true;
 
       redo_log_remote_buf = (unsigned char *)thd->rdma_buffer_allocator->Alloc(
-          redo_log_remote_buf_size);
+          meta_mgr->GetRedoLogRemoteBufSize());
     }
 
     // 把log先转发到本地
@@ -1160,16 +1161,14 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // Write redo logs into State Node and release latch
     if (!thd->coro_sched->RDMAWriteSync(
             0, qp, (char *)redo_log_remote_buf,
-            meta_mgr
-                ->GetTxnListBitmapAddr(),  // TODO:需要修改为redo_log_util中的对应方法
-            redo_log_remote_buf_size)) {
+            meta_mgr->GetTxnListBitmapAddr(),  // TODO:需要修改为对应方法
+            meta_mgr->GetRedoLogRemoteBufSize())) {
       // return;
     }
 
     if (!thd->coro_sched->RDMACASSync(
             0, qp, redo_log_remote_buf_latch,
-            meta_mgr
-                ->GetTxnListLatchAddr(),  // TODO:需要修改为redo_log_util中的对应方法
+            meta_mgr->GetTxnListLatchAddr(),  // TODO:需要修改为对应方法
             REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
       // return;
     }
