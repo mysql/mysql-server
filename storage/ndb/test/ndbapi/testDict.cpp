@@ -312,6 +312,13 @@ int runSetMinTimeBetweenLCP(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+int runClearErrorInsert(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbRestarter restarter;
+  CHECK3(restarter.insertErrorInAllNodes(0) == 0,
+         "failed to clear error insert value");
+  return NDBT_OK;
+}
+
 int runResetMinTimeBetweenLCP(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   int result;
@@ -10948,6 +10955,7 @@ TESTCASE("DropTableConcurrentLCP", "Drop a table while LCP is ongoing\n") {
   INITIALIZER(runSetMinTimeBetweenLCP);
   INITIALIZER(runSetDropTableConcurrentLCP);
   INITIALIZER(runDropTheTable);
+  FINALIZER(runClearErrorInsert);
   FINALIZER(runResetMinTimeBetweenLCP);
 }
 TESTCASE("DropTableConcurrentLCP2", "Drop a table while LCP is ongoing\n") {
@@ -10956,6 +10964,7 @@ TESTCASE("DropTableConcurrentLCP2", "Drop a table while LCP is ongoing\n") {
   INITIALIZER(runSetMinTimeBetweenLCP);
   INITIALIZER(runSetDropTableConcurrentLCP2);
   INITIALIZER(runDropTheTable);
+  FINALIZER(runClearErrorInsert);
   FINALIZER(runResetMinTimeBetweenLCP);
 }
 TESTCASE("CreateTableWhenDbIsFull",
