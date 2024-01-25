@@ -727,7 +727,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /**
    *
-   * @StateReplicate: log_t的复制构造函数，去除了一些会被显式销毁的成员变量
+   * @StateReplicate: log_t的复制构造函数，注释掉了一些会被显式销毁的成员变量
    */
   log_t(const log_t &other)
       : sn_lock_event(other.sn_lock_event),
