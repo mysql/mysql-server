@@ -250,12 +250,7 @@ connection_descriptor *Network_provider_manager::open_xcom_connection(
       set_protocol_stack(xcom_connection, provider->get_communication_stack());
     }
   } else {
-    xcom_connection = new_connection(-1
-#ifndef XCOM_WITHOUT_OPENSSL
-                                     ,
-                                     nullptr
-#endif
-    );
+    xcom_connection = new_connection(-1, nullptr);
   }
   return xcom_connection;
 }

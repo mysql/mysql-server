@@ -79,6 +79,7 @@ class Xcom_network_provider : public Network_provider {
 
   bool configure_secure_connections(
       const Network_configuration_parameters &params) override {
+#ifndef XCOM_WITHOUT_OPENSSL
     bool const successful =
         (Xcom_network_provider_ssl_library::xcom_init_ssl(
              params.ssl_params.server_key_file,
@@ -90,6 +91,9 @@ class Xcom_network_provider : public Network_provider {
              params.tls_params.tls_version,
              params.tls_params.tls_ciphersuites) == 1);
     return successful;
+#else
+    return true;
+#endif
   }
 
   void cleanup_secure_connections_context() override;

@@ -79,7 +79,12 @@ void xcom_tcp_server_startup(Xcom_network_provider *net_provider) {
     /* Callback to check that the file descriptor is accepted. */
     if (!Xcom_network_provider_library::allowlist_socket_accept(
             accept_fd, get_site_def())) {
-      net_provider->close_connection({accept_fd, nullptr});
+      net_provider->close_connection({accept_fd
+#ifndef XCOM_WITHOUT_OPENSSL
+                                      ,
+                                      nullptr
+#endif
+      });
       accept_fd = -1;
     }
 
@@ -139,10 +144,12 @@ void xcom_tcp_server_startup(Xcom_network_provider *net_provider) {
 }
 
 void ssl_shutdown_con(connection_descriptor *con) {
+#ifndef XCOM_WITHOUT_OPENSSL
   if (con->fd >= 0 && con->ssl_fd != nullptr) {
     SSL_shutdown(con->ssl_fd);
     ssl_free_con(con);
   }
+#endif
 }
 
 void Xcom_network_provider::cleanup_secure_connections_context() {
@@ -152,7 +159,9 @@ void Xcom_network_provider::cleanup_secure_connections_context() {
 }
 
 bool Xcom_network_provider::finalize_secure_connections_context() {
+#ifndef XCOM_WITHOUT_OPENSSL
   Xcom_network_provider_ssl_library::xcom_destroy_ssl();
+#endif
 
   return false;
 }
