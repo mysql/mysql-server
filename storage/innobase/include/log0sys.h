@@ -739,7 +739,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
         //        sn(other.sn),
         //        sn_locked(other.sn_locked),
         //        sn_x_lock_mutex(other.sn_x_lock_mutex),
-        buf(other.buf),
+        buf(other.buf),  // buf 是 redo log buffer 的核心数据
         //        buf_size_sn(other.buf_size_sn),
         buf_size(other.buf_size),
         pfs_psi(other.pfs_psi),
