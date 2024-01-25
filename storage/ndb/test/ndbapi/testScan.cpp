@@ -2087,7 +2087,8 @@ namespace TupErr
       require(false);
     }
     ndb->closeTransaction(trans);
-
+  // Clear error insert 4036
+  require(restarter.insertErrorInNode(nodeId, 0) == 0);
     return res;
   }
 
