@@ -10326,8 +10326,6 @@ ER_LH_TOO_LARGE_VALUE_ERR
 
 ER_LH_TOO_LARGE_ROW_ERR
    eng "File %.*s: %s"
-ER_ENGINE_CANNOT_BE_DEFAULT
-  eng "Engine %s cannot be set as default_storage_engine."
 
 ER_TABLESAMPLE_PERCENTAGE 2202H
   eng "Tablesample percentage should range between 0 and 100."
@@ -10370,8 +10368,12 @@ ER_WARN_SP_STATEMENT_PARTIALLY_EXECUTED
 
 ER_STMT_EXECUTION_NOT_ALLOWED_WITHIN_SP_OR_TRG_OR_UDF
   eng "Executing SQL statement using %s Statement Handle Interface is not allowed within stored function, trigger or loadable function (UDF)."
+
 ER_LH_JSON_PARSING
   eng "Column %d of %s : %s"
+
+ER_ENGINE_CANNOT_BE_DEFAULT
+  eng "Engine %s cannot be set as default_storage_engine."
 
 #
 #  End of 8.1+ error messages (server-to-client).
