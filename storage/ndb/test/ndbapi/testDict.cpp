@@ -1093,6 +1093,11 @@ static int runDropTakeoverTest(NDBT_Context *ctx, NDBT_Step *step) {
     return NDBT_FAILED;
   }
 
+  g_info << "Clear error insert" << endl;
+  if (restarter.insertErrorInAllNodes(0) != 0) {
+    g_info << "Failed to clear error 5076/5077" << endl;
+    return NDBT_FAILED;
+  }
   return NDBT_OK;
 }
 
