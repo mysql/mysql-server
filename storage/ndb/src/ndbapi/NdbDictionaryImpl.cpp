@@ -2616,7 +2616,9 @@ int NdbDictInterface::dictSignal(NdbApiSignal *sig, LinearSectionPtr ptr[3],
     if (i > 0) {
       Uint32 t = sleep + 10 * (rand() % mod);
 #ifdef VM_TRACE
-      g_eventLogger->info("retry sleep %ums on error %u", t, m_error.code);
+      g_eventLogger->info(
+          "NdbDictionary::dictSignal() : retry sleep %ums on error %u", t,
+          m_error.code);
 #endif
       NdbSleep_MilliSleep(t);
     }
@@ -5158,8 +5160,6 @@ int NdbDictionaryImpl::createEvent(NdbEventImpl &evnt) {
     if (col_impl) {
       evnt.m_facade->addColumn(*(col_impl->m_facade));
     } else {
-      g_eventLogger->info("Attr id %u in table %s not found", evnt.m_attrIds[i],
-                          evnt.getTableName());
       m_error.code = 4713;
       ERR_RETURN(getNdbError(), -1);
     }
@@ -5361,7 +5361,6 @@ int NdbDictInterface::createEvent(NdbEventImpl &evnt, int getFlag) {
         evnt.m_tableImpl->m_version != evntConf->getTableVersion() ||
         // evnt.m_attrListBitmask != evntConf->getAttrListBitmask() ||
         evnt.mi_type != evntConf->getEventType()) {
-      g_eventLogger->info("ERROR*************");
       m_buffer.clear();
       m_tableData.clear();
       ERR_RETURN(getNdbError(), 1);
@@ -5911,9 +5910,6 @@ static int scanEventTable(Ndb *pNdb, const NdbDictionary::Table *pTab,
 
     if (retryAttempt) {
       if (retryAttempt >= retryMax) {
-        g_eventLogger->info(
-            "ERROR: has retried this operation %d times, failing!",
-            retryAttempt);
         goto error;
       }
       if (pTrans) pNdb->closeTransaction(pTrans);

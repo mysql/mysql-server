@@ -298,7 +298,8 @@ int NdbOperation::equal_impl(const NdbColumnImpl *tAttrInfo,
     DBUG_RETURN(-1);
   }  // if
 
-  g_eventLogger->info("theStatus: %d", theStatus);
+  g_eventLogger->info(
+      "NdbOperation::equalImpl() : Incorrect state : theStatus: %d", theStatus);
 
   // If we come here, set a general errorcode
   // and exit

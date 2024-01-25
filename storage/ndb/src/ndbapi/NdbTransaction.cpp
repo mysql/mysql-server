@@ -1026,9 +1026,9 @@ int NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
             "file a bug.");
         DBUG_PRINT("error", ("This timeout should never occure, execute()"));
         g_eventLogger->error(
-            "Forcibly trying to rollback txn (%p"
+            "Forcibly trying to rollback txn (0x%x 0x%x"
             ") to try to clean up data node resources.",
-            this);
+            (Uint32)theTransactionId, (Uint32)(theTransactionId >> 32));
         executeNoBlobs(NdbTransaction::Rollback);
         theError.code = 4012;
         theError.status = NdbError::PermanentError;
@@ -1580,7 +1580,8 @@ int NdbTransaction::sendROLLBACK()  // Send a TCROLLBACKREQ signal;
     tSignal.setData(tTransId1, 2);
     tSignal.setData(tTransId2, 3);
     if (theError.code == 4012) {
-      g_eventLogger->error("Sending TCROLLBACKREQ with Bad flag");
+      g_eventLogger->error("Sending TCROLLBACKREQ with Bad flag to %u",
+                           theDBnode);
       tSignal.setLength(tSignal.getLength() + 1);  // + flags
       tSignal.setData(0x1, 4);                     // potentially bad data
     }
@@ -2668,7 +2669,7 @@ int NdbTransaction::receiveTCKEY_FAILCONF(const TcKeyFailConf *failConf) {
     return 0;
   } else {
 #ifdef VM_TRACE
-    g_eventLogger->info("Recevied TCKEY_FAILCONF wo/ operation");
+    g_eventLogger->info("Received TCKEY_FAILCONF wo/ operation");
 #endif
   }
   return -1;
@@ -2711,7 +2712,7 @@ int NdbTransaction::receiveTCKEY_FAILREF(const NdbApiSignal *aSignal) {
     return 0;
   } else {
 #ifdef VM_TRACE
-    g_eventLogger->info("Recevied TCKEY_FAILREF wo/ operation");
+    g_eventLogger->info("Received TCKEY_FAILREF wo/ operation");
 #endif
   }
   return -1;

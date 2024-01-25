@@ -570,8 +570,8 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl() {
   if (m_first_ndb_object) {
     g_eventLogger->warning(
         "Waiting for Ndb instances belonging to "
-        "Ndb_cluster_connection %p to be deleted...",
-        this);
+        "Ndb_cluster_connection %u (%p) to be deleted...",
+        m_my_node_id, this);
 
     while (m_first_ndb_object) {
       NdbCondition_WaitTimeout(m_new_delete_ndb_cond, m_new_delete_ndb_mutex,

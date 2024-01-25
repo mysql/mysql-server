@@ -394,6 +394,10 @@ void Logger::setRepeatFrequency(unsigned val) {
   m_internalLogListHandler->setRepeatFrequency(val);
 }
 
+Logger::Timestamp::Timestamp() {
+  Logger::format_timestamp(time(nullptr), buff, TsLen);
+}
+
 void Logger::format_timestamp(const time_t epoch, char *str, size_t len) {
   assert(len > 0);  // Assume buffer has size
 
