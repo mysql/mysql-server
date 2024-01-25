@@ -23,6 +23,7 @@ set(RDMA_SRC
         allocator/region_allocator.cc
         coroutine_scheduler/coroutine_scheduler.cc
         thirdparty/cjson/cJSON.cc
+        #        state_store/redo_log.h
         #        util/redo_log_util.h
 )
 
