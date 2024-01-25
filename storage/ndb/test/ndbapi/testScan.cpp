@@ -1853,7 +1853,8 @@ static int doCheckSumQuery(NDBT_Context *ctx, NDBT_Step *step) {
       require(false);
   }
   ndb->closeTransaction(trans);
-
+  // Clear error insert 4036
+  require(restarter.insertErrorInNode(nodeId, 0) == 0);
   return res;
 }
 
