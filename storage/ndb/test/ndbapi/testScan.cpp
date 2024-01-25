@@ -1739,6 +1739,8 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
       if (pNdb->waitUntilReady() != 0)
         return NDBT_FAILED;
     }
+    // Clear error 5057
+    res.insertErrorInNode(node, 0);
   }
 
   return NDBT_OK;
