@@ -1114,11 +1114,15 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
      *  即，当多个事务都要读/写数据时，如何处理冲突，如何保证正确性
      *
      *  log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
+     *  redo log 一般设置多大？
+     *  redo log 太小的话，会导致很快就被写满，然后不得不强行刷 redo log，这样
+     * WAL 机制的能力就发挥不出来了。 如果是几个 TB 的磁盘的话，直接将 redo log
+     * 设置为 4 个文件，每个文件 1GB。
      *
-     *  TODO: 将下面新写的逻辑抽象出一个函数，准备等全部写完跑通后再进行
+     *  以后将下面新写的逻辑抽象出一个函数，准备等全部写完跑通后再进行
      *
-     *  TODO: 目前最大的问题是，不知道怎么让所有log共享同一个写remote buffer
-     * 的线程，共享一整个redo_log_remote_buf等
+     *  TODO: 目前最大的问题是，不知道怎么让所有 log 共享同一个写 remote buffer
+     * 的线程，共享一整个 redo_log_remote_buf 等
      * 每个log都分配对应资源，会造成极大的浪费与低效
      */
 
