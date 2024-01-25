@@ -1176,14 +1176,15 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // Write redo logs into State Node and release latch
     // TODO: 这样每次都需要把整个buffer从本地和状态层之间来回传，有点浪费资源
     // TODO: 可能需要改写为ATT_sep中类似TxnItem复制的逻辑？
+    offset_t curr_addr = meta_mgr->GetRedoLogCurrAddr();
     if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
-                                        meta_mgr->GetRedoLogCurrAddr(),
+                                        curr_addr,
                                         meta_mgr->GetRedoLogRemoteBufSize())) {
       // return;
     }
 
     // 设置状态层新的 redo log 存放地址
-    // meta_mgr->SetRedoLogCurrAddr(0);
+    // meta_mgr->SetRedoLogCurrAddr(curr_addr + len);
 
     if (!thd->coro_sched->RDMACASSync(0, qp, redo_log_remote_buf_latch,
                                       meta_mgr->GetRedoLogRemoteBufLatchAddr(),
