@@ -2163,6 +2163,7 @@ runTableAddAttrsDuring(NDBT_Context* ctx, NDBT_Step* step){
     ndbout << "Altering table" << endl;
     
     const NdbDictionary::Table * oldTable = dict->getTable(myTab.getName());
+    int nodeId = 0;
     if (oldTable) {
       NdbDictionary::Table newTable= *oldTable;
       
@@ -2173,15 +2174,13 @@ runTableAddAttrsDuring(NDBT_Context* ctx, NDBT_Step* step){
                              NdbDictionary::Column::StorageTypeMemory, true);
       newTable.addColumn(newcol1);
       //ToDo: check #loops, how many columns l
-
       if (abortAlter == 0)
       {
         CHECK2(dict->alterTable(*oldTable, newTable) == 0,
                "TableAddAttrsDuring failed");
-      }
-      else
+      } else
       {
-        int nodeId = res.getNode(NdbRestarter::NS_RANDOM);
+        nodeId = res.getNode(NdbRestarter::NS_RANDOM);
         res.insertErrorInNode(nodeId, 4029);
         CHECK2(dict->alterTable(*oldTable, newTable) != 0,
                "TableAddAttrsDuring failed");
@@ -2196,6 +2195,10 @@ runTableAddAttrsDuring(NDBT_Context* ctx, NDBT_Step* step){
     else {
       result= NDBT_FAILED;
       break;
+    }
+    if (nodeId) {
+      CHECK2(res.insertErrorInNode(nodeId, 0) == 0,
+             "failed to clear error insert");
     }
   }
  end:
