@@ -98,12 +98,6 @@ public class ClusterConnectionImpl
     /** The byte buffer pool for DbImpl error buffers */
     protected FixedByteBufferPoolImpl byteBufferPoolForDBImplError;
 
-    /** The size of the coordinated transaction identifier buffer */
-    private final static int COORDINATED_TRANSACTION_ID_SIZE = 44;
-
-    /** The byte buffer pool for coordinated transaction id */
-    protected FixedByteBufferPoolImpl byteBufferPoolForCoordinatedTransactionId;
-
     /** The size of the partition key scratch buffer */
     private final static int PARTITION_KEY_BUFFER_SIZE = 10000;
 
@@ -135,8 +129,6 @@ public class ClusterConnectionImpl
         this.connectTimeoutMgm = connectTimeoutMgm;
         byteBufferPoolForDBImplError =
                 new FixedByteBufferPoolImpl(errorBufferSize, "DBImplErrorBufferPool");
-        byteBufferPoolForCoordinatedTransactionId =
-                new FixedByteBufferPoolImpl(COORDINATED_TRANSACTION_ID_SIZE, "CoordinatedTransactionIdBufferPool");
         byteBufferPoolForPartitionKey =
                 new FixedByteBufferPoolImpl(PARTITION_KEY_BUFFER_SIZE, "PartitionKeyBufferPool");
         clusterConnection = Ndb_cluster_connection.create(connectString, nodeId);
