@@ -53,10 +53,6 @@ leak:java.lang.ProcessImpl*init
 # ndb_sign_keys leaks in some error-exit situations
 leak:ndb_sign_keys
 
-# Internal leak on protobuf when Map type is used.
-# Map is used on plugin/group_replication/protobuf/replication_group_recovery_metadata.proto
-leak:libprotobuf-lite.so
-
 # Bug#36170703 ndb api tools leak with TLS required on data nodes 
 # Suppress leak detection for them until leak is found.
 leak:ndb_blob_tool
