@@ -93,8 +93,8 @@ bool read_response(NdbProcess::Pipes &pipes, FILE *rfp) {
   response[0] = 'F';
   bool match = false;
 
-  /* Wait 50ms for socket to become readable, then read response */
-  if (pollReadable(pipes.parentRead(), 50) == 1) {
+  /* Wait 250ms for socket to become readable, then read response */
+  if (pollReadable(pipes.parentRead(), 250) == 1) {
     if (fread(response, 8, 1, rfp) == 1) {
       response[8] = '\0';
       match = !strcmp(response, "goodbye.");
