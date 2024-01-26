@@ -43,6 +43,7 @@
 #include <limits.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -258,7 +259,11 @@ bool CodedInputStream::ReadRaw(void* buffer, int size) {
   int current_buffer_size;
   while ((current_buffer_size = BufferSize()) < size) {
     // Reading past end of buffer.  Copy what we have, then refresh.
-    memcpy(buffer, buffer_, current_buffer_size);
+    if (buffer_ == nullptr) {
+      assert(current_buffer_size == 0);
+    } else {
+      memcpy(buffer, buffer_, current_buffer_size);
+    }
     buffer = reinterpret_cast<uint8_t*>(buffer) + current_buffer_size;
     size -= current_buffer_size;
     Advance(current_buffer_size);
