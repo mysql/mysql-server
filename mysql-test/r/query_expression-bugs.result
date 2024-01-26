@@ -6,6 +6,9 @@ c1 TEXT,
 c2 CHAR(255) DEFAULT NULL
 );
 LOAD DATA INFILE '../../std_data/t1_2cols.csv' INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SET optimizer_trace="enabled=on";
 SELECT MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW ) FROM t1
 INTERSECT DISTINCT
@@ -35,7 +38,7 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
                       "sort_algorithm": "std::sort",
                       "memory_available": 262144,
                       "peak_memory_used": "elided",
-                      "num_rows_estimate": 501,
+                      "num_rows_estimate": "elided",
                       "max_rows_per_buffer": 3,
                       "num_initial_chunks_spilled_to_disk": "elided"
                     },
