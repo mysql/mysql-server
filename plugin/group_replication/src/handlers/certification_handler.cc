@@ -482,10 +482,12 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
   if (tcle->is_gtid_specified()) {
     tsid = gr::Gtid_tsid(gle->get_tsid());
     is_tsid_specified = true;
-  } else if (gle->is_tagged()) {  // AUTOMATIC:tag
+  } else {
     std::ignore = tsid.from_cstring(get_group_name_var());
-    tsid.set_tag(gle->get_tsid().get_tag());
-    is_tsid_specified = true;
+    if (gle->is_tagged()) {  // AUTOMATIC:tag
+      tsid.set_tag(gle->get_tsid().get_tag());
+      is_tsid_specified = true;
+    }
   }
 
   local_transaction =

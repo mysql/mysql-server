@@ -165,8 +165,9 @@ int Transaction_consistency_info::after_applier_prepare(
   Transaction_prepared_message message(m_tsid, m_tsid_specified, m_gno);
   if (gcs_module->send_message(message)) {
     /* purecov: begin inspected */
+    const std::string tsid_str = m_tsid.to_string();
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SEND_TRX_PREPARED_MESSAGE_FAILED,
-                 m_sidno, m_gno, m_thread_id);
+                 tsid_str.c_str(), m_gno, m_thread_id);
     return 1;
     /* purecov: end */
   }
@@ -199,9 +200,10 @@ int Transaction_consistency_info::handle_remote_prepare(
     if (m_transaction_prepared_locally) {
       if (transactions_latch->releaseTicket(m_thread_id)) {
         /* purecov: begin inspected */
+        const std::string tsid_str = m_tsid.to_string();
         LogPluginErr(ERROR_LEVEL,
                      ER_GRP_RPL_RELEASE_COMMIT_AFTER_GROUP_PREPARE_FAILED,
-                     m_sidno, m_gno, m_thread_id);
+                     tsid_str.c_str(), m_gno, m_thread_id);
         return CONSISTENCY_INFO_OUTCOME_ERROR;
         /* purecov: end */
       }
@@ -247,6 +249,11 @@ int Transaction_consistency_info::handle_member_leave(
 
 uint64_t Transaction_consistency_info::get_begin_timestamp() const {
   return m_begin_timestamp;
+}
+
+std::string Transaction_consistency_info::get_tsid_string() const {
+  assert(!m_tsid.to_string().empty());
+  return m_tsid.to_string();
 }
 
 Transaction_consistency_manager::Transaction_consistency_manager()
@@ -319,10 +326,11 @@ int Transaction_consistency_manager::after_certification(
   typename Transaction_consistency_manager_map::iterator it = m_map.find(key);
   if (it != m_map.end()) {
     /* purecov: begin inspected */
-    m_map_lock->unlock();
+    const std::string tsid_str = transaction_info->get_tsid_string();
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_TRX_ALREADY_EXISTS_ON_TCM_ON_AFTER_CERTIFICATION,
-                 transaction_info->get_sidno(), transaction_info->get_gno());
+                 tsid_str.c_str(), transaction_info->get_gno());
+    m_map_lock->unlock();
     return 1;
     /* purecov: end */
   }
@@ -339,20 +347,27 @@ int Transaction_consistency_manager::after_certification(
     return 0;
   }
 
+  DBUG_PRINT("info",
+             ("gtid: %d:%" PRId64 "; consistency_level: %d; ",
+              transaction_info->get_sidno(), transaction_info->get_gno(),
+              transaction_info->get_consistency_level()));
+
   if (transaction_info->is_local_transaction()) m_last_local_transaction = key;
 
+  const std::string tsid_string = transaction_info->get_tsid_string();
+  const rpl_gno gno = transaction_info->get_gno();
   std::pair<typename Transaction_consistency_manager_map::iterator, bool> ret =
       m_map.insert(Transaction_consistency_manager_pair(
           key, std::move(transaction_info)));
+
   if (ret.second == false) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_FAILED_TO_INSERT_TRX_ON_TCM_ON_AFTER_CERTIFICATION,
-                 transaction_info->get_sidno(), transaction_info->get_gno());
+                 tsid_string.c_str(), gno);
     error = 1;
     /* purecov: end */
   }
-  transaction_info.release();  // transaction_info pointer copy is in the map
 
   DBUG_EXECUTE_IF("group_replication_consistency_manager_after_certification", {
     const char act[] =
@@ -364,11 +379,6 @@ int Transaction_consistency_manager::after_certification(
         "continue";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
-
-  DBUG_PRINT("info",
-             ("gtid: %d:%" PRId64 "; consistency_level: %d; ",
-              transaction_info->get_sidno(), transaction_info->get_gno(),
-              transaction_info->get_consistency_level()));
 
   m_map_lock->unlock();
   return error;
@@ -390,6 +400,7 @@ int Transaction_consistency_manager::after_applier_prepare(
   }
 
   auto &transaction_info = it->second;
+  const std::string tsid_string = transaction_info->get_tsid_string();
   const bool transaction_prepared_remotely =
       transaction_info->is_the_transaction_prepared_remotely();
 
@@ -398,7 +409,7 @@ int Transaction_consistency_manager::after_applier_prepare(
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_REGISTER_TRX_TO_WAIT_FOR_GROUP_PREPARE_FAILED,
-                 sidno, gno, thread_id);
+                 tsid_string.c_str(), gno, thread_id);
     m_map_lock->unlock();
     return 1;
     /* purecov: end */
@@ -433,12 +444,10 @@ int Transaction_consistency_manager::after_applier_prepare(
 
   if (!transaction_prepared_remotely &&
       transactions_latch->waitTicket(thread_id)) {
-    /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRX_WAIT_FOR_GROUP_PREPARE_FAILED,
-                 sidno, gno, thread_id);
+                 tsid_string.c_str(), gno, thread_id);
     error = 1;
     goto end;
-    /* purecov: end */
   }
 
   // Remove transaction from map
@@ -509,9 +518,11 @@ int Transaction_consistency_manager::handle_remote_prepare(
     }
 
     /* purecov: begin inspected */
+    const gr::Gtid_tsid tsid = get_tsid_from_global_tsid_map(sidno);
+    assert(!tsid.to_string().empty());
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_TRX_DOES_NOT_EXIST_ON_TCM_ON_HANDLE_REMOTE_PREPARE,
-                 sidno, gno);
+                 tsid.to_string().c_str(), gno);
     m_map_lock->unlock();
     return 1;
     /* purecov: end */
@@ -900,10 +911,12 @@ int Transaction_consistency_manager::remove_prepared_transaction(
 
       if (transactions_latch->releaseTicket(waiting_thread_id)) {
         /* purecov: begin inspected */
+        const gr::Gtid_tsid tsid = get_tsid_from_global_tsid_map(key.first);
+        assert(!tsid.to_string().empty());
         LogPluginErr(
             ERROR_LEVEL,
             ER_GRP_RPL_RELEASE_BEGIN_TRX_AFTER_DEPENDENCIES_COMMIT_FAILED,
-            key.first, key.second, waiting_thread_id);
+            tsid.to_string().c_str(), key.second, waiting_thread_id);
         error = 1;
         /* purecov: end */
       }

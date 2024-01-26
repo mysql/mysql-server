@@ -9973,28 +9973,28 @@ ER_CACHING_SHA2_PASSWORD_SECOND_PASSWORD_USED_INFORMATION
   eng "Second password was used for login by user: '%s'@'%s'."
 
 ER_GRP_RPL_SEND_TRX_PREPARED_MESSAGE_FAILED
-  eng "Error sending transaction '%d:%lld' prepared message from session '%u'."
+  eng "Error sending transaction '%s:%lld' prepared message from session '%u'."
 
 ER_GRP_RPL_RELEASE_COMMIT_AFTER_GROUP_PREPARE_FAILED
-  eng "Error releasing transaction '%d:%lld' for commit on session '%u' after being prepared on all group members."
+  eng "Error releasing transaction '%s:%lld' for commit on session '%u' after being prepared on all group members."
 
 ER_GRP_RPL_TRX_ALREADY_EXISTS_ON_TCM_ON_AFTER_CERTIFICATION
-  eng "Transaction '%d:%lld' already exists on Group Replication consistency manager while being registered after conflict detection."
+  eng "Transaction '%s:%lld' already exists on Group Replication consistency manager while being registered after conflict detection."
 
 ER_GRP_RPL_FAILED_TO_INSERT_TRX_ON_TCM_ON_AFTER_CERTIFICATION
-  eng "Error registering transaction '%d:%lld' on Group Replication consistency manager after conflict detection."
+  eng "Error registering transaction '%s:%lld' on Group Replication consistency manager after conflict detection."
 
 ER_GRP_RPL_REGISTER_TRX_TO_WAIT_FOR_GROUP_PREPARE_FAILED
-  eng "Error registering transaction '%d:%lld' from session '%u' to wait for being prepared on all group members."
+  eng "Error registering transaction '%s:%lld' from session '%u' to wait for being prepared on all group members."
 
 ER_GRP_RPL_TRX_WAIT_FOR_GROUP_PREPARE_FAILED
-  eng "Error on transaction '%d:%lld' from session '%u' while waiting for being prepared on all group members."
+  eng "Error on transaction '%s:%lld' from session '%u' while waiting for being prepared on all group members."
 
 ER_GRP_RPL_TRX_DOES_NOT_EXIST_ON_TCM_ON_HANDLE_REMOTE_PREPARE
-  eng "Transaction '%d:%lld' does not exist on Group Replication consistency manager while receiving remote transaction prepare."
+  eng "Transaction '%s:%lld' does not exist on Group Replication consistency manager while receiving remote transaction prepare."
 
 ER_GRP_RPL_RELEASE_BEGIN_TRX_AFTER_DEPENDENCIES_COMMIT_FAILED
-  eng "Error releasing transaction '%d:%lld' for execution on session '%u' after its dependencies did complete commit."
+  eng "Error releasing transaction '%s:%lld' for execution on session '%u' after its dependencies did complete commit."
 
 ER_GRP_RPL_REGISTER_TRX_TO_WAIT_FOR_DEPENDENCIES_FAILED
   eng "Error registering transaction from session '%u' to wait for its dependencies to complete commit."

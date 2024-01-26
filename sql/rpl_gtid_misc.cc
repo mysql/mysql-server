@@ -293,6 +293,12 @@ rpl_sidno get_sidno_from_global_tsid_map(const Tsid &tsid) {
   return sidno;
 }
 
+const Tsid &get_tsid_from_global_tsid_map(rpl_sidno sidno) {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*global_tsid_lock, Checkable_rwlock::READ_LOCK);
+  return global_tsid_map->sidno_to_tsid(sidno);
+}
+
 rpl_gno get_last_executed_gno(rpl_sidno sidno) {
   DBUG_TRACE;
 

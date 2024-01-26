@@ -4260,6 +4260,12 @@ int gtid_acquire_ownership_multiple(THD *thd);
 rpl_sidno get_sidno_from_global_tsid_map(const mysql::gtid::Tsid &tsid);
 
 /**
+  Return Tsid for a given sidno on the global_tsid_map.
+  See Tsid_map::sidno_to_tsid() for details.
+*/
+const mysql::gtid::Tsid &get_tsid_from_global_tsid_map(rpl_sidno sidno);
+
+/**
   Return last gno for a given sidno, see
   Gtid_state::get_last_executed_gno() for details.
 */

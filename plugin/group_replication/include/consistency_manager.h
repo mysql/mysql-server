@@ -246,6 +246,13 @@ class Transaction_consistency_info {
   */
   uint64_t get_begin_timestamp() const;
 
+  /**
+    Return the string representation of UUID and tag.
+
+    @return the string representation of UUID and tag.
+  */
+  std::string get_tsid_string() const;
+
  private:
   my_thread_id m_thread_id;
   const bool m_local_transaction;
