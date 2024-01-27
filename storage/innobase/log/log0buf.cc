@@ -1138,7 +1138,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     MetaManager *meta_mgr = MetaManager::get_instance();
 
     // 加锁，并发控制
-    // Get latch for redo_log_remote_buf
+    // TODO: 真的需要加锁吗？原有的写log逻辑都是无锁的，加锁会显著降低速度
     char *redo_log_remote_buf_latch =
         thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
     *(rwlatch_t *)redo_log_remote_buf_latch = REDOLOG_LOCKED;
@@ -1204,7 +1204,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     //      //  return;
     //    }
 
-    // log_t没法转成char*直接传过去，包装成RedoLogItem试试
+    // log_t没法转成char*直接传过去，模仿TxnItem包装成RedoLogItem
     RedoLogItem *redo_log_remote_buf =
         (RedoLogItem *)thd->rdma_buffer_allocator->Alloc(
             sizeof(redo_log_remote_buf));
@@ -1229,8 +1229,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
         log.current_ready_waiting_sig_count;
     //    redo_log_remote_buf->recent_closed = log.recent_closed;
 
-    char *test = (char *)redo_log_remote_buf;
-    //    char *test2 = (char *)log;
+    // char *test = (char *)redo_log_remote_buf;
+    // char *test2 = (char *)log;
 
     // meta information of redo log buffer
     if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
@@ -1246,9 +1246,10 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       //  return;
     }
 
-    // 设置状态层新的 redo log 存放地址
+    // [Deprecated] 设置状态层新的 redo log 存放地址
     // meta_mgr->SetRedoLogCurrAddr(curr_addr + len);
 
+    // 放锁
     if (!thd->coro_sched->RDMACASSync(0, qp, redo_log_remote_buf_latch,
                                       meta_mgr->GetRedoLogRemoteBufLatchAddr(),
                                       REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
