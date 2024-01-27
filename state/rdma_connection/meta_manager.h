@@ -97,7 +97,7 @@ class MetaManager {
     return redo_log_remote_buf_latch_addr;
   }
 
-  // TODO: redo log并非定长的，这样写不太正确
+  // [Deprecated] redo log并非定长的，这样写不太正确
   ALWAYS_INLINE
   offset_t GetRedoLogAddrByIndex(int index) {
     return redo_log_base_addr + index * log_size;
