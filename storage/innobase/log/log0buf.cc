@@ -86,10 +86,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "ut0byte.h"
 
 #include "sql/sql_class.h"
-// TODO: 暂时用这个头文件，之后换成log的
-#include "state/state_store/txn_list.h"
+
 #include "state/util/redo_log_util.h"
-#include "state/util/txn_list_util.h"
 
 // clang-format off
 /**************************************************/ /**
@@ -1152,6 +1150,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       }
     }
 
+    // 不分配额外的buf了，直接把原有的buf传到状态层
     // 如果没有分配的话就先分配空间，先分个32MB看看
 
     // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE=512B)
