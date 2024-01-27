@@ -1145,7 +1145,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       if (!thd->coro_sched->RDMACASSync(
               0, qp, redo_log_remote_buf_latch,
               meta_mgr->GetRedoLogRemoteBufLatchAddr(),
-              (uint64_t)REDOLOG_UNLOCKED, (uint64_t)REDOLOG_LOCKED)) {
+              static_cast<uint64_t>(REDOLOG_UNLOCKED),
+              static_cast<uint64_t>(REDOLOG_LOCKED))) {
         // return;
       }
     }
@@ -1189,14 +1190,14 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     //      // return;
     //    }
 
-    // 这里把整个 log_t &log 传过去，包含了一些 redo log buffer 的元信息
+    // 这里最好把整个 log_t &log 传过去，包含了一些 redo log buffer 的元信息？
     // 实际数据存储在log.buf
-    log_t *redo_log_remote_buf =
-        (log_t *)thd->rdma_buffer_allocator->Alloc(sizeof(log));
+    //    log_t *redo_log_remote_buf =
+    //        (log_t *)thd->rdma_buffer_allocator->Alloc(sizeof(log));
 
-    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
+    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)((byte *)log.buf),
                                         meta_mgr->GetRedoLogCurrAddr(),
-                                        sizeof(log_t))) {
+                                        sizeof(log))) {
       //  return;
     }
 
