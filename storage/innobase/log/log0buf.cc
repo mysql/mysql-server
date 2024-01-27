@@ -1192,12 +1192,13 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
 
     // 这里最好把整个 log_t &log 传过去，包含了一些 redo log buffer 的元信息？
     // 实际数据存储在log.buf
+    // 但是log_t没法转成char*直接传过去，就先传实际数据了
     //    log_t *redo_log_remote_buf =
     //        (log_t *)thd->rdma_buffer_allocator->Alloc(sizeof(log));
 
     if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)((byte *)log.buf),
                                         meta_mgr->GetRedoLogCurrAddr(),
-                                        sizeof(log))) {
+                                        sizeof(log.buf))) {
       //  return;
     }
 
