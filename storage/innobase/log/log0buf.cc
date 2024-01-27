@@ -1204,6 +1204,13 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       //  return;
     }
 
+    // log_t没法转成char*直接传过去，包装成RedoLogItem试试
+    RedoLogItem *redo_log_remote_buf =
+        (RedoLogItem *)thd->rdma_buffer_allocator->Alloc(
+            sizeof(redo_log_remote_buf));
+    char *test = (char *)redo_log_remote_buf;
+    //    char *test2 = (char *)log;
+
     // 设置状态层新的 redo log 存放地址
     // meta_mgr->SetRedoLogCurrAddr(curr_addr + len);
 
