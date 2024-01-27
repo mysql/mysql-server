@@ -1233,10 +1233,16 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     //    char *test2 = (char *)log;
 
     // meta information of redo log buffer
-    // 但是 log.buf 只是一个指针，还需要转发其指向的完整数据
     if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
                                         meta_mgr->GetRedoLogCurrAddr(),
                                         sizeof(redo_log_remote_buf))) {
+      //  return;
+    }
+    // 但是 log.buf 只是一个指针，还需要转发其指向的完整数据
+    if (!thd->coro_sched->RDMAWriteSync(
+            0, qp, log.buf,
+            meta_mgr->GetRedoLogCurrAddr() + sizeof(redo_log_remote_buf),
+            log.buf_size)) {
       //  return;
     }
 
