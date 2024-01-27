@@ -1124,7 +1124,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
      * 每个log都分配对应资源，会造成极大的浪费与低效
      */
 
-    // TODO:每条log一个线程显然不合理，但不知道怎么让所有log共享该线程，暂时先这样写了
+    // 正常情况下还需要使用完后调用destroy_internal_thd销毁线程，暂时先不管了
     if (log.m_remote_buf_thd == nullptr) {
       log.m_remote_buf_thd = create_internal_thd();
     }
@@ -1157,33 +1157,47 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)，需要换算LSN和SN
     // size_t redo_log_remote_buf_size = 64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
 
-    unsigned char *redo_log_remote_buf = nullptr;
+    // unsigned char *redo_log_remote_buf = nullptr;
 
     // 在状态节点分配空间
-    // TODO:这里怎么做到多个log共享一个redo_log_remote_buf？这样写的话肯定会每次产生新的buffer，不正确
-    if (!thd->redo_log_remote_buf_reserved) {
-      thd->redo_log_remote_buf_reserved = true;
-
-      redo_log_remote_buf = (unsigned char *)thd->rdma_buffer_allocator->Alloc(
-          meta_mgr->GetRedoLogRemoteBufSize());
-    }
+    // 这里怎么做到多个log共享一个redo_log_remote_buf？这样写的话肯定会每次产生新的buffer，不正确
+    //    if (!thd->redo_log_remote_buf_reserved) {
+    //      thd->redo_log_remote_buf_reserved = true;
+    //
+    //      redo_log_remote_buf = (unsigned char
+    //      *)thd->rdma_buffer_allocator->Alloc(
+    //          meta_mgr->GetRedoLogRemoteBufSize());
+    //    }
 
     // 把log先转发到本地
-    // TODO: 这里写log的位置显然不对，全写到buffer头部了，需要修正
-    byte *remote_ptr = redo_log_remote_buf;
+    // 这里写log的位置显然不对，全写到buffer头部了，需要修正
+    //    byte *remote_ptr = redo_log_remote_buf;
 
     // 将 log 复制一份到本地的新 buffer（与原有逻辑的buffer不同）
     // 只用于和状态层的 remote buffer 同步，来回传
-    std::memcpy(remote_ptr, str, len);
+    // std::memcpy(remote_ptr, str, len);
 
     // Write redo logs into State Node and release latch
-    // TODO: 这样每次都需要把整个buffer从本地和状态层之间来回传，有点浪费资源
-    // TODO: 可能需要改写为ATT_sep中类似TxnItem复制的逻辑？
-    offset_t curr_addr = meta_mgr->GetRedoLogCurrAddr();
+    //  这样每次都需要把整个buffer从本地和状态层之间来回传，有点浪费资源
+    // 可能需要改写为ATT_sep中类似TxnItem复制的逻辑？
+    //    offset_t curr_addr = meta_mgr->GetRedoLogCurrAddr();
+    //    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char
+    //    *)redo_log_remote_buf,
+    //                                        curr_addr,
+    //                                        meta_mgr->GetRedoLogRemoteBufSize()))
+    //                                        {
+    //      // return;
+    //    }
+
+    // 这里把整个 log_t &log 传过去，包含了一些 redo log buffer 的元信息
+    // 实际数据存储在log.buf
+    log_t *redo_log_remote_buf =
+        (log_t *)thd->rdma_buffer_allocator->Alloc(sizeof(log));
+
     if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
-                                        curr_addr,
-                                        meta_mgr->GetRedoLogRemoteBufSize())) {
-      // return;
+                                        meta_mgr->GetRedoLogCurrAddr(),
+                                        sizeof(log_t))) {
+      //  return;
     }
 
     // 设置状态层新的 redo log 存放地址
