@@ -50,6 +50,83 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 int dummy_function_to_ensure_we_are_linked_into_the_server() { return 1; }
 
+/**
+ * RAII class to manage the diagnostics area for the statement handler.
+ *
+ * This class mainly manages diagnostics area(DA) for a statement execution (say
+ * STMT2) when an error has already occurred (say for STMT1) and not reported to
+ * a user yet. Error state from STMT1 is stored in the DA associated with THD.
+ * This class maintains the error state from STMT1 in DA by using temporary
+ * diagnostics area for the STMT2's execution.
+ *
+ * In the destructor, if STMT2 execution is successful then temporary
+ * diagnostics are is just popped and error from STMT1 is reported to the user.
+ * But if STMT2 execution fails, then error from STMT1 is cleared and error from
+ * STMT2 is reported to the user.
+ *
+ * If DA is clear when instance of this class instatiated then caller's DA used
+ * for statement execution.
+ *
+ * Please note that Statement_handle::copy_warnings() must be invoked after an
+ * instance of this class is destructed to copy warnings after statement
+ * execution.
+ *
+ * TODO: Executing a SQL statement when an error has already occurred can
+ * primarily happen from error handlers of external routines. The best place to
+ * manage DA for it is within the component supporting external routines. Once
+ * we have improved DA handling for components, this logic should be moved to
+ * the component.
+ */
+class Diagnostics_area_handler_raii {
+ public:
+  Diagnostics_area_handler_raii(THD *thd, bool reset_cond_info = false)
+      : m_thd(thd), m_stmt_da(false) {
+    if (m_thd->is_error()) {
+      /*
+        If a statement is being executed after an error is occurred, then push
+        temporary DA instance for statement execution.
+      */
+      m_thd->push_diagnostics_area(&m_stmt_da);
+    } else {
+      // Use caller DA otherwise.
+      if (reset_cond_info) m_thd->get_stmt_da()->reset_condition_info(m_thd);
+      m_thd->get_stmt_da()->reset_diagnostics_area();
+    }
+  }
+
+  ~Diagnostics_area_handler_raii() {
+    if (m_thd->get_stmt_da() == &m_stmt_da) {
+      // Pop m_stmt_da instance from the DA stack.
+      m_thd->pop_diagnostics_area();
+
+      /*
+        If error is reported for a statement being executed, then clear
+        previous errors and copy new error to caller DA.
+      */
+      if (m_stmt_da.is_error()) {
+        // Clear current diagnostics information.
+        m_thd->get_stmt_da()->reset_diagnostics_area();
+        m_thd->get_stmt_da()->reset_condition_info(m_thd);
+
+        // Copy diagnostics from src_da.
+        m_thd->get_stmt_da()->set_error_status(m_stmt_da.mysql_errno(),
+                                               m_stmt_da.message_text(),
+                                               m_stmt_da.returned_sqlstate());
+
+        // Copy warnings.
+        m_thd->get_stmt_da()->copy_sql_conditions_from_da(m_thd, &m_stmt_da);
+      }
+    } else {
+      // Reset caller DA if statement execution is successful.
+      if (!m_thd->is_error()) m_thd->get_stmt_da()->reset_diagnostics_area();
+    }
+  }
+
+ private:
+  THD *m_thd;
+  Diagnostics_area m_stmt_da;
+};
+
 void Statement_handle::send_statement_status() {
   if (!m_use_thd_protocol) {
     m_thd->send_statement_status();
@@ -117,17 +194,18 @@ bool Regular_statement_handle::execute(Server_runnable *server_runnable) {
 
   set_thd_protocol();
 
-  m_thd->get_stmt_da()->reset_diagnostics_area();
-
   const auto saved_secondary_engine = m_thd->secondary_engine_optimization();
   m_thd->set_secondary_engine_optimization(
       Secondary_engine_optimization::PRIMARY_TENTATIVELY);
 
-  Prepared_statement stmt(m_thd);
-  bool rc = stmt.execute_server_runnable(m_thd, server_runnable);
-  send_statement_status();
+  bool rc = false;
+  {
+    Diagnostics_area_handler_raii da_handler(m_thd);
 
-  if (!m_thd->is_error()) m_diagnostics_area->reset_diagnostics_area();
+    Prepared_statement stmt(m_thd);
+    rc = stmt.execute_server_runnable(m_thd, server_runnable);
+    send_statement_status();
+  }
 
   reset_thd_protocol();
 
@@ -317,8 +395,7 @@ bool Prepared_statement_handle::internal_prepare() {
   DBUG_TRACE;
   DBUG_PRINT("Prepared_statement_handle", ("Got query %s\n", m_query.c_str()));
 
-  m_diagnostics_area->reset_diagnostics_area();
-  m_diagnostics_area->reset_condition_info(m_thd);
+  Diagnostics_area_handler_raii da_handler(m_thd, true);
 
   // Close the current statement and create new
   if (m_stmt) {
@@ -385,8 +462,6 @@ bool Prepared_statement_handle::internal_prepare() {
     return true; /* purecov: inspected */
   }
 
-  if (!m_thd->is_error()) m_diagnostics_area->reset_diagnostics_area();
-
   DEBUG_SYNC(m_thd, "wait_after_query_prepare");
 
   return false;
@@ -410,8 +485,7 @@ bool Prepared_statement_handle::enable_cursor() {
 bool Prepared_statement_handle::internal_execute() {
   DBUG_TRACE;
 
-  m_diagnostics_area->reset_diagnostics_area();
-  m_diagnostics_area->reset_condition_info(m_thd);
+  Diagnostics_area_handler_raii da_handler(m_thd, true);
 
   // Stop if prepare is not done yet.
   if (!m_stmt) {
@@ -470,8 +544,6 @@ bool Prepared_statement_handle::internal_execute() {
     if (!is_cursor_open()) send_statement_status();
   }
 
-  if (!m_thd->is_error()) m_diagnostics_area->reset_diagnostics_area();
-
   m_thd->set_secondary_engine_optimization(saved_secondary_engine);
 
   sp_cache_enforce_limit(m_thd->sp_proc_cache, stored_program_cache_size);
@@ -487,8 +559,7 @@ bool Prepared_statement_handle::internal_fetch() {
   DBUG_PRINT("Prepared_statement_handle",
              ("Asked for %zu rows\n", m_num_rows_per_fetch));
 
-  m_diagnostics_area->reset_diagnostics_area();
-  m_diagnostics_area->reset_condition_info(m_thd);
+  Diagnostics_area_handler_raii da_handler(m_thd, true);
 
   // Stop if statement is not prepared.
   if (!m_stmt) {
@@ -519,8 +590,6 @@ bool Prepared_statement_handle::internal_fetch() {
   }
 
   m_thd->stmt_arena = m_thd;
-
-  if (!m_thd->is_error()) m_diagnostics_area->reset_diagnostics_area();
 
   return rc;
 }
