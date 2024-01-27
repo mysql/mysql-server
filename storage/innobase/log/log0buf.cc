@@ -89,6 +89,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include "state/util/redo_log_util.h"
 
+#include "state/state_store/redo_log.h"
+
 // clang-format off
 /**************************************************/ /**
  @page PAGE_INNODB_REDO_LOG_BUF Redo log buffer
