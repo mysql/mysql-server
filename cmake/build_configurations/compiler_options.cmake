@@ -65,7 +65,9 @@ IF(UNIX)
   ENDIF()
 
   # Faster TLS model
+  # libprotobuf-lite.so.24.4: cannot allocate memory in static TLS block
   IF(MY_COMPILER_IS_GNU_OR_CLANG
+      AND NOT LINUX_ARM
       AND NOT SOLARIS AND NOT LINUX_RHEL6 AND NOT LINUX_ALPINE)
     STRING_APPEND(COMMON_C_FLAGS     " -ftls-model=initial-exec")
     STRING_APPEND(COMMON_CXX_FLAGS   " -ftls-model=initial-exec")
