@@ -23,12 +23,6 @@
 # The files in protobuf-24.4/ are almost unmodified versions of google
 # source files taken from protobuf-cpp-24.4.tar.gz archive.
 
-# libprotobuf-lite.so.24.4: cannot allocate memory in static TLS block
-IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-  STRING(REPLACE
-    "-ftls-model=initial-exec" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-ENDIF()
-
 # Xcode >= 14 makes noise about sprintf, so silence:
 IF(APPLE)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-declarations")
