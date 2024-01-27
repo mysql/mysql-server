@@ -33,7 +33,8 @@ struct RedoLogItem {
   atomic_sn_t sn_locked;
 
   /** Mutex which can be used for x-lock sn value */
-  mutable ib_mutex_t sn_x_lock_mutex;
+  //  mutable ib_mutex_t sn_x_lock_mutex;
+
   /** Aligned log buffer. Committing mini-transactions write there
   redo records, and the log_writer thread writes the log buffer to
   disk in background.
@@ -66,7 +67,7 @@ struct RedoLogItem {
 
   /** The recent written buffer.
   Protected by: locking sn not to add. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE) Link_buf<lsn_t> recent_written;
+  // alignas(ut::INNODB_CACHE_LINE_SIZE) Link_buf<lsn_t> recent_written;
 
   /** Used for pausing the log writer threads.
   When paused, each user thread should write log as in the former version. */
@@ -80,5 +81,5 @@ struct RedoLogItem {
 
   /** The recent closed buffer.
   Protected by: locking sn not to add. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE) Link_buf<lsn_t> recent_closed;
+  //  alignas(ut::INNODB_CACHE_LINE_SIZE) Link_buf<lsn_t> recent_closed;
 };

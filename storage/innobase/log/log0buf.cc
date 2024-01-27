@@ -1198,11 +1198,11 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     //    log_t *redo_log_remote_buf =
     //        (log_t *)thd->rdma_buffer_allocator->Alloc(sizeof(log));
 
-    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)((byte *)log.buf),
-                                        meta_mgr->GetRedoLogCurrAddr(),
-                                        sizeof(log.buf))) {
-      //  return;
-    }
+    //    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)((byte *)log.buf),
+    //                                        meta_mgr->GetRedoLogCurrAddr(),
+    //                                        sizeof(log.buf))) {
+    //      //  return;
+    //    }
 
     // log_t没法转成char*直接传过去，包装成RedoLogItem试试
     RedoLogItem *redo_log_remote_buf =
@@ -1211,9 +1211,34 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // warning: definition of implicit copy assignment operator for
     // 'aligned_array_pointer<unsigned char, 512>' is deprecated because it
     // has a user-provided destructor
+    redo_log_remote_buf->sn_lock_event = log.sn_lock_event;
+    redo_log_remote_buf->sn_lock_inst = log.sn_lock_inst;
+    redo_log_remote_buf->sn = log.sn.load();
+    redo_log_remote_buf->sn_locked = log.sn_locked.load();
+    //    redo_log_remote_buf->sn_x_lock_mutex = log.sn_x_lock_mutex;
     redo_log_remote_buf->buf = log.buf;
+    redo_log_remote_buf->buf_size_sn = log.buf_size_sn.load();
+    redo_log_remote_buf->buf_size = log.buf_size;
+    redo_log_remote_buf->pfs_psi = log.pfs_psi;
+    //    redo_log_remote_buf->recent_written = log.recent_written;
+    redo_log_remote_buf->writer_threads_paused =
+        log.writer_threads_paused.load();
+    redo_log_remote_buf->current_ready_waiting_lsn =
+        log.current_ready_waiting_lsn;
+    redo_log_remote_buf->current_ready_waiting_sig_count =
+        log.current_ready_waiting_sig_count;
+    //    redo_log_remote_buf->recent_closed = log.recent_closed;
+
     char *test = (char *)redo_log_remote_buf;
     //    char *test2 = (char *)log;
+
+    // meta information of redo log buffer
+    // 但是 log.buf 只是一个指针，还需要转发其指向的完整数据
+    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
+                                        meta_mgr->GetRedoLogCurrAddr(),
+                                        sizeof(redo_log_remote_buf))) {
+      //  return;
+    }
 
     // 设置状态层新的 redo log 存放地址
     // meta_mgr->SetRedoLogCurrAddr(curr_addr + len);
