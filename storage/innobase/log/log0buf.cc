@@ -1208,6 +1208,10 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     RedoLogItem *redo_log_remote_buf =
         (RedoLogItem *)thd->rdma_buffer_allocator->Alloc(
             sizeof(redo_log_remote_buf));
+    // warning: definition of implicit copy assignment operator for
+    // 'aligned_array_pointer<unsigned char, 512>' is deprecated because it
+    // has a user-provided destructor
+    redo_log_remote_buf->buf = log.buf;
     char *test = (char *)redo_log_remote_buf;
     //    char *test2 = (char *)log;
 
