@@ -5,6 +5,12 @@
 #ifndef MYSQL_STATE_FETCH_H
 #define MYSQL_STATE_FETCH_H
 
-class state_fetch {};
+class StateFetch {
+ public:
+  StateFetch() {}
+
+ private:
+  bool failStatus = false;
+};
 
 #endif  // MYSQL_STATE_FETCH_H
