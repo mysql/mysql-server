@@ -28,7 +28,7 @@
 
 /**
   This function is used to validate compression algorithm specified as part
-  of change master to statement.
+  of change replication source to statement.
 
   @param name   compression algorithm name. Name can be either zlib,zstd or
                 empty string.

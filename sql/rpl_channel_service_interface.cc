@@ -328,7 +328,8 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
     lex_mi->auto_position = LEX_MASTER_INFO::LEX_MI_ENABLE;
     if ((mi && mi->is_auto_position()) ||
         channel_info->auto_position == RPL_SERVICE_SERVER_DEFAULT) {
-      // So change master allows new configurations with a running SQL thread
+      // So change replication source allows new configurations with a running
+      // SQL thread
       lex_mi->auto_position = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
     }
   }
@@ -340,13 +341,15 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
   if (channel_info->get_public_key) {
     lex_mi->get_public_key = LEX_MASTER_INFO::LEX_MI_ENABLE;
     if (mi && mi->get_public_key) {
-      // So change master allows new configurations with a running SQL thread
+      // So change replication source allows new configurations with a running
+      // SQL thread
       lex_mi->get_public_key = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
     }
   } else {
     lex_mi->get_public_key = LEX_MASTER_INFO::LEX_MI_DISABLE;
     if (mi && !mi->get_public_key) {
-      // So change master allows new configurations with a running SQL thread
+      // So change replication source allows new configurations with a running
+      // SQL thread
       lex_mi->get_public_key = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
     }
   }

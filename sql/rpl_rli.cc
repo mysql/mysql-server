@@ -678,7 +678,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
 
     /*
       group_master_log_name can be "", if we are just after a fresh
-      replication start or after a CHANGE MASTER TO MASTER_HOST/PORT
+      replication start or after a CHANGE REPLICATION SOURCE TO SOURCE_HOST/PORT
       (before we have executed one Rotate event from the master) or
       (rare) if the user is doing a weird slave setup (see next
       paragraph).  If group_master_log_name is "", we assume we don't
@@ -689,8 +689,8 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
       configuration which does nothing), then group_master_log_pos
       will grow and group_master_log_name will stay "".
       Also in case the group master log position is invalid (e.g. after
-      CHANGE MASTER TO RELAY_LOG_POS ), we will wait till the first event
-      is read and the log position is valid again.
+      CHANGE REPLICATION SOURCE TO RELAY_LOG_POS ), we will wait till the first
+      event is read and the log position is valid again.
     */
     if (*group_master_log_name && !is_group_master_log_pos_invalid &&
         !is_applier_source_position_info_invalid()) {
@@ -830,13 +830,12 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
                     &stage_waiting_for_the_replica_thread_to_advance_position,
                     &old_stage);
   /*
-     This function will abort when it notices that some CHANGE MASTER or
-     RESET BINARY LOGS AND GTIDS has changed the master info.
-     To catch this, these commands modify abort_pos_wait ; We just monitor
-     abort_pos_wait and see if it has changed.
-     Why do we have this mechanism instead of simply monitoring slave_running
-     in the loop (we do this too), as CHANGE REPLICATION SOURCE/RESET REPLICA
-     require that the SQL thread be stopped?
+     This function will abort when it notices that some CHANGE REPLICATION
+     SOURCE or RESET BINARY LOGS AND GTIDS has changed the master info. To catch
+     this, these commands modify abort_pos_wait ; We just monitor abort_pos_wait
+     and see if it has changed. Why do we have this mechanism instead of simply
+     monitoring slave_running in the loop (we do this too), as CHANGE
+     REPLICATION SOURCE/RESET REPLICA require that the SQL thread be stopped?
      This is because if someones does:
      STOP REPLICA;CHANGE REPLICATION SOURCE/RESET REPLICA; START REPLICA;
      the change may happen very quickly and we may not notice that
@@ -966,11 +965,11 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     when the slave and master are 5.0 but with different event length (for
     example the slave is more recent than the master and features the event
     UID). It would give false SOURCE_POS_WAIT, false Exec_master_log_pos in
-    SHOW REPLICA STATUS, and so the user would do some CHANGE MASTER using this
-    value which would lead to badly broken replication.
-    Even the relay_log_pos will be corrupted in this case, because the len is
-    the relay log is not "val".
-    With the end_log_pos solution, we avoid computations involving lengths.
+    SHOW REPLICA STATUS, and so the user would do some CHANGE REPLICATION SOURCE
+    using this value which would lead to badly broken replication. Even the
+    relay_log_pos will be corrupted in this case, because the len is the relay
+    log is not "val". With the end_log_pos solution, we avoid computations
+    involving lengths.
   */
   DBUG_PRINT("info", ("log_pos: %lu  group_source_log_pos: %lu", (long)log_pos,
                       (long)group_master_log_pos));
@@ -978,8 +977,8 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   if (log_pos > 0)  // 3.23 binlogs don't have log_posx
     group_master_log_pos = log_pos;
   /*
-    If the master log position was invalidiated by say, "CHANGE MASTER TO
-    RELAY_LOG_POS=N", it is now valid,
+    If the master log position was invalidiated by say, "CHANGE REPLICATION
+    SOURCE TO RELAY_LOG_POS=N", it is now valid,
    */
   if (is_group_master_log_pos_invalid) is_group_master_log_pos_invalid = false;
 
@@ -1075,11 +1074,11 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
     init_info checks for the existence of the relay log, this fails and
     init_info leaves inited to 0.
     In that pathological case, master_log_pos* will be properly reinited at
-    the next START REPLICA (as RESET REPLICA or CHANGE MASTER, the callers of
-    purge_relay_logs, will delete bogus *.info files or replace them with
-    correct files), however if the user does SHOW REPLICA STATUS before START
-    SLAVE, he will see old, confusing master_log_*. In other words, we reinit
-    master_log_* for SHOW REPLICA STATUS to display fine in any case.
+    the next START REPLICA (as RESET REPLICA or CHANGE REPLICATION SOURCE, the
+    callers of purge_relay_logs, will delete bogus *.info files or replace them
+    with correct files), however if the user does SHOW REPLICA STATUS before
+    START SLAVE, he will see old, confusing master_log_*. In other words, we
+    reinit master_log_* for SHOW REPLICA STATUS to display fine in any case.
   */
   group_master_log_name[0] = 0;
   group_master_log_pos = 0;

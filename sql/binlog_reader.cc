@@ -47,7 +47,7 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
     Previous_gtids_log_event and Gtid_log_event
     events from injected corruption to allow dump thread to move forward
     on binary log until the missing transactions from slave when
-    MASTER_AUTO_POSITION= 1.
+    SOURCE_AUTO_POSITION= 1.
   */
   DBUG_EXECUTE_IF(
       "corrupt_read_log_event", unsigned char type = buffer[EVENT_TYPE_OFFSET];

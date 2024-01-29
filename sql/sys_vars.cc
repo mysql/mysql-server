@@ -4253,8 +4253,8 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
 
     Hold channel_map lock so that:
     - gtid_mode is not changed during the execution of some
-    replication command; particularly CHANGE MASTER. CHANGE MASTER
-    checks if GTID_MODE is compatible with AUTO_POSITION, and
+    replication command; particularly CHANGE REPLICATION SOURCE. CHANGE
+    REPLICATION SOURCE checks if GTID_MODE is compatible with AUTO_POSITION, and
     later it actually updates the in-memory structure for
     AUTO_POSITION.  If gtid_mode was changed between these calls,
     auto_position could be set incompatible with gtid_mode.

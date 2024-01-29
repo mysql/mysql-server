@@ -1245,10 +1245,10 @@ static bool shall_skip_gtids(const Log_event *ev) {
   R5. When slave IO thread reconnects without user doing
       START REPLICA/STOP REPLICA
   R6. When master dump thread starts a new binlog
-  R7. CHANGE MASTER which deletes all relay logs
+  R7. CHANGE REPLICATION SOURCE which deletes all relay logs
   R8. RESET REPLICA
 
-  (Remark: CHANGE MASTER which does not delete any relay log,
+  (Remark: CHANGE REPLICATION SOURCE which does not delete any relay log,
   does not cause any rotation at all.)
 
   The 8 cases generate the three types of FD events as follows:
@@ -1260,9 +1260,9 @@ static bool shall_skip_gtids(const Log_event *ev) {
     previously, there is no master FD event.
   - In case R3, the slave IO thread generates a fake master FD
     event.
-  - In cases R4 and R5, if AUTOPOSITION=0 and MASTER_LOG_POS>4,
+  - In cases R4 and R5, if AUTOPOSITION=0 and SOURCE_LOG_POS>4,
     the master dump thread generates a fake master FD event.
-  - In cases R4 and R5, if AUTOPOSITION=1 or MASTER_LOG_POS<=4,
+  - In cases R4 and R5, if AUTOPOSITION=1 or SOURCE_LOG_POS<=4,
     the master dump thread generates a real master FD event.
   - In case R6, the master dump thread generates a real master FD
     event.

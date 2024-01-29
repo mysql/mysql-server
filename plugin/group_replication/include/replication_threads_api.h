@@ -51,8 +51,8 @@ class Replication_thread_api {
   }
 
   /**
-    Initializes a channel connection in a similar way to a change master
-    command.
+    Initializes a channel connection in a similar way to a change replication
+    source command.
 
     @param hostname      The channel hostname
     @param port          The channel port

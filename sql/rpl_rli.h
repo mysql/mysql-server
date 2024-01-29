@@ -86,8 +86,8 @@ typedef struct slave_job_item {
 
 /**
   This class is used to store the type and value for
-  Assign_gtids_to_anonymous_transactions parameter of Change master command on
-  slave.
+  Assign_gtids_to_anonymous_transactions parameter of Change replication source
+  command on slave.
 */
 class Assign_gtids_to_anonymous_transactions_info {
  public:
@@ -99,7 +99,7 @@ class Assign_gtids_to_anonymous_transactions_info {
     of replica which is the server where this transformation of anonymous to
     gtid event happens. UUID: Anonymous gtid events will be converted to Gtid
     event & the UUID used while create GTIDs will be the one specified via
-    Change master command to the parameter
+    Change replication source command to the parameter
     ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
   */
   enum class enum_type { AGAT_OFF = 1, AGAT_LOCAL, AGAT_UUID };
@@ -284,7 +284,7 @@ class Relay_log_info : public Rpl_info {
 
   /**
     Stores the information related to the ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
-    parameter of CHANGE MASTER
+    parameter of CHANGE REPLICATION SOURCE
   */
   Assign_gtids_to_anonymous_transactions_info
       m_assign_gtids_to_anonymous_transactions_info;
@@ -889,7 +889,7 @@ class Relay_log_info : public Rpl_info {
 
   /**
     Flag that the group_master_log_pos is invalid. This may occur
-    (for example) after CHANGE MASTER TO RELAY_LOG_POS.  This will
+    (for example) after CHANGE REPLICATION SOURCE TO RELAY_LOG_POS.  This will
     be unset after the first event has been executed and the
     group_master_log_pos is valid again.
 
@@ -927,7 +927,8 @@ class Relay_log_info : public Rpl_info {
     errors, and have been manually applied by DBA already.
   */
   std::atomic<uint32> slave_skip_counter;
-  std::atomic<ulong> abort_pos_wait; /* Incremented on change master */
+  std::atomic<ulong>
+      abort_pos_wait; /* Incremented on change replication source */
   mysql_mutex_t log_space_lock;
   mysql_cond_t log_space_cond;
 
@@ -1544,8 +1545,8 @@ class Relay_log_info : public Rpl_info {
     (if necessary), calculating the received GTID set for the channel and
     storing the updated rli object configuration into the repository.
 
-    When this function is called in a change master process and the change
-    master procedure will purge all the relay log files later, there is no
+    When this function is called in a change replication source process and the
+    change procedure will purge all the relay log files later, there is no
     reason to try to calculate the received GTID set of the channel based on
     existing relay log files (they will be purged). Allowing reads to existing
     relay log files at this point may lead to put the server in a state where
@@ -1849,11 +1850,11 @@ class Relay_log_info : public Rpl_info {
     commit time. Exceptionally, if a server in the replication chain does not
     support the commit timestamps in Gtid_log_event, the delay is applied per
     event and is based on the event timestamp.
-    This is set with CHANGE MASTER TO MASTER_DELAY=X.
+    This is set with CHANGE REPLICATION SOURCE TO SOURCE_DELAY=X.
 
     Guarded by data_lock.  Initialized by the client thread executing
-    START REPLICA.  Written by client threads executing CHANGE MASTER TO
-    MASTER_DELAY=X.  Read by SQL thread and by client threads
+    START REPLICA.  Written by client threads executing CHANGE REPLICATION
+    SOURCE TO SOURCE_DELAY=X.  Read by SQL thread and by client threads
     executing SHOW REPLICA STATUS.  Note: must not be written while the
     slave SQL thread is running, since the SQL thread reads it without
     a lock when executing flush_info().
@@ -1877,7 +1878,7 @@ class Relay_log_info : public Rpl_info {
     of lines in applier metadata file. Since WL#13959, applier metadata can
     be stored only in table, but the notion of number of line is still
     preserved.
-    Before the MASTER_DELAY parameter was added (WL#344), applier metadata
+    Before the SOURCE_DELAY parameter was added (WL#344), applier metadata
     had 4 lines. Now it has 5 lines.
   */
   static const int APPLIER_METADATA_LINES_WITH_DELAY = 5;

@@ -213,7 +213,7 @@ class Until_position : public Until_option {
 /**
    @class Until_master_position
 
-   It is for UNTIL master_log_file and master_log_pos
+   It is for UNTIL SOURCE_LOG_FILE and SOURCE_LOG_POS
 */
 class Until_master_position : public Until_position {
  public:

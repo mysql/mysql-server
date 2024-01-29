@@ -342,8 +342,8 @@ using List_item = mem_root_deque<Item *>;
 using Group_list_ptrs = Mem_root_array<ORDER *>;
 
 /**
-  Structure to hold parameters for CHANGE MASTER, START REPLICA, and STOP
-  REPLICA.
+  Structure to hold parameters for CHANGE REPLICATION SOURCE, START REPLICA, and
+  STOP REPLICA.
 
   Remark: this should not be confused with Master_info (and perhaps
   would better be renamed to st_lex_replication_info).  Some fields,
@@ -406,7 +406,7 @@ struct LEX_MASTER_INFO {
   Prealloced_array<ulong, 2> repl_ignore_server_ids;
   /**
     Flag that is set to `true` whenever `PRIVILEGE_CHECKS_USER` is set to `NULL`
-    as a part of a `CHANGE MASTER TO` statement.
+    as a part of a `CHANGE REPLICATION SOURCE TO` statement.
    */
   bool privilege_checks_none;
   /**
@@ -4067,7 +4067,7 @@ struct LEX : public Query_tables_list {
   HA_CHECK_OPT check_opt;  // check/repair options
   HA_CREATE_INFO *create_info;
   KEY_CREATE_INFO key_create_info;
-  LEX_MASTER_INFO mi;  // used by CHANGE MASTER
+  LEX_MASTER_INFO mi;  // used by CHANGE REPLICATION SOURCE
   LEX_SLAVE_CONNECTION slave_connection;
   Server_options server_options;
   USER_RESOURCES mqh;

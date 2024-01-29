@@ -922,9 +922,9 @@ enum enum_read_rotate_from_relay_log_status {
    @param filename
           Relay log name which needs to be parsed.
 
-   @param[out] master_log_file
-          Set the master_log_file to the log file name that is extracted from
-          rotate event. The master_log_file should contain string of len
+   @param[out] source_log_file
+          Set the source_log_file to the log file name that is extracted from
+          rotate event. The source_log_file should contain string of len
           FN_REFLEN.
 
    @param[out] master_log_pos
@@ -936,7 +936,7 @@ enum enum_read_rotate_from_relay_log_status {
    @retval ERROR: On error
  */
 static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
-    char *filename, char *master_log_file, my_off_t *master_log_pos) {
+    char *filename, char *source_log_file, my_off_t *master_log_pos) {
   DBUG_TRACE;
 
   Relaylog_file_reader relaylog_file_reader(opt_replica_sql_verify_checksum);
@@ -962,7 +962,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
         if (ev->server_id && ev->server_id != ::server_id) {
           Rotate_log_event *rotate_ev = (Rotate_log_event *)ev;
           assert(FN_REFLEN >= rotate_ev->ident_len + 1);
-          memcpy(master_log_file, rotate_ev->new_log_ident,
+          memcpy(source_log_file, rotate_ev->new_log_ident,
                  rotate_ev->ident_len + 1);
           *master_log_pos = rotate_ev->pos;
           ret = FOUND_ROTATE;
@@ -992,7 +992,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
    Reads relay logs one by one starting from the first relay log. Looks for
    the first rotate event from the master. If rotate is not found in the relay
    log search continues to next relay log. If rotate event from master is
-   found then the extracted master_log_file and master_log_pos are used to set
+   found then the extracted source_log_file and master_log_pos are used to set
    rli->group_master_log_name and rli->group_master_log_pos. If an error has
    occurred the error code is returned back.
 
@@ -1005,7 +1005,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
    found
    @retval 2 When no rotate event from master was found. This can happen when
              slave server was restarted immediately after executing CHANGE
-   MASTER
+   REPLICATION SOURCE
  */
 static int find_first_relay_log_with_rotate_from_master(Relay_log_info *rli) {
   DBUG_TRACE;
@@ -1013,7 +1013,7 @@ static int find_first_relay_log_with_rotate_from_master(Relay_log_info *rli) {
   LOG_INFO linfo;
   bool got_rotate_from_master = false;
   int pos;
-  char master_log_file[FN_REFLEN];
+  char source_log_file[FN_REFLEN];
   my_off_t master_log_pos = 0;
 
   if (channel_map.is_group_replication_channel_name(rli->get_channel())) {
@@ -1024,7 +1024,7 @@ static int find_first_relay_log_with_rotate_from_master(Relay_log_info *rli) {
 
   for (pos = rli->relay_log.find_log_pos(&linfo, nullptr, true); !pos;
        pos = rli->relay_log.find_next_log(&linfo, true)) {
-    switch (read_rotate_from_relay_log(linfo.log_file_name, master_log_file,
+    switch (read_rotate_from_relay_log(linfo.log_file_name, source_log_file,
                                        &master_log_pos)) {
       case ERROR:
         error = 1;
@@ -1050,7 +1050,7 @@ static int find_first_relay_log_with_rotate_from_master(Relay_log_info *rli) {
     goto err;
   }
   if (!error && got_rotate_from_master) {
-    rli->set_group_master_log_name(master_log_file);
+    rli->set_group_master_log_name(source_log_file);
     rli->set_group_master_log_pos(master_log_pos);
   }
 err:
@@ -2140,10 +2140,10 @@ void end_slave() {
 
   /*
     This is called when the server terminates, in close_connections().
-    It terminates slave threads. However, some CHANGE MASTER etc may still be
-    running presently. If a START REPLICA was in progress, the mutex lock below
-    will make us wait until slave threads have started, and START REPLICA
-    returns, then we terminate them here.
+    It terminates slave threads. However, some CHANGE REPLICATION SOURCE etc may
+    still be running presently. If a START REPLICA was in progress, the mutex
+    lock below will make us wait until slave threads have started, and START
+    REPLICA returns, then we terminate them here.
   */
   channel_map.wrlock();
 
@@ -4286,8 +4286,8 @@ static ulong read_event(MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
 }
 
 /**
-  If this is a lagging slave (specified with CHANGE MASTER TO MASTER_DELAY = X),
-  delays accordingly. Also unlocks rli->data_lock.
+  If this is a lagging slave (specified with CHANGE REPLICATION SOURCE TO
+  SOURCE_DELAY = X), delays accordingly. Also unlocks rli->data_lock.
 
   Design note: this is the place to unlock rli->data_lock. The lock
   must be held when reading delay info from rli, but it should not be
@@ -4407,9 +4407,9 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
      sql thread instead of being used for executing BINLOG
      statements), it does the following things: (1) skips events if it
      is needed according to the server id or slave_skip_counter; (2)
-     unlocks rli->data_lock; (3) sleeps if required by 'CHANGE MASTER
-     TO MASTER_DELAY=X'; (4) maintains the running state of the sql
-     thread (rli->thread_state).
+     unlocks rli->data_lock; (3) sleeps if required by 'CHANGE REPLICATION
+  SOURCE TO SOURCE_DELAY=X'; (4) maintains the running state of the sql thread
+  (rli->thread_state).
 
    - Reports errors as needed.
 
@@ -7036,8 +7036,8 @@ extern "C" void *handle_slave_sql(void *arg) {
 
     if (init_replica_thread(thd, SLAVE_THD_SQL)) {
       /*
-        TODO: this is currently broken - slave start and change master
-        will be stuck if we fail here
+        TODO: this is currently broken - slave start and change replication
+        source will be stuck if we fail here
       */
       mysql_cond_broadcast(&rli->start_cond);
       mysql_mutex_unlock(&rli->run_lock);
@@ -7749,10 +7749,10 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       issues, but it can happen.
 
       Transaction boundary errors might happen mostly because of bad master
-      positioning in 'CHANGE MASTER TO' (or bad manipulation of master.info)
-      when GTID auto positioning is off. Errors can also happen when using
-      cross-version replication, replicating from a master that supports more
-      event types than this slave.
+      positioning in 'CHANGE REPLICATION SOURCE TO' (or bad manipulation of
+      master.info) when GTID auto positioning is off. Errors can also happen
+      when using cross-version replication, replicating from a master that
+      supports more event types than this slave.
 
       The IO thread will keep working and queuing events regardless of the
       transaction parser error, but we will throw another warning message to
@@ -9055,11 +9055,11 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
   }
 
   /*
-    If the slave has open temp tables and there is a following CHANGE MASTER
-    there is a possibility that the temporary tables are left open forever.
-    Though we dont restrict failover here, we do warn users. In future, we
-    should have a command to delete open temp tables the slave has replicated.
-    See WL#7441 regarding this command.
+    If the slave has open temp tables and there is a following CHANGE
+    REPLICATION SOURCE there is a possibility that the temporary tables are left
+    open forever. Though we dont restrict failover here, we do warn users. In
+    future, we should have a command to delete open temp tables the slave has
+    replicated. See WL#7441 regarding this command.
   */
 
   if (mi->rli->atomic_channel_open_temp_tables && *push_temp_tables_warning) {
@@ -9352,7 +9352,7 @@ bool reset_slave_cmd(THD *thd) {
 }
 
 /**
-  This function checks if the given CHANGE MASTER/REPLICATION SOURCE command
+  This function checks if the given CHANGE REPLICATION SOURCE command
   has any receive option being set or changed.
 
   - used in change_master().
@@ -9392,7 +9392,7 @@ static bool have_change_replication_source_receive_option(
 }
 
 /**
-  This function checks if the given CHANGE MASTER/REPLICATION SOURCE command
+  This function checks if the given CHANGE REPLICATION SOURCE command
   has any execute option being set or changed.
 
   - used in change_master().
@@ -9416,7 +9416,8 @@ static bool have_change_replication_source_execute_option(
 
   DBUG_TRACE;
 
-  /* Check if *at least one* execute option is given on change master command*/
+  /* Check if *at least one* execute option is given on change replication
+   * source command*/
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1 || lex_mi->privilege_checks_username != nullptr ||
       lex_mi->privilege_checks_none ||
@@ -9468,10 +9469,10 @@ static bool have_change_replication_source_applier_and_receive_option(
    - used in change_receive_options
 
    @param  lex_mi      pointer to structure holding all options specified
-                       as part of change master to statement
+                       as part of change replication source to statement
    @param  mi          pointer to structure holding all options specified
-                       as part of change master to statement after performing
-                       necessary checks
+                       as part of change replication source to statement after
+   performing necessary checks
 
    @retval false    in case of success
    @retval true     in case of failures
@@ -9502,8 +9503,8 @@ static bool change_master_set_compression(THD *, const LEX_MASTER_INFO *lex_mi,
 }
 
 /**
-   This function is called if the change master command had at least one
-   receive option. This function then sets or alters the receive option(s)
+   This function is called if the change replication source command had at least
+  one receive option. This function then sets or alters the receive option(s)
    given in the command. The execute options are handled in the function
    change_execute_options()
 
@@ -9513,11 +9514,11 @@ static bool change_master_set_compression(THD *, const LEX_MASTER_INFO *lex_mi,
   @param thd    Pointer to THD object for the client thread executing the
                 statement.
 
-  @param lex_mi structure that holds all change master options given on the
-                change master command.
-                Coming from the an executing statement or set directly this
-                shall contain connection settings like hostname, user, password
-                and other settings like the number of connection retries.
+  @param lex_mi structure that holds all change replication source options given
+  on the change replication source command. Coming from the an executing
+  statement or set directly this shall contain connection settings like
+  hostname, user, password and other settings like the number of connection
+  retries.
 
   @param mi     Pointer to Master_info object belonging to the replica channel
                 to be configured
@@ -9612,10 +9613,11 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
       If the user specified host or port or both without heartbeat_period,
       we use default value for heartbeat_period. By default, We want to always
       have heartbeat enabled when we switch master unless
-      master_heartbeat_period is explicitly set to zero (heartbeat disabled).
+      source_heartbeat_period is explicitly set to zero (heartbeat disabled).
 
-      Here is the default value for heartbeat period if CHANGE MASTER did not
-      specify it.  (no data loss in conversion as hb period has a max)
+      Here is the default value for heartbeat period if CHANGE REPLICATION
+      SOURCE did not specify it.  (no data loss in conversion as hb period has a
+      max)
     */
     mi->heartbeat_period = std::min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
                                            (replica_net_timeout / 2.0f));
@@ -9628,7 +9630,7 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
   }
 
   /*
-    reset the last time server_id list if the current CHANGE MASTER
+    reset the last time server_id list if the current CHANGE REPLICATION SOURCE
     is mentioning IGNORE_SERVER_IDS= (...)
   */
   if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
@@ -9694,16 +9696,16 @@ err:
 }
 
 /**
-   This function is called if the change master command had at least one
-   execute option. This function then sets or alters the execute option(s)
+   This function is called if the change replication source command had at least
+  one execute option. This function then sets or alters the execute option(s)
    given in the command. The receive options are handled in the function
    change_receive_options()
 
    - used in change_master().
    - Execute threads should be stopped before this function is called.
 
-  @param lex_mi structure that holds all change master options given on the
-                change master command.
+  @param lex_mi structure that holds all change replication source options given
+  on the change replication source command.
 
   @param mi     Pointer to Master_info object belonging to the replica channel
                 that will be configured
@@ -10139,9 +10141,9 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
   }
 
   /*
-    We need to check if there is an empty master_host. Otherwise
-    change master succeeds, a master.info file is created containing
-    empty master_host string and when issuing: start replica; an error
+    We need to check if there is an empty source_host. Otherwise
+    change replication source succeeds, a master.info file is created containing
+    empty source_host string and when issuing: start replica; an error
     is thrown stating that the server is not configured as replica.
     (See BUG#28796).
   */
@@ -10213,7 +10215,8 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
   /*
     CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
       auto_position cannot be disable if either source_connection_auto_failover
-      option is enabled or getting enabled in current CHANGE MASTER statement.
+      option is enabled or getting enabled in current CHANGE REPLICATION SOURCE
+    statement.
   */
   if (will_auto_position_be_disable &&
       is_or_will_source_connection_auto_failover_be_enabled) {
@@ -10354,10 +10357,10 @@ static std::pair<bool, bool> validate_change_replication_source_options(
 
   /*
     When give a warning?
-    CHANGE MASTER command is used in three ways:
+    CHANGE REPLICATION SOURCE command is used in three ways:
     a) To change a connection configuration but remain connected to
        the same master.
-    b) To change positions in binary or relay log(eg: master_log_pos).
+    b) To change positions in binary or relay log(eg: SOURCE_LOG_POS).
     c) To change the master you are replicating from.
     We give a warning in cases b and c.
   */
@@ -10437,7 +10440,7 @@ static bool update_change_replication_source_options(
 }
 
 /**
-  Execute a CHANGE MASTER statement.
+  Execute a CHANGE REPLICATION SOURCE statement.
 
   Apart from changing the receive/execute configurations/positions,
   this function also does the following:
@@ -10484,8 +10487,8 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   int thread_mask;
   /*
     Relay logs are purged only if both receive and execute threads are
-    stopped before executing CHANGE MASTER and relay_log_file/relay_log_pos
-    options are not used.
+    stopped before executing CHANGE REPLICATION SOURCE and
+    relay_log_file/relay_log_pos options are not used.
   */
   bool need_relay_log_purge = true;
 
@@ -10502,15 +10505,16 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   DBUG_TRACE;
 
   /*
-    CHANGE MASTER command should ignore 'read-only' and 'super_read_only'
-    options so that it can update 'mysql.slave_master_info' replication
-    repository tables.
+    CHANGE REPLICATION SOURCE command should ignore 'read-only' and
+    'super_read_only' options so that it can update 'mysql.slave_master_info'
+    replication repository tables.
   */
   thd->set_skip_readonly_check();
   mi->channel_wrlock();
   /*
-    When we change master, we first decide which thread is running and
-    which is not. We dont want this assumption to break while we change master.
+    When we change replication source, we first decide which thread is running
+    and which is not. We dont want this assumption to break while we change
+    replication source.
 
     Suppose we decide that receiver thread is running and thus it is
     safe to change receive related options in mi. By this time if
@@ -10530,25 +10534,28 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   {
     /*
       Prior to WL#6120, we imposed the condition that STOP REPLICA is required
-      before CHANGE MASTER. Since the slave threads die on STOP REPLICA, it was
-      fine if we purged relay logs.
+      before CHANGE REPLICATION SOURCE. Since the slave threads die on STOP
+      REPLICA, it was fine if we purged relay logs.
 
-      Now that we do allow CHANGE MASTER with a running receiver/applier thread,
-      we need to make sure that the relay logs are purged only if both
-      receiver and applier threads are stopped otherwise we could lose events.
+      Now that we do allow CHANGE REPLICATION SOURCE with a running
+      receiver/applier thread, we need to make sure that the relay logs are
+      purged only if both receiver and applier threads are stopped otherwise we
+      could lose events.
 
       The idea behind purging relay logs if both the threads are stopped is to
       keep consistency with the old behavior. If the user/application is doing
-      a CHANGE MASTER without stopping any one thread, the relay log purge
-      should be controlled via the 'relay_log_purge' option.
+      a CHANGE REPLICATION SOURCE without stopping any one thread, the relay log
+      purge should be controlled via the 'relay_log_purge' option.
     */
     need_relay_log_purge = false;
   }
 
-  /* Check if at least one receive option is given on change master */
+  /* Check if at least one receive option is given on change replication source
+   */
   have_receive_option = have_change_replication_source_receive_option(lex_mi);
 
-  /* Check if at least one execute option is given on change master */
+  /* Check if at least one execute option is given on change replication source
+   */
   have_execute_option = have_change_replication_source_execute_option(
       lex_mi, &need_relay_log_purge);
   /* Check if at least one execute option affects both the applier and receiver
@@ -10587,7 +10594,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   }
 
   /* If GTID_MODE is different from ON check if some options are invalid
-     We hold channel_map lock for the duration of the CHANGE MASTER.
+     We hold channel_map lock for the duration of the CHANGE REPLICATION SOURCE.
      This is important since it prevents that a concurrent
      connection changes to GTID_MODE=OFF between this check and the
      point where AUTO_POSITION is stored in the table and in mi.
@@ -10661,19 +10668,20 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
 
   /*
     If user didn't specify neither host nor port nor any log name nor any log
-    pos, i.e. he specified only user/password/master_connect_retry,
-    master_delay, he probably  wants replication to resume from where it had
+    pos, i.e. he specified only user/password/source_connect_retry,
+    source_delay, he probably  wants replication to resume from where it had
     left, i.e. from the coordinates of the **SQL** thread (imagine the case
     where the I/O is ahead of the SQL; restarting from the coordinates of the
     I/O would lose some events which is probably unwanted when you are just
-    doing minor changes like changing master_connect_retry). Note: coordinates
+    doing minor changes like changing source_connect_retry). Note: coordinates
     of the SQL thread must be read before the block which resets them.
   */
   if (need_relay_log_purge) {
     /*
       A side-effect is that if only the I/O thread was started, this thread may
-      restart from ''/4 after the CHANGE MASTER. That's a minor problem (it is a
-      much more unlikely situation than the one we are fixing here).
+      restart from ''/4 after the CHANGE REPLICATION SOURCE. That's a minor
+      problem (it is a much more unlikely situation than the one we are fixing
+      here).
     */
     if (!lex_mi->host && !lex_mi->port && !lex_mi->log_file_name &&
         !lex_mi->pos && !mi->rli->is_applier_source_position_info_invalid()) {
@@ -10729,12 +10737,12 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       /*
         Coordinates in rli were spoilt by purge_relay_logs(),
         so restore them to good values. If we left them to ''/0, that would
-        work. But that would fail in the case of 2 successive CHANGE MASTER
-        (without a START REPLICA in between): because first one would set the
-        coords in mi to the good values of those in rli, then set those i>n rli
-        to ''/0, then second CHANGE MASTER would set the coords in mi to those
-        of rli, i.e. to ''/0: we have lost all copies of the original good
-        coordinates. That's why we always save good coords in rli.
+        work. But that would fail in the case of 2 successive CHANGE REPLICATION
+        SOURCE (without a START REPLICA in between): because first one would set
+        the coords in mi to the good values of those in rli, then set those i>n
+        rli to ''/0, then second CHANGE REPLICATION SOURCE would set the coords
+        in mi to those of rli, i.e. to ''/0: we have lost all copies of the
+        original good coordinates. That's why we always save good coords in rli.
 */
       if (!mi->is_receiver_position_info_invalid()) {
         mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
@@ -10861,26 +10869,26 @@ err:
 
 /**
    Method used to check if the user is trying to update any other option for
-   the change master apart from the MASTER_USER and MASTER_PASSWORD.
+   the change replication source apart from the SOURCE_USER and SOURCE_PASSWORD.
    In case user tries to update any other parameter apart from these two,
    this method will return error.
 
-   @param  lex_mi structure that holds all change master options given on
-           the change master command.
+   @param  lex_mi structure that holds all change replication source options
+   given on the change replication source command.
 
-   @retval true - The CHANGE MASTER is updating a unsupported parameter for the
-                  recovery channel.
+   @retval true - The CHANGE REPLICATION SOURCE is updating a unsupported
+   parameter for the recovery channel.
 
-   @retval false - Everything is fine. The CHANGE MASTER can execute with the
-                   given option(s) for the recovery channel.
+   @retval false - Everything is fine. The CHANGE REPLICATION SOURCE can execute
+   with the given option(s) for the recovery channel.
 */
 static bool is_invalid_change_master_for_group_replication_recovery(
     const LEX_MASTER_INFO *lex_mi) {
   DBUG_TRACE;
   bool have_extra_option_received = false;
 
-  /* Check if *at least one* receive/execute option is given on change master
-   * command*/
+  /* Check if *at least one* receive/execute option is given on change
+   * replication source command*/
   if (lex_mi->host || lex_mi->log_file_name || lex_mi->pos ||
       lex_mi->bind_addr || lex_mi->port || lex_mi->connect_retry ||
       lex_mi->server_id ||
@@ -10911,26 +10919,26 @@ static bool is_invalid_change_master_for_group_replication_recovery(
 
 /**
    Method used to check if the user is trying to update any other option for
-   the change master apart from the PRIVILEGE_CHECKS_USER.
+   the change replication source apart from the PRIVILEGE_CHECKS_USER.
    In case user tries to update any other parameter apart from this one, this
    method will return error.
 
-   @param  lex_mi structure that holds all change master options given on
-           the change master command.
+   @param  lex_mi structure that holds all change replication source options
+   given on the change replication source command.
 
-   @retval true - The CHANGE MASTER is updating a unsupported parameter for the
-                  recovery channel.
+   @retval true - The CHANGE REPLICATION SOURCE is updating a unsupported
+   parameter for the recovery channel.
 
-   @retval false - Everything is fine. The CHANGE MASTER can execute with the
-                   given option(s) for the recovery channel.
+   @retval false - Everything is fine. The CHANGE REPLICATION SOURCE can execute
+   with the given option(s) for the recovery channel.
 */
 static bool is_invalid_change_master_for_group_replication_applier(
     const LEX_MASTER_INFO *lex_mi) {
   DBUG_TRACE;
   bool have_extra_option_received = false;
 
-  /* Check if *at least one* receive/execute option is given on change master
-   * command*/
+  /* Check if *at least one* receive/execute option is given on change
+   * replication source command*/
   if (lex_mi->host || lex_mi->user || lex_mi->password ||
       lex_mi->log_file_name || lex_mi->pos || lex_mi->bind_addr ||
       lex_mi->port || lex_mi->connect_retry || lex_mi->server_id ||
@@ -10959,7 +10967,7 @@ static bool is_invalid_change_master_for_group_replication_applier(
 }
 
 /**
-  Entry point for the CHANGE MASTER command. Function
+  Entry point for the CHANGE REPLICATION SOURCE command. Function
   decides to create a new channel or create an existing one.
 
   @param[in]        thd        the client thread that issued the command.
@@ -10976,7 +10984,8 @@ bool change_master_cmd(THD *thd) {
 
   channel_map.wrlock();
 
-  /* The slave must have been initialized to allow CHANGE MASTER statements */
+  /* The slave must have been initialized to allow CHANGE REPLICATION SOURCE
+   * statements */
   if (!is_slave_configured()) {
     my_error(ER_REPLICA_CONFIGURATION, MYF(0));
     res = true;
@@ -11001,8 +11010,8 @@ bool change_master_cmd(THD *thd) {
       group_replication_applier channel only has the SQL thread, the IO thread
       job is done by GR pipeline, which queues events into the relay log after
       going through certification.
-      Thence for CHANGE MASTER execution pre-conditions we need to check if
-      the full GR stack is stopped.
+      Thence for CHANGE REPLICATION SOURCE execution pre-conditions we need to
+      check if the full GR stack is stopped.
     */
     if (is_group_replication_running()) {
       my_error(ER_GRP_OPERATION_NOT_ALLOWED_GR_MUST_STOP, MYF(0));
@@ -11027,7 +11036,7 @@ bool change_master_cmd(THD *thd) {
 
   /*
     Error out if number of replication channels are > 1 if FOR CHANNEL
-    clause is not provided in the CHANGE MASTER command.
+    clause is not provided in the CHANGE REPLICATION SOURCE command.
   */
   if (!lex->mi.for_channel && channel_map.get_num_instances() > 1) {
     my_error(ER_REPLICA_MULTIPLE_CHANNELS_CMD, MYF(0));

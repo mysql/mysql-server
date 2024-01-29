@@ -264,7 +264,7 @@ class Binlog_sender {
     binlog the following events are from.
 
   - The binlog file slave requested is Empty. E.g.
-    "CHANGE MASTER TO MASTER_LOG_FILE='', MASTER_LOG_POS=4", etc.
+    "CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='', SOURCE_LOG_POS=4", etc.
 
   - The position slave requested is exactly the end of a binlog file.
 

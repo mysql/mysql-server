@@ -14783,17 +14783,17 @@ static void test_bug17667() {
 
   struct buffer_and_length *statement_cursor;
   FILE *log_file;
-  char *master_log_filename;
+  char *source_log_filename;
 
   myheader("test_bug17667");
 
-  master_log_filename =
+  source_log_filename =
       (char *)malloc(strlen(opt_vardir) + strlen("/log/master.log") + 1);
-  strxmov(master_log_filename, opt_vardir, "/log/master.log", NullS);
-  if (!opt_silent) printf("Opening '%s'\n", master_log_filename);
+  strxmov(source_log_filename, opt_vardir, "/log/master.log", NullS);
+  if (!opt_silent) printf("Opening '%s'\n", source_log_filename);
   log_file =
-      my_fopen(master_log_filename, (int)(O_RDONLY | MY_FOPEN_BINARY), MYF(0));
-  free(master_log_filename);
+      my_fopen(source_log_filename, (int)(O_RDONLY | MY_FOPEN_BINARY), MYF(0));
+  free(source_log_filename);
 
   if (log_file == nullptr) {
     if (!opt_silent) {

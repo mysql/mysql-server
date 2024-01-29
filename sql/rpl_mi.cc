@@ -43,7 +43,7 @@
 #include "sql/mysqld.h"  // sync_masterinfo_period
 #include "sql/rpl_info_handler.h"
 #include "sql/rpl_msr.h"      // channel_map
-#include "sql/rpl_replica.h"  // master_retry_count
+#include "sql/rpl_replica.h"  // source_retry_count
 #include "sql/sql_class.h"
 #include "string_with_len.h"
 #include "strmake.h"
@@ -51,14 +51,14 @@
 enum {
   LINES_IN_MASTER_INFO_WITH_SSL = 14,
 
-  /* 5.1.16 added value of master_ssl_verify_server_cert */
-  LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT = 15,
+  /* 5.1.16 added value of source_ssl_verify_server_cert */
+  LINE_FOR_SOURCE_SSL_VERIFY_SERVER_CERT = 15,
 
-  /* 5.5 added value of master_heartbeat_period */
-  LINE_FOR_MASTER_HEARTBEAT_PERIOD = 16,
+  /* 5.5 added value of source_heartbeat_period */
+  LINE_FOR_SOURCE_HEARTBEAT_PERIOD = 16,
 
-  /* MySQL Cluster 6.3 added master_bind */
-  LINE_FOR_MASTER_BIND = 17,
+  /* MySQL Cluster 6.3 added source_bind */
+  LINE_FOR_SOURCE_BIND = 17,
 
   /* 6.0 added value of master_ignore_server_id */
   LINE_FOR_REPLICATE_IGNORE_SERVER_IDS = 18,
@@ -66,8 +66,8 @@ enum {
   /* 6.0 added value of master_uuid */
   LINE_FOR_MASTER_UUID = 19,
 
-  /* line for master_retry_count */
-  LINE_FOR_MASTER_RETRY_COUNT = 20,
+  /* line for source_retry_count */
+  LINE_FOR_SOURCE_RETRY_COUNT = 20,
 
   /* line for ssl_crl */
   LINE_FOR_SSL_CRL = 21,
@@ -84,20 +84,20 @@ enum {
   /* line for tls_version */
   LINE_FOR_TLS_VERSION = 25,
 
-  /* line for master_public_key_path */
+  /* line for source_public_key_path */
   LINE_FOR_PUBLIC_KEY_PATH = 26,
 
-  /* line for get_master_public_key */
+  /* line for get_source_public_key */
   LINE_FOR_GET_PUBLIC_KEY = 27,
 
   /* line for network_namespace */
   LINE_FOR_NETWORK_NAMESPACE = 28,
 
-  /* line for master_compression_algorithm */
-  LINE_FOR_MASTER_COMPRESSION_ALGORITHM = 29,
+  /* line for source_compression_algorithm */
+  LINE_FOR_SOURCE_COMPRESSION_ALGORITHM = 29,
 
-  /* line for master_zstd_compression_level */
-  LINE_FOR_MASTER_ZSTD_COMPRESSION_LEVEL = 30,
+  /* line for source_zstd_compression_level */
+  LINE_FOR_SOURCE_ZSTD_COMPRESSION_LEVEL = 30,
 
   /* line for tls_ciphersuites */
   LINE_FOR_TLS_CIPHERSUITES = 31,
@@ -194,7 +194,7 @@ Master_info::Master_info(
       last_heartbeat(0),
       master_id(0),
       checksum_alg_before_fd(mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF),
-      retry_count(master_retry_count),
+      retry_count(source_retry_count),
       mi_description_event(nullptr),
       auto_position(false),
       transaction_parser(mysql::binlog::event::Transaction_boundary_parser::
@@ -310,7 +310,7 @@ bool Master_info::is_rotate_requested() {
    Reports if the s_id server has been configured to ignore events
    it generates with
 
-      CHANGE MASTER IGNORE_SERVER_IDS= ( list of server ids )
+      CHANGE REPLICATION SOURCE IGNORE_SERVER_IDS= ( list of server ids )
 
    Method is called from the io thread event receiver filtering.
 
@@ -527,22 +527,22 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     Starting from 5.1.16 ssl_verify_server_cert might be
     in the file
   */
-  if (lines >= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT) {
+  if (lines >= LINE_FOR_SOURCE_SSL_VERIFY_SERVER_CERT) {
     if (!!from->get_info(&temp_ssl_verify_server_cert, 0)) return true;
   }
 
   /*
-    Starting from 5.5 master_heartbeat_period might be
+    Starting from 5.5 source_heartbeat_period might be
     in the file
   */
-  if (lines >= LINE_FOR_MASTER_HEARTBEAT_PERIOD) {
+  if (lines >= LINE_FOR_SOURCE_HEARTBEAT_PERIOD) {
     if (!!from->get_info(&heartbeat_period, (float)0.0)) return true;
   }
 
   /*
-    Starting from 5.5 master_bind might be in the file
+    Starting from 5.5 source_bind might be in the file
   */
-  if (lines >= LINE_FOR_MASTER_BIND) {
+  if (lines >= LINE_FOR_SOURCE_BIND) {
     if (!!from->get_info(bind_addr, sizeof(bind_addr), "")) return true;
   }
 
@@ -560,10 +560,10 @@ bool Master_info::read_info(Rpl_info_handler *from) {
       return true;
   }
 
-  /* Starting from 5.5 the master_retry_count may be in the repository. */
-  retry_count = master_retry_count;
-  if (lines >= LINE_FOR_MASTER_RETRY_COUNT) {
-    if (!!from->get_info(&retry_count, master_retry_count)) return true;
+  /* Starting from 5.5 the source_retry_count may be in the repository. */
+  retry_count = source_retry_count;
+  if (lines >= LINE_FOR_SOURCE_RETRY_COUNT) {
+    if (!!from->get_info(&retry_count, source_retry_count)) return true;
   }
 
   if (lines >= LINE_FOR_SSL_CRLPATH) {
@@ -608,7 +608,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
   auto_position = temp_auto_position;
   get_public_key = (bool)temp_get_public_key;
 
-  if (lines >= LINE_FOR_MASTER_COMPRESSION_ALGORITHM) {
+  if (lines >= LINE_FOR_SOURCE_COMPRESSION_ALGORITHM) {
     char algorithm_name[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
     if (!!from->get_info(algorithm_name, sizeof(algorithm_name), nullptr))
       return true;
@@ -624,7 +624,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     }
   }
 
-  if (lines >= LINE_FOR_MASTER_ZSTD_COMPRESSION_LEVEL) {
+  if (lines >= LINE_FOR_SOURCE_ZSTD_COMPRESSION_LEVEL) {
     int level;
     if (!!from->get_info(&level, (int)0)) return true;
     if (is_zstd_compression_level_valid(level))

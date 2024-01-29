@@ -397,8 +397,8 @@ class Rpl_filter {
   /*
     While slave is not running after server startup, the replication filter
     can be modified by CHANGE REPLICATION FILTER filter [, filter...]
-    [FOR CHANNEL <channel_name>] and CHANGE MASTER TO ... FOR CHANNEL,
-    and read by querying P_S.replication_applier_global_filters,
+    [FOR CHANNEL <channel_name>] and CHANGE REPLICATION SOURCE TO ... FOR
+    CHANNEL, and read by querying P_S.replication_applier_global_filters,
     querying P_S.replication_applier_filters, and SHOW REPLICA STATUS
     [FOR CHANNEL <channel_name>]. So the lock is introduced to protect
     some member functions called by above commands. See below.
@@ -425,11 +425,12 @@ class Rpl_filter {
       set_wild_do_table(mem_root_deque<Item *> *list); // CHANGE RPL. FILTER
       set_wild_ignore_table(mem_root_deque<Item *> *list); // CHANGE RPL. FILTER
       set_db_rewrite(mem_root_deque<Item *> *list); // CHANGE RPL. FILTER
-      copy_global_replication_filters(); // CHANGE MASTER TO ... FOR CHANNEL
+      copy_global_replication_filters(); // CHANGE REPLICATION SOURCE TO ... FOR
+    CHANNEL
 
     Please acquire a wrlock when modifying the replication filter (CHANGE
     REPLICATION FILTER filter [, filter...] [FOR CHANNEL <channel_name>]
-    and CHANGE MASTER TO ... FOR CHANNEL).
+    and CHANGE REPLICATION SOURCE TO ... FOR CHANNEL).
     Please acqurie a rdlock when reading the replication filter (
     SELECT * FROM performance_schema.replication_applier_global_filters,
     SELECT * FROM performance_schema.replication_applier_filters and

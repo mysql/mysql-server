@@ -1645,9 +1645,9 @@ bool mysqld_server_started = false;
 */
 static bool mysqld_process_must_end_at_startup = false;
 
-/* replication parameters, if master_host is not NULL, we are a slave */
+/* replication parameters, if source_host is not NULL, we are a slave */
 uint report_port = 0;
-ulong master_retry_count = 0;
+ulong source_retry_count = 0;
 char *report_user, *report_password, *report_host;
 char *opt_relay_logname = nullptr, *opt_relaylog_index_name = nullptr;
 /*
@@ -10866,7 +10866,7 @@ struct my_option my_long_options[] = {
      "before giving up. "
      "This option is deprecated and will be removed in a future version. "
      "Use 'CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = <num>' instead.",
-     &master_retry_count, &master_retry_count, nullptr, GET_ULONG, REQUIRED_ARG,
+     &source_retry_count, &source_retry_count, nullptr, GET_ULONG, REQUIRED_ARG,
      10, 0, 0, nullptr, 0, nullptr},
     {"max-binlog-dump-events", 0,
      "Option used by mysql-test for debugging and testing of replication.",

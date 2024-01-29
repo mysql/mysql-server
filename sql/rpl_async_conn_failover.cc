@@ -209,17 +209,18 @@ bool Async_conn_failover_manager::set_channel_conn_details(
   bool error{false};
 
   /*
-    CHANGE MASTER command should ignore 'read-only' and 'super_read_only'
-    options so that it can update 'mysql.slave_master_info' replication
-    repository tables.
+    CHANGE REPLICATION SOURCE command should ignore 'read-only' and
+    'super_read_only' options so that it can update 'mysql.slave_master_info'
+    replication repository tables.
   */
   if (mi->channel_trywrlock()) {
     return true;
   }
 
   /*
-    When we change master, we first decide which thread is running and
-    which is not. We dont want this assumption to break while we change master.
+    When we change replication source, we first decide which thread is running
+    and which is not. We dont want this assumption to break while we change
+    replication source.
 
     Suppose we decide that receiver thread is running and thus it is
     safe to change receive related options in mi. By this time if

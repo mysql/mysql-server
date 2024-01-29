@@ -409,11 +409,11 @@ int table_replication_connection_configuration::read_row_values(
           set_field_varchar_utf8mb4(f, m_row.tls_version,
                                     m_row.tls_version_length);
           break;
-        case 19: /** master_public_key_path */
+        case 19: /** source_public_key_path */
           set_field_varchar_utf8mb4(f, m_row.public_key_path,
                                     m_row.public_key_path_length);
           break;
-        case 20: /** get_master_public_key */
+        case 20: /** get_source_public_key */
           set_field_enum(f, m_row.get_public_key);
           break;
         case 21: /** network_namespace */

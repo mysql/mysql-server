@@ -69,11 +69,11 @@ struct MYSQL;
 
   log_name
   log_pos
-  master_host
-  master_user
-  master_pass
-  master_port
-  master_connect_retry
+  source_host
+  source_user
+  source_pass
+  source_port
+  source_connect_retry
 
   To write out the contents of master.info to disk a call to flush_info()
   is required. Currently, it is needed every time we read and queue data
@@ -309,7 +309,8 @@ class Master_info : public Rpl_info {
 
   */
   long clock_diff_with_master;
-  float heartbeat_period;         // interface with CHANGE MASTER or master.info
+  float heartbeat_period;         // interface with CHANGE REPLICATION SOURCE or
+                                  // master.info
   ulonglong received_heartbeats;  // counter of received heartbeat events
 
   ulonglong last_heartbeat;
@@ -663,7 +664,7 @@ class Master_info : public Rpl_info {
     replication channel:
     - START REPLICA;
     - STOP REPLICA;
-    - CHANGE MASTER;
+    - CHANGE REPLICATION SOURCE;
     - RESET REPLICA;
     - end_slave() (when mysqld stops)).
     Any of these commands must hold the wrlock from the start till the end.

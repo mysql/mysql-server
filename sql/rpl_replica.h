@@ -64,7 +64,7 @@ typedef enum {
 } SLAVE_THD_TYPE;
 
 /**
-  MASTER_DELAY can be at most (1 << 31) - 1.
+  SOURCE_DELAY can be at most (1 << 31) - 1.
 */
 #define MASTER_DELAY_MAX (0x7FFFFFFF)
 #if INT_MAX < 0x7FFFFFFF
@@ -151,8 +151,8 @@ extern bool server_id_supplied;
   ### m_channel_lock ###
 
   It is used to SERIALIZE ALL administrative commands of replication: START
-  SLAVE, STOP REPLICA, CHANGE MASTER, RESET REPLICA, delete_slave_info_objects
-  (when mysqld stops)
+  SLAVE, STOP REPLICA, CHANGE REPLICATION SOURCE, RESET REPLICA,
+  delete_slave_info_objects (when mysqld stops)
 
   This thus protects us against a handful of deadlocks, being the know ones
   around lock_slave_threads and the mixed order they are acquired in some
@@ -350,7 +350,7 @@ extern bool server_id_supplied;
     | mi.data_lock, rli.data_lock
 */
 
-extern ulong master_retry_count;
+extern ulong source_retry_count;
 extern MY_BITMAP slave_error_mask;
 extern char slave_skip_error_names[];
 extern bool use_slave_mask;

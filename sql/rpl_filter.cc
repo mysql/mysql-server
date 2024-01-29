@@ -202,16 +202,16 @@ int Rpl_filter::copy_global_replication_filters() {
   if (thd != nullptr && thd->lex->sql_command == SQLCOM_CHANGE_MASTER) {
     /*
       Acquire the write lock when copying global replication filter if
-      a new channel is being created by CHANGE MASTER TO ... FOR CHANNEL
-      command after server startup, in case SHOW REPLICA STATUS or
+      a new channel is being created by CHANGE REPLICATION SOURCE TO ... FOR
+      CHANNEL command after server startup, in case SHOW REPLICA STATUS or
       SELECT * FROM performance_schema.replication_applier_filters is
       querying the filter in parallel. We do not have the race problem
       when creating a new channel from repository during server startup.
       Note: we hold a write lock of channel_map when executing
-      CHANGE MASTER TO ... FOR CHANNEL <channel_name>, and hold a read
-      lock of channel_map when executing CHANGE REPLICATION FILTER
-      (the global replication filters). So we do not need to lock the
-      global replication filters for read.
+      CHANGE REPLICATION SOURCE TO ... FOR CHANNEL <channel_name>, and hold a
+      read lock of channel_map when executing CHANGE REPLICATION FILTER (the
+      global replication filters). So we do not need to lock the global
+      replication filters for read.
     */
     wrlock();
     need_unlock = true;
