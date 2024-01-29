@@ -212,7 +212,6 @@ INSTANTIATE_TEST_SUITE_P(ReplicationSource, SharingAllowedTest,
                          ::testing::ValuesIn(replication_source));
 
 const SharingAllowedParam replication_replica[] = {
-    {"change master to", Allowed::Never},              // instance
     {"change replication filter", Allowed::Never},     // instance
     {"change replication source to", Allowed::Never},  // instance
     {"reset replica", Allowed::Never},                 // instance

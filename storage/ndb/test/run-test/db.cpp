@@ -430,10 +430,10 @@ static bool setup_repl(atrt_process *dst, atrt_process *src) {
 
   BaseString tmp;
   tmp.assfmt(
-      "CHANGE MASTER TO "
-      " MASTER_HOST='%s',"
-      " MASTER_PORT=%u,"
-      " MASTER_USER='root'",
+      "CHANGE REPLICATION SOURCE TO "
+      " SOURCE_HOST='%s',"
+      " SOURCE_PORT=%u,"
+      " SOURCE_USER='root'",
       dst->m_host->m_hostname.c_str(), atoi(find(dst, "--port=")));
 
   if (!run_query(src, tmp.c_str())) {
