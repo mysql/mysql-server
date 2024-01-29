@@ -44,7 +44,7 @@ c	d
 2	16
 3	54
 **** On Slave ****
-START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
 include/wait_for_slave_sql_to_stop.inc
 include/check_slave_param.inc [Exec_Source_Log_Pos]
 include/check_slave_no_error.inc
@@ -76,7 +76,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`foo`=12
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(@foo, 2*@foo)
 master-bin.000001	#	Query	#	#	COMMIT
-START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
 START REPLICA;

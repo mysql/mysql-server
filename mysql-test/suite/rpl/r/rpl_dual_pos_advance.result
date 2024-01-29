@@ -22,7 +22,7 @@ insert into t3 values(2);
 insert into t3 values(3);
 commit;
 insert into t3 values(4);
-START REPLICA until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE="SOURCE_LOG_FILE",SOURCE_LOG_POS=SOURCE_LOG_POS;
 Warnings:
 Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
 include/wait_for_slave_sql_to_stop.inc
@@ -30,14 +30,14 @@ show tables;
 Tables_in_test
 t1
 t2
-START REPLICA until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE="SOURCE_LOG_FILE",SOURCE_LOG_POS=SOURCE_LOG_POS;
 Warnings:
 Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
 include/wait_for_slave_sql_to_stop.inc
 select * from t3;
 n
 1
-START REPLICA until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE="SOURCE_LOG_FILE",SOURCE_LOG_POS=SOURCE_LOG_POS;
 Warnings:
 Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
 include/wait_for_slave_sql_to_stop.inc

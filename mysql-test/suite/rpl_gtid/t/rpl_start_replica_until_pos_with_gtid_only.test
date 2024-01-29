@@ -83,7 +83,7 @@ INSERT INTO t VALUES(2);
 INSERT INTO t VALUES(3);
 
 # used on get_relay_log_pos.inc
---let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $source_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 INSERT INTO t VALUES(4);
 
@@ -150,7 +150,7 @@ INSERT INTO t VALUES(6);
 INSERT INTO t VALUES(7);
 
 # used on get_relay_log_pos.inc
---let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $source_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 INSERT INTO t VALUES(8);
 

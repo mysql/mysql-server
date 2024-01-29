@@ -3,7 +3,7 @@
 
 --source include/not_group_replication_plugin.inc
 source include/master-slave.inc;
---let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $source_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 connection slave;
 --source include/stop_slave.inc
 connection master;
@@ -35,7 +35,7 @@ RESET REPLICA;
 # with the default used for sync_slave_with_master and will protect us
 # against slow test envs); also the slave will probably not cooperate
 # to shutdown (as 2 threads are locked)
---let $outcome= `SELECT SOURCE_POS_WAIT('$master_log_file',200,300) AS mpw;`
+--let $outcome= `SELECT SOURCE_POS_WAIT('$source_log_file',200,300) AS mpw;`
 
 # source_pos_wait returns:
 #

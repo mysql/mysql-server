@@ -23,7 +23,7 @@ GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 CALL mtr.add_suppression(".CREATE command denied to user.");
 RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=MY_SOURCE_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=MY_SOURCE_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_SOURCE_LOG_POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -57,7 +57,7 @@ SET sql_log_bin= 1;
 [connection slave]
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=MY_SOURCE_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=MY_SOURCE_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_SOURCE_LOG_POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -79,7 +79,7 @@ CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT DROP ON *.* TO 'u1'@'localhost';
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_SOURCE_LOG_POS;
 START REPLICA;
 [connection master]
 DROP TABLE t1;

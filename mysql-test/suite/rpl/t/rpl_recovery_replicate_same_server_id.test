@@ -21,7 +21,7 @@
 # =====
 # If SQL_THREAD does not have a Relay_Source_Log_File set recovery process
 # will try to extract the first rotate event from the master and try to
-# extract Source_Log_File and master_log_pos from the rotate event. But when
+# extract Source_Log_File and source_log_pos from the rotate event. But when
 # replicate-same-server-id is set master and slave will have same server_id
 # and it will not be possible to identify the rotate event from master. Hence
 # if recovery is happening with empty Relay_Source_Log_File and

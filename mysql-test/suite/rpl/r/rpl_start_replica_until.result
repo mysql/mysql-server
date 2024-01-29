@@ -17,7 +17,7 @@ insert into t2 values (3),(4);
 drop table t2;
 ==== Replicate one event at a time on slave ====
 [on slave]
-START REPLICA until SOURCE_LOG_FILE='MASTER_LOG_FILE', SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE='SOURCE_LOG_FILE', SOURCE_LOG_POS=SOURCE_LOG_POS;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
 select * from t1;
@@ -27,7 +27,7 @@ n
 3
 4
 include/check_slave_param.inc [Exec_Source_Log_Pos]
-START REPLICA until SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
 select * from t1;
@@ -50,23 +50,23 @@ START REPLICA;
 [on slave]
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-START REPLICA until SOURCE_LOG_FILE='MASTER_LOG_FILE', SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE='SOURCE_LOG_FILE', SOURCE_LOG_POS=SOURCE_LOG_POS;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
 include/check_slave_param.inc [Exec_Source_Log_Pos]
 ==== Test various error conditions ====
-START REPLICA until SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=SOURCE_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
-START REPLICA until SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=MASTER_LOG_POS, relay_log_pos=RELAY_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS, relay_log_pos=RELAY_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START REPLICA until SOURCE_LOG_FILE='master-bin.000001';
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START REPLICA until relay_log_file='slave-relay-bin.000002';
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
-START REPLICA until relay_log_file='slave-relay-bin.000002', SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until relay_log_file='slave-relay-bin.000002', SOURCE_LOG_POS=SOURCE_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START REPLICA sql_thread;
-START REPLICA until SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
 Warnings:
 Note	3083	Replication thread(s) for channel '' are already runnning.
 include/stop_slave.inc
@@ -91,7 +91,7 @@ insert into t1 set a=null;
 select count(*) as two from t1;
 two
 2
-START REPLICA until SOURCE_LOG_FILE='MASTER_LOG_FILE', SOURCE_LOG_POS= UNTIL_POS;;
+START REPLICA until SOURCE_LOG_FILE='SOURCE_LOG_FILE', SOURCE_LOG_POS= UNTIL_POS;;
 include/wait_for_slave_sql_to_stop.inc
 slave stopped at the prescribed position
 select 0 as zero;

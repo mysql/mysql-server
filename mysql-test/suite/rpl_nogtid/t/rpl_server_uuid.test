@@ -101,8 +101,8 @@ connection master;
 --copy_file $server_3_datadir/$uuid_file $master_datadir/$uuid_file
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
---let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, 'File', 1)
---let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, 'Position', 1)
+--let $source_log_file= query_get_value(SHOW BINARY LOG STATUS, 'File', 1)
+--let $source_log_pos= query_get_value(SHOW BINARY LOG STATUS, 'Position', 1)
 
 --echo 
 --echo # server_3 is running with --replicate-same-server-id option 
@@ -144,8 +144,8 @@ connection slave;
 
 --echo
 --echo # Only change Source_Port
-let $old_master_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1);
-let $old_master_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
+let $old_source_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1);
+let $old_source_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
 
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
 --let $slave_param= Source_UUID
@@ -155,9 +155,9 @@ CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
 --let $slave_param_value= 0
 --source include/check_slave_param.inc
 
---replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_source_log_file SOURCE_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_source_log_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT,
-       SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
+       SOURCE_LOG_FILE= '$old_source_log_file', SOURCE_LOG_POS= $old_source_log_pos;
 --source include/start_slave_io.inc
 --let $slave_param= Source_UUID
 --let $slave_param_value= $original_master_uuid
@@ -167,8 +167,8 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT,
 --echo # Only change Source_Host
 STOP REPLICA IO_THREAD;
 --source include/wait_for_slave_io_to_stop.inc
-let $old_master_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1);
-let $old_master_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
+let $old_source_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1);
+let $old_source_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
 --let $slave_param= Source_UUID
@@ -178,9 +178,9 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
 --let $slave_param_value= 0
 --source include/check_slave_param.inc
 
---replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_source_log_file SOURCE_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_source_log_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
-       SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
+       SOURCE_LOG_FILE= '$old_source_log_file', SOURCE_LOG_POS= $old_source_log_pos;
 --source include/start_slave_io.inc
 --let $slave_param= Source_UUID
 --let $slave_param_value= $original_master_uuid
@@ -199,9 +199,9 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
 --let $slave_param_value= 0
 --source include/check_slave_param.inc
 
---replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_source_log_file SOURCE_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_source_log_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT,
-       SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
+       SOURCE_LOG_FILE= '$old_source_log_file', SOURCE_LOG_POS= $old_source_log_pos;
 --source include/start_slave_io.inc
 --let $slave_param= Source_UUID
 --let $slave_param_value= $original_master_uuid
@@ -216,9 +216,9 @@ STOP REPLICA IO_THREAD;
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT;
 --source include/check_slave_param.inc
 
---replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_source_log_file SOURCE_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_source_log_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO 
-       SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
+       SOURCE_LOG_FILE= '$old_source_log_file', SOURCE_LOG_POS= $old_source_log_pos;
 --source include/check_slave_param.inc
 
 --echo
@@ -230,9 +230,9 @@ connection slave;
 RESET REPLICA;
 --source include/check_slave_param.inc
 
---replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_source_log_file SOURCE_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_source_log_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO 
-       SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
+       SOURCE_LOG_FILE= '$old_source_log_file', SOURCE_LOG_POS= $old_source_log_pos;
 --source include/start_slave.inc
 
 --echo

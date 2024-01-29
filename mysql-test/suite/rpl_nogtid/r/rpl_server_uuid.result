@@ -72,7 +72,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
 include/check_slave_param.inc [Source_UUID]
 include/check_slave_param.inc [Source_Server_Id]
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= SOURCE_PORT,
-SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
+SOURCE_LOG_FILE= 'SOURCE_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Source_UUID]
 
@@ -83,7 +83,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
 include/check_slave_param.inc [Source_UUID]
 include/check_slave_param.inc [Source_Server_Id]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
-SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
+SOURCE_LOG_FILE= 'SOURCE_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Source_UUID]
 
@@ -94,7 +94,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
 include/check_slave_param.inc [Source_UUID]
 include/check_slave_param.inc [Source_Server_Id]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= SOURCE_PORT,
-SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
+SOURCE_LOG_FILE= 'SOURCE_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Source_UUID]
 
@@ -104,7 +104,7 @@ include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= SOURCE_PORT;
 include/check_slave_param.inc [Replica_IO_Running]
 CHANGE REPLICATION SOURCE TO 
-SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
+SOURCE_LOG_FILE= 'SOURCE_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/check_slave_param.inc [Replica_IO_Running]
 
 # Case 5:
@@ -114,7 +114,7 @@ include/check_slave_param.inc [Replica_IO_Running]
 RESET REPLICA;
 include/check_slave_param.inc [Replica_IO_Running]
 CHANGE REPLICATION SOURCE TO 
-SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
+SOURCE_LOG_FILE= 'SOURCE_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave.inc
 
 # Case 6:

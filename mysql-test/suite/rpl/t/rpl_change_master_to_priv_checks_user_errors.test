@@ -57,7 +57,7 @@
 --let $rpl_skip_start_slave = 1
 --source include/master-slave.inc
 
---let $master_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $source_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --echo #
 --echo # TC1. `Query_log_event` should fail if `PRIVILEGE_CHECKS_USER` user
@@ -105,8 +105,8 @@ RESET REPLICA ALL;
 # PRIVILEGE_CHECKS_USER
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
 
---replace_result $MASTER_MYPORT MY_SOURCE_PORT $master_log_pos MY_MASTER_LOG_POS
---eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$master_log_pos
+--replace_result $MASTER_MYPORT MY_SOURCE_PORT $source_log_pos MY_SOURCE_LOG_POS
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$source_log_pos
 START REPLICA;
 
 #
@@ -163,7 +163,7 @@ START REPLICA;
 #
 --source include/rpl_connection_master.inc
 --let $master_uuid = `SELECT @@GLOBAL.SERVER_UUID`
---let $master_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $source_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 SET sql_log_bin= 0;
 CREATE USER 'u1'@'localhost';
 SET sql_log_bin= 1;
@@ -172,8 +172,8 @@ SET sql_log_bin= 1;
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 
---replace_result $MASTER_MYPORT MY_SOURCE_PORT $master_log_pos MY_MASTER_LOG_POS
---eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$master_log_pos
+--replace_result $MASTER_MYPORT MY_SOURCE_PORT $source_log_pos MY_SOURCE_LOG_POS
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$source_log_pos
 --source include/start_slave.inc
 
 #
@@ -215,14 +215,14 @@ DROP USER 'u1'@'localhost';
 
 # Clean up
 --source include/rpl_connection_master.inc
---let $master_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $source_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --source include/rpl_connection_slave.inc
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT DROP ON *.* TO 'u1'@'localhost';
 --source include/stop_slave.inc
---replace_result $master_log_pos MY_MASTER_LOG_POS
---eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$master_log_pos
+--replace_result $source_log_pos MY_SOURCE_LOG_POS
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$source_log_pos
 START REPLICA;
 --source include/rpl_connection_master.inc
 DROP TABLE t1;

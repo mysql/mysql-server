@@ -55,7 +55,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_PORT = $MASTER_MYPORT;
 #
 # Bug#38934 slave slave until does not work with --replicate-same-server-id
 #
-# Verifying that slave performs all events until the master_log_pos
+# Verifying that slave performs all events until the source_log_pos
 # in presense of --replicate-same-server-id the slave is started with.
 
 --echo ==== START REPLICA UNTIL works with replicate-same-server-id ====

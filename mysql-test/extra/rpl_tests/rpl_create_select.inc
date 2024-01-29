@@ -29,7 +29,7 @@
 # 7) Start the slave, this would cause slave to crash.
 # 8) Wait for slave server to completely stop.
 # 9) Restart the server with slave thread stopped.
-# 10) Set MASTER_LOG_POS to last log position from where logs to apply.
+# 10) Set SOURCE_LOG_POS to last log position from where logs to apply.
 #     Set this only when GTID is off.
 # 11) Start the slave thread.
 # 12) Sync the master with the slave.
@@ -87,7 +87,7 @@ let $assert_cond= [SELECT count(table_name) COUNT FROM
 INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1] = 1;
 --source include/assert.inc
 
---echo # Reset the master log position back to event that starts
+--echo # Reset the source log position back to event that starts
 --echo # CREATE TABLE ... SELECT and start the slave, without causing crash.
 SELECT @@GLOBAL.GTID_MODE;
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` ) 

@@ -59,8 +59,8 @@ let $the_file= `SELECT @the_file` ;
 
 # now connect the slave to the _other_ "master"
 --let $rpl_topology= 3->2
---let $rpl_master_log_file= 2:$the_file
---let $rpl_master_log_pos= 2:$the_pos
+--let $rpl_source_log_file= 2:$the_file
+--let $rpl_source_log_pos= 2:$the_pos
 --source include/rpl_change_topology.inc
 --connection slave
 --source include/start_slave.inc

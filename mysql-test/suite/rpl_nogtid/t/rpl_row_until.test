@@ -15,24 +15,24 @@
 connection master;
 CREATE TABLE t1(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
-# Save master log position before query DROP TABLE t1
+# Save source log position before query DROP TABLE t1
 let $master_pos_drop_t1= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
-let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+let $source_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 DROP TABLE t1;
-# Save master log position for query DROP TABLE t1
+# Save source log position for query DROP TABLE t1
 save_master_pos;
 
-# Save master log position for query CREATE TABLE t2
+# Save source log position for query CREATE TABLE t2
 let $master_pos_create_t2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 CREATE TABLE t2(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 #show binlog events;
 
 INSERT INTO t2 VALUES (1),(2);
-# Save master log position for query INSERT INTO t2 VALUES (1),(2);
+# Save source log position for query INSERT INTO t2 VALUES (1),(2);
 let $master_pos_insert1_t2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 INSERT INTO t2 VALUES (3),(4);
 DROP TABLE t2;
-# Save master log position for query DROP TABLE t2;
+# Save source log position for query DROP TABLE t2;
 let $master_pos_drop_t2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --source include/sync_slave_sql_with_master.inc
 #show binlog events;
@@ -49,7 +49,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_CONNECT_RETRY=1, SO
 
 connection slave;
 --replace_result $master_pos_drop_t1 master_pos_drop_t1
-eval START REPLICA UNTIL SOURCE_LOG_FILE='$master_log_file', SOURCE_LOG_POS=$master_pos_drop_t1;
+eval START REPLICA UNTIL SOURCE_LOG_FILE='$source_log_file', SOURCE_LOG_POS=$master_pos_drop_t1;
 --source include/wait_for_slave_sql_to_stop.inc
 
 # Here table should be still not deleted
@@ -77,9 +77,9 @@ connection master;
 --source include/stop_slave.inc
 
 # This should stop immediately as we are already there
-echo START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE='$master_log_file', SOURCE_LOG_POS=master_pos_create_t2;
+echo START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE='$source_log_file', SOURCE_LOG_POS=master_pos_create_t2;
 --disable_query_log
-eval START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE='$master_log_file', SOURCE_LOG_POS=$master_pos_create_t2;
+eval START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE='$source_log_file', SOURCE_LOG_POS=$master_pos_create_t2;
 --enable_query_log
 let $slave_param= Until_Log_Pos;
 let $slave_param_value= $master_pos_create_t2;
@@ -133,7 +133,7 @@ INSERT INTO t1 VALUES (1);
 
 --connection master
 INSERT INTO t1 VALUES (2);
---let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $source_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 INSERT INTO t1 VALUES (3);
 
 --source include/sync_slave_io_with_master.inc

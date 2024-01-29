@@ -27,7 +27,7 @@
 # gtid_next.type is NOT_YET_DETERMINED_GTID.  This can happen if
 # an explicit CHANGE REPLICATION SOURCE TO RELAY_LOG_POS statement positions the
 # applier thread after the BEGIN statement, or if an explicit CHANGE
-# REPLICATION SOURCE TO MASTER_LOG_POS statement positions the receiver thread in
+# REPLICATION SOURCE TO SOURCE_LOG_POS statement positions the receiver thread in
 # the middle of a transaction.
 #
 # Therefore, even Rows_log_events need to upgrade
@@ -185,7 +185,7 @@ ROLLBACK;
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 SET GLOBAL GTID_MODE = OFF;
 
---echo #### 2. CHANGE REPLICATION SOURCE TO MASTER_LOG_POS ####
+--echo #### 2. CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS ####
 
 --connection slave
 --source include/stop_slave_io.inc

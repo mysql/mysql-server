@@ -191,7 +191,7 @@ DROP TABLE t6;
 
 # Assert the transaction length in all slave log files
 --source include/assert_transaction_length_all_logs.inc
-# Assert the transaction length in all master log files
+# Assert the transaction length in all source log files
 --source include/rpl_connection_master.inc
 --source include/assert_transaction_length_all_logs.inc
 --source include/rpl_end.inc

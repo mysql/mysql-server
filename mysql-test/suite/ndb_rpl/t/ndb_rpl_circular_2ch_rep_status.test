@@ -108,19 +108,19 @@ select
 #--echo Get corresponding Binlog filename + pos from new Master servers
 #--connection master1
 #eval select * from mysql.ndb_binlog_index where epoch > $max_applied_cluster_a_epoch ;
-#let $cluster_a_master_log_file = query_get_value("SELECT SUBSTRING_INDEX(File, '/', -1) as File from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_a_epoch", File, 1);
-#let $cluster_a_master_log_pos = query_get_value("SELECT Position from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_a_epoch", Position, 1);
+#let $cluster_a_source_log_file = query_get_value("SELECT SUBSTRING_INDEX(File, '/', -1) as File from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_a_epoch", File, 1);
+#let $cluster_a_source_log_pos = query_get_value("SELECT Position from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_a_epoch", Position, 1);
 #--connection slave
 #eval select * from mysql.ndb_binlog_index where epoch > $max_applied_cluster_b_epoch;
-#let $cluster_b_master_log_file = query_get_value("SELECT SUBSTRING_INDEX(File, '/', -1) as File from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_b_epoch", File, 1);
-#let $cluster_b_master_log_pos = query_get_value("SELECT Position from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_b_epoch", Position, 1);
+#let $cluster_b_source_log_file = query_get_value("SELECT SUBSTRING_INDEX(File, '/', -1) as File from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_b_epoch", File, 1);
+#let $cluster_b_source_log_pos = query_get_value("SELECT Position from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_b_epoch", Position, 1);
 #--echo Now change new Slave servers to new Master file + pos
 #--connection master
-#--echo Changing replication source to $cluster_b_master_log_file, $cluster_b_master_log_pos
-#eval CHANGE REPLICATION SOURCE TO MASTER_LOG_FILE="$cluster_b_master_log_file", MASTER_LOG_POS=$cluster_b_master_log_pos;
+#--echo Changing replication source to $cluster_b_source_log_file, $cluster_b_source_log_pos
+#eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_b_source_log_file", SOURCE_LOG_POS=$cluster_b_source_log_pos;
 #--connection slave1
-#--echo Changing replication source to $cluster_a_master_log_file, $cluster_a_master_log_pos
-#eval CHANGE REPLICATION SOURCE TO MASTER_LOG_FILE="$cluster_a_master_log_file", MASTER_LOG_POS=$cluster_a_master_log_pos;
+#--echo Changing replication source to $cluster_a_source_log_file, $cluster_a_source_log_pos
+#eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_a_source_log_file", SOURCE_LOG_POS=$cluster_a_source_log_pos;
 
 --echo Get current master status on Cluster A new master (next pos in Binlog)
 --connection master1
@@ -128,13 +128,13 @@ select
 --echo Flush logs to ensure any pending update (e.g. reflected apply_status write row)
 --echo is skipped over.
 flush logs;
-let $cluster_a_master_log_file = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
-let $cluster_a_master_log_pos = query_get_value("SHOW BINARY LOG STATUS", "Position", 1);
+let $cluster_a_source_log_file = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
+let $cluster_a_source_log_pos = query_get_value("SHOW BINARY LOG STATUS", "Position", 1);
 --echo Setup slave on Cluster B to use it
 --connection slave1
 --echo Slave1 (4)
 --disable_query_log
-eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_a_master_log_file", SOURCE_LOG_POS=$cluster_a_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_a_source_log_file", SOURCE_LOG_POS=$cluster_a_source_log_pos;
 --enable_query_log
 
 --echo Get current master status on Cluster B new master (next pos in Binlog)
@@ -143,13 +143,13 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_a_master_log_file", 
 --echo  Flush logs to ensure any pending update (e.g. reflected apply_status write row)
 --echo is skipped over.
 flush logs;
-let $cluster_b_master_log_file = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
-let $cluster_b_master_log_pos = query_get_value("SHOW BINARY LOG STATUS", "Position", 1);
+let $cluster_b_source_log_file = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
+let $cluster_b_source_log_pos = query_get_value("SHOW BINARY LOG STATUS", "Position", 1);
 --echo Setup slave on Cluster A to use it
 --connection master
 --echo Master (1)
 --disable_query_log
-eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_b_master_log_file", SOURCE_LOG_POS=$cluster_b_master_log_pos;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_b_source_log_file", SOURCE_LOG_POS=$cluster_b_source_log_pos;
 --enable_query_log
 
 --connection master

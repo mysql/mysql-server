@@ -49,13 +49,13 @@ insert into test.t1 select NULL, a from test.t1;
 
 --source include/wait_for_ndb_committed_to_binlog.inc
 
-let $master_log_file = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
+let $source_log_file = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
 eval
-  select trim(trailing "$master_log_file" from File)
+  select trim(trailing "$source_log_file" from File)
     from mysql.ndb_binlog_index
     where epoch in (select max(epoch) from mysql.ndb_binlog_index)
   into @file_prefix;
-eval select concat(@file_prefix, "$master_log_file") into @file1;
+eval select concat(@file_prefix, "$source_log_file") into @file1;
 
 --echo Have at least 100 epoch rows
 select count(*)/100 > 0 from mysql.ndb_binlog_index where File=@file1;
@@ -63,8 +63,8 @@ select count(*)/100 > 0 from mysql.ndb_binlog_index where File=@file1;
 --echo Flush log to get onto the next file...
 FLUSH LOGS;
 
-let $master_log_file2 = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
-eval select concat(@file_prefix, "$master_log_file2") into @file2;
+let $source_log_file2 = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
+eval select concat(@file_prefix, "$source_log_file2") into @file2;
 
 create table test.files(file1 varchar(255), file2 varchar(255));
 insert into test.files values(@file1, @file2);
@@ -118,7 +118,7 @@ connection con2;
 --echo Check that there are no rows in the next file
 select count(*)=0 from mysql.ndb_binlog_index where File=@file2;
 --echo Start the purge that will get stuck on one row
---send_eval PURGE BINARY LOGS TO '$master_log_file2'
+--send_eval PURGE BINARY LOGS TO '$source_log_file2'
 
 connection con3;
 --echo Wait 10 sec for purge to run into the row lock
@@ -156,12 +156,12 @@ if (!$result)
   select @file2;
   --connection con1
   select * from my_ndb_binlog_index;
-  --echo Master log file $master_log_file
-  --echo Master log file2 $master_log_file2
+  --echo Source log file $source_log_file
+  --echo Source log file2 $source_log_file2
   SHOW BINARY LOGS;
   --echo If Binary log entry exists following
   --echo should succeed, else fail
-  --eval PURGE BINARY LOGS TO '$master_log_file2'
+  --eval PURGE BINARY LOGS TO '$source_log_file2'
   select * from mysql.ndb_binlog_index;
 }
 # /Debugging windows failures...

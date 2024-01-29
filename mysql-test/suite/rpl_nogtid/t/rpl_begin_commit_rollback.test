@@ -68,7 +68,7 @@ DELIMITER ;//
 
 INSERT INTO replicate_do_db.t2 VALUES ('before call replicate_do_db.p1()');
 
-# Note: the master_log_pos is set to be the position of the BEGIN + 1,
+# Note: the source_log_pos is set to be the position of the BEGIN + 1,
 # so before fix of BUG#43263 if the BEGIN is ignored, then all the
 # INSERTS in p1 will be replicated in AUTOCOMMIT=1 mode and the slave
 # SQL thread will stop right before the first INSERT. After fix of

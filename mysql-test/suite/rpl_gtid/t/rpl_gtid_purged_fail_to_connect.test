@@ -17,7 +17,7 @@
 # 5) Verify that appropriate messages are logged into master's and slave's
 #    error log.
 # 6) Verify that replication succeeds if it tries to connect using CHANGE
-#    REPLICATION SOURCE TO MASTER_LOG_POS.
+#    REPLICATION SOURCE TO SOURCE_LOG_POS.
 # 7) Cleanup.
 #
 # ==== References ====
@@ -115,7 +115,7 @@ SET GLOBAL DEBUG= @saved_debug;
 
 --echo #
 --echo # 6) Verify that replication succeeds if it tries to connect using CHANGE
---echo #    REPLICATION SOURCE TO MASTER_LOG_POS.
+--echo #    REPLICATION SOURCE TO SOURCE_LOG_POS.
 --echo #
 --replace_result $master_file MASTER_FILE $master_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = '$master_file', SOURCE_LOG_POS = $master_pos, SOURCE_AUTO_POSITION = 0;

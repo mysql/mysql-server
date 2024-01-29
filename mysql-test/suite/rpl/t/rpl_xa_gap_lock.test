@@ -99,10 +99,10 @@ RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_master.inc
 --let $master_data_dir= `SELECT @@datadir`
---let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $source_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $mysql_server= $MYSQL --defaults-group-suffix=.2
 --echo Restore binary log from the master into the slave
---exec $MYSQL_BINLOG --force-if-open $master_data_dir/$master_log_file | $mysql_server
+--exec $MYSQL_BINLOG --force-if-open $master_data_dir/$source_log_file | $mysql_server
 
 --let $diff_tables= master:test.t1, slave:test.t1
 --source include/diff_tables.inc

@@ -51,7 +51,7 @@ SET GLOBAL DEBUG= @saved_debug;
 include/assert_grep.inc [Found a message about the long GTIDs in the slave error log.]
 #
 # 6) Verify that replication succeeds if it tries to connect using CHANGE
-#    REPLICATION SOURCE TO MASTER_LOG_POS.
+#    REPLICATION SOURCE TO SOURCE_LOG_POS.
 #
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = 'MASTER_FILE', SOURCE_LOG_POS = MASTER_POS, SOURCE_AUTO_POSITION = 0;
 include/start_slave.inc

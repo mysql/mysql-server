@@ -30,8 +30,8 @@
 # [--let $use_gtids= 1]
 # [--let $rpl_group_replication= 1]
 # [--let $rpl_skip_change_master= 1]
-# [--let $rpl_master_log_file= 1:master-bin.000001,3:master-bin.000003]
-# [--let $rpl_master_log_pos= 1:4711,3:107]
+# [--let $rpl_source_log_file= 1:master-bin.000001,3:master-bin.000003]
+# [--let $rpl_source_log_pos= 1:4711,3:107]
 # [--let $rpl_debug= 1]
 # [--let $rpl_unconditional_change_master= 1]
 # [--let $rpl_privilege_checks_user= *:'user'@'host',1:'user'@'host',2:NULL]
@@ -45,7 +45,7 @@
 #   $use_gtids
 #     Use option SOURCE_AUTO_POSITION = 1 to CHANGE REPLICATION SOURCE.
 #
-#   $rpl_master_log_file
+#   $rpl_source_log_file
 #     By default, CHANGE REPLICATION SOURCE is executed without specifying the
 #     SOURCE_LOG_FILE parameter. This variable can be set to specify a
 #     filename.  This variable should be a comma-separated list of the
@@ -54,21 +54,21 @@
 #       SERVER_NUMBER_1:FILE_NAME_1,SERVER_NUMBER_2:FILE_NAME_2,...
 #
 #     Before CHANGE REPLICATION SOURCE is executed on server N, this script checks
-#     if $rpl_master_log_file contains the text N:FILE_NAME. If it
+#     if $rpl_source_log_file contains the text N:FILE_NAME. If it
 #     does, then SOURCE_LOG_FILE is set to FILE_NAME. Otherwise,
 #     SOURCE_LOG_FILE is not specified.  For example, to specify that
 #     server_1 should start replicate from master-bin.000007 and
 #     server_5 should start replicate from master-bin.012345, do:
 #
-#       --let $rpl_master_log_file= 1:master-bin.000007,5:master-bin.012345
+#       --let $rpl_source_log_file= 1:master-bin.000007,5:master-bin.012345
 #
-#   $rpl_master_log_pos
+#   $rpl_source_log_pos
 #     By default, CHANGE REPLICATION SOURCE is executed without specifying the
 #     SOURCE_LOG_POS parameter.  This variable can be set to set a
-#     specific position.  It has the same form as $rpl_master_log_file
+#     specific position.  It has the same form as $rpl_source_log_file
 #     (see above).  For example, to specify that server_3 should start
 #     replicate from position 4711 of its master, do:
-#       --let $rpl_master_log_pos= 3:4711
+#       --let $rpl_source_log_pos= 3:4711
 #
 #   $rpl_unconditional_change_master
 #     This script remembers the topology set by previous invokations

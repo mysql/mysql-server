@@ -6,7 +6,7 @@
 --echo #
 
 # There is a gap between when START REPLICA returns and when Source_Log_File and
-# MASTER_LOG_POS are set.  Ensure that we don't call SHOW REPLICA STATUS during
+# SOURCE_LOG_POS are set.  Ensure that we don't call SHOW REPLICA STATUS during
 # that gap.
 --sync_slave_with_master
 

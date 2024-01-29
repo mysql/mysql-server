@@ -99,7 +99,7 @@ SET global debug="+d,simulate_stop_when_mta_in_group";
 
 --source include/wait_for_slave_sql_to_stop.inc
 --let $exec_source_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
---let $exec_master_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 1)
+--let $exec_source_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 1)
 
 # Assert that the positions that are reported by the applier thread during
 # STOP REPLICA are the same as that of the most recent checkpoint in case of
@@ -107,7 +107,7 @@ SET global debug="+d,simulate_stop_when_mta_in_group";
 --let $assert_text= Assert that the expected entry is in the error log during STOP REPLICA
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_only_after = Coordinator thread of multi-threaded replica is being stopped in the middle of assigning a group of events
---let $assert_select= Replica SQL thread for channel '' exiting, replication stopped in log '$exec_master_log_file' at position $exec_source_log_pos
+--let $assert_select= Replica SQL thread for channel '' exiting, replication stopped in log '$exec_source_log_file' at position $exec_source_log_pos
 --let $assert_count= 1
 --source include/assert_grep.inc
 
@@ -121,7 +121,7 @@ set @@GLOBAL.replica_checkpoint_period= @save_replica_checkpoint_period;
 --let $assert_text= Assert that the expected entry is in the error log during START REPLICA
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_only_after = Replica SQL thread exiting, replication stopped in log
---let $assert_select= Replica SQL thread for channel '' initialized, starting replication in log '$exec_master_log_file' at position $exec_source_log_pos
+--let $assert_select= Replica SQL thread for channel '' initialized, starting replication in log '$exec_source_log_file' at position $exec_source_log_pos
 --let $assert_count= 1
 --source include/assert_grep.inc
 

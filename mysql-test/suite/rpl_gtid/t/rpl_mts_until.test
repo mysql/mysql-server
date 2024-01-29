@@ -1,6 +1,6 @@
 ################################################################################
 # Verify below UNTIL options work well on MTS.
-# MASTER_LOG_NAME, MASTER_LOG_POS
+# MASTER_LOG_NAME, SOURCE_LOG_POS
 # RELAY_LOG_NAME, RELAY_LOG_POS
 # SQL_BEFORE_GTIDS
 # Currently SQL_AFTER_GTIDS is not supportted.

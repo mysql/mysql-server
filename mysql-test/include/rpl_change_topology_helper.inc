@@ -10,8 +10,8 @@
 # --let $_rpl_old_connection_list= <old connection list>
 # [--let $rpl_unconditional_change_master= 1]
 # [--let $use_gtids= 1]
-# [--let $rpl_master_log_pos= <master log pos list>]
-# [--let $rpl_master_log_file= <master log file list>]
+# [--let $rpl_source_log_pos= <source log pos list>]
+# [--let $rpl_source_log_file= <source log file list>]
 # [--let $rpl_privilege_checks_user= 1:'user'@'host',2:NULL]
 # [--let $rpl_privilege_checks_user_dont_create_user= 0]
 # [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
@@ -39,7 +39,7 @@
 # - SOURCE_AUTO_POSITION is set to 1 or 0 according to $use_gtids.
 # - SOURCE_PORT is set according to the SERVER_MYPORT_N variable
 # - SOURCE_LOG_FILE and SOURCE_LOG_POS are set according to
-#   $rpl_master_log_file and $rpl_master_log_pos
+#   $rpl_source_log_file and $rpl_source_log_pos
 #
 # Finally, it calls CHANGE REPLICATION SOURCE with the computed parameters.
 #
@@ -120,21 +120,21 @@ if (!$_rpl_change_topology_helper_skip)
     --let $_rpl_change_topology_helper_position= SOURCE_AUTO_POSITION = 0,
 
     # Get SOURCE_LOG_FILE
-    --let $_rpl_change_topology_helper_file_index= `SELECT LOCATE('$rpl_slave:', '$rpl_master_log_file')`
+    --let $_rpl_change_topology_helper_file_index= `SELECT LOCATE('$rpl_slave:', '$rpl_source_log_file')`
     if ($_rpl_change_topology_helper_file_index)
     {
       # Get text from after ':' and before ',', starting at
-      # $_rpl_master_log_file
-      --let $_rpl_change_topology_helper_master_log_file= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_master_log_file', $_rpl_change_topology_helper_file_index), ',', 1), ':', -1)`
-      --let $_rpl_change_topology_helper_position= SOURCE_LOG_FILE = '$_rpl_master_log_file',
+      # $_rpl_source_log_file
+      --let $_rpl_change_topology_helper_source_log_file= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_source_log_file', $_rpl_change_topology_helper_file_index), ',', 1), ':', -1)`
+      --let $_rpl_change_topology_helper_position= SOURCE_LOG_FILE = '$_rpl_source_log_file',
     }
 
     # Get SOURCE_LOG_POS
-    --let $_rpl_change_topology_helper_pos_index= `SELECT LOCATE('$rpl_slave:', '$rpl_master_log_pos')`
+    --let $_rpl_change_topology_helper_pos_index= `SELECT LOCATE('$rpl_slave:', '$rpl_source_log_pos')`
     if ($_rpl_change_topology_helper_pos_index)
     {
-      --let $_rpl_change_topology_helper_master_log_pos= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_master_log_pos', $_rpl_change_topology_helper_pos_index), ',', 1), ':', -1)`
-      --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position SOURCE_LOG_POS = $_rpl_change_topology_helper_master_log_pos,
+      --let $_rpl_change_topology_helper_source_log_pos= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_source_log_pos', $_rpl_change_topology_helper_pos_index), ',', 1), ':', -1)`
+      --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position SOURCE_LOG_POS = $_rpl_change_topology_helper_source_log_pos,
     }
   }
 

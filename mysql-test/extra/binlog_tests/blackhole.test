@@ -158,16 +158,16 @@ start transaction;
 insert into t1 values(1);
 commit;
 
-let $master_log_pos_1= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
+let $source_log_pos_1= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 start transaction;
 insert into t1 values(2);
 rollback;
 
-let $master_log_pos_2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
-if ($master_log_pos_2 != $master_log_pos_1)
+let $source_log_pos_2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
+if ($source_log_pos_2 != $source_log_pos_1)
 {
-  echo $master_log_pos_1 $master_log_pos_2;
+  echo $source_log_pos_1 $source_log_pos_2;
   die Rollbacked transaction has been binlogged;
 }
 

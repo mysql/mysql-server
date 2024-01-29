@@ -63,13 +63,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= 10;
 --let $save_autoposition= query_get_value(SHOW REPLICA STATUS, Auto_Position, 1)
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 
-let $master_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1);
-replace_result $master_log_file MASTER_LOG_FILE;
-eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE= '$master_log_file';
+let $source_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1);
+replace_result $source_log_file SOURCE_LOG_FILE;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE= '$source_log_file';
 
-let $master_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
-replace_result $master_log_pos MASTER_LOG_POS;
-eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS= $master_log_pos;
+let $source_log_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1);
+replace_result $source_log_pos SOURCE_LOG_POS;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS= $source_log_pos;
 
 let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1);
 replace_result $relay_log_file RELAY_LOG_FILE;

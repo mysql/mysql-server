@@ -20,7 +20,7 @@
 #
 #     It is also possible to nest sub-statements on this form, like:
 #       [master:SHOW BINLOG EVENTS FROM
-#        [slave:SHOW REPLICA STATUS, Master_Log_Pos, 1],
+#        [slave:SHOW REPLICA STATUS, Source_Log_Pos, 1],
 #        1, Position]
 #
 #   [SQL_STATEMENT]

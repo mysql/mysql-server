@@ -2,7 +2,7 @@
 #
 # This test checks that when stopped at the exact moment during the auto
 # position protocol where rotate events are being exchanged and the group
-# master log position goes for a moment back to 4, this does not affect
+# source log position goes for a moment back to 4, this does not affect
 # posterior replica start operations.
 #
 # ==== Requirements ====

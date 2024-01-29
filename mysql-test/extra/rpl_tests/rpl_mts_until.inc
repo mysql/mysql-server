@@ -19,8 +19,8 @@ eval INSERT INTO db3.t1 VALUES(4, '$until_type');
 
 if ($until_type == 'SOURCE_POS')
 {
-  --let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
-  --let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+  --let $source_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+  --let $source_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 }
 
 if ($until_type == 'RELAY_POS')
@@ -59,8 +59,8 @@ INSERT INTO db1.t1 VALUES(4, "block a worker");
 --let $__until_clause=
 if ($until_type == 'SOURCE_POS')
 {
-  --replace_result $master_log_file SOURCE_LOG_FILE $master_log_pos SOURCE_LOG_POS
-  --let $__until_clause= SOURCE_LOG_FILE="$master_log_file", SOURCE_LOG_POS=$master_log_pos
+  --replace_result $source_log_file SOURCE_LOG_FILE $source_log_pos SOURCE_LOG_POS
+  --let $__until_clause= SOURCE_LOG_FILE="$source_log_file", SOURCE_LOG_POS=$source_log_pos
 }
 
 if ($until_type == 'RELAY_POS')

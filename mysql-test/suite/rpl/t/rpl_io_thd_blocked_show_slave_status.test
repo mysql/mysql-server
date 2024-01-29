@@ -42,8 +42,8 @@ INSERT INTO t1 (c1) VALUES (2);
 SET DEBUG_SYNC="now WAIT_FOR receiver_reached_pause_on_queue_event";
 
 # Notice that this is performed by querying SHOW REPLICA STATUS
---let $master_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1)
---let $assert_cond= "$master_log_file" = "$master_file"
+--let $source_log_file= query_get_value(SHOW REPLICA STATUS, Source_Log_File, 1)
+--let $assert_cond= "$source_log_file" = "$master_file"
 --let $assert_text= Consulting SHOW REPLICA STATUS was successful
 --source include/assert.inc
 

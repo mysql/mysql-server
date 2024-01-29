@@ -1,11 +1,11 @@
-# For a given event which is at position $master_log_pos in the the master's
+# For a given event which is at position $source_log_pos in the the master's
 # binary log, returns its position in the slave's relay log file
 # $relay_log_file.  
 # The position is stored in the variable $relay_log_pos.
 
 # Usage:
 #   let $relay_log_file= 'relay-log-bin.000001'; 
-#   let $master_log_pos= 106; 
+#   let $source_log_pos= 106; 
 #   source include/get_relay_log_pos.inc; 
 #   # at this point, get_relay_log_pos.inc sets $relay_log_pos. echo position
 #   # in $relay_log_file: $relay_log_pos. 
@@ -15,9 +15,9 @@ if (!$relay_log_file)
   --die 'variable $relay_log_file is null'
 }
 
-if (!$master_log_pos)
+if (!$source_log_pos)
 {
-  --die 'variable $master_log_pos is null'
+  --die 'variable $source_log_pos is null'
 }
 
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -45,7 +45,7 @@ eval LOAD DATA LOCAL INFILE '$_tmp_file' INTO TABLE mysqlbinlog_events
 CREATE TEMPORARY TABLE events_at(c1 INT AUTO_INCREMENT KEY, c2 varchar(256))
   SELECT c2 FROM mysqlbinlog_events WHERE c2 LIKE ' at%' ORDER BY c1;
 
-# Event pos in master log file is inserted into table events_pos
+# Event pos in source log file is inserted into table events_pos
 CREATE TEMPORARY TABLE events_pos(c1 INT AUTO_INCREMENT KEY, c2 varchar(256))
   SELECT c2 FROM mysqlbinlog_events WHERE c2 LIKE '% end_log_pos %' ORDER BY c1;
 --enable_warnings
@@ -64,7 +64,7 @@ CREATE TEMPORARY TABLE events_pos(c1 INT AUTO_INCREMENT KEY, c2 varchar(256))
 # as it is not output by mysqlbinlog
 let $relay_log_pos= `SELECT SUBSTRING(a.c2, 5)
   FROM events_at a, events_pos b
-  WHERE a.c1=b.c1+1 and b.c2 LIKE '% $master_log_pos%'`;
+  WHERE a.c1=b.c1+1 and b.c2 LIKE '% $source_log_pos%'`;
 DROP TEMPORARY TABLE mysqlbinlog_events, events_at, events_pos;
 --remove_file $_tmp_file
 --enable_query_log

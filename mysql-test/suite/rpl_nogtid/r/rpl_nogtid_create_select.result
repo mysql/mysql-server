@@ -27,7 +27,7 @@ START REPLICA;
 # Restart the server.
 include/rpl_start_server.inc [server_number=2]
 include/assert.inc [Make sure there is only table 't0' in schema 'test'.]
-# Reset the master log position back to event that starts
+# Reset the source log position back to event that starts
 # CREATE TABLE ... SELECT and start the slave, without causing crash.
 SELECT @@GLOBAL.GTID_MODE;
 @@GLOBAL.GTID_MODE
