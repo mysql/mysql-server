@@ -40,9 +40,9 @@ time_zone_transition_type
 user
 show tables;
 Tables_in_test
-connect(localhost,root,z,test2,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,root,z,test2,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
-connect(localhost,root,z,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,root,z,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 create user test@localhost identified by "gambling";
 grant ALL on *.* to test@localhost;
@@ -89,17 +89,17 @@ time_zone_transition_type
 user
 show tables;
 Tables_in_test
-connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,test,,test2,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-connect(localhost,test,,"",MASTER_PORT,MASTER_SOCKET);
+connect(localhost,test,,"",SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-connect(localhost,test,zorro,test2,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,test,zorro,test2,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
-connect(localhost,test,zorro,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,test,zorro,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
-connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,test,,test2,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-connect(localhost,test,,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,test,,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
 drop user test@localhost;
 drop user test@127.0.0.1;
@@ -373,19 +373,19 @@ Variable_name	Value
 Aborted_connects	0
 
 # Case 1: Connection attempt by an invalid user
-connect(localhost,newuser,,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,newuser,,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'newuser'@'localhost' (using password: NO)
 Pattern "Access denied for user 'newuser'@'localhost' \(using password: NO\)" found
 
 # Case 2: Connection attempt by a valid user with incorrect password
-connect(localhost,root,1234,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,root,1234,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 Pattern "Access denied for user 'root'@'localhost' \(using password: YES\)" found
 CREATE DATABASE test1;
 CREATE USER 'new1'@'localhost';
 
 # Case 3: Connection attempt by a valid user with no privileges to access a database
-connect(localhost,new1,,test1,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,new1,,test1,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 42000: Access denied for user 'new1'@'localhost' to database 'test1'
 Pattern "Access denied for user 'new1'@'localhost' to database 'test1'" found
 

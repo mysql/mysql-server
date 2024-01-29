@@ -47,7 +47,7 @@ Namespace from 'SHOW REPLICA STATUS' :
 a	b
 1	abc
 2	cdf
-# Stop replica and run change master to listen to the master on socket
+# Stop replica and run change replication source to listen to the master on socket
 # created in the 'red' namespace
 include/stop_slave.inc
 [ connection master ]
@@ -55,7 +55,7 @@ include/stop_slave.inc
 INSERT INTO t1 VALUES (3, 'ghi');
 #Insert via connection to the address 10.0.2.1 from the 'red' network namespace
 [ connection slave ]
-# Change master to listen to the master on IP '10.0.2.1' in the 'red' namespace
+# Change replication source to listen to the master on IP '10.0.2.1' in the 'red' namespace
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 # Check network namspace of currently connected master
@@ -77,7 +77,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 include/stop_slave.inc
 [ connection master ]
 [ connection slave ]
-# Change master to original connection
+# Change replication source to original connection
 include/start_slave.inc
 INSERT INTO t1 VALUES (5, 'mno');
 include/sync_slave_sql_with_master.inc

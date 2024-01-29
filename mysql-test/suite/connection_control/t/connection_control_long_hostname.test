@@ -20,15 +20,15 @@ CREATE USER u2@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij
 CREATE USER u3@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 IDENTIFIED BY 'abcd';
 
 SET GLOBAL DEBUG='+d,vio_peer_addr_fake_hostname1';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 1
 --exec $MYSQL --user=u1 --host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 --password='haha' -#d,vio_client_use_localhost -v test  -e "SELECT CURRENT_USER();"
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 1
 --exec $MYSQL --user=u1 --host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 --password='ijkl' -#d,vio_client_use_localhost -v test  -e "SELECT CURRENT_USER();"
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 1
 --exec $MYSQL --user=u1 --host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 --password='mnop' -#d,vio_client_use_localhost -v test  -e "SELECT CURRENT_USER();"
 SET GLOBAL DEBUG='-d,vio_peer_addr_fake_hostname1';

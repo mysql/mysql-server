@@ -1,16 +1,16 @@
 # ==== Purpose ====
 #
 # This script tests error handling regarding `PRIVILEGE_CHECKS_USER` option of
-# `CHANGE MASTER TO ...`.
+# `CHANGE REPLICATION SOURCE TO ...`.
 #
 # ==== Requirements ====
 #
 # R1. Replication must fail SQL thread start if user given to
-#     `PRIVILEGE_CHECKS_USER` option of `CHANGE MASTER TO ...` is set to a user
+#     `PRIVILEGE_CHECKS_USER` option of `CHANGE REPLICATION SOURCE TO ...` is set to a user
 #     that doesn't have `REPLICATION_APPLIER` privilege.
 #
 # R2. Replication must fail on first `CREATE TABLE` if user given to
-#     `PRIVILEGE_CHECKS_USER` option of `CHANGE MASTER TO ...` is set to a user
+#     `PRIVILEGE_CHECKS_USER` option of `CHANGE REPLICATION SOURCE TO ...` is set to a user
 #     that doesn't have privileges to create the given table.
 #
 # ==== Implementation ====
@@ -105,7 +105,7 @@ RESET REPLICA ALL;
 # PRIVILEGE_CHECKS_USER
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
 
---replace_result $MASTER_MYPORT MY_MASTER_PORT $master_log_pos MY_MASTER_LOG_POS
+--replace_result $MASTER_MYPORT MY_SOURCE_PORT $master_log_pos MY_MASTER_LOG_POS
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$master_log_pos
 START REPLICA;
 
@@ -172,7 +172,7 @@ SET sql_log_bin= 1;
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 
---replace_result $MASTER_MYPORT MY_MASTER_PORT $master_log_pos MY_MASTER_LOG_POS
+--replace_result $MASTER_MYPORT MY_SOURCE_PORT $master_log_pos MY_MASTER_LOG_POS
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=$master_log_pos
 --source include/start_slave.inc
 

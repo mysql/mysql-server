@@ -11,7 +11,7 @@ include/stop_slave.inc
 RESET REPLICA ALL;
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=2;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'ch_a';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=SOURCE_PORT FOR CHANNEL 'ch_a';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -32,7 +32,7 @@ STOP REPLICA IO_THREAD;
 Warnings:
 Note	3084	Replication thread(s) for channel 'ch_a' are already stopped.
 Note	3084	Replication thread(s) for channel 'ch_b' are already stopped.
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'ch_b';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=SOURCE_PORT FOR CHANNEL 'ch_b';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -43,7 +43,7 @@ include/start_slave.inc [FOR CHANNEL 'ch_b']
 include/rpl_restart_server.inc [server_number=1]
 include/rpl_restart_server.inc [server_number=2]
 [connection slave]
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'ch_b';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=SOURCE_PORT FOR CHANNEL 'ch_b';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

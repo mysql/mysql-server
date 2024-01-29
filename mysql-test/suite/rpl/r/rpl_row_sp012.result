@@ -22,7 +22,7 @@ GRANT EXECUTE ON PROCEDURE p2 TO user1@localhost;
 GRANT EXECUTE ON PROCEDURE p3 TO user1@localhost;
 include/sync_slave_sql_with_master.inc
 
-<********  Master user1 p3 & p2 calls *******>
+<********  Source user1 p3 & p2 calls *******>
 ----------------------------------------------
 SELECT CURRENT_USER();
 CURRENT_USER()

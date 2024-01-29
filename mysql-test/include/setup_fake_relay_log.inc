@@ -98,7 +98,7 @@ let $_orphan_relay_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 --source include/write_var_to_file.inc
 
 # Remember old settings.
---let $_fake_old_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+--let $_fake_old_source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
 
 # Setup replication from existing relay log.
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy.localdomain', RELAY_LOG_FILE='$_fake_filename-fake.000001', RELAY_LOG_POS=4;

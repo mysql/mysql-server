@@ -17,7 +17,7 @@ SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 SET @restore_event_scheduler=@@global.event_scheduler;
 
 *** Default value ***
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -27,7 +27,7 @@ RESET BINARY LOGS AND GTIDS;
 
 *** Reset replica affect ***
 SET @@global.replica_net_timeout=30;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=5;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -39,7 +39,7 @@ heartbeat_interval
 
 *** Default value if replica_net_timeout changed ***
 SET @@global.replica_net_timeout=50;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -59,7 +59,7 @@ RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
 *** Warning if updated slave_heartbeat_timeout > replica_net_timeout ***
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=REPLICA_NET_TIMEOUT;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=REPLICA_NET_TIMEOUT;
 Warnings:
 Warning	####	The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -67,9 +67,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
-*** CHANGE MASTER statement only updates slave_heartbeat_period ***
+*** CHANGE REPLICATION SOURCE statement only updates slave_heartbeat_period ***
 SET @@global.replica_net_timeout=20;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=5;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -95,7 +95,7 @@ SET @@global.replica_net_timeout=500;
 SET @@global.replica_net_timeout=200;
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -117,7 +117,7 @@ SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 
 *** Start/stop replica ***
 SET @@global.replica_net_timeout=100;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=20;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=20;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -133,7 +133,7 @@ heartbeat_interval
 
 *** Reload slave ***
 SET @@global.replica_net_timeout=50;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=30;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=30;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -144,7 +144,7 @@ heartbeat_interval
 SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 
 *** Disable heartbeat ***
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -176,7 +176,7 @@ Result
 1
 
 *** Min slave_heartbeat_timeout ***
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.001;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.001;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -185,7 +185,7 @@ heartbeat_interval
 0.001
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.0009;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.0009;
 Warnings:
 Warning	####	The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -197,7 +197,7 @@ RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
 *** Max slave_heartbeat_timeout ***
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294967;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294967;
 Warnings:
 Warning	####	The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -207,35 +207,35 @@ heartbeat_interval
 4294967.000
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294968;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294968;
 ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=8589935;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=8589935;
 ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294967296;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294967296;
 ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
 *** Misc incorrect values ***
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='-1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='-1';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''-1'' at line 1
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='123abc';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='123abc';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''123abc'' at line 1
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '''' at line 1
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
 *** Running slave ***
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD= 3.0;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD= 3.0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -247,7 +247,7 @@ Heartbeat event received
 
 *** Stopped slave ***
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD= 0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD= 0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -292,7 +292,7 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 *** Flush logs on slave ***
 include/rpl_reset.inc
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.5;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -305,7 +305,7 @@ include/stop_slave.inc
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 SET @@global.replica_compressed_protocol=1;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -318,7 +318,7 @@ SET @@global.replica_compressed_protocol=0;
 STOP REPLICA;
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -331,7 +331,7 @@ Heartbeat events are received after reset of master (1 means 'yes'): 1
 STOP REPLICA;
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

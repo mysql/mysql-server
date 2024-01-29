@@ -5,10 +5,10 @@
 # ==== Implementation ====
 #
 # 1. Simulate an error on copying global replication filters
-#    when executing CHANGE MASTER TO.
+#    when executing CHANGE REPLICATION SOURCE TO.
 #
 # 2. Simulate an error on creating channel's replication filters
-#    when executing CHANGE MASTER TO.
+#    when executing CHANGE REPLICATION SOURCE TO.
 #
 # 3. Simulate an error on executing CHANGE REPLICATION FILTER
 #    with no FOR CHANNEL clause.
@@ -45,7 +45,7 @@ SET @saved_debug= @@GLOBAL.debug;
 
 --echo #
 --echo # 1. Simulate an error on copying global replication filters
---echo #    when executing CHANGE MASTER TO.
+--echo #    when executing CHANGE REPLICATION SOURCE TO.
 --echo #
 SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_do_table';
 --error ER_OUTOFMEMORY
@@ -90,7 +90,7 @@ RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 --echo #
 --echo # 2. Simulate an error on creating channel's replication filters
---echo #    when executing CHANGE MASTER TO.
+--echo #    when executing CHANGE REPLICATION SOURCE TO.
 --echo #
 SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_rewrite_db';
 SET GLOBAL debug='+d,simulate_out_of_memory_on_create_filter';

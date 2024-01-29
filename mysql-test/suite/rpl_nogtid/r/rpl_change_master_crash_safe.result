@@ -110,6 +110,6 @@ START REPLICA;
 include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='SAVE_MASTER_HOST';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='SAVE_SOURCE_HOST';
 include/start_slave.inc
 include/rpl_end.inc

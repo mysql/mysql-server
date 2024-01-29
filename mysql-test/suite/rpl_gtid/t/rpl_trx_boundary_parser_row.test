@@ -37,7 +37,7 @@
 
 #
 # As we are going to use GTID related checks for the IO thread after
-# a CHANGE MASTER, we will first reset both slave and master to avoid
+# a CHANGE REPLICATION SOURCE, we will first reset both slave and master to avoid
 # problems with the gtid related mtr includes.
 #
 --source include/rpl_connection_slave.inc

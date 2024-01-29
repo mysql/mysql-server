@@ -26,8 +26,8 @@ CALL mtr.add_suppression('This operation cannot be performed with a running repl
 CALL mtr.add_suppression('Could not find target log file mentioned in applier metadata in the index file');
 # For case:
 # STOP REPLICA SQL_THREAD; // IO_THREAD is running
-# CHANGE MASTER TO relay_log_name = 'non-existing relay log name',...;
-# While CHANGE MASTER throwns an error, group_relay_log_name is changed to the
+# CHANGE REPLICATION SOURCE TO relay_log_name = 'non-existing relay log name',...;
+# While CHANGE REPLICATION SOURCE throwns an error, group_relay_log_name is changed to the
 # non-existing file name.
 # START REPLICA SQL_THREAD; // It will log below error.
 CALL mtr.add_suppression('Could not find relay log file');

@@ -25,9 +25,9 @@
 # However, if the applier thread begins execution in the middle of a
 # transaction, it is possible that a row event is processed when
 # gtid_next.type is NOT_YET_DETERMINED_GTID.  This can happen if
-# an explicit CHANGE MASTER TO RELAY_LOG_POS statement positions the
+# an explicit CHANGE REPLICATION SOURCE TO RELAY_LOG_POS statement positions the
 # applier thread after the BEGIN statement, or if an explicit CHANGE
-# MASTER TO MASTER_LOG_POS statement positions the receiver thread in
+# REPLICATION SOURCE TO MASTER_LOG_POS statement positions the receiver thread in
 # the middle of a transaction.
 #
 # Therefore, even Rows_log_events need to upgrade
@@ -185,7 +185,7 @@ ROLLBACK;
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 SET GLOBAL GTID_MODE = OFF;
 
---echo #### 2. CHANGE MASTER TO MASTER_LOG_POS ####
+--echo #### 2. CHANGE REPLICATION SOURCE TO MASTER_LOG_POS ####
 
 --connection slave
 --source include/stop_slave_io.inc
@@ -207,7 +207,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $p
 --connection master
 --source include/sync_slave_sql_with_master.inc
 
---echo #### 3. CHANGE MASTER TO RELAY_LOG_POS ####
+--echo #### 3. CHANGE REPLICATION SOURCE TO RELAY_LOG_POS ####
 
 --let $file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 --let $position= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)

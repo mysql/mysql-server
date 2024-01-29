@@ -5,7 +5,7 @@
 # Get hostname, port number
 #==============================================================================
 SELECT @@hostname INTO @MY_HOSTNAME;
-SELECT @@port INTO @MY_MASTER_PORT;
+SELECT @@port INTO @MY_SOURCE_PORT;
 #==============================================================================
 # 1.0 TEST INITIALIZATION
 #==============================================================================

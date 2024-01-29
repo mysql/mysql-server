@@ -73,8 +73,8 @@ set session sql_log_bin=1;
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
---echo # CHM for 'group_replication_recovery' channel won't accept parameters other than
---echo # Source_User and MASTER_PASSWORD
+--echo # CRS for 'group_replication_recovery' channel won't accept parameters other than
+--echo # Source_User and SOURCE_PASSWORD
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_recovery";
 

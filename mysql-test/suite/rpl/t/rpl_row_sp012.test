@@ -39,7 +39,7 @@ GRANT EXECUTE ON PROCEDURE p3 TO user1@localhost;
 # Need to wait for the rights to be applied at the slave
 --source include/sync_slave_sql_with_master.inc
 
-let $message=<********  Master user1 p3 & p2 calls *******>;
+let $message=<********  Source user1 p3 & p2 calls *******>;
 --source include/show_msg.inc
 connect (muser1,localhost,user1,,);
 connection muser1;

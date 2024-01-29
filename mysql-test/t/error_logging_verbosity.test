@@ -66,7 +66,7 @@ SET SESSION log_error_verbosity=DEFAULT;
 # It's not settable by just anyone.
 
 CREATE USER mysqltest_1;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 connect(user1,localhost,mysqltest_1,,*NO-ONE*);
 connection user1;
 --echo # as unprivileged user:
@@ -98,13 +98,13 @@ CREATE USER mysqltest_nolog;
 --echo # Spec 6a "log_error_warnings=2+ includes warnings"
 
 SET GLOBAL  log_error_verbosity=2;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 connect(user2,localhost,mysqltest_yeslog,,*NO-ONE*);
 connection default;
 
 --echo # Spec 6c "warnings now gagged by log_error_verbosity=1"
 SET GLOBAL  log_error_verbosity=1;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 connect(user3,localhost,mysqltest_nolog,,*NO-ONE*);
 
 connection user2;
@@ -123,12 +123,12 @@ SET GLOBAL  init_connect='';
 
 --echo # Spec 6b "log_error_warnings=3  includes notes"
 SET GLOBAL  log_error_verbosity=2;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(user1,localhost,mysqltest_2_nolog,,*NO-ONE*);
 
 SET GLOBAL  log_error_verbosity=3;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(user1,localhost,mysqltest_3_yeslog,,*NO-ONE*);
 

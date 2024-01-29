@@ -8,7 +8,7 @@
 # check if duplicate entries trigger an error (they should unless IGNORE or
 # REPLACE was used on the master) (bug 571).
 #
-# check if START REPLICA, RESET REPLICA, CHANGE MASTER reset Last_slave_error and
+# check if START REPLICA, RESET REPLICA, CHANGE REPLICATION SOURCE reset Last_slave_error and
 # Last_slave_errno in SHOW REPLICA STATUS (1st and 3rd commands did not: bug 986)
 
 -- source include/have_binlog_format_statement.inc
@@ -83,7 +83,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 sync_with_master;
 --source include/check_slave_no_error.inc
 
-# Trigger error again to test CHANGE MASTER
+# Trigger error again to test CHANGE REPLICATION SOURCE
 
 connection master;
 set sql_log_bin=0;
@@ -99,7 +99,7 @@ connection slave;
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error.inc
 
-# CHANGE MASTER and see if error is cleared in SHOW REPLICA STATUS.
+# CHANGE REPLICATION SOURCE and see if error is cleared in SHOW REPLICA STATUS.
 --source include/stop_slave_io.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='test';

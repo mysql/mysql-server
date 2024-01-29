@@ -54,7 +54,7 @@ Last_IO_Error = 'Fatal error: The replica I/O thread stops because source and re
 SET DEBUG_SYNC= 'RESET';
 include/stop_slave_sql.inc
 RESET REPLICA;
-CHANGE REPLICATION SOURCE TO SOURCE_PORT=MASTER_PORT;;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT=SOURCE_PORT;;
 # Adding debug point 'dbug.simulate_no_such_var_server_uuid' to @@GLOBAL.debug
 include/start_slave_io.inc
 include/assert.inc [Source_UUID must be empty string]

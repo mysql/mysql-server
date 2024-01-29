@@ -13,7 +13,7 @@ SET @tls_version_saved= @@GLOBAL.tls_version;
 SET GLOBAL tls_version='TLSv1.3';
 ALTER INSTANCE RELOAD TLS;
 [connection slave]
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='replssl', SOURCE_PASSWORD='password', SOURCE_SSL=1 FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='replssl', SOURCE_PASSWORD='password', SOURCE_SSL=1 FOR CHANNEL 'my_channel';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -31,7 +31,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_GCM_SHA256' FO
 include/start_slave.inc [FOR CHANNEL 'my_channel']
 include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_GCM_SHA256]
 ########################################################################
-# 3. RESET REPLICA does not clean MASTER_TLS_CIPHERSUITES.
+# 3. RESET REPLICA does not clean SOURCE_TLS_CIPHERSUITES.
 [connection slave]
 include/stop_slave.inc [FOR CHANNEL 'my_channel']
 RESET REPLICA FOR CHANNEL 'my_channel';

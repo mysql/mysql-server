@@ -38,9 +38,9 @@
 # Property 3.2 - RESET BINARY LOGS AND GTIDS cleans the GTIDs and previous GTIDs' state
 #                stored in the binary log.
 #
-# 4. With CHANGE MASTER TO MASTER_AUTO_POSITION coordinates are not used.
+# 4. With CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION coordinates are not used.
 #
-# Property 4.1 - When MASTER_AUTO_POSITION is specified only missing data
+# Property 4.1 - When SOURCE_AUTO_POSITION is specified only missing data
 #                transactions on the slave are retrieved from the master.
 #
 # We check if the aforementioned properties hold after generating a set
@@ -56,8 +56,8 @@
 #    restarting the server.
 # 5. RESET REPLICA must not affect its binary log. On the master, rotate logs
 #    by restarting the server.
-# 6. On the slave, rotate logs by start/stop and calling CHANGE MASTER TO
-#    with MASTER_AUTO_POSITION enabled. On the master, rotate logs through
+# 6. On the slave, rotate logs by start/stop and calling CHANGE REPLICATION SOURCE TO
+#    with SOURCE_AUTO_POSITION enabled. On the master, rotate logs through
 #    FLUSH LOGS.
 # 7. On the slave, rotate logs by start/stop and calling START REPLICA UNTIL
 #    GTID. On the master, rotate logs through FLUSH LOGS.
@@ -609,7 +609,7 @@ while ($i != 5)
 #  6.2 - Makes the slave to retrieve and apply these transactions through
 #        sync_slave_gtids_with_master
 #
-#  6.3 - Stop the slave, call CHANGE MASTER TO with MASTER_AUTO_POSITION and
+#  6.3 - Stop the slave, call CHANGE REPLICATION SOURCE TO with SOURCE_AUTO_POSITION and
 #        start the slave to rotate the relay log.
 #
 #  6.4 - Rotates the binary log on master by calling FLUSH LOGS.
@@ -624,7 +624,7 @@ RESET BINARY LOGS AND GTIDS;
 --connection master
 RESET BINARY LOGS AND GTIDS;
 --connection slave
---let $slave_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+--let $slave_source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
 --error ER_BAD_REPLICA_AUTO_POSITION
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1, SOURCE_LOG_FILE= 'master-bin.000001', SOURCE_LOG_POS= 4;
 --disable_warnings
@@ -691,10 +691,10 @@ while ($i != 5)
   --let $gtid_end= `SELECT $i * 2`
   --source extra/rpl_tests/rpl_check_gtid.inc
 
-  # 6.3 - Stop and start the slave, call CHANGE MASTER TO with MASTER_AUTO_POSITION.
+  # 6.3 - Stop and start the slave, call CHANGE REPLICATION SOURCE TO with SOURCE_AUTO_POSITION.
   --source include/stop_slave.inc
-  --replace_result $slave_master_host SLAVE_MASTER_HOST
-  --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_master_host', SOURCE_AUTO_POSITION= 1
+  --replace_result $slave_source_host SLAVE_SOURCE_HOST
+  --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_source_host', SOURCE_AUTO_POSITION= 1
   --disable_warnings
   --source include/start_slave.inc
   --enable_warnings
@@ -726,9 +726,9 @@ RESET BINARY LOGS AND GTIDS;
 --connection master
 RESET BINARY LOGS AND GTIDS;
 --connection slave
---let $slave_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
---replace_result $slave_master_host SLAVE_MASTER_HOST
---eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_master_host', SOURCE_AUTO_POSITION= 1
+--let $slave_source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+--replace_result $slave_source_host SLAVE_SOURCE_HOST
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_source_host', SOURCE_AUTO_POSITION= 1
 
 --let $i=1
 while ($i != 5)
@@ -793,7 +793,7 @@ while ($i != 5)
 --source include/stop_slave.inc
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
---eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_master_host', SOURCE_AUTO_POSITION= 0
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_source_host', SOURCE_AUTO_POSITION= 0
 --connection master
 RESET BINARY LOGS AND GTIDS;
 --connection slave

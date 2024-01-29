@@ -18,14 +18,14 @@ disconnect employee_con;
 --echo # Lock proxy user - login should fail
 connection default;
 ALTER USER empl_external@localhost ACCOUNT LOCK;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(employee_con, localhost, empl_external, employee)
 
 --echo # Unlocking proxied user should not change anything - login should fail
 connection default;
 ALTER USER employee@localhost ACCOUNT UNLOCK;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(employee_con, localhost, empl_external, employee)
 

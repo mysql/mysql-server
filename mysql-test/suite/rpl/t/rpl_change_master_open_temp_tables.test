@@ -6,12 +6,12 @@
 # This test script does the following:
 
 #  - Temporary table(s) should NOT be dropped if applier is running during
-#    CHANGE MASTER.
+#    CHANGE REPLICATION SOURCE.
 #  - If there are open temporary tables and there is a STOP REPLICA/
 #    STOP REPLICA[IO_THREAD/SQL_THREAD]there should be a warning.
-#  - If there are open temporary tables and there is a CHANGE MASTER,
+#  - If there are open temporary tables and there is a CHANGE REPLICATION SOURCE,
 #    there should be a warning.
-#  - There is no warning if the change master option only changes connection
+#  - There is no warning if the change replication source option only changes connection
 #    or execution configuration.
 #
 #  ==== Related Worklog(s) And Bug(s)====

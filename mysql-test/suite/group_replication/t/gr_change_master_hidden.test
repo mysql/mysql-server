@@ -4,15 +4,15 @@
 #
 # Test:
 # 0. The test requires one server: M1.
-# 1. Verify that CHANGE MASTER FOR recovery channel command is logged in the
+# 1. Verify that CHANGE REPLICATION SOURCE FOR recovery channel command is logged in the
 #    slow log, query_log and error log, but the password value is either masked
 #    with '<secret>' or is not logged.
-# 2. Grep for pattern 'master_password' in error log. Expect 0 count.
+# 2. Grep for pattern 'source_password' in error log. Expect 0 count.
 # 3. Grep for pattern 'unique_password' in error log. Expect 0 count.
 ################################################################################
 --source ../include/gr_change_master_hidden.inc
 
---echo # MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
+--echo # SOURCE_PASSWORD value for the CHANGE REPLICATION SOURCE command will not be logged in the error log.
 --let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $grep_pattern= source_password
 --let $grep_output= print_count

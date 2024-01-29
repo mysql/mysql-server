@@ -1,4 +1,4 @@
-# Verify that after CHANGE MASTER, replication (I/O thread and SQL
+# Verify that after CHANGE REPLICATION SOURCE, replication (I/O thread and SQL
 # thread) restart from where SQL thread left, not from where
 # I/O thread left (some old bug fixed in 4.0.17)
 
@@ -10,7 +10,7 @@ source include/check_ipv6.inc;
 let $check_ipv6_just_check=0;
 
 connection slave;
-let $save_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
+let $save_source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
 
 connection master;
 # Make SQL slave thread advance a bit
@@ -85,7 +85,7 @@ delete from t1 where a=2;
 # relay_log_file does not use absolute path, only the filename is
 # required
 #
-# Note: the follow change master will automatically reset
+# Note: the follow change replication source will automatically reset
 # relay_log_purge to false, save the old value to restore
 let $relay_log_purge= `select @@global.relay_log_purge`;
 CHANGE REPLICATION SOURCE TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
@@ -186,7 +186,7 @@ if ($retry_count4 != $retry_count0)
 
 ## Now lets change Source_Retry_Count to the maximum value possible
 ## and stop and restart the slave to check that (in the middle of it 
-## we also check that when issueing CHANGE MASTER TO without specifying
+## we also check that when issueing CHANGE REPLICATION SOURCE TO without specifying
 ## Source_Retry_Count will not affect its current value):
 ##   1. Source_Retry_Count persists after restart
 ##   2. setting a value higher than the max will make the max to be set.
@@ -200,7 +200,7 @@ if ($retry_count4 != $retry_count0)
 -- replace_result 18446744073709551615 RETRY_COUNT_EXPECTED 4294967295 RETRY_COUNT_EXPECTED 9223372036854775807 RETRY_COUNT_EXPECTED
 -- eval SELECT $retry_count_expected AS current_retry_count
 
-## assert that issuing CHANGE MASTER without changing Source_Retry_Count
+## assert that issuing CHANGE REPLICATION SOURCE without changing Source_Retry_Count
 ## does not affect the existing value for Source_Retry_Count
 -- let $connect_retry_old= query_get_value(SHOW REPLICA STATUS, Connect_Retry, 1)
 -- let $connect_retry_new= `SELECT $connect_retry_old + 1`
@@ -284,35 +284,35 @@ CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 
 #
 # WL#3127 slave side TCP address binding
-# - CHANGE MASTER ... Source_Bind='interface'
+# - CHANGE REPLICATION SOURCE ... Source_Bind='interface'
 # - SHOW REPLICA STATUS has new column Source_Bind
 #
 
 # Test valid IPv4 address
-let $master_bind='127.0.0.1';
---source extra/rpl_tests/rpl_change_master_bind.inc
+let $source_bind='127.0.0.1';
+--source extra/rpl_tests/rpl_change_source_bind.inc
 
 # Test invalid IPv4 address
-let $master_bind='1.1.1.1';
-let $master_bind_error_expected=2003;
---source extra/rpl_tests/rpl_change_master_bind.inc
-let $master_bind_error_expected=0;
+let $source_bind='1.1.1.1';
+let $source_bind_error_expected=2003;
+--source extra/rpl_tests/rpl_change_source_bind.inc
+let $source_bind_error_expected=0;
 
 # Test valid IPv6 address
-let $master_bind='::1';
+let $source_bind='::1';
 if (!$check_ipv6_supported)
 {
   # No IPv6 support, fallback to IPv4
-  let $master_bind='127.0.0.1';
+  let $source_bind='127.0.0.1';
 }
---source extra/rpl_tests/rpl_change_master_bind.inc
+--source extra/rpl_tests/rpl_change_source_bind.inc
 
 # Test with no bind address(check that reset works)
-let $master_bind='';
---source extra/rpl_tests/rpl_change_master_bind.inc
+let $source_bind='';
+--source extra/rpl_tests/rpl_change_source_bind.inc
 
 ### Revert to original Source_Host value
 --source include/stop_slave.inc
---replace_result $save_master_host SAVE_MASTER_HOST
---eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='$save_master_host'
+--replace_result $save_source_host SAVE_SOURCE_HOST
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='$save_source_host'
 --source include/start_slave.inc

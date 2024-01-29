@@ -51,7 +51,7 @@ GRANT REPLICATION SLAVE ON *.* TO regular_user_wp;
 SET SQL_LOG_BIN=1;
 
 ###############################################################################
-# 2. Test if different type of users can connect when CHANGE MASTER
+# 2. Test if different type of users can connect when CHANGE REPLICATION SOURCE
 #    START REPLICA are specified
 ###############################################################################
 --connection slave

@@ -12,7 +12,7 @@
 #     iii) replication works after setting a correct host name/ip
 #
 #   Implementation is performed by feeding different values (according
-#   to i), ii) and iii) ) to CHANGE MASTER TO MASTER_HOST= x and checking
+#   to i), ii) and iii) ) to CHANGE REPLICATION SOURCE TO SOURCE_HOST= x and checking
 #   along the way if error/no error is thrown and/or if replication starts
 #   working when expected.
 
@@ -23,8 +23,8 @@ connection slave;
 STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 
-let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
---echo Source_Host = '$master_host' (expected '127.0.0.1')
+let $source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
+--echo Source_Host = '$source_host' (expected '127.0.0.1')
 
 # attempt to change to an empty master host should
 # result in error ER_WRONG_ARGUMENTS: "Incorrect arguments to ..."
@@ -32,20 +32,20 @@ error ER_WRONG_ARGUMENTS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="";
 
 # show replica status still holds previous information
-let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
---echo Source_Host = '$master_host' (expected '127.0.0.1')
+let $source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
+--echo Source_Host = '$source_host' (expected '127.0.0.1')
 
 # changing master to other than empty master host succeeds
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="foo";
 
 # show replica status should hold "foo" as master host
-let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
---echo Source_Host = '$master_host' (expected 'foo')
+let $source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
+--echo Source_Host = '$source_host' (expected 'foo')
 
 # changing back to localhost
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1";
-let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
---echo Source_Host = '$master_host' (expected '127.0.0.1')
+let $source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
+--echo Source_Host = '$source_host' (expected '127.0.0.1')
 
 # start replica must succeed.
 START REPLICA;

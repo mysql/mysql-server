@@ -7,8 +7,8 @@
 # 1. syntax related:
 #    a. error reporting if options clash;
 #    b. overriding the old IGNORE_SERVER_IDS setup by the following
-#       CHANGE MASTER ... IGNORE_SERVER_IDS= (list);
-#    c. the old setup preserving by CHANGE MASTER w/o IGNORE_SERVER_IDS
+#       CHANGE REPLICATION SOURCE ... IGNORE_SERVER_IDS= (list);
+#    c. the old setup preserving by CHANGE REPLICATION SOURCE w/o IGNORE_SERVER_IDS
 #    d. resetting the ignored server ids with the empty list arg to
 #       IGNORE_SERVER_IDS=()
 #    e. RESET REPLICA preserves the list
@@ -31,7 +31,7 @@ let $master_id= query_get_value(SHOW REPLICA STATUS, Source_Server_Id, 1);
 echo master_id: $master_id;
 
 STOP REPLICA;
---echo *** --replicate-same-server-id and change master option can clash ***
+--echo *** --replicate-same-server-id and change replication source option can clash ***
 --replace_column 2 ####
 --error ER_REPLICA_IGNORE_SERVER_IDS
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (2, 1);
@@ -50,7 +50,7 @@ let $ignore_list= query_get_value(SHOW REPLICA STATUS, Replicate_Ignore_Server_I
 echo ignore server id list: $ignore_list;
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
---echo *** CHANGE MASTER with IGNORE_SERVER_IDS option overrides (does not increment) the previous setup ***
+--echo *** CHANGE REPLICATION SOURCE with IGNORE_SERVER_IDS option overrides (does not increment) the previous setup ***
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
 --echo *** must be 1, 3, 4, 5 due to overriding policy ***
@@ -108,7 +108,7 @@ echo ignore server id list: $ignore_list;
 
 RESET REPLICA ALL;
 
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
 --source include/start_slave.inc

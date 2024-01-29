@@ -9,7 +9,7 @@ set @save_replica_net_timeout = @@global.replica_net_timeout;
 set @@global.general_log = ON;
 set @@global.log_output = 'table,file';
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE to SOURCE_HOST = '127.0.0.1',SOURCE_PORT = MASTER_PORT,
+CHANGE REPLICATION SOURCE to SOURCE_HOST = '127.0.0.1',SOURCE_PORT = SOURCE_PORT,
 SOURCE_USER = 'root', SOURCE_HEARTBEAT_PERIOD = 0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

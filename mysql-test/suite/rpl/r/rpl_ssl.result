@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 include/assert.inc [Source_SSL_Allowed should be NO by default]
-include/assert.inc [Without MASTER_SSL, the slave should be connected to the master without SSL/TLS]
+include/assert.inc [Without SOURCE_SSL, the slave should be connected to the master without SSL/TLS]
 create user replssl@localhost require ssl;
 grant replication slave on *.* to replssl@localhost;
 create table t1 (t int auto_increment, KEY(t));

@@ -1,6 +1,6 @@
 # ==== Purpose ====
 #
-# This test calls CHANGE MASTER in order to check if replication can
+# This test calls CHANGE REPLICATION SOURCE in order to check if replication can
 # restart from where SQL thread left, not from where I/O thread left.
 #
 # This file tests the case when master_info is stored in a file.
@@ -19,7 +19,7 @@
 
 
 # BUG#11758581 - 50801: CHANGE MASTER ACCEPTS BOGUS VARIABLES
-# We want to check if CHANGE MASTER values have newline characters.
+# We want to check if CHANGE REPLICATION SOURCE values have newline characters.
 --source include/rpl_reset.inc
 connection slave;
 

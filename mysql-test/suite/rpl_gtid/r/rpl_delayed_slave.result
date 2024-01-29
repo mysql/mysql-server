@@ -13,7 +13,7 @@ INSERT INTO t1 VALUES ("zero", 0);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/start_slave.inc
-include/assert.inc [SHOW REPLICA STATUS should return the same delay that we set with CHANGE MASTER]
+include/assert.inc [SHOW REPLICA STATUS should return the same delay that we set with CHANGE REPLICATION SOURCE]
 [on master]
 INSERT INTO t1 VALUES ('normal setup', 1);
 [connection slave]

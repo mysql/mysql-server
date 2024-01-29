@@ -25,7 +25,7 @@ FLUSH PRIVILEGES;
 #
 --connection slave
 --echo [connection slave]
---let $master_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
+--let $source_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO 
   SOURCE_USER=     'plug_user',
@@ -57,7 +57,7 @@ SELECT user, plugin, authentication_string FROM mysql.user WHERE user LIKE 'plug
 --echo # Cleanup (on slave).
 --source include/stop_slave.inc
 --replace_column 2 ####
-eval CHANGE REPLICATION SOURCE TO SOURCE_USER='$master_user';
+eval CHANGE REPLICATION SOURCE TO SOURCE_USER='$source_user';
 DROP USER 'plug_user';
 
 --echo # Cleanup (on master).

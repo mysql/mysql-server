@@ -110,11 +110,11 @@ SET GLOBAL protocol_compression_algorithms="zstd";
 --error 1
 --exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # make new connection with zlib compression
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 2066
 --connect(con1, localhost, wl12475,,,,,SSL,,zlib)
 --echo # make new connection without compression
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_WRONG_COMPRESSION_ALGORITHM_CLIENT
 --connect(con1, localhost, wl12475,,,,,SSL)
 --echo # make new connection with zstd compression
@@ -143,7 +143,7 @@ SET GLOBAL protocol_compression_algorithms="zstd,uncompressed";
 --exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --exec $MYSQL --compress --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # make new connection with zlib compression
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 2066
 --connect(con1, localhost, wl12475,,,,,SSL,,zlib)
 --echo # make new connection without compression
@@ -186,11 +186,11 @@ SET GLOBAL protocol_compression_algorithms="zlib";
 select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection without compression
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_WRONG_COMPRESSION_ALGORITHM_CLIENT
 --connect(con1, localhost, wl12475,,,,,SSL)
 --echo # make new connection with zstd compression
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 2066
 --connect(con1, localhost, wl12475,,,,,SSL,,zstd,9)
 connection default;
@@ -224,7 +224,7 @@ disconnect con1;
 select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection with zstd compression
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 2066
 --connect(con1, localhost, wl12475,,,,,SSL,,zstd,9)
 connection default;
@@ -254,7 +254,7 @@ SET GLOBAL protocol_compression_algorithms="zlib,zstd";
 select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection without compression
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_WRONG_COMPRESSION_ALGORITHM_CLIENT
 --connect(con1, localhost, wl12475,,,,,SSL)
 --echo # make new connection with zstd compression
@@ -287,7 +287,7 @@ SET GLOBAL protocol_compression_algorithms="uncompressed";
 --exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --exec $MYSQL --compress --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # make new connection with zlib compression
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 2066
 --connect(con1, localhost, wl12475,,,,,SSL,,zlib)
 --echo # make new connection without compression
@@ -295,7 +295,7 @@ SET GLOBAL protocol_compression_algorithms="uncompressed";
 select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection with zstd compression
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 2066
 --connect(con1, localhost, wl12475,,,,,SSL,,zstd,9)
 connection default;

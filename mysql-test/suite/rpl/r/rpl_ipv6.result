@@ -10,7 +10,7 @@ master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
 RESET REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='::1';
-Master-Host: ::1
+Source-Host: ::1
 disconnect slave;
 disconnect master;
 connection default;
@@ -25,7 +25,7 @@ master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
 RESET REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='0000:0000:0000:0000:0000:0000:0000:0001';
-Master-Host: 0000:0000:0000:0000:0000:0000:0000:0001
+Source-Host: 0000:0000:0000:0000:0000:0000:0000:0001
 disconnect slave;
 disconnect master;
 connection default;
@@ -40,7 +40,7 @@ master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
 RESET REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='0:0:0:0:0:0:0:1';
-Master-Host: 0:0:0:0:0:0:0:1
+Source-Host: 0:0:0:0:0:0:0:1
 disconnect slave;
 disconnect master;
 connection default;
@@ -54,13 +54,13 @@ File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
 RESET REPLICA;
-Master-Host: 0:0:0:0:0:0:0:1
+Source-Host: 0:0:0:0:0:0:0:1
 change replication source to source_host='::1';
-Master-Host: ::1
+Source-Host: ::1
 change replication source to source_host='127.0.0.1';
-Master-Host: 127.0.0.1
+Source-Host: 127.0.0.1
 change replication source to source_host='0:0:0:0:0:0:0:1';
-Master-Host: 0:0:0:0:0:0:0:1
+Source-Host: 0:0:0:0:0:0:0:1
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

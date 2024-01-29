@@ -5,7 +5,7 @@
 # Problem:
 # ========
 # If, on an empty database:
-# - CHANGE MASTER TO without a MASTER_FILE and MASTER_POS is used,
+# - CHANGE REPLICATION SOURCE TO without a MASTER_FILE and MASTER_POS is used,
 # - the IO_THREAD is started WITHOUT starting the SQL_THREAD,
 # - MySQL crashed,
 # - MySQL is restarted with relay_log_recovery = 1.
@@ -21,7 +21,7 @@
 # =====
 # Use master and slave info repositories to be tables and set
 # relay-log-recovery=1. Stop the slave, execute a CREATE DATABASE statement on
-# the master. Execute a CHANGE MASTER statement on slave without a MASTER_FILE
+# the master. Execute a CHANGE REPLICATION SOURCE statement on slave without a MASTER_FILE
 # and MASTER_POS. Start IO thread alone. Crash the slave and restart it. When
 # slave is restarted with bug, sql thread will not be able to start. It will fail
 # with an error saying the database already exists. Post fix sql thread will
@@ -42,7 +42,7 @@ call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 CREATE DATABASE test_jfg;
 
 --source include/rpl_connection_slave.inc
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT,SOURCE_USER='root'
 START REPLICA IO_THREAD;

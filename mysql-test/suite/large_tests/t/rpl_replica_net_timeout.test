@@ -33,7 +33,7 @@ connection slave;
 # won't cause reconnecting by the slave within at least
 # replica_net_timeout interval.
 #
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST = '127.0.0.1',SOURCE_PORT = $MASTER_MYPORT,
 SOURCE_USER = 'root', SOURCE_HEARTBEAT_PERIOD = 0;

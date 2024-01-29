@@ -27,7 +27,7 @@ PURGE BINARY LOGS TO 'master-bin.000002';
 include/assert.inc [PURGE BINARY LOGS successfully removed all but the latest file]
 #
 # 4) Verify that the slave fails if it tries to connect using CHANGE
-#    MASTER TO MASTER_AUTO_POSITION=1.
+#    REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1.
 #
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
@@ -51,7 +51,7 @@ SET GLOBAL DEBUG= @saved_debug;
 include/assert_grep.inc [Found a message about the long GTIDs in the slave error log.]
 #
 # 6) Verify that replication succeeds if it tries to connect using CHANGE
-#    MASTER TO MASTER_LOG_POS.
+#    REPLICATION SOURCE TO MASTER_LOG_POS.
 #
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = 'MASTER_FILE', SOURCE_LOG_POS = MASTER_POS, SOURCE_AUTO_POSITION = 0;
 include/start_slave.inc

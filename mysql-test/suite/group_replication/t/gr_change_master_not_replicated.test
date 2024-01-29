@@ -1,14 +1,14 @@
 ################################################################################
-# This test verifies that the CHANGE MASTER command is not logged in the binary
+# This test verifies that the CHANGE REPLICATION SOURCE command is not logged in the binary
 # log. Therefore it is not replicated as well.
 #
 # Test:
 # 0. The test requires two servers: M1 and M2.
 # 1. Create a user on M1 to be used by the recovery channel. Bootstrap
 #    GROUP on M1. Add some data for recovery.
-# 2. Start GR on M2 post CHANGE MASTER with valid values. Grep for
-#    'CHANGE MASTER' pattern in binary log data. Expect 0 count.
-# 3. Grep for 'CHANGE MASTER' pattern in binary log of M1. Expect 0 count.
+# 2. Start GR on M2 post CHANGE REPLICATION SOURCE with valid values. Grep for
+#    'CHANGE REPLICATION SOURCE' pattern in binary log data. Expect 0 count.
+# 3. Grep for 'CHANGE REPLICATION SOURCE' pattern in binary log of M1. Expect 0 count.
 ################################################################################
 
 --let $skip_recovery_configuration=1
@@ -30,7 +30,7 @@ FLUSH PRIVILEGES;
 SET sql_log_bin=1;
 
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --source include/start_and_bootstrap_group_replication.inc
@@ -41,7 +41,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---echo # Second CHANGE MASTER with valid options will work fine.
+--echo # Second CHANGE REPLICATION SOURCE with valid options will work fine.
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
@@ -58,7 +58,7 @@ SET sql_log_bin=1;
 --let $MYSQLD_DATADIR= `select @@datadir;`
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/server-binary-log.000001 > $MYSQLTEST_VARDIR/tmp/change_master_server2.sql
 
---echo # Asserting that CHANGE MASTER is not logged in the binary log of the server 2.
+--echo # Asserting that CHANGE REPLICATION SOURCE is not logged in the binary log of the server 2.
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/change_master_server2.sql
 --let $grep_pattern= CHANGE REPLICATION SOURCE
 --let $grep_output= print_count
@@ -74,7 +74,7 @@ SET sql_log_bin=1;
 --let $MYSQLD_DATADIR= `select @@datadir;`
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/server-binary-log.000001 > $MYSQLTEST_VARDIR/tmp/change_master_server1.sql
 
---echo # Asserting that CHANGE MASTER is not replicated in the binary log of the server.
+--echo # Asserting that CHANGE REPLICATION SOURCE is not replicated in the binary log of the server.
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/change_master_server1.sql
 --let $grep_pattern= CHANGE REPLICATION SOURCE
 --let $grep_output= print_count

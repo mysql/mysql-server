@@ -1369,7 +1369,7 @@ flush logs;
 STOP REPLICA;
 RESET REPLICA;
 
-#change master to master_host='';
+#change replication source to source_host='';
 --source include/rpl_end.inc
 
 # TODO

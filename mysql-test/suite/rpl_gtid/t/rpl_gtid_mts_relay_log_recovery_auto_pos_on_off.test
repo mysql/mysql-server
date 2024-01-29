@@ -32,8 +32,8 @@ CALL mtr.add_suppression("The replica coordinator and worker threads are stopped
 --let $loop_count=2
 
 # Execute the following set of instructions twice
-# once with change master with auto position 0
-# second time change master with auto position 1
+# once with change replication source with auto position 0
+# second time change replication source with auto position 1
 while ($loop_count)
 {
   --source include/stop_slave.inc

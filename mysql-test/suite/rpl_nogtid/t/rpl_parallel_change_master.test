@@ -139,16 +139,16 @@ DROP DATABASE d2;
 #
 # Problem:
 # ========
-# When error occurred in MTS mode, If user first change master
+# When error occurred in MTS mode, If user first change replication source
 # (ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS received here), and then reset replica,
-# user can never change master (error ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
+# user can never change replication source (error ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
 # occurred again). The debug version mysqld will crash at this case.
 #
 # Test:
 # =====
-# Generate MTS gaps and execute CHANGE MASTER command so that
+# Generate MTS gaps and execute CHANGE REPLICATION SOURCE command so that
 # ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS error is reported. Execute RESET
-# SLAVE command. Reexecute the CHANGE MASTER command once again it should
+# SLAVE command. Reexecute the CHANGE REPLICATION SOURCE command once again it should
 # report an assert in the case of bug scenario and it should succeed after the
 # fix.
 ###############################################################################
@@ -204,12 +204,12 @@ FLUSH LOGS;
 --let $pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --source include/rpl_connection_slave.inc
---replace_result $MASTER_MYPORT MASTER_PORT  $file FILE $pos POS
+--replace_result $MASTER_MYPORT SOURCE_PORT  $file FILE $pos POS
 --replace_column 2 ####
 --error ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $pos ;
 RESET REPLICA;
---replace_result $MASTER_MYPORT MASTER_PORT  $file FILE $pos POS
+--replace_result $MASTER_MYPORT SOURCE_PORT  $file FILE $pos POS
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $pos ;
 

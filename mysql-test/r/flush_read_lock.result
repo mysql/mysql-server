@@ -83,7 +83,7 @@ create event e1 on schedule every 1 minute do begin end;
 # with various statements.
 #
 # These tests don't cover some classes of statements:
-# - Replication-related - CHANGE MASTER TO, START/STOP REPLICA and etc
+# - Replication-related - CHANGE REPLICATION SOURCE TO, START/STOP REPLICA and etc
 #   (all compatible with FTWRL).
 # - Plugin-related - INSTALL/UNINSTALL (incompatible with FTWRL,
 #   require plugin support).

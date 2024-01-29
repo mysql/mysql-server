@@ -23,7 +23,7 @@ include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 ####################################################################
-# Test Case3: CHANGE MASTER command
+# Test Case3: CHANGE REPLICATION SOURCE command
 ####################################################################
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
@@ -65,7 +65,7 @@ SET AUTOCOMMIT= SAVED_AUTOCOMMIT;
 SET GLOBAL super_read_only= SAVED_SUPER_READ_ONLY;
 SET GLOBAL read_only= SAVED_READ_ONLY;
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -93,7 +93,7 @@ include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 ####################################################################
-# Test Case3: CHANGE MASTER command
+# Test Case3: CHANGE REPLICATION SOURCE command
 ####################################################################
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
@@ -135,7 +135,7 @@ SET AUTOCOMMIT= SAVED_AUTOCOMMIT;
 SET GLOBAL super_read_only= SAVED_SUPER_READ_ONLY;
 SET GLOBAL read_only= SAVED_READ_ONLY;
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

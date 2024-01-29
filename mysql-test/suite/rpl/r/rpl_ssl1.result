@@ -85,7 +85,7 @@ include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on STOP REPL
 RESET REPLICA;
 include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on RESET REPLICA.]
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_MYPORT;
-include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.]
+include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on CHANGE REPLICATION SOURCE.]
 include/start_slave.inc
 include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on START REPLICA.]
 DROP TABLE IF EXISTS t1;

@@ -64,7 +64,7 @@ Got one of the listed errors
 # 5) Validate that non-admin users cannot connect.
 #########################################################################
 
-connect(localhost,user,pass,test,MASTER_PORT,MASTER_MYSOCK);
+connect(localhost,user,pass,test,SOURCE_PORT,MASTER_MYSOCK);
 ERROR HY000: The server is currently in offline mode
 
 #########################################################################

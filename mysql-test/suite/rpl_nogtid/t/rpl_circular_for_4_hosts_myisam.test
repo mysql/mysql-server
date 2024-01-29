@@ -157,7 +157,7 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
 --source include/rpl_change_topology.inc
 
 #--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $file_c LOG_FILE $pos_c LOG_POS 
-#--eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$SERVER_MYPORT_2,master_user='root',master_log_file='$file_c',master_log_pos=$pos_c
+#--eval CHANGE REPLICATION SOURCE TO source_host='127.0.0.1',source_port=$SERVER_MYPORT_2,source_user='root',master_log_file='$file_c',master_log_pos=$pos_c
 source include/start_slave.inc;
 --connection server_2
 --sync_slave_with_master server_4
@@ -220,7 +220,7 @@ RESET REPLICA;
 --let $rpl_master_log_pos= 4:$pos_d
 --source include/rpl_change_topology.inc
 #--replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3 $file_d LOG_FILE $pos_d LOG_POS 
-#--eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$SERVER_MYPORT_3,master_user='root',master_log_file='$file_d',master_log_pos=$pos_d
+#--eval CHANGE REPLICATION SOURCE TO source_host='127.0.0.1',source_port=$SERVER_MYPORT_3,source_user='root',master_log_file='$file_d',master_log_pos=$pos_d
 --source include/start_slave.inc
 --connection server_3
 --sync_slave_with_master server_4

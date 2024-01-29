@@ -103,7 +103,7 @@ SELECT USER(), CURRENT_USER();
 --echo # 5) Validate that non-admin users cannot connect.
 --echo #########################################################################
 --echo
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result $MASTER_MYPORT SOURCE_PORT $MASTER_MYSOCK MASTER_MYSOCK
 --error ER_SERVER_OFFLINE_MODE
 --connect(server1_user2, localhost,user,pass,,$MASTER_MYPORT,$MASTER_MYSOCK)
 

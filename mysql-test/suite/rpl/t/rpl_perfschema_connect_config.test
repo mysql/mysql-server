@@ -20,7 +20,7 @@
 # The follwing scenarios are tested:
 #
 #  - Test each field on a fresh replication setup.
-#  - Change configuration parameters using CHANGE MASTER TO and verify that
+#  - Change configuration parameters using CHANGE REPLICATION SOURCE TO and verify that
 #    these changes are seen in SELECTs from PS table.
 #  - Verify that, the change in values are correctly shown by the table.
 #  - Start server with gtid-mode=on and test the AUTO_POSITION field.
@@ -222,7 +222,7 @@ let $assert_text= Value returned by SRS and PS table for SSL_Verify_Server_Certi
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
-# We cannot set master_ssl=1 when both ssl_crl and ssl_crlpath are used in
+# We cannot set source_ssl=1 when both ssl_crl and ssl_crlpath are used in
 # CHANGE MASTER. (See bug#18165937)
 CHANGE REPLICATION SOURCE to SOURCE_SSL=0;
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;

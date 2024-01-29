@@ -42,7 +42,7 @@ while ($i <= $number_of_channels)
   --let $rpl_connection_name= server_$i
   --source include/rpl_connection.inc
   RESET BINARY LOGS AND GTIDS;
-  --let $master_port=`SELECT @@PORT`
+  --let $source_port=`SELECT @@PORT`
   --let $rpl_connection_name=server_$rpl_msr_server_number
   --source include/rpl_connection.inc
   --let $rpl_channel_name='channel_$i'
@@ -51,8 +51,8 @@ while ($i <= $number_of_channels)
   {
     --let $rpl_channel_name=''
   }
-  --replace_result $master_port port
-  --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= $master_port, SOURCE_HOST='localhost' FOR CHANNEL $rpl_channel_name
+  --replace_result $source_port port
+  --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= $source_port, SOURCE_HOST='localhost' FOR CHANNEL $rpl_channel_name
   --source include/start_slave.inc
 
   if (!$no_sample_data)

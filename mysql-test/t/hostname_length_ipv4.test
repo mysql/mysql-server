@@ -31,7 +31,7 @@ CREATE USER 'rick'@'192.0.2.4';
 SET GLOBAL DEBUG = '+d, getnameinfo_fake_max_length_plus_1';
 
 --echo # Try to connect. Should not be allowed.
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_HOSTNAME_TOO_LONG
 --connect(con1, "127.0.0.1", rick,, test, $MASTER_MYPORT)
 SET GLOBAL DEBUG = '-d, getnameinfo_fake_max_length_plus_1';

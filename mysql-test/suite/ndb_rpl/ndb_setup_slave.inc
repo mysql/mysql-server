@@ -2,7 +2,7 @@
 # now setup replication to continue from last epoch
 # 1. get ndb_apply_status epoch from slave
 # 2. get corresponding _next_ binlog postition from master
-# 3. change master on slave
+# 3. change replication source on slave
 
 # 1.
 

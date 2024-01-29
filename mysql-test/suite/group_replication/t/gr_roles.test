@@ -10,9 +10,9 @@
 #   2.1 Error as user does not have privilege to execute command.
 #   2.2 Assign SYSTEM_VARIABLES_ADMIN privilege to user by enabling the role
 #       and test that command is executed successfully.
-# 3.Verify that ROLES on replication users used in 'CHANGE MASTER TO' work
+# 3.Verify that ROLES on replication users used in 'CHANGE REPLICATION SOURCE TO' work
 #   as expected for GR.
-#   3.1 Error in START GR as Source_User used in CHM does not have privilege.
+#   3.1 Error in START GR as Source_User used in CRS does not have privilege.
 #   3.2 Assign REPLICATION_SLAVE privilege to user by enabling the role and
 #       test that start group_replication succeeds.
 # 4.Verify that Activating the role by 'ALTER USER' is successful on
@@ -105,7 +105,7 @@ SET GLOBAL group_replication_bootstrap_group= 0;
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_members WHERE member_state='ONLINE'
 --source include/wait_condition_or_abort.inc
 
-# Test 3 : Verify that ROLES on replication users used in 'CHANGE MASTER TO' work
+# Test 3 : Verify that ROLES on replication users used in 'CHANGE REPLICATION SOURCE TO' work
 #          as expected for GR.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -133,7 +133,7 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-# Execute CHM where Source_User='alpha'
+# Execute CRS where Source_User='alpha'
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 

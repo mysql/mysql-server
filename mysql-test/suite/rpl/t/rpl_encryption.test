@@ -31,7 +31,7 @@
 # Makes the slave to fail to read existing relay log files by uninstalling
 # the keyring plugin.
 #
-# The slave shall be able to work again after a CHANGE MASTER that discards
+# The slave shall be able to work again after a CHANGE REPLICATION SOURCE that discards
 # the existing relay log files.
 #
 # Part 5: Verify that 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' rotates

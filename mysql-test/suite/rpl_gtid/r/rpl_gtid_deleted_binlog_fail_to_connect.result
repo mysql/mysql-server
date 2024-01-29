@@ -25,7 +25,7 @@ FLUSH LOGS;
 INSERT INTO t1 VALUES (2);
 #
 # 4) Verify that the slave fails if it tries to connect using CHANGE
-#    MASTER TO MASTER_AUTO_POSITION=1.
+#    REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1.
 #
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
@@ -40,7 +40,7 @@ include/assert_grep.inc [Found warning containing lost GTIDs in the master error
 include/assert_grep.inc [Found warning containing lost GTIDs in the slave error log.]
 #
 # 6) Verify that replication succeeds if it tries to connect using CHANGE
-#    MASTER TO MASTER_LOG_POS.
+#    REPLICATION SOURCE TO MASTER_LOG_POS.
 #
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = 'MASTER_FILE', SOURCE_LOG_POS = MASTER_POS, SOURCE_AUTO_POSITION = 0;
 include/start_slave.inc

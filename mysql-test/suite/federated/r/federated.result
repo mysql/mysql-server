@@ -2291,7 +2291,7 @@ CREATE TABLE federated.t1 (a INT PRIMARY KEY, b varchar(64)) ENGINE=InnoDB;
 connection slave;
 CREATE TABLE federated.t2 (a INT PRIMARY KEY, b varchar(64))
 ENGINE=FEDERATED
-connection='mysql://root@127.0.0.1:MASTER_PORT/federated/t1'
+connection='mysql://root@127.0.0.1:SOURCE_PORT/federated/t1'
   DEFAULT CHARSET=utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -2354,7 +2354,7 @@ INSERT federated.child VALUES (1,1);
 CREATE TABLE federated.child(a INT, b INT, PRIMARY KEY(b),
 FOREIGN KEY(a) REFERENCES federated.parent(a))
 ENGINE=FEDERATED
-CONNECTION='mysql://root@127.0.0.1:MASTER_PORT/federated/child';
+CONNECTION='mysql://root@127.0.0.1:SOURCE_PORT/federated/child';
 SELECT * FROM federated.child;
 a	b
 1	1

@@ -12,8 +12,8 @@
 #
 # TC2. Test with assign_gtids_to_anonymous_transactions = LOCAL
 #
-#      1) Execute change master with gtid_mode = Off and check for error.
-#      2) Set the GTID_MODE = ON and execute CHANGE MASTER, verify that we have the
+#      1) Execute change replication source with gtid_mode = Off and check for error.
+#      2) Set the GTID_MODE = ON and execute CHANGE REPLICATION SOURCE, verify that we have the
 #         warning about the limitation os the option ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
 #         emitted on the client side.
 #      3) When server starts with gtid_mode=OFF and any replication channel has
@@ -87,7 +87,7 @@ RESET REPLICA;
 CREATE TABLE t(s INT);
 INSERT INTO t VALUES(10);
 
-#Used by CHM for assign_gtids_to_anonymous_transactions= LOCAL
+#Used by CRS for assign_gtids_to_anonymous_transactions= LOCAL
 --source include/save_binlog_position.inc
 
 --source include/sync_slave_sql_with_master.inc
@@ -100,12 +100,12 @@ INSERT INTO t VALUES(10);
 --echo
 --echo TC2. Test with assign_gtids_to_anonymous_transactions = LOCAL
 --echo
-# 1) Execute change master with GTID_MODE = OFF and check for error.
+# 1) Execute change replication source with GTID_MODE = OFF and check for error.
 
 --error ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
-# 2) Set the GTID_MODE = ON and execute CHANGE MASTER, verify that we have the
+# 2) Set the GTID_MODE = ON and execute CHANGE REPLICATION SOURCE, verify that we have the
 #    warning about the limitation os the option ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
 #    emitted on the client side.
 

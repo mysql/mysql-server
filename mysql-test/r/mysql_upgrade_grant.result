@@ -111,11 +111,11 @@ Pattern "User entry 'su_old_pass_pn'@'%' has a deprecated pre-4.1 password. The 
 # end of check for the presense of the warning
 #Connect using root account - should succeed
 #Connecting user with pre 4.1 hash and empty plugin- should fail
-connect(localhost,user_old_pass_pn,lala,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,user_old_pass_pn,lala,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'user_old_pass_pn'@'localhost' (using password: YES)
 #Connecting user with pre 4.1 hash and mysql_old_password plugin set -
 #should fail - the mysql_old_password was removed in 5.7
-connect(localhost,user_old_pass_wp,lala,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,user_old_pass_wp,lala,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Plugin 'mysql_old_password' is not loaded
 #Connecting user with 4.1 hash and empty plugin - should succeed
 #Connecting user with 4.1 hash and mysql_native_plugin plugin set -
@@ -198,7 +198,7 @@ account_locked
 N
 #Connecting with user using mysql_old_password plugin should not be
 #possible
-connect(localhost,user_old_pass_wp,lala,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,user_old_pass_wp,lala,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Plugin 'mysql_old_password' is not loaded
 #Creating super user and assigning all privileges to it. This updates
 #mysql.user table so should now be possible.

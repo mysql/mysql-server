@@ -21,7 +21,7 @@ include/rpl_set_gtid_mode.inc [OFF on servers 3]
 #     into the group (server 1)
 #     Calculate the source_uuid
 [connection server1]
-# 3.1 Verify that CHM gives error when tried to pass group_name to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+# 3.1 Verify that CRS gives error when tried to pass group_name to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_3_PORT, ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS="GROUP_REPLICATION_GROUP_NAME";
 ERROR HY000: CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> cannot be executed because the UUID value is equal to the group_replication_group_name.
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_3_PORT, ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";

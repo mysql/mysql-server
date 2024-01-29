@@ -13,7 +13,7 @@ alter user ssl_user3@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST
 alter user ssl_user4@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 alter user ssl_user5@localhost require cipher "SSL_CIPHER" AND SUBJECT "xxx";
 flush privileges;
-connect(localhost,ssl_user5,,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,ssl_user5,,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'ssl_user5'@'localhost' (using password: NO)
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value

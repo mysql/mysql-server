@@ -48,7 +48,7 @@ SELECT * FROM t1; # check that indeed 2 were inserted
 
 DROP TABLE t1;
 
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_PORT = $MASTER_MYPORT;
 
 

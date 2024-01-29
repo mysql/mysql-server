@@ -20,7 +20,7 @@ n
 ---- Clean up ----
 include/stop_slave.inc
 DROP TABLE t1;
-CHANGE REPLICATION SOURCE TO SOURCE_PORT = MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT = SOURCE_PORT;
 ==== START REPLICA UNTIL works with replicate-same-server-id ====
 ---- Initialize ----
 [connection master]

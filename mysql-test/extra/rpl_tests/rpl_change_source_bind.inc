@@ -1,5 +1,5 @@
 #
-# Test CHANGE MASTER Source_Bind=xxx
+# Test CHANGE REPLICATION SOURCE Source_Bind=xxx
 #
 # Parameters:
 #  $source_bind - the address to use for Source_Bind
@@ -8,8 +8,8 @@
 #
 #
 
---let $source_bind=$master_bind
---let $source_bind_error_expected=$master_bind_error_expected
+--let $source_bind=$source_bind
+--let $source_bind_error_expected=$source_bind_error_expected
 
 # Stop the slave
 connection slave;
@@ -24,17 +24,17 @@ eval insert into t1 values(1, $source_bind);
 # Configure slave to connect to master with the give bind address
 # for source_bind and Source_Host unless it's an invalid address
 connection slave;
-let $_master_host=;
+let $_source_host=;
 if (!$source_bind_error_expected)
 {
   if ($source_bind != "''")
   {
-    let $_master_host=SOURCE_HOST=$source_bind,;
+    let $_source_host=SOURCE_HOST=$source_bind,;
   }
 }
 
 --replace_result $source_bind <source_bind>
-eval CHANGE REPLICATION SOURCE to $_master_host SOURCE_BIND=$source_bind;
+eval CHANGE REPLICATION SOURCE to $_source_host SOURCE_BIND=$source_bind;
 START REPLICA;
 
 # Check that SHOW REPLICA STATUS has Source_Bind column set to $source_bind

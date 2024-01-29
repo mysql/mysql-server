@@ -18,7 +18,7 @@
 # 2. Disable GTIDs on server 3
 # 3. Setup a asynchronous replication connection from server 3 into the group (server 1)
 #    Calculate the source_uuid
-#    1. Verify that CHM gives error when tried to pass group_name to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+#    1. Verify that CRS gives error when tried to pass group_name to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
 #    2. Verify that setting group_name to the UUID value used for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
 #       gives error.
 #    3. Verify that restarting server 1 using the same group name as the UUID value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
@@ -93,7 +93,7 @@ if ($_rename_parameter == 'LOCAL')
        --let $__rename_parameter = $_rename_parameter
 }
 
---echo # 3.1 Verify that CHM gives error when tried to pass group_name to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+--echo # 3.1 Verify that CRS gives error when tried to pass group_name to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $SERVER_MYPORT_3 SERVER_3_PORT
 --error ER_CANT_USE_SAME_UUID_AS_GROUP_NAME
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS="$group_replication_group_name"

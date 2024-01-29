@@ -147,13 +147,13 @@ SELECT CURRENT_USER();
 --echo # this user doesn't have the privilege SERVICE_CONNECTION_ADMIN
 --connection default
 --source include/count_sessions.inc
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_ADMINPORT ADMIN_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_ADMINPORT ADMIN_PORT
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 --connect(admin_tcp_con_u2,127.0.0.1,u2,,,$MASTER_ADMINPORT,,TCP)
 
 --echo # Check that the user u3 can't establish connection to admin interface since
 --echo # this user doesn't have the privilege SERVICE_CONNECTION_ADMIN
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_ADMINPORT ADMIN_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_ADMINPORT ADMIN_PORT
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 --connect(admin_tcp_con_u3,127.0.0.1,u3,,,$MASTER_ADMINPORT,,TCP)
 --connection default
@@ -175,7 +175,7 @@ SHOW STATUS LIKE 'Threads_connected';
 --echo # the default connection and the second one is for the connection
 --echo # ordinary_con_1) an attempt to connect to the server results in
 --echo # error ER_CON_COUNT_ERROR
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_CON_COUNT_ERROR
 --connect(ordinary_con_2,localhost,u2,,,,,)
 
@@ -246,7 +246,7 @@ SELECT CURRENT_USER();
 --replace_result $MASTER_ADMINPORT ADMIN_PORT
 --source include/start_mysqld.inc
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_ADMINPORT ADMIN_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_ADMINPORT ADMIN_PORT
 # Disable result_log to suppress output from subsequent connect() command
 # since it outputs error code reasoning why connection wasn't established
 # and its value could be distinct on different platforms.
@@ -270,7 +270,7 @@ SELECT CURRENT_USER();
 --replace_result $MASTER_ADMINPORT ADMIN_PORT
 --source include/start_mysqld.inc
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_ADMINPORT ADMIN_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_ADMINPORT ADMIN_PORT
 # Disable result_log to suppress output from subsequent connect() command
 # since it outputs error code reasoning why connection wasn't established
 # and its value could be distinct on different platforms.
@@ -302,7 +302,7 @@ SELECT @@admin_address, @@admin_port;
 # Connection through admin port shouldn't be possible
 # as --admin-address is not specified
 --disable_result_log
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_ADMINPORT ADMIN_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_ADMINPORT ADMIN_PORT
 --error CR_CONN_HOST_ERROR
 --connect(admin_tcp_con,127.0.0.1,root,,,$MASTER_ADMINPORT,,TCP)
 --enable_result_log

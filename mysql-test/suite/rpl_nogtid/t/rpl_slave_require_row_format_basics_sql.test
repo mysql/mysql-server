@@ -3,8 +3,8 @@
 # Require_row_format enabled.
 #
 # This test does not run with GTIDs as the command
-#   CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
-# when MASTER_AUTO_POSITION =1 will always delete all relay log files
+#   CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
+# when SOURCE_AUTO_POSITION =1 will always delete all relay log files
 #
 #
 # ==== Requirements ====

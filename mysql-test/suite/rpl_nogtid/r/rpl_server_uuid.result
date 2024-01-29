@@ -7,7 +7,7 @@ call mtr.add_suppression("Replica I/O thread .* register on source");
 call mtr.add_suppression("Replica I/O: Source command COM_REGISTER_REPLICA failed: .*");
 CALL mtr.add_suppression(".*source and replica have equal MySQL server UUIDs.*");
 CALL mtr.add_suppression("Source's UUID has changed, although this should not happen unless you have changed it manually");
-CALL mtr.add_suppression("Replica I/O: SET @master_heartbeat_period to source failed with error: Lost connection to MySQL server during query");
+CALL mtr.add_suppression("Replica I/O: SET @source_heartbeat_period to source failed with error: Lost connection to MySQL server during query");
 CALL mtr.add_suppression("Notifying source by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
 CALL mtr.add_suppression("A replica with the same server_uuid/server_id as this replica has connected to the source");
 SET @@GLOBAL.LOG_ERROR_VERBOSITY= 3;
@@ -44,7 +44,7 @@ include/rpl_restart_server.inc [server_number=1]
 
 # server_3 is running with --replicate-same-server-id option 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
-SOURCE_PORT= MASTER_PORT,
+SOURCE_PORT= SOURCE_PORT,
 SOURCE_USER= 'root',
 SOURCE_LOG_FILE='master-bin.000001';
 Warnings:
@@ -58,7 +58,7 @@ include/stop_slave.inc
 include/rpl_restart_server.inc [server_number=1]
 
 # Case 4:
-# When executing 'CHANGE MASTER ...', master's UUID and server_id will be
+# When executing 'CHANGE REPLICATION SOURCE ...', master's UUID and server_id will be
 # cleared if Source_Host or/and Source_Port are changed.
 # Master's UUID and server_id will not be cleared if both Source_Port
 # and Source_Host are not changed.
@@ -71,7 +71,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
 include/check_slave_param.inc [Source_UUID]
 include/check_slave_param.inc [Source_Server_Id]
-CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_PORT,
+CHANGE REPLICATION SOURCE TO SOURCE_PORT= SOURCE_PORT,
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Source_UUID]
@@ -93,7 +93,7 @@ include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
 include/check_slave_param.inc [Source_UUID]
 include/check_slave_param.inc [Source_Server_Id]
-CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT,
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= SOURCE_PORT,
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Source_UUID]
@@ -101,7 +101,7 @@ include/wait_for_slave_param.inc [Source_UUID]
 # Both Source_Host and Source_Port are NOT changed
 STOP REPLICA IO_THREAD;
 include/wait_for_slave_io_to_stop.inc
-CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= SOURCE_PORT;
 include/check_slave_param.inc [Replica_IO_Running]
 CHANGE REPLICATION SOURCE TO 
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;

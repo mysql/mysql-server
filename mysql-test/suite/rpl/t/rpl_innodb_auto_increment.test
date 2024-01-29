@@ -23,7 +23,7 @@
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 
-# Increasing master_connect_retry to increase the time interval between connection retries due to Bug#23615424:
+# Increasing source_connect_retry to increase the time interval between connection retries due to Bug#23615424:
 # WL#6338: RPL.RPL_INNODB_AUTO_INCREMENT FAILS WITH ERROR IN SYNC_WITH_MASTER.INC
 --let $rpl_connection_name= slave
 --source include/rpl_connection.inc

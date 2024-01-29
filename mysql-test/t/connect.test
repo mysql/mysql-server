@@ -22,10 +22,10 @@ show tables where Tables_in_mysql != 'ndb_binlog_index';
 connect (con2,localhost,root,,test);
 show tables;
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,root,z,test2);
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,root,z,);
 
@@ -52,26 +52,26 @@ disconnect con4;
 --source include/wait_until_disconnected.inc
 connection default;
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,,test2);
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 # Need to protect "" within '' so it's interpreted literally
 connect (fail_con,localhost,test,,'""');
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,zorro,test2);
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,zorro,);
 
 connection default;
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,,test2);
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,,);
 
@@ -459,7 +459,7 @@ SHOW STATUS LIKE 'Aborted_connects';
 
 --echo
 --echo # Case 1: Connection attempt by an invalid user
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con1,localhost,newuser,,);
 
@@ -468,7 +468,7 @@ connect(con1,localhost,newuser,,);
 
 --echo
 --echo # Case 2: Connection attempt by a valid user with incorrect password
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con1,localhost,root,1234,);
 
@@ -482,7 +482,7 @@ CREATE USER 'new1'@'localhost';
 
 --echo
 --echo # Case 3: Connection attempt by a valid user with no privileges to access a database
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_DBACCESS_DENIED_ERROR
 connect(con1,localhost,new1,,test1);
 

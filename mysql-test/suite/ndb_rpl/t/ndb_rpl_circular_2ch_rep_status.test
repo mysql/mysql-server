@@ -117,10 +117,10 @@ select
 #--echo Now change new Slave servers to new Master file + pos
 #--connection master
 #--echo Changing replication source to $cluster_b_master_log_file, $cluster_b_master_log_pos
-#eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_b_master_log_file", MASTER_LOG_POS=$cluster_b_master_log_pos;
+#eval CHANGE REPLICATION SOURCE TO MASTER_LOG_FILE="$cluster_b_master_log_file", MASTER_LOG_POS=$cluster_b_master_log_pos;
 #--connection slave1
 #--echo Changing replication source to $cluster_a_master_log_file, $cluster_a_master_log_pos
-#eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_a_master_log_file", MASTER_LOG_POS=$cluster_a_master_log_pos;
+#eval CHANGE REPLICATION SOURCE TO MASTER_LOG_FILE="$cluster_a_master_log_file", MASTER_LOG_POS=$cluster_a_master_log_pos;
 
 --echo Get current master status on Cluster A new master (next pos in Binlog)
 --connection master1

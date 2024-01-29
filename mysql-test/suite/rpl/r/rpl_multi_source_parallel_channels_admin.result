@@ -4,8 +4,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'ch1';
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='dummyhost', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'ch2';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='dummyhost', SOURCE_PORT=SOURCE_PORT FOR CHANNEL 'ch2';
 include/start_slave.inc [FOR CHANNEL 'ch1']
 include/start_slave_sql.inc [FOR CHANNEL 'ch2']
 [connection master]
@@ -33,7 +33,7 @@ STOP REPLICA IO_THREAD FOR CHANNEL 'ch1';
 RESET REPLICA ALL;
 RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT;
 include/start_slave.inc
 [connection master]
 DROP TABLE t1;

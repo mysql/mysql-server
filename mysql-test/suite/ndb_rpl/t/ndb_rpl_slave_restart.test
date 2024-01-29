@@ -62,7 +62,7 @@ let $the_file= `SELECT @the_file` ;
 
 # now connect the slave to the _other_ "master"
 connection slave;
---replace_result $MASTER_MYPORT1 <MASTER_PORT1>
+--replace_result $MASTER_MYPORT1 <SOURCE_PORT1>
 eval CHANGE REPLICATION SOURCE TO
   SOURCE_PORT=$MASTER_MYPORT1,
   SOURCE_LOG_FILE = '$the_file',
@@ -99,7 +99,7 @@ STOP REPLICA;
 
 # Reset replica back to first master 
 connection slave;
---replace_result $MASTER_MYPORT <MASTER_PORT>
+--replace_result $MASTER_MYPORT <SOURCE_PORT>
 eval CHANGE REPLICATION SOURCE TO
   SOURCE_PORT=$MASTER_MYPORT;
 

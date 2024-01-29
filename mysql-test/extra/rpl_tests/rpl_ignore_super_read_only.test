@@ -7,7 +7,7 @@
 # 1) SET GLOBAL super_read_only to 1 on slave
 # 2) Execute 'STOP REPLICA' command
 # 3) Execute 'CHANGE REPLICATION FILTER' command
-# 4) Execute 'CHANGE MASTER TO' command
+# 4) Execute 'CHANGE REPLICATION SOURCE TO' command
 # 5) Execute 'RESET REPLICA FOR CHANNEL <channel_name>' command
 # 7) Execute 'RESET REPLICA ALL FOR CHANNEL <channel_name>' command
 # 8) Execute 'RESET REPLICA' command
@@ -62,7 +62,7 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 
 --echo ####################################################################
---echo # Test Case3: CHANGE MASTER command
+--echo # Test Case3: CHANGE REPLICATION SOURCE command
 --echo ####################################################################
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
@@ -149,7 +149,7 @@ RESET BINARY LOGS AND GTIDS;
 
 # Start fresh slave
 --source include/stop_slave.inc
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --source include/start_slave.inc

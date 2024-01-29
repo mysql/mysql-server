@@ -38,13 +38,13 @@ let $USE_AUTH_PLUGIN= 0;
 
 disable_result_log;
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(fail_con_u1, localhost, u1,,,,,);
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(fail_con_u1, localhost, u1,haha,,,,);
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(fail_con_u1, localhost, u1,haha,,,,);
 

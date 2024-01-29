@@ -39,7 +39,7 @@ connect (con1,localhost,ssl_user1,,,,,SSL);
 connect (con2,localhost,ssl_user2,,,,,SSL);
 connect (con3,localhost,ssl_user3,,,,,SSL);
 connect (con4,localhost,ssl_user4,,,,,SSL);
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (con5,localhost,ssl_user5,,,,,SSL);
 

@@ -3,10 +3,10 @@
 # This test will make the slave rollback an anonymous transactions.
 #
 # It will keep the SQL thread running to avoid the relay log to be purged
-# in a CHANGE MASTER.
+# in a CHANGE REPLICATION SOURCE.
 #
 # Then, it will make the slave to replicate up to the middle of a transaction,
-# will stop the I/O thread, do a CHANGE MASTER pointing to the begin of the
+# will stop the I/O thread, do a CHANGE REPLICATION SOURCE pointing to the begin of the
 # transaction and restart the I/O thread.
 #
 # In this way, the relay log will have something like:
@@ -27,7 +27,7 @@
 --source include/have_binlog_format_row.inc
 # This test case generates a situation that should not happen
 # in normal slave operation (there is no retrieval of the transaction
-# from the begin when MASTER_AUTO_POSITION = 0). Enabling this test
+# from the begin when SOURCE_AUTO_POSITION = 0). Enabling this test
 # case on MTS may hit some MTS asserts.
 --source include/not_mts_replica_parallel_workers.inc
 --source include/master-slave.inc

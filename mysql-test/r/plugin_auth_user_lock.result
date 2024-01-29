@@ -9,10 +9,10 @@ USER()	CURRENT_USER()
 empl_external@localhost	employee@localhost
 # Lock proxy user - login should fail
 ALTER USER empl_external@localhost ACCOUNT LOCK;
-connect(localhost,empl_external,employee,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,empl_external,employee,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Access denied for user 'empl_external'@'localhost'. Account is locked.
 # Unlocking proxied user should not change anything - login should fail
 ALTER USER employee@localhost ACCOUNT UNLOCK;
-connect(localhost,empl_external,employee,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,empl_external,employee,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Access denied for user 'empl_external'@'localhost'. Account is locked.
 DROP USER 'empl_external'@'localhost', 'employee'@'localhost';

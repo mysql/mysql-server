@@ -108,23 +108,23 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 START REPLICA SQL_THREAD;
 
---let $_slave_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
---let $_slave_master_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
---let $_slave_master_port= query_get_value(SHOW REPLICA STATUS, Source_Port, 1)
+--let $_slave_source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+--let $_slave_source_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
+--let $_slave_source_port= query_get_value(SHOW REPLICA STATUS, Source_Port, 1)
 --let $_slave_master_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 1)
 --let $_slave_master_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 RESET REPLICA ALL;
---replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--replace_result $_slave_source_host SOURCE_HOST $_slave_source_user SOURCE_USER $_slave_source_port SOURCE_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --replace_column 2 ####
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
---eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_master_host', SOURCE_USER= '$_slave_master_user', SOURCE_PORT= $_slave_master_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_source_host', SOURCE_USER= '$_slave_source_user', SOURCE_PORT= $_slave_source_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 RESET REPLICA ALL;
---replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--replace_result $_slave_source_host SOURCE_HOST $_slave_source_user SOURCE_USER $_slave_source_port SOURCE_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --replace_column 2 ####
---eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_master_host', SOURCE_USER= '$_slave_master_user', SOURCE_PORT= $_slave_master_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_source_host', SOURCE_USER= '$_slave_source_user', SOURCE_PORT= $_slave_source_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
@@ -199,23 +199,23 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 START REPLICA SQL_THREAD;
 
---let $_slave_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
---let $_slave_master_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
---let $_slave_master_port= query_get_value(SHOW REPLICA STATUS, Source_Port, 1)
+--let $_slave_source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+--let $_slave_source_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
+--let $_slave_source_port= query_get_value(SHOW REPLICA STATUS, Source_Port, 1)
 --let $_slave_master_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 1)
 --let $_slave_master_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 RESET REPLICA ALL;
---replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--replace_result $_slave_source_host SOURCE_HOST $_slave_source_user SOURCE_USER $_slave_source_port SOURCE_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --replace_column 2 ####
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
---eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_master_host', SOURCE_USER= '$_slave_master_user', SOURCE_PORT= $_slave_master_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_source_host', SOURCE_USER= '$_slave_source_user', SOURCE_PORT= $_slave_source_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
 ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 RESET REPLICA ALL;
---replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--replace_result $_slave_source_host SOURCE_HOST $_slave_source_user SOURCE_USER $_slave_source_port SOURCE_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --replace_column 2 ####
---eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_master_host', SOURCE_USER= '$_slave_master_user', SOURCE_PORT= $_slave_master_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_source_host', SOURCE_USER= '$_slave_source_user', SOURCE_PORT= $_slave_source_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc

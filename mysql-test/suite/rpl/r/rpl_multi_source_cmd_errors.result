@@ -43,7 +43,7 @@ SOURCE_POS_WAIT("dummy-bin.00001",4, 3, "non_existtent")
 NULL
 #
 #  3a) Test that proper error messages are sent out when invalid
-#      channel names are given for change master command.
+#      channel names are given for change replication source command.
 #
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root" FOR CHANNEL "A123456789A123456789A123456789A123456789A123456789A123456789A123456789";
 ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
@@ -63,7 +63,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL
 ERROR HY000: CHANGE REPLICATION SOURCE with the given parameters cannot be performed on channel 'group_replication_applier'.
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE REPLICATION SOURCE with the given parameters cannot be performed on channel 'group_replication_recovery'.
-# Assert that channels are not created for failed CHANGE MASTER command.
+# Assert that channels are not created for failed CHANGE REPLICATION SOURCE command.
 # and number of channels configured must be 2
 include/assert.inc [there shall be only two rows representing 2 channels.]
 include/rpl_end.inc

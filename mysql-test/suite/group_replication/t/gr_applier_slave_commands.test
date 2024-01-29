@@ -15,7 +15,7 @@
 #
 # 1. Start GR on member i.e. make M1 ONLINE. Now, check the execution of
 #    following commands on the GR channels.
-#  a) CHANGE MASTER command is blocked for other options than
+#  a) CHANGE REPLICATION SOURCE command is blocked for other options than
 #     `PRIVILEGE_CHECKS_USER` for group replication applier channel.
 #  b) START REPLICA IO_THREAD is blocked on group_replication_applier
 #  c) START REPLICA IO_THREAD with UNTIL option is blocked on
@@ -32,7 +32,7 @@
 #
 # 2. Stop GR on member i.e. make M1 OFFLINE. Now, check the execution of
 #    following commands on the GR channels.
-#  a) CHM is blocked on group_replication_applier
+#  a) CRS is blocked on group_replication_applier
 #  b) START REPLICA IO_THREAD is blocked on group_replication_applier
 #  c) STOP REPLICA IO_THREAD is blocked on group_replication_applier
 #  d) START REPLICA is blocked on group_replication_applier
@@ -72,17 +72,17 @@
 # Part 1 - Checking the execution of the command when group_replication is ON.
 
 --echo
---echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
+--echo # CHANGE REPLICATION SOURCE command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo
---echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
+--echo # CHANGE REPLICATION SOURCE command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
 
 --echo
---echo # CHANGE MASTER command is blocked for option `PRIVILEGE_CHECKS_USER` when GR is running
+--echo # CHANGE REPLICATION SOURCE command is blocked for option `PRIVILEGE_CHECKS_USER` when GR is running
 --error ER_GRP_OPERATION_NOT_ALLOWED_GR_MUST_STOP
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='user' FOR CHANNEL "group_replication_applier";
 
@@ -148,17 +148,17 @@ START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replicat
 --source include/stop_group_replication.inc
 
 --echo
---echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
+--echo # CHANGE REPLICATION SOURCE command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo
---echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
+--echo # CHANGE REPLICATION SOURCE command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
 
 --echo
---echo # CHANGE MASTER command allows option `PRIVILEGE_CHECKS_USER` when GR is stopped
+--echo # CHANGE REPLICATION SOURCE command allows option `PRIVILEGE_CHECKS_USER` when GR is stopped
 SET SESSION sql_log_bin= 0;
 CREATE USER gr_applier_slave_user;
 SET SESSION sql_log_bin= 1;

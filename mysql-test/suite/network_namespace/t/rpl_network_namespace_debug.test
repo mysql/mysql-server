@@ -94,7 +94,7 @@ GRANT ALL ON *.* TO root@10.0.1.1;
 
 --echo ==== Scenario 2: source uses a namespace ====
 
---echo # Stop replica and run CHANGE MASTER to listen to the source on socket
+--echo # Stop replica and run CHANGE REPLICATION SOURCE to listen to the source on socket
 --echo # created in the 'red' namespace
 --source include/stop_slave.inc
 
@@ -102,14 +102,14 @@ GRANT ALL ON *.* TO root@10.0.1.1;
 --let $MASTER_LOG_POS = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --source include/rpl_connection_slave.inc
---echo # Change master to listen to the source on IP '10.0.2.1' in the 'red' namespace
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm = CHANGE MASTER TO MASTER_HOST='10.0.2.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
+--echo # Change replication source to listen to the source on IP '10.0.2.1' in the 'red' namespace
+--replace_result $MASTER_MYPORT SOURCE_PORT $MASTER_LOG_POS MASTER_LOG_POS
+--let $crs = CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
- --let $chm = $chm, MASTER_LOG_POS=$MASTER_LOG_POS
+ --let $crs = $crs, MASTER_LOG_POS=$MASTER_LOG_POS
 }
---exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$chm"
+--exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$crs"
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
@@ -171,15 +171,15 @@ eval SET DEBUG_SYNC = 'now SIGNAL signal.get_source_uuid';
 --let $MASTER_LOG_POS = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --source include/rpl_connection_slave.inc
---echo # Change master to original connection
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm = CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
+--echo # Change replication source to original connection
+--replace_result $MASTER_MYPORT SOURCE_PORT $MASTER_LOG_POS MASTER_LOG_POS
+--let $crs = CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
 if (`SELECT @@GLOBAL.GTID_MODE = "OFF"`)
 {
- --let $chm = $chm, MASTER_LOG_POS=$MASTER_LOG_POS
+ --let $crs = $crs, MASTER_LOG_POS=$MASTER_LOG_POS
 }
 # Connect via the 'blue' namespace and execute the command.
---exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$chm"
+--exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$crs"
 
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc

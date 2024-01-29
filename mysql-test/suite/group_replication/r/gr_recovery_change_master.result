@@ -15,18 +15,18 @@ include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 [connection server2]
-# CHANGE MASTER with options apart from the Source_User and
-# MASTER_PASSWORD will cause error.
+# CHANGE REPLICATION SOURCE with options apart from the Source_User and
+# SOURCE_PASSWORD will cause error.
 CHANGE REPLICATION SOURCE TO SOURCE_USER='MANISH', SOURCE_PASSWORD='abc_manish_abc', SOURCE_PORT=13000 FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: CHANGE REPLICATION SOURCE with the given parameters cannot be performed on channel 'group_replication_recovery'.
-include/assert.inc [No new user is created after the execution of the change master]
-# MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
+include/assert.inc [No new user is created after the execution of the change replication source]
+# SOURCE_PASSWORD value for the CHANGE REPLICATION SOURCE command will not be logged in the error log.
 Occurrences of 'source_password' in the input file: 0
 # The password value 'unique_password' is not logged in the error log.
 Occurrences of 'abc_manish_abc' in the input file: 0
-# Second CHANGE MASTER with valid options will work fine.
+# Second CHANGE REPLICATION SOURCE with valid options will work fine.
 CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
-include/assert.inc [A new user is created after the execution of the change master]
+include/assert.inc [A new user is created after the execution of the change replication source]
 SET sql_log_bin=0;
 CREATE USER 'manish'@'%' IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';

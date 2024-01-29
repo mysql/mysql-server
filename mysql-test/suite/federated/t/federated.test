@@ -2013,7 +2013,7 @@ DROP TABLE federated.t1;
 connection master;
 CREATE TABLE federated.t1 (a INT PRIMARY KEY, b varchar(64)) ENGINE=InnoDB;
 connection slave;
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 eval CREATE TABLE federated.t2 (a INT PRIMARY KEY, b varchar(64))
   ENGINE=FEDERATED
   connection='mysql://root@127.0.0.1:$MASTER_MYPORT/federated/t1'
@@ -2059,7 +2059,7 @@ INSERT federated.child VALUES (1,1);
 
 connection slave;
 
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 eval CREATE TABLE federated.child(a INT, b INT, PRIMARY KEY(b),
      FOREIGN KEY(a) REFERENCES federated.parent(a))
      ENGINE=FEDERATED

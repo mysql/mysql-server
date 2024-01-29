@@ -9,7 +9,7 @@ CALL mtr.add_suppression("Error during --relay-log-recovery.*");
 CALL mtr.add_suppression("Server was not able to find a rotate event from source server.*");
 CALL mtr.add_suppression("Recovery from source pos.* and file");
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'ch_a';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=SOURCE_PORT FOR CHANNEL 'ch_a';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

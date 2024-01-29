@@ -203,8 +203,8 @@ if ($_rpl_change_topology_helper_skip)
 {
   if (!$use_gtids)
   {
-    --let $_master_auto_position= query_get_value(SHOW REPLICA STATUS $rpl_for_channel_clause, Auto_Position, 1)
-      if ($_master_auto_position == 1)
+    --let $_source_auto_position= query_get_value(SHOW REPLICA STATUS $rpl_for_channel_clause, Auto_Position, 1)
+      if ($_source_auto_position == 1)
       {
         if (!$rpl_multi_source)
         {

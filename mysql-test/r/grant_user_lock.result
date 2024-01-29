@@ -24,10 +24,10 @@ unlocked_user@localhost
 UPDATE mysql.user SET account_locked='y'
   WHERE user='unlocked_user' and host = 'localhost';
 FLUSH PRIVILEGES;
-connect(localhost,unlocked_user,pas,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unlocked_user,pas,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Access denied for user 'unlocked_user'@'localhost'. Account is locked.
 # new connections are blocked
-connect(localhost,unlocked_user,pas,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unlocked_user,pas,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Access denied for user 'unlocked_user'@'localhost'. Account is locked.
 # unlock the user using ALTER USER command
 ALTER USER unlocked_user@localhost ACCOUNT UNLOCK;
@@ -46,7 +46,7 @@ WHERE user = 'unlocked_user' and host = 'localhost';
 account_locked
 Y
 # connection should not work
-connect(localhost,unlocked_user,pas,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unlocked_user,pas,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Access denied for user 'unlocked_user'@'localhost'. Account is locked.
 # create another user
 CREATE USER unlocked_user2@localhost IDENTIFIED BY 'pas';
@@ -98,13 +98,13 @@ CURRENT_USER()
 DROP USER ''@localhost;
 # Create anonymous user - LOCK
 CREATE USER ''@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
-connect(localhost,,pass,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,,pass,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Access denied for user '(null)'@'localhost'. Account is locked.
 DROP USER ''@localhost;
 # Disabling anonymous user
 CREATE USER ''@localhost IDENTIFIED BY 'pass';
 ALTER USER ''@localhost ACCOUNT LOCK;
-connect(localhost,,pass,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,,pass,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Access denied for user '(null)'@'localhost'. Account is locked.
 DROP USER ''@localhost;
 # Enabling anonymous user
@@ -147,7 +147,7 @@ counter
 GRANT EXECUTE ON PROCEDURE mysql.p1 TO u2@localhost;
 ALTER USER u1@localhost ACCOUNT LOCK;
 # Login for u1@localhost should fail
-connect(localhost,u1,pass,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,u1,pass,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Access denied for user 'u1'@'localhost'. Account is locked.
 # Login as u2 and run stored procedure as u1
 SELECT CURRENT_USER();

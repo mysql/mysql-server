@@ -4,28 +4,28 @@ INSERT INTO t1 SELECT FOUND_ROWS();
 Warnings:
 Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 # restart: --log-error=LOG_FILE2 --log-error-verbosity=2 --binlog-format=statement
 INSERT INTO t1 SELECT FOUND_ROWS();
 Warnings:
 Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 # restart: --log-error=LOG_FILE3 --log-error-verbosity=3 --binlog-format=statement
 INSERT INTO t1 SELECT FOUND_ROWS();
 Warnings:
 Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 DROP TABLE t1;
 # restart: --log-error=LOG_FILE8 --lc-messages-dir=MSG_DIR --log-error-verbosity=3
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 # restart: --log-error=LOG_FILE8B --lc-messages=invalid_arg1 --lc-time-names=invalid_arg2
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 # restart: --log-error=LOG_FILE9 --log-error-verbosity=3 --log-error-services=abcd 
 SELECT @@GLOBAL.LOG_ERROR_SERVICES;
@@ -61,7 +61,7 @@ SELECT component_urn FROM mysql.component;
 component_urn
 file://component_log_sink_json
 # restart: --no-console --log-error=LOG_FILE11 --log-error-services=log_filter_internal;log_sink_internal;log_sink_json --log-error-verbosity=3
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 # Component should still be in the system table:
 SELECT component_urn FROM mysql.component;
@@ -114,15 +114,15 @@ SELECT @@dragnet.log_error_filter_rules;
 SET @saved_log_error_verbosity= @@global.log_error_verbosity;
 SET GLOBAL log_error_verbosity= 3;
 SET GLOBAL dragnet.log_error_filter_rules="IF err_code==ER_ACCESS_DENIED_ERROR_WITH_PASSWORD THEN throttle 3/3600.";
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
-connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 SET GLOBAL log_error_verbosity= @saved_log_error_verbosity;
 SET PERSIST dragnet.log_error_filter_rules= "IF prio>INFORMATION THEN drop.";
@@ -149,13 +149,13 @@ SELECT @@global.log_error_suppression_list;
 ER_ACCESS_DENIED_ERROR_WITH_PASSWORD
 SET @saved_log_error_verbosity= @@global.log_error_verbosity;
 SET GLOBAL log_error_verbosity= 3;
-connect(localhost,unknown_user_filtered,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user_filtered,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user_filtered'@'localhost' (using password: NO)
 SET @@global.log_error_suppression_list="";
 SELECT @@global.log_error_suppression_list;
 @@global.log_error_suppression_list
 
-connect(localhost,unknown_user_unfiltered,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,unknown_user_unfiltered,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user_unfiltered'@'localhost' (using password: NO)
 SET GLOBAL log_error_verbosity= @saved_log_error_verbosity;
 SET @@global.log_error_suppression_list=DEFAULT;

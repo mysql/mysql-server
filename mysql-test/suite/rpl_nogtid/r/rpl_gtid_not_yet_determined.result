@@ -125,13 +125,13 @@ aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1
 ROLLBACK;
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 SET GLOBAL GTID_MODE = OFF;
-#### 2. CHANGE MASTER TO MASTER_LOG_POS ####
+#### 2. CHANGE REPLICATION SOURCE TO MASTER_LOG_POS ####
 include/stop_slave_io.inc
 INSERT INTO t1 VALUES (1);
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = 'FILE', SOURCE_LOG_POS = POSITION;
 include/start_slave_io.inc
 include/sync_slave_sql_with_master.inc
-#### 3. CHANGE MASTER TO RELAY_LOG_POS ####
+#### 3. CHANGE REPLICATION SOURCE TO RELAY_LOG_POS ####
 include/stop_slave_sql.inc
 INSERT INTO t1 VALUES (2);
 include/sync_slave_io_with_master.inc

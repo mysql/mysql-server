@@ -32,7 +32,7 @@ connection default;
 disconnect caching_con1;
 
 --echo # connect with wrong password
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(caching_con2,localhost,caching_sha2,caching1,testdb,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 
@@ -54,7 +54,7 @@ ALTER USER caching_sha2@localhost ACCOUNT LOCK;
 --enable_async_client
 
 --echo # account is locked so connect should fail
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 3118
 connect(caching_con3,localhost,caching_sha2,caching,testdb,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 
@@ -131,7 +131,7 @@ disconnect sha256_con2;
 --enable_async_client
 
 --echo # connect with wrong password and SSL disabled
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR, CR_AUTH_PLUGIN_ERR
 connect(sha256_con3,localhost,sha256,auth_string,,,,$COMPRESS_OPTION,sha256_password, $COMPRESS_ALGORITHM);
 

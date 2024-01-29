@@ -32,7 +32,7 @@
 # The follwing scenarios are tested in this test script:
 #
 #  - Test each field in STS on a fresh replication setup.
-#  - Change configuration parameters using CHANGE MASTER TO and verify that
+#  - Change configuration parameters using CHANGE REPLICATION SOURCE TO and verify that
 #    these changes are seen in SELECTs from PS table.
 #  - Verify that, the change in values are correctly shown by the table.
 #  - Verify that the values are preserved after STOP REPLICA, thread_id

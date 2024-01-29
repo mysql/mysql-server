@@ -24,7 +24,7 @@ FLUSH PRIVILEGES;
 SET sql_log_bin=1;
 
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='internal_usr', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='internal_usr', SOURCE_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 SET @old_log_output= @@log_output;
@@ -38,7 +38,7 @@ TRUNCATE mysql.general_log;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
---echo # Since MASTER_PASSWORD is not stored in the performance schema table
+--echo # Since SOURCE_PASSWORD is not stored in the performance schema table
 --echo # (performance_schema.replication_connection_configuration) it won't be visible.
 --error ER_BAD_FIELD_ERROR
 SELECT password FROM performance_schema.replication_connection_configuration;
@@ -55,7 +55,7 @@ SELECT password FROM performance_schema.replication_connection_configuration;
 
 --let $expected_value_user=`SELECT User_name FROM mysql.slave_master_info WHERE Channel_name LIKE 'group_replication_recovery'`
 --let $expected_value_password=`SELECT User_password FROM mysql.slave_master_info WHERE Channel_name LIKE 'group_replication_recovery'`
---let $assert_text= The default values of the User_name and User_password are empty without a previous change master.
+--let $assert_text= The default values of the User_name and User_password are empty without a previous change replication source.
 --let $assert_cond= "$expected_value_user" = "" AND "$expected_value_password"= ""
 --source include/assert.inc
 

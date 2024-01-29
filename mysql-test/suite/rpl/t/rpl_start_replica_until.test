@@ -143,7 +143,7 @@ drop table if exists t1;
 --enable_warnings
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'; 
 
 connection master;

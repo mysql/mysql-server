@@ -5,7 +5,7 @@
 #
 # ==== Requirements ====
 #
-# R1. After `CHANGE MASTER TO ... REQUIRE_ROW_FORMAT=...` with valid value,
+# R1. After `CHANGE REPLICATION SOURCE TO ... REQUIRE_ROW_FORMAT=...` with valid value,
 #     column `require_row_format` from table
 #     `performance_schema.replication_applier_configuration` should have an
 #     updated value equal to the value passed on to the `REQUIRE_ROW_FORMAT`
@@ -17,25 +17,25 @@
 #
 # ==== Implementation ====
 #
-# 1. Set `REQUIRE_ROW_FORMAT` to 2 in the `CHANGE MASTER TO ...` and check that
+# 1. Set `REQUIRE_ROW_FORMAT` to 2 in the `CHANGE REPLICATION SOURCE TO ...` and check that
 #    an error is thrown.
-# 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE MASTER TO ...` and verify that
+# 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE REPLICATION SOURCE TO ...` and verify that
 #    succceeds.
-# 3. Set `REQUIRE_ROW_FORMAT` to 1 in the `CHANGE MASTER TO ...` and verify that
+# 3. Set `REQUIRE_ROW_FORMAT` to 1 in the `CHANGE REPLICATION SOURCE TO ...` and verify that
 #    succceeds.
-# 4. Set `REQUIRE_ROW_FORMAT` to a valid in the the full call to `CHANGE MASTER
+# 4. Set `REQUIRE_ROW_FORMAT` to a valid in the the full call to `CHANGE REPLICATION SOURCE
 #    TO ...` and check that PFS table has the updated value.
-# 5. Use `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` to set the value to
+# 5. Use `CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0` to set the value to
 #    0 and check that the PFS table has the updated value.
-# 6. Use `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1` to set the value to
+# 6. Use `CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1` to set the value to
 #    a valid user and check that the PFS table has the updated value.
 # 7. Execute `RESET REPLICA` and verify that the PFS table has unaltered value for
 #    `REQUIRE_ROW_FORMAT`.
-# 8. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+# 8. Execute `CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0` without stoppping the
 #    slave and expect an error.
-# 9. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+# 9. Execute `CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0` without stoppping the
 #    slave SQL thread and expect an error.
-# 10. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+# 10. Execute `CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0` without stoppping the
 #    slave IO thread and expect an error.
 #
 # ==== References ====
@@ -127,26 +127,26 @@ PROCEDURE
 PROCEDURE
 
 #
-# 1. Set `REQUIRE_ROW_FORMAT` to 2 in the `CHANGE MASTER TO ...` and check that
+# 1. Set `REQUIRE_ROW_FORMAT` to 2 in the `CHANGE REPLICATION SOURCE TO ...` and check that
 #    an error is thrown.
 #
 --error ER_REQUIRE_ROW_FORMAT_INVALID_VALUE
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 2;
 
 #
-# 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE MASTER TO ...` and verify that
+# 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE REPLICATION SOURCE TO ...` and verify that
 #    succceeds.
 #
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 
 #
-# 3. Set `REQUIRE_ROW_FORMAT` to 1 in the `CHANGE MASTER TO ...` and verify that
+# 3. Set `REQUIRE_ROW_FORMAT` to 1 in the `CHANGE REPLICATION SOURCE TO ...` and verify that
 #    succceeds.
 #
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 
 #
-# 4. Set `REQUIRE_ROW_FORMAT` to a valid in the the full call to `CHANGE MASTER
+# 4. Set `REQUIRE_ROW_FORMAT` to a valid in the the full call to `CHANGE REPLICATION SOURCE
 #    TO ...` and check that PFS table has the updated value.
 #
 --let $rpl_topology = 1->2, 1->3, 1->4
@@ -160,7 +160,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 --let $include_silent = 0
 
 #
-# 5. Use `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` to set the value to
+# 5. Use `CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0` to set the value to
 #    0 and check that the PFS table has the updated value.
 #
 --let $expected_event_format = 0
@@ -170,7 +170,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 --let $include_silent = 0
 
 #
-# 6. Use `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1` to set the value to
+# 6. Use `CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1` to set the value to
 #    a valid user and check that the PFS table has the updated value.
 #
 --let $expected_event_format = 1
@@ -189,7 +189,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 --source include/rpl_for_each_connection.inc
 --let $include_silent = 0
 
-# 8. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+# 8. Execute `CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0` without stoppping the
 #    slave and expect an error.
 --let $expected_event_format = 1
 --let $expected_error = ER_REPLICA_CHANNEL_MUST_STOP
@@ -198,7 +198,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 --source include/rpl_for_each_connection.inc
 --let $include_silent = 0
 
-# 9. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+# 9. Execute `CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0` without stoppping the
 #    slave SQL thread and expect an error.
 --let $expected_event_format = 1
 --let $expected_error = ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP
@@ -208,7 +208,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 --source include/rpl_for_each_connection.inc
 --let $include_silent = 0
 
-# 10. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
+# 10. Execute `CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0` without stoppping the
 #    slave IO thread and expect an error.
 --let $expected_event_format = 1
 --let $expected_error = ER_REPLICA_CHANNEL_IO_THREAD_MUST_STOP

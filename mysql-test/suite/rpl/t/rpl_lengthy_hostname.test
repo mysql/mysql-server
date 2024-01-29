@@ -2,7 +2,7 @@
 # WL#12571: Support fully qualified hostnames longer than 60 characters
 #
 # This test case asserts that a lengthy hostname reported to the user
-# through the various interfaces, after being set through CHANGE MASTER,
+# through the various interfaces, after being set through CHANGE REPLICATION SOURCE,
 # is correctly displayed.
 #
 
@@ -20,10 +20,10 @@
 
 --source include/rpl_connection_slave.inc
 #
-# 1. Assertion: CHANGE MASTER TO (CMT) accepts a lengthy hostname
+# 1. Assertion: CHANGE REPLICATION SOURCE TO (CRST) accepts a lengthy hostname
 #
 
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="$lengthy_hostname", SOURCE_PORT=$MASTER_MYPORT
 
 --let $i=3
@@ -58,7 +58,7 @@ while($i>0)
   }
 
   --let $assert_cond= "$hostname_read" = "$lengthy_hostname"
-  --let $assert_text= Hostname in $hostname_source matches the one set through CHANGE MASTER TO
+  --let $assert_text= Hostname in $hostname_source matches the one set through CHANGE REPLICATION SOURCE TO
   --source include/assert.inc
 
   --dec $i

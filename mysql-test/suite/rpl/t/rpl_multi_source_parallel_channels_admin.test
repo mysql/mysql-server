@@ -21,9 +21,9 @@
 # Create two slave channels
 --source include/rpl_connection_slave.inc
 --disable_warnings
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='dummyhost', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch2'
 --enable_warnings
 
@@ -96,7 +96,7 @@ RESET REPLICA ALL;
 RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
 --disable_warnings
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT
 --enable_warnings
 --source include/start_slave.inc

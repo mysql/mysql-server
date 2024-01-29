@@ -4,13 +4,13 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 
-Create a replication user to use in change master tests.
+# Create a replication user to use in CHANGE REPLICATION SOURCE tests.
 
 CREATE USER replssl@localhost REQUIRE SSL;
 GRANT REPLICATION SLAVE ON *.* TO replssl@localhost;
 include/sync_slave_sql_with_master.inc
 
-With both receiver and applier stopped, all CHANGE MASTER options should
+With both receiver and applier stopped, all CHANGE REPLICATION SOURCE options should
 be allowed.
 
 include/stop_slave.inc

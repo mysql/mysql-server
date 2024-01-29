@@ -19,7 +19,7 @@ let $master_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 --source include/stop_slave.inc
 RESET REPLICA;
 # Connect to master with SSL
---replace_result $MASTER_MYPORT MASTER_PORT $MYSQL_TEST_DIR MYSQL_TEST_DIR $master_binlog MASTER_BINLOG
+--replace_result $MASTER_MYPORT SOURCE_PORT $MYSQL_TEST_DIR MYSQL_TEST_DIR $master_binlog MASTER_BINLOG
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO 
     SOURCE_HOST='127.0.0.1',

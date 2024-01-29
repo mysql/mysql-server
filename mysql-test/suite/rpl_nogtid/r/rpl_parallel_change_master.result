@@ -93,10 +93,10 @@ include/stop_slave_io.inc
 [connection master]
 FLUSH LOGS;
 [connection slave]
-CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = 'FILE', SOURCE_LOG_POS = POS ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= SOURCE_PORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = 'FILE', SOURCE_LOG_POS = POS ;
 ERROR HY000: CHANGE REPLICATION SOURCE cannot be executed when the replica was stopped with an error or killed in MTA mode. Consider using RESET REPLICA or START REPLICA UNTIL.
 RESET REPLICA;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = 'FILE', SOURCE_LOG_POS = POS ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= SOURCE_PORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = 'FILE', SOURCE_LOG_POS = POS ;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

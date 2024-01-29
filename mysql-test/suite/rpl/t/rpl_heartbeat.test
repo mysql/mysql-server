@@ -107,7 +107,7 @@ RESET REPLICA;
 drop table if exists t1;
 --enable_warnings
 #
-# Even though master_heartbeat_period= 0.5 is 20 times less than
+# Even though source_heartbeat_period= 0.5 is 20 times less than
 # @@global.replica_net_timeout= 10 in some circumstances master will
 # not be able to send any heartbeat during the slave's net timeout
 # and slave's relay log will rotate.
@@ -182,9 +182,9 @@ set @@global.replica_net_timeout= @restore_replica_net_timeout;
 
 # ==== Bug#18185490: IF MASTER_HEARTBEAT_PERIOD OPTION IS NOT PROVIDED IT IS AUTO SETTING TO DEFAULT ====
 
-# Change master was always resetting the heartbeat_interval to default value
-# and count_received_heartbeats to 0 on change master. After the bug fix,
-# change master should only change heartbeat_interval if the corresponding option
+# Change replication source was always resetting the heartbeat_interval to default value
+# and count_received_heartbeats to 0 on change replication source. After the bug fix,
+# change replication source should only change heartbeat_interval if the corresponding option
 # is given and never change count_received_heartbeats
 
 --let $rpl_connection_name= slave
@@ -223,15 +223,15 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 3;
 # behavior was therefore un-intuitive.
 #
 # In the test we test the behaviour of heartbeat_period with RESET REPLICA,
-# STOP REPLICA, CHANGE MASTER, START REPLICA and RESET REPLICA ALL.
+# STOP REPLICA, CHANGE REPLICATION SOURCE, START REPLICA and RESET REPLICA ALL.
 #
 # 1. RESET REPLICA:
 #    ===========
 #
 #    Execute a RESET REPLICA and verify that the heartbeat_period is what we
-#    set in the latest CHANGE MASTER and not the the default value.
+#    set in the latest CHANGE REPLICATION SOURCE and not the the default value.
 #
-# 2. CHANGE MASTER, START REPLICA:
+# 2. CHANGE REPLICATION SOURCE, START REPLICA:
 #    ==========================
 #
 # a. Changing host resets heartbeat_period to default.
@@ -248,13 +248,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 3;
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
---let $MASTER_AUTO_POSITION=SOURCE_AUTO_POSITION=0
+--let $SOURCE_AUTO_POSITION=SOURCE_AUTO_POSITION=0
 if (`SELECT @@GLOBAL.gtid_mode = 'ON'`)
 {
-  --let $MASTER_AUTO_POSITION=SOURCE_AUTO_POSITION=1
+  --let $SOURCE_AUTO_POSITION=SOURCE_AUTO_POSITION=1
 }
---replace_result $MASTER_AUTO_POSITION SOURCE_AUTO_POSITION
---eval CHANGE REPLICATION SOURCE TO $MASTER_AUTO_POSITION
+--replace_result $SOURCE_AUTO_POSITION SOURCE_AUTO_POSITION
+--eval CHANGE REPLICATION SOURCE TO $SOURCE_AUTO_POSITION
 
 --source include/start_slave.inc
 

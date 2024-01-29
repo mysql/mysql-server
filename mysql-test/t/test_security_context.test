@@ -10,7 +10,7 @@ SET @@test_security_context_get_field = "user", @@test_security_context_get_valu
 SELECT "OK";
 
 SET @@test_security_context_get_field = "user", @@test_security_context_get_value = "root-err";
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT "FAIL";
 

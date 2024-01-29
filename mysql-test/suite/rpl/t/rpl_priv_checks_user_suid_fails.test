@@ -67,7 +67,7 @@ SET sql_log_bin = 1;
 #
 # 4) On the master, create a procedure using 'u2'@'localhost'.
 #
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --connect(sys_user_conn, localhost, u2,, $RPL_PRIV_DB, $MASTER_MYPORT)
 --connection sys_user_conn
 --delimiter @

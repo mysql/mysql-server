@@ -144,13 +144,13 @@ let SEARCH_FILE= $test_error_log;
 connect (con0,localhost,root,,);
 
 --echo #Connecting user with pre 4.1 hash and empty plugin- should fail
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (con1,localhost,user_old_pass_pn,lala,,,,SSL);
 
 --echo #Connecting user with pre 4.1 hash and mysql_old_password plugin set -
 --echo #should fail - the mysql_old_password was removed in 5.7
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_PLUGIN_IS_NOT_LOADED
 connect (con2,localhost,user_old_pass_wp,lala,);
 
@@ -262,7 +262,7 @@ SELECT account_locked FROM mysql.user WHERE user='user_nat_pass_wp';
 
 --echo #Connecting with user using mysql_old_password plugin should not be
 --echo #possible
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_PLUGIN_IS_NOT_LOADED
 connect (con5,localhost,user_old_pass_wp,lala,);
 

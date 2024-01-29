@@ -9,7 +9,7 @@
 #
 # Test:
 # =====
-# Do DMLs on the master and on the slave do a stop replica. Execute change master
+# Do DMLs on the master and on the slave do a stop replica. Execute change replication source
 # to a future binlog file name and position which doesn't exist. Master should
 # not assert.
 ###############################################################################

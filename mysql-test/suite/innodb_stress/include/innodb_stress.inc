@@ -29,7 +29,7 @@ CREATE TABLE errors (msg TEXT);
 --connection master
 --let $pid_file = `SELECT @@pid_file`
 --let $crash_num = 0
---let $master_host = 127.0.0.1
+--let $source_host = 127.0.0.1
 --let $table = test
 --let $user = root
 --let $checksum = 0
@@ -40,7 +40,7 @@ if ($do_checksum)
     # populate the table and store its checksum before any load.
     let $exec =
 $PYTHON $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $pid_file $kill_db_after
-$num_records 0 0 $user $master_host $MASTER_MYPORT
+$num_records 0 0 $user $source_host $MASTER_MYPORT
 $table 0 $max_rows $MYSQL_TMP_DIR/load_generator 0 0 0;
     exec $exec >> $MYSQL_TMP_DIR/load_generator/errors.log;
     let $checksum=query_get_value(CHECKSUM TABLE t1, Checksum, 1);
@@ -69,14 +69,14 @@ while ($num_crashes)
   {
     let $exec =
 $PYTHON $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $pid_file $kill_db_after
-$num_records  $num_workers $num_transactions $user $master_host $MASTER_MYPORT
+$num_records  $num_workers $num_transactions $user $source_host $MASTER_MYPORT
 $table 1 $max_rows $MYSQL_TMP_DIR/load_generator 0 $checksum $secondary_index_checks;
   }
   if (!$use_blob)
   {
     let $exec =
 $PYTHON $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $pid_file $kill_db_after
-$num_records  $num_workers $num_transactions $user $master_host $MASTER_MYPORT
+$num_records  $num_workers $num_transactions $user $source_host $MASTER_MYPORT
 $table 0 $max_rows $MYSQL_TMP_DIR/load_generator 0 $checksum $secondary_index_checks;
   }
 
@@ -106,7 +106,7 @@ $table 0 $max_rows $MYSQL_TMP_DIR/load_generator 0 $checksum $secondary_index_ch
     let $slave_pid_file = `SELECT @@pid_file`;
     let $slave_exec =
 $PYTHON $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $slave_pid_file $kill_db_after
-0  $num_workers $num_transactions $user $master_host $SLAVE_MYPORT
+0  $num_workers $num_transactions $user $source_host $SLAVE_MYPORT
 $table 0 $max_rows $MYSQL_TMP_DIR/load_generator_slave 1 $checksum $secondary_index_checks;
     exec $slave_exec >> $MYSQL_TMP_DIR/load_generator/errors.log;
   }

@@ -240,7 +240,7 @@ if (!$skip_case)
   # BUG#27636289: RPL BREAKS WITH RESTART AFTER RESET SLAVE,
   #               RESET BINARY LOGS AND GTIDS WITH WRONG ERROR IN MTS
   # Due to the above mentioned bug we need to use RESET REPLICA ALL
-  # and CHANGE MASTER instead of just RESET REPLICA, in order to clear
+  # and CHANGE REPLICATION SOURCE instead of just RESET REPLICA, in order to clear
   # RECEIVED_GTID_SET when test runs in MTS mode.
 
   RESET REPLICA ALL;
@@ -248,7 +248,7 @@ if (!$skip_case)
   --source include/rpl_connection_master.inc
   RESET BINARY LOGS AND GTIDS;
   --source include/rpl_connection_slave.inc
-  --replace_result $MASTER_MYPORT MASTER_PORT
+  --replace_result $MASTER_MYPORT SOURCE_PORT
   --disable_warnings
   eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=$MASTER_MYPORT,SOURCE_HOST='127.0.0.1';
   --enable_warnings

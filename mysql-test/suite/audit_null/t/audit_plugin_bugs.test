@@ -69,14 +69,14 @@ SET @@GLOBAL.null_audit_abort_message= "Abort message.";
 
 --echo # Try to enter error state recursively 2 times.
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 2;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(user1_con,localhost,wrong_root,);
 SELECT @@null_audit_event_order_check_consume_ignore_count;
 
 --echo # Try to enter error state infinitely. my_message calls cause stack overrun.
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 10000;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --disable_result_log
 --error ER_ACCESS_DENIED_ERROR
 connect(user1_con,localhost,wrong_root,);

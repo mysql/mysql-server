@@ -58,7 +58,7 @@ while($i>0)
   }
 
   --let $assert_cond= "$hostname_read" = "$lengthy_hostname"
-  --let $assert_text= Hostname in $hostname_source matches the one set through CHANGE MASTER TO
+  --let $assert_text= Hostname in $hostname_source matches the one set through CHANGE REPLICATION SOURCE TO
   --source include/assert.inc
 
   --dec $i

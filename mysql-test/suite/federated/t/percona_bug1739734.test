@@ -10,7 +10,7 @@ connection master;
 CREATE DATABASE lp1739734;
 use lp1739734;
 
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 eval CREATE SERVER local_server
 FOREIGN DATA WRAPPER mysql
 OPTIONS (

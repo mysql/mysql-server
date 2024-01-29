@@ -29,7 +29,7 @@ CREATE TABLE t1(a int);
 # Warning - unsafe statement to binlog
 INSERT INTO t1 SELECT FOUND_ROWS();
 # Note - Access denied
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con1,localhost,unknown_user,,*NO-ONE*);
 
@@ -45,7 +45,7 @@ connect(con1,localhost,unknown_user,,*NO-ONE*);
 # Warning - unsafe statement to binlog
 INSERT INTO t1 SELECT FOUND_ROWS();
 # Note - Access denied
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con2,localhost,unknown_user,,*NO-ONE*);
 
@@ -61,7 +61,7 @@ connect(con2,localhost,unknown_user,,*NO-ONE*);
 # Warning - unsafe statement to binlog
 INSERT INTO t1 SELECT FOUND_ROWS();
 # Note - Access denied
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con3,localhost,unknown_user,,*NO-ONE*);
 
@@ -116,7 +116,7 @@ DROP TABLE t1;
 --let restart_parameters="restart: --log-error=$LOG_FILE8 --lc-messages-dir=$MSG_DIR --log-error-verbosity=3"
 --replace_result $LOG_FILE8 LOG_FILE8 $MSG_DIR MSG_DIR
 --source include/restart_mysqld.inc
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con4,localhost,unknown_user,,*NO-ONE*);
 --rmdir $MSG_DIR
@@ -135,7 +135,7 @@ connect(con4,localhost,unknown_user,,*NO-ONE*);
 --let restart_parameters="restart: --log-error=$LOG_FILE8B --lc-messages=invalid_arg1 --lc-time-names=invalid_arg2"
 --replace_result $LOG_FILE8B LOG_FILE8B $MSG_DIR MSG_DIR
 --source include/restart_mysqld.inc
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con4,localhost,unknown_user,,*NO-ONE*);
 --rmdir $MSG_DIR
@@ -236,7 +236,7 @@ SELECT component_urn FROM mysql.component;
 --let restart_parameters="restart: --no-console --log-error=$LOG_FILE11 --log-error-services=$log_services --log-error-verbosity=3"
 --replace_result $LOG_FILE11 LOG_FILE11
 --source include/restart_mysqld.inc
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con5,localhost,unknown_user,,*NO-ONE*);
 
@@ -329,23 +329,23 @@ SET GLOBAL log_error_verbosity= 3;
 # entries per hour
 SET GLOBAL dragnet.log_error_filter_rules="IF err_code==ER_ACCESS_DENIED_ERROR_WITH_PASSWORD THEN throttle 3/3600.";
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con6,localhost,unknown_user,,*NO-ONE*);
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con6,localhost,unknown_user,,*NO-ONE*);
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con6,localhost,unknown_user,,*NO-ONE*);
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con6,localhost,unknown_user,,*NO-ONE*);
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con6,localhost,unknown_user,,*NO-ONE*);
 
@@ -426,7 +426,7 @@ SET @saved_log_error_verbosity= @@global.log_error_verbosity;
 SET GLOBAL log_error_verbosity= 3;
 
 # Try to log in without proper credentials, cause ACCESS DENIED, filter it
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con6,localhost,unknown_user_filtered,,*NO-ONE*);
 
@@ -434,7 +434,7 @@ connect(con6,localhost,unknown_user_filtered,,*NO-ONE*);
 SET @@global.log_error_suppression_list="";
 SELECT @@global.log_error_suppression_list;
 # Try to log in without proper credentials, cause ACCESS DENIED, log it
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect(con6,localhost,unknown_user_unfiltered,,*NO-ONE*);
 

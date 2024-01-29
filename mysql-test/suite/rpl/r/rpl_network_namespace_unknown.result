@@ -20,7 +20,7 @@ include/suppress_messages.inc
 #    error of the unknown network namespace or unsupported
 #    network namespaces. For both cases it will report the
 #    ER_REPLICA_FATAL_ERROR with a appropriate message.
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=MASTER_PORT, NETWORK_NAMESPACE='unknown' FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=SOURCE_PORT, NETWORK_NAMESPACE='unknown' FOR CHANNEL 'ch1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

@@ -12,8 +12,8 @@ call mtr.add_suppression("Replica channel 'group_replication_recovery' does not 
 set session sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 
-# CHM for 'group_replication_recovery' channel won't accept parameters other than
-# Source_User and MASTER_PASSWORD
+# CRS for 'group_replication_recovery' channel won't accept parameters other than
+# Source_User and SOURCE_PASSWORD
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE REPLICATION SOURCE with the given parameters cannot be performed on channel 'group_replication_recovery'.
 CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES="foo" FOR CHANNEL "group_replication_recovery";

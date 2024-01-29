@@ -12,20 +12,20 @@ CREATE USER 'internal_usr'@'%' IDENTIFIED BY 'unique_password';
 GRANT GROUP_REPLICATION_STREAM ON *.* TO 'internal_usr'@'%';
 FLUSH PRIVILEGES;
 SET sql_log_bin=1;
-CHANGE MASTER TO MASTER_USER='internal_usr', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='internal_usr', SOURCE_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
 SET @old_log_output= @@log_output;
 SET GLOBAL log_output= 'TABLE';
 TRUNCATE mysql.general_log;
 include/start_and_bootstrap_group_replication.inc
 # CHANGE REPLICATION SOURCE with valid options will work fine and the password part will be masked with <secret>
 CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
-# Since MASTER_PASSWORD is not stored in the performance schema table
+# Since SOURCE_PASSWORD is not stored in the performance schema table
 # (performance_schema.replication_connection_configuration) it won't be visible.
 SELECT password FROM performance_schema.replication_connection_configuration;
 ERROR 42S22: Unknown column 'password' in 'field list'
 server1
 include/assert.inc [The CHANGE REPLICATION SOURCE TO is logged with the password value replaced with the keyword <secret>.]
-include/assert.inc [The default values of the User_name and User_password are empty without a previous change master.]
+include/assert.inc [The default values of the User_name and User_password are empty without a previous change replication source.]
 RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
 SET sql_log_bin=0;
 DROP USER manish;
@@ -34,7 +34,7 @@ SET sql_log_bin=1;
 SET @@global.log_output= @old_log_output;
 TRUNCATE TABLE mysql.general_log;
 include/group_replication_end.inc
-# MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
+# SOURCE_PASSWORD value for the CHANGE REPLICATION SOURCE command will not be logged in the error log.
 Occurrences of 'source_password' in the input file: 0
 # The password value 'unique_password' is not logged in the error log.
 Occurrences of 'unique_password' in the input file: 0

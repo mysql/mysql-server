@@ -51,7 +51,7 @@
 #  b) Execute RESET REPLICA ALL command on M2
 #  c) Validate that slave_master_info and slave_relay_log_info tables are
 #  cleared.
-#  d) Execute CHANGE MASTER command to provide recovery channel credentials.
+#  d) Execute CHANGE REPLICATION SOURCE command to provide recovery channel credentials.
 #  f) Start GR on M2. The node should be ONLINE.
 #
 # 6. Phase 6: Cleanup.
@@ -284,7 +284,7 @@ RESET REPLICA;
 
 #
 # Phase 7: After a global reset replica all command, all files should disappear
-# Executed the CHANGE MASTER command to create recovery channel and enable
+# Executed the CHANGE REPLICATION SOURCE command to create recovery channel and enable
 # group replication.
 #
 

@@ -4,7 +4,7 @@
 #
 # The slave receiver thread stops due to the 'ER_NET_READ_INTERRUPTED'
 # or 'ER_NET_WRITE_INTERRUPTED' error is encountered while getting
-# timestamp, server id from master, setting @master_heartbeat_period
+# timestamp, server id from master, setting @source_heartbeat_period
 # and so on.
 #
 # To fix the problem, we fix to handle the 'ER_NET_READ_INTERRUPTED'

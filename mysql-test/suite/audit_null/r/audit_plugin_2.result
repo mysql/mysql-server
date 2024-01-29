@@ -11,12 +11,12 @@ INSTALL PLUGIN null_audit SONAME 'adt_null.<expected_extension>';
 ################
 CREATE USER user1@localhost IDENTIFIED BY 'pass';
 SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;ABORT_RET";
-connect(localhost,user1,pass,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,user1,pass,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE';1).
 SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;;"
                                           "MYSQL_AUDIT_GENERAL_LOG;;;"
                                           "MYSQL_AUDIT_CONNECTION_CONNECT;;ABORT_RET";
-connect(localhost,user1,pass,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,user1,pass,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_CONNECTION_CONNECT';1).
 SET GLOBAL null_audit_event_order_check = NULL;
 SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_DISCONNECT;;ABORT_RET";
@@ -1766,7 +1766,7 @@ CREATE USER user2;
 SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;;'
                                                  'MYSQL_AUDIT_GENERAL_LOG;;;'
                                                  'MYSQL_AUDIT_CONNECTION_CONNECT;;ABORT_RET';
-connect(localhost,user1,,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,user1,,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_CONNECTION_CONNECT';1).
 SET @@GLOBAL.null_audit_event_order_check = NULL,
 @@GLOBAL.null_audit_event_order_check_exact = 1;

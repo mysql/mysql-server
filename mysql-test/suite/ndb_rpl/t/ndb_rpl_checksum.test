@@ -209,7 +209,7 @@ sync_slave_with_master;
 #connection slave;
 select count(*) as 'must be zero' from t3;
 source include/stop_slave.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
 

@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Test that the slave fails to connect to the master with
-# MASTER_AUTO_POSITION=1 if the slave is missing some transactions
+# SOURCE_AUTO_POSITION=1 if the slave is missing some transactions
 # that the master has purged.
 #
 # ==== Implementation ====
@@ -12,12 +12,12 @@
 # 3) On master, generate a transaction, flush the binary log and execute PURGE
 #    BINARY LOGS TO command so that only remaining binlog only contains
 #    transaction UUID:3.
-# 4) Verify that the slave fails if it tries to connect using CHANGE MASTER TO
-#    MASTER_AUTO_POSITION=1.
+# 4) Verify that the slave fails if it tries to connect using CHANGE REPLICATION SOURCE TO
+#    SOURCE_AUTO_POSITION=1.
 # 5) Verify that appropriate messages are logged into master's and slave's
 #    error log.
 # 6) Verify that replication succeeds if it tries to connect using CHANGE
-#    MASTER TO MASTER_LOG_POS.
+#    REPLICATION SOURCE TO MASTER_LOG_POS.
 # 7) Cleanup.
 #
 # ==== References ====
@@ -74,7 +74,7 @@ INSERT INTO t1 VALUES (2);
 
 --echo #
 --echo # 4) Verify that the slave fails if it tries to connect using CHANGE
---echo #    MASTER TO MASTER_AUTO_POSITION=1.
+--echo #    REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1.
 --echo #
 --source include/rpl_connection_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
@@ -115,7 +115,7 @@ SET GLOBAL DEBUG= @saved_debug;
 
 --echo #
 --echo # 6) Verify that replication succeeds if it tries to connect using CHANGE
---echo #    MASTER TO MASTER_LOG_POS.
+--echo #    REPLICATION SOURCE TO MASTER_LOG_POS.
 --echo #
 --replace_result $master_file MASTER_FILE $master_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = '$master_file', SOURCE_LOG_POS = $master_pos, SOURCE_AUTO_POSITION = 0;

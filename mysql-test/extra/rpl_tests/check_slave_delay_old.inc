@@ -3,7 +3,7 @@
 # This test file is invoked from rpl_sql_delay_old.
 #
 # After sleeping for $slave_sleep seconds (less that $delay), we check that the
-# slave is still waiting for MASTER_DELAY.
+# slave is still waiting for SOURCE_DELAY.
 # After synchronizing with the master, we check that the slave is no longer
 # waiting for the delay.
 # Then, we check that the delay was applied.

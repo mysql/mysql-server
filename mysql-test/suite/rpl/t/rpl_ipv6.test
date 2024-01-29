@@ -1,4 +1,4 @@
-# Test of ipv6 format, especially "change master host=..."
+# Test of ipv6 format, especially "change replication source host=..."
 # Options: --skip-name-resolve, --bind-address=:: (see corresponding cnf file)
 # for master and slave.
 #
@@ -44,17 +44,17 @@ save_master_pos;
 --echo connection slave;
 connection slave;
 RESET REPLICA;
-let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
---echo Master-Host: $master_host
+let $source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
+--echo Source-Host: $source_host
 eval change replication source to source_host='$IPv6';
-let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
---echo Master-Host: $master_host
+let $source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
+--echo Source-Host: $source_host
 eval change replication source to source_host='127.0.0.1';
-let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
---echo Master-Host: $master_host
+let $source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
+--echo Source-Host: $source_host
 eval change replication source to source_host='0:0:0:0:0:0:0:1';
-let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
---echo Master-Host: $master_host
+let $source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
+--echo Source-Host: $source_host
 
 # clean up
 --replace_column 2 ####

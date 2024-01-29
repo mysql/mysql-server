@@ -12,7 +12,7 @@
 # A temporary table is created in two of these three channels.
 # Replication is stopped in the channel with no open temp table and no
 # warning is issued. Warnings are issued for the other two channels if
-# replication is stopped or upon a CHANGE MASTER command in case of open
+# replication is stopped or upon a CHANGE REPLICATION SOURCE command in case of open
 # temporary tables in the corresponding channel.
 #
 #
@@ -87,7 +87,7 @@ RESET REPLICA FOR CHANNEL 'channel_1';
 --let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
 
-# CHANGE MASTER TO generates a warning because there are open temp tables in the channel.
+# CHANGE REPLICATION SOURCE TO generates a warning because there are open temp tables in the channel.
 --disable_query_log
 eval CHANGE REPLICATION SOURCE TO SOURCE_PORT = $SERVER_MYPORT_3 FOR CHANNEL 'channel_3';
 --enable_query_log
@@ -112,7 +112,7 @@ DROP TEMPORARY TABLE t3;
 --let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
 
-# CHANGE MASTER TO will not generate a warning because there are no open temp tables in
+# CHANGE REPLICATION SOURCE TO will not generate a warning because there are no open temp tables in
 # the channel.
 CHANGE REPLICATION SOURCE TO SOURCE_PORT = 4711 FOR CHANNEL 'channel_3';
 

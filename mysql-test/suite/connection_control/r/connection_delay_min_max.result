@@ -20,9 +20,9 @@ SET @@global.connection_control_min_connection_delay = 2000;
 # ----------------------------------------------------------------------
 
 # Make enough failed attempts to trigger delays
-connect(localhost,u1,,test,MASTER_PORT,MASTER_SOCKET);
-connect(localhost,u1,haha,test,MASTER_PORT,MASTER_SOCKET);
-connect(localhost,u1,haha,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,u1,,test,SOURCE_PORT,SOURCE_SOCKET);
+connect(localhost,u1,haha,test,SOURCE_PORT,SOURCE_SOCKET);
+connect(localhost,u1,haha,test,SOURCE_PORT,SOURCE_SOCKET);
 
 # Following attempts will experience delay in server respose
 # Connection attempt should fail.

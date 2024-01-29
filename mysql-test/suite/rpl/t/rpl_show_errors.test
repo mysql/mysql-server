@@ -96,7 +96,7 @@ START REPLICA;
 --source include/assert.inc
 
 # action: restore correct settings
--- replace_result $MASTER_MYPORT MASTER_PORT
+-- replace_result $MASTER_MYPORT SOURCE_PORT
 -- eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$MASTER_MYPORT
 -- let $io_errno= query_get_value("SHOW REPLICA STATUS", Last_IO_Errno, 1)
 -- echo Last_IO_Errno: $io_errno

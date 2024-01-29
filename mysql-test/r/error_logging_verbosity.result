@@ -78,10 +78,10 @@ DROP USER mysqltest_nolog;
 SET GLOBAL  init_connect='';
 # Spec 6b "log_error_warnings=3  includes notes"
 SET GLOBAL  log_error_verbosity=2;
-connect(localhost,mysqltest_2_nolog,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,mysqltest_2_nolog,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'mysqltest_2_nolog'@'localhost' (using password: NO)
 SET GLOBAL  log_error_verbosity=3;
-connect(localhost,mysqltest_3_yeslog,,,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,mysqltest_3_yeslog,,,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'mysqltest_3_yeslog'@'localhost' (using password: NO)
 SET GLOBAL  log_error_verbosity=DEFAULT;
 

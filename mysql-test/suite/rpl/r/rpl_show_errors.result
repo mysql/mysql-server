@@ -29,7 +29,7 @@ include/wait_for_slave_param.inc [Last_IO_Errno]
 include/assert.inc [Last_IO_Error_Timestamp is not null and matches the expected format]
 include/stop_slave.inc
 include/assert.inc [Last_IO_Error_Timestamp matches the one reported before stopping slave threads]
-CHANGE REPLICATION SOURCE to SOURCE_PORT=MASTER_PORT;
+CHANGE REPLICATION SOURCE to SOURCE_PORT=SOURCE_PORT;
 Last_IO_Errno: 13117
 include/start_slave.inc
 # assertion: show that no error is reported anymore

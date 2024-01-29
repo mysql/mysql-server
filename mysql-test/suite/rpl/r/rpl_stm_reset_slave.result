@@ -82,7 +82,7 @@ include/stop_slave.inc
 RESET REPLICA all;
 START REPLICA;
 ERROR HY000: The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO
-CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'SOURCE_HOST', SOURCE_USER= 'SOURCE_USER', SOURCE_PORT= SOURCE_PORT;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -92,7 +92,7 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/rpl_reset_slave.inc
 # Configure the slave with an empty user
-CHANGE REPLICATION SOURCE TO SOURCE_USER='', SOURCE_PORT=MASTER_PORT, SOURCE_HOST='localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='', SOURCE_PORT=SOURCE_PORT, SOURCE_HOST='localhost';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -104,7 +104,7 @@ include/wait_for_slave_io_error.inc [errno=13117]
 include/assert.inc [User_name in slave_master_info is empty]
 # Cleanup
 include/rpl_reset_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

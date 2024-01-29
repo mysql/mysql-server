@@ -18,6 +18,6 @@ include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start=F
 include/assert_grep.inc [One error should match 'Error during --relay-log-recovery']
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=0]
 DROP TABLE t1;
-CHANGE REPLICATION SOURCE to SOURCE_PORT=MASTER_PORT;
+CHANGE REPLICATION SOURCE to SOURCE_PORT=SOURCE_PORT;
 include/start_slave.inc
 include/rpl_end.inc

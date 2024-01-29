@@ -7,7 +7,7 @@
 #   1) Start server1 to boot the group. Insert some data for recovery. Create
 #      the recovery user for the donor connection.
 #   2) Start server2 after changing the connection credentials using the
-#      change master for the server. See that the recovery is successful.
+#      change replication source for the server. See that the recovery is successful.
 #   3) On server3 set incorrect password. Keep recovery retry count to low.
 #   4) Set DEBUG point to verify member is in RECOVERY state. Start server3.
 #      Check that members is recovering. Then, recovery failed causing the

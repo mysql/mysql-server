@@ -37,8 +37,8 @@ CALL mtr.add_suppression('Unsafe statement written to the binary log using state
 CALL mtr.add_suppression("Either event.*is from an old source");
 --enable_query_log
 
-# Need to restore this at the end; CHANGE MASTER modifies it (see the
-# manual for CHANGE MASTER).
+# Need to restore this at the end; CHANGE REPLICATION SOURCE modifies it (see the
+# manual for CHANGE REPLICATION SOURCE).
 SET @old_relay_log_purge= @@global.relay_log_purge;
 
 

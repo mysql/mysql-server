@@ -113,23 +113,23 @@ RESET REPLICA;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
---let $_slave_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
---let $_slave_master_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
---let $_slave_master_port= query_get_value(SHOW REPLICA STATUS, Source_Port, 1)
+--let $_slave_source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+--let $_slave_source_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
+--let $_slave_source_port= query_get_value(SHOW REPLICA STATUS, Source_Port, 1)
 
 RESET REPLICA all;
 --error ER_BAD_REPLICA
 START REPLICA;
 
---let $_show_master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
-if ($_show_master_host != No such row)
+--let $_show_source_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1)
+if ($_show_source_host != No such row)
 {
   die;
 }
 
---replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT
+--replace_result $_slave_source_host SOURCE_HOST $_slave_source_user SOURCE_USER $_slave_source_port SOURCE_PORT
 --replace_column 2 ####
---eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_master_host', SOURCE_USER= '$_slave_master_user', SOURCE_PORT= $_slave_master_port
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_source_host', SOURCE_USER= '$_slave_source_user', SOURCE_PORT= $_slave_source_port
 --source include/start_slave.inc
 
 #
@@ -149,7 +149,7 @@ if ($_show_master_host != No such row)
 
 --echo # Configure the slave with an empty user
 
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='localhost'
 
 --echo # Issue a RESET REPLICA instruction and try to start the slave IO thread that will error out
@@ -174,7 +174,7 @@ START REPLICA IO_THREAD;
 --let $rpl_reset_slave_all= 1
 --source include/rpl_reset_slave.inc
 
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --source include/start_slave.inc
 

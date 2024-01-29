@@ -3,9 +3,9 @@
 #
 # Purpose of the test:
 #
-# 1. Start replication with gtid-mode= on and master_auto_position= 1.
+# 1. Start replication with gtid-mode= on and source_auto_position= 1.
 # 2. Execute DML and DDL on master and sync slave with master.
-# 3. Re-start master with gtid-mode= on and master_auto_position= 1.
+# 3. Re-start master with gtid-mode= on and source_auto_position= 1.
 # 4. At slave, select source_pos_wait() with
 #    pos= end log position of previous gtid log event in the latest
 #    binary log at master.

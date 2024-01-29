@@ -192,11 +192,11 @@ SHOW RELAYLOG EVENTS;
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 
 ###############################################################################
-# Step-3.5: CHANGE MASTER TO without 'FOR CHANNEL' clause when we have multiple
+# Step-3.5: CHANGE REPLICATION SOURCE TO without 'FOR CHANNEL' clause when we have multiple
 #           channels, should throw error ER_REPLICA_MULTIPLE_CHANNELS_CMD.
 ###############################################################################
 
---echo ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
+--echo ===== CHANGE REPLICATION SOURCE without 'FOR CHANNEL' clause should throw error.
 --error ER_REPLICA_MULTIPLE_CHANNELS_CMD
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 
@@ -340,10 +340,10 @@ while ($i <= $number_of_channels)
   --source include/stop_slave.inc
 
   #############################################################################
-  # Step 4.6: CHANGE MASTER TO ... FOR CHANNEL 'channel_name'
+  # Step 4.6: CHANGE REPLICATION SOURCE TO ... FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing CHANGE MASTER FOR CHANNEL on channel $channel_name.
+  --echo ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel $channel_name.
   --eval CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL $channel_name
   --let $status_items=Connect_Retry, Source_Retry_Count, Replica_IO_State,Replica_SQL_Running_State, Channel_Name
   --let $rpl_channel_name=$channel_name

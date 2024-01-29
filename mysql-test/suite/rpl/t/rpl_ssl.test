@@ -2,18 +2,18 @@
 let $rpl_privilege_checks_user_grant_option = 1;
 source include/master-slave.inc;
 
-# Default replication setup at master-slave.inc does not set MASTER_SSL
+# Default replication setup at master-slave.inc does not set SOURCE_SSL
 --connection slave
---let $current_master_ssl= query_get_value(SHOW REPLICA STATUS, Source_SSL_Allowed, 1)
+--let $current_source_ssl= query_get_value(SHOW REPLICA STATUS, Source_SSL_Allowed, 1)
 --let $assert_text= Source_SSL_Allowed should be NO by default
---let $assert_cond= "$current_master_ssl" = "NO"
+--let $assert_cond= "$current_source_ssl" = "NO"
 --source include/assert.inc
 
 
 # The slave should be initially connected to the master without SSL/TLS
 --connection master
 --let $connection_type= `SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_COMMAND LIKE "Binlog Dump%"`
---let $assert_text= Without MASTER_SSL, the slave should be connected to the master without SSL/TLS
+--let $assert_text= Without SOURCE_SSL, the slave should be connected to the master without SSL/TLS
 --let $assert_cond= "$connection_type" <> "SSL/TLS" AND "$connection_type" <> ""
 --source include/assert.inc
 

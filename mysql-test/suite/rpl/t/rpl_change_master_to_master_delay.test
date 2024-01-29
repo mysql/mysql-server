@@ -1,10 +1,10 @@
 # ==== Purpose ====
 #
-# This test will issue a CHANGE MASTER TO MASTER_DELAY while both replication
+# This test will issue a CHANGE REPLICATION SOURCE TO SOURCE_DELAY while both replication
 # threads are stopped and there are content received by the I/O thread yet to
 # be applied by the SQL thread.
 #
-# The test case verifies that issuing the CHANGE MASTER will not purge the
+# The test case verifies that issuing the CHANGE REPLICATION SOURCE will not purge the
 # relay log, and the replica will not lose master contents.
 #
 # ==== Related Bugs and Worklogs ====

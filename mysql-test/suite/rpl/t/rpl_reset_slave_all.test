@@ -16,7 +16,7 @@
 
 CREATE TABLE t1 (c1 INT KEY) ENGINE=InnoDB;
 
-# It is used by the CHANGE MASTER below
+# It is used by the CHANGE REPLICATION SOURCE below
 --source include/save_binlog_position.inc
 
 --source include/sync_slave_sql_with_master.inc
@@ -70,7 +70,7 @@ ROLLBACK;
 SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 
---replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS $MASTER_MYPORT MASTER_PORT
+--replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS $MASTER_MYPORT SOURCE_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position,
      SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT;
 --source include/start_slave.inc

@@ -19,10 +19,10 @@ Warnings:
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 include/assert.inc [Both INNODB_TEMP_TABLE_INFO and REPLICA_OPEN_TEMP_TABLES should show a temp table exists.]
 
-# Verify that after CHANGE MASTER the innodb table and slave_open_temp_table
+# Verify that after CHANGE REPLICATION SOURCE the innodb table and slave_open_temp_table
 # both indicate that there is an open temp table at slave.
 
-CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT= SOURCE_PORT;
 Warnings:
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 include/assert.inc [Both INNODB_TEMP_TABLE_INFO and REPLICA_OPEN_TEMP_TABLES should show a temp table exists.]

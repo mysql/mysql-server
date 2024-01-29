@@ -198,7 +198,7 @@ SET GLOBAL group_replication_bootstrap_group= 1;
 SET GLOBAL group_replication_local_address= @local_address;
 SET GLOBAL group_replication_group_seeds= "";
 
-# Need to execute change master again as the clear configuration above resets
+# Need to execute change replication source again as the clear configuration above resets
 # the recovery channel created in the beginning.
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
@@ -270,7 +270,7 @@ SET GLOBAL group_replication_local_address= @local_address;
 --eval SET GLOBAL group_replication_group_seeds= "$invalid_with_valid"
 --enable_query_log
 
-# Need to execute change master again as the clear configuration above resets
+# Need to execute change replication source again as the clear configuration above resets
 # the recovery channel created in the beginning.
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';

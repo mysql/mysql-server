@@ -197,7 +197,7 @@ DROP TABLE t2;
 include/rpl_set_gtid_mode.inc [ON on servers 2]
 include/start_slave.inc
 #
-#  Warning: "Detected misconfiguration: replication channel '%.192s' was configured with AUTO_POSITION = 1, but the server was started with --gtid-mode=off.  Either reconfigure replication using CHANGE MASTER TO MASTER_AUTO_POSITION = 0 FOR CHANNEL '%.192s', or change GTID_MODE to some value other than OFF, before starting the slave receiver thread."
+#  Warning: "Detected misconfiguration: replication channel '%.192s' was configured with AUTO_POSITION = 1, but the server was started with --gtid-mode=off.  Either reconfigure replication using CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL '%.192s', or change GTID_MODE to some value other than OFF, before starting the slave receiver thread."
 #
 include/rpl_set_gtid_mode.inc [ON on servers 1,2]
 [connection slave]

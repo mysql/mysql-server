@@ -18,14 +18,14 @@ SET @@GLOBAL.null_audit_event_order_check= "MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET
 SET @@GLOBAL.null_audit_abort_message= "Abort message.";
 # Try to enter error state recursively 2 times.
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 2;
-connect(localhost,wrong_root,,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,wrong_root,,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'wrong_root'@'localhost' (using password: NO)
 SELECT @@null_audit_event_order_check_consume_ignore_count;
 @@null_audit_event_order_check_consume_ignore_count
 0
 # Try to enter error state infinitely. my_message calls cause stack overrun.
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 10000;
-connect(localhost,wrong_root,,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,wrong_root,,test,SOURCE_PORT,SOURCE_SOCKET);
 SELECT @@null_audit_event_order_check_consume_ignore_count;
 @@null_audit_event_order_check_consume_ignore_count
 0

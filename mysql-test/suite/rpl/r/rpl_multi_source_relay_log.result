@@ -1,7 +1,7 @@
 #########################################################################
 # Verify that the "ch1" and "ch2" channels would copy the global
 # replication filters to its own per-channel replication filters
-# when they are being created and configured by CHANGE MASTER TO
+# when they are being created and configured by CHANGE REPLICATION SOURCE TO
 # ... FOR CHANNEL.
 #
 # Verify RESET REPLICA and RESET REPLICA FOR CHANNEL
@@ -45,7 +45,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 # Verify that the "ch1" and "ch2" channels would copy the global
 # replication filters to its own per-channel replication filters
-# when they are being created and configured by CHANGE MASTER TO
+# when they are being created and configured by CHANGE REPLICATION SOURCE TO
 # ... FOR CHANNEL.
 #
 SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
@@ -217,7 +217,7 @@ Replicate_Rewrite_DB = 'No such row'
 # filter type when it is being configured. Then performance_schema.
 # replication_applier_filters and SHOW REPLICA STATUS show it.
 #
-CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=MASTER_PORT,
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=SOURCE_PORT,
 SOURCE_USER="root" FOR CHANNEL '';
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)
@@ -260,7 +260,7 @@ SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replicati
 FILTER_NAME	FILTER_RULE	CONFIGURED_BY
 REPLICATE_DO_DB	global_db	STARTUP_OPTIONS
 REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS
-CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=MASTER_PORT,
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=SOURCE_PORT,
 SOURCE_USER="root";
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)

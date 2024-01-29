@@ -14,7 +14,7 @@ STOP REPLICA SQL_THREAD FOR CHANNEL '';
 SET @saved_debug= @@GLOBAL.debug;
 #
 # 1. Simulate an error on copying global replication filters
-#    when executing CHANGE MASTER TO.
+#    when executing CHANGE REPLICATION SOURCE TO.
 #
 SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_do_table';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
@@ -52,7 +52,7 @@ ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 RESET REPLICA ALL FOR CHANNEL 'ch1';
 #
 # 2. Simulate an error on creating channel's replication filters
-#    when executing CHANGE MASTER TO.
+#    when executing CHANGE REPLICATION SOURCE TO.
 #
 SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_rewrite_db';
 SET GLOBAL debug='+d,simulate_out_of_memory_on_create_filter';

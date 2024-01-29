@@ -36,13 +36,13 @@ connection default;
 UPDATE mysql.user SET account_locked='y'
   WHERE user='unlocked_user' and host = 'localhost';
 FLUSH PRIVILEGES;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(unlocked_user_con, localhost, unlocked_user, pas)
 
 --echo # new connections are blocked
 connection default;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(unlocked_user_con, localhost, unlocked_user, pas)
 
@@ -63,7 +63,7 @@ SELECT account_locked FROM mysql.user
   WHERE user = 'unlocked_user' and host = 'localhost';
 
 --echo # connection should not work
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 connect(unlocked_user_con, localhost, unlocked_user, pas);
 
@@ -130,7 +130,7 @@ DROP USER ''@localhost;
 --echo # Create anonymous user - LOCK
 connection default;
 CREATE USER ''@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 connect(anonymous_user_con, localhost, '', pass);
 connection default;
@@ -140,7 +140,7 @@ DROP USER ''@localhost;
 connection default;
 CREATE USER ''@localhost IDENTIFIED BY 'pass';
 ALTER USER ''@localhost ACCOUNT LOCK;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 connect(anonymous_user_con, localhost, '', pass);
 connection default;
@@ -159,7 +159,7 @@ DROP USER ''@localhost;
 --echo # Expiring password and disabing anynymous user
 connection default;
 CREATE USER ''@localhost IDENTIFIED BY 'pass';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_PASSWORD_EXPIRE_ANONYMOUS_USER
 ALTER USER ''@localhost PASSWORD EXPIRE ACCOUNT LOCK;
 DROP USER ''@localhost;
@@ -208,7 +208,7 @@ GRANT EXECUTE ON PROCEDURE mysql.p1 TO u2@localhost;
 ALTER USER u1@localhost ACCOUNT LOCK;
 
 --echo # Login for u1@localhost should fail
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 connect(u1_con,localhost,u1,pass);
 
@@ -226,7 +226,7 @@ SHOW STATUS LIKE 'Locked_connects';
 let $1 = 10;
 disable_query_log;
 while ($1) {
-  --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+  --replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
   --error ER_ACCOUNT_HAS_BEEN_LOCKED
   connect(unlocked_user_con, localhost, u3, pass);
   connection default;

@@ -75,15 +75,15 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 # Running mysql_upgrade to update slave_master_info table
 include/rpl_restart_server.inc [server_number=1 parameters: --upgrade=FORCE]
 [connection server_1]
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT FOR CHANNEL '';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT FOR CHANNEL 'channel_1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'channel_2';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT FOR CHANNEL 'channel_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -96,7 +96,7 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
 Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
 RESET REPLICA ALL;
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -126,7 +126,7 @@ Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set
 RESET REPLICA ALL;
 ERROR HY000: Could not initialize connection metadata structure; more error messages can be found in the MySQL error log
 include/assert_grep.inc [Found the expected error line in the error log.]
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT;
 ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
 START REPLICA;
 ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
@@ -139,7 +139,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 include/rpl_restart_server.inc [server_number=1]
 RESET REPLICA ALL;
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_LOG_FILE='FILE', SOURCE_LOG_POS=POS;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_LOG_FILE='FILE', SOURCE_LOG_POS=POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -151,7 +151,7 @@ CALL mtr.add_suppression('Failed to create or recover replication info repositor
 INSERT INTO t1 VALUES (2);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_LOG_FILE='FILE', SOURCE_LOG_POS=POS FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_LOG_FILE='FILE', SOURCE_LOG_POS=POS FOR CHANNEL 'channel_1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -160,7 +160,7 @@ include/start_slave.inc [FOR CHANNEL 'channel_1']
 INSERT INTO t1 VALUES (3);
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 include/stop_slave.inc [FOR CHANNEL 'channel_1']
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_LOG_FILE='FILE', SOURCE_LOG_POS=POS FOR CHANNEL 'channel_2';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_LOG_FILE='FILE', SOURCE_LOG_POS=POS FOR CHANNEL 'channel_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -190,7 +190,7 @@ Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set
 include/rpl_restart_server.inc [server_number=1]
 include/stop_slave.inc
 RESET REPLICA ALL;
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_LOG_FILE='FILE', SOURCE_LOG_POS=POS;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_LOG_FILE='FILE', SOURCE_LOG_POS=POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

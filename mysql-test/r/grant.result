@@ -903,7 +903,7 @@ GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_8'@'%'	def	USAGE	NO
 'mysqltest_8'@'host8'	def	USAGE	NO
 drop user mysqltest_8;
-connect(localhost,mysqltest_8,,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,mysqltest_8,,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'mysqltest_8'@'localhost' (using password: NO)
 show grants for mysqltest_8;
 ERROR 42000: There is no such grant defined for user 'mysqltest_8' on host '%'

@@ -10,5 +10,5 @@ include/assert.inc [The performance_schema.replication_group_members.MEMBER_HOST
 # restart:--report-host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 --report-port=24844 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
-include/assert.inc [Hostname in performance_schema.replication_group_members matches the one set through CHANGE MASTER TO]
+include/assert.inc [Hostname in performance_schema.replication_group_members matches the one set through CHANGE REPLICATION SOURCE TO]
 include/stop_group_replication.inc

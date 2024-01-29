@@ -114,7 +114,7 @@ drop table t1;
 # - The behaviour of ssl_verify_server_cert with RESET REPLICA.
 # - Test that neither of STOP REPLICA or START REPLICA affects the value of
 #   ssl_verify_server_cert.
-# - Test that CHANGE MASTER with no ssl_verify_server_cert option doesnt
+# - Test that CHANGE REPLICATION SOURCE with no ssl_verify_server_cert option doesnt
 #   affect ssl_verify_server_cert value.
 ##############################################################################
 
@@ -137,7 +137,7 @@ RESET REPLICA;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT
 
 --let $assert_cond= "[SHOW REPLICA STATUS, Source_SSL_Verify_Server_Cert, 1]" = "Yes"
---let $assert_text= Source_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.
+--let $assert_text= Source_SSL_Verify_Server_Cert should NOT change on CHANGE REPLICATION SOURCE.
 --source include/assert.inc
 
 --source include/start_slave.inc
@@ -152,7 +152,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 --source include/stop_slave.inc
-# Clean change master options.
+# Clean change replication source options.
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO
  SOURCE_HOST="127.0.0.1",

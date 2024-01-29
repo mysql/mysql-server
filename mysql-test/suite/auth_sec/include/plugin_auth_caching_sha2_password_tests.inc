@@ -20,12 +20,12 @@ SELECT USER(), CURRENT_USER();
 SET PASSWORD = 'dcba';
 
 # Old password based scramble shouldn't work
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 --connect(conn_arthurdent_3, localhost, arthurdent, abcd,,,,SSL)
 
 # Neither should the full authentication - Actual error ER_ACCESS_DENIED_ERROR
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 --connect(conn_arthurdent_3, localhost, arthurdent, abcd,,,,SSL)
 --error 1
@@ -45,7 +45,7 @@ SET PASSWORD = 'dcba';
 --exec $MYSQL -uarthurdent -pdcba -e "ALTER USER arthurdent@localhost IDENTIFIED BY 'acbd';" 2>&1
 
 # Same story : Old scramble - no, old password - no, new scramble - not yet available, new password - yes, then new scramble -yes
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 --connect(conn_arthurdent_4, localhost, arthurdent, dcba,,,,SSL)
 --error ER_ACCESS_DENIED_ERROR
@@ -62,7 +62,7 @@ SET PASSWORD = 'dcba';
 SET PASSWORD FOR arthurdent@localhost = 'dbca';
 
 # Same story : Old scramble - no, old password - no, new scramble - not yet available, new password - yes, then new scramble -yes
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 --connect(conn_arthurdent_4, localhost, arthurdent, acbd,,,,)
 --error ER_ACCESS_DENIED_ERROR
@@ -78,7 +78,7 @@ SET PASSWORD FOR arthurdent@localhost = 'dbca';
 ALTER USER arthurdent@localhost IDENTIFIED BY 'abcd';
 
 # Same story : Old scramble - no, old password - no, new scramble - not yet available, new password - yes, then new scramble -yes
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 --connect(conn_arthurdent_4, localhost, arthurdent, dbca,,,,)
 --error ER_ACCESS_DENIED_ERROR
@@ -94,7 +94,7 @@ ALTER USER arthurdent@localhost IDENTIFIED BY 'abcd';
 --connection default
 FLUSH PRIVILEGES;
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED -uarthurdent -pabcd -e "SELECT USER(), CURRENT_USER()" 2>&1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIREd -uarthurdent -pabcd -e "SELECT USER(), CURRENT_USER()" 2>&1
@@ -108,7 +108,7 @@ SELECT USER(), CURRENT_USER();
 # Expire password - Should force full authentication
 --connection default
 ALTER USER arthurdent@localhost PASSWORD EXPIRE;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uarthurdent -pabcd --connect-expired-password -e "SET PASSWORD='abcd';" 2>&1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uarthurdent -pabcd -e "SELECT USER(), CURRENT_USER()" 2>&1
 
@@ -116,7 +116,7 @@ ALTER USER arthurdent@localhost PASSWORD EXPIRE;
 --connection default
 RENAME USER arthurdent@localhost TO slartibartfast@localhost;
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED -uslartibartfast -pabcd -e "SELECT USER(), CURRENT_USER()" 2>&1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED -uslartibartfast -pabcd --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT USER(), CURRENT_USER()" 2>&1

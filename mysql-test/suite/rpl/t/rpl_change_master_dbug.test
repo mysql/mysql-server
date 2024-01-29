@@ -13,7 +13,7 @@
 #
 
 ## Checks that the slave actually gives up after retrying N times, where
-## N was set with CHANGE MASTER TO master_retry_count=N
+## N was set with CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=N
 
 -- connection slave
 -- source include/stop_slave.inc

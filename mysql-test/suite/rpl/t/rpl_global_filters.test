@@ -20,7 +20,7 @@
 #
 # 1. Verify that the new channel with channel_name '' would copy the
 #    global replication filters to its own per-channel replication
-#    filters on configuration by CHANGE MASTER TO. SHOW REPLICA STATUS
+#    filters on configuration by CHANGE REPLICATION SOURCE TO. SHOW REPLICA STATUS
 #    FOR CHANNEL '' displays correct per-channel replication filters.
 #
 # 2. Verify that performance_schema.replication_applier_filters can
@@ -59,7 +59,7 @@
 # 8. Verify that the "channel_2" channel would copy the global
 #    replication filters to its own per-channel replication
 #    filters with the same values of CONFIGURED_BY when it
-#    is created by CHANGE MASTER TO ... FOR CHANNEL.
+#    is created by CHANGE REPLICATION SOURCE TO ... FOR CHANNEL.
 #    Upon RESET REPLICA ALL FOR CHANNEL 'channel_2', per channel FILTERS
 #    will be removed from the P_S table.
 #
@@ -106,7 +106,7 @@ SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replicati
 --echo #
 --echo # 1. Verify that the new channel with channel_name '' would copy
 --echo # global replication filters to its own per-channel replication
---echo # filters on configuration by CHANGE MASTER TO. SHOW REPLICA STATUS
+--echo # filters on configuration by CHANGE REPLICATION SOURCE TO. SHOW REPLICA STATUS
 --echo # FOR CHANNEL '' displays the following per-channel replication
 --echo # filters:
 --echo # Replicate_Do_DB = 'test,my_db2,my_db3'
@@ -225,7 +225,7 @@ CREATE VIEW test.v2 AS SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM perfo
 --echo # 8. Verify that the "channel_2" channel would copy the global
 --echo # replication filters to its own per-channel replication
 --echo # filters with the same values of CONFIGURED_BY when it
---echo # is created by CHANGE MASTER TO ... FOR CHANNEL.
+--echo # is created by CHANGE REPLICATION SOURCE TO ... FOR CHANNEL.
 --echo # Upon RESET REPLICA ALL FOR CHANNEL 'channel_2', per channel FILTERS
 --echo # will be removed from the P_S table.
 --echo #

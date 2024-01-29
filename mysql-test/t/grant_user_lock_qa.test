@@ -63,7 +63,7 @@ connection default;
 disconnect con1;
 
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, user2,'auth_string')
 connection default;
@@ -73,7 +73,7 @@ ALTER USER user2@localhost ACCOUNT LOCK;
 query_vertical SELECT host,user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='user2';
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, user2,'auth_string')
 connection default;
@@ -140,7 +140,7 @@ CREATE USER u1@localhost ACCOUNT LOCK;
 query_vertical SELECT user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='u1';
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u1)
 connection default;
@@ -150,7 +150,7 @@ ALTER USER u1@localhost;
 query_vertical SELECT user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='u1';
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u1)
 connection default;
@@ -160,7 +160,7 @@ CREATE USER u2@localhost IDENTIFIED BY 'auth_string' ACCOUNT LOCK;
 query_vertical SELECT user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='u2';
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u2,'auth_string')
 connection default;
@@ -173,7 +173,7 @@ CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password'
             AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
             REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u2,'auth_string')
 connection default;
@@ -199,7 +199,7 @@ password_lifetime,account_locked FROM mysql.user WHERE USER='u3';
 SHOW CREATE USER u3@localhost;
 
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u3,,,,,SSL)
 connection default;
@@ -267,7 +267,7 @@ password_lifetime,account_locked FROM mysql.user WHERE USER='user6';
 --echo
 SHOW CREATE USER user6@localhost;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, user6)
 connection default;
@@ -307,12 +307,12 @@ query_vertical SELECT user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user7';
 --echo
 --echo # Testing connection with wrong password and ACCOUNT LOCK state
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCESS_DENIED_ERROR
 --connect(con1, localhost, user7, 'auth_string#%y',,,,SSL)
 connection default;
 --echo # Testing connection with correct password and ACCOUNT LOCK state
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, user7,'auth_string_sha256',,,,SSL)
 connection default;
@@ -352,7 +352,7 @@ password_lifetime,account_locked FROM mysql.user WHERE USER='u5';
 --replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u5@localhost;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u5,,,,,SSL)
 connection default;
@@ -372,7 +372,7 @@ password_lifetime,account_locked FROM mysql.user WHERE USER='u6';
 --replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u6,'auth_string',,,,SSL)
 connection default;
@@ -411,7 +411,7 @@ x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user W
 --echo
 SHOW CREATE USER u7@localhost;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u7,,,,,SSL)
 connection default;
@@ -437,7 +437,7 @@ ALTER USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u8';
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u8,'auth_string',,,,SSL)
 connection default;
@@ -449,7 +449,7 @@ CREATE USER u9@localhost
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u9';
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u9,,,,,SSL)
 connection default;
@@ -491,7 +491,7 @@ x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user W
 --replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u10@localhost;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u10,auth_string#y,,,,SSL)
 connection default;
@@ -504,7 +504,7 @@ password_lifetime,account_locked FROM mysql.user WHERE USER='u11';
 --replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u11@localhost;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u11)
 connection default;
@@ -573,7 +573,7 @@ CREATE USER u13@localhost IDENTIFIED WITH 'sha256_password'
 query_vertical SELECT user,plugin,authentication_string,max_connections,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u13';
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u13,,,,,SSL)
 connection default;
@@ -682,32 +682,32 @@ query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u23';
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u18,,,,,SSL)
 connection default;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u19,'auth_string',,,,SSL)
 connection default;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u20,,,,,SSL)
 connection default;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u21,'auth_string',,,,SSL)
 connection default;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u22,,,,,SSL)
 connection default;
 # Testing connection
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, u23,'auth_&string',,,,SSL)
 connection default;
@@ -840,7 +840,7 @@ GRANT EXECUTE ON FUNCTION test.myfunc TO u2@localhost;
 ALTER USER u1@localhost ACCOUNT LOCK;
 
 --echo # Login for u1@localhost should fail.
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 connect(u1_con,localhost,u1,pass);
 

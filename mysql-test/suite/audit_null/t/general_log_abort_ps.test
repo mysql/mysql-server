@@ -13,7 +13,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 PREPARE stmt FROM 'SELECT 1';
 SELECT @@null_audit_event_order_check;
@@ -29,7 +29,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 PREPARE stmt FROM 'SELECT 1';
 SELECT @@null_audit_event_order_check;
@@ -46,7 +46,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 PREPARE stmt FROM 'SELECT 1';
 SELECT @@null_audit_event_order_check;
@@ -63,7 +63,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 PREPARE stmt FROM 'SELECT 1';
 SELECT @@null_audit_event_order_check;
@@ -81,7 +81,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 EXECUTE stmt;
 SELECT @@null_audit_event_order_check;
@@ -95,7 +95,7 @@ EXECUTE stmt;
 #                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
 #                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="100";;'
 #                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
-#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT Source_Port
+#--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT Source_Port
 #--error ER_AUDIT_API_ABORT
 #EXECUTE stmt;
 #SELECT @@null_audit_event_order_check;
@@ -111,7 +111,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 EXECUTE stmt;
 SELECT @@null_audit_event_order_check;
@@ -126,7 +126,7 @@ EXECUTE stmt;
 #                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
 #                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="100";;'
 #                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
-#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT Source_Port
+#--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT Source_Port
 #--error ER_AUDIT_API_ABORT
 #EXECUTE stmt;
 #SELECT @@null_audit_event_order_check;

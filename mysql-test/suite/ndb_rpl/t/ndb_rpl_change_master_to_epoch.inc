@@ -1,4 +1,4 @@
-# Change master coordinates to those for the given epoch ($the_epoch)
+# Change replication source coordinates to those for the given epoch ($the_epoch)
 #
 # Uses the Position and File of the *next* entry after
 # the entry for the given epoch.

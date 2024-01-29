@@ -1,19 +1,19 @@
 ################################################################################
-# This test verifies that the CHANGE MASTER command will only accept
-# Source_User and MASTER_PASSWORD as valid values for the recovery channel.
-# All other options for the CHANGE MASTER will cause an error.
+# This test verifies that the CHANGE REPLICATION SOURCE command will only accept
+# Source_User and SOURCE_PASSWORD as valid values for the recovery channel.
+# All other options for the CHANGE REPLICATION SOURCE will cause an error.
 #
 # Test:
 # 0. The test requires two servers: M1 and M2.
 # 1. Create a user on M1 to be used by the recovery channel. Bootstrap and start
 #    group on M1.
 # 2. Add some data for recovery.
-# 3. On M2, CHANGE MASTER with options apart from the Source_User and
-#    MASTER_PASSWORD will cause error.
-# 4. MASTER_PASSWORD for the CHANGE MASTER command will not be logged in the
+# 3. On M2, CHANGE REPLICATION SOURCE with options apart from the Source_User and
+#    SOURCE_PASSWORD will cause error.
+# 4. SOURCE_PASSWORD for the CHANGE REPLICATION SOURCE command will not be logged in the
 #    error log.
 # 5. The password value is not logged in the error log.
-# 6. CHANGE MASTER with valid options will work fine.
+# 6. CHANGE REPLICATION SOURCE with valid options will work fine.
 # 7. Ensuring the the two members are online.
 # 8. Clean up.
 ################################################################################
@@ -44,16 +44,16 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---echo # CHANGE MASTER with options apart from the Source_User and
---echo # MASTER_PASSWORD will cause error.
+--echo # CHANGE REPLICATION SOURCE with options apart from the Source_User and
+--echo # SOURCE_PASSWORD will cause error.
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_USER='MANISH', SOURCE_PASSWORD='abc_manish_abc', SOURCE_PORT=13000 FOR CHANNEL 'group_replication_recovery';
 
---let $assert_text=No new user is created after the execution of the change master
+--let $assert_text=No new user is created after the execution of the change replication source
 --let $assert_cond= `SELECT COUNT(*) = 0 FROM mysql.slave_master_info WHERE User_name LIKE 'MANISH'`
 --source include/assert.inc
 
---echo # MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
+--echo # SOURCE_PASSWORD value for the CHANGE REPLICATION SOURCE command will not be logged in the error log.
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_recovery_change_master.err
 --let $grep_pattern= source_password
 --let $grep_output= print_count
@@ -65,12 +65,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='MANISH', SOURCE_PASSWORD='abc_manish_a
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 
---echo # Second CHANGE MASTER with valid options will work fine.
+--echo # Second CHANGE REPLICATION SOURCE with valid options will work fine.
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
---let $assert_text= A new user is created after the execution of the change master
+--let $assert_text= A new user is created after the execution of the change replication source
 --let $assert_cond= `SELECT COUNT(*) = 1 FROM mysql.slave_master_info WHERE User_name LIKE 'manish'`
 --source include/assert.inc
 

@@ -5,7 +5,7 @@
 # 0. The test requires two servers: M1 and M2.
 # 1. Check replication with TLSv1.3 and some default ciphersuite.
 # 2. Check replication with TLSv1.3 and a non-default ciphersuite.
-# 3. RESET REPLICA does not clean MASTER_TLS_CIPHERSUITES.
+# 3. RESET REPLICA does not clean SOURCE_TLS_CIPHERSUITES.
 # 4. Check replication with TLSv1.3 and different ciphersuite on master
 #    and slave will fail.
 # 5. Check replication with TLSv1.3 and empty ciphersuite on slave will
@@ -32,7 +32,7 @@ SET GLOBAL tls_version='TLSv1.3';
 ALTER INSTANCE RELOAD TLS;
 
 --source include/rpl_connection_slave.inc
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='replssl', SOURCE_PASSWORD='password', SOURCE_SSL=1 FOR CHANNEL 'my_channel'
 --let $rpl_channel_name= 'my_channel'
 --source include/start_slave.inc
@@ -61,7 +61,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_GCM_SHA256' FO
 --source include/assert.inc
 
 --echo ########################################################################
---echo # 3. RESET REPLICA does not clean MASTER_TLS_CIPHERSUITES.
+--echo # 3. RESET REPLICA does not clean SOURCE_TLS_CIPHERSUITES.
 --source include/rpl_connection_slave.inc
 --let $rpl_channel_name= 'my_channel'
 --source include/stop_slave.inc

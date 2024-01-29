@@ -1,10 +1,7 @@
 call mtr.add_suppression("using --replicate-same-server-id in conjunction with --log-replica-updates would lead to infinite loops in this server.");
 # restart: --replicate-same-server-id=1 --server_id=1 --relay-log=replicate-relay-bin
 SET GLOBAL RELAY_LOG_PURGE=OFF;
-CHANGE MASTER TO RELAY_LOG_FILE='replicate-relay-bin.000001', RELAY_LOG_POS=1, MASTER_HOST='dummy';
-Warnings:
-Warning	1287	'CHANGE MASTER' is deprecated and will be removed in a future release. Please use CHANGE REPLICATION SOURCE instead
-Warning	1287	'MASTER_HOST' is deprecated and will be removed in a future release. Please use SOURCE_HOST instead
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='replicate-relay-bin.000001', RELAY_LOG_POS=1, SOURCE_HOST='dummy';
 START REPLICA SQL_THREAD;
 SET GLOBAL RELAY_LOG_PURGE=ON;
 STOP REPLICA SQL_THREAD;

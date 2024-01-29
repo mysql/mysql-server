@@ -1,7 +1,7 @@
 --echo #########################################################################
 --echo # Verify that the "ch1" and "ch2" channels would copy the global
 --echo # replication filters to its own per-channel replication filters
---echo # when they are being created and configured by CHANGE MASTER TO
+--echo # when they are being created and configured by CHANGE REPLICATION SOURCE TO
 --echo # ... FOR CHANNEL.
 --echo #
 --echo # Verify RESET REPLICA and RESET REPLICA FOR CHANNEL
@@ -53,7 +53,7 @@
 --echo #
 --echo # Verify that the "ch1" and "ch2" channels would copy the global
 --echo # replication filters to its own per-channel replication filters
---echo # when they are being created and configured by CHANGE MASTER TO
+--echo # when they are being created and configured by CHANGE REPLICATION SOURCE TO
 --echo # ... FOR CHANNEL.
 --echo #
 SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
@@ -176,7 +176,7 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 --echo # replication_applier_filters and SHOW REPLICA STATUS show it.
 --echo #
 --disable_warnings
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=$MASTER_MYPORT,
      SOURCE_USER="root" FOR CHANNEL '';
 --enable_warnings
@@ -223,7 +223,7 @@ SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replicati
 # filters (copies all global replication filters to its own per-channel
 # replication filters).
 --disable_warnings
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=$MASTER_MYPORT,
      SOURCE_USER="root";
 --enable_warnings

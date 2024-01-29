@@ -5,7 +5,7 @@
 # Get hostname, port number
 #==============================================================================
 SELECT @@hostname INTO @MY_HOSTNAME;
-SELECT @@port INTO @MY_MASTER_PORT;
+SELECT @@port INTO @MY_SOURCE_PORT;
 #==============================================================================
 # 1.0 Get the default connection object_instance_begin, thread id and verify
 #     the expected number of client connections.

@@ -84,7 +84,7 @@ ERROR HY000: Multiple channels exist on the replica. Please provide channel name
 ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
-===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
+===== CHANGE REPLICATION SOURCE without 'FOR CHANNEL' clause should throw error.
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
@@ -113,7 +113,7 @@ Channel_Name = ''
 include/stop_slave.inc [FOR CHANNEL '']
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
-===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
+===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel ''.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -152,7 +152,7 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_2'.
 include/stop_slave.inc [FOR CHANNEL 'channel_2']
-===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
+===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_2'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -191,7 +191,7 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_3'.
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
-===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
+===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_3'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -278,7 +278,7 @@ ERROR HY000: Multiple channels exist on the replica. Please provide channel name
 ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
-===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
+===== CHANGE REPLICATION SOURCE without 'FOR CHANNEL' clause should throw error.
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
@@ -311,7 +311,7 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 ===== Executing STOP REPLICA FOR CHANNEL on channel ''.
 include/stop_slave.inc [FOR CHANNEL '']
-===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
+===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel ''.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -346,7 +346,7 @@ Channel_Name = 'channel_2'
 include/stop_slave.inc [FOR CHANNEL 'channel_2']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
-===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
+===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_2'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -385,7 +385,7 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_3'.
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
-===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
+===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_3'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -472,7 +472,7 @@ ERROR HY000: Multiple channels exist on the replica. Please provide channel name
 ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
-===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
+===== CHANGE REPLICATION SOURCE without 'FOR CHANNEL' clause should throw error.
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
@@ -505,7 +505,7 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 ===== Executing STOP REPLICA FOR CHANNEL on channel ''.
 include/stop_slave.inc [FOR CHANNEL '']
-===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
+===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel ''.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -544,7 +544,7 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_2'.
 include/stop_slave.inc [FOR CHANNEL 'channel_2']
-===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
+===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_2'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -579,7 +579,7 @@ Channel_Name = 'channel_3'
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
-===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
+===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_3'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
 Source_Retry_Count = '100'

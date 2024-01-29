@@ -42,12 +42,12 @@ let $my_socket_debug= 0;
 --echo # Get hostname, port number
 --echo #==============================================================================
 SELECT @@hostname INTO @MY_HOSTNAME;
-SELECT @@port INTO @MY_MASTER_PORT;
+SELECT @@port INTO @MY_SOURCE_PORT;
 
 if ($my_socket_debug)
 {
   SELECT @MY_HOSTNAME AS 'Hostname';
-  SELECT @MY_MASTER_PORT AS 'Master Port';
+  SELECT @MY_SOURCE_PORT AS 'Source Port';
   --echo MASTER_MYPORT=$MASTER_MYPORT
 }
 #==============================================================================

@@ -24,7 +24,7 @@ include/assert.inc [Check that performance_schema.replication_applier_configurat
 include/assert.inc [Check that priv_chks_username for channel "" is correct]
 include/assert.inc [Check that priv_chks_hostname for channel "" is correct]
 #
-# TC.P.T1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
+# TC.P.T1: CHANGE REPLICATION SOURCE sets the PRIVILEGE_CHECKS_USER correctly.
 #
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11, PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL "ch1";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost' FOR CHANNEL "ch2" ;

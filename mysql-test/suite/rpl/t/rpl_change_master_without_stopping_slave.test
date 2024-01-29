@@ -5,10 +5,10 @@
 #
 # This test script does the following:
 
-#  - Ensure that the behavior does not change for CHANGE MASTER when both the
+#  - Ensure that the behavior does not change for CHANGE REPLICATION SOURCE when both the
 #    IO and SQL threads are stopped.
 #  - We have two types of options- receiver options and applier options under
-#    CHANGE MASTER
+#    CHANGE REPLICATION SOURCE
 #    And we have a very simple rule:
 #       -  Allow setting receiver options when the receiver is not running,
 #       -  Allow setting applier options when the applier is not running,
@@ -17,7 +17,7 @@
 
 # The follwing scenarios are tested:
 #
-#  - With both receiver and applier stopped, all CHANGE MASTER options should be
+#  - With both receiver and applier stopped, all CHANGE REPLICATION SOURCE options should be
 #    allowed.
 #  - With receiver stopped and applier running, we should be able to change
 #    receiver options.
@@ -39,7 +39,7 @@
 --source include/have_binlog_format_row.inc
 
 --echo
---echo Create a replication user to use in change master tests.
+--echo # Create a replication user to use in CHANGE REPLICATION SOURCE tests.
 --echo
 
 --connection master
@@ -48,7 +48,7 @@ GRANT REPLICATION SLAVE ON *.* TO replssl@localhost;
 --source include/sync_slave_sql_with_master.inc
 
 --echo
---echo With both receiver and applier stopped, all CHANGE MASTER options should
+--echo With both receiver and applier stopped, all CHANGE REPLICATION SOURCE options should
 --echo be allowed.
 --echo
 

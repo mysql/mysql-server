@@ -39,14 +39,14 @@ connection default;
 CREATE USER user1@localhost IDENTIFIED BY 'pass';
 
 SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;ABORT_RET";
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 --connect(user1_con, localhost, user1, pass)
 
 SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;;"
                                           "MYSQL_AUDIT_GENERAL_LOG;;;"
                                           "MYSQL_AUDIT_CONNECTION_CONNECT;;ABORT_RET";
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 --connect(user1_con, localhost, user1, pass)
 
@@ -72,7 +72,7 @@ SET GLOBAL null_audit_event_order_check = NULL;
 --echo # Command start abort
 --replace_result $command_start_id <expected_command_start_id>
 eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT 1;
 SELECT @@null_audit_event_order_check;
@@ -168,7 +168,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT 1;
 SELECT @@null_audit_event_order_check;
@@ -183,7 +183,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                           'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT 1;
 SELECT @@null_audit_event_order_check;
@@ -204,7 +204,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                           'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT @@GLOBAL.null_audit_abort_value;
 SELECT @@null_audit_event_order_check;
@@ -234,7 +234,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_QUERY_START;sql_command_id="15";;'
                                      'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;ABORT_RET',
          @@null_audit_event_order_check_exact = 1;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
 SELECT @@null_audit_event_order_check;
@@ -259,7 +259,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_QUERY_START;sql_command_id="31";;'
                                      'MYSQL_AUDIT_GLOBAL_VARIABLE_SET;name="null_audit_event_order_check" value="NULL";ABORT_RET',
     @@null_audit_event_order_check_exact = 1;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SET @@GLOBAL.null_audit_event_order_check = NULL;
 SELECT @@null_audit_event_order_check;
@@ -275,7 +275,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                           'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
 SELECT @@null_audit_event_order_check;
@@ -297,7 +297,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="5";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table";;'
                                           'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="5";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 INSERT INTO test_table VALUES(1);
 SELECT * FROM test_table;
@@ -314,7 +314,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="5";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 INSERT INTO test_table VALUES(1);
 SELECT @@null_audit_event_order_check;
@@ -339,7 +339,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="5";ABORT_RET',
     @@null_audit_event_order_check_exact = 1;
 --delimiter |;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 INSERT INTO test_table VALUES(3); INSERT INTO test_table VALUES(4); |;
 --delimiter ;
@@ -378,7 +378,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;sql_command_id="5";;'
                                      'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="91";ABORT_RET',
     @@null_audit_event_order_check_exact = 1;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 CALL simple_proc();
 SELECT @@null_audit_event_order_check;
@@ -407,7 +407,7 @@ SELECT @@null_audit_event_order_check;
 SELECT * FROM test_table;
 DELETE FROM test_table;
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 call simple_proc2();
 SELECT * FROM test_table;
@@ -638,7 +638,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="5";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 INSERT INTO test_table VALUES (1),(2);
 SELECT * FROM test_table ORDER BY a;
@@ -706,7 +706,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="6";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 INSERT INTO test_table SELECT a+2 FROM test_table;
 SELECT * FROM test_table ORDER BY a;
@@ -720,7 +720,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="6";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="test_table";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 INSERT INTO test_table SELECT a+2 FROM test_table;
 SELECT * FROM test_table ORDER BY a;
@@ -774,7 +774,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="4";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_UPDATE;db="super_test" table="test_table";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 UPDATE test_table SET a=a+4;
 SELECT * FROM test_table ORDER BY a;
@@ -837,7 +837,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="4";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_UPDATE;db="super_test" table="test_table";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 UPDATE test_table SET a=a+10 WHERE a>10;
 SELECT * FROM test_table ORDER BY a;
@@ -902,7 +902,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="7";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_DELETE;db="super_test" table="test_table";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 DELETE FROM test_table WHERE a>7;
 SELECT * FROM test_table ORDER BY a;
@@ -951,7 +951,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="7";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_DELETE;db="super_test" table="test_table";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 DELETE FROM test_table;
 SELECT * FROM test_table ORDER BY a;
@@ -1023,7 +1023,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="40";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table_3";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 REPLACE INTO test_table_3 VALUES (1, 'New');
 SELECT * FROM test_table_3 ORDER BY id;
@@ -1072,7 +1072,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="41";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table_3";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 REPLACE INTO test_table_3 SELECT id, 'Sel' FROM test_table_3;
 SELECT * FROM test_table_3 ORDER BY id;
@@ -1122,7 +1122,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_GENERAL_LOG;;;'
                                      'MYSQL_AUDIT_QUERY_START;sql_command_id="8";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_DELETE;db="super_test" table="test_table_3";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 TRUNCATE test_table_3;
 SELECT * FROM test_table_3 ORDER BY id;
@@ -1448,7 +1448,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                      'MYSQL_AUDIT_GENERAL_LOG;;;'
                                      'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="merge_table";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT * FROM merge_table;
 SELECT @@null_audit_event_order_check;
@@ -1462,7 +1462,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                      'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="merge_table";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="merge_table_1";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="merge_table_2";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT * FROM merge_table;
 SELECT @@null_audit_event_order_check;
@@ -1575,7 +1575,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_GENERAL_LOG;;;'
                                      'MYSQL_AUDIT_QUERY_START;sql_command_id="30";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="audit_load_data";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 load data infile '../../std_data/loaddata_dq.dat' into table audit_load_data fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
 SELECT * FROM audit_load_data ORDER BY a;
@@ -1610,7 +1610,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_GENERAL_LOG;;;'
                                      'MYSQL_AUDIT_QUERY_START;sql_command_id="30";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="audit_xml_data";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 load xml infile '../../std_data/loadxml.dat' into table audit_xml_data rows identified by '<row>';
 SELECT @@null_audit_event_order_check;
@@ -1723,7 +1723,7 @@ CREATE USER user2;
 eval SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;;'
                                                  'MYSQL_AUDIT_GENERAL_LOG;;;'
                                                  'MYSQL_AUDIT_CONNECTION_CONNECT;;ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 --connect(user1_con, localhost, user1,)
 SET @@GLOBAL.null_audit_event_order_check = NULL,
@@ -1745,7 +1745,7 @@ GRANT ALL ON mysql.* TO user2;
 connection user1_con;
 
 --echo # Change user with 'mysql' as initial database
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 --change_user user2,,mysql
 SELECT USER(), CURRENT_USER();
@@ -1777,7 +1777,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="35";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 USE mysql;
 SELECT @@null_audit_event_order_check;
@@ -1791,7 +1791,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT 1;
 SELECT @@null_audit_event_order_check;
@@ -1809,7 +1809,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT 1;
 SELECT @@null_audit_event_order_check;
@@ -1827,7 +1827,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT 1;
 SELECT @@null_audit_event_order_check;
@@ -1841,7 +1841,7 @@ eval SET @@null_audit_event_order_check_exact = $event_order_exact;
 --replace_result $command_start_id <expected_command_start_id>
 eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT 1;
 SELECT @@null_audit_event_order_check;
@@ -1852,7 +1852,7 @@ eval SET @@null_audit_event_order_check_exact = $event_order_exact;
 eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;ABORT_RET';
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
 --error ER_AUDIT_API_ABORT
 SELECT 1;
 SELECT @@null_audit_event_order_check;
@@ -1864,8 +1864,8 @@ SET @@null_audit_event_order_check_exact = 1;
 --replace_regex /;command_id="[0-9]+"/;command_id="<expected_command_id>"/
 eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id="$command_end_id";;'
                                           'MYSQL_AUDIT_COMMAND_START;command_id="XXX";';
-#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT Source_Port
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT $command_start_id INVALID_ID
+#--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT Source_Port
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT $command_start_id INVALID_ID
 --error ER_AUDIT_API_ABORT
 SELECT 1;
 SELECT @@null_audit_event_order_check;

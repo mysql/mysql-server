@@ -26,7 +26,7 @@ include/save_binlog_position.inc
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = "BINLOG_FILE",
 SOURCE_LOG_POS = BINLOG_POS, SOURCE_USER='root',
-SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT;
+SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

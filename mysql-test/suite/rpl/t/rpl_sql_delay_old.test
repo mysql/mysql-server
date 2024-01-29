@@ -32,17 +32,17 @@ source include/start_slave.inc;
 
 # Verify that the DESIRED_DELAY in replication_applier_configuration table
 # of performance_schema and SQL_Delay field of show replica status has the
-# same value as the delay set through the master_delay of the CHM command.
+# same value as the delay set through the source_delay of the CRS command.
 
 --let $desired_delay= query_get_value(select *from performance_schema.replication_applier_configuration,DESIRED_DELAY,1)
 
---let $assert_text= Assert that the desired delay from performance_schema is same as set in the Change master to command.
+--let $assert_text= Assert that the desired delay from performance_schema is same as set in the Change replication source to command.
 --let $assert_cond= $desired_delay = $delay
 --source include/assert.inc
 
 --let $sql_delay= query_get_value(SHOW REPLICA STATUS,SQL_Delay,1)
 
---let $assert_text= Assert that the sql_delay in show replica status is same as set in the Change master to command.
+--let $assert_text= Assert that the sql_delay in show replica status is same as set in the Change replication source to command.
 --let $assert_cond= $sql_delay = $delay
 --source include/assert.inc
 

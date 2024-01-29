@@ -70,12 +70,12 @@ disconnect admin_tcp_con_u1;
 # Check that the user u2 can't establish connection to admin interface since
 # this user doesn't have the privilege SERVICE_CONNECTION_ADMIN
 connection default;
-connect(127.0.0.1,u2,,test,ADMIN_PORT,MASTER_SOCKET);
+connect(127.0.0.1,u2,,test,ADMIN_PORT,SOURCE_SOCKET);
 connect admin_tcp_con_u2,127.0.0.1,u2,,,$MASTER_ADMINPORT,,TCP;
 ERROR 42000: Access denied; you need (at least one of) the SERVICE_CONNECTION_ADMIN privilege(s) for this operation
 # Check that the user u3 can't establish connection to admin interface since
 # this user doesn't have the privilege SERVICE_CONNECTION_ADMIN
-connect(127.0.0.1,u3,,test,ADMIN_PORT,MASTER_SOCKET);
+connect(127.0.0.1,u3,,test,ADMIN_PORT,SOURCE_SOCKET);
 connect admin_tcp_con_u3,127.0.0.1,u3,,,$MASTER_ADMINPORT,,TCP;
 ERROR 42000: Access denied; you need (at least one of) the SERVICE_CONNECTION_ADMIN privilege(s) for this operation
 connection default;
@@ -94,7 +94,7 @@ Threads_connected	2
 # the default connection and the second one is for the connection
 # ordinary_con_1) an attempt to connect to the server results in
 # error ER_CON_COUNT_ERROR
-connect(localhost,u2,,test,MASTER_PORT,MASTER_SOCKET);
+connect(localhost,u2,,test,SOURCE_PORT,SOURCE_SOCKET);
 connect ordinary_con_2,localhost,u2,,,,,;
 ERROR 08004: Too many connections
 # Check that attempt to establish the third connection to admin interface
@@ -142,7 +142,7 @@ connection default;
 # Stop DB server
 # Starting up server with --admin-address=127.0.0.1 --skip-networking
 # restart: --admin-address=127.0.0.1 --admin-port=ADMIN_PORT --skip-networking
-connect(127.0.0.1,root,,test,ADMIN_PORT,MASTER_SOCKET);
+connect(127.0.0.1,root,,test,ADMIN_PORT,SOURCE_SOCKET);
 connect admin_tcp_con,127.0.0.1,root,,,$MASTER_ADMINPORT,,TCP;
 # Test case 15
 # Check that admin interface is turned off in case a server started
@@ -154,7 +154,7 @@ connection default;
 # Stop DB server
 # Starting up server with --admin-address=127.0.0.1 --skip-grant-tables
 # restart: --admin-address=127.0.0.1 --admin-port=ADMIN_PORT --skip-grant-tables
-connect(127.0.0.1,root,,test,ADMIN_PORT,MASTER_SOCKET);
+connect(127.0.0.1,root,,test,ADMIN_PORT,SOURCE_SOCKET);
 connect admin_tcp_con,127.0.0.1,root,,,$MASTER_ADMINPORT,,TCP;
 connection default;
 # Stop DB server
@@ -170,7 +170,7 @@ SELECT @@admin_address, @@admin_port;
 @@admin_address	@@admin_port
 NULL	ADMIN_PORT
 disconnect ordinary_tcp_con;
-connect(127.0.0.1,root,,test,ADMIN_PORT,MASTER_SOCKET);
+connect(127.0.0.1,root,,test,ADMIN_PORT,SOURCE_SOCKET);
 connect admin_tcp_con,127.0.0.1,root,,,$MASTER_ADMINPORT,,TCP;
 # Test case 17
 # Check that we can connect to the server if admin

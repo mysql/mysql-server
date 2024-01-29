@@ -24,7 +24,7 @@ CALL mtr.add_suppression('The replica coordinator and worker threads are stopped
 
 
 # Create a new channel on slave
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
 
 --echo #

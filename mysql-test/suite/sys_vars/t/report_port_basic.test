@@ -1,20 +1,20 @@
 #
 # only global
 #
---replace_regex s/[0-9]+/DEFAULT_MASTER_PORT/
+--replace_regex s/[0-9]+/DEFAULT_SOURCE_PORT/
 select @@global.report_port;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.report_port;
---replace_column 2 'DEFAULT_MASTER_PORT'
+--replace_column 2 'DEFAULT_SOURCE_PORT'
 show global variables like 'report_port';
---replace_column 2 'DEFAULT_MASTER_PORT'
+--replace_column 2 'DEFAULT_SOURCE_PORT'
 show session variables like 'report_port';
 --disable_warnings
---replace_column 2 'DEFAULT_MASTER_PORT'
+--replace_column 2 'DEFAULT_SOURCE_PORT'
 select * from performance_schema.global_variables where variable_name='report_port';
---replace_column 2 'DEFAULT_MASTER_PORT'
+--replace_column 2 'DEFAULT_SOURCE_PORT'
 select * from performance_schema.session_variables where variable_name='report_port';
---replace_column 2 'DEFAULT_MASTER_PORT'
+--replace_column 2 'DEFAULT_SOURCE_PORT'
 --enable_warnings
 
 #

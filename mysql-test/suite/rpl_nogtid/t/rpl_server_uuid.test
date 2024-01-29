@@ -23,7 +23,7 @@ call mtr.add_suppression("Replica I/O thread .* register on source");
 call mtr.add_suppression("Replica I/O: Source command COM_REGISTER_REPLICA failed: .*");
 CALL mtr.add_suppression(".*source and replica have equal MySQL server UUIDs.*");
 CALL mtr.add_suppression("Source's UUID has changed, although this should not happen unless you have changed it manually");
-CALL mtr.add_suppression("Replica I/O: SET @master_heartbeat_period to source failed with error: Lost connection to MySQL server during query");
+CALL mtr.add_suppression("Replica I/O: SET @source_heartbeat_period to source failed with error: Lost connection to MySQL server during query");
 CALL mtr.add_suppression("Notifying source by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
 CALL mtr.add_suppression("A replica with the same server_uuid/server_id as this replica has connected to the source");
 
@@ -107,7 +107,7 @@ connection master;
 --echo 
 --echo # server_3 is running with --replicate-same-server-id option 
 connection server_3;
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
      SOURCE_PORT= $MASTER_MYPORT,
@@ -129,7 +129,7 @@ connection master;
 
 --echo
 --echo # Case 4:
---echo # When executing 'CHANGE MASTER ...', master's UUID and server_id will be
+--echo # When executing 'CHANGE REPLICATION SOURCE ...', master's UUID and server_id will be
 --echo # cleared if Source_Host or/and Source_Port are changed.
 --echo # Master's UUID and server_id will not be cleared if both Source_Port
 --echo # and Source_Host are not changed.
@@ -155,7 +155,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
 --let $slave_param_value= 0
 --source include/check_slave_param.inc
 
---replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_master_log_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT,
        SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave_io.inc
@@ -178,7 +178,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
 --let $slave_param_value= 0
 --source include/check_slave_param.inc
 
---replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_master_log_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
        SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave_io.inc
@@ -199,7 +199,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
 --let $slave_param_value= 0
 --source include/check_slave_param.inc
 
---replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_master_log_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT,
        SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave_io.inc
@@ -212,11 +212,11 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER
 STOP REPLICA IO_THREAD;
 --source include/wait_for_slave_io_to_stop.inc
 
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT;
 --source include/check_slave_param.inc
 
---replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_master_log_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO 
        SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/check_slave_param.inc
@@ -230,7 +230,7 @@ connection slave;
 RESET REPLICA;
 --source include/check_slave_param.inc
 
---replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT SOURCE_PORT $old_master_log_pos MASTER_POS
 eval CHANGE REPLICATION SOURCE TO 
        SOURCE_LOG_FILE= '$old_master_log_file', SOURCE_LOG_POS= $old_master_log_pos;
 --source include/start_slave.inc
@@ -293,7 +293,7 @@ eval CHANGE REPLICATION SOURCE TO
 
 # Step-4: Check for error messages on slaves
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
-# Assert only the occurrences after the last CHANGE MASTER
+# Assert only the occurrences after the last CHANGE REPLICATION SOURCE
 --let $assert_only_after=CHANGE REPLICATION SOURCE .* executed
 --let $assert_select= Replica .* Got fatal error .* from source .* replica with the same server_uuid/server_id as this replica
 --let $assert_text= Found the expected line in server 2 error log

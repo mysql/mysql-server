@@ -6703,7 +6703,7 @@
 
       @verbatim
   eval USE $DB;
-  eval CHANGE MASTER TO MASTER_PORT=$SLAVE_MYPORT;
+  eval CHANGE REPLICATION SOURCE TO SOURCE_PORT=$SLAVE_MYPORT;
   eval PREPARE STMT1 FROM "$my_stmt";
       @endverbatim
     </li>
@@ -7369,7 +7369,7 @@
 
       @verbatim
   --replace_result 1024 MAX_KEY_LENGTH 3072 MAX_KEY_LENGTH
-  replace_result $MASTER_MYPORT MASTER_PORT;
+  replace_result $MASTER_MYPORT SOURCE_PORT;
       @endverbatim
     </li>
 

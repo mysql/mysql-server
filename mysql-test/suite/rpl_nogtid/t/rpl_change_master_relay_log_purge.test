@@ -30,39 +30,39 @@ let $slave_heartbeat_timeout_before_test= query_get_value(select HEARTBEAT_INTER
 let $delay_before_test= query_get_value(SHOW REPLICA STATUS, SQL_Delay, 1);
 
 --echo
---echo We now stop the IO thread and ensure that the relaylog files
---echo are not deleted on doing a change master with a running SQL thread.
+--echo # We now stop the IO thread and ensure that the relaylog files
+--echo # are not deleted on doing a CHANGE REPLICATION SOURCE with a running SQL thread.
 --echo
 
 # Note down the current relaylog file.
-# CM stands for 'change master'.
-let $relay_log_file_before_CM= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1);
+# CRS stands for 'change replication source'.
+let $relay_log_file_before_CRS= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1);
 
-# Execute change master command with running SQL thread.
+# Execute change replication source command with running SQL thread.
 --source include/stop_slave_io.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= 10;
 
-# Note down the active relaylog after change master
+# Note down the active relaylog after change replication source
 let $relay_log_file_after_CM= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1);
 
---let $assert_text= The relaylog file should not change if change master command was executed while SQL thread was running.
---let $assert_cond= "$relay_log_file_before_CM" = "$relay_log_file_after_CM"
+--let $assert_text= The relaylog file should not change if change replication source command was executed while SQL thread was running.
+--let $assert_cond= "$relay_log_file_before_CRS" = "$relay_log_file_after_CM"
 --source include/assert.inc
 
 --echo
---echo We now stop the SQL thread and ensure that the relaylog files
---echo are not deleted on doing a change master with a running IO thread.
+--echo # We now stop the SQL thread and ensure that the relaylog files
+--echo # are not deleted on doing a CHANGE REPLICATION SOURCE with a running IO thread.
 --echo
 
 --source include/stop_slave_sql.inc
 --source include/start_slave_io.inc
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 20;
 
-# Note down the active relaylog after change master
+# Note down the active relaylog after change replication source
 let $relay_log_file_after_CM= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1);
 
---let $assert_text= The relaylog file should not change if change master command was executed while IO thread was running.
---let $assert_cond= "$relay_log_file_before_CM" = "$relay_log_file_after_CM"
+--let $assert_text= The relaylog file should not change if change replication source command was executed while IO thread was running.
+--let $assert_cond= "$relay_log_file_before_CRS" = "$relay_log_file_after_CM"
 --source include/assert.inc
 
 --echo
@@ -86,8 +86,8 @@ eval CHANGE REPLICATION SOURCE TO RELAY_LOG_POS= $relay_log_pos;
 
 let $relay_log_file_after_CM= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1);
 
---let $assert_text= The relaylog file should not change if change master command contained relay_log_file or relay_log_pos option.
---let $assert_cond= "$relay_log_file_before_CM" = "$relay_log_file_after_CM"
+--let $assert_text= The relaylog file should not change if change replication source command contained relay_log_file or relay_log_pos option.
+--let $assert_cond= "$relay_log_file_before_CRS" = "$relay_log_file_after_CM"
 --source include/assert.inc
 
 --echo
@@ -99,8 +99,8 @@ CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= 20;
 
 let $relay_log_file_after_CM= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1);
 
---let $assert_text= With both the threads stopped and no use of relay_log_file or relay_log_pos options in change master command, the relaylogs should be deleted.
---let $assert_cond= "$relay_log_file_before_CM" != "$relay_log_file_after_CM"
+--let $assert_text= With both the threads stopped and no use of relay_log_file or relay_log_pos options in change replication source command, the relaylogs should be deleted.
+--let $assert_cond= "$relay_log_file_before_CRS" != "$relay_log_file_after_CM"
 --source include/assert.inc
 
 --echo

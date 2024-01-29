@@ -1,1 +1,1 @@
---log-error=$MYSQLTEST_VARDIR/tmp/no_change_master_password_logging_ps_protocol.err
+--log-error=$MYSQLTEST_VARDIR/tmp/no_change_source_password_logging_ps_protocol.err

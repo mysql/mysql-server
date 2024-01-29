@@ -1,20 +1,20 @@
 select @@global.report_port;
 @@global.report_port
-DEFAULT_MASTER_PORT
+DEFAULT_SOURCE_PORT
 select @@session.report_port;
 ERROR HY000: Variable 'report_port' is a GLOBAL variable
 show global variables like 'report_port';
 Variable_name	Value
-report_port	DEFAULT_MASTER_PORT
+report_port	DEFAULT_SOURCE_PORT
 show session variables like 'report_port';
 Variable_name	Value
-report_port	DEFAULT_MASTER_PORT
+report_port	DEFAULT_SOURCE_PORT
 select * from performance_schema.global_variables where variable_name='report_port';
 VARIABLE_NAME	VARIABLE_VALUE
-report_port	DEFAULT_MASTER_PORT
+report_port	DEFAULT_SOURCE_PORT
 select * from performance_schema.session_variables where variable_name='report_port';
 VARIABLE_NAME	VARIABLE_VALUE
-report_port	DEFAULT_MASTER_PORT
+report_port	DEFAULT_SOURCE_PORT
 set global report_port=1;
 ERROR HY000: Variable 'report_port' is a read only variable
 set session report_port=1;

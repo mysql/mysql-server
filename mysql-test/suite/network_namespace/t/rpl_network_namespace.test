@@ -64,7 +64,7 @@ GRANT ALL ON *.* TO root@10.0.1.1;
 INSERT INTO t1 VALUES (1, 'abc');
 
 --echo #Insert via connection to the address 10.0.2.1 from the 'red' network namespace
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --exec $EXE_MYSQL --no-defaults -u root  --port $MASTER_MYPORT --host 10.0.2.1 --network-namespace=red test -e "INSERT INTO t1 VALUES (2, 'cdf');"
 
 SHOW CREATE TABLE t1;
@@ -84,7 +84,7 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 --exec $EXE_MYSQL --no-defaults -u root  --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "SELECT * FROM t1"
 
---echo # Stop replica and run change master to listen to the master on socket
+--echo # Stop replica and run change replication source to listen to the master on socket
 --echo # created in the 'red' namespace
 --source include/stop_slave.inc
 
@@ -101,14 +101,14 @@ INSERT INTO t1 VALUES (3, 'ghi');
 
 --echo [ connection slave ]
 --connection slave
---echo # Change master to listen to the master on IP '10.0.2.1' in the 'red' namespace
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm= CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
+--echo # Change replication source to listen to the master on IP '10.0.2.1' in the 'red' namespace
+--replace_result $MASTER_MYPORT SOURCE_PORT $MASTER_LOG_POS MASTER_LOG_POS
+--let $crs= CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
- --let $chm= $chm, SOURCE_LOG_POS=$MASTER_LOG_POS
+ --let $crs= $crs, SOURCE_LOG_POS=$MASTER_LOG_POS
 }
---exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$chm"
+--exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$crs"
 --source include/start_slave.inc
 
 # Now sync slave with master
@@ -136,14 +136,14 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 
 --echo [ connection slave ]
 --connection slave
---echo # Change master to original connection
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm= CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
+--echo # Change replication source to original connection
+--replace_result $MASTER_MYPORT SOURCE_PORT $MASTER_LOG_POS MASTER_LOG_POS
+--let $crs= CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
- --let $chm= $chm, SOURCE_LOG_POS=$MASTER_LOG_POS
+ --let $crs= $crs, SOURCE_LOG_POS=$MASTER_LOG_POS
 }
---exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$chm"
+--exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$crs"
 
 --source include/start_slave.inc
 

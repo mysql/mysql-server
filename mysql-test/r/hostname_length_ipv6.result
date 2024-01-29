@@ -43,7 +43,7 @@ CREATE USER 'morty'@'2001:db8::6:6';
 # The hostname will be "aaaa..... <upto 256 chars>".
 SET GLOBAL DEBUG = '+d, getnameinfo_fake_max_length_plus_1';
 # Try to connect. Should not be allowed.
-connect(::1,morty,,test,MASTER_PORT,MASTER_SOCKET);
+connect(::1,morty,,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR HY000: Hostname cannot be longer than 255 characters.
 SET GLOBAL DEBUG = '-d, getnameinfo_fake_max_length_plus_1';
 

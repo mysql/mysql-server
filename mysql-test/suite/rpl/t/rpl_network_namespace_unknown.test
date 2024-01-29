@@ -30,7 +30,7 @@ Network Namespaces is not supported on this platform
 --echo #    error of the unknown network namespace or unsupported
 --echo #    network namespaces. For both cases it will report the
 --echo #    ER_REPLICA_FATAL_ERROR with a appropriate message.
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='unknown' FOR CHANNEL 'ch1'
 
 START REPLICA FOR CHANNEL 'ch1';
