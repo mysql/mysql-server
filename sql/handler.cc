@@ -129,7 +129,6 @@
 #include "sql_tmp_table.h"  // free_tmp_table
 #include "template_utils.h"
 #include "uniques.h"  // Unique_on_insert
-#include "varlen_sort.h"
 
 /**
   @def MYSQL_TABLE_IO_WAIT
@@ -6781,9 +6780,18 @@ int DsMrr_impl::dsmrr_fill_buffer() {
   uint elem_size = h->ref_length + (int)is_mrr_assoc * sizeof(void *);
   assert((rowids_buf_cur - rowids_buf) % elem_size == 0);
 
-  varlen_sort(
-      rowids_buf, rowids_buf_cur, elem_size,
-      [this](const uchar *a, const uchar *b) { return h->cmp_ref(a, b) < 0; });
+  // Store the handler in a thread local variable so that it is available in the
+  // stateless comparator passed to qsort.
+  thread_local const handler *current_handler;
+  current_handler = h;
+
+  qsort(rowids_buf, (rowids_buf_cur - rowids_buf) / elem_size, elem_size,
+        [](const void *a, const void *b) {
+          return current_handler->cmp_ref(
+              static_cast<const unsigned char *>(a),
+              static_cast<const unsigned char *>(b));
+        });
+
   rowids_buf_last = rowids_buf_cur;
   rowids_buf_cur = rowids_buf;
   return 0;

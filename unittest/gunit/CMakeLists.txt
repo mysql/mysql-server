@@ -193,7 +193,6 @@ SET(TESTS
   timespec
   unhex
   val_int_compare
-  varlen_sort
   )
 
 SET(ALL_SMALL_TESTS)
