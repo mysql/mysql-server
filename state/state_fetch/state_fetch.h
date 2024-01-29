@@ -2,11 +2,12 @@
 // Created by xuyanshi on 1/27/24.
 //
 
-#ifndef MYSQL_STATE_FETCH_H
-#define MYSQL_STATE_FETCH_H
+#pragma once
 
 #include "state/state_store/redo_log.h"
-
+/**
+ * @StateReplicate: 定义了状态取回
+ */
 class StateFetch {
  public:
   StateFetch() {}
@@ -14,9 +15,9 @@ class StateFetch {
  private:
   bool failStatus = false;
 
+  // redo log buffer 的元信息
   RedoLogItem *redoLogItem = nullptr;
 
+  // redo log buffer 的实际数据
   unsigned char *redo_log_buffer_buf = nullptr;
 };
-
-#endif  // MYSQL_STATE_FETCH_H
