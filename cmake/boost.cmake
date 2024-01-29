@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(BOOST_PACKAGE_NAME "boost_1_77_0")
+SET(BOOST_PACKAGE_NAME "boost_1_84_0")
 
 # Always use the bundled version.
 SET(BOOST_SOURCE_DIR ${CMAKE_SOURCE_DIR}/extra/boost)

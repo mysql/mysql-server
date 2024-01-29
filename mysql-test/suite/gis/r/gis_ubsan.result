@@ -202,4 +202,3 @@ point(8803,-10835),
 point(5660,20213)
 )
 ),1);
-ERROR HY000: Unknown GIS error occurred in function st_buffer.

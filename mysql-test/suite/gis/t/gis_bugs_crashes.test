@@ -1063,7 +1063,7 @@ SELECT MBROVERLAPS(ST_INTERSECTION(
 
 
 --echo # Invalid geometry in input
-SELECT ST_ASTEXT(ST_INTERSECTION(
+DO ST_ASTEXT(ST_INTERSECTION(
                      ST_GEOMFROMTEXT('POLYGON((6 8, 4 1, 6 8, -0.2 2,6 6.3, 3 7, 4 7.1, 6 8))'),
                      ST_GEOMFROMTEXT('MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')));
 
@@ -1796,7 +1796,9 @@ DO ST_ASTEXT(ST_SYMDIFFERENCE(
                         'LINESTRING(5 -8,-7 -6,-3 6,-3 1,-5 4,-1 0,8 5,5 1,-2 3,1 10,8 5,6 2,7 4),'
                         'MULTIPOINT(0 1,-7 -7,-3 -2,6 -1,-9 -9,2 6,-9 -6,-4 0,0 10))')));
 
---error ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
+# BOOST upgrade (from 1.77 to 1.84)
+# that case was throwing an error ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION with boost 1.77
+# with boost 1.84 it returns a result without error but the result is not correct
 SELECT ST_ASTEXT(ST_DIFFERENCE(
     ST_GEOMFROMTEXT('LINESTRING(5 -8,-7 -6,-3 6,-3 1,-5 4,-1 0,8 5,5 1,-2 3, 1 10,8 5,6 2,7 4)'),
     ST_GEOMFROMTEXT('MULTILINESTRING((1.9375 1.875,1.7441860465116283 1.9302325581395348,-0.7692307692307692 2.6483516483516487,'

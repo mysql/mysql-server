@@ -68,8 +68,9 @@ Buffer::Buffer(const dd::Spatial_reference_system *srs,
       s_straight(),
       j_round(),
       e_round(),
-      geo_point_circle(32, bg::srs::spheroid<double>(srs->semi_major_axis(),
-                                                     srs->semi_minor_axis())) {}
+      geo_point_circle(bg::srs::spheroid<double>(srs->semi_major_axis(),
+                                                 srs->semi_minor_axis()),
+                       32) {}
 
 std::unique_ptr<Geometry> Buffer::operator()(const Geometry &g) const {
   return apply(*this, g);

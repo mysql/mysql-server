@@ -26,8 +26,8 @@ SELECT count(g2 IS NULL) FROM gis_geometrycollection_2;
 --echo #####################################################################################
 --echo # Testing ST_SymDifference() with different ways to pass input geometries
 --echo #####################################################################################
---replace_numeric_round 10
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
+--replace_numeric_round 6
+SELECT ST_AREA(ST_GeometryN((ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems))),1));
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))')));
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))')));
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;

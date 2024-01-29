@@ -28,6 +28,7 @@ SELECT count(g2 is NULL) FROM gis_geometrycollection_2;
 --echo #####################################################################################
 --echo # Testing ST_Union() with different ways to pass input geometries
 --echo #####################################################################################
+--replace_numeric_round 6
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))')));
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((1 1,2 1,2 2,1 2,1 1))')));

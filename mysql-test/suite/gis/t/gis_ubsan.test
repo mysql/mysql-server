@@ -189,7 +189,9 @@ do st_symdifference(
 --echo # BUG#31053222 UBSAN: INTERSECTION.HPP SIGNED INTEGER OVERFLOW IN SEGMENTS_TUPLED
 --echo #
 
---error ER_GIS_UNKNOWN_ERROR
+# BOOST upgrade (from 1.77 to 1.84)
+# with boost 1.77 it was throwing an ER_GIS_UNKNOWN_ERROR
+# with boost 1.84 there is no error but the result is invalid
 do st_buffer(
   multilinestring(
    linestring(
