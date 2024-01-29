@@ -121,6 +121,8 @@ public class QueryLimitsTest extends AbstractQueryTest {
         equalQuery("int_not_null_none", "none", 8);
         setLimits(1, 0);
         equalQuery("int_not_null_none", "none", 8);
+        setLimits(0, 1);
+        deleteEqualQuery("int_not_null_none", "none", 8, 1);
         failOnError();        
     }
 
@@ -151,18 +153,7 @@ public class QueryLimitsTest extends AbstractQueryTest {
             session.currentTransaction().rollback();
         }
         try {
-            // bad limit; cannot use limits for delete operations
-            setLimits(0, 1);
-            deleteEqualQuery("int_not_null_none", "none", 8, 1);
-            error("Bad limit for delete should fail.");
-        } catch (ClusterJUserException ex) {
-            // good catch
-        }
-        if (session.currentTransaction().isActive()) {
-            session.currentTransaction().rollback();
-        }
-        try {
-            // bad limit; cannot use limits for delete operations
+            // bad limit; cannot use skip for delete operations
             setLimits(1, 1);
             deleteEqualQuery("int_not_null_none", "none", 8, 1);
             error("Bad limit for delete should fail.");

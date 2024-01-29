@@ -616,7 +616,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         int count = 0;
         try {
             op = clusterTransaction.getTableScanOperationLockModeExclusiveScanFlagKeyInfo(storeTable);
-            count = deletePersistentAll(op, true);
+            count = deletePersistentAll(op, true, Long.MAX_VALUE);
         } catch (ClusterJException ex) {
             failAutoTransaction();
             // TODO add table name to the error message
@@ -630,9 +630,11 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     /** Delete all instances retrieved by the operation. The operation must have exclusive
      * access to the instances and have the ScanFlag.KEY_INFO flag set.
      * @param op the scan operation
+     * @param abort abort this transaction on error
+     * @param limit maximum number of instances to be deleted
      * @return the number of instances deleted
      */
-    public int deletePersistentAll(ScanOperation op, boolean abort) {
+    public int deletePersistentAll(ScanOperation op, boolean abort, long limit) {
         int cacheCount = 0;
         int count = 0;
         boolean done = false;
@@ -645,9 +647,11 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             int result = op.nextResult(fetch);
             switch (result) {
                 case RESULT_READY:
-                    op.deleteCurrentTuple();
-                    ++count;
-                    ++cacheCount;
+                    if(count < limit) {
+                      op.deleteCurrentTuple();
+                      ++count;
+                      ++cacheCount;
+                    }
                     fetch = false;
                     break;
                 case SCAN_FINISHED:
@@ -661,8 +665,9 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     clusterTransaction.executeNoCommit(abort, true);
                     cacheCount = 0;
                     fetch = true;
+                    done = (count == limit);
                     break;
-                default: 
+                default:
                     throw new ClusterJException(
                             local.message("ERR_Next_Result_Illegal", result));
             }

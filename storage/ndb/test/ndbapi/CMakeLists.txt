@@ -117,3 +117,14 @@ TARGET_LINK_LIBRARIES(testBackup ndbbank ndbNDBT ndbclient_so)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank ndbNDBT ndbclient_so)
 
 NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST NDBCLIENT)
+
+IF(WITH_NDB_JAVA)
+  NDB_ADD_EXECUTABLE(testClusterJ testClusterJ.cpp NDBCLIENT)
+  TARGET_COMPILE_DEFINITIONS(testClusterJ PRIVATE
+                             CMAKE_BINARY_DIR=\"${CMAKE_BINARY_DIR}\"
+                             CMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\"
+                             INSTALL_LIBDIR=\"${INSTALL_LIBDIR}\"
+                             INSTALL_MYSQLSHAREDIR=\"${INSTALL_MYSQLSHAREDIR}\"
+                             WITH_CLASSPATH=\"${WITH_CLASSPATH}\"
+                            )
+ENDIF(WITH_NDB_JAVA)

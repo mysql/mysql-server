@@ -51,17 +51,14 @@ public class TestRunner {
         ResultPrinter resultPrinter = new ResultPrinter(System.out);
         result.addListener(resultPrinter);
         test.run(result);
-        if (result.wasSuccessful()) {
-            // nothing to see here; move along
-            System.out.println("All tests suceeded.");
-            System.exit(0);
-        } else {
-            // Print report saying which tests failed
+        if (result.wasSuccessful() && result.successes.size() > 0) {
+            System.out.println("All tests succeeded.");
+        } else if(result.failures.size() > 0) {
             System.out.println(resultPrinter.toString());
             System.out.println("\nSome tests failed.");
-            System.exit(1);
+        } else {
+            System.out.println("No tests run.");
         }
-        test.run(result);
         return result;
     }
 }
