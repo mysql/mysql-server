@@ -88,6 +88,7 @@ struct ndb_mgm_handle {
   int last_error_line;
   char last_error_desc[NDB_MGM_MAX_ERR_DESC_SIZE];
   unsigned int timeout;
+  unsigned int connect_timeout;
 
   LocalConfig cfg;
   NdbSocket socket;
@@ -221,6 +222,7 @@ extern "C" NdbMgmHandle ndb_mgm_create_handle() {
   h->last_error = 0;
   h->last_error_line = 0;
   h->timeout = 60000;
+  h->connect_timeout = 3000;
   h->cfg_i = -1;
   h->errstream = stdout;
   h->m_name = nullptr;
@@ -624,7 +626,11 @@ extern "C" int ndb_mgm_is_connected(NdbMgmHandle handle) {
 
 extern "C" int ndb_mgm_set_connect_timeout(NdbMgmHandle handle,
                                            unsigned int seconds) {
-  return ndb_mgm_set_timeout(handle, seconds * 1000);
+  if (!handle) {
+    return -1;
+  }
+  handle->connect_timeout = seconds * 1000;
+  return 0;
 }
 
 extern "C" int ndb_mgm_set_timeout(NdbMgmHandle handle,
@@ -793,7 +799,7 @@ extern "C" int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       }
       addr.set_port(cfg.ids[i].port);
       SocketClient s;
-      s.set_connect_timeout(handle->timeout);
+      s.set_connect_timeout(handle->connect_timeout);
       if (!s.init(addr.get_address_family())) {
         if (verbose > 0)
           fprintf(handle->errstream,
@@ -2190,7 +2196,7 @@ NdbSocket ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   }
   addr.set_port(port);
   SocketClient s;
-  s.set_connect_timeout(handle->timeout);
+  s.set_connect_timeout(handle->connect_timeout);
   if (!s.init(addr.get_address_family())) {
     fprintf(handle->errstream, "Unable to create socket");
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
