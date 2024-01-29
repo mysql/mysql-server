@@ -276,8 +276,9 @@ TEST_F(AppTest, CmdLineExtraConfigNoDefaultFail) {
     // in success
     bool parse_ok = mysqlrouter::substitute_envvar(path);
     if (parse_ok) {
-      std::string real_path =
-          mysqlrouter::substitute_variable(path, "{origin}", g_program_name);
+      std::string real_path = mysqlrouter::substitute_variable(
+          path, "{origin}",
+          mysql_harness::Path(g_program_name).dirname().str());
       ASSERT_FALSE(mysql_harness::Path(real_path).exists())
           << "expected that '" << real_path << "' (part of CONFIG_FILES='"
           << CONFIG_FILES << "') does not exist";
