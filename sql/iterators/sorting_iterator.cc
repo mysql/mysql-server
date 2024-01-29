@@ -60,7 +60,6 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "thr_lock.h"
-#include "varlen_sort.h"
 
 using std::string;
 using std::vector;
