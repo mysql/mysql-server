@@ -373,8 +373,9 @@ bool Item_singlerow_subselect::fix_fields(THD *thd, Item **ref) {
       push_warning(thd, Sql_condition::SL_NOTE, ER_SELECT_REDUCED, warn_buff);
     }
     // Allow field to be used for name lookup in this query block
-    single_field->item_name = item_name;
-
+    if (item_name.is_set()) {
+      single_field->item_name = item_name;
+    }
     if (single_field->type() == SUBSELECT_ITEM) {
       Item_subselect *subs = down_cast<Item_subselect *>(single_field);
       subs->query_expr()->set_explain_marker_from(thd, query_expr());
