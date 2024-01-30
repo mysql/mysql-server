@@ -131,7 +131,7 @@ static bool ga_exclude_missing_columns = false;
 static bool ga_exclude_missing_tables = false;
 static bool opt_exclude_intermediate_sql_tables = true;
 static bool ga_with_apply_status = false;
-bool opt_include_stored_grants = false;
+static bool opt_include_stored_grants = false;
 #ifdef ERROR_INSERT
 static unsigned int _error_insert = 0;
 #endif
@@ -948,6 +948,10 @@ bool create_consumers(RestoreThreadData *data) {
     if (data->m_part_id == 1) restore->m_delete_epoch_tuple = true;
   }
 
+  if (opt_include_stored_grants) {
+    restore->m_with_sql_metadata = true;
+  }
+
   {
     BackupConsumer *c = printer;
     data->m_consumers.push_back(c);
@@ -981,10 +985,6 @@ static inline bool isBlobTable(const TableS *table) {
 static inline bool isIndex(const TableS *table) {
   const NdbTableImpl &tmptab = NdbTableImpl::getImpl(*table->m_dictTable);
   return (int)tmptab.m_indexType != (int)NdbDictionary::Index::Undefined;
-}
-
-static inline bool isSYSTAB_0(const TableS *table) {
-  return table->isSYSTAB_0();
 }
 
 const char *getTableName(const TableS *table) {
@@ -1752,6 +1752,18 @@ static bool check_slice_skip_fragment(const TableS *table, Uint32 fragmentId) {
   return table->getSliceSkipFlag(fragmentId);
 }
 
+static bool is_included_sys_table(const TableS *table) {
+  if (table->isSYSTAB_0()) return true;
+  if (ga_with_apply_status &&
+      strcmp(table->getTableName(), NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0)
+    return true;
+  if (opt_include_stored_grants &&
+      strcmp(table->getTableName(), "mysql/def/ndb_sql_metadata") == 0)
+    return true;
+
+  return false;
+}
+
 int do_restore(RestoreThreadData *thrdata) {
   init_progress();
 
@@ -1983,9 +1995,7 @@ int do_restore(RestoreThreadData *thrdata) {
     const TableS *table = metaData[i];
     table_output.push_back(NULL);
     if (!checkDbAndTableName(table)) continue;
-    if (isSYSTAB_0(table) || (strcmp(table->getTableName(),
-                                     NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 &&
-                              ga_with_apply_status)) {
+    if (is_included_sys_table(table)) {
       table_output[i] = ndbout.m_out;
     }
     if (checkSysTable(table)) {

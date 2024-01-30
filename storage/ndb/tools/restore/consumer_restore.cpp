@@ -928,26 +928,27 @@ const NdbDictionary::Table *BackupRestore::get_table(const TableS &tableS) {
   if (m_cache.m_old_table == tab) return m_cache.m_new_table;
   m_cache.m_old_table = tab;
 
+  /* Handle system tables and blob tables;
+     these have not been pre-loaded into m_new_tables.
+  */
   int cnt, id1, id2;
   char db[256], schema[256];
   if (strcmp(tab->getName(), "SYSTAB_0") == 0 ||
       strcmp(tab->getName(), "sys/def/SYSTAB_0") == 0) {
-    /*
-      Restore SYSTAB_0 to itself
-    */
-    m_cache.m_new_table = tab;
+    m_cache.m_new_table = tab;  // Restore SYSTAB_0 to itself
   } else if (m_with_apply_status &&
              (strcmp(tab->getName(), NDB_APPLY_TABLE) == 0 ||
               strcmp(tab->getName(), NDB_REP_DB "/def/" NDB_APPLY_TABLE) ==
                   0)) {
-    /*
-      Special case needed as ndb_apply_status is a 'system table',
-      and so not pre-loaded into the m_new_tables array.
-    */
     NdbDictionary::Dictionary *dict = m_ndb->getDictionary();
     m_ndb->setDatabaseName(NDB_REP_DB);
     m_ndb->setSchemaName("def");
     m_cache.m_new_table = dict->getTable(NDB_APPLY_TABLE);
+  } else if (m_with_sql_metadata &&
+             (strcmp(tab->getName(), "mysql/def/ndb_sql_metadata") == 0)) {
+    m_ndb->setDatabaseName("mysql");
+    m_ndb->setSchemaName("def");
+    m_cache.m_new_table = m_ndb->getDictionary()->getTable("ndb_sql_metadata");
   } else if ((cnt = sscanf(tab->getName(), "%[^/]/%[^/]/NDB$BLOB_%d_%d", db,
                            schema, &id1, &id2)) == 4) {
     m_ndb->setDatabaseName(db);
