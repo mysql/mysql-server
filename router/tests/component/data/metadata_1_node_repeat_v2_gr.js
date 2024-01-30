@@ -23,6 +23,10 @@ if (mysqld.global.gr_id === undefined) {
   mysqld.global.gr_id = "uuid";
 }
 
+if (mysqld.global.transaction_count === undefined) {
+  mysqld.global.transaction_count = 0;
+}
+
 var options = {
   gr_id: mysqld.global.gr_id,
   group_replication_members: group_replication_members_online,

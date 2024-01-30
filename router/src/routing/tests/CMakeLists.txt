@@ -58,6 +58,7 @@ FOREACH(test_file ${test_files})
       routing_export_all
       test-helpers
     INCLUDE_DIRS
+      ${CMAKE_CURRENT_SOURCE_DIR}/../include
       ${CMAKE_CURRENT_SOURCE_DIR}/../src
       ${CMAKE_CURRENT_SOURCE_DIR}/../../harness/tests  # mock_io_service.h
   )

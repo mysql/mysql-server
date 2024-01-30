@@ -50,8 +50,8 @@
 #include "mysql/harness/tls_context.h"
 #include "mysql/harness/tls_error.h"
 #include "mysql/harness/tls_server_context.h"
+#include "mysqlrouter/base_protocol.h"
 #include "openssl_version.h"
-#include "protocol/base_protocol.h"
 #include "ssl_mode.h"
 #include "test/helpers.h"  // init_test_logger
 

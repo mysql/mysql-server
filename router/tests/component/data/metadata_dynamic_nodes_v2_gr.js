@@ -254,7 +254,8 @@ var router_update_last_check_in_v2 =
     } else if (stmt === router_update_last_check_in_v2.stmt) {
       mysqld.global.update_last_check_in_count++;
       return router_update_last_check_in_v2;
-    } else if (stmt.match(router_update_attributes.stmt_regex)) {
+    } else if (res = stmt.match(router_update_attributes.stmt_regex)) {
+      mysqld.global.upd_attr_config_json = res[7];
       mysqld.global.update_attributes_count++;
       return router_update_attributes;
     } else {

@@ -37,9 +37,11 @@
 #include <errmsg.h>
 #include <mysql.h>
 
+#include "configuration_update_schema.h"
 #include "dim.h"
 #include "group_replication_metadata.h"
 #include "log_suppressor.h"
+#include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/utility/string.h"  // string_format
@@ -267,20 +269,24 @@ bool ClusterMetadata::update_router_attributes(
   sqlstring query =
       "UPDATE mysql_innodb_cluster_metadata.v2_routers "
       "SET version = ?, last_check_in = NOW(), attributes = "
-      "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
+      "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
       "IF(attributes IS NULL, '{}', attributes), "
       "'$.RWEndpoint', ?), "
       "'$.ROEndpoint', ?), "
       "'$.RWSplitEndpoint', ?), "
       "'$.RWXEndpoint', ?), "
       "'$.ROXEndpoint', ?), "
-      "'$.MetadataUser', ?) "
+      "'$.MetadataUser', ?), "
+      "'$.Configuration', CAST(? as JSON)) "
       "WHERE router_id = ?";
 
   const auto &ra{router_attributes};
   query << MYSQL_ROUTER_VERSION << ra.rw_classic_port << ra.ro_classic_port
         << ra.rw_split_classic_port << ra.rw_x_port << ra.ro_x_port
-        << ra.metadata_user_name << router_id << sqlstring::end;
+        << ra.metadata_user_name
+        << mysql_harness::DynamicConfig::instance().get_json_as_string(
+               mysql_harness::DynamicConfig::ValueType::ConfiguredValue)
+        << router_id << sqlstring::end;
 
   connection->execute(query);
 

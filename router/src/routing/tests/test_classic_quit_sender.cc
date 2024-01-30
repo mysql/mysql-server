@@ -31,7 +31,7 @@
 
 #include "classic_connection_base.h"
 #include "mysql/harness/net_ts/buffer.h"
-#include "protocol/base_protocol.h"
+#include "mysqlrouter/base_protocol.h"
 #include "stdx_expected_no_error.h"
 
 using namespace std::chrono_literals;

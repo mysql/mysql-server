@@ -26,8 +26,8 @@
 #ifndef MYSQLROUTER_ROUTING_INCLUDED
 #define MYSQLROUTER_ROUTING_INCLUDED
 
+#include "mysqlrouter/base_protocol.h"
 #include "mysqlrouter/mysql_session.h"
-#include "mysqlrouter/routing_export.h"
 
 #include <chrono>
 #include <map>
@@ -67,9 +67,14 @@ constexpr const std::chrono::seconds kDefaultDestinationConnectionTimeout{
 constexpr const unsigned long long kDefaultMaxConnectErrors{100};
 
 /**
- * Default bind address.
+ * Default bind address used when no bind address is configured.
  */
 constexpr const std::string_view kDefaultBindAddress{"127.0.0.1"};
+
+/**
+ * Default bind address written to the config file during bootstrap.
+ */
+constexpr const std::string_view kDefaultBindAddressBootstrap{"0.0.0.0"};
 
 /** Default net buffer length.
  *
@@ -130,6 +135,82 @@ constexpr const bool kDefaultWaitForMyWrites{true};
  */
 constexpr const std::chrono::seconds kDefaultWaitForMyWritesTimeout{2};
 
+/**
+ * Default client SSL mode used when none is configured.
+ */
+constexpr const std::string_view kDefaultClientSslMode{""};
+
+/**
+ * Default client SSL mode written to the configuration file on bootstrap.
+ */
+constexpr const std::string_view kDefaultClientSslModeBootstrap{"PREFERRED"};
+
+/**
+ * Default server SSL mode used when none is configured.
+ */
+constexpr const std::string_view kDefaultServerSslMode{"AS_CLIENT"};
+
+/**
+ * Default client SSL mode written to the configuration file on bootstrap.
+ */
+constexpr const std::string_view kDefaultServerSslModeBootstrap{"PREFERRED"};
+
+/**
+ * Default server SSL verify.
+ */
+constexpr const std::string_view kDefaultServerSslVerify{"DISABLED"};
+
+/**
+ * Default connection sharing status.
+ */
+constexpr const bool kDefaultConnectionSharing{false};
+
+/**
+ * Default maximum total connections handled by all the routing endpoints.
+ */
+constexpr const uint64_t kDefaultMaxTotalConnections{512};
+
+/**
+ * Default for the configuration option determining if the Router enforces the
+ * router_require attribute of the user.
+ */
+constexpr const bool kDefaultRequireEnforce{true};
+
+enum class RoutingBootstrapSectionType {
+  kClassicRw,
+  kClassicRo,
+  kXRw,
+  kXRo,
+  kRwSplit
+};
+
+constexpr uint16_t kDefaultPortClassicRw{6446};
+constexpr uint16_t kDefaultPortClassicRo{6447};
+constexpr uint16_t kDefaultPortXRw{6448};
+constexpr uint16_t kDefaultPortXRo{6449};
+constexpr uint16_t kDefaultPortRwSplit{6450};
+
+constexpr const std::string_view kDefaultClassicRwSectionName{"bootstrap_rw"};
+constexpr const std::string_view kDefaultClassicRoSectionName{"bootstrap_ro"};
+constexpr const std::string_view kDefaultXRwSectionName{"bootstrap_x_rw"};
+constexpr const std::string_view kDefaultXRoSectionName{"bootstrap_x_ro"};
+constexpr const std::string_view kDefaultRwSplitSectionName{
+    "bootstrap_rw_split"};
+
+/** @brief Modes supported by Routing plugin */
+enum class RoutingMode {
+  kUndefined = 0,
+  kReadWrite = 1,
+  kReadOnly = 2,
+};
+
+// the declaration of RoutingMode and then renaming to Mode works around a bug
+// in doxygen which otherwise reports:
+//
+// storage/innobase/include/buf0dblwr.h:365: warning:
+// documented symbol 'bool dblwr::Mode::is_atomic' was not declared or defined.
+using Mode = RoutingMode;
+
 enum class AccessMode {
   kUndefined = 0,
   kAuto = 1,
@@ -147,7 +228,7 @@ enum class RoutingStrategy {
 /**
  * Get comma separated list of all access mode names.
  */
-std::string ROUTING_EXPORT get_access_mode_names();
+std::string get_access_mode_names();
 
 /**
  * Returns AccessMode for its literal representation.
@@ -158,7 +239,7 @@ std::string ROUTING_EXPORT get_access_mode_names();
  * @param value literal representation of the access mode
  * @return AccessMode for the given string or AccessMode::kUndefined
  */
-AccessMode ROUTING_EXPORT get_access_mode(const std::string &value);
+AccessMode get_access_mode(const std::string &value);
 
 /**
  * Returns literal name of given access mode.
@@ -169,8 +250,7 @@ AccessMode ROUTING_EXPORT get_access_mode(const std::string &value);
  * @param access_mode  access_mode to look up
  * @return Name of access mode as std::string or empty string
  */
-std::string ROUTING_EXPORT
-get_access_mode_name(AccessMode access_mode) noexcept;
+std::string get_access_mode_name(AccessMode access_mode) noexcept;
 
 /** @brief Get comma separated list of all routing stategy names
  *         for a given routing type (metadata cache or static)
@@ -180,7 +260,7 @@ get_access_mode_name(AccessMode access_mode) noexcept;
  *                       strategies supported for metadata_cache
  *                        or static routing
  */
-std::string ROUTING_EXPORT get_routing_strategy_names(bool metadata_cache);
+std::string get_routing_strategy_names(bool metadata_cache);
 
 /** @brief Returns RoutingStrategy for its literal representation
  *
@@ -190,7 +270,7 @@ std::string ROUTING_EXPORT get_routing_strategy_names(bool metadata_cache);
  * @param value literal representation of the access mode
  * @return RoutingStrategy for the given string or RoutingStrategy::kUndefined
  */
-RoutingStrategy ROUTING_EXPORT get_routing_strategy(const std::string &value);
+RoutingStrategy get_routing_strategy(const std::string &value);
 
 /** @brief Returns literal name of given routing strategy
  *
@@ -200,8 +280,27 @@ RoutingStrategy ROUTING_EXPORT get_routing_strategy(const std::string &value);
  * @param routing_strategy Routing strategy to look up
  * @return Name of routing strategy as std::string or empty string
  */
-std::string ROUTING_EXPORT
-get_routing_strategy_name(RoutingStrategy routing_strategy) noexcept;
+std::string get_routing_strategy_name(
+    RoutingStrategy routing_strategy) noexcept;
+
+RoutingBootstrapSectionType get_section_type_from_routing_name(
+    const std::string &name);
+
+BaseProtocol::Type get_default_protocol(
+    RoutingBootstrapSectionType section_type);
+
+uint16_t get_default_port(RoutingBootstrapSectionType section_type);
+
+RoutingStrategy get_default_routing_strategy(
+    RoutingBootstrapSectionType section_type);
+
+std::string get_destinations_role(RoutingBootstrapSectionType section_type);
+
+std::string get_default_routing_name(RoutingBootstrapSectionType section_type);
+
+AccessMode get_default_access_mode(RoutingBootstrapSectionType section_type);
+
+bool get_default_connection_sharing(RoutingBootstrapSectionType section_type);
 
 }  // namespace routing
 

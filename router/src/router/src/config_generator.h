@@ -111,6 +111,8 @@ class ConfigGenerator {
     keyring_info_ = keyring_info;
   }
 
+  void set_plugin_folder(const std::string &val) { plugin_folder_ = val; }
+
   struct Options {
     struct Endpoint {
       int port;
@@ -261,8 +263,8 @@ class ConfigGenerator {
 
   // returns bootstrap report (several lines of human-readable text) if desired
   std::string bootstrap_deployment(
-      const std::string &program_name, std::ostream &config_file,
-      std::ostream &state_file, const mysql_harness::Path &config_file_path,
+      const std::string &program_name, std::ofstream &config_file,
+      std::ofstream &state_file, const mysql_harness::Path &config_file_path,
       const mysql_harness::Path &state_file_path, const std::string &name,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
@@ -283,7 +285,7 @@ class ConfigGenerator {
       const Options &options,
       const std::map<std::string, std::string> &default_paths,
       const std::map<std::string, std::string> &config_overwrites,
-      const std::string &state_file_name = "");
+      const std::string &state_file_name, const bool full);
 
   void print_bootstrap_start_msg(uint32_t router_id, bool directory_deployment,
                                  const mysql_harness::Path &config_file_path);
@@ -538,6 +540,8 @@ class ConfigGenerator {
 #endif
 
   mysqlrouter::MetadataSchemaVersion schema_version_;
+
+  std::string plugin_folder_;
 };
 }  // namespace mysqlrouter
 #endif  // ROUTER_CONFIG_GENERATOR_INCLUDED

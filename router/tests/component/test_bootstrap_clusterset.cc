@@ -60,6 +60,8 @@ class RouterClusterSetBootstrapTest : public RouterComponentClusterSetTest {
       const bool disable_rest = true, const bool add_report_host = true) {
     if (disable_rest) params.push_back("--disable-rest");
     if (add_report_host) params.push_back("--report-host=dont.query.dns");
+    params.push_back("--conf-set-option=DEFAULT.plugin_folder=" +
+                     ProcessManager::get_plugin_dir().str());
 
     return ProcessManager::launch_router(
         params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
@@ -1077,6 +1079,94 @@ TEST_F(RouterClusterSetBootstrapTest, BootstrapWithReadReaplicas) {
   check_state_file(state_file_path, ClusterType::GR_CS,
                    cs_options.topology.uuid,
                    cs_options.topology.get_md_servers_classic_ports(), view_id);
+}
+
+/**
+ * @test
+ *       Checks that the Router correctly exposes its configuration details when
+ * bootstrapped against the ClusterSet.
+ */
+TEST_F(RouterClusterSetBootstrapTest, ConfigExposedInMetadata) {
+  ClusterSetOptions cs_options;
+  cs_options.tracefile = "bootstrap_clusterset.js";
+  cs_options.simulate_config_defaults_stored_is_null = true;
+  create_clusterset(cs_options);
+
+  std::vector<std::string> bootsrtap_params{
+      "--bootstrap=127.0.0.1:" +
+          std::to_string(cs_options.topology.clusters[0].nodes[0].classic_port),
+      "-d",
+      bootstrap_directory.name(),
+      "--conf-target-cluster=primary",
+  };
+
+  const auto http_port = cs_options.topology.clusters[0].nodes[0].http_port;
+
+  auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_SUCCESS);
+
+  check_exit_code(router, EXIT_SUCCESS);
+
+  RecordProperty("Worklog", "15649");
+  RecordProperty("RequirementId", "FR1,FR1.1,FR2,FR3,FR3.1");
+  RecordProperty("Description",
+                 "Testing if the Router correctly exposes it's full static "
+                 "configuration on bootstrap in the metadata when the target "
+                 "is Clusterset.");
+
+  // first validate the configuration json against general "public" schema for
+  // the structure corectness
+  const std::string public_config_schema =
+      get_file_output(Path(ROUTER_SRC_DIR)
+                          .join("src")
+                          .join("harness")
+                          .join("src")
+                          .join("configuration_schema.json")
+                          .str());
+
+  validate_config_stored_in_md(http_port, public_config_schema);
+
+  // then validate against strict schema that also checks the values specific to
+  // this bootstrap
+  const std::string strict_config_schema = get_file_output(
+      get_data_dir()
+          .join("default_bootstrap_configuration_schema_strict.json")
+          .str());
+
+  validate_config_stored_in_md(http_port, strict_config_schema);
+
+  RecordProperty("Worklog", "15649");
+  RecordProperty("RequirementId", "FR1,FR1.1,FR2,FR3,FR3.1");
+  RecordProperty(
+      "Description",
+      "Testing if on bootstrap the Router correctly exposes "
+      "ConfigurationChangesSchema and Defaults JSONs in "
+      "mysql_innodb_cluster_metadata.cluster.router_options.->>"
+      "Configuration.<router_version> when the target is ClusterSet.");
+
+  // Check if proper UpdateSchema was written on BS
+  const std::string public_config_update_schema_in_md =
+      get_config_update_schema_stored_in_md(http_port);
+
+  const std::string public_config_update_schema = get_json_in_pretty_format(
+      get_file_output(Path(ROUTER_SRC_DIR)
+                          .join("src")
+                          .join("harness")
+                          .join("src")
+                          .join("configuration_update_schema.json")
+                          .str()));
+
+  EXPECT_STREQ(public_config_update_schema.c_str(),
+               public_config_update_schema_in_md.c_str());
+
+  // Check if proper Configuration Defaults were written on bootstrap
+  const std::string public_configuration_defaults_in_md =
+      get_config_defaults_stored_in_md(http_port);
+
+  const std::string public_configuration_defaults = get_file_output(
+      get_data_dir().join("configuration_defaults_clusterset.json").str());
+
+  EXPECT_STREQ(public_configuration_defaults.c_str(),
+               public_configuration_defaults_in_md.c_str());
 }
 
 int main(int argc, char *argv[]) {

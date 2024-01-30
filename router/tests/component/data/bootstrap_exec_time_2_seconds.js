@@ -4,6 +4,7 @@ var options = {
   cluster_type: "gr",
   gr_id: mysqld.global.gr_id,
   innodb_cluster_name: "mycluster",
+  router_version: mysqld.global.router_version,
 };
 
 var common_responses = common_stmts.prepare_statement_responses(
@@ -40,6 +41,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_grant_on_v2_routers",
       "router_update_routers_in_metadata",
       "router_update_router_options_in_metadata",
+      "router_select_config_defaults_stored_gr_cluster",
     ],
     options);
 

@@ -25,7 +25,7 @@ INCLUDE(GenerateExportHeader)
 INCLUDE(Plugin)
 
 
-# Generate dynamic_state_schema.cc
+# Generate dynamic_state_schema.cc and configuration_update_schema.cc
 # With *one* common custom command, generating dynamic_state_schema.[cc|h]
 # we had spurious build failures on Windows:
 # CustomBuild: Failed to open output file 'dynamic_state_schema.cc':
@@ -34,11 +34,11 @@ INCLUDE(Plugin)
 # at least twice, once for the static library, once for the dynamic one.
 # If both generation jobs run simultaneously, one of them may fail.
 # The solution is to have separate commands, for the STATIC and SHARED targets.
-FUNCTION(ADD_DYNAMIC_STATE_SCHEMA_COMMAND SHARED_OR_STATIC)
+FUNCTION(ADD_SCHEMA_COMMAND SHARED_OR_STATIC SCHEMA_NAME CLASS_NAME)
   SET(SUBDIR src_${SHARED_OR_STATIC})
   SET(GENERATED_SOURCES_${SHARED_OR_STATIC}
-    ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}/dynamic_state_schema.cc
-    ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}/dynamic_state_schema.h
+    ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}/${SCHEMA_NAME}.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}/${SCHEMA_NAME}.h
     )
   SET(GENERATED_SOURCES_${SHARED_OR_STATIC}
     ${GENERATED_SOURCES_${SHARED_OR_STATIC}} PARENT_SCOPE)
@@ -49,25 +49,30 @@ FUNCTION(ADD_DYNAMIC_STATE_SCHEMA_COMMAND SHARED_OR_STATIC)
   ADD_CUSTOM_COMMAND(
     OUTPUT ${GENERATED_SOURCES_${SHARED_OR_STATIC}}
     COMMAND json_schema_embedder
-    ${CMAKE_CURRENT_SOURCE_DIR}/dynamic_state_schema.js
-    dynamic_state_schema.cc
-    dynamic_state_schema.h
-    "StateFileJsonSchema"
+    ${CMAKE_CURRENT_SOURCE_DIR}/${SCHEMA_NAME}.json
+    ${SCHEMA_NAME}.cc
+    ${SCHEMA_NAME}.h
+    ${CLASS_NAME}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}
     COMMENT "Generating sources for ${SHARED_OR_STATIC} harness library"
-    DEPENDS dynamic_state_schema.js
+    DEPENDS ${SCHEMA_NAME}.json
     )
 
-  ADD_CUSTOM_TARGET(json_schema_target_${SHARED_OR_STATIC}
+  ADD_CUSTOM_TARGET(json_schema_target_${SCHEMA_NAME}_${SHARED_OR_STATIC}
     DEPENDS ${GENERATED_SOURCES_${SHARED_OR_STATIC}}
     )
   ADD_DEPENDENCIES(clang_tidy_prerequisites
-    json_schema_target_${SHARED_OR_STATIC}
+    json_schema_target_${SCHEMA_NAME}_${SHARED_OR_STATIC}
     )
-ENDFUNCTION(ADD_DYNAMIC_STATE_SCHEMA_COMMAND)
+ENDFUNCTION(ADD_SCHEMA_COMMAND)
 
-ADD_DYNAMIC_STATE_SCHEMA_COMMAND(SHARED)
-ADD_DYNAMIC_STATE_SCHEMA_COMMAND(STATIC)
+ADD_SCHEMA_COMMAND(SHARED dynamic_state_schema StateFileJsonSchema)
+ADD_SCHEMA_COMMAND(STATIC dynamic_state_schema StateFileJsonSchema)
+
+ADD_SCHEMA_COMMAND(SHARED configuration_update_schema
+                   ConfigurationUpdateJsonSchema)
+ADD_SCHEMA_COMMAND(STATIC configuration_update_schema
+                   ConfigurationUpdateJsonSchema)
 
 SET(harness_source
   access_rights.cc
@@ -113,6 +118,7 @@ SET(harness_source
   keyring/master_key_file.cc
   process_state_component.cc
   log_reopen_component.cc
+  dynamic_config.cc
   )
 
 IF(WIN32)
@@ -164,7 +170,8 @@ CONFIGURE_FILE(plugin.h.in ${MySQLRouter_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plug
 # create harness library - static version
 ADD_LIBRARY(harness-archive STATIC
   ${harness_source} ${GENERATED_SOURCES_STATIC})
-ADD_DEPENDENCIES(harness-archive json_schema_target_STATIC)
+ADD_DEPENDENCIES(harness-archive json_schema_target_dynamic_state_schema_STATIC)
+ADD_DEPENDENCIES(harness-archive json_schema_target_configuration_update_schema_STATIC)
 ADD_DEPENDENCIES(mysqlrouter_all harness-archive)
 
 TARGET_LINK_LIBRARIES(harness-archive {common_libraries} extra::rapidjson)
@@ -178,7 +185,9 @@ ENDIF()
 # create harness library - dynamic version
 ADD_LIBRARY(harness-library SHARED
   ${harness_source} ${GENERATED_SOURCES_SHARED})
-ADD_DEPENDENCIES(harness-library json_schema_target_SHARED)
+ADD_DEPENDENCIES(harness-library json_schema_target_dynamic_state_schema_SHARED)
+ADD_DEPENDENCIES(harness-library 
+  json_schema_target_configuration_update_schema_SHARED)
 ADD_DEPENDENCIES(mysqlrouter_all harness-library)
 
 # mysys is need for my_print_stacktrace

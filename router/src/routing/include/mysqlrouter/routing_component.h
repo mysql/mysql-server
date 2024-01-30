@@ -127,8 +127,6 @@ class ROUTING_EXPORT MySQLRoutingComponent {
 
   std::vector<std::string> route_names() const;
 
-  static const uint64_t kDefaultMaxTotalConnections = 512;
-
  private:
   // disable copy, as we are a single-instance
   MySQLRoutingComponent(MySQLRoutingComponent const &) = delete;

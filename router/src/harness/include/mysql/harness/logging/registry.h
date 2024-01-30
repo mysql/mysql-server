@@ -217,6 +217,14 @@ HARNESS_EXPORT
 LogLevel log_level_from_string(std::string name);
 
 /**
+ * Converts LogLevel type to its string name
+ *
+ * @param log_level value to convert
+ */
+HARNESS_EXPORT
+std::string log_level_to_string(LogLevel log_level);
+
+/**
  * Get default log level
  *
  * Fetches default log level set in the configuration file
@@ -277,6 +285,9 @@ void set_log_level_for_all_handlers(const Registry &registry, LogLevel level);
  */
 HARNESS_EXPORT
 LogTimestampPrecision log_timestamp_precision_from_string(std::string name);
+
+HARNESS_EXPORT
+std::string log_timestamp_precision_to_string(LogTimestampPrecision tsp);
 
 /**
  * Get default timestamp precision

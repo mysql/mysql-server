@@ -1744,6 +1744,8 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_fail({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--conf-set-option=DEFAULT.plugin_folder=" +
+          ProcessManager::get_plugin_dir().str(),
       "--name",
       name,
       "-d",
@@ -1774,10 +1776,14 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
   TempDirectory bootstrap_dir;
 
   const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  /*auto &server_mock =*/launch_mysql_server_mock(json_stmts, server_port,
-                                                  false);
+  /*auto &server_mock =*/launch_mysql_server_mock(
+      json_stmts, server_port, EXIT_SUCCESS, false, http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
+
   // ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // launch the router in bootstrap mode
@@ -1806,10 +1812,12 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
   TempDirectory bootstrap_conf;
 
   const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
 
-  // launch mock server and wait for it to start accepting connections
-  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
 
   // launch the router in bootstrap mode
   std::string logger_section = "[logger]\nlevel = DEBUG\n";
@@ -1852,10 +1860,12 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   TempDirectory bootstrap_conf;
 
   const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
 
-  // launch mock server and wait for it to start accepting connections
-  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
+  /*auto &server_mock =*/launch_mysql_server_mock(
+      json_stmts, server_port, EXIT_SUCCESS, false, http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
 
   // create config with logging_folder set to that directory
   std::map<std::string, std::string> params = {{"logging_folder", ""}};
@@ -1902,10 +1912,12 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
   TempDirectory bootstrap_conf;
 
   const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
 
-  // launch mock server and wait for it to start accepting connections
-  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
+  /*auto &server_mock =*/launch_mysql_server_mock(
+      json_stmts, server_port, EXIT_SUCCESS, false, http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
 
   // launch the router in bootstrap mode
   std::string logger_section = "[logger]\nlevel = DEBUG\n";

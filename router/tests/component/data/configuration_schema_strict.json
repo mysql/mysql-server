@@ -1,0 +1,107 @@
+{
+    "type": "object",
+
+    "properties": {
+        "metadata_cache" : {
+            "type": "object",
+            "properties": {
+                "user": {  "pattern": [ "^mysqlrouter" ] },
+                "ttl": {  "enum": [ 0.1 ] },
+                "auth_cache_refresh_interval": {  "enum": [ 2.0 ] },
+                "connect_timeout": {  "enum": [ 1 ] },
+                "read_timeout": {  "enum": [ 30 ] }
+            },
+            "required": ["user", "ttl", "auth_cache_refresh_interval", "connect_timeout", "read_timeout"]
+        },
+        "endpoints": {
+            "type": "object",
+            "properties": {
+                "default": {
+                    "type": "object",
+                    "properties": {
+                        "protocol": { "enum": [ "classic" ] },
+                        "destinations": { "enum": [ "metadata-cache://test/default?role=PRIMARY" ] },
+                        "bind_port": { "type": "number", "minimum": 1, "maximum": 65536 },
+                        "bind_address": { "type": "string" },
+                        "named_socket": { "enum": [ "" ] },
+                        "connect_timeout": { "enum": [ 5 ] },
+                        "mode":  { "enum": [ "" ] },
+                        "routing_strategy": { "enum": [ "first-available" ] },
+                        "max_connections": { "enum": [ 0 ] },
+                        "max_connect_errors": { "enum": [ 100 ] },
+                        "client_connect_timeout": { "enum": [ 9 ] },
+                        "net_buffer_length": { "enum": [ 16384 ] },
+                        "thread_stack_size": { "enum": [ 1024 ] },
+                        "client_ssl_mode": { "enum": [ "PASSTHROUGH" ] },
+                        "client_ssl_cert": { "enum": [ "" ] },
+                        "client_ssl_key": { "enum": [ "" ] },
+                        "client_ssl_cipher": { "enum": [ "" ] },
+                        "client_ssl_curves": { "enum": [ "" ] },
+                        "client_ssl_dh_params": { "enum": [ "" ] },
+                        "server_ssl_mode": { "enum": [ "AS_CLIENT" ] },
+                        "server_ssl_verify": { "enum": [ "DISABLED" ] },
+                        "server_ssl_cipher": { "enum": [ "" ] },
+                        "server_ssl_ca": { "enum": [ "" ] },
+                        "server_ssl_capath": { "enum": [ "" ] },
+                        "server_ssl_crl": { "enum": [ "" ] },
+                        "server_ssl_crlpath": { "enum": [ "" ] },
+                        "connection_sharing": { "enum": [ false] },
+                        "connection_sharing_delay": { "enum": [ 1.0 ] },
+                        "access_mode": { "enum": [ "" ] }
+                    },
+                    "required": ["protocol", "destinations", "bind_port", "bind_address",
+                                 "named_socket", "connect_timeout", "routing_strategy",
+                                 "max_connections", "max_connect_errors", "client_connect_timeout",
+                                 "net_buffer_length", "thread_stack_size", "client_ssl_mode",
+                                 "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
+                                 "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
+                                 "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay", "access_mode"]
+                },
+                "required": ["default"]
+            }
+        },
+        "loggers" : {
+            "type": "object",
+            "properties": {
+                "filelog": {
+                    "type": "object",
+                    "properties": {
+                        "filename": { "enum": [ "mysqlrouter.log" ] },
+                        "destination": { "enum": [ "" ] },
+                        "level": { "enum": [ "debug" ] },
+                        "timestamp_precision": { "enum": [ "millisecond" ] }
+                    },
+                    "required": ["filename", "destination", "level", "timestamp_precision"]
+                },
+                "required": ["filelog"]
+            }
+        },
+        "connection_pool" : {
+            "type": "object",
+            "properties": {
+                "max_idle_server_connections": { "enum": [ 0 ] },
+                "idle_timeout": { "enum": [ 5 ] }
+            },
+            "required": ["max_idle_server_connections", "idle_timeout"]
+        },
+        "destination_status" : {
+            "type": "object",
+            "properties": {
+                "error_quarantine_threshold": { "enum": [ 1 ] },
+                "error_quarantine_interval":  { "enum": [ 1 ] }
+            },
+            "required": ["error_quarantine_threshold", "error_quarantine_interval"]
+        },
+        "io" : {
+            "type": "object",
+            "properties": {
+                "threads":  { "enum": [ 0 ] },
+                "backend": { "enum": [ "poll", "linux_epoll" ] }
+            },
+            "required": ["backend", "threads"]
+        }
+    },
+    "required": ["metadata_cache", "endpoints", "loggers", "connection_pool",
+                 "destination_status", "io"]
+}

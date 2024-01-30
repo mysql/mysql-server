@@ -1,0 +1,172 @@
+{
+    "title": "MySQL Router configuration JSON schema",
+    "description": "JSON Schema for the configuration that the Router exposes as a JSON in the metadata",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+
+    "type": "object",
+    "properties": {
+        "metadata_cache" : {
+            "type": "object",
+            "properties": {
+                "user": { "type": "string" },
+                "ttl": { "$ref": "#/definitions/number_option" },
+                "auth_cache_ttl": { "$ref": "#/definitions/number_option" },
+                "auth_cache_refresh_interval": { "$ref": "#/definitions/number_option" },
+                "connect_timeout": { "$ref": "#/definitions/number_option" },
+                "read_timeout": { "$ref": "#/definitions/number_option" }
+            },
+            "required": ["user"]
+        },
+        "routing_rules" : {
+            "type": "object",
+            "properties": {
+                "target_cluster": { "type": "string" },
+                "use_replica_primary_as_rw": { "type": "boolean" },
+                "stats_updates_frequency": { "$ref": "#/definitions/number_option" },
+                "read_only_targets": {
+                    "type": "string",
+                    "enum": [ "all", "read_replicas", "secondaries" ]
+                },
+                "unreachable_quorum_allowed_traffic": {
+                    "type": "string",
+                    "enum": [ "none", "read", "all" ]
+                },
+                "invalidated_cluster_policy": {
+                    "type": "string",
+                    "enum": [ "accept_ro", "drop_all" ]
+                }
+            },
+            "required": []
+        },
+        "endpoints": {
+            "type": "object",
+            "patternProperties": {
+                "*": {
+                    "type": "object",
+                    "properties": {
+                        "destinations": { "type": "string" },
+                        "bind_port": { "type": "number" },
+                        "bind_address": { "type": "string" },
+                        "named_socket": { "type": "string" },
+                        "connect_timeout": { "type": "number" },
+                        "mode": {
+                            "type": "string",
+                            "enum": [ "", "read-write", "read-only" ]
+                        },
+                        "routing_strategy": {
+                            "type": "string",
+                            "enum": [ "", "first-available", "next-available", "round-robin", "round-robin-with-fallback" ]
+                        },
+                        "max_connections": { "type": "number" },
+                        "max_connect_errors": { "type": "number" },
+                        "client_connect_timeout": { "type": "number" },
+                        "net_buffer_length": { "type": "number" },
+                        "thread_stack_size": { "type": "number" },
+                        "client_ssl_mode": { "type": "string" },
+                        "client_ssl_cert": { "type": "string" },
+                        "client_ssl_key": { "type": "string" },
+                        "client_ssl_cipher": { "type": "string" },
+                        "client_ssl_curves": { "type": "string" },
+                        "client_ssl_dh_params": { "type": "string" },
+                        "server_ssl_mode": { "type": "string" },
+                        "server_ssl_verify": { "type": "string" },
+                        "server_ssl_cipher": { "type": "string" },
+                        "server_ssl_ca": { "type": "string" },
+                        "server_ssl_capath": { "type": "string" },
+                        "server_ssl_crl": { "type": "string" },
+                        "server_ssl_crlpath":{ "type": "string" },
+                        "connection_sharing": { "type": "boolean" },
+                        "connection_sharing_delay":{ "type": "number" }
+                    },
+                    "required": ["destinations", "routing_strategy"]
+                }
+            }
+        },
+        "loggers" : {
+            "type": "object",
+            "patternProperties": {
+                "*": {
+                    "type": "object",
+                    "properties": {
+                        "filename": { "type": "string" },
+                        "destination": { "type": "string" },
+                        "level": { "type": "string" },
+                        "timestamp_precision": { "type": "string" }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "connection_pool" : {
+            "type": "object",
+            "properties": {
+                "max_idle_server_connections": { "type": "number" },
+                "idle_timeout": { "type": "number" }
+            },
+            "required": []
+        },
+        "destination_status" : {
+            "type": "object",
+            "properties": {
+                "error_quarantine_threshold":{ "type": "number" },
+                "error_quarantine_interval":{ "type": "number" }
+            },
+            "required": []
+        },
+        "io" : {
+            "type": "object",
+            "properties": {
+                "threads": { "type": "number" },
+                "backend": { "type": "string" }
+            },
+            "required": ["backend", "threads"]
+        },
+        "http_server": {
+            "type": "object",
+            "properties": {
+                "port": {  "type": "number" },
+                "ssl_key": { "type": "string" },
+                "ssl_cert": { "type": "string" },
+                "ssl": { "type": "boolean" },
+                "ssl_cipher": { "type": "string" },
+                "ssl_curves": { "type": "string" },
+                "bind_address": { "type": "string" },
+                "require_realm": { "type": "string" },
+                "ssl_dh_params": { "type": "string" },
+                "static_folder": { "type": "string" }
+            },
+            "required": []
+        },
+        "http_authentication_realm": {
+            "type": "object",
+            "properties": {
+                "default_realm": {  "type": "string" },
+                "basic": { "type": "string" },
+                "backend": { "type": "string" },
+                "require": { "type": "string" }
+            },
+            "required": []
+        },
+        "http_authentication_backends": {
+            "type": "object",
+            "properties": {
+                "default_auth_backend": {  "type": "string" },
+                "filename": { "type": "string" }
+            },
+            "required": []
+        },
+        "rest_configs": {
+            "type": "object",
+            "patternProperties": {
+                "(rest_api)|(rest_router)|(rest_routing)|(rest_metadata_cache)": {
+                    "type": "object",
+                    "properties": {
+                        "require_realm": {  "type": "string" }
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    "required": ["metadata_cache"]
+}

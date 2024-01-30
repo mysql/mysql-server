@@ -353,17 +353,16 @@ mysql_harness::Plugin MOCK_SERVER_EXPORT harness_plugin_mock_server = {
     "Mock MySQL Server for testing",         // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(),
-    required.data(),
+    required.size(), required.data(),
     // conflicts
-    0,
-    nullptr,
+    0, nullptr,
     init,     // init
     deinit,   // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
-    supported_options.size(),
-    supported_options.data(),
+    supported_options.size(), supported_options.data(),
+    nullptr,  // expose_initial_configuration
+    nullptr,  // expose_default_configuration
 };
 }

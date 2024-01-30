@@ -36,6 +36,25 @@ TARGET_INCLUDE_DIRECTORIES(sql_lexer
 # generate sql_yacc.h
 ADD_DEPENDENCIES(sql_lexer GenServerSource)
 
+ADD_LIBRARY(routing_frontend_lib STATIC
+  routing.cc
+)
+
+TARGET_LINK_LIBRARIES(routing_frontend_lib
+  PUBLIC
+  harness_stdx)
+
+TARGET_INCLUDE_DIRECTORIES(
+  routing_frontend_lib
+PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../router/include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../../router/include/
+)
+
 ADD_LIBRARY(routing SHARED
   mysql_routing.cc
   destination.cc
@@ -44,7 +63,6 @@ ADD_LIBRARY(routing SHARED
   dest_first_available.cc
   dest_next_available.cc
   dest_round_robin.cc
-  routing.cc
   context.cc
   mysql_routing_common.cc
   connection_container.cc
@@ -132,6 +150,7 @@ TARGET_LINK_LIBRARIES(routing
   mysql_protocol
   router_lib
   router_mysqlxmessages
+  routing_frontend_lib
   ext::libprotobuf-lite
   metadata_cache
   connection_pool

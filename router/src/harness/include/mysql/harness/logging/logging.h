@@ -146,6 +146,11 @@ enum class LogLevel {
 const LogLevel kDefaultLogLevel = LogLevel::kWarning;
 
 /**
+ * Default log level written by the router to the config file on bootstrap.
+ */
+const LogLevel kDefaultLogLevelBootstrap = LogLevel::kInfo;
+
+/**
  * Log level name for the default log level used by the router
  */
 const char *const kDefaultLogLevelName = "warning";

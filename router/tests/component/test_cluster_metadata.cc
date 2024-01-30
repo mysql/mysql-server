@@ -242,19 +242,10 @@ TEST_P(CheckRouterInfoUpdatesTest, CheckRouterInfoUpdates) {
   /*auto &metadata_server = */ launch_mysql_server_mock(
       json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
 
-  SCOPED_TRACE(
-      "// let's tell the mock which attributes it should expect so that it "
-      "does the strict sql matching for us");
   auto globals = mock_GR_metadata_as_json(
       "uuid", classic_ports_to_gr_nodes({md_server_port}), 0,
       classic_ports_to_cluster_nodes({md_server_port}));
-  JsonAllocator allocator;
-  globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
-  globals.AddMember("router_rw_classic_port", router_port, allocator);
-  globals.AddMember("router_metadata_user",
-                    JsonValue(router_metadata_username.c_str(),
-                              router_metadata_username.length(), allocator),
-                    allocator);
+
   const auto globals_str = json_to_string(globals);
   MockServerRestClient(md_server_http_port).set_globals(globals_str);
 
@@ -308,6 +299,55 @@ TEST_P(CheckRouterInfoUpdatesTest, CheckRouterInfoUpdates) {
         get_update_last_check_in_count(server_globals);
     EXPECT_GE(2, last_check_in_upd_count);
   }
+
+  {
+    std::string server_globals =
+        MockServerRestClient(md_server_http_port).get_globals_as_json_string();
+
+    const std::string router_version =
+        get_str_field_value(server_globals, "upd_attr_router_version");
+    EXPECT_STREQ(MYSQL_ROUTER_VERSION, router_version.c_str())
+        << server_globals;
+
+    const std::string md_username =
+        get_str_field_value(server_globals, "upd_attr_md_username");
+    EXPECT_STREQ(router_metadata_username.c_str(), md_username.c_str())
+        << server_globals;
+
+    const std::string rw_classic_port =
+        get_str_field_value(server_globals, "upd_attr_rw_classic_port");
+    EXPECT_STREQ(rw_classic_port.c_str(), std::to_string(router_port).c_str())
+        << server_globals;
+
+    SCOPED_TRACE(
+        "// verify the JSON config set by the Router in the attributes against "
+        "the schema");
+
+    RecordProperty("Worklog", "15649");
+    RecordProperty("RequirementId", "FR1,FR1.2,FR2");
+    RecordProperty("Description",
+                   "Testing if the Router correctly exposes it's full static "
+                   "configuration upon start.");
+
+    // first validate the configuration json against general "public" schema for
+    // the structure corectness
+    const std::string public_config_schema =
+        get_file_output(Path(ROUTER_SRC_DIR)
+                            .join("src")
+                            .join("harness")
+                            .join("src")
+                            .join("configuration_schema.json")
+                            .str());
+
+    validate_config_stored_in_md(md_server_http_port, public_config_schema);
+
+    // then validate against strict schema that also checks the values expected
+    // for the current configuration
+    const std::string strict_config_schema = get_file_output(
+        get_data_dir().join("configuration_schema_strict.json").str());
+
+    validate_config_stored_in_md(md_server_http_port, strict_config_schema);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -349,13 +389,8 @@ TEST_F(RouterComponenClustertMetadataTest,
   auto globals = mock_GR_metadata_as_json(
       "uuid", classic_ports_to_gr_nodes({md_server_port}), 0,
       classic_ports_to_cluster_nodes({md_server_port}));
+
   JsonAllocator allocator;
-  globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
-  globals.AddMember("router_rw_classic_port", router_port, allocator);
-  globals.AddMember("router_metadata_user",
-                    JsonValue(router_metadata_username.c_str(),
-                              router_metadata_username.length(), allocator),
-                    allocator);
 
   // instrument the metadata in a way that shows that we bootstrapped once the
   // Cluster was standalone but now it is part of a ClusterSet

@@ -61,6 +61,7 @@
 #include "exception.h"
 #include "harness_assert.h"
 #include "my_thread.h"  // my_thread_self_setname
+#include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/dynamic_loader.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
@@ -617,6 +618,16 @@ std::exception_ptr Loader::run() {
     }
   }
 
+  if (!first_eptr) {
+    try {
+      expose_initial_config_all();
+    } catch (const std::exception &e) {
+      log_warning(
+          "Failed storing plugins initial configuration in DynamicConfig: %s",
+          e.what());
+    }
+  }
+
   // run plugins if initialization didn't fail
   if (!first_eptr) {
     try {
@@ -1164,6 +1175,38 @@ void Loader::check_default_config_options_supported() {
 
     if (!option_supported) {
       report_unsupported_option("DEFAULT", option.first, error_out);
+    }
+  }
+}
+
+void Loader::expose_initial_config_all() {
+  // expose "common" application options
+  if (expose_app_config_clb_) {
+    expose_app_config_clb_(config_.get_default_section());
+  }
+
+  // let each plugin expose its options
+  PluginFuncEnv env(&appinfo_, nullptr);
+  for (const ConfigSection *section : config_.sections()) {
+    const auto &plugin = plugins_.at(section->name).plugin();
+    if (plugin->expose_initial_configuration) {
+      plugin->expose_initial_configuration(&env, section->key.c_str());
+    }
+  }
+}
+
+void Loader::expose_default_config_all() {
+  // expose "common" application options defaults
+  if (expose_app_defaults_clb_) {
+    expose_app_defaults_clb_();
+  }
+
+  // let each plugin expose its options defaults
+  PluginFuncEnv env(&appinfo_, nullptr);
+  for (const ConfigSection *section : config_.sections()) {
+    const auto &plugin = plugins_.at(section->name).plugin();
+    if (plugin->expose_default_configuration) {
+      plugin->expose_default_configuration(&env, section->key.c_str());
     }
   }
 }

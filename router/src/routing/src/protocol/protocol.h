@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef ROUTING_PROTOCOL_INCLUDED
 #define ROUTING_PROTOCOL_INCLUDED
 
-#include "base_protocol.h"
+#include "mysqlrouter/base_protocol.h"
 
 #include <stdexcept>
 #include <string>
@@ -47,6 +47,20 @@ class Protocol final {
       result = Type::kXProtocol;
     } else {
       throw std::invalid_argument("Invalid protocol name: '" + name + "'");
+    }
+
+    return result;
+  }
+
+  static std::string to_string(const Type &type) {
+    std::string result;
+
+    switch (type) {
+      case Type::kClassicProtocol:
+        result = "classic";
+        break;
+      case Type::kXProtocol:
+        result = "x";
     }
 
     return result;

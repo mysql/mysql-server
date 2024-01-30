@@ -33,6 +33,7 @@
 
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
@@ -72,6 +73,20 @@ class RestApiPluginConfig : public mysql_harness::BasePluginConfig {
 
   bool is_required(const std::string & /* option */) const override {
     return false;
+  }
+
+  void expose_initial_configuration() const {
+    using DC = mysql_harness::DynamicConfig;
+    const DC::SectionId id{"rest_configs", kSectionName};
+
+    DC::instance().set_option_configured(id, "require_realm", require_realm);
+  }
+
+  void expose_default_configuration() const {
+    using DC = mysql_harness::DynamicConfig;
+    const DC::SectionId id{"rest_configs", kSectionName};
+
+    DC::instance().set_option_default(id, "require_realm", "");
   }
 };
 
@@ -281,6 +296,34 @@ static const std::array<const char *, 2> plugin_requires = {{
     "logger",
 }};
 
+static void expose_configuration(mysql_harness::PluginFuncEnv *env,
+                                 bool initial) {
+  const mysql_harness::AppInfo *info = get_app_info(env);
+
+  if (!info->config) return;
+
+  for (const mysql_harness::ConfigSection *section : info->config->sections()) {
+    if (section->name == kSectionName) {
+      RestApiPluginConfig config{section};
+      if (initial) {
+        config.expose_initial_configuration();
+      } else {
+        config.expose_default_configuration();
+      }
+    }
+  }
+}
+
+static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  expose_configuration(env, true);
+}
+
+static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  expose_configuration(env, false);
+}
+
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_api = {
     mysql_harness::PLUGIN_ABI_VERSION,
@@ -300,5 +343,7 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_api = {
     true,     // declares_readiness
     supported_options.size(),
     supported_options.data(),
+    expose_initial_configuration,
+    expose_default_configuration,
 };
 }

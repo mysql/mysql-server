@@ -533,34 +533,6 @@ std::string get_file_output(const std::string &file_name,
   return result;
 }
 
-bool add_line_to_config_file(const std::string &config_path,
-                             const std::string &section_name,
-                             const std::string &key, const std::string &value) {
-  std::ifstream config_stream{config_path};
-  if (!config_stream) return false;
-
-  std::vector<std::string> config;
-  std::string line;
-  bool found{false};
-  while (std::getline(config_stream, line)) {
-    config.push_back(line);
-    if (line == "[" + section_name + "]") {
-      config.push_back(key + "=" + value);
-      found = true;
-    }
-  }
-  config_stream.close();
-  if (!found) return false;
-
-  std::ofstream out_stream{config_path};
-  if (!out_stream) return false;
-
-  std::copy(std::begin(config), std::end(config),
-            std::ostream_iterator<std::string>(out_stream, "\n"));
-  out_stream.close();
-  return true;
-}
-
 void connect_client_and_query_port(unsigned router_port, std::string &out_port,
                                    bool should_fail) {
   using mysqlrouter::MySQLSession;
@@ -613,6 +585,11 @@ static std::optional<std::string> wait_log_line(
 
     unsigned current_occurence = 0;
     for (std::string line; std::getline(ss, line);) {
+      // NOTE: when the Router queries are logged some of them contain quite
+      // large JSON documents, which leads to very slow regex matching on those
+      // This is the optimization for that: we just ignore the long lines
+      // searching for the pattern.
+      if (line.length() > 1024) continue;
       if (pattern_found(line, log_regex)) {
         current_occurence++;
         if (current_occurence == n_occurence) return {line};

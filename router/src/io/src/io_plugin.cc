@@ -44,6 +44,7 @@
 #include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
@@ -107,6 +108,24 @@ class IoPluginConfig : public mysql_harness::BasePluginConfig {
 
   bool is_required(const std::string & /* option */) const override {
     return false;
+  }
+
+  void expose_initial_configuration() const {
+    using DC = mysql_harness::DynamicConfig;
+    const DC::SectionId id{"io", ""};
+
+    DC::instance().set_option_configured(id, "backend", backend);
+    DC::instance().set_option_configured(id, "threads", num_threads);
+  }
+
+  void expose_default_configuration() const {
+    using DC = mysql_harness::DynamicConfig;
+    const DC::SectionId id{"io", ""};
+
+    // we do not expose the default backend as this backed depends on the OS
+    // where the Router is bootstrapped
+    // DC::instance().set_option_default(id, "backend", IoBackend::preferred());
+    DC::instance().set_option_default(id, "threads", 0);
   }
 };
 
@@ -207,6 +226,34 @@ static std::array<const char *, 1> required = {{
     "logger",
 }};
 
+static void expose_configuration(mysql_harness::PluginFuncEnv *env,
+                                 bool initial) {
+  const mysql_harness::AppInfo *info = get_app_info(env);
+
+  if (!info->config) return;
+
+  for (const mysql_harness::ConfigSection *section : info->config->sections()) {
+    if (section->name == kSectionName) {
+      IoPluginConfig config{section};
+      if (initial) {
+        config.expose_initial_configuration();
+      } else {
+        config.expose_default_configuration();
+      }
+    }
+  }
+}
+
+static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  expose_configuration(env, true);
+}
+
+static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  expose_configuration(env, false);
+}
+
 extern "C" {
 mysql_harness::Plugin IO_EXPORT harness_plugin_io = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
@@ -226,5 +273,7 @@ mysql_harness::Plugin IO_EXPORT harness_plugin_io = {
     false,    // signals ready
     supported_options.size(),
     supported_options.data(),
+    expose_initial_configuration,
+    expose_default_configuration,
 };
 }

@@ -58,17 +58,16 @@ mysql_harness::Plugin LIFECYCLE3_API
         "Logging functions",                     // anme
         VERSION_NUMBER(0, 0, 1),
         // requires
-        0,
-        nullptr,
+        0, nullptr,
         // conflicts
-        0,
-        nullptr,
+        0, nullptr,
         init,     // init
         deinit,   // deinit
         nullptr,  // start
         nullptr,  // stop
         false,    // declares_readiness
-        0,
-        nullptr,
+        0, nullptr,
+        nullptr,  // expose_initial_configuration
+        nullptr,  // expose_default_configuration
 };
 }

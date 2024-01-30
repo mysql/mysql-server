@@ -10,6 +10,7 @@ var options = {
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   innodb_cluster_hosts: [[8, "dont.query.dns", null]],
+  router_version: mysqld.global.router_version,
 };
 
 var common_responses = common_stmts.prepare_statement_responses(
@@ -37,6 +38,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
       "router_insert_into_routers",
       "router_check_auth_plugin",
+      "router_select_config_defaults_stored_gr_cluster",
     ],
     options);
 

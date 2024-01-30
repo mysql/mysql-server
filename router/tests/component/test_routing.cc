@@ -35,6 +35,7 @@
 #include <gtest/gtest.h>
 
 #include "config_builder.h"
+#include "mock_server_testutils.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
@@ -156,6 +157,7 @@ static xcl::XError make_x_connection(XProtocolSession &session,
 
 TEST_F(RouterRoutingTest, RoutingOk) {
   const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
   // use the json file that adds additional rows to the metadata to increase the
@@ -166,7 +168,9 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   // launch the server mock for bootstrapping
   launch_mysql_server_mock(
       json_stmts, server_port, EXIT_SUCCESS,
-      false /*expecting huge data, can't print on the console*/);
+      false /*expecting huge data, can't print on the console*/, http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
 
   const std::string routing_section = get_static_routing_section(
       "basic", router_port, "", {server_port}, "classic");
@@ -190,7 +194,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router_bootstrapping, EXIT_SUCCESS));
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
-      "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
+      "MySQL Router configured for the InnoDB Cluster 'test'"));
 }
 
 TEST_F(RouterRoutingTest, ResolveFails) {

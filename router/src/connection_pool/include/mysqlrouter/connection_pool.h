@@ -45,6 +45,9 @@
 
 #include "../../routing/src/ssl_mode.h"  // TODO(jkneschk)
 
+// default max idle server connections set on bootstrap
+static constexpr uint32_t kDefaultMaxIdleServerConnectionsBootstrap{64};
+
 /**
  * pooled connection.
  */

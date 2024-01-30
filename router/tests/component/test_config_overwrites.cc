@@ -29,6 +29,7 @@
 #include <gtest/gtest.h>
 
 #include "config_builder.h"
+#include "mock_server_testutils.h"
 #include "mysql/harness/string_utils.h"  // split_string
 #include "router_component_test.h"
 #include "router_component_testutils.h"
@@ -82,8 +83,12 @@ TEST_P(BootstrapDebugLevelOkTest, BootstrapDebugLevelOk) {
       "SELECT * FROM mysql_innodb_cluster_metadata.schema_version";
 
   const uint16_t server_port = port_pool_.get_next_available();
+  const uint16_t http_port = port_pool_.get_next_available();
   const std::string json_stmts = get_data_dir().join(tracefile).str();
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
 
   // launch the router in bootstrap mode
   std::vector<std::string> cmdline = {
@@ -102,9 +107,9 @@ TEST_P(BootstrapDebugLevelOkTest, BootstrapDebugLevelOk) {
       get_file_output("mysqlrouter.conf", bootstrap_dir.name());
   const std::vector<std::string> lines =
       mysql_harness::split_string(conf_content, '\n');
-  EXPECT_THAT(lines, ::testing::Contains("level=INFO"));
+  EXPECT_THAT(lines, ::testing::Contains("level=info"));
   EXPECT_THAT(lines, ::testing::Not(::testing::Contains(
-                         ::testing::AnyOf("level=debug", "level=DEBUG"))));
+                         ::testing::AnyOf("level=debug", "level=debug"))));
 }
 
 INSTANTIATE_TEST_SUITE_P(BootstrapDebugLevelOk, BootstrapDebugLevelOkTest,

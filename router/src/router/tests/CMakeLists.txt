@@ -184,6 +184,7 @@ ADD_HARNESS_TEST_FILE(test_mysqlrouter_app.cc
     test-helpers
     router_lib
     router_frontend_lib
+    routing_frontend_lib
   EXTRA_SOURCES
     ../../../tests/helpers/filesystem_utils.cc
   INCLUDE_DIRS

@@ -550,7 +550,8 @@ const BootstrapTlsEndpointParams
                                           }));
          }},
         {"server_ssl_verify_verify_identity",  // BS_ARGCASE_SV_02
-         {"--server-ssl-verify", "verify_identITY"},
+         {"--server-ssl-verify", "verify_identITY", "--server-ssl-ca",
+          "some-valid-ca-file.pem"},
          [](const std::vector<std::string> &config_file_lines) {
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({
@@ -560,7 +561,8 @@ const BootstrapTlsEndpointParams
                        }));
          }},
         {"server_ssl_verify_verify_ca",  // BS_ARGCASE_SV_03
-         {"--server-ssl-verify", "verify_CA"},
+         {"--server-ssl-verify", "verify_CA", "--server-ssl-ca",
+          "some-valid-ca-file.pem"},
          [](const std::vector<std::string> &config_file_lines) {
            ASSERT_THAT(config_file_lines, ::testing::IsSupersetOf({
                                               "client_ssl_mode=PREFERRED",
@@ -1070,7 +1072,7 @@ const BootstrapTlsEndpointParams bootstrap_tls_endpoint_params[] = {
                                                  // BS_CERT_KEY_CONFIG_PERSISTS_06
                                                  // BS_CERT_KEY_CONFIG_PERSISTS_09
                                                  // BS_CERT_KEY_CONFIG_PERSISTS_12
-     {"--client-ssl-mode", "PASSTHROUGH"},
+     {"--client-ssl-mode", "PASSTHROUGH", "--disable-rw-split"},
      [](const std::vector<std::string> &config_file_lines) {
        check_no_cert_generated(config_file_lines, "PASSTHROUGH", "AS_CLIENT");
 
@@ -1082,7 +1084,7 @@ const BootstrapTlsEndpointParams bootstrap_tls_endpoint_params[] = {
      }},
     {"client_ssl_mode_disabled_no_cert_gen",  // BS_MODES_05,
                                               // BS_CERT_KEY_MODE_05
-     {"--client-ssl-mode", "DISABLED"},
+     {"--client-ssl-mode", "DISABLED", "--disable-rw-split"},
      [](const std::vector<std::string> &config_file_lines) {
        check_no_cert_generated(config_file_lines, "DISABLED", "PREFERRED");
 

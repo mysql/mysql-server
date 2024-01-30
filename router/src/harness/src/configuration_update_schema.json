@@ -1,0 +1,31 @@
+{
+    "title": "MySQL Router configuration JSON schema",
+    "description": "JSON Schema for the Router configuration options that can be changed in the runtime. Shared by the Router in the metadata to announce which options it supports changing.",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+
+    "type": "object",
+    "properties": {
+        "routing_rules" : {
+            "type": "object",
+            "properties": {
+                "target_cluster": { "type": "string" },
+                "use_replica_primary_as_rw": { "type": "boolean" },
+                "stats_updates_frequency": { "type": "number" },
+                "read_only_targets": {
+                    "type": "string",
+                    "enum": [ "all", "read_replicas", "secondaries" ]
+                },
+                "unreachable_quorum_allowed_traffic": {
+                    "type": "string",
+                    "enum": [ "none", "read", "all" ]
+                },
+                "invalidated_cluster_policy": {
+                    "type": "string",
+                    "enum": [ "accept_ro", "drop_all" ]
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "additionalProperties": false
+}

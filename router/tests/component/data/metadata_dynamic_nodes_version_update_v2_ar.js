@@ -80,6 +80,38 @@ if (mysqld.global.transaction_count === undefined) {
   mysqld.global.transaction_count = 0;
 }
 
+if (mysqld.global.upd_attr_router_version === undefined) {
+  mysqld.global.upd_attr_router_version = "";
+}
+
+if (mysqld.global.upd_attr_rw_classic_port === undefined) {
+  mysqld.global.upd_attr_rw_classic_port = "";
+}
+
+if (mysqld.global.upd_attr_ro_classic_port === undefined) {
+  mysqld.global.upd_attr_rw_classic_port = "";
+}
+
+if (mysqld.global.upd_attr_rw_x_port === undefined) {
+  mysqld.global.upd_attr_rw_x_port = "";
+}
+
+if (mysqld.global.upd_attr_ro_x_port === undefined) {
+  mysqld.global.upd_attr_ro_x_port = "";
+}
+
+if (mysqld.global.upd_attr_md_username === undefined) {
+  mysqld.global.upd_attr_md_username = "";
+}
+
+if (mysqld.global.upd_attr_config_json === undefined) {
+  mysqld.global.upd_attr_config_json = "";
+}
+
+if (mysqld.global.upd_attr_config_update_schema_json === undefined) {
+  mysqld.global.upd_attr_config_update_schema_json = "";
+}
+
 var nodes = function(host, port_and_state) {
   return port_and_state.map(function(current_value) {
     return [
@@ -126,8 +158,8 @@ var common_responses = common_stmts.prepare_statement_responses(
 var router_select_metadata =
     common_stmts.get("router_select_metadata_v2_ar", options);
 
-var router_update_attributes_strict_v2 =
-    common_stmts.get("router_update_attributes_strict_v2", options);
+var router_update_attributes =
+    common_stmts.get("router_update_attributes_v2", options);
 
 var router_start_transaction =
     common_stmts.get("router_start_transaction", options);
@@ -147,7 +179,7 @@ var router_start_transaction =
     } else if (stmt === router_start_transaction.stmt) {
       mysqld.global.transaction_count++;
       return router_start_transaction;
-    } else if (stmt === router_update_attributes_strict_v2.stmt) {
+    } else if (res = stmt.match(router_update_attributes.stmt_regex)) {
       mysqld.global.update_attributes_count++;
       if (mysqld.global.perm_error_on_version_update === 1) {
         return {
@@ -158,8 +190,17 @@ var router_start_transaction =
                 "UPDATE command denied to user 'user'@'localhost' for table 'v2_routers'"
           }
         }
-      } else
-        return router_update_attributes_strict_v2;
+      } else {
+        mysqld.global.upd_attr_router_version = res[1];
+        mysqld.global.upd_attr_rw_classic_port = res[2];
+        mysqld.global.upd_attr_ro_classic_port = res[3];
+        mysqld.global.upd_attr_rw_split_classic_port = res[4];
+        mysqld.global.upd_attr_rw_x_port = res[5];
+        mysqld.global.upd_attr_ro_x_port = res[6];
+        mysqld.global.upd_attr_md_username = res[7];
+        mysqld.global.upd_attr_config_json = res[8];
+        return router_update_attributes;
+      }
     } else if (stmt === router_select_metadata.stmt) {
       mysqld.global.md_query_count++;
       return router_select_metadata;

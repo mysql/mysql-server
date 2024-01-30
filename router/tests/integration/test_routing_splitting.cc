@@ -537,7 +537,10 @@ class TestEnv : public ::testing::Environment {
                     "root@127.0.0.1:" + std::to_string(srv->server_port()),
                     "--account", "router",         //
                     "--report-host", "127.0.0.1",  //
-                    "-d", router_dir_.name()});
+                    "-d", router_dir_.name(),      //
+                    "--conf-set-option",
+                    "DEFAULT.plugin_folder=" +
+                        ProcessManager::get_plugin_dir().str()});
     ASSERT_NO_THROW(bootstrap_proc.wait_for_exit(10s))
         << bootstrap_proc.get_current_output();
     ASSERT_EQ(bootstrap_proc.exit_code(), 0)

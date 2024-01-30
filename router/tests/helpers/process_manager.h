@@ -210,6 +210,10 @@ class ProcessManager {
   static std::string create_state_file(const std::string &dir_name,
                                        const std::string &content);
 
+  /** @brief Gets path to the directory plugin dynamic librabries.
+   */
+  static const Path &get_plugin_dir() { return plugin_dir_; }
+
  protected:
   virtual ~ProcessManager() = default;
 
@@ -585,8 +589,6 @@ class ProcessManager {
       const std::string &name = "mysqlrouter.conf",
       const std::string &extra_defaults = "",
       bool enable_debug_logging = true) const;
-
-  static const Path &get_plugin_dir() { return plugin_dir_; }
 
   const Path &get_mysqlrouter_exec() const { return mysqlrouter_exec_; }
 

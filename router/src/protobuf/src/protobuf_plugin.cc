@@ -39,16 +39,12 @@ MY_COMPILER_DIAGNOSTIC_POP()
 extern "C" {
 
 mysql_harness::Plugin ROUTER_PROTOBUF_EXPORT harness_plugin_router_protobuf = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "",
-    VERSION_NUMBER(0, 0, 1),
+    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "", VERSION_NUMBER(0, 0, 1),
     // requires
-    0,
-    nullptr,
+    0, nullptr,
     // conflicts
-    0,
-    nullptr,
+    0, nullptr,
     nullptr,  // init
     [](mysql_harness::PluginFuncEnv *) {
       google::protobuf::ShutdownProtobufLibrary();
@@ -56,7 +52,8 @@ mysql_harness::Plugin ROUTER_PROTOBUF_EXPORT harness_plugin_router_protobuf = {
     nullptr,  // start
     nullptr,  // stop
     false,    // declare_readiness
-    0,
-    nullptr,
+    0, nullptr,
+    nullptr,  // expose_initial_configuration
+    nullptr,  // expose_default_configuration
 };
 }

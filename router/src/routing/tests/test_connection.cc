@@ -36,7 +36,7 @@
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
-#include "protocol/base_protocol.h"
+#include "mysqlrouter/base_protocol.h"
 #include "protocol/classic_protocol.h"
 #include "routing_mocks.h"
 #include "socket_operations.h"

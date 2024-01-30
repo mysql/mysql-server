@@ -28,6 +28,7 @@
 
 #include <gmock/gmock.h>
 
+#include "mock_server_testutils.h"
 #include "router_component_system_layout.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
@@ -68,9 +69,14 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentBootstrapTest,
   auto &run_server_mock() {
     const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
     server_port_ = port_pool_.get_next_available();
+    const auto http_port = port_pool_.get_next_available();
 
     // launch mock server and wait for it to start accepting connections
-    auto &server_mock = launch_mysql_server_mock(json_stmts, server_port_);
+    auto &server_mock = launch_mysql_server_mock(
+        json_stmts, server_port_, EXIT_SUCCESS, false, http_port);
+    set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                      classic_ports_to_gr_nodes({server_port_}), 0,
+                      {server_port_});
     return server_mock;
   }
 
@@ -96,7 +102,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
 
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB Cluster 'mycluster'"));
+                           "InnoDB Cluster 'test'"));
 }
 
 /*

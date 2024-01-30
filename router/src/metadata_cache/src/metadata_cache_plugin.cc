@@ -37,6 +37,7 @@
 #include "metadata_cache.h"
 #include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/utility/string.h"
@@ -199,7 +200,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   try {
     using namespace std::string_literals;
 
-    MetadataCachePluginConfig config(section);
+    const MetadataCachePluginConfig config(section);
 
     if (config.metadata_servers_addresses.size() == 0 &&
         (!config.metadata_cache_dynamic_state ||
@@ -299,6 +300,34 @@ static const std::array<const char *, 2> required = {{
     "router_protobuf",
 }};
 
+static void expose_configuration(mysql_harness::PluginFuncEnv *env,
+                                 bool initial) {
+  const mysql_harness::AppInfo *info = get_app_info(env);
+
+  if (!info->config) return;
+
+  for (const mysql_harness::ConfigSection *section : info->config->sections()) {
+    if (section->name == kSectionName) {
+      MetadataCachePluginConfig config{section};
+      if (initial) {
+        config.expose_initial_configuration();
+      } else {
+        config.expose_default_configuration();
+      }
+    }
+  }
+}
+
+static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  expose_configuration(env, true);
+}
+
+static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  expose_configuration(env, false);
+}
+
 extern "C" {
 
 mysql_harness::Plugin METADATA_CACHE_PLUGIN_EXPORT
@@ -320,5 +349,7 @@ mysql_harness::Plugin METADATA_CACHE_PLUGIN_EXPORT
         true,     // declares_readiness
         metadata_cache_supported_options.size(),
         metadata_cache_supported_options.data(),
+        expose_initial_configuration,
+        expose_default_configuration,
 };
 }

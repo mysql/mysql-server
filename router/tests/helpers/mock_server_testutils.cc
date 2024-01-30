@@ -42,6 +42,7 @@
 #include "mysqlrouter/mock_server_rest_client.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 
 std::string json_to_string(const JsonValue &json_doc) {
   JsonStringBuffer out_buffer;
@@ -148,6 +149,7 @@ JsonValue mock_GR_metadata_as_json(
   md_version.PushBack(static_cast<int>(metadata_version.minor), allocator);
   md_version.PushBack(static_cast<int>(metadata_version.patch), allocator);
   json_doc.AddMember("metadata_schema_version", md_version, allocator);
+  json_doc.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
 
   return json_doc;
 }

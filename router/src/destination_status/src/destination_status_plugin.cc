@@ -36,6 +36,7 @@
 // Harness interface include files
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
 
@@ -46,7 +47,11 @@
 template <class T>
 using IntOption = mysql_harness::IntOption<T>;
 
-static constexpr const std::string_view kSectionName{"destination_status"};
+static const std::string kSectionName{"destination_status"};
+static const std::string kOptionThreshold{"error_quarantine_threshold"};
+static const std::string kOptionInterval{"error_quarantine_interval"};
+static constexpr uint32_t kDefaultErrorQuarantineThreshold{1};
+static constexpr uint32_t kDefaultErrorQuarantineInterval{1};
 
 class DestinationStatusPluginConfig : public mysql_harness::BasePluginConfig {
  public:
@@ -56,27 +61,47 @@ class DestinationStatusPluginConfig : public mysql_harness::BasePluginConfig {
   explicit DestinationStatusPluginConfig(
       const mysql_harness::ConfigSection *section)
       : mysql_harness::BasePluginConfig(section),
-        error_quarantine_threshold(get_option(section,
-                                              "error_quarantine_threshold",
+        error_quarantine_threshold(get_option(section, kOptionThreshold,
                                               IntOption<uint32_t>{1, 65535})),
-        error_quarantine_interval(get_option(section,
-                                             "error_quarantine_interval",
+        error_quarantine_interval(get_option(section, kOptionInterval,
                                              IntOption<uint32_t>{1, 3600})) {}
 
   std::string get_default(const std::string &option) const override {
     const std::map<std::string_view, std::string> defaults{
-        {"error_quarantine_threshold", "1"},
-        {"error_quarantine_interval", "1"},  // in seconds
+        {kOptionThreshold, std::to_string(kDefaultErrorQuarantineThreshold)},
+        {kOptionInterval,
+         std::to_string(kDefaultErrorQuarantineInterval)},  // in seconds
     };
 
     auto it = defaults.find(option);
-
     return it == defaults.end() ? std::string() : it->second;
   }
 
   [[nodiscard]] bool is_required(
       const std::string & /* option */) const override {
     return false;
+  }
+
+  void expose_initial_configuration() const {
+    using DC = mysql_harness::DynamicConfig;
+
+    DC::SectionId id{kSectionName, ""};
+
+    DC::instance().set_option_configured(id, kOptionThreshold,
+                                         error_quarantine_threshold);
+    DC::instance().set_option_configured(id, kOptionInterval,
+                                         error_quarantine_interval.count());
+  }
+
+  void expose_default_configuration() const {
+    using DC = mysql_harness::DynamicConfig;
+
+    DC::SectionId id{kSectionName, ""};
+
+    DC::instance().set_option_default(id, kOptionThreshold,
+                                      kDefaultErrorQuarantineThreshold);
+    DC::instance().set_option_default(id, kOptionInterval,
+                                      kDefaultErrorQuarantineInterval);
   }
 };
 
@@ -123,6 +148,34 @@ const static std::array<const char *, 2> required = {{
     "io",
 }};
 
+static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  const mysql_harness::AppInfo *info = get_app_info(env);
+
+  if (!info->config) return;
+
+  for (const mysql_harness::ConfigSection *section : info->config->sections()) {
+    if (section->name == kSectionName) {
+      DestinationStatusPluginConfig config{section};
+      config.expose_initial_configuration();
+    }
+  }
+}
+
+static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  const mysql_harness::AppInfo *info = get_app_info(env);
+
+  if (!info->config) return;
+
+  for (const mysql_harness::ConfigSection *section : info->config->sections()) {
+    if (section->name == kSectionName) {
+      DestinationStatusPluginConfig config{section};
+      config.expose_default_configuration();
+    }
+  }
+}
+
 extern "C" {
 mysql_harness::Plugin DESTINATION_STATUS_PLUGIN_EXPORT
     harness_plugin_destination_status = {
@@ -143,5 +196,7 @@ mysql_harness::Plugin DESTINATION_STATUS_PLUGIN_EXPORT
         false,    // declares_readiness
         destination_status_supported_options.size(),
         destination_status_supported_options.data(),
+        expose_initial_configuration,
+        expose_default_configuration,
 };
 }

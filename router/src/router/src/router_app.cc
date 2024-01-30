@@ -49,7 +49,9 @@
 #include "hostname_validator.h"
 #include "keyring/keyring_manager.h"
 #include "mysql/harness/arg_handler.h"
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/dynamic_state.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/log_reopen_component.h"
@@ -61,8 +63,10 @@
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
 #include "mysqlrouter/config_files.h"
+#include "mysqlrouter/connection_pool.h"
 #include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/routing.h"
 #include "mysqlrouter/supported_router_options.h"
 #include "mysqlrouter/utils.h"  // substitute_envvar
 #include "print_version.h"
@@ -141,7 +145,7 @@ void check_config_overwrites(const CmdArgHandler::ConfigOverwrites &overwrites,
     // only --logger.level config overwrite is allowed currently for bootstrap
     for (const auto &option : overwrite.second) {
       const std::string name = section + "." + option.first;
-      if (name != "logger.level") {
+      if (name != "logger.level" && name != "DEFAULT.plugin_folder") {
         throw std::runtime_error(
             "Invalid argument '--" + name +
             "'. Only '--logger.level' configuration option can be "
@@ -149,6 +153,19 @@ void check_config_overwrites(const CmdArgHandler::ConfigOverwrites &overwrites,
       }
     }
   }
+}
+
+std::string get_plugin_folder_overwrite(
+    const CmdArgHandler::ConfigOverwrites &overwrites) {
+  const auto default_key = std::make_pair("DEFAULT"s, ""s);
+  if (overwrites.count(default_key) != 0) {
+    const auto &default_overwrites = overwrites.at(default_key);
+    if (default_overwrites.count("plugin_folder") != 0) {
+      return default_overwrites.at("plugin_folder");
+    }
+  }
+
+  return "";
 }
 
 }  // namespace
@@ -245,7 +262,8 @@ void MySQLRouter::init(const std::string &program_name,
 #endif
 
   const bool is_bootstrap = !bootstrap_uri_.empty();
-  check_config_overwrites(arg_handler_.get_config_overwrites(),
+  const auto config_overwrites = arg_handler_.get_config_overwrites();
+  check_config_overwrites(config_overwrites,
                           is_bootstrap);  // throws std::runtime_error
 
   if (is_bootstrap) {
@@ -292,10 +310,12 @@ void MySQLRouter::init(const std::string &program_name,
     // here we re-configure it with settings from config file)
     init_main_logger(config, true);  // true = raw logging mode
 
-    bootstrap(
-        program_name,
-        bootstrap_uri_);  // throws MySQLSession::Error, std::runtime_error,
-                          // std::out_of_range, std::logic_error, ...?
+    bootstrap(program_name, bootstrap_uri_,
+              get_plugin_folder_overwrite(
+                  config_overwrites));  // throws MySQLSession::Error,
+                                        // std::runtime_error,
+                                        // std::out_of_range,
+                                        // std::logic_error, ...?
     return;
   }
 
@@ -512,6 +532,8 @@ void MySQLRouter::init_loader(mysql_harness::LoaderConfig &config) {
   }
 
   loader_->register_supported_app_options(router_supported_options);
+  loader_->register_expose_app_config_callback(
+      expose_router_initial_configuration);
 }
 
 void MySQLRouter::start() {
@@ -1845,7 +1867,8 @@ void MySQLRouter::prepare_command_options() noexcept {
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ... ?
 void MySQLRouter::bootstrap(const std::string &program_name,
-                            const std::string &server_url) {
+                            const std::string &server_url,
+                            const std::string &plugin_folder) {
   mysqlrouter::ConfigGenerator config_gen(out_stream_, err_stream_
 #ifndef _WIN32
                                           ,
@@ -1857,6 +1880,7 @@ void MySQLRouter::bootstrap(const std::string &program_name,
       bootstrap_options_);  // throws MySQLSession::Error, std::runtime_error,
                             // std::out_of_range, std::logic_error
   config_gen.warn_on_no_ssl(bootstrap_options_);  // throws std::runtime_error
+  config_gen.set_plugin_folder(plugin_folder);
 
 #ifdef _WIN32
   // Cannot run bootstrap mode as windows service since it requires console
@@ -2115,3 +2139,96 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
 }
 
 void MySQLRouter::show_usage() noexcept { show_usage(true); }
+
+void expose_router_default_configuration() {
+  using DC = mysql_harness::DynamicConfig;
+  const DC::SectionId id{"common", ""};
+
+  auto set_default = [&](const std::string &option, const auto &default_value) {
+    DC::instance().set_option_default(id, option, default_value);
+  };
+
+  set_default("name", kSystemRouterName);
+  set_default("max_total_connections",
+              static_cast<int64_t>(routing::kDefaultMaxTotalConnections));
+  set_default("user", kDefaultSystemUserName);
+
+  set_default("connect_timeout",
+              mysqlrouter::MySQLSession::kDefaultConnectTimeout);
+  set_default("read_timeout", mysqlrouter::MySQLSession::kDefaultReadTimeout);
+  set_default("max_idle_server_connections",
+              kDefaultMaxIdleServerConnectionsBootstrap);
+  set_default("client_ssl_mode",
+              std::string(routing::kDefaultClientSslModeBootstrap));
+  set_default("server_ssl_mode",
+              std::string(routing::kDefaultServerSslModeBootstrap));
+  set_default("server_ssl_verify",
+              std::string(routing::kDefaultServerSslVerify));
+  set_default("unknown_config_option", "error");
+  set_default("router_require_enforce", routing::kDefaultRequireEnforce);
+}
+
+void expose_router_initial_configuration(
+    const mysql_harness::ConfigSection &section) {
+  using DC = mysql_harness::DynamicConfig;
+  const DC::SectionId id{"common", ""};
+
+  auto set_option = [&](const std::string &option, const auto &value) {
+    DC::instance().set_option_configured(id, option, value);
+  };
+
+  // set "global" router options from DEFAULT section
+  int64_t max_total_connections{routing::kDefaultMaxTotalConnections};
+  if (section.has("max_total_connections")) {
+    try {
+      max_total_connections = mysql_harness::option_as_int<int64_t>(
+          section.get("max_total_connections"), "");
+    } catch (...) {
+    }
+  }
+  set_option("max_total_connections", max_total_connections);
+
+  std::string name{kSystemRouterName};
+  if (section.has("name")) {
+    name = section.get("name");
+  }
+  set_option("name", name);
+
+  std::string user;
+  if (section.has("user")) {
+    user = section.get("user");
+  }
+  set_option("user", user);
+
+  // set router options from DEFAULT section that are written by bootstrap but
+  // are used as plugins options if the plugins do not overwrite those
+  auto set_int_option_if_present = [&](const std::string &option) {
+    if (section.has(option)) {
+      set_option(option, mysql_harness::option_as_int<int64_t>(
+                             section.get(option), ""));
+    }
+  };
+
+  auto set_str_option_if_present = [&](const std::string &option) {
+    if (section.has(option)) {
+      set_option(option, section.get(option));
+    }
+  };
+
+  auto set_bool_option_if_present = [&](const std::string &option) {
+    if (section.has(option)) {
+      set_option(option, section.get(option) != "0");
+    }
+  };
+
+  set_int_option_if_present("connect_timeout");
+  set_int_option_if_present("read_timeout");
+  set_int_option_if_present("max_idle_server_connections");
+  set_str_option_if_present("client_ssl_cert");
+  set_str_option_if_present("client_ssl_key");
+  set_str_option_if_present("client_ssl_mode");
+  set_str_option_if_present("server_ssl_mode");
+  set_str_option_if_present("server_ssl_verify");
+  set_str_option_if_present("unknown_config_option");
+  set_bool_option_if_present("router_require_enforce");
+}

@@ -55,7 +55,6 @@ constexpr const uint16_t kDefaultMetadataPort{32275};
 constexpr const std::string_view kDefaultMetadataAddress{"127.0.0.1:32275"};
 constexpr const std::string_view kDefaultMetadataUser{""};
 constexpr const std::string_view kDefaultMetadataPassword{""};
-constexpr const std::chrono::milliseconds kDefaultMetadataTTL{500};
 constexpr const std::chrono::milliseconds kDefaultAuthCacheTTL{
     std::chrono::seconds{-1}};
 constexpr const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval{

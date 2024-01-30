@@ -260,7 +260,7 @@ static uint64_t get_uint64_config(const mysql_harness::Config &config,
 void MySQLRoutingComponent::init(const mysql_harness::Config &config) {
   max_total_connections_ = get_uint64_config(
       config, "max_total_connections", 1, std::numeric_limits<int64_t>::max(),
-      kDefaultMaxTotalConnections);
+      routing::kDefaultMaxTotalConnections);
 
   QuarantineRoutingCallbacks quarantine_callbacks;
   quarantine_callbacks.on_get_destinations = [&](

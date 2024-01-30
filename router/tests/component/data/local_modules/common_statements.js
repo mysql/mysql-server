@@ -114,6 +114,7 @@ var defaults = {
   gr_members_recovering: 0,
   gr_members_online: 3,
   current_instance_attributes: null,
+  config_defaults_stored_is_null: 0,
 };
 
 function ensure_type(options, field, expected_type) {
@@ -524,9 +525,9 @@ function get_response(stmt_key, options) {
       return {
         "stmt_regex":
             "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes = " +
-            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
+            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
             "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWSplitEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
-            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$\\.MetadataUser', '.*'\\),    '\\$\\.bootstrapTargetType', '.*'\\), " +
+            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$\\.MetadataUser', '.*'\\),    '\\$\\.bootstrapTargetType', '.*'\\),    '\\$\\.Configuration', CAST\\('(.*)' as JSON\\)\\), " +
             "version = '.*', cluster_id = '.*' " +
             "WHERE router_id = .*",
         "ok": {}
@@ -535,9 +536,9 @@ function get_response(stmt_key, options) {
       return {
         "stmt_regex":
             "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes = " +
-            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
+            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
             "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWSplitEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
-            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$\\.MetadataUser', '.*'\\),    '\\$\\.bootstrapTargetType', '.*'\\), " +
+            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$\\.MetadataUser', '.*'\\),    '\\$\\.bootstrapTargetType', '.*'\\),    '\\$\\.Configuration', CAST\\('(.*)' as JSON\\)\\), " +
             "version = '.*', clusterset_id = '.*' " +
             "WHERE router_id = .*",
         "ok": {}
@@ -776,27 +777,10 @@ function get_response(stmt_key, options) {
     case "router_update_attributes_v2":
       return {
         "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\\.v2_routers" +
-            " SET version = .*, last_check_in = NOW\\(\\), attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
+            " SET version = '(.*)', last_check_in = NOW\\(\\), attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
             " IF\\(attributes IS NULL, '\\{\\}', attributes\\)," +
-            " '\\$\\.RWEndpoint', '.*'\\), '\\$\\.ROEndpoint', '.*'\\), '\\$\\.RWSplitEndpoint', '.*'\\), '\\$\\.RWXEndpoint', '.*'\\)," +
-            " '\\$\\.ROXEndpoint', '.*'\\), '\\$\\.MetadataUser', '.*'\\) WHERE router_id = .*",
-        "ok": {}
-      };
-    case "router_update_attributes_strict_v2":
-      return {
-        "stmt": "UPDATE mysql_innodb_cluster_metadata.v2_routers" +
-            " SET version = '" + options.router_version +
-            "', last_check_in = NOW()" +
-            ", attributes = JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(" +
-            " IF(attributes IS NULL, '{}', attributes)," +
-            " '$.RWEndpoint', '" + options.router_rw_classic_port +
-            "'), '$.ROEndpoint', '" + options.router_ro_classic_port +
-            "'), '$.RWSplitEndpoint', '" +
-            options.router_rw_split_classic_port + "'), '$.RWXEndpoint', '" +
-            options.router_rw_x_port + "'), '$.ROXEndpoint', '" +
-            options.router_ro_x_port + "'), '$.MetadataUser', '" +
-            options.router_metadata_user +
-            "') WHERE router_id = " + options.router_id,
+            " '\\$\\.RWEndpoint', '(.*)'\\), '\\$\\.ROEndpoint', '(.*)'\\), '\\$\\.RWSplitEndpoint', '(.*)'\\), '\\$\\.RWXEndpoint', '(.*)'\\)," +
+            " '\\$\\.ROXEndpoint', '(.*)'\\), '\\$\\.MetadataUser', '(.*)'\\), '\\$.Configuration', CAST\\('(.*)' as JSON\\)\\) WHERE router_id = (.*)",
         "ok": {}
       };
     case "router_update_last_check_in_v2":
@@ -1263,6 +1247,72 @@ function get_response(stmt_key, options) {
           rows: [[options.current_instance_attributes]]
         }
       };
+    case "router_select_config_defaults_stored_gr_cluster":
+      return {
+        stmt_regex:
+            "select JSON_EXTRACT\\(router_options, '\\$\\.Configuration.\"" +
+            options["router_version"] +
+            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_gr_clusters where cluster_id = '.*'",
+        result: {
+          columns: [{
+            "type": "LONGLONG",
+            "name": "JSON_EXTRACT(router_options, '$.Configuration\"') IS NULL"
+          }],
+          rows: [[options.config_defaults_stored_is_null]]
+        }
+      };
+    case "router_select_config_defaults_stored_ar_cluster":
+      return {
+        stmt_regex:
+            "select JSON_EXTRACT\\(router_options, '\\$\\.Configuration.\"" +
+            options["router_version"] +
+            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_ar_clusters where cluster_id = '.*'",
+        result: {
+          columns: [{
+            "type": "LONGLONG",
+            "name": "JSON_EXTRACT(router_options, '$.Configuration') IS NULL"
+          }],
+          rows: [[options.config_defaults_stored_is_null]]
+        }
+      };
+    case "router_select_config_defaults_stored_clusterset":
+      return {
+        stmt_regex:
+            "select JSON_EXTRACT\\(router_options, '\\$\\.Configuration.\"" +
+            options["router_version"] +
+            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_cs_clustersets where clusterset_id = '.*'",
+        result: {
+          columns: [{
+            "type": "LONGLONG",
+            "name": "JSON_EXTRACT(router_options, '$.Configuration') IS NULL"
+          }],
+          rows: [[options.config_defaults_stored_is_null]]
+        }
+      };
+    case "router_store_config_defaults_gr_cluster":
+      return {
+        stmt_regex:
+            "UPDATE mysql_innodb_cluster_metadata\\.v2_gr_clusters SET router_options = " +
+            "JSON_MERGE_PATCH\\(IF\\(router_options IS NULL, '\\{\\}', router_options\\), " +
+            "CAST\\('(.*)' as JSON\\)\\) WHERE cluster_id = '.*'",
+        ok: {}
+      };
+    case "router_store_config_defaults_ar_cluster":
+      return {
+        stmt_regex:
+            "UPDATE mysql_innodb_cluster_metadata\\.v2_ar_clusters SET router_options = " +
+            "JSON_MERGE_PATCH\\(IF\\(router_options IS NULL, '\\{\\}', router_options\\), " +
+            "CAST\\('(.*)' as JSON\\)\\) WHERE cluster_id = '.*'",
+        ok: {}
+      };
+    case "router_store_config_defaults_clusterset":
+      return {
+        stmt_regex:
+            "UPDATE mysql_innodb_cluster_metadata\\.v2_cs_clustersets SET router_options = " +
+            "JSON_MERGE_PATCH\\(IF\\(router_options IS NULL, '\\{\\}', router_options\\), " +
+            "CAST\\('(.*)' as JSON\\)\\) WHERE clusterset_id = '.*'",
+        ok: {}
+      };
   };
 };
 
@@ -1343,7 +1393,7 @@ exports.unknown_statement_response = function(stmt) {
  * @param {string} regex_stmt regex statement text
  * @param {object} common_responses_regex object containing
  *     common responses
- * @returns  response if any matches the statmenet or undefined
+ * @returns  response if any matches the statement or undefined
  */
 exports.handle_regex_stmt = function(regex_stmt, common_responses_regex) {
   for (var stmt in common_responses_regex) {

@@ -143,6 +143,7 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
     std::string router_options{""};
     std::string expected_target_cluster{".*"};
     bool simulate_cluster_not_found{false};
+    bool simulate_config_defaults_stored_is_null{false};
     bool use_gr_notifications{false};
     std::vector<size_t> gr_nodes_number{3, 3, 3};
     std::vector<size_t> read_replicas_number{};

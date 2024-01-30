@@ -38,6 +38,7 @@
 #include "common.h"
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
@@ -53,11 +54,14 @@ IMPORT_LOG_FUNCTIONS()
 template <class T>
 using IntOption = mysql_harness::IntOption<T>;
 
-static constexpr const std::string_view kSectionName{"connection_pool"};
+static constexpr std::string_view kSectionName{"connection_pool"};
+static constexpr uint32_t kDefaultMaxIdleServerConnections{
+    0};                                            // disabled by default
+static constexpr uint32_t kDefaultIdleTimeout{5};  // in seconds
 
-static constexpr const char kMaxIdleServerConnections[]{
+static constexpr char kMaxIdleServerConnections[]{
     "max_idle_server_connections"};
-static constexpr const char kIdleTimeout[]{"idle_timeout"};
+static constexpr char kIdleTimeout[]{"idle_timeout"};
 
 static constexpr std::array supported_options{
     kMaxIdleServerConnections,
@@ -79,18 +83,37 @@ class ConnectionPoolPluginConfig : public mysql_harness::BasePluginConfig {
 
   std::string get_default(const std::string &option) const override {
     const std::map<std::string_view, std::string> defaults{
-        {kMaxIdleServerConnections, "0"},  // disabled by default
-        {kIdleTimeout, "5"},               // in seconds
+        {kMaxIdleServerConnections,
+         std::to_string(kDefaultMaxIdleServerConnections)},
+        {kIdleTimeout, std::to_string(kDefaultIdleTimeout)},
     };
 
     auto it = defaults.find(option);
-
     return it == defaults.end() ? std::string() : it->second;
   }
 
   [[nodiscard]] bool is_required(
       const std::string & /* option */) const override {
     return false;
+  }
+
+  void expose_initial_configuration() const {
+    using DC = mysql_harness::DynamicConfig;
+    DC::SectionId id{kSectionName, ""};
+
+    DC::instance().set_option_configured(id, kMaxIdleServerConnections,
+                                         max_idle_server_connections);
+    DC::instance().set_option_configured(id, kIdleTimeout, idle_timeout);
+  }
+
+  void expose_default_configuration() const {
+    using DC = mysql_harness::DynamicConfig;
+    DC::SectionId id{kSectionName, ""};
+
+    DC::instance().set_option_default(
+        id, kMaxIdleServerConnections,
+        kDefaultMaxIdleServerConnectionsBootstrap);
+    DC::instance().set_option_default(id, kIdleTimeout, kDefaultIdleTimeout);
   }
 };
 
@@ -151,6 +174,34 @@ const static std::array<const char *, 2> required = {{
     "io",
 }};
 
+static void expose_configuration(mysql_harness::PluginFuncEnv *env,
+                                 bool initial) {
+  const mysql_harness::AppInfo *info = get_app_info(env);
+
+  if (!info->config) return;
+
+  for (const mysql_harness::ConfigSection *section : info->config->sections()) {
+    if (section->name == kSectionName) {
+      ConnectionPoolPluginConfig config{section};
+      if (initial) {
+        config.expose_initial_configuration();
+      } else {
+        config.expose_default_configuration();
+      }
+    }
+  }
+}
+
+static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  expose_configuration(env, true);
+}
+
+static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  expose_configuration(env, false);
+}
+
 extern "C" {
 mysql_harness::Plugin CONNECTION_POOL_PLUGIN_EXPORT
     harness_plugin_connection_pool = {
@@ -171,5 +222,7 @@ mysql_harness::Plugin CONNECTION_POOL_PLUGIN_EXPORT
         false,    // declares_readiness
         supported_options.size(),
         supported_options.data(),
+        expose_initial_configuration,
+        expose_default_configuration,
 };
 }

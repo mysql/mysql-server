@@ -75,8 +75,7 @@ mysql_harness::Plugin PLUGIN_API harness_plugin_routertestplugin_logger = {
     "Logger",                                // name
     VERSION_NUMBER(1, 0, 0),
     // requires
-    required.size(),
-    required.data(),
+    required.size(), required.data(),
     // conflicts
     0,
     nullptr,  //
@@ -85,7 +84,8 @@ mysql_harness::Plugin PLUGIN_API harness_plugin_routertestplugin_logger = {
     run,      // start
     nullptr,  // stop
     true,     // declares_readiness
-    logger_sink_supported_options.size(),
-    logger_sink_supported_options.data(),
+    logger_sink_supported_options.size(), logger_sink_supported_options.data(),
+    nullptr,  // expose_initial_configuration
+    nullptr,  // expose_default_configuration
 };
 }

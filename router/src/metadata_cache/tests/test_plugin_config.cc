@@ -100,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(
         {{std::map<std::string, std::string>({
              {"user", "foo"},  // required
          })},
-         {"foo", metadata_cache::kDefaultMetadataTTL, ""}},
+         {"foo", mysqlrouter::kDefaultMetadataTTLCluster, ""}},
 
         // TTL = 0.5 seconds
         {{std::map<std::string, std::string>({

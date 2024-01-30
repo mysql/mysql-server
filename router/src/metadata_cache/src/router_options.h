@@ -27,23 +27,28 @@
 #define METADATA_CACHE_ROUTER_OPTIONS_INCLUDED
 
 #include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/metadata_cache_export.h"
 #include "mysqlrouter/mysql_session.h"
 
 #include <chrono>
 #include <optional>
 
+static const auto kDefautlInvalidatedClusterRoutingPolicy =
+    mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy::DropAll;
+
 enum class ReadOnlyTargets { all, read_replicas, secondaries };
 static const ReadOnlyTargets kDefaultReadOnlyTargets =
     ReadOnlyTargets::secondaries;
 
-std::string to_string(const ReadOnlyTargets mode);
+METADATA_CACHE_EXPORT std::string to_string(const ReadOnlyTargets mode);
 
 enum class QuorumConnectionLostAllowTraffic { none, read, all };
 static const QuorumConnectionLostAllowTraffic
     kDefaultQuorumConnectionLostAllowTraffic =
         QuorumConnectionLostAllowTraffic::none;
 
-std::string to_string(const QuorumConnectionLostAllowTraffic allow);
+METADATA_CACHE_EXPORT std::string to_string(
+    const QuorumConnectionLostAllowTraffic allow);
 
 /** @class RouterOptions
  *

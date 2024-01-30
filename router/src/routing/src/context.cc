@@ -31,8 +31,8 @@
 
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/local.h"
+#include "mysqlrouter/base_protocol.h"
 #include "mysqlrouter/routing.h"
-#include "protocol/base_protocol.h"
 
 IMPORT_LOG_FUNCTIONS()
 

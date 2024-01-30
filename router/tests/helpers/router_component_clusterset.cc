@@ -27,6 +27,7 @@
 
 #include "mock_server_testutils.h"
 #include "mysqlrouter/mock_server_rest_client.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 
 void RouterComponentClusterSetTest::create_clusterset(
     ClusterSetOptions &cs_options) {
@@ -232,9 +233,11 @@ void RouterComponentClusterSetTest::set_mock_clusterset_metadata(
   add_json_str_field(json_doc, "router_options", cs_options.router_options);
   add_json_str_field(json_doc, "router_expected_target_cluster",
                      cs_options.expected_target_cluster);
-
   add_json_int_field(json_doc, "simulate_cluster_not_found",
                      cs_options.simulate_cluster_not_found);
+  add_json_int_field(json_doc, "config_defaults_stored_is_null",
+                     cs_options.simulate_config_defaults_stored_is_null);
+  add_json_str_field(json_doc, "router_version", MYSQL_ROUTER_VERSION);
 
   const auto json_str = json_to_string(json_doc);
 

@@ -269,7 +269,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 
   try {
-    RoutingPluginConfig config(section);
+    const RoutingPluginConfig config(section);
 
     if (config.router_require_enforce != 0) {
       if (config.source_ssl_ca_file.empty() &&
@@ -586,6 +586,36 @@ static const std::array<const char *, 6> required = {{
     "destination_status",
 }};
 
+static void expose_configuration(mysql_harness::PluginFuncEnv *env,
+                                 const char *key, bool initial) {
+  const mysql_harness::AppInfo *info = get_app_info(env);
+
+  if (!info->config) return;
+
+  for (const mysql_harness::ConfigSection *section : info->config->sections()) {
+    if (section->name != kSectionName || section->key != key) {
+      continue;
+    }
+
+    RoutingPluginConfig config(section);
+    if (initial) {
+      config.expose_initial_configuration(key);
+    } else {
+      config.expose_default_configuration(key);
+    }
+  }
+}
+
+static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char *key) {
+  expose_configuration(env, key, true);
+}
+
+static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char *key) {
+  expose_configuration(env, key, false);
+}
+
 mysql_harness::Plugin ROUTING_PLUGIN_EXPORT harness_plugin_routing = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
     mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
@@ -605,4 +635,6 @@ mysql_harness::Plugin ROUTING_PLUGIN_EXPORT harness_plugin_routing = {
     true,     // declares_readiness
     routing_supported_options.size(),
     routing_supported_options.data(),
+    expose_initial_configuration,
+    expose_default_configuration,
 };

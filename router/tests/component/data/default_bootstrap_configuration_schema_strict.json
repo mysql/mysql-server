@@ -1,0 +1,311 @@
+{
+    "type": "object",
+    "properties": {
+        "common" : {
+            "type": "object",
+            "properties": {
+                "max_total_connections": {  "enum": [ 512 ] },
+                "name": {  "enum": [ "system" ] },
+                "user": {  "enum": [ "" ] },
+                "connect_timeout": {  "enum": [ 5 ] },
+                "read_timeout": {  "enum": [ 30 ] },
+                "max_idle_server_connections": {  "enum": [ 64 ] },
+                "client_ssl_key":  {"pattern": "router-key.pem$" },
+                "client_ssl_cert": {"pattern": "router-cert.pem$" },
+                "client_ssl_mode": {  "enum": [ "PREFERRED" ] },
+                "server_ssl_mode": {  "enum": [ "PREFERRED" ] },
+                "server_ssl_verify": {  "enum": [ "DISABLED" ] },
+                "unknown_config_option": {  "enum": [ "error" ] },
+                "router_require_enforce": {  "enum": [ true ] }
+            },
+            "required": ["max_total_connections", "name", "user",
+                "connect_timeout", "read_timeout", "max_idle_server_connections",
+                "client_ssl_key", "client_ssl_cert", "client_ssl_mode",
+                "server_ssl_mode", "server_ssl_verify", "unknown_config_option",
+                "router_require_enforce"
+            ]
+        },
+        "metadata_cache" : {
+            "type": "object",
+            "properties": {
+                "user": { "pattern": "^mysql_router" },
+                "ttl": { "enum": [ 0.5, 5.0 ], 
+                         "$comment": "It is 5.0 for clusterset" },
+                "auth_cache_refresh_interval": {  "enum": [ 2.0, 5.0 ] },
+                "connect_timeout": { "enum": [ 5 ] },
+                "read_timeout": { "enum": [ 30 ] },
+                "use_gr_notifications": { "enum": [ false, true ] }
+            },
+            "required": ["user", "ttl", "auth_cache_refresh_interval",
+                         "connect_timeout", "read_timeout"]
+        },
+        "routing_rules" : {
+            "type": "object",
+            "properties": {
+                "target_cluster": {  "enum": [ "" ] },
+                "read_only_targets": { "enum": [ "secondaries" ] },
+                "stats_updates_frequency": {  "enum": [ -1 ] },
+                "use_replica_primary_as_rw": { "enum": [ false] },
+                "invalidated_cluster_policy": { "enum": [ "drop_all" ] },
+                "unreachable_quorum_allowed_traffic": { "enum": [ "none" ] }
+            },
+            "required": ["read_only_targets", "stats_updates_frequency",
+                         "use_replica_primary_as_rw",  "invalidated_cluster_policy",
+                         "unreachable_quorum_allowed_traffic"]
+        },
+        "endpoints": {
+            "type": "object",
+            "properties": {
+                "bootstrap_ro": {
+                    "type": "object",
+                    "properties": {
+                        "protocol": { "enum": [ "classic" ] },
+                        "destinations": { "pattern": "metadata-cache://(mycluster)|(clusterset-name)/\\?role=SECONDARY" },
+                        "bind_port": { "enum": [ 6447 ] },
+                        "bind_address": { "enum": [ "0.0.0.0" ] },
+                        "named_socket": { "enum": [ "" ] },
+                        "connect_timeout": { "enum": [ 5 ] },
+                        "routing_strategy": { "enum": [ "round-robin-with-fallback" ] },
+                        "max_connections": { "enum": [ 0] },
+                        "max_connect_errors": { "enum": [ 100 ] },
+                        "client_connect_timeout": { "enum": [ 9 ] },
+                        "net_buffer_length": { "enum": [ 16384 ] },
+                        "thread_stack_size": { "enum": [ 1024 ] },
+                        "client_ssl_mode": { "enum": [ "PREFERRED" ] },
+                        "client_ssl_cert": { "pattern": "router-cert.pem$" },
+                        "client_ssl_key": { "pattern": "router-key.pem$" },
+                        "client_ssl_cipher": { "enum": [ "" ] },
+                        "client_ssl_curves": { "enum": [ "" ] },
+                        "client_ssl_dh_params": { "enum": [ "" ] },
+                        "server_ssl_mode": { "enum": [ "PREFERRED" ] },
+                        "server_ssl_verify": { "enum": [ "DISABLED" ] },
+                        "server_ssl_cipher": { "enum": [ "" ] },
+                        "server_ssl_ca": { "enum": [ "" ] },
+                        "server_ssl_capath": { "enum": [ "" ] },
+                        "server_ssl_crl": { "enum": [ "" ] },
+                        "server_ssl_crlpath": { "enum": [ "" ] },
+                        "connection_sharing": { "enum": [ false ] },
+                        "connection_sharing_delay": { "enum": [ 1.0 ] },
+                        "access_mode": { "enum": [ "" ] }
+                    },
+                    "required": ["protocol", "destinations", "bind_port", "bind_address",
+                                 "named_socket", "connect_timeout", "routing_strategy",
+                                 "max_connections", "max_connect_errors", "client_connect_timeout",
+                                 "net_buffer_length", "thread_stack_size", "client_ssl_mode",
+                                 "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
+                                 "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
+                                 "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay", "access_mode"]
+                },
+                "bootstrap_rw":  {
+                    "type": "object",
+                    "properties": {
+                        "protocol": { "enum": [ "classic" ] },
+                        "destinations": { "pattern": "metadata-cache://(mycluster)|(clusterset-name)/\\?role=PRIMARY" },
+                        "bind_port": { "enum": [ 6446 ] },
+                        "bind_address": { "enum": [ "0.0.0.0" ] },
+                        "named_socket": { "enum": [ "" ] },
+                        "connect_timeout": { "enum": [ 5 ] },
+                        "routing_strategy": { "enum": [ "first-available" ] },
+                        "max_connections": { "enum": [ 0 ] },
+                        "max_connect_errors": { "enum": [ 100 ] },
+                        "client_connect_timeout": { "enum": [ 9 ] },
+                        "net_buffer_length": { "enum": [ 16384 ] },
+                        "thread_stack_size": { "enum": [ 1024 ] },
+                        "client_ssl_mode": { "enum": [ "PREFERRED" ] },
+                        "client_ssl_cert": { "pattern": "router-cert.pem$" },
+                        "client_ssl_key": { "pattern": "router-key.pem$" },
+                        "client_ssl_cipher": { "enum": [ "" ] },
+                        "client_ssl_curves": { "enum": [ "" ] },
+                        "client_ssl_dh_params": { "enum": [ "" ] },
+                        "server_ssl_mode": { "enum": [ "PREFERRED" ] },
+                        "server_ssl_verify": { "enum": [ "DISABLED" ] },
+                        "server_ssl_cipher": { "enum": [ "" ] },
+                        "server_ssl_ca": { "enum": [ "" ] },
+                        "server_ssl_capath": { "enum": [ "" ] },
+                        "server_ssl_crl": { "enum": [ "" ] },
+                        "server_ssl_crlpath": { "enum": [ "" ] },
+                        "connection_sharing": { "enum": [ false ] },
+                        "connection_sharing_delay": { "enum": [ 1.0 ] },
+                        "access_mode": { "enum": [ "" ] }
+                    },
+                    "required": ["protocol", "destinations", "bind_port", "bind_address",
+                                 "named_socket", "connect_timeout", "routing_strategy",
+                                 "max_connections", "max_connect_errors", "client_connect_timeout",
+                                 "net_buffer_length", "thread_stack_size", "client_ssl_mode",
+                                 "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
+                                 "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
+                                 "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay", "access_mode"]
+                },
+                "bootstrap_rw_split": {
+                    "type": "object",
+                    "properties": {
+                        "protocol": { "enum": [ "classic" ] },
+                        "destinations": { "pattern": "metadata-cache://(mycluster)|(clusterset-name)/\\?role=PRIMARY_AND_SECONDARY" },
+                        "bind_port": { "enum": [ 6450 ] },
+                        "bind_address": { "enum": [ "0.0.0.0" ] },
+                        "named_socket": { "enum": [ "" ] },
+                        "connect_timeout": { "enum": [ 5 ] },
+                        "routing_strategy": { "enum": [ "round-robin" ] },
+                        "max_connections": { "enum": [ 0] },
+                        "max_connect_errors": { "enum": [ 100 ] },
+                        "client_connect_timeout": { "enum": [ 9 ] },
+                        "net_buffer_length": { "enum": [ 16384 ] },
+                        "thread_stack_size": { "enum": [ 1024 ] },
+                        "client_ssl_mode": { "enum": [ "PREFERRED" ] },
+                        "client_ssl_cert": { "pattern": "router-cert.pem$" },
+                        "client_ssl_key": { "pattern": "router-key.pem$" },
+                        "client_ssl_cipher": { "enum": [ "" ] },
+                        "client_ssl_curves": { "enum": [ "" ] },
+                        "client_ssl_dh_params": { "enum": [ "" ] },
+                        "server_ssl_mode": { "enum": [ "PREFERRED" ] },
+                        "server_ssl_verify": { "enum": [ "DISABLED" ] },
+                        "server_ssl_cipher": { "enum": [ "" ] },
+                        "server_ssl_ca": { "enum": [ "" ] },
+                        "server_ssl_capath": { "enum": [ "" ] },
+                        "server_ssl_crl": { "enum": [ "" ] },
+                        "server_ssl_crlpath": { "enum": [ "" ] },
+                        "connection_sharing": { "enum": [ true ] },
+                        "connection_sharing_delay": { "enum": [ 1.0 ] },
+                        "access_mode": { "enum": [ "auto" ] }
+                    },
+                    "required": ["protocol", "destinations", "bind_port", "bind_address",
+                                 "named_socket", "connect_timeout", "routing_strategy",
+                                 "max_connections", "max_connect_errors", "client_connect_timeout",
+                                 "net_buffer_length", "thread_stack_size", "client_ssl_mode",
+                                 "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
+                                 "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
+                                 "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay", "access_mode"]
+                },
+                "bootstrap_x_ro": {
+                    "type": "object",
+                    "properties": {
+                        "protocol": { "enum": [ "x" ] },
+                        "destinations": { "pattern": "metadata-cache://(mycluster)|(clusterset-name)/\\?role=SECONDARY" },
+                        "bind_port": { "enum": [ 6449 ] },
+                        "bind_address": { "enum": [ "0.0.0.0" ] },
+                        "named_socket": { "enum": [ "" ] },
+                        "connect_timeout": { "enum": [ 5 ] },
+                        "routing_strategy": { "enum": [ "round-robin-with-fallback" ] },
+                        "max_connections": { "enum": [ 0 ] },
+                        "max_connect_errors": { "enum": [ 100 ] },
+                        "client_connect_timeout": { "enum": [ 9 ] },
+                        "net_buffer_length": { "enum": [ 16384 ] },
+                        "thread_stack_size": { "enum": [ 1024 ] },
+                        "client_ssl_mode": { "enum": [ "PREFERRED" ] },
+                        "client_ssl_cert": { "pattern": "router-cert.pem$" },
+                        "client_ssl_key": { "pattern": "router-key.pem$" },
+                        "client_ssl_cipher": { "enum": [ "" ] },
+                        "client_ssl_curves": { "enum": [ "" ] },
+                        "client_ssl_dh_params": { "enum": [ "" ] },
+                        "server_ssl_mode": { "enum": [ "PREFERRED" ] },
+                        "server_ssl_verify": { "enum": [ "DISABLED" ] },
+                        "server_ssl_cipher": { "enum": [ "" ] },
+                        "server_ssl_ca": { "enum": [ "" ] },
+                        "server_ssl_capath": { "enum": [ "" ] },
+                        "server_ssl_crl": { "enum": [ "" ] },
+                        "server_ssl_crlpath": { "enum": [ "" ] },
+                        "connection_sharing": { "enum": [ false ] },
+                        "connection_sharing_delay": { "enum": [ 1.0 ] },
+                        "access_mode": { "enum": [ "" ] }
+                    },
+                    "required": ["protocol", "destinations", "bind_port", "bind_address",
+                                 "named_socket", "connect_timeout", "routing_strategy",
+                                 "max_connections", "max_connect_errors", "client_connect_timeout",
+                                 "net_buffer_length", "thread_stack_size", "client_ssl_mode",
+                                 "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
+                                 "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
+                                 "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay", "access_mode"]
+                },
+                "bootstrap_x_rw": {
+                    "type": "object",
+                    "properties": {
+                        "protocol": { "enum": [ "x" ] },
+                        "destinations": { "pattern": "metadata-cache://(mycluster)|(clusterset-name)/\\?role=PRIMARY" },
+                        "bind_port": { "enum": [ 6448 ] },
+                        "bind_address": { "enum": [ "0.0.0.0" ] },
+                        "named_socket": { "enum": [ "" ] },
+                        "connect_timeout": { "enum": [ 5 ] },
+                        "routing_strategy": { "enum": [ "first-available" ] },
+                        "max_connections": { "enum": [ 0 ] },
+                        "max_connect_errors": { "enum": [ 100 ] },
+                        "client_connect_timeout": { "enum": [ 9 ] },
+                        "net_buffer_length": { "enum": [ 16384 ] },
+                        "thread_stack_size": { "enum": [ 1024 ] },
+                        "client_ssl_mode": { "enum": [ "PREFERRED" ] },
+                        "client_ssl_cert": { "pattern": "router-cert.pem$" },
+                        "client_ssl_key": { "pattern": "router-key.pem$" },
+                        "client_ssl_cipher": { "enum": [ "" ] },
+                        "client_ssl_curves": { "enum": [ "" ] },
+                        "client_ssl_dh_params": { "enum": [ "" ] },
+                        "server_ssl_mode": { "enum": [ "PREFERRED" ] },
+                        "server_ssl_verify": { "enum": [ "DISABLED" ] },
+                        "server_ssl_cipher": { "enum": [ "" ] },
+                        "server_ssl_ca": { "enum": [ "" ] },
+                        "server_ssl_capath": { "enum": [ "" ] },
+                        "server_ssl_crl": { "enum": [ "" ] },
+                        "server_ssl_crlpath": { "enum": [ "" ] },
+                        "connection_sharing": { "enum": [ false ] },
+                        "connection_sharing_delay": { "enum": [ 1.0 ] },
+                        "access_mode": { "enum": [ "" ] }
+                    },
+                    "required": ["protocol", "destinations", "bind_port", "bind_address",
+                                 "named_socket", "connect_timeout", "routing_strategy",
+                                 "max_connections", "max_connect_errors", "client_connect_timeout",
+                                 "net_buffer_length", "thread_stack_size", "client_ssl_mode",
+                                 "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
+                                 "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
+                                 "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay", "access_mode"]
+                }
+            },
+            "required": ["bootstrap_rw", "bootstrap_ro", "bootstrap_x_rw", "bootstrap_x_ro", "bootstrap_rw",
+                         "bootstrap_rw_split"]
+        },
+        "loggers" : {
+            "type": "object",
+            "properties": {
+                "filelog": {
+                    "type": "object",
+                    "properties": {
+                        "filename": { "enum": [ "mysqlrouter.log" ] },
+                        "destination": { "enum": [ "" ] },
+                        "level": { "enum": [ "info" ] },
+                        "timestamp_precision": { "enum": [ "second" ] }
+                    },
+                    "required": ["filename", "destination", "level", "timestamp_precision"]
+                }
+            },
+            "required": ["filelog"]
+        },
+        "connection_pool" : {
+            "type": "object",
+            "properties": {
+                "max_idle_server_connections": { "enum": [ 64 ] },
+                "idle_timeout": { "enum": [ 5 ] }
+            },
+            "required": ["max_idle_server_connections", "idle_timeout"]
+        },
+        "destination_status" : {
+            "type": "object",
+            "properties": {
+                "error_quarantine_threshold": { "enum": [ 1 ] },
+                "error_quarantine_interval": { "enum": [ 1 ] }
+            },
+            "required": ["error_quarantine_threshold", "error_quarantine_interval"]
+        },
+        "io" : {
+            "type": "object",
+            "properties": {
+                "threads": {  "enum": [ 0 ] },
+                "backend": {  "enum": [ "poll", "linux_epoll" ] }
+            },
+            "required": ["backend", "threads"]
+        }
+    },
+    "required": ["metadata_cache", "endpoints", "loggers", "connection_pool",
+                 "destination_status", "io"]
+}

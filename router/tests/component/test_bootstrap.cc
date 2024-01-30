@@ -121,8 +121,6 @@ TEST_F(RouterBootstrapTest, bootstrap_and_run_from_symlinked_dir) {
   bootstrap_dir.reset(symlinkdir);
 
   std::vector<std::string> router_options{
-      "--conf-set-option=DEFAULT.plugin_folder=" +
-          mysql_harness::get_plugin_dir(get_origin().str()),
       "--conf-set-option=DEFAULT.logging_folder=" + get_logging_dir().str(),
       "--conf-set-option=DEFAULT.keyring_path=" + symlinkdir + "/data/keyring",
       "--conf-set-option=routing:bootstrap_rw.bind_port=" +
@@ -190,23 +188,49 @@ class RouterBootstrapOkTest
 TEST_P(RouterBootstrapOkTest, BootstrapOk) {
   const auto param = GetParam();
 
-  std::vector<Config> config{
-      {"127.0.0.1", port_pool_.get_next_available(),
-       port_pool_.get_next_available(),
-       get_data_dir().join(param.trace_file).str()},
-  };
+  const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join(param.trace_file).str();
+
+  // launch mock server that is our metadata server for the bootstrap
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
+
+  auto globals = mock_GR_metadata_as_json(
+      "cluster-specific-id", classic_ports_to_gr_nodes({server_port}), 0,
+      classic_ports_to_cluster_nodes({server_port}), 0, false, "127.0.0.1", "",
+      {2, 2, 0}, "mycluster");
+  JsonAllocator allocator;
+  // instrument the metadata in a way that the Router sees the configuration
+  // defaults and configuration change schema as not present for its version, to
+  // force the Router to store those
+  globals.AddMember("config_defaults_stored_is_null", 1, allocator);
+  const auto globals_str = json_to_string(globals);
+  MockServerRestClient(http_port).set_globals(globals_str);
+
+  std::vector<std::string> bootstrap_params{
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+      bootstrap_dir.name()};
+
+  auto &router = launch_router_for_bootstrap(bootstrap_params);
+
+  check_exit_code(router, EXIT_SUCCESS);
 
   std::vector<std::string> expected_output{
       "# Bootstrapping MySQL Router "s + MYSQL_ROUTER_VERSION + " \\(" +
       MYSQL_ROUTER_VERSION_EDITION + "\\) instance at"};
 
-  ASSERT_NO_FATAL_FAILURE(bootstrap_failover(config, param.cluster_type, {},
-                                             EXIT_SUCCESS, expected_output));
+  const std::string router_console_output = router.get_full_output();
+  for (const auto &expected_output_string : expected_output) {
+    EXPECT_TRUE(pattern_found(router_console_output, expected_output_string))
+        << router_console_output;
+  }
 
+  const std::string conf_file = bootstrap_dir.name() + "/mysqlrouter.conf";
   // 'config_file' is set as side-effect of bootstrap_failover()
-  ASSERT_THAT(config_file, ::testing::Not(::testing::IsEmpty()));
+  ASSERT_THAT(conf_file, ::testing::Not(::testing::IsEmpty()));
 
-  const std::string config_file_str = get_file_output(config_file);
+  const std::string config_file_str = get_file_output(conf_file);
 
   std::map<std::string, std::vector<std::string>> sections;
 
@@ -225,7 +249,7 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
         }
         section_name = line.substr(1, line.size() - 2);
       } else {
-        ASSERT_THAT(line, ::testing::HasSubstr("="));
+        ASSERT_THAT(line, ::testing::HasSubstr("=")) << line;
 
         kvs.emplace_back(line);
       }
@@ -261,7 +285,7 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
                   StartsWith("data_folder="),            //
                   StartsWith("keyring_path="),           //
                   StartsWith("master_key_path="),        //
-                  Eq("connect_timeout=1"),               //
+                  Eq("connect_timeout=5"),               //
                   Eq("read_timeout=30"),                 //
                   StartsWith("dynamic_state="),          //
                   StartsWith("client_ssl_cert="),        //
@@ -271,7 +295,8 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
                   Eq("server_ssl_verify=DISABLED"),      //
                   Eq("unknown_config_option=error"),     //
                   Eq("max_idle_server_connections=64"),  //
-                  Eq("router_require_enforce=1")         //
+                  Eq("router_require_enforce=1"),        //
+                  StartsWith("plugin_folder=")           //
                   ));
 
   if (GetParam().cluster_type == ClusterType::RS_V2) {
@@ -360,10 +385,170 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
           Eq("server_ssl_key="),                                          //
           Eq("server_ssl_cert=")                                          //
           ));
+
+  RecordProperty("Worklog", "15649");
+  RecordProperty("RequirementId", "FR1,FR1.1,FR2,FR3,FR3.1");
+  RecordProperty("Description",
+                 "Testing if the Router correctly exposes it's full static "
+                 "configuration on bootstrap in the metadata.");
+
+  // first validate the configuration json against general "public" schema for
+  // the structure corectness
+  const std::string public_config_schema =
+      get_file_output(Path(ROUTER_SRC_DIR)
+                          .join("src")
+                          .join("harness")
+                          .join("src")
+                          .join("configuration_schema.json")
+                          .str());
+
+  validate_config_stored_in_md(http_port, public_config_schema);
+
+  // then validate against strict schema that also checks the values specific to
+  // this bootstrap
+  const std::string strict_config_schema = get_file_output(
+      get_data_dir()
+          .join("default_bootstrap_configuration_schema_strict.json")
+          .str());
+
+  validate_config_stored_in_md(http_port, strict_config_schema);
+
+  RecordProperty("Worklog", "15649");
+  RecordProperty("RequirementId", "FR1,FR1.1,FR2,FR3,FR3.1");
+  RecordProperty("Description",
+                 "Testing if on bootstrap the Router correctly exposes "
+                 "ConfigurationChangesSchema and "
+                 "Defaults JSONs in "
+                 "mysql_innodb_cluster_metadata.cluster.router_options.->>"
+                 "Configuration.<router_version>");
+
+  // Check if proper UpdateSchema was written on BS
+  const std::string public_config_update_schema_in_md =
+      get_config_update_schema_stored_in_md(http_port);
+
+  const std::string public_config_update_schema = get_json_in_pretty_format(
+      get_file_output(Path(ROUTER_SRC_DIR)
+                          .join("src")
+                          .join("harness")
+                          .join("src")
+                          .join("configuration_update_schema.json")
+                          .str()));
+
+  EXPECT_STREQ(public_config_update_schema.c_str(),
+               public_config_update_schema_in_md.c_str());
+
+  // Check if proper UpdateSchema was written on BS
+  const std::string public_configuration_defaults_in_md =
+      get_config_defaults_stored_in_md(http_port);
+
+  const std::string public_configuration_defaults = get_file_output(
+      get_data_dir().join("configuration_defaults_cluster.json").str());
+
+  EXPECT_STREQ(public_configuration_defaults.c_str(),
+               public_configuration_defaults_in_md.c_str());
 }
 
 INSTANTIATE_TEST_SUITE_P(
     BootstrapOkTest, RouterBootstrapOkTest,
+    ::testing::Values(BootstrapTestParam{ClusterType::GR_V2, "gr",
+                                         "bootstrap_gr.js", "", ""},
+                      BootstrapTestParam{ClusterType::RS_V2, "ar",
+                                         "bootstrap_ar.js", "", ""}),
+    get_test_description);
+
+class RouterBootstrapExposeDefaults : public RouterBootstrapOkTest {};
+
+/**
+ * @test
+ *       verify that various bootstrap parameters do not affect the
+ * Configuration defaults exposed by the Router in metadata on bootstrap
+ *
+ */
+TEST_P(RouterBootstrapExposeDefaults, BootstrapExposeDefaults) {
+  RecordProperty("Worklog", "15649");
+  RecordProperty("RequirementId", "FR1,FR1.1,FR2,FR3,FR3.1");
+  RecordProperty(
+      "Description",
+      "Verifying that various bootstrap parameters do not affect the "
+      "configuration defaults exposed by the Router in metadata on bootstrap.");
+
+  const auto param = GetParam();
+
+  const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join(param.trace_file).str();
+
+  // launch mock server that is our metadata server for the bootstrap
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
+
+  auto globals = mock_GR_metadata_as_json(
+      "cluster-specific-id", classic_ports_to_gr_nodes({server_port}), 0,
+      classic_ports_to_cluster_nodes({server_port}), 0, false, "127.0.0.1", "",
+      {2, 2, 0}, "mycluster");
+  JsonAllocator allocator;
+  // instrument the metadata in a way that the Router sees the configuration
+  // defaults and configuration change schema as not present for its version, to
+  // force the Router to store those
+  globals.AddMember("config_defaults_stored_is_null", 1, allocator);
+  const auto globals_str = json_to_string(globals);
+  MockServerRestClient(http_port).set_globals(globals_str);
+
+  std::vector<std::string> bootstrap_params{
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+      bootstrap_dir.name(), "--disable-rest", "--disable-rw-split"};
+
+#ifndef _WIN32
+  bootstrap_params.push_back("--conf-use-sockets");
+  bootstrap_params.push_back("--conf-skip-tcp");
+#endif
+
+  if (param.cluster_type == ClusterType::GR_V2) {
+    bootstrap_params.push_back("--conf-use-gr-notifications");
+  }
+
+  auto &router = launch_router_for_bootstrap(bootstrap_params);
+
+  check_exit_code(router, EXIT_SUCCESS);
+
+  std::vector<std::string> expected_output{
+      "# Bootstrapping MySQL Router "s + MYSQL_ROUTER_VERSION + " \\(" +
+      MYSQL_ROUTER_VERSION_EDITION + "\\) instance at"};
+
+  const std::string router_console_output = router.get_full_output();
+  for (const auto &expected_output_string : expected_output) {
+    EXPECT_TRUE(pattern_found(router_console_output, expected_output_string))
+        << router_console_output;
+  }
+
+  // Check if proper UpdateSchema was written on BS
+  const std::string public_config_update_schema_in_md =
+      get_config_update_schema_stored_in_md(http_port);
+
+  const std::string public_config_update_schema = get_json_in_pretty_format(
+      get_file_output(Path(ROUTER_SRC_DIR)
+                          .join("src")
+                          .join("harness")
+                          .join("src")
+                          .join("configuration_update_schema.json")
+                          .str()));
+
+  EXPECT_STREQ(public_config_update_schema.c_str(),
+               public_config_update_schema_in_md.c_str());
+
+  // Check if proper UpdateSchema was written on BS
+  const std::string public_configuration_defaults_in_md =
+      get_config_defaults_stored_in_md(http_port);
+
+  const std::string public_configuration_defaults = get_file_output(
+      get_data_dir().join("configuration_defaults_cluster.json").str());
+
+  EXPECT_STREQ(public_configuration_defaults.c_str(),
+               public_configuration_defaults_in_md.c_str());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    BootstrapExposeDefaults, RouterBootstrapExposeDefaults,
     ::testing::Values(BootstrapTestParam{ClusterType::GR_V2, "gr",
                                          "bootstrap_gr.js", "", ""},
                       BootstrapTestParam{ClusterType::RS_V2, "ar",
@@ -581,8 +766,13 @@ TEST_P(RouterReBootstrapOkBasePortTest, RouterReBootstrapOkBasePort) {
   const std::string tracefile = "bootstrap_gr.js";
 
   const uint16_t server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
   const std::string json_stmts = get_data_dir().join(tracefile).str();
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port},
+                    0, false, "127.0.0.1", "", {2, 2, 0}, "mycluster");
 
   // do the first bootstrap
   std::vector<std::string> cmdline_first_bs = {
@@ -1459,13 +1649,16 @@ TEST_F(RouterBootstrapTest,
 #endif
 
   // launch mock server that is our metadata server for the bootstrap
-  const uint16_t server_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
   const std::string json_stmts =
       get_data_dir()
           .join("bootstrap_report_host.js")
           .str();  // we piggy back on existing .js to avoid creating a new one
-  auto &server_mock =
-      launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
+                                               EXIT_SUCCESS, false, http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
 
   // launch the router in bootstrap mode
   const std::vector<std::string> cmdline = {
@@ -1763,11 +1956,6 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
               ::testing::IsSupersetOf(GetParam().expected_config_lines));
   server_mock.send_clean_shutdown_event();
   EXPECT_NO_THROW(server_mock.wait_for_exit());
-
-  auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
-  ASSERT_TRUE(add_line_to_config_file(conf_file, "DEFAULT", "plugin_folder",
-                                      plugin_dir));
-
   const std::string runtime_json_stmts =
       get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
 
@@ -2341,7 +2529,12 @@ class ConfSetOptionParamTest
 TEST_P(ConfSetOptionParamTest, Spec) {
   const std::string tracefile = get_data_dir().join("bootstrap_gr.js").str();
   const auto mock_server_port = port_pool_.get_next_available();
-  launch_mysql_server_mock(tracefile, mock_server_port, EXIT_SUCCESS, false);
+  const auto http_port = port_pool_.get_next_available();
+  launch_mysql_server_mock(tracefile, mock_server_port, EXIT_SUCCESS, false,
+                           http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({mock_server_port}), 0,
+                    {mock_server_port});
 
   std::vector<std::string> cmdline = {
       "--bootstrap=127.0.0.1:" + std::to_string(mock_server_port), "-d",
@@ -2443,24 +2636,6 @@ INSTANTIATE_TEST_SUITE_P(
             /*unexpected_conf_entries=*/
             {"[METADATA_cache:BOOTSTRAP]", "[metadata_cache:BOOTSTRAP]"}},
 
-        ConfSetOptionTestParam{
-            {"--conf-set-option=test_section.para1=10",
-             "--conf-set-option=test_Section.para2=20",
-             "--conf-set-option=TEST_SECTION.para3=30"},
-            /*expected_conf_entries=*/
-            {"[test_section]", "para1=10", "para2=20", "para3=30"},
-            /*unexpected_conf_entries=*/
-            {"[test_Section]", "[TEST_SECTION]"}},
-
-        ConfSetOptionTestParam{
-            {"--conf-set-option=test_section:SUB.para1=10",
-             "--conf-set-option=test_Section:Sub.para2=20",
-             "--conf-set-option=TEST_SECTION:sub.para3=30"},
-            /*expected_conf_entries=*/
-            {"[test_section:sub]", "para1=10", "para2=20", "para3=30"},
-            /*unexpected_conf_entries=*/
-            {"[test_section:SUB]", "[TEST_SECTION:sub]", "[TEST_SECTION:sub]"}},
-
         ConfSetOptionTestParam{{"--conf-set-option=DEFAULT.READ_TIMEOUT=1"},
                                /*expected_conf_entries=*/
                                {"read_timeout=1"},
@@ -2472,14 +2647,6 @@ INSTANTIATE_TEST_SUITE_P(
                                {"read_timeout=1"},
                                /*unexpected_conf_entries=*/
                                {"READ_Timeout=1"}},
-
-        ConfSetOptionTestParam{{"--conf-set-option=test_section.para1=10",
-                                "--conf-set-option=test_section.Para2=20",
-                                "--conf-set-option=test_section.PARA3=30"},
-                               /*expected_conf_entries=*/
-                               {"para1=10", "para2=20", "para3=30"},
-                               /*unexpected_conf_entries=*/
-                               {"Para2=10", "PARA3=20"}},
 
         ConfSetOptionTestParam{{"--conf-set-option=DEFAULT.name=\"My Router\""},
                                /*expected_conf_entries=*/
@@ -2574,10 +2741,6 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
   EXPECT_THAT(conf_lines, ::testing::IsSupersetOf(expected_config_lines));
   server_mock.send_clean_shutdown_event();
   EXPECT_NO_THROW(server_mock.wait_for_exit());
-
-  auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
-  ASSERT_TRUE(add_line_to_config_file(conf_file, "DEFAULT", "plugin_folder",
-                                      plugin_dir));
 
   const std::string runtime_json_stmts =
       get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();

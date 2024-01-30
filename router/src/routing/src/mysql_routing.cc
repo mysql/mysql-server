@@ -68,6 +68,7 @@
 #include "mysql/harness/string_utils.h"  // trim
 #include "mysql/harness/tls_server_context.h"
 #include "mysql/harness/utility/string.h"  // string_format
+#include "mysqlrouter/base_protocol.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/metadata_cache.h"
@@ -75,7 +76,6 @@
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "plugin_config.h"
-#include "protocol/base_protocol.h"
 #include "protocol/protocol.h"
 #include "scope_guard.h"
 #include "ssl_mode.h"

@@ -348,7 +348,6 @@ void create_module_loggers(Registry &registry, const LogLevel level,
   harness_assert(registry.get_logger_names().size() > 0);
 }
 
-HARNESS_EXPORT
 LogLevel log_level_from_string(std::string name) {
   std::transform(name.begin(), name.end(), name.begin(), ::tolower);
 
@@ -371,6 +370,16 @@ LogLevel log_level_from_string(std::string name) {
 
   serial_comma(buffer, alternatives.begin(), alternatives.end());
   throw std::invalid_argument(buffer.str());
+}
+
+std::string log_level_to_string(LogLevel log_level) {
+  for (const auto &lvl : kLogLevels) {
+    if (lvl.second == log_level) {
+      return std::string(lvl.first);
+    }
+  }
+
+  return "unknown";
 }
 
 LogLevel get_default_log_level(const Config &config, bool raw_mode) {
@@ -414,7 +423,6 @@ std::string get_default_log_filename(const Config &config) {
   return log_filename;
 }
 
-HARNESS_EXPORT
 LogTimestampPrecision log_timestamp_precision_from_string(std::string name) {
   std::transform(name.begin(), name.end(), name.begin(), ::tolower);
 
@@ -435,6 +443,15 @@ LogTimestampPrecision log_timestamp_precision_from_string(std::string name) {
   }
   serial_comma(buffer, alternatives.begin(), alternatives.end());
   throw std::invalid_argument(buffer.str());
+}
+
+std::string log_timestamp_precision_to_string(LogTimestampPrecision tsp) {
+  // Return its enum representation
+  for (const auto &prec : kLogTimestampPrecisions) {
+    if (prec.second == tsp) return std::string(prec.first);
+  }
+
+  return "unknown";
 }
 
 LogTimestampPrecision get_default_timestamp_precision(const Config &config) {

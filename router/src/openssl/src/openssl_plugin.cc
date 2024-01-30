@@ -45,22 +45,19 @@ static void deinit(mysql_harness::PluginFuncEnv *) {
 }
 
 mysql_harness::Plugin ROUTER_OPENSSL_EXPORT harness_plugin_router_openssl = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "openssl init plugin",
-    VERSION_NUMBER(0, 0, 1),
+    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "openssl init plugin", VERSION_NUMBER(0, 0, 1),
     // requires
-    0,
-    nullptr,
+    0, nullptr,
     // conflicts
-    0,
-    nullptr,
+    0, nullptr,
     init,     // init
     deinit,   // deinit
     nullptr,  // start
     nullptr,  // stop
     false,    // declare_readiness
-    0,
-    nullptr,
+    0, nullptr,
+    nullptr,  // expose_initial_configuration
+    nullptr,  // expose_default_configuration
 };
 }

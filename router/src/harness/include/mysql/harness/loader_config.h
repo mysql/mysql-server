@@ -80,6 +80,18 @@ class HARNESS_EXPORT LoaderConfig : public Config {
   void read(const Path &path);
 
   /**
+   * Read a configuration entry.
+   *
+   * This will read one configuration entry and incorporate it into
+   * the configuration. The entry is the input stream object.
+   *
+   *
+   * @param input Input stream with the configuration to read from.
+   * @throws std::invalid_argument, std::runtime_error, syntax_error, ...
+   */
+  void read(std::istream &input);
+
+  /**
    * Return true if we are logging to a file, false if we are logging
    * to console instead.
    */

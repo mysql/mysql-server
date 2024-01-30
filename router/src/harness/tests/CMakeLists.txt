@@ -76,6 +76,8 @@ SET(TESTS
   test_event_state_tracker.cc
   test_config_option.cc
   test_hexify.cc
+  test_configuration_update_schema.cc
+  test_dynamic_config.cc
 )
 
 FOREACH(TEST ${TESTS})

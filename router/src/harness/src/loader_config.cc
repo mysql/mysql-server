@@ -104,6 +104,16 @@ void LoaderConfig::read(const Path &path) {
   fill_and_check();  // throws derivatives of std::runtime_error
 }
 
+void LoaderConfig::read(std::istream &input) {
+  Config::read(
+      input);  // throws derivatives of std::runtime_error, std::logic_error
+
+  // This means it is checked after each file load, which might
+  // require changes in the future if checks that cover the entire
+  // configuration are added. Right now it just contain safety checks.
+  fill_and_check();  // throws derivatives of std::runtime_error
+}
+
 bool LoaderConfig::logging_to_file() const {
   constexpr const char *kFolderOption = "logging_folder";
   return has_default(kFolderOption) && !get_default(kFolderOption).empty();

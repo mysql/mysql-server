@@ -39,6 +39,7 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
 #include "mysqlrouter/cluster_metadata_dynamic_state.h"
+#include "router_options.h"
 #include "tcp_address.h"
 
 extern "C" {
@@ -94,6 +95,16 @@ class METADATA_CACHE_PLUGIN_EXPORT MetadataCachePluginConfig final
   /** @brief  Id of the router in the metadata. */
   unsigned int router_id;
 
+  // options configured in the metadata
+  std::string target_cluster;
+  mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy
+      invalidated_cluster_policy{kDefautlInvalidatedClusterRoutingPolicy};
+  bool use_replica_primary_as_rw{false};
+  QuorumConnectionLostAllowTraffic unreachable_quorum_allowed_traffic{
+      kDefaultQuorumConnectionLostAllowTraffic};
+  std::chrono::seconds stats_updates_frequency{std::chrono::seconds(-1)};
+  ReadOnlyTargets read_only_targets{kDefaultReadOnlyTargets};
+
   /** @brief Gets (Group Replication ID for GR cluster or cluster_id for
    * ReplicaSet cluster) if preset in the dynamic configuration.
    *
@@ -107,6 +118,9 @@ class METADATA_CACHE_PLUGIN_EXPORT MetadataCachePluginConfig final
   /** @brief Gets last know ReplicaSet cluster metadata view_id stored in the
    * dynamic state file . */
   uint64_t get_view_id() const;
+
+  void expose_initial_configuration() const;
+  void expose_default_configuration() const;
 
  private:
   /** @brief Gets a list of metadata servers.

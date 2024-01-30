@@ -49,6 +49,9 @@
 static const size_t kHelpScreenWidth = 72;
 static const size_t kHelpScreenIndent = 8;
 
+static const std::string kSystemRouterName = "system";
+static const std::string kDefaultSystemUserName = "";
+
 class ConfigFiles;
 
 /** @class MySQLRouter
@@ -451,7 +454,8 @@ class MySQLRouter {
   void set_default_config_files(const char *locations) noexcept;
 
   void bootstrap(const std::string &program_name,
-                 const std::string &metadata_server_uri);
+                 const std::string &metadata_server_uri,
+                 const std::string &plugin_folder = "");
 
   /*
    * @brief returns id of the router.
@@ -583,5 +587,16 @@ class silent_exception : public std::exception {
  public:
   silent_exception() : std::exception() {}
 };
+
+/** @brief Expose the configured application-level options (the ones
+ * from [DEFAULT] section that are not specific to any particular plugin and are
+ * relevant from the Cluster metadata perspective) **/
+void expose_router_initial_configuration(
+    const mysql_harness::ConfigSection &section);
+
+/** @brief Expose the defaults for application-level options (the ones
+ * from [DEFAULT] section that are not specific to any particular plugin and are
+ * relevant from the Cluster metadata perspective) **/
+void expose_router_default_configuration();
 
 #endif  // ROUTER_MYSQL_ROUTER_INCLUDED

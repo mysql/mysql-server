@@ -102,17 +102,16 @@ mysql_harness::Plugin LIFECYCLE2_API
         "Lifecycle2 test plugin",                // name
         VERSION_NUMBER(1, 0, 0),
         // requires
-        required.size(),
-        required.data(),
+        required.size(), required.data(),
         // conflicts
-        0,
-        nullptr,
+        0, nullptr,
         init,    // init
         deinit,  // deinit
         start,   // start
         stop,    // stop
         false,   // declares_readiness
-        0,
-        nullptr,
+        0, nullptr,
+        nullptr,  // expose_initial_configuration
+        nullptr,  // expose_default_configuration
 };
 }

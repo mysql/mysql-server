@@ -90,7 +90,6 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
         "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
         "-d",
         temp_test_dir.name(),
-        "--conf-set-option=DEFAULT.logging_folder=" + get_logging_dir().str(),
         "--conf-set-option=logger.level=DEBUG",
     };
 
@@ -138,10 +137,6 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
 
     EXPECT_TRUE(router_bootstrap.expect_output(
         "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
-
-    auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
-    EXPECT_TRUE(add_line_to_config_file(config_path.str(), "DEFAULT",
-                                        "plugin_folder", plugin_dir));
 
     return router_bootstrap;
   }
@@ -889,9 +884,9 @@ TEST_P(RestApiInvalidUserCerts,
       datadir_path.real_path().join(router_key_filename).str() +
       "' or SSL certificate file '" +
       datadir_path.real_path().join(router_cert_filename).str() + "' failed";
-  EXPECT_THAT(
-      router.get_logfile_content("mysqlrouter.log", get_logging_dir().str()),
-      ::testing::HasSubstr(log_error));
+  EXPECT_THAT(router.get_logfile_content("mysqlrouter.log",
+                                         temp_test_dir.name() + "/log"),
+              ::testing::HasSubstr(log_error));
 }
 
 INSTANTIATE_TEST_SUITE_P(CheckRestApiInvalidUserCerts, RestApiInvalidUserCerts,

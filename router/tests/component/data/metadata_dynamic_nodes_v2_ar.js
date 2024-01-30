@@ -63,6 +63,14 @@ if (mysqld.global.metadata_schema_version === undefined) {
   mysqld.global.metadata_schema_version = [2, 2, 0];
 }
 
+var nodes = function(host, port_and_state) {
+  return port_and_state.map(function(current_value) {
+    return [
+      current_value[0], host, current_value[1], current_value[2],
+      current_value[3]
+    ];
+  });
+};
 
 var cluster_nodes = gr_memberships.cluster_nodes(
     mysqld.global.gr_node_host, mysqld.global.cluster_nodes)
@@ -143,7 +151,9 @@ var router_select_cluster_type =
     } else if (stmt === router_update_last_check_in_v2.stmt) {
       mysqld.global.update_last_check_in_count++;
       return router_update_last_check_in_v2;
-    } else if (stmt.match(router_update_attributes.stmt_regex)) {
+    } else if (res = stmt.match(router_update_attributes.stmt_regex)) {
+      mysqld.global.upd_attr_config_json = res[7];
+
       mysqld.global.update_attributes_count++;
       return router_update_attributes;
     } else if (common_responses.hasOwnProperty(stmt)) {

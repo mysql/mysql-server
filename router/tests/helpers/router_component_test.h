@@ -221,6 +221,8 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
           RouterComponentBootstrapTest::kBootstrapOutputResponder) {
     if (disable_rest) params.push_back("--disable-rest");
     if (add_report_host) params.push_back("--report-host=dont.query.dns");
+    params.push_back("--conf-set-option=DEFAULT.plugin_folder=" +
+                     ProcessManager::get_plugin_dir().str());
 
     return ProcessManager::launch_router(
         params, expected_exit_code, catch_stderr, /*with_sudo=*/false,

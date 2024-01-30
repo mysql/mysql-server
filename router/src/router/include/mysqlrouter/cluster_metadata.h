@@ -28,6 +28,7 @@
 
 #include "mysqlrouter/router_export.h"
 
+#include <chrono>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -200,6 +201,18 @@ std::optional<InstanceType> ROUTER_LIB_EXPORT
 str_to_instance_type(const std::string &);
 
 std::string ROUTER_LIB_EXPORT to_string(const InstanceType);
+std::string ROUTER_LIB_EXPORT
+to_string(const TargetCluster::InvalidatedClusterRoutingPolicy);
+
+constexpr const std::chrono::milliseconds kDefaultMetadataTTLCluster{500};
+constexpr const std::chrono::milliseconds
+    kDefaultMetadataTTLClusterGRNotificationsON =
+        std::chrono::milliseconds(60 * 1000);
+constexpr const std::chrono::milliseconds kDefaultMetadataTTLClusterSet{
+    5000};  // default TTL for ClusterSet is 5 seconds regardless if GR
+            // Notifications are used or not
+const bool kDefaultUseGRNotificationsCluster = false;
+const bool kDefaultUseGRNotificationsClusterSet = true;
 
 }  // namespace mysqlrouter
 #endif

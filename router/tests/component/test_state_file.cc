@@ -91,7 +91,7 @@ class StateFileTest : public RouterComponentBootstrapTest {
         {"cluster_type", (cluster_type == ClusterType::RS_V2) ? "rs" : "gr"},
         {"router_id", "1"},
         {"user", "mysql_router1_user"},
-        {"metadata_cluster", "test"},
+        {"metadata_cluster", "mycluster"},
         {"connect_timeout", "1"},
         {"ttl", std::to_string(std::chrono::duration<double>(ttl).count())},
     };
@@ -775,8 +775,7 @@ INSTANTIATE_TEST_SUITE_P(
         // state file does not exits
         StateFileSchemaTestParams{
             "",
-            {"Could not open dynamic state file 'non-existing.json' "
-             "for "
+            {"Could not open dynamic state file 'non-existing.json' for "
              "reading"},
             false, /* = don't create state file, use the path given */
             "non-existing.json"},
@@ -1044,9 +1043,12 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
 
   const auto trace_file = get_data_dir().join("bootstrap_gr.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();
-  auto &md_server = ProcessManager::launch_mysql_server_mock(
-      trace_file, metadata_server_port, EXIT_SUCCESS, false);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(md_server, metadata_server_port));
+  const auto http_port = port_pool_.get_next_available();
+  ProcessManager::launch_mysql_server_mock(trace_file, metadata_server_port,
+                                           EXIT_SUCCESS, false, http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({metadata_server_port}), 0,
+                    {metadata_server_port});
 
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{
@@ -1059,8 +1061,9 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   // check the state file that was produced, if it contains
   // what the bootstrap server has reported
   const std::string state_file = temp_test_dir.name() + "/data/state.json";
-  check_state_file(state_file, ClusterType::GR_V2, "cluster-specific-id",
-                   {5500, 5510, 5520});
+  check_state_file(state_file, ClusterType::GR_V2,
+                   "00000000-0000-0000-0000-0000000000g1",
+                   {metadata_server_port});
 
   // check that static file has a proper reference to the dynamic file
   const std::string conf_content =
@@ -1102,9 +1105,12 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
 
   const auto trace_file = get_data_dir().join("bootstrap_gr.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();
-  auto &md_server = ProcessManager::launch_mysql_server_mock(
-      trace_file, metadata_server_port, EXIT_SUCCESS, false);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(md_server, metadata_server_port));
+  const auto http_port = port_pool_.get_next_available();
+  ProcessManager::launch_mysql_server_mock(trace_file, metadata_server_port,
+                                           EXIT_SUCCESS, false, http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({metadata_server_port}), 0,
+                    {metadata_server_port});
 
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{"--bootstrap=localhost:" +
@@ -1118,8 +1124,9 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   const std::string state_file =
       RouterSystemLayout::tmp_dir_ + "/stage/var/lib/mysqlrouter/state.json";
 
-  check_state_file(state_file, ClusterType::GR_V2, "cluster-specific-id",
-                   {5500, 5510, 5520});
+  check_state_file(state_file, ClusterType::GR_V2,
+                   "00000000-0000-0000-0000-0000000000g1",
+                   {metadata_server_port});
 }
 
 #endif  // SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS

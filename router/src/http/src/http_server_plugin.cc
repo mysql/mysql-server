@@ -43,6 +43,7 @@
 #include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
@@ -60,6 +61,7 @@
 #include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_constants.h"
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/supported_http_options.h"
 #include "static_files.h"
@@ -67,6 +69,9 @@
 IMPORT_LOG_FUNCTIONS()
 
 static constexpr const char kSectionName[]{"http_server"};
+static constexpr const char kDefaultBindAddress[]{"0.0.0.0"};
+static constexpr const uint16_t kDefaultPort{8081};
+static constexpr const unsigned kDefaultSsl{0};
 
 /**
  * request router
@@ -465,9 +470,9 @@ class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
 
   std::string get_default(const std::string &option) const override {
     const std::map<std::string, std::string> defaults{
-        {"bind_address", "0.0.0.0"},
-        {"port", "8081"},
-        {"ssl", "0"},
+        {"bind_address", kDefaultBindAddress},
+        {"port", std::to_string(kDefaultPort)},
+        {"ssl", std::to_string(kDefaultSsl)},
         {"ssl_cipher", get_default_ciphers()},
     };
 
@@ -480,6 +485,47 @@ class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
 
   bool is_required(const std::string & /* option */) const override {
     return false;
+  }
+
+  void expose_initial_configuration() const {
+    using DC = mysql_harness::DynamicConfig;
+    const DC::SectionId id{"http_server", ""};
+
+    auto set_option = [&](const std::string &option, const auto &value) {
+      DC::instance().set_option_configured(id, option, value);
+    };
+
+    set_option("static_folder", static_basedir);
+    set_option("bind_address", srv_address);
+    set_option("require_realm", require_realm);
+    set_option("ssl_cert", ssl_cert);
+    set_option("ssl_key", ssl_key);
+    set_option("ssl_cipher", ssl_cipher);
+    set_option("ssl_dh_params", ssl_dh_params);
+    set_option("ssl_curves", ssl_curves);
+    set_option("ssl", with_ssl);
+    set_option("port", srv_port);
+  }
+
+  void expose_default_configuration() const {
+    using DC = mysql_harness::DynamicConfig;
+    const DC::SectionId id{"http_server", ""};
+
+    auto set_default = [&](const std::string &option,
+                           const auto &default_value) {
+      DC::instance().set_option_default(id, option, default_value);
+    };
+
+    set_default("static_folder", "");
+    set_default("bind_address", kDefaultBindAddress);
+    set_default("require_realm", "");
+    set_default("ssl_cert", "");
+    set_default("ssl_key", "");
+    set_default("ssl_cipher", get_default_ciphers());
+    set_default("ssl_dh_params", "");
+    set_default("ssl_curves", "");
+    set_default("ssl", (kHttpPluginDefaultSslBootstrap == 1));
+    set_default("port", kHttpPluginDefaultPortBootstrap);
   }
 };
 static std::map<std::string, std::shared_ptr<HttpServer>> http_servers;
@@ -577,7 +623,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       Event::initialize_threads();
       Scope_guard initialization_finished([]() { Event::shutdown(); });
 
-      HttpServerPluginConfig config{section};
+      const HttpServerPluginConfig config{section};
 
       if (config.with_ssl &&
           (config.ssl_cert.empty() || config.ssl_key.empty())) {
@@ -676,6 +722,34 @@ static const std::array<const char *, 3> required = {{
     "router_protobuf",
 }};
 
+static void expose_configuration(mysql_harness::PluginFuncEnv *env,
+                                 bool initial) {
+  const mysql_harness::AppInfo *info = get_app_info(env);
+
+  if (!info->config) return;
+
+  for (const mysql_harness::ConfigSection *section : info->config->sections()) {
+    if (section->name == kSectionName) {
+      HttpServerPluginConfig config{section};
+      if (initial) {
+        config.expose_initial_configuration();
+      } else {
+        config.expose_default_configuration();
+      }
+    }
+  }
+}
+
+static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  expose_configuration(env, true);
+}
+
+static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
+                                         const char * /*key*/) {
+  expose_configuration(env, false);
+}
+
 extern "C" {
 mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
@@ -695,5 +769,7 @@ mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
     true,     // declares_readiness
     http_server_supported_options.size(),
     http_server_supported_options.data(),
+    expose_initial_configuration,
+    expose_default_configuration,
 };
 }

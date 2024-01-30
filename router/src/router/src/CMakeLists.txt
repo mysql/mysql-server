@@ -116,15 +116,20 @@ ADD_LIBRARY(router_frontend_lib STATIC
 
 TARGET_LINK_LIBRARIES(router_frontend_lib
   router_lib
+  routing_frontend_lib
   harness-library)
 
 TARGET_INCLUDE_DIRECTORIES(router_frontend_lib
   PUBLIC
+  ${PROJECT_SOURCE_DIR}/src/http/include/
+  ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include/
   ${PROJECT_SOURCE_DIR}/src/routing/include/
+  ${CMAKE_BINARY_DIR}/router/src/routing/include/
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include/
   ${PROJECT_SOURCE_DIR}/src/http/include/
   ${PROJECT_SOURCE_DIR}/src/rest_api/include/
   ${PROJECT_SOURCE_DIR}/src/connection_pool/include/
+  ${CMAKE_BINARY_DIR}/router/src/connection_pool/include/
 )
 
 MYSQL_ADD_EXECUTABLE(mysqlrouter

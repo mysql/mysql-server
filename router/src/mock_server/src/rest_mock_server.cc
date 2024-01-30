@@ -336,17 +336,16 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_mock_server = {
     "REST_MOCK_SERVER",                      // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    plugin_requires.size(),
-    plugin_requires.data(),
+    plugin_requires.size(), plugin_requires.data(),
     // conflicts
-    0,
-    nullptr,
+    0, nullptr,
     init,     // init
     nullptr,  // deinit
     run,      // run
     nullptr,  // stop
     true,     // declares_readiness
-    0,
-    nullptr,
+    0, nullptr,
+    nullptr,  // expose_initial_configuration
+    nullptr,  // expose_default_configuration
 };
 }

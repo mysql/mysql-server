@@ -914,8 +914,12 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
   SCOPED_TRACE("// Launch our metadata server we bootstrap against");
   const auto trace_file = get_data_dir().join("bootstrap_gr.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
   /*auto &md_server =*/ProcessManager::launch_mysql_server_mock(
-      trace_file, metadata_server_port, EXIT_SUCCESS, true);
+      trace_file, metadata_server_port, EXIT_SUCCESS, true, http_port);
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({metadata_server_port}), 0,
+                    {metadata_server_port});
 
   SCOPED_TRACE(
       "// Create notification socket and pass it to the Router as env "
@@ -943,7 +947,10 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
 
   auto &router = launch_router(
       {"--bootstrap=localhost:" + std::to_string(metadata_server_port),
-       "-d=" + temp_test_dir.name(), "--report-host=dont.query.dns"},
+       "-d=" + temp_test_dir.name(),
+       "--conf-set-option=DEFAULT.plugin_folder=" +
+           ProcessManager::get_plugin_dir().str(),
+       "--report-host=dont.query.dns"},
       env_vars, EXIT_SUCCESS,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
