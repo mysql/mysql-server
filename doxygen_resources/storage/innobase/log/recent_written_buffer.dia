@@ -1599,7 +1599,7 @@
       <dia:attribute name="text">
         <dia:composite type="text">
           <dia:attribute name="string">
-            <dia:string>#buf_ready_for_write_lsn#</dia:string>
+            <dia:string>#log_buffer_ready_for_write_lsn()#</dia:string>
           </dia:attribute>
           <dia:attribute name="font">
             <dia:font family="sans" style="0" name="Helvetica"/>
@@ -1725,7 +1725,7 @@
       <dia:attribute name="text">
         <dia:composite type="text">
           <dia:attribute name="string">
-            <dia:string>#traversed and cleared links before buf_ready_for_write_lsn is set at the end#</dia:string>
+            <dia:string>#traversed and cleared links before log_buffer_ready_for_write_lsn() is set at the end#</dia:string>
           </dia:attribute>
           <dia:attribute name="font">
             <dia:font family="sans" style="0" name="Helvetica"/>

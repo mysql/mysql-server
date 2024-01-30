@@ -2200,7 +2200,8 @@ void Arch_Page_Sys::track_initial_pages() {
 
       /* Check if we could finish traversing flush list
       earlier. Order of pages in flush list became relaxed,
-      but the distortion is limited by the flush_order_lag.
+      but the distortion is limited by
+      the buf_flush_list_added->order_lag().
 
       You can think about this in following way: pages
       start to travel to flush list when they have the
@@ -2212,13 +2213,13 @@ void Arch_Page_Sys::track_initial_pages() {
       if there is other page, which started much much
       earlier its travel and still haven't finished.
       The "much much" part is defined by the maximum
-      allowed lag - log_buffer_flush_order_lag(). */
+      allowed lag - buf_flush_list_added->order_lag(). */
       if (bpage->get_oldest_lsn() >
-          buf_pool->max_lsn_io + log_buffer_flush_order_lag(*log_sys)) {
-        /* All pages with oldest_modification
-        smaller than bpage->oldest_modification
-        minus the flush_order_lag have already
-        been traversed. So there is no page which:
+          buf_pool->max_lsn_io + buf_flush_list_added->order_lag()) {
+        /* All pages with oldest_modification smaller
+        than bpage->oldest_modification minus
+        the buf_flush_list_added->order_lag() have
+        already been traversed. So there is no page which:
                 - we haven't traversed
                 - and has oldest_modification
                   smaller than buf_pool->max_lsn_io. */

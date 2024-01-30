@@ -36,8 +36,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
  -# Add link to the log recent written buffer,
 
- -# Add link to the log recent closed buffer.
-
  *******************************************************/
 
 #ifndef UNIV_HOTBACKUP
@@ -102,7 +100,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  consists of following steps:
  -# @ref sect_redo_log_mark_dirty_pages
  -# @ref sect_redo_log_add_dirty_pages
- -# @ref sect_redo_log_add_link_to_recent_closed
+ -# @ref sect_redo_log_add_link_to_buf_flush_list_added
 
  @section sect_redo_log_buf_reserve Reservation of space in the redo
 
@@ -240,15 +238,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  @see log_buffer_write()
 
 
- @section sect_redo_log_buf_add_links_to_recent_written Adding links to the
- recent written buffer
+ @section sect_redo_log_buf_add_links_to_recent_written Adding links to the recent written buffer
 
  Fragment of the log buffer, which is close to current lsn, is very likely being
  written concurrently by multiple user threads. There is no restriction on order
  in which such concurrent writes might be finished. Each user thread which has
  finished writing, proceeds further without waiting for any other user threads.
 
- @diafile storage/innobase/log/user_thread_writes_to_buffer.dia "One of many concurrent writes"
+ @diafile user_thread_writes_to_buffer.dia "One of many concurrent writes"
 
  @note Note that when a user thread has finished writing, still some other user
  threads could be writing their data for smaller lsn values. It is still fine,
@@ -260,7 +257,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  writes to the log buffer, have been finished. It allows the log writer thread
  to update @ref subsect_redo_log_buf_ready_for_write_lsn, which allows to find
  the next complete fragment of the log buffer to write. It is enough to track
- only recent writes, because we know that up to _log.buf_ready_for_write_lsn_,
+ only recent writes, because we know that up to
+ _log_buffer_ready_for_write_lsn()_,
  all writes have been finished. Hence this lsn value defines the beginning of
  lsn range represented by the recent written buffer in a given time. The recent
  written buffer is a ring buffer, directly addressed by lsn value. When there
@@ -278,7 +276,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
  -# User thread waits for free space in the recent written buffer, until:
 
-         tmp_end_lsn - log.buf_ready_for_write_lsn <= S
+         tmp_start_lsn - log_buffer_ready_for_write_lsn() <= S
 
     where _S_ is a number of slots in the log recent_written buffer.
 
@@ -310,6 +308,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
  Copying data and adding links is performed in loop for consecutive log records
  within the group of log records in the mtr.
+
+ After all of the data is copied and all of the links are added, the
+ shared-access for log buffer is conceptually released - in debug mode it
+ explicitly releases a debug-only shared lock, but in release mode it suffices
+ that the tail of recent written buffer can be advanced up to the lsn value
+ "locked" by the thread waiting for exclusive access.
 
  @note Note that until some user thread finished writing all the log records,
  any log records which have been written to the log buffer for larger lsn
@@ -356,20 +360,25 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
  The procedure for adding pages to flush lists:
 
- -# Wait for the recent closed buffer covering _end_lsn_.
+ -# Wait for the buf_flush_list_added window to cover _start_lsn_.
 
     Before moving the pages, user thread waits until there is free space for
-    a link pointing from _start_lsn_ to _end_lsn_ in the recent closed buffer.
+    a link pointing from _start_lsn_ to _end_lsn_ in the buf_flush_list_added.
     The free space is available when:
 
-         end_lsn - log.buf_dirty_pages_added_up_to_lsn < L
+         start_lsn < buf_flush_list_added->smallest_not_added_lsn() + L
 
-    where _L_ is a number of slots in the log recent closed buffer.
+    where _L_ is the buf_flush_list_added->order_lag().
 
     This way we have guarantee, that the maximum delay in flush lists is limited
     by _L_. That's because we disallow adding dirty page with too high lsn value
     until pages with smaller lsn values (smaller by more than _L_), have been
     added!
+
+    @note Note that we don't wait for _end_lsn_ to be within the window. This is
+    not necessary to ensure the bound on disorder we need. Also, in extreme
+    cases, the mtr can span a range larger than the _L_ in which case the wait
+    would never end.
 
  -# Add the dirty pages to corresponding flush lists.
 
@@ -380,41 +389,33 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
     Hence order of dirty pages in a flush list, is not the same as order by
     their oldest modification lsn.
 
-    @diafile storage/innobase/log/relaxed_order_of_dirty_pages.dia "Relaxed order of dirty pages"
+    @diafile relaxed_order_of_dirty_pages.dia "Relaxed order of dirty pages"
 
- @note Note that still the @ref subsect_redo_log_buf_dirty_pages_added_up_to_lsn
- cannot be advanced further than to _start_lsn_. That's because the link from
- _start_lsn_ to _end_lsn_, has still not been added at this stage.
-
- @see log_buffer_write_completed_before_dirty_pages_added()
+    @note Note that still the @ref subsect_buf_flush_list_smallest_not_added
+    cannot be advanced further than to _start_lsn_. That's because the link from
+    _start_lsn_ to _end_lsn_, has still not been added at this stage.
 
 
- @section sect_redo_log_add_link_to_recent_closed Adding link to the log recent
- closed buffer
+ @section sect_redo_log_add_link_to_buf_flush_list_added Adding link to the buf_flush_list_added
 
  After all the dirty pages have been added to flush lists, a link pointing from
- _start_lsn_ to _end_lsn_ is added to the log recent closed buffer.
+ _start_lsn_ to _end_lsn_ is added to the buf_flush_list_added link buffer.
 
  This is performed by user thread, by setting value of slot for start_lsn:
 
-         log.recent_closed[start_lsn % L] = end_lsn
+         buf_flush_list_added[start_lsn % L] = end_lsn
 
- where _L_ is size of the log recent closed buffer. The value gives information
- about how much to advance lsn when traversing the link.
-
- @see log_buffer_write_completed_and_dirty_pages_added()
-
- After the link is added, the shared-access for log buffer is released.
- This possibly allows any thread waiting for an exclussive access to proceed.
+ where _L_ is size of the buf_flush_list_added buffer. The value gives
+ information about how much to advance lsn when traversing the link.
 
 
  @section sect_redo_log_reclaim_space Reclaiming space in redo log
 
  Recall that recovery always starts at the last written checkpoint lsn.
  Therefore @ref subsect_redo_log_last_checkpoint_lsn defines the beginning of
- the log files. Because size of the log files is fixed, it is easy to determine
- if a given range of lsn values corresponds to free space in the log files or
- not (in which case it would overwrite tail of the redo log for smaller lsns).
+ the log files. Data at lsns smaller than that can be freed (unless there are
+ some Log Consumers attached, such as Clone Archiver which might still be
+ reading them).
 
  Space in the log files is reclaimed by writing a checkpoint for a higher lsn.
  This could be possible when more dirty pages have been flushed. The checkpoint
@@ -442,12 +443,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  dirty pages have been added to flush lists.
 
  When user thread has added all the dirty pages related to _start_lsn_ ..
- _end_lsn_, it creates link in the log recent closed buffer, pointing from
- _start_lsn_ to _end_lsn_. The log closer thread tracks the links in the recent
- closed buffer, clears the slots (so they could be safely reused) and updates
- the @ref subsect_redo_log_buf_dirty_pages_added_up_to_lsn, reclaiming space
- in the recent closed buffer and potentially allowing to advance checkpoint
- further.
+ _end_lsn_, it creates link in the _buf_flush_list_added_ buffer, pointing from
+ _start_lsn_ to _end_lsn_ and tries to advance
+ @ref subsect_buf_flush_list_smallest_not_added, reclaiming space
+ in the _buf_flush_list_added_ buffer and potentially allowing to advance
+ checkpoint further.
 
  Order of pages added to flush lists became relaxed so we also cannot rely
  directly on the lsn of the earliest added page to a given flush list.
@@ -460,7 +460,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
  @note Note there are two reasons for which lsn available for checkpoint could
  be updated:
-   - because @ref subsect_redo_log_buf_dirty_pages_added_up_to_lsn was updated,
+
+   - because @ref subsect_buf_flush_list_smallest_not_added was updated,
    - because the earliest added dirty page in one of flush lists became flushed.
 
  *******************************************************/
@@ -524,9 +525,19 @@ static inline void log_buffer_s_lock_wait(log_t &log, const sn_t start_sn) {
   }
 }
 
-/** Acquires the log buffer s-lock.
-And reserve space in the log buffer.
-The corresponding unlock operation is adding link to log.recent_closed.
+/** Acquires an s-lock on the log buffer and reserves @p len bytes in it.
+The corresponding unlock operation is log_buffer_s_lock_exit() which is
+called during the log_buffer_write_completed(..) for the last fragment of
+data copied to the reserved buffer - to be specific it happens after the
+data is already copied to the log buffer, but right before the last missing
+link is added to log.recent_written. The current implementation pretends
+rw_lock_s_lock() is taken, while actually only the debug info and PSI info
+typical for rw_lock_t are maintained, but no actual rw_lock_t is being used
+for synchronization - that is achieved by using
+log_t::sn (to inform s-locking threads about x-locker) and
+log_t::recently_written (to inform x-locking thread when s-lockers have
+finished). The resize does not use a read/write lock (rw_lock_t) due to
+performance impact it would cause.
 @param[in,out] log     redo log
 @param[in]     len     number of data bytes to reserve for write
 @return start sn of reserved */
@@ -565,10 +576,8 @@ static inline sn_t log_buffer_s_lock_enter_reserve(log_t &log, size_t len) {
 
 /** Releases the log buffer s-lock.
 @param[in,out] log       redo log
-@param[in]     start_lsn start lsn of the reservation
-@param[in]     end_lsn   end lsn of the reservation */
-static inline void log_buffer_s_lock_exit_close(log_t &log, lsn_t start_lsn,
-                                                lsn_t end_lsn) {
+*/
+static inline void log_buffer_s_lock_exit(log_t &log) {
 #ifdef UNIV_PFS_RWLOCK
   if (log.pfs_psi != nullptr) {
     if (log.pfs_psi->m_enabled) {
@@ -579,10 +588,48 @@ static inline void log_buffer_s_lock_exit_close(log_t &log, lsn_t start_lsn,
   }
 #endif /* UNIV_PFS_RWLOCK */
   ut_d(rw_lock_remove_debug_info(log.sn_lock_inst, 0, RW_LOCK_S));
-
-  log.recent_closed.add_link_advance_tail(start_lsn, end_lsn);
 }
 
+lsn_t log_buffer_wait_for_ready_for_write_lsn(log_t &log, lsn_t end_lsn,
+                                              uint32_t *waits_on_event) {
+  lsn_t ready_lsn = log_buffer_ready_for_write_lsn(log);
+  /* must wait for (ready_lsn >= end_lsn) at first */
+  for (ulong i = 0; i < srv_n_spin_wait_rounds && ready_lsn < end_lsn; i++) {
+    if (srv_spin_wait_delay) {
+      ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
+    }
+    ready_lsn = log_buffer_ready_for_write_lsn(log);
+  }
+  if (ready_lsn < end_lsn) {
+    log.recent_written.advance_tail();
+    ready_lsn = log_buffer_ready_for_write_lsn(log);
+  }
+  if (ready_lsn < end_lsn) {
+    std::this_thread::yield();
+    ready_lsn = log_buffer_ready_for_write_lsn(log);
+  }
+  uint32_t waits = 0;
+  while (ready_lsn < end_lsn) {
+    /* wait using event */
+    log_closer_mutex_enter(log);
+    if (log.current_ready_waiting_lsn == 0 &&
+        os_event_is_set(log.closer_event)) {
+      log.current_ready_waiting_lsn = end_lsn;
+      log.current_ready_waiting_sig_count = os_event_reset(log.closer_event);
+    }
+    const auto sig_count = log.current_ready_waiting_sig_count;
+    log_closer_mutex_exit(log);
+    ++waits;
+    os_event_wait_time_low(log.closer_event, std::chrono::milliseconds{100},
+                           sig_count);
+    log.recent_written.advance_tail();
+    ready_lsn = log_buffer_ready_for_write_lsn(log);
+  }
+  if (waits_on_event != nullptr) {
+    *waits_on_event = waits;
+  }
+  return ready_lsn;
+}
 void log_buffer_x_lock_enter(log_t &log) {
   log_sync_point("log_buffer_x_lock_enter_before_lock");
 
@@ -620,30 +667,8 @@ void log_buffer_x_lock_enter(log_t &log) {
 
   if (sn > 0) {
     /* redo log system has been started */
-    const lsn_t current_lsn = log_translate_sn_to_lsn(sn);
-    lsn_t closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
-    uint32_t i = 0;
-    /* must wait for closed_lsn == current_lsn */
-    while (i < srv_n_spin_wait_rounds && closed_lsn < current_lsn) {
-      if (srv_spin_wait_delay) {
-        ut_delay(ut::random_from_interval_fast(0, srv_spin_wait_delay));
-      }
-      i++;
-      closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
-    }
-    if (closed_lsn < current_lsn) {
-      log.recent_closed.advance_tail();
-      closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
-    }
-    if (closed_lsn < current_lsn) {
-      std::this_thread::yield();
-      closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
-    }
-    while (closed_lsn < current_lsn) {
-      std::this_thread::sleep_for(std::chrono::microseconds(20));
-      log.recent_closed.advance_tail();
-      closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
-    }
+
+    log_buffer_wait_for_ready_for_write_lsn(log, log_translate_sn_to_lsn(sn));
   }
 
   ut_d(
@@ -863,10 +888,9 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   write to log buffer in commit of mini-transaction.
 
   However, writes which were solved by log_reserve_and_write_fast
-  missed to increment the counter. Therefore it wasn't reliable.
+  that missed to increment the counter. Therefore, it wasn't reliable.
 
-  Dimitri and I have decided to change meaning of the counter
-  to reflect mtr commit rate. */
+  We changed meaning of the counter to reflect mtr commit rate. */
   srv_stats.log_write_requests.inc();
 
   ut_ad(srv_shutdown_state_matches([](auto state) {
@@ -1058,20 +1082,16 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
   return lsn;
 }
 
-void log_buffer_write_completed(log_t &log, lsn_t start_lsn, lsn_t end_lsn) {
+void log_buffer_write_completed(log_t &log, lsn_t start_lsn, lsn_t end_lsn,
+                                bool is_last_block) {
   ut_ad(rw_lock_own(log.sn_lock_inst, RW_LOCK_S));
 
   ut_a(log_is_data_lsn(start_lsn));
   ut_a(log_is_data_lsn(end_lsn));
   ut_a(end_lsn > start_lsn);
 
-  /* Let M = log.recent_written_size (number of slots).
-  For any integer k, all lsn values equal to: start_lsn + k*M
-  correspond to the same slot, and only the smallest of them
-  may use the slot. At most one of them can fit the range
-  [log.buf_ready_for_write_lsn..log.buf_ready_ready_write_lsn+M).
-  Any smaller values have already used the slot. Hence, we just
-  need to wait until start_lsn will fit the mentioned range. */
+  /* Wait for start_lsn to fit in the window, so we can add the edge into its
+  corresponding slot. */
 
   uint64_t wait_loops = 0;
 
@@ -1101,6 +1121,12 @@ void log_buffer_write_completed(log_t &log, lsn_t start_lsn, lsn_t end_lsn) {
   ut_ad(log.write_lsn.load() <= start_lsn);
   ut_ad(log_buffer_ready_for_write_lsn(log) <= start_lsn);
 
+  /*
+   This may release the s-latch on the log_buffer as we add the link for
+   the last fragment of the reserved range of the log_buffer.
+  */
+  if (is_last_block) log_buffer_s_lock_exit(log);
+
   /* Note that end_lsn will not point to just before footer,
   because we have already validated that end_lsn is valid. */
   log.recent_written.add_link_advance_tail(start_lsn, end_lsn);
@@ -1120,42 +1146,6 @@ void log_buffer_write_completed(log_t &log, lsn_t start_lsn, lsn_t end_lsn) {
     }
     log_closer_mutex_exit(log);
   }
-}
-
-void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn) {
-  ut_a(log_is_data_lsn(lsn));
-
-  ut_ad(lsn >= log_buffer_dirty_pages_added_up_to_lsn(log));
-
-  uint64_t wait_loops = 0;
-
-  while (!log.recent_closed.has_space(lsn)) {
-    ++wait_loops;
-    std::this_thread::sleep_for(std::chrono::microseconds(20));
-  }
-
-  if (unlikely(wait_loops != 0)) {
-    MONITOR_INC_VALUE(MONITOR_LOG_ON_RECENT_CLOSED_WAIT_LOOPS, wait_loops);
-  }
-}
-
-void log_buffer_close(log_t &log, const Log_handle &handle) {
-  const lsn_t start_lsn = handle.start_lsn;
-  const lsn_t end_lsn = handle.end_lsn;
-
-  ut_a(log_is_data_lsn(start_lsn));
-  ut_a(log_is_data_lsn(end_lsn));
-  ut_a(end_lsn > start_lsn);
-
-  ut_ad(start_lsn >= log_buffer_dirty_pages_added_up_to_lsn(log));
-
-  ut_ad(rw_lock_own(log.sn_lock_inst, RW_LOCK_S));
-
-  std::atomic_thread_fence(std::memory_order_release);
-
-  log_sync_point("log_buffer_write_completed_dpa_before_store");
-
-  log_buffer_s_lock_exit_close(log, start_lsn, end_lsn);
 }
 
 void log_buffer_set_first_record_group(log_t &log, lsn_t rec_group_end_lsn) {
@@ -1207,9 +1197,6 @@ void log_buffer_flush_to_disk(bool sync) {
 
 void log_buffer_sync_in_background() {
   log_t &log = *log_sys;
-
-  /* Just to be sure not to miss advance */
-  log.recent_closed.advance_tail();
 
   /* If the log flusher thread is working, no need to call. */
   if (log.writer_threads_paused.load(std::memory_order_acquire)) {

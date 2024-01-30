@@ -502,6 +502,7 @@ struct mtr_write_log_t {
   bool operator()(const mtr_buf_t::block_t *block) {
     lsn_t start_lsn;
     lsn_t end_lsn;
+    bool is_last_block = false;
 
     ut_ad(block != nullptr);
 
@@ -519,30 +520,32 @@ struct mtr_write_log_t {
 
     m_left_to_write -= block->used();
 
-    if (m_left_to_write == 0
-        /* This write was up to the end of record group,
-        the last record in group has been written.
+    if (m_left_to_write == 0) {
+      is_last_block = true;
+      /* This write was up to the end of record group,
+      the last record in group has been written.
 
-        Therefore next group of records starts at m_lsn.
-        We need to find out, if the next group is the first group,
-        that starts in this log block.
+      Therefore next group of records starts at m_lsn.
+      We need to find out, if the next group is the first group,
+      that starts in this log block.
 
-        In such case we need to set first_rec_group.
+      In such case we need to set first_rec_group.
 
-        Now, we could have two cases:
-        1. This group of log records has started in previous block
-           to block containing m_lsn.
-        2. This group of log records has started in the same block
-           as block containing m_lsn.
+      Now, we could have two cases:
+      1. This group of log records has started in previous block
+         to block containing m_lsn.
+      2. This group of log records has started in the same block
+         as block containing m_lsn.
 
-        Only in case 1), the next group of records is the first group
-        of log records in block containing m_lsn. */
-        && m_handle.start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
-               end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
-      log_buffer_set_first_record_group(*log_sys, end_lsn);
+      Only in case 1), the next group of records is the first group
+      of log records in block containing m_lsn. */
+      if (m_handle.start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
+          end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
+        log_buffer_set_first_record_group(*log_sys, end_lsn);
+      }
     }
 
-    log_buffer_write_completed(*log_sys, start_lsn, end_lsn);
+    log_buffer_write_completed(*log_sys, start_lsn, end_lsn, is_last_block);
 
     m_lsn = end_lsn;
 
@@ -857,13 +860,13 @@ void mtr_t::Command::execute() {
     ut_ad(write_log.m_left_to_write == 0);
     ut_ad(write_log.m_lsn == handle.end_lsn);
 
-    log_wait_for_space_in_log_recent_closed(*log_sys, handle.start_lsn);
+    buf_flush_list_added->wait_to_add(handle.start_lsn);
 
     DEBUG_SYNC_C("mtr_redo_before_add_dirty_blocks");
 
     add_dirty_blocks_to_flush_list(handle.start_lsn, handle.end_lsn);
 
-    log_buffer_close(*log_sys, handle);
+    buf_flush_list_added->report_added(handle.start_lsn, handle.end_lsn);
 
     m_impl->m_mtr->m_commit_lsn = handle.end_lsn;
 

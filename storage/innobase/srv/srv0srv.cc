@@ -293,7 +293,7 @@ ulong srv_log_recent_written_size = INNODB_LOG_RECENT_WRITTEN_SIZE_DEFAULT;
 /** Number of slots in a small buffer, which is used to break requirement
 for total order of dirty pages, when they are added to flush lists.
 The slots are addressed by LSN values modulo number of the slots. */
-ulong srv_log_recent_closed_size = INNODB_LOG_RECENT_CLOSED_SIZE_DEFAULT;
+ulong srv_buf_flush_list_added_size = INNODB_BUF_FLUSH_LIST_ADDED_SIZE_DEFAULT;
 
 /** Number of spin iterations, when spinning and waiting for log buffer
 written up to given LSN, before we fallback to loop with sleeps.

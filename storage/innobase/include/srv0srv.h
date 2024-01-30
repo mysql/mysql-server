@@ -477,10 +477,10 @@ writes to log buffer. The slots are addressed by LSN values modulo number
 of the slots. */
 extern ulong srv_log_recent_written_size;
 
-/** Number of slots in a small buffer, which is used to break requirement
+/** Number of slots in a small link buffer, which is used to break requirement
 for total order of dirty pages, when they are added to flush lists.
 The slots are addressed by LSN values modulo number of the slots. */
-extern ulong srv_log_recent_closed_size;
+extern ulong srv_buf_flush_list_added_size;
 
 /** Whether to activate/pause the log writer threads. */
 extern bool srv_log_writer_threads;

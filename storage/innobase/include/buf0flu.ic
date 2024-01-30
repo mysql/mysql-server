@@ -109,6 +109,12 @@ static inline void buf_flush_note_modification(
   buf_page_mutex_exit(block);
 
   srv_stats.buf_pool_write_requests.inc();
+  /* Note: we can't add the arc to buf_flush_list_added here, because multiple
+  pages from same mtr all share the same [start_lsn,end_lsn) range, and only
+  after all of them are actually inserted into the flush list we can consider
+  the range done. Therefore mtr commit has to call
+  Buf_flush_list_added_lsns.report_added() manually once it adds all its
+  dirty pages to flush lists. */
 }
 
 /** This function should be called when recovery has modified a buffer page. */

@@ -325,6 +325,10 @@ static buf_pool_chunk_map_t *buf_chunk_map_reg;
 pool(s). */
 buf_stat_per_index_t *buf_stat_per_index;
 
+/** Tracks adding dirty pages to the flush list. The life cycle
+of this object is constraint to the life of buffer pool*/
+Buf_flush_list_added_lsns_aligned_ptr buf_flush_list_added;
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** This is used to insert validation operations in execution
 in the debug version */
@@ -431,7 +435,7 @@ lsn_t buf_pool_get_oldest_modification_lwm(void) {
 
   const log_t &log = *log_sys;
 
-  const lsn_t lag = log_buffer_flush_order_lag(log);
+  const lsn_t lag = buf_flush_list_added->order_lag();
 
   ut_a(lag % OS_FILE_LOG_BLOCK_SIZE == 0);
 
@@ -1424,6 +1428,7 @@ static void buf_pool_free() {
 
   ut::free(buf_pool_ptr);
   buf_pool_ptr = nullptr;
+  buf_flush_list_added.reset(nullptr);
 }
 
 /** Creates the buffer pool.
@@ -1439,6 +1444,8 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
   ut_ad(n_instances == srv_buf_pool_instances);
 
   NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE;
+
+  buf_flush_list_added = Buf_flush_list_added_lsns::create();
 
   /* Usually buf_pool_should_madvise is protected by buf_pool_t::chunk_mutex-es,
   but at this point in time there is no buf_pool_t instances yet, and no risk of

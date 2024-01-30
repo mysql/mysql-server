@@ -22861,12 +22861,13 @@ static MYSQL_SYSVAR_ULONG(
     INNODB_LOG_RECENT_WRITTEN_SIZE_MIN, INNODB_LOG_RECENT_WRITTEN_SIZE_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
-    log_recent_closed_size, srv_log_recent_closed_size,
+    buf_flush_list_added_size, srv_buf_flush_list_added_size,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Size of a small buffer, which allows to break requirement for total order"
+    "Size of the window, which allows to break requirement for total order"
     " of dirty pages, when they are added to flush lists.",
-    NULL, NULL, INNODB_LOG_RECENT_CLOSED_SIZE_DEFAULT,
-    INNODB_LOG_RECENT_CLOSED_SIZE_MIN, INNODB_LOG_RECENT_CLOSED_SIZE_MAX, 0);
+    NULL, NULL, INNODB_BUF_FLUSH_LIST_ADDED_SIZE_DEFAULT,
+    INNODB_BUF_FLUSH_LIST_ADDED_SIZE_MIN, INNODB_BUF_FLUSH_LIST_ADDED_SIZE_MAX,
+    0);
 
 static MYSQL_SYSVAR_ULONG(
     log_wait_for_write_spin_delay, srv_log_wait_for_write_spin_delay,
@@ -23466,7 +23467,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_write_events),
     MYSQL_SYSVAR(log_flush_events),
     MYSQL_SYSVAR(log_recent_written_size),
-    MYSQL_SYSVAR(log_recent_closed_size),
+    MYSQL_SYSVAR(buf_flush_list_added_size),
     MYSQL_SYSVAR(log_wait_for_write_spin_delay),
     MYSQL_SYSVAR(log_wait_for_write_timeout),
     MYSQL_SYSVAR(log_wait_for_flush_spin_delay),

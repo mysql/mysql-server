@@ -43,10 +43,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define log0buf_h
 
 /* MEB should neither write to the log buffer nor maintain
-the log buffer or recent_written / recent_closed buffers. */
+the log buffer or recent_written buffer. */
 #ifndef UNIV_HOTBACKUP
 
-/* log.recent_written, log.recent_closed */
+/* log.recent_written */
 #include "log0sys.h"
 
 /* log_t&, lsn_t, constants */
@@ -129,10 +129,15 @@ After the link is added, the log writer may write the data to disk.
 NOTE that still dirty pages for the [start_lsn, end_lsn) are not added
 to flush lists when this function is called.
 
-@param[in,out]	log		redo log
-@param[in]	start_lsn	start_lsn of the link to add
-@param[in]	end_lsn		end_lsn of the link to add */
-void log_buffer_write_completed(log_t &log, lsn_t start_lsn, lsn_t end_lsn);
+@param[in,out]  log       redo log
+@param[in]  start_lsn     start_lsn of the link to add
+@param[in]  end_lsn       end_lsn of the link to add
+@param[in]  is_last_block A flag to let log writer know that this
+[start_lsn,end_lsn) range was the last fragment of the range reserved by this
+thread earlier through log_buffer_reserve(..) , i.e. this thread has finished
+writing to the log buffer. */
+void log_buffer_write_completed(log_t &log, lsn_t start_lsn, lsn_t end_lsn,
+                                bool is_last_block);
 
 /** Modifies header of log block in the log buffer, which contains
 a given lsn value, and sets offset to the first group of log records
@@ -151,16 +156,6 @@ of log records, it first looks for the beginning of the next group.
 @param[in]	rec_group_end_lsn	lsn at which the first log record
 group starts within the block containing this lsn value */
 void log_buffer_set_first_record_group(log_t &log, lsn_t rec_group_end_lsn);
-
-/** Adds a link start_lsn -> end_lsn to the log recent closed buffer.
-
-This is called after all dirty pages related to [start_lsn, end_lsn)
-have been added to corresponding flush lists.
-For detailed explanation - @see log0write.cc.
-
-@param[in,out]	log		redo log
-@param[in]	handle		handle for the reservation of space */
-void log_buffer_close(log_t &log, const Log_handle &handle);
 
 /** @} */
 
@@ -231,7 +226,7 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn);
 
 /**************************************************/ /**
 
- @name Log - the recent written, the recent closed buffers.
+ @name Log - the recent written buffer.
 
  *******************************************************/
 
@@ -249,17 +244,20 @@ inline lsn_t log_buffer_ready_for_write_lsn(const log_t &log) {
   return log.recent_written.tail();
 }
 
-/** @return lsn up to which all dirty pages have been added to flush list */
-inline lsn_t log_buffer_dirty_pages_added_up_to_lsn(const log_t &log) {
-  return log.recent_closed.tail();
-}
+/** Wait until log_buffer_ready_for_write_lsn() returns at least min_lsn.
+@param[in]    log	      redo log
+@param[in]    min_lsn         The awaited minimum value of
+                              log_buffer_ready_for_write_lsn().
+@param[out]   waits_on_event  If not null, then the pointed integer will be set
+                              to the number of times this function had to wait
+                              on closer_event.
+@return The seen value of log_buffer_ready_for_write_lsn() which was at least
+        equal to min_lsn.
+*/
+lsn_t log_buffer_wait_for_ready_for_write_lsn(
+    log_t &log, lsn_t min_lsn, uint32_t *waits_on_event = nullptr);
 
-/** @return capacity of the recent_closed, or 0 if !log_use_threads() */
-inline lsn_t log_buffer_flush_order_lag(const log_t &log) {
-  return log.recent_closed.capacity();
-}
-
-/** Advances log.buf_ready_for_write_lsn using links in the recent written
+/** Advances log_buffer_ready_for_write_lsn() using links in the recent written
 buffer. It's used by the log writer thread only.
 @param[in]	log	redo log */
 void log_advance_ready_for_write_lsn(log_t &log);
@@ -272,28 +270,6 @@ program if validation does not pass.
 @param[in]	end     validation end (exclusive) */
 void log_recent_written_empty_validate(const log_t &log, lsn_t begin,
                                        lsn_t end);
-
-/** Validates that all slots in log recent closed buffer for lsn values
-in range between begin and end, are empty. Used during tests, crashes the
-program if validation does not pass.
-@param[in]	log		redo log which buffer is validated
-@param[in]	begin		validation start (inclusive)
-@param[in]	end		validation end (exclusive) */
-void log_recent_closed_empty_validate(const log_t &log, lsn_t begin, lsn_t end);
-
-/** Waits until there is free space in the log recent closed buffer
-for any links start_lsn -> end_lsn, which start at provided start_lsn.
-It does not add any link.
-
-This is called just before dirty pages for [start_lsn, end_lsn)
-are added to flush lists. That's because we need to guarantee,
-that the delay until dirty page is added to flush list is limited.
-For detailed explanation - @see log0write.cc.
-
-@param[in,out]	log   redo log
-@param[in]      lsn   lsn on which we wait (for any link: lsn -> x) */
-void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn);
-
 /** @} */
 
 #endif /* !UNIV_HOTBACKUP */

@@ -420,14 +420,15 @@ bool buf_are_flush_lists_empty_validate(void) {
   return true;
 }
 
+#ifdef UNIV_DEBUG
 /** Checks that order of two consecutive pages in flush list would be valid,
 according to their oldest_modification values.
 
 @remarks
 We have a relaxed order in flush list, but still we have guarantee,
 that the earliest added page has oldest_modification not greater than
-minimum oldest_midification of all dirty pages by more than number of
-slots in the log recent closed buffer.
+minimum oldest_modification of all dirty pages by more than number of
+slots in the buf_flush_list_added->order_lag().
 
 This is used by assertions only.
 
@@ -444,11 +445,11 @@ MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
 @see @ref sect_redo_log_add_dirty_pages */
 MY_COMPILER_DIAGNOSTIC_POP()
 
-[[maybe_unused]] static inline bool buf_flush_list_order_validate(
+[[nodiscard]] static inline bool buf_flush_list_order_validate(
     lsn_t earlier_added_lsn, lsn_t new_added_lsn) {
-  return (earlier_added_lsn <=
-          new_added_lsn + log_buffer_flush_order_lag(*log_sys));
+  return earlier_added_lsn <= new_added_lsn + buf_flush_list_added->order_lag();
 }
+#endif /* UNIV_DEBUG */
 
 /** Borrows LSN from the recent added dirty page to the flush list.
 
@@ -481,7 +482,7 @@ static inline lsn_t buf_flush_borrow_lsn(const buf_pool_t *buf_pool) {
     /* Flush list is empty - use lsn up to which we know that all
     dirty pages with smaller oldest_modification were added to
     the flush list (they were flushed as the flush list is empty). */
-    const lsn_t lsn = log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
+    const lsn_t lsn = buf_flush_list_added->smallest_not_added_lsn();
 
     if (lsn < LOG_START_LSN) {
       ut_ad(srv_read_only_mode);
@@ -2270,7 +2271,7 @@ ulint sum_pages = 0;
 @param[in]      n_pages_last    number of pages flushed in last iteration
 @return true if current iteration should be skipped. */
 bool initialize(ulint n_pages_last) {
-  lsn_t curr_lsn = log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
+  lsn_t curr_lsn = buf_flush_list_added->smallest_not_added_lsn();
   const auto curr_time = std::chrono::steady_clock::now();
 
   if (prev_lsn == 0) {
@@ -3854,6 +3855,59 @@ std::ostream &Flush_observer::print(std::ostream &out) const {
   return out;
 }
 
+Buf_flush_list_added_lsns_aligned_ptr Buf_flush_list_added_lsns::create() {
+  return ut::make_unique_aligned<Buf_flush_list_added_lsns>(
+      ut::INNODB_CACHE_LINE_SIZE);
+}
+
+Buf_flush_list_added_lsns::Buf_flush_list_added_lsns()
+    : m_buf_added_lsns(srv_buf_flush_list_added_size) {}
+
+void Buf_flush_list_added_lsns::assume_added_up_to(lsn_t start_lsn) {
+  m_buf_added_lsns.validate_no_links();
+  const auto current_tail = smallest_not_added_lsn();
+  ut_a(current_tail <= start_lsn);
+  if (current_tail != start_lsn) {
+    report_added(current_tail, start_lsn);
+  }
+}
+
+void Buf_flush_list_added_lsns::validate_not_added(lsn_t begin, lsn_t end) {
+  m_buf_added_lsns.validate_no_links(begin, end);
+}
+
+void Buf_flush_list_added_lsns::report_added(lsn_t oldest_modification,
+                                             lsn_t newest_modification) {
+  m_buf_added_lsns.add_link_advance_tail(oldest_modification,
+                                         newest_modification);
+}
+
+uint64_t Buf_flush_list_added_lsns::order_lag() {
+  ut_ad(srv_buf_flush_list_added_size == m_buf_added_lsns.capacity());
+  return m_buf_added_lsns.capacity();
+}
+
+lsn_t Buf_flush_list_added_lsns::smallest_not_added_lsn() {
+  m_buf_added_lsns.advance_tail();
+  return m_buf_added_lsns.tail();
+}
+
+void Buf_flush_list_added_lsns::wait_to_add(lsn_t oldest_modification) {
+  ut_a(log_is_data_lsn(oldest_modification));
+
+  ut_ad(m_buf_added_lsns.tail() <= oldest_modification);
+
+  uint64_t wait_loops = 0;
+
+  while (!m_buf_added_lsns.has_space(oldest_modification)) {
+    ++wait_loops;
+    std::this_thread::sleep_for(std::chrono::microseconds(20));
+  }
+
+  if (unlikely(wait_loops != 0)) {
+    MONITOR_INC_VALUE(MONITOR_LOG_ON_RECENT_CLOSED_WAIT_LOOPS, wait_loops);
+  }
+}
 #else
 
 bool buf_flush_page_cleaner_is_active() { return (false); }

@@ -155,11 +155,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
    @diafile storage/innobase/log/recent_written_buffer.dia "Example of links in the recent written buffer"
 
-   @note The log buffer has no holes up to the _log.buf_ready_for_write_lsn_
+   @note The log buffer has no holes up to the
+   _log_buffer_ready_for_write_lsn()_
    (all concurrent writes for smaller lsn have been finished).
 
-   If there were no links to traverse, _log.buf_ready_for_write_lsn_ was not
-   advanced and the log writer thread needs to wait. In such case it first
+   If there were no links to traverse, _log_buffer_ready_for_write_lsn()_ was
+   not advanced and the log writer thread needs to wait. In such case it first
    uses spin delay and afterwards switches to wait on the _writer_event_.
 
 
@@ -221,7 +222,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
    for setting the field. User thread which has written exactly up to the end
    of log block, is considered ending at lsn after the header of the next log
    block. That's because after such write, the log writer is allowed to write
-   the next empty log block (_buf_ready_for_write_lsn_ points then to such lsn).
+   the next empty log block (_log_buffer_ready_for_write_lsn()_ points then to
+   such lsn).
    The _first_rec_group_ field is updated before the link is added to the log
    recent written buffer.
 
@@ -235,7 +237,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
      - If we were trying to write more than size of single write-ahead
        region, we limit the write to completed write-ahead sized regions,
        and postpone writing the last fragment for later (retrying with the
-       first step and updating the _buf_ready_for_write_lsn_).
+       first step and updating the _log_buffer_ready_for_write_lsn()_).
 
        @note If we needed to write complete regions of write-ahead bytes,
        they are ready in the log buffer and could be written directly from
@@ -407,15 +409,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  The log checkpointer thread updates log.available_for_checkpoint_lsn,
  which is calculated as:
 
-         min(log.buf_dirty_pages_added_up_to_lsn, max(0, oldest_lsn - L))
+         min(buf_flush_list_added->smallest_not_added_lsn(), max(0, oldest_lsn - L))
 
  where:
    - oldest_lsn = min(oldest modification of the earliest page from each
                       flush list),
-   - L is a number of slots in the log recent closed buffer.
+   - L is buf_flush_list_added->order_lag().
 
  The special case is when there is no dirty page in flush lists - then it's
- basically set to the _log.buf_dirty_pages_added_up_to_lsn_.
+ basically set to the _Buf_flush_list_added_lsns::order_lag()_.
 
  @note Note that previously, all user threads were trying to calculate this
  lsn concurrently, causing contention on flush_list mutex, which is required
@@ -423,8 +425,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  is updated in single thread.
 
 
- @section sect_redo_log_waiting_for_writer Waiting until log has been written to
- disk
+ @section sect_redo_log_waiting_for_writer Waiting until log has been written to disk
 
  User has to wait until the [log writer thread](@ref sect_redo_log_writer)
  has written data from the log buffer to disk for lsn >= _end_lsn_ of log range
@@ -454,8 +455,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  is used.
 
 
- @section sect_redo_log_waiting_for_flusher Waiting until log has been flushed
- to disk
+ @section sect_redo_log_waiting_for_flusher Waiting until log has been flushed to disk
 
  If a user need to assure the log persistence in case of crash (e.g. on COMMIT
  of a transaction), he has to wait until [log flusher](@ref
@@ -949,43 +949,10 @@ static Wait_stats log_self_write_up_to(log_t &log, lsn_t end_lsn,
                                        bool flush_to_disk, bool *interrupted) {
   ut_ad(!mutex_own(&(log.writer_mutex)));
 
-  uint32_t waits = 0;
   *interrupted = false;
-
-  lsn_t ready_lsn = log_buffer_ready_for_write_lsn(log);
-  ulong i = 0;
-  /* must wait for (ready_lsn >= end_lsn) at first */
-  while (i < srv_n_spin_wait_rounds && ready_lsn < end_lsn) {
-    if (srv_spin_wait_delay) {
-      ut_delay(ut::random_from_interval_fast(0, srv_spin_wait_delay));
-    }
-    i++;
-    ready_lsn = log_buffer_ready_for_write_lsn(log);
-  }
-  if (ready_lsn < end_lsn) {
-    log.recent_written.advance_tail();
-    ready_lsn = log_buffer_ready_for_write_lsn(log);
-  }
-  if (ready_lsn < end_lsn) {
-    std::this_thread::yield();
-    ready_lsn = log_buffer_ready_for_write_lsn(log);
-  }
-  while (ready_lsn < end_lsn) {
-    /* wait using event */
-    log_closer_mutex_enter(log);
-    if (log.current_ready_waiting_lsn == 0 &&
-        os_event_is_set(log.closer_event)) {
-      log.current_ready_waiting_lsn = end_lsn;
-      log.current_ready_waiting_sig_count = os_event_reset(log.closer_event);
-    }
-    const auto sig_count = log.current_ready_waiting_sig_count;
-    log_closer_mutex_exit(log);
-    ++waits;
-    os_event_wait_time_low(log.closer_event, std::chrono::milliseconds{100},
-                           sig_count);
-    log.recent_written.advance_tail();
-    ready_lsn = log_buffer_ready_for_write_lsn(log);
-  }
+  uint32_t waits;
+  lsn_t ready_lsn =
+      log_buffer_wait_for_ready_for_write_lsn(log, end_lsn, &waits);
 
   /* NOTE: Currently doesn't do dirty read for (flush_to_disk == true) case,
   because the mutex contention also works as the arbitrator for write-IO

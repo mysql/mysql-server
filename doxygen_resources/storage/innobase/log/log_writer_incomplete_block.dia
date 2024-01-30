@@ -322,7 +322,7 @@
       <dia:attribute name="text">
         <dia:composite type="text">
           <dia:attribute name="string">
-            <dia:string>#buf_ready_for_write_lsn#</dia:string>
+            <dia:string>#log_buffer_ready_for_write_lsn()#</dia:string>
           </dia:attribute>
           <dia:attribute name="font">
             <dia:font family="sans" style="0" name="Helvetica"/>

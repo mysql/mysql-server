@@ -35,9 +35,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define buf0flu_h
 
 #include "buf0types.h"
+#include "log0types.h"
 #include "univ.i"
 #include "ut0byte.h"
+#include "ut0cpu_cache.h"
+#include "ut0link_buf.h"
 
+#include <memory>
 #ifndef UNIV_HOTBACKUP
 /** Checks if the page_cleaner is in active state. */
 bool buf_flush_page_cleaner_is_active();
@@ -351,6 +355,94 @@ class Flush_observer {
 };
 
 lsn_t get_flush_sync_lsn() noexcept;
+
+// Forward declaration.
+class Buf_flush_list_added_lsns;
+
+// Simplified type alias for the aligned unique_ptr
+using Buf_flush_list_added_lsns_aligned_ptr =
+    std::unique_ptr<Buf_flush_list_added_lsns,
+                    ut::detail::Aligned_deleter<Buf_flush_list_added_lsns>>;
+
+/** Tracks the concurrent executions of adding dirty pages to the flush lists.
+It allows to relax order in which dirty pages have to be added to the flush
+lists and helps in advancing the checkpoint LSN.
+Note : Earlier it was known as recent_closed buffer. */
+class Buf_flush_list_added_lsns {
+ public:
+  /** Factory method that creates a dynamically allocated instance that is
+  aligned to the cache line boundary. This is needed since C++17 doesn't
+  guarantee allocating aligned types dynamically */
+  static Buf_flush_list_added_lsns_aligned_ptr create();
+
+  /** Validates using assertions that the specified LSN range is not yet added
+  to the flush lists.
+  @param[in]    begin   start LSN of the range
+  @param[in]    end     end LSN of the range*/
+  void validate_not_added(lsn_t begin, lsn_t end);
+
+  /** Assume that the start_lsn is the start lsn of the first mini-transaction,
+  for which report_added(mtr.start_lsn, mtr.end_lsn) was not yet called.
+  Before the call smallest_not_added_lsn() can't be larger than start_lsn.
+  During the call smallest_not_added_lsn() becomes start_lsn.
+  @param[in]   start_lsn   LSNs that are already flushed.*/
+  void assume_added_up_to(lsn_t start_lsn);
+
+  /** Used to report that we know that all changes in a specified range of lsns
+  were already applied to pages in BP and all these pages were already added to
+  corresponding flush lists. The committing mtr should use this function to
+  report that it has added all the pages that it has dirtied to corresponding
+  flush lists already.
+  The newest_modification should be the mtr->commit_lsn().
+  The oldest_modification should be the start_lsn assigned to the mtr
+  (which equals commit_lsn() of the previous mtr).
+
+  Information from these reports is used by smallest_not_added_lsn() to
+  establish the smallest not yet reported lsn, which in turn can be used by page
+  cleaners, or other mtrs which are currently waiting for their turn in
+  wait_to_add().
+  @param[in]    oldest_modification    start lsn of the range
+  @param[in]    newest_modification    end lsn fo the range */
+  void report_added(lsn_t oldest_modification, lsn_t newest_modification);
+
+  /** The flush lists are not completely sorted, and the amount of disorder is
+  limited by the order_lag() - which is controlled by immutable
+  srv_buf_flush_list_added_size  sysvar - in the following way. If page A is
+  added before page B in a flush_list, then it must hold that
+  A.oldest_modification returned value < B.oldest_modification.
+  @return the maximum lsn distance the subsequent elements of the flush list can
+  lag behind the first element w.r.t. oldest_modification */
+  uint64_t order_lag();
+
+  /** Return lsn up to which we know that all dirty pages with smaller
+  oldest_modification were added to the flush list.
+  @return The smallest lsn for which there was no call to assume_added_up_to(y)
+  with lsn<y nor to report_added(x,y) with x<=lsn<y yet */
+  lsn_t smallest_not_added_lsn();
+
+  /** Wait until it is safe to add dirty pages with a given oldest_modification
+  lsn to flush list without exceeding the disorder limit imposed by older_lag().
+  This function will block and wait until all the pages having
+  page.oldest_modification smaller than oldest_modification - older_lag() are
+  reported to be added to flush list by other threads.
+  @param[in]  oldest_modification  Oldest LSN that does not violate the
+              order_lag() */
+  void wait_to_add(lsn_t oldest_modification);
+
+ private:
+  /** Ring buffer that keeps track of the ranges of LSNs added to
+  flush_list(s) already.*/
+  alignas(ut::INNODB_CACHE_LINE_SIZE) Link_buf<lsn_t> m_buf_added_lsns;
+
+  /** Constructor. Clients must use factory method to create an instance */
+  Buf_flush_list_added_lsns();
+
+  template <typename T, typename... Args>
+  friend T *ut::aligned_new_withkey(ut::PSI_memory_key_t key,
+                                    std::size_t alignment, Args &&... args);
+};
+
+extern Buf_flush_list_added_lsns_aligned_ptr buf_flush_list_added;
 #endif /* !UNIV_HOTBACKUP */
 
 #include "buf0flu.ic"

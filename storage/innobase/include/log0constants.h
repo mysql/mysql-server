@@ -496,14 +496,14 @@ constexpr ulong INNODB_LOG_RECENT_WRITTEN_SIZE_MIN = OS_FILE_LOG_BLOCK_SIZE;
 /** Maximum allowed value of innodb_log_recent_written_size. */
 constexpr ulong INNODB_LOG_RECENT_WRITTEN_SIZE_MAX = 1024 * 1024 * 1024UL;
 
-/** Default value of innodb_log_recent_closed_size (in bytes). */
-constexpr ulong INNODB_LOG_RECENT_CLOSED_SIZE_DEFAULT = 2 * 1024 * 1024;
+/** Default value of innodb_buf_flush_list_added_size (in bytes). */
+constexpr ulong INNODB_BUF_FLUSH_LIST_ADDED_SIZE_DEFAULT = 2 * 1024 * 1024;
 
-/** Minimum allowed value of innodb_log_recent_closed_size. */
-constexpr ulong INNODB_LOG_RECENT_CLOSED_SIZE_MIN = OS_FILE_LOG_BLOCK_SIZE;
+/** Minimum allowed value of innodb_buf_flush_list_added_size. */
+constexpr ulong INNODB_BUF_FLUSH_LIST_ADDED_SIZE_MIN = OS_FILE_LOG_BLOCK_SIZE;
 
-/** Maximum allowed value of innodb_log_recent_closed_size. */
-constexpr ulong INNODB_LOG_RECENT_CLOSED_SIZE_MAX = 1024 * 1024 * 1024UL;
+/** Maximum allowed value of innodb_buf_flush_list_added_size. */
+constexpr ulong INNODB_BUF_FLUSH_LIST_ADDED_SIZE_MAX = 1024 * 1024 * 1024UL;
 
 /** Default value of innodb_log_events (number of events). */
 constexpr ulong INNODB_LOG_EVENTS_DEFAULT = 2048;

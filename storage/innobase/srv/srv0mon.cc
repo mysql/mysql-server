@@ -1022,9 +1022,10 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_LOG_ON_RECENT_WRITTEN_WAIT_LOOPS},
 
     {"log_on_recent_closed_wait_loops", "log",
-     "Loops of waits in user threads on space in log.recent_closed",
-     /* Non-zero values of the counter => writes to log buffer are delayed.
-     Then innodb_log_recent_closed_slots should be increased. */
+     "Loops of waits in user threads on space in "
+     "innodb_buf_flush_list_added_size",
+     /* Non-zero values of the counter => appends to flush lists are delayed.
+     Then innodb_buf_flush_list_added_size should be increased. */
      MONITOR_NONE, MONITOR_DEFAULT_START,
      MONITOR_LOG_ON_RECENT_CLOSED_WAIT_LOOPS},
 
@@ -1725,7 +1726,7 @@ void srv_mon_process_existing_counter(
       break;
 
     /* innodb_data_read, the amount of data read since the server was started
-     * (in bytes) */
+    (in bytes) */
     case MONITOR_OVLD_BYTE_READ:
       value = srv_stats.data_read;
       break;
@@ -1964,7 +1965,7 @@ void srv_mon_process_existing_counter(
     } break;
 
     case MONITOR_OVLD_LSN_BUF_DIRTY_PAGES_ADDED:
-      value = (mon_type_t)log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
+      value = (mon_type_t)buf_flush_list_added->smallest_not_added_lsn();
       break;
 
     case MONITOR_OVLD_BUF_OLDEST_LSN_APPROX:
