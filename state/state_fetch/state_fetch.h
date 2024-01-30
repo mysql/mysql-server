@@ -19,13 +19,14 @@ class StateFetch {
   void setRedoLogItem(RedoLogItem *item) { redoLogItem = item; }
 
   RedoLogItem *getRedoLogItem() const { return redoLogItem; }
-  
+
   void setRedoLogBufferBuf(unsigned char *buffer) {
     redo_log_buffer_buf = buffer;
   }
   unsigned char *getRedoLogBufferBuf() const { return redo_log_buffer_buf; }
 
  private:
+  // failStatus 为真，则说明需要进行故障恢复，继续之后的逻辑
   bool failStatus = false;
 
   // redo log buffer 的元信息

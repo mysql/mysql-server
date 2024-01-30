@@ -13,8 +13,10 @@ StateFetch *stateFetch;
  * @return
  */
 bool redo_log_fetch() {
-  stateFetch->redoLogItem = nullptr;
-
+  if (stateFetch->getFailStatus()) {
+    stateFetch->setRedoLogItem(nullptr);
+    stateFetch->setRedoLogBufferBuf(nullptr);
+  }
   return true;
 }
 
