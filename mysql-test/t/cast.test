@@ -1160,3 +1160,11 @@ SELECT CAST(CAST(1111111111111111 AS FLOAT) AS DECIMAL(20,2)) AS v;
 
 --error ER_TOO_BIG_PRECISION
 SELECT * from v0 WHERE v1 LIKE v1 ESCAPE CONVERT ( TRUE, DATETIME (100 ) );
+
+--echo #
+--echo # Bug#36121912: crash with assertion '!null_value || is_nullable()' failure in item_func.cc
+--echo #
+CREATE table t (a int not null);
+SELECT 1 FROM t WHERE CAST(a AS UNSIGNED INTEGER) = 1
+                  AND a = (SELECT 1 FROM t);
+DROP TABLE t;

@@ -577,7 +577,7 @@ class Item_func : public Item_result_field {
   }
 
   /**
-    Check whether a function allows replacement of a field with another:
+    Check whether a function allows replacement of a field with another item:
     In particular, a replacement that changes the metadata of some Item
     from non-nullable to nullable is not allowed.
     Notice that e.g. changing the nullability of an operand of a comparison
@@ -585,12 +585,12 @@ class Item_func : public Item_result_field {
     according to this criterion.
 
     @param original the field that could be replaced
-    @param subst    the field that could be the replacement
+    @param subst    the item that could be the replacement
 
     @returns true if replacement is allowed, false otherwise
   */
   virtual bool allow_replacement(Item_field *const original,
-                                 Item_field *const subst) {
+                                 Item *const subst) {
     return original->is_nullable() || !subst->is_nullable();
   }
 

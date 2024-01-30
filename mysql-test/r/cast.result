@@ -2303,3 +2303,11 @@ v
 #
 SELECT * from v0 WHERE v1 LIKE v1 ESCAPE CONVERT ( TRUE, DATETIME (100 ) );
 ERROR 42000: Too-big precision 100 specified for 'CAST'. Maximum is 6.
+#
+# Bug#36121912: crash with assertion '!null_value || is_nullable()' failure in item_func.cc
+#
+CREATE table t (a int not null);
+SELECT 1 FROM t WHERE CAST(a AS UNSIGNED INTEGER) = 1
+AND a = (SELECT 1 FROM t);
+1
+DROP TABLE t;

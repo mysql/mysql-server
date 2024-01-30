@@ -6437,10 +6437,16 @@ Item *Item_default_value::replace_item_field(uchar *argp) {
 */
 
 Item *Item_field::replace_equal_field(uchar *arg) {
-  if (item_equal) {
+  if (item_equal != nullptr) {
+    Replace_equal *replace = pointer_cast<Replace_equal *>(arg);
+    Item_func *func = replace->stack.head();
+
     Item *const_item = item_equal->const_arg();
-    if (const_item) {
-      if (!has_compatible_context(const_item)) return this;
+    if (const_item != nullptr) {
+      if (!has_compatible_context(const_item) ||
+          !func->allow_replacement(this, const_item)) {
+        return this;
+      }
       return const_item;
     }
     Item_field *subst = item_equal->get_subst_item(this);
@@ -6448,10 +6454,8 @@ Item *Item_field::replace_equal_field(uchar *arg) {
     assert(table_ref == subst->table_ref ||
            table_ref->table != subst->table_ref->table);
     if (table_ref != subst->table_ref && !field->eq(subst->field)) {
-      Replace_equal *replace = pointer_cast<Replace_equal *>(arg);
-      Item_func *func = replace->stack.head();
-      if (!func->allow_replacement(this, subst) ||
-          !has_compatible_context(subst)) {
+      if (!has_compatible_context(subst) ||
+          !func->allow_replacement(this, subst)) {
         return this;
       }
       // We may have to undo the substitution that is done here when setting up

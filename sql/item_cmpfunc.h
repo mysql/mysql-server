@@ -677,7 +677,7 @@ class Item_bool_func2 : public Item_bool_func {
   Item *replace_scalar_subquery(uchar *) override;
   friend class Arg_comparator;
   bool allow_replacement(Item_field *const original,
-                         Item_field *const subst) override {
+                         Item *const subst) override {
     /*
       If UNKNOWN results can be treated as false (e.g when placed in WHERE, ON
       or HAVING), a non-nullable field can be replaced with a nullable one.
@@ -1299,7 +1299,7 @@ class Item_func_opt_neg : public Item_int_func {
     return this;
   }
   bool allow_replacement(Item_field *const original,
-                         Item_field *const subst) override {
+                         Item *const subst) override {
     /*
       If UNKNOWN results can be treated as false (e.g when placed in WHERE, ON
       or HAVING), a non-nullable field can be replaced with a nullable one.
