@@ -13,6 +13,8 @@ class RedoLogFetch {
  public:
   RedoLogFetch() {}
 
+  RedoLogFetch(bool status) : failStatus(status) {}
+
   void setFailStatus(bool status) { failStatus = status; }
 
   bool getFailStatus() const { return failStatus; }
