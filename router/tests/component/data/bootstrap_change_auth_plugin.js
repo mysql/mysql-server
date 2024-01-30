@@ -29,16 +29,8 @@ if (mysqld.global.auth_host_plugins === undefined) {
   mysqld.global.auth_host_plugins = [[]];
 }
 
-if (mysqld.global.default_auth_plugin === undefined) {
-  mysqld.global.default_auth_plugin = "caching_sha2_password";
-}
-
 if (mysqld.global.fail_host_plugin_query === undefined) {
   mysqld.global.fail_host_plugin_query = false;
-}
-
-if (mysqld.global.fail_default_auth_plugin_query === undefined) {
-  mysqld.global.fail_default_auth_plugin_query = false;
 }
 
 if (mysqld.global.fail_alter_user_query === undefined) {
@@ -140,23 +132,9 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
           error: {code: 1000, sql_state: "HY000", message: "Unexpected error"}
         }
       }
-    } else if (stmt === "select @@default_authentication_plugin") {
-      if (!mysqld.global.fail_default_auth_plugin_query) {
-        return {
-          result: {
-            "columns":
-                [{"type": "STRING", "name": "@@default_authentication_plugin"}],
-            "rows": [[mysqld.global.default_auth_plugin]],
-          }
-        }
-      } else {
-        return {
-          error: {code: 1000, sql_state: "HY000", message: "Unexpected error"}
-        }
-      }
-    } else if (stmt.match(
-                   "alter user '.*'@'.*' identified with `" +
-                   mysqld.global.default_auth_plugin + "` by '.*'")) {
+    } else if (
+        stmt.match(
+            "alter user '.*'@'.*' identified with `caching_sha2_password` by '.*'")) {
       if (!mysqld.global.fail_alter_user_query) {
         return {
           "ok": {}

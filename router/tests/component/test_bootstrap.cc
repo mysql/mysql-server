@@ -2810,10 +2810,6 @@ struct AuthPluginTestParam {
   // user
   std::vector<std::pair<std::string, std::string>> auth_host_plugins;
 
-  // what is the default authentication plugin on the server we bootstrap
-  // against
-  std::string default_auth_plugin;
-
   // vector of strings expected on the console after the bootstrap
   std::vector<std::string> expected_output_strings;
 
@@ -2825,10 +2821,6 @@ struct AuthPluginTestParam {
 
   // should the "select host, plugin.." query fail on the server
   bool fail_host_plugin_query{false};
-
-  // should the "select @@default_authentication_plugin" query fail on the
-  // server
-  bool fail_default_auth_plugin_query{false};
 
   // should the "alter user" query fail on the server
   bool fail_alter_user_query{false};
@@ -2888,16 +2880,8 @@ TEST_P(BootstrapChangeAuthPluginTest, Spec) {
     }
 
     globals.AddMember("auth_host_plugins", auth_host_plugins_json, allocator);
-    globals.AddMember(
-        "default_auth_plugin",
-        JsonValue(GetParam().default_auth_plugin.c_str(),
-                  GetParam().default_auth_plugin.length(), allocator),
-        allocator);
-
     globals.AddMember("fail_host_plugin_query",
                       GetParam().fail_host_plugin_query, allocator);
-    globals.AddMember("fail_default_auth_plugin_query",
-                      GetParam().fail_default_auth_plugin_query, allocator);
     globals.AddMember("fail_alter_user_query", GetParam().fail_alter_user_query,
                       allocator);
 
@@ -2934,8 +2918,6 @@ INSTANTIATE_TEST_SUITE_P(
         AuthPluginTestParam{
             /* auth_host_plugins */
             {{"localhost", "caching_sha2_password"}},
-            /* default_auth_plugin */
-            "caching_sha2_password",
             /*expected_output_strings*/
             {},
             /*unexpected_output_strings*/
@@ -2948,8 +2930,6 @@ INSTANTIATE_TEST_SUITE_P(
             /* auth_host_plugins */
             {{"localhost", "caching_sha2_password"},
              {"10.20.*.*", "caching_sha2_password"}},
-            /* default_auth_plugin */
-            "caching_sha2_password",
             /*expected_output_strings*/
             {},
             /*unexpected_output_strings*/
@@ -2961,8 +2941,6 @@ INSTANTIATE_TEST_SUITE_P(
         AuthPluginTestParam{
             /* auth_host_plugins */
             {{"localhost", "mysql_native_password"}},
-            /* default_auth_plugin */
-            "caching_sha2_password",
             /*expected_output_strings*/
             {"Existing account '.*'@localhost is using authentication plugin "
              "'mysql_native_password'. Changing the "
@@ -2974,15 +2952,12 @@ INSTANTIATE_TEST_SUITE_P(
             {},
             /*test_description*/
             "There is single existing account for our user that uses "
-            "mysql_native_password. The default auth_plugin on the server is "
-            "caching_sha2_password. We expect successful change of the "
+            "mysql_native_password. We expect successful change of the "
             "auth_plugin for our account"},
         AuthPluginTestParam{
             /* auth_host_plugins */
             {{"%", "mysql_native_password"},
              {"localhost", "mysql_native_password"}},
-            /* default_auth_plugin */
-            "caching_sha2_password",
             /*expected_output_strings*/
             {"Account '.*'@% is using depracated 'mysql_native_password' "
              "authentication plugin. Change the authentication plugin using "
@@ -3002,8 +2977,6 @@ INSTANTIATE_TEST_SUITE_P(
             /* auth_host_plugins */
             {{"%", "mysql_native_password"},
              {"localhost", "caching_sha2_password"}},
-            /* default_auth_plugin */
-            "caching_sha2_password",
             /*expected_output_strings*/
             {"Account '.*'@% is using depracated 'mysql_native_password' "
              "authentication plugin. Change the authentication plugin using "
@@ -3022,24 +2995,6 @@ INSTANTIATE_TEST_SUITE_P(
         AuthPluginTestParam{
             /* auth_host_plugins */
             {{"localhost", "mysql_native_password"}},
-            /* default_auth_plugin */
-            "mysql_native_password",
-            /*expected_output_strings*/
-            {"Failed changing the authentication plugin for account "
-             "'.*'@'localhost':  mysql_native_password which is deprecated is "
-             "the default authentication plugin on this server."},
-            /*unexpected_output_strings*/
-            {"Successfully changed the authentication plugin for .*"},
-            /*test_description*/
-            "There is single existing account for our user that uses "
-            "mysql_native_password. The default auth_plugin on the server is "
-            "mysql_native_password so we can't change the auth_plugin. We are "
-            "only expected to give a warning."},
-        AuthPluginTestParam{
-            /* auth_host_plugins */
-            {{"localhost", "mysql_native_password"}},
-            /* default_auth_plugin */
-            "",
             /*expected_output_strings*/
             {"Failed checking the Router account authentication plugin: Error "
              "executing MySQL query \"select host, plugin from mysql.user "
@@ -3053,26 +3008,6 @@ INSTANTIATE_TEST_SUITE_P(
         AuthPluginTestParam{
             /* auth_host_plugins */
             {{"localhost", "mysql_native_password"}},
-            /* default_auth_plugin */
-            "",
-            /*expected_output_strings*/
-            {"Failed getting default authentication plugin while changing the "
-             "authentication plugin for account "
-             "'.*'@'localhost': Error executing MySQL query \"select "
-             "@@default_authentication_plugin\": Unexpected "
-             "error .*"},
-            /*unexpected_output_strings*/
-            {"Successfully changed the authentication plugin for .*"},
-            /*test_description*/
-            "Querying for the the default auth plugin fails. We expect a "
-            "proper warning.",
-            /*fail_host_plugin_query*/ false,
-            /*fail_default_auth_plugin_query*/ true},
-        AuthPluginTestParam{
-            /* auth_host_plugins */
-            {{"localhost", "mysql_native_password"}},
-            /* default_auth_plugin */
-            "caching_sha2_password",
             /*expected_output_strings*/
             {"Existing account '.*'@localhost is using authentication plugin "
              "'mysql_native_password'. Changing the authentication plugin to "
@@ -3086,7 +3021,6 @@ INSTANTIATE_TEST_SUITE_P(
             /*test_description*/
             "'alter user' statement fails. We expect a proper warning.",
             /*fail_host_plugin_query*/ false,
-            /*fail_default_auth_plugin_query*/ false,
             /*fail_alter_user_query*/ true}));
 
 /**

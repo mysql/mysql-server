@@ -1799,32 +1799,16 @@ class ChangeRouterAccountPlugin {
       return;
     }
 
-    const auto result = get_default_auth_plugin();
-    if (!result) {
-      log_error_msg(
-          "Failed getting default authentication plugin while changing "
-          "the authentication plugin for account '" +
-          username + "'@'" + hostname + "': " + result.error());
-      return;
-    }
-
-    const std::string default_auth_plugin = result.value();
-    if (default_auth_plugin == "mysql_native_password") {
-      log_error_msg("Failed changing the authentication plugin for account '" +
-                    username + "'@'" + hostname + "': " +
-                    " mysql_native_password which is deprecated is the default "
-                    "authentication plugin on this server.");
-      return;
-    }
+    const std::string kValidAuthenticationPlugin = "caching_sha2_password";
 
     log_info_msg("Existing account '" + username + "'@" + hostname +
                  " is using authentication plugin 'mysql_native_password'. "
                  "Changing the authentication plugin to '" +
-                 default_auth_plugin + "'");
+                 kValidAuthenticationPlugin + "'");
 
     sqlstring alter_user_sql = "alter user ?@? identified with ! by ?";
-    alter_user_sql << username << hostname << default_auth_plugin << password
-                   << sqlstring::end;
+    alter_user_sql << username << hostname << kValidAuthenticationPlugin
+                   << password << sqlstring::end;
 
     try {
       mysql_.execute(alter_user_sql);
@@ -1836,25 +1820,11 @@ class ChangeRouterAccountPlugin {
 
     log_info_msg("Successfully changed the authentication plugin for '" +
                  username + "'@" + hostname +
-                 " from mysql_native_password to " + default_auth_plugin);
+                 " from mysql_native_password to " +
+                 kValidAuthenticationPlugin);
   }
 
  private:
-  stdx::expected<std::string, std::string> get_default_auth_plugin() {
-    const std::string query = "select @@default_authentication_plugin";
-    try {
-      std::unique_ptr<MySQLSession::ResultRow> result(mysql_.query_one(query));
-
-      if (result && result->size() == 1) {
-        return (*result)[0];
-      }
-    } catch (const std::exception &e) {
-      return stdx::unexpected(e.what());
-    }
-
-    return stdx::unexpected("unexpected resultset");
-  }
-
   std::string as_string(const char *input_str) {
     return {input_str == nullptr ? "" : input_str};
   }
