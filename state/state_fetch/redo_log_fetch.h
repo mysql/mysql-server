@@ -6,14 +6,14 @@
 
 #include "state_fetch.h"
 
-RedoLogItem *redoLogItem;
+StateFetch *stateFetch;
 
 /**
  * @StateReplicate: 把 redo log buffer 从状态层读回来
  * @return
  */
 bool redo_log_fetch() {
-  redoLogItem = nullptr;
+  stateFetch->redoLogItem = nullptr;
 
   return true;
 }

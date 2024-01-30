@@ -12,6 +12,19 @@ class StateFetch {
  public:
   StateFetch() {}
 
+  void setFailStatus(bool status) { failStatus = status; }
+
+  bool getFailStatus() const { return failStatus; }
+
+  void setRedoLogItem(RedoLogItem *item) { redoLogItem = item; }
+
+  RedoLogItem *getRedoLogItem() const { return redoLogItem; }
+  
+  void setRedoLogBufferBuf(unsigned char *buffer) {
+    redo_log_buffer_buf = buffer;
+  }
+  unsigned char *getRedoLogBufferBuf() const { return redo_log_buffer_buf; }
+
  private:
   bool failStatus = false;
 
