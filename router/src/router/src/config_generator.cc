@@ -1757,10 +1757,10 @@ class ChangeRouterAccountPlugin {
 
     try {
       mysql_.query(query, result_processor);
-    } catch (const std::exception &e) {
-      log_error_msg(
-          "Failed checking the Router account authentication plugin: "s +
-          e.what());
+    } catch (const std::exception &) {
+      // Checking for the current user authentication plugin has failed. The
+      // reason could be the lack of priviledges of the bootstrapping user. We
+      // just leave the upgrade procedure with no noisy error messeages.
       return;
     }
 

@@ -3014,14 +3014,14 @@ INSTANTIATE_TEST_SUITE_P(
             /* default_auth_plugin */
             "",
             /*expected_output_strings*/
-            {"Failed checking the Router account authentication plugin: Error "
-             "executing MySQL query \"select host, plugin from mysql.user "
-             "where user = '.*'\": Unexpected error .*"},
+            {},
             /*unexpected_output_strings*/
-            {"Successfully changed the authentication plugin for .*"},
+            {"Successfully changed the authentication plugin for .*",
+             "Failed checking the Router account .*"},
             /*test_description*/
             "Querying for the host, plugin accounts for our user fails. We "
-            "expect a proper warning.",
+            "expect no warning, the Router should just leave and quit trying "
+            "to upgrade an account.",
             /*fail_host_plugin_query*/ true},
         AuthPluginTestParam{
             /* auth_host_plugins */
