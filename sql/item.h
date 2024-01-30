@@ -4078,7 +4078,7 @@ class Item_num : public Item_basic_constant {
   bool check_partition_func_processor(uchar *) override { return false; }
 };
 
-#define NO_FIELD_INDEX ((uint16)(-1))
+inline constexpr uint16 NO_FIELD_INDEX((uint16)(-1));
 
 class Item_ident : public Item {
   typedef Item super;
@@ -4379,9 +4379,9 @@ class Item_field : public Item_ident {
     For fields referencing such tables, table number is always 0, and other
     uses of table_ref is not needed.
   */
-  Table_ref *table_ref;
+  Table_ref *table_ref{nullptr};
   /// Source field
-  Field *field;
+  Field *field{nullptr};
 
  private:
   /// Result field
@@ -4415,29 +4415,27 @@ class Item_field : public Item_ident {
   */
   bool m_protected_by_any_value{false};
 
- public:
   /**
+    Holds a list of items whose values must be equal to the value of
+    this field, during execution.
+
     Used during optimization to perform multiple equality analysis,
     this analysis should be performed during preparation instead, so that
     Item_field can be const after preparation.
   */
-  Item_equal *item_equal{nullptr};
+  Item_equal *m_multi_equality{nullptr};
+
+ public:
   /**
     Index for this field in table->field array. Holds NO_FIELD_INDEX
     if index value is not known.
   */
-  uint16 field_index;
-
-  void set_item_equal(Item_equal *item_equal_arg) {
-    if (item_equal == nullptr && item_equal_arg != nullptr) {
-      item_equal = item_equal_arg;
-    }
-  }
+  uint16 field_index{NO_FIELD_INDEX};
+  Item_equal *multi_equality() const { return m_multi_equality; }
 
   void set_item_equal_all_join_nests(Item_equal *item_equal) {
-    if (item_equal != nullptr) {
-      item_equal_all_join_nests = item_equal;
-    }
+    assert(item_equal != nullptr);
+    item_equal_all_join_nests = item_equal;
   }
 
   // A list of fields that are considered "equal" to this field. E.g., a query
@@ -4457,9 +4455,9 @@ class Item_field : public Item_ident {
     if any_privileges set to true then here real effective privileges will
     be stored
   */
-  uint have_privileges;
+  uint have_privileges{0};
   /* field need any privileges (for VIEW creation) */
-  bool any_privileges;
+  bool any_privileges{false};
   /*
     if this field is used in a context where covering prefix keys
     are supported.

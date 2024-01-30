@@ -2865,12 +2865,7 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Table_ref *tr, Field *f)
     : Item_ident(context_arg, f->table->s->db.str, *f->table_name,
                  f->field_name),
-      table_ref(tr),
-      field(nullptr),
-      item_equal(nullptr),
-      field_index(NO_FIELD_INDEX),
-      have_privileges(0),
-      any_privileges(false) {
+      table_ref(tr) {
   set_field(f);
 
   // Possibly override original names that were assigned from table reference:
@@ -2895,13 +2890,7 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
 */
 Item_field::Item_field(Name_resolution_context *context_arg, const char *db_arg,
                        const char *table_name_arg, const char *field_name_arg)
-    : Item_ident(context_arg, db_arg, table_name_arg, field_name_arg),
-      table_ref(nullptr),
-      field(nullptr),
-      item_equal(nullptr),
-      field_index(NO_FIELD_INDEX),
-      have_privileges(0),
-      any_privileges(false) {
+    : Item_ident(context_arg, db_arg, table_name_arg, field_name_arg) {
   Query_block *select = current_thd->lex->current_query_block();
   collation.set(DERIVATION_IMPLICIT);
   if (select != nullptr && (select->parsing_place != CTX_HAVING &&
@@ -2919,13 +2908,7 @@ Item_field::Item_field(Name_resolution_context *context_arg, const char *db_arg,
 */
 Item_field::Item_field(const POS &pos, const char *db_arg,
                        const char *table_name_arg, const char *field_name_arg)
-    : Item_ident(pos, db_arg, table_name_arg, field_name_arg),
-      table_ref(nullptr),
-      field(nullptr),
-      item_equal(nullptr),
-      field_index(NO_FIELD_INDEX),
-      have_privileges(0),
-      any_privileges(false) {
+    : Item_ident(pos, db_arg, table_name_arg, field_name_arg) {
   collation.set(DERIVATION_IMPLICIT);
 }
 
@@ -2952,7 +2935,7 @@ Item_field::Item_field(THD *thd, Item_field *item)
       table_ref(item->table_ref),
       field(item->field),
       result_field(item->result_field),
-      item_equal(item->item_equal),
+      m_multi_equality(item->m_multi_equality),
       field_index(item->field_index),
       no_constant_propagation(item->no_constant_propagation),
       have_privileges(item->have_privileges),
@@ -2975,13 +2958,7 @@ Item_field::Item_field(THD *thd, Item_field *item)
   supplied field.
 */
 Item_field::Item_field(Field *f)
-    : Item_ident(nullptr, nullptr, *f->table_name, f->field_name),
-      table_ref(nullptr),
-      field(nullptr),
-      item_equal(nullptr),
-      field_index(NO_FIELD_INDEX),
-      have_privileges(0),
-      any_privileges(false) {
+    : Item_ident(nullptr, nullptr, *f->table_name, f->field_name) {
   if (f->table->pos_in_table_list != nullptr)
     context = &(f->table->pos_in_table_list->query_block->context);
 
@@ -6165,7 +6142,7 @@ void Item_field::cleanup() {
   if (table_ref == nullptr) table_name = nullptr;
 
   // Reset field before next optimization (multiple equality analysis)
-  item_equal = nullptr;
+  m_multi_equality = nullptr;
   item_equal_all_join_nests = nullptr;
   null_value = false;
 }
@@ -6306,14 +6283,17 @@ static void convert_zerofill_number_to_string(Item **item,
 
 Item *Item_field::equal_fields_propagator(uchar *arg) {
   if (no_constant_propagation) return this;
-  item_equal = find_item_equal((COND_EQUAL *)arg);
-  Item *item = item_equal != nullptr ? item_equal->const_arg() : nullptr;
+  m_multi_equality = find_item_equal((COND_EQUAL *)arg);
+  if (m_multi_equality == nullptr) return this;
+  Item *item = m_multi_equality->const_arg();
+  if (item == nullptr) return this;
+
   /*
     Disable const propagation if the constant is nullable and this item is not.
     If propagation was allowed in this case, it would also be necessary to
     propagate the new nullability up to the parents of this item.
   */
-  if (item == nullptr || (item->is_nullable() && !is_nullable())) {
+  if (item->is_nullable() && !is_nullable()) {
     return this;
   }
   if (field->is_flag_set(ZEROFILL_FLAG) && cmp_context == STRING_RESULT &&
@@ -6437,11 +6417,11 @@ Item *Item_default_value::replace_item_field(uchar *argp) {
 */
 
 Item *Item_field::replace_equal_field(uchar *arg) {
-  if (item_equal != nullptr) {
+  if (m_multi_equality != nullptr) {
     Replace_equal *replace = pointer_cast<Replace_equal *>(arg);
     Item_func *func = replace->stack.head();
 
-    Item *const_item = item_equal->const_arg();
+    Item *const_item = m_multi_equality->const_arg();
     if (const_item != nullptr) {
       if (!has_compatible_context(const_item) ||
           !func->allow_replacement(this, const_item)) {
@@ -6449,7 +6429,7 @@ Item *Item_field::replace_equal_field(uchar *arg) {
       }
       return const_item;
     }
-    Item_field *subst = item_equal->get_subst_item(this);
+    Item_field *subst = m_multi_equality->get_subst_item(this);
     assert(subst);
     assert(table_ref == subst->table_ref ||
            table_ref->table != subst->table_ref->table);
@@ -6463,7 +6443,7 @@ Item *Item_field::replace_equal_field(uchar *arg) {
       // reachable from hash join. Store which multi-equality we found the field
       // substitution in, so that we can go back and find a field that the hash
       // join can reach.
-      subst->set_item_equal_all_join_nests(item_equal);
+      subst->set_item_equal_all_join_nests(m_multi_equality);
       return subst;
     }
   }

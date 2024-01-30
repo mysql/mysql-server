@@ -775,7 +775,7 @@ static SEL_TREE *get_full_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
     if (!((ref_tables | item_field->table_ref->map()) & param_comp))
       ftree = get_func_mm_tree(thd, param, prev_tables, read_tables,
                                remove_jump_scans, predicand, op, value, inv);
-    Item_equal *item_equal = item_field->item_equal;
+    Item_equal *item_equal = item_field->multi_equality();
     if (item_equal != nullptr) {
       for (Item_field &item : item_equal->get_fields()) {
         Field *f = item.field;

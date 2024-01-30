@@ -7309,7 +7309,7 @@ static bool add_key_equal_fields(THD *thd, Key_field **key_fields,
   if (add_key_field(thd, key_fields, and_level, cond, field_item, eq_func, val,
                     num_values, usable_tables, sargables))
     return true;
-  Item_equal *item_equal = field_item->item_equal;
+  Item_equal *item_equal = field_item->multi_equality();
   if (item_equal == nullptr) return false;
   /*
     Add to the set of possible key values every substitution of

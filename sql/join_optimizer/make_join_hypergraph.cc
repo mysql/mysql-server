@@ -2223,7 +2223,7 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
 /// Find (via a multiple equality) and return a constant that should replace
 /// "item". If no such constant is found, return "item".
 Item *GetSubstitutionConst(Item_field *item, Item_func *parent_func) {
-  Item_equal *equal = item->item_equal;
+  Item_equal *equal = item->multi_equality();
   if (equal == nullptr) return item;
   Item *const_item = equal->const_arg();
   if (const_item == nullptr || !item->has_compatible_context(const_item) ||
@@ -2271,7 +2271,7 @@ Item *PropagateConstants(Item *cond) {
 /// @return The field to replace "item" with, or "item".
 Item_field *GetSubstitutionField(Item_field *item, Item_func *parent,
                                  table_map allowed_tables) {
-  Item_equal *item_equal = item->item_equal;
+  Item_equal *item_equal = item->multi_equality();
   if (item_equal == nullptr || item_equal->const_arg() != nullptr) {
     return item;
   }
