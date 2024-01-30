@@ -606,7 +606,13 @@ class TestEnv : public ::testing::Environment {
     }
 
     for (auto &s : shared_servers_) {
-      if (s != nullptr) delete s;
+      if (s != nullptr) {
+        if (::testing::Test::HasFailure()) {
+          s->process_manager().dump_logs();
+        }
+
+        delete s;
+      }
 
       s = nullptr;
     }
@@ -3554,6 +3560,17 @@ TEST_P(ConnectionTest, classic_protocol_replay_session_trackers) {
   auto session_vars = *session_vars_res;
 
   for (auto var : session_vars) {
+    // Avoid Bug#36241614
+    //
+    // If server is built with -DWITH_DEBUG=1,
+    //
+    //   SET @@SESSION.innodb_interpreter_output="The Default Value"
+    //
+    // crashes the server.
+    if (var[0] == "innodb_interpreter_output") {
+      continue;
+    }
+
     std::ostringstream oss;
     oss << "SET @@SESSION." << std::quoted(var[0], '`') << "=";
 
