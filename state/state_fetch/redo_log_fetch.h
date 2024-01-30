@@ -6,6 +6,10 @@
 
 #include "state/state_store/redo_log.h"
 
+#include "sql_class.h"
+
+#include "sql/sql_thd_internal_api.h"
+
 /**
  * @StateReplicate: 定义了 redo log 的状态取回
  */
@@ -167,7 +171,7 @@ class RedoLogFetch {
     return true;
   }
 */
-  
+
   /**
    * @StateReplicate: TODO: 回放 buffer 中存储的 log，实现状态恢复
    * @return
@@ -183,4 +187,10 @@ class RedoLogFetch {
 
   // redo log buffer 的实际数据，即原来的 log.buf
   unsigned char *redo_log_buffer_buf = nullptr;
+
+  THD *thd = create_internal_thd();
+
+  node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
+  RCQP *qp = thd->qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
+  MetaManager *meta_mgr = MetaManager::get_instance();
 };
