@@ -129,15 +129,15 @@ void Server::delayed_start_tasks() {
       /* This method is executed inside a worker thread, thus
          its better not to swap another thread, this one can handle
          a task. */
-      start_tasks();
+      start_tasks(&sql_context);
     }
   });
 }
 
-void Server::start_tasks() {
+void Server::start_tasks(xpl::iface::Sql_session *sql_session) {
   // We can't fetch the servers ssl config at plugin-load
   // this method allows to setup it at better time.
-  m_ssl_context = xpl::Ssl_context_builder().get_result_context();
+  m_ssl_context = xpl::Ssl_context_builder(sql_session).get_result_context();
 
   if (m_state.exchange(State::State_initializing, State_running)) {
     for (auto task : m_tasks) {

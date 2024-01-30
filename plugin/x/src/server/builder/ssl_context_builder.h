@@ -28,6 +28,7 @@
 #include <memory>
 #include <string>
 
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/variables/ssl_config.h"
 
@@ -35,7 +36,8 @@ namespace xpl {
 
 class Ssl_context_builder {
  public:
-  Ssl_context_builder() = default;
+  Ssl_context_builder(xpl::iface::Sql_session *sql_session)
+      : m_sql_session(sql_session) {}
 
   std::unique_ptr<iface::Ssl_context> get_result_context() const;
 
@@ -51,6 +53,8 @@ class Ssl_context_builder {
     std::string m_ssl_tls_version;
     bool m_have_ssl = false;
   };
+
+  xpl::iface::Sql_session *m_sql_session;
 
   xpl::Ssl_config choose_ssl_config(const bool mysqld_have_ssl,
                                     const xpl::Ssl_config &mysqld_ssl,

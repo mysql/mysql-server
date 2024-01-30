@@ -11,6 +11,14 @@ include/assert_error_log_sequence.inc [server: 1, pattern: SAVEPOS]
 # restart: --datadir=DATADIR
 
 ## b) Confirm that X Plugin "accepting" logs are printed after upgrade.
+RUN select 1 as ping
+ping
+1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 include/assert_error_log_sequence.inc [server: 1, pattern: System.*Server upgrade from '50700' to '804..' started.
 System.*Server upgrade from '50700' to '804..' completed.
 System.*X Plugin ready for connections. Bind-address: .* port: ]

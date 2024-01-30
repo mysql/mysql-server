@@ -26,6 +26,12 @@ source include/restart_mysqld.inc;
 
 --echo
 --echo ## b) Confirm that X Plugin "accepting" logs are printed after upgrade.
+
+
+# mysqltest may run faster than X Plugin that is starting up, lets
+# sync with it.
+--exec $MYSQLXTEST -uroot --password="" --sql="select 1 as ping;" 2>&1
+
 # The 5.7 data dir, doesn't have mtr directory. We must create i manually.
 disable_query_log;
 CREATE SCHEMA mtr;
