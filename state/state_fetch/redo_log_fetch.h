@@ -189,6 +189,7 @@ class RedoLogFetch {
   // redo log buffer 的实际数据，即原来的 log.buf
   unsigned char *redo_log_buffer_buf = nullptr;
 
+  // 处理读回操作的线程
   THD *thd = create_internal_thd();
 
   node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
