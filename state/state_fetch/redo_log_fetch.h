@@ -38,8 +38,16 @@ class RedoLogFetch {
    */
   bool redo_log_fetch() {
     if (this->getFailStatus()) {
-      // 开始读取
-      this->setRedoLogItem(nullptr);
+      // 取回 redo log buffer 的元数据
+      size_t redo_log_buf_size = sizeof(RedoLogItem);
+      redoLogItem =
+          (RedoLogItem *)thd->rdma_buffer_allocator->Alloc(redo_log_buf_size);
+      if (!thd->coro_sched->RDMAReadSync(0, qp, (char *)redoLogItem,
+                                         meta_mgr->GetRedoLogCurrAddr(),
+                                         redo_log_buf_size)) {
+        return false;
+      }
+      // this->setRedoLogItem(redoLogItem);
 
       this->setRedoLogBufferBuf(nullptr);
     }
