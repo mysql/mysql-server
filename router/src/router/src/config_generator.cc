@@ -2987,7 +2987,9 @@ void ConfigGenerator::create_users(const std::string &username,
   // build string containing account/auth list
   std::string accounts_with_auth;
   {
-    const std::string auth_part = " IDENTIFIED BY "s + mysql_->quote(password);
+    const std::string auth_part =
+        " IDENTIFIED WITH `caching_sha2_password` BY "s +
+        mysql_->quote(password);
 
     const std::string quoted_username = mysql_->quote(username);
     bool is_first{true};

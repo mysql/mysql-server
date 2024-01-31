@@ -478,7 +478,8 @@ function get_response(stmt_key, options) {
     case "router_create_user":
       return {
         "stmt_regex": "^CREATE USER 'mysql_router1_[0-9a-z]{12}'@" +
-            options.user_host_pattern + " IDENTIFIED BY '.*'",
+            options.user_host_pattern +
+            " IDENTIFIED WITH `caching_sha2_password` BY '.*'",
         "ok": {}
       };
     case "router_check_auth_plugin":
@@ -728,7 +729,8 @@ function get_response(stmt_key, options) {
       return {
         "stmt_regex": "^CREATE USER IF NOT EXISTS '" +
             options.account_user_pattern + "'@'" +
-            options.account_host_pattern + "' IDENTIFIED BY '" +
+            options.account_host_pattern +
+            "' IDENTIFIED WITH `caching_sha2_password` BY '" +
             options.account_pass_pattern + "'",
         "ok": {warning_count: options.create_user_warning_count}
       };
@@ -737,7 +739,8 @@ function get_response(stmt_key, options) {
         // CREATE USER (without IF NOT EXISTS) is triggered by
         // --account-create always
         "stmt_regex": "^CREATE USER '" + options.account_user_pattern + "'@'" +
-            options.account_host_pattern + "' IDENTIFIED BY '" +
+            options.account_host_pattern +
+            "' IDENTIFIED WITH `caching_sha2_password` BY '" +
             options.account_pass_pattern + "'",
         "ok": {}
       };

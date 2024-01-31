@@ -775,7 +775,8 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
       const std::string &password = kAccountUserPassword) {
     return make_list(hostnames,
                      [&](const std::string &h) {
-                       return "'" + username + "'@'" + h + "' IDENTIFIED BY '" +
+                       return "'" + username + "'@'" + h +
+                              "' IDENTIFIED WITH `caching_sha2_password` BY '" +
                               password + "'";
                      }
 
