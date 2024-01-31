@@ -1848,8 +1848,9 @@ static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_system(
 
 static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_server(
     "character_set_server", "The default character set",
-    SESSION_VAR(collation_server), NO_CMD_LINE, DEFAULT(&default_charset_info),
-    NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_not_null));
+    PERSIST_AS_READONLY SESSION_VAR(collation_server), NO_CMD_LINE,
+    DEFAULT(&default_charset_info), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_charset_not_null));
 
 static bool check_charset_db(sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin(self, thd, var)) return true;

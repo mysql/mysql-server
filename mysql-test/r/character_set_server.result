@@ -1,0 +1,23 @@
+# The character_set_server value is.
+SHOW VARIABLES LIKE "%character_set_server%";
+Variable_name	Value
+character_set_server	utf8mb4
+
+SET PERSIST character_set_server=greek;
+
+# Shutdown the server
+include/stop_mysqld.inc [server 1]
+# Start the server with "--collation-server=cp932_japanese_ci". Expectation : server startup fail.
+
+# Grep for this error message : "COLLATION 'cp932_japanese_ci' is not valid for CHARACTER SET 'greek'" in the log file.
+Pattern found.
+
+# restart
+# The character_set_server value is.
+SHOW VARIABLES LIKE "%character_set_server%";
+Variable_name	Value
+character_set_server	greek
+
+# Clean up
+RESET PERSIST character_set_server;
+# restart
