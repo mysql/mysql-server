@@ -1206,7 +1206,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
 
     // log_t没法转成char*直接传过去，模仿TxnItem包装成RedoLogItem
     RedoLogItem *redo_log_remote_buf =
-        (RedoLogItem *)thd->rdma_buffer_allocator->Alloc(sizeof(RedoLogItem));
+        (RedoLogItem *)thd->rdma_buffer_allocator->Alloc(
+            sizeof(*redo_log_remote_buf));
     meta_mgr->SetRedoLogSize(sizeof(RedoLogItem));
     // warning: definition of implicit copy assignment operator for
     // 'aligned_array_pointer<unsigned char, 512>' is deprecated because it
@@ -1235,13 +1236,13 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // meta information of redo log buffer
     if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
                                         meta_mgr->GetRedoLogCurrAddr(),
-                                        sizeof(redo_log_remote_buf))) {
+                                        sizeof(*redo_log_remote_buf))) {
       //  return;
     }
     // 但是 log.buf 只是一个指针，还需要转发其指向的完整数据
     if (!thd->coro_sched->RDMAWriteSync(
             0, qp, log.buf,
-            meta_mgr->GetRedoLogCurrAddr() + sizeof(redo_log_remote_buf),
+            meta_mgr->GetRedoLogCurrAddr() + sizeof(*redo_log_remote_buf),
             log.buf_size)) {
       //  return;
     }

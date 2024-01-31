@@ -49,7 +49,17 @@ class RedoLogFetch {
       }
       // this->setRedoLogItem(redoLogItem);
 
-      this->setRedoLogBufferBuf(nullptr);
+      // 取回 redo log buffer 的实际数据
+      size_t redo_log_buffer_buf_size = sizeof(redoLogItem->buf_size);
+      redo_log_buffer_buf = (unsigned char *)thd->rdma_buffer_allocator->Alloc(
+          redo_log_buffer_buf_size);
+      if (!thd->coro_sched->RDMAReadSync(
+              0, qp, (char *)redo_log_buffer_buf,
+              meta_mgr->GetRedoLogCurrAddr() + sizeof(*redoLogItem),
+              redo_log_buffer_buf_size)) {
+        return false;
+      }
+      // this->setRedoLogBufferBuf(nullptr);
     }
     return true;
   }
