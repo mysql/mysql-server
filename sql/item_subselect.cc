@@ -2967,7 +2967,7 @@ bool Item_singlerow_subselect::collect_scalar_subqueries(uchar *arg) {
    */
   for (auto &e : info->m_list) {
     if (e.item == this) {
-      e.m_location |= info->m_location;
+      e.m_locations |= info->m_location;
       return false;
     }
   }
@@ -3017,9 +3017,9 @@ static Item **find_subquery_in_select_list(Query_block *select,
 Item *Item_singlerow_subselect::replace_scalar_subquery(uchar *arg) {
   auto *const info = pointer_cast<Scalar_subquery_replacement *>(arg);
   if (info->m_target != this) return this;
+  MEM_ROOT *const mem_root = current_thd->mem_root;
 
-  auto *const scalar_item =
-      new (current_thd->mem_root) Item_field(info->m_field);
+  auto *const scalar_item = new (mem_root) Item_field(info->m_field);
   if (scalar_item == nullptr) return nullptr;
 
   Item **ref = find_subquery_in_select_list(info->m_outer_query_block, this);
@@ -3033,7 +3033,7 @@ Item *Item_singlerow_subselect::replace_scalar_subquery(uchar *arg) {
   }
   Item *result;
   if (query_expr()->place() == CTX_HAVING) {
-    result = new (current_thd->mem_root)
+    result = new (mem_root)
         Item_ref(&info->m_outer_query_block->context, ref, scalar_item->db_name,
                  scalar_item->table_name, scalar_item->field_name);
     if (result == nullptr) return nullptr;

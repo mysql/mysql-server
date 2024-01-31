@@ -5548,7 +5548,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
           subq->outer_condition_context == enum_condition_context::ANDS &&
               !subq->can_do_aj,
           /*reject_multiple_rows*/ false,
-          /*join_condition=*/nullptr,
+          /*subquery=*/nullptr,
           /*lifted_where_cond*/ nullptr))
     return true;
 
@@ -6471,7 +6471,7 @@ bool Query_block::replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
   if (!(*expr)->has_subquery()) return false;
 
   Item_singlerow_subselect::Scalar_subquery_replacement info(
-      subquery->item,
+      subquery->item, tr->table,
       // make sure to not replace with one of the hidden fields, if present,
       // e.g. for INTERSECT:
       tr->table->field[tr->table->hidden_field_count], this,
@@ -7079,6 +7079,7 @@ bool Query_block::add_inner_func_calls_to_select_list(
 
   @param      thd              session context
   @param      derived          the derived table being created in the transform
+  @param      subquery         information about the scalar subquery
   @param      lifted_where     the WHERE condition we move out to the JOIN cond
   @param[out] lifted_exprs     mapping of where inner fields and function calls
                                end up in the derived table's fields.
@@ -7089,9 +7090,9 @@ bool Query_block::add_inner_func_calls_to_select_list(
                                COUNT(*) OVER (...) to be checked
 */
 bool Query_block::decorrelate_derived_scalar_subquery_pre(
-    THD *thd, Table_ref *derived, Item *lifted_where,
-    Lifted_expressions_map *lifted_exprs, bool *added_card_check,
-    size_t *added_window_card_checks) {
+    THD *thd, Table_ref *derived, Item::Css_info *subquery [[maybe_unused]],
+    Item *lifted_where, Lifted_expressions_map *lifted_exprs,
+    bool *added_card_check, size_t *added_window_card_checks) {
   const uint hidden_fields = CountHiddenFields(fields);
   const uint first_non_hidden = hidden_fields;
   assert((fields.size() - hidden_fields) ==
@@ -7475,7 +7476,7 @@ void Query_block::replace_referenced_item(Item *const old_item,
   @param reject_multiple_rows
                         For scalar subqueries where we need run-time cardinality
                         check: true, else false
-  @param join_condition See join_cond in synthesize_derived()
+  @param subquery       Information about subquery, or nullptr
   @param lifted_where_cond
                         The subquery's where condition, moving to JOIN cond of
                         JOIN with the derived table
@@ -7483,7 +7484,7 @@ void Query_block::replace_referenced_item(Item *const old_item,
 bool Query_block::transform_subquery_to_derived(
     THD *thd, Table_ref **out_tl, Query_expression *subs_query_expression,
     Item_subselect *subq, bool use_inner_join, bool reject_multiple_rows,
-    Item *join_condition, Item *lifted_where_cond) {
+    Item::Css_info *subquery, Item *lifted_where_cond) {
   Table_ref *tl;
   {
     // We did not do the transformation yet
@@ -7492,8 +7493,10 @@ bool Query_block::transform_subquery_to_derived(
     // We want the Table_ref, Table_ident and m_join_cond to be permanent
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-    tl = synthesize_derived(thd, subs_query_expression, join_condition,
-                            /*left_outer=*/true, use_inner_join);
+    tl = synthesize_derived(
+        thd, subs_query_expression,
+        subquery != nullptr ? subquery->m_join_condition : nullptr,
+        /*left_outer=*/true, use_inner_join);
 
     if (tl == nullptr) return true;
 
@@ -7547,7 +7550,7 @@ bool Query_block::transform_subquery_to_derived(
     assert(!subs_query_expression->is_set_operation());
     if (subs_query_expression->first_query_block()
             ->decorrelate_derived_scalar_subquery_pre(
-                thd, tl, lifted_where_cond, &lifted_where_expressions,
+                thd, tl, subquery, lifted_where_cond, &lifted_where_expressions,
                 &added_cardinality_check, &added_window_cardinality_checks))
       return true;
   }
@@ -7737,7 +7740,7 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
                                                        Item::Css_info *subquery,
                                                        Item **lifted_where) {
   // Disallow if subquery is in a JOIN clause
-  if (subquery->m_location &
+  if (subquery->m_locations &
       Item_aggregate_type::Collect_scalar_subquery_info::L_JOIN_COND)
     return false;
 
@@ -8085,10 +8088,10 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
       // Possibly contradicting requirements
       // (1) Subquery is in SELECT list: new_outer
       // (2) No new outer possible if HAVING contains subquery
-      if (subquery.m_location & Item::Collect_scalar_subquery_info::L_SELECT) {
+      if (subquery.m_locations & Item::Collect_scalar_subquery_info::L_SELECT) {
         need_new_outer = true;
       }
-      if (subquery.m_location & Item::Collect_scalar_subquery_info::L_HAVING)
+      if (subquery.m_locations & Item::Collect_scalar_subquery_info::L_HAVING)
         return false;
     }
 
@@ -8110,7 +8113,7 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     and replace occurrences in expression trees with a field of the relevant
     derived table.
   */
-  for (auto subquery : subqueries.m_list) {
+  for (Item::Css_info &subquery : subqueries.m_list) {
     Item_singlerow_subselect *const subq = subquery.item;
     Query_expression *const subs_query_expression = subq->query_expr();
 
@@ -8173,8 +8176,8 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     //
     if (transform_subquery_to_derived(thd, &tl, subs_query_expression, subq,
                                       /*use_inner_join=*/false,
-                                      needs_cardinality_check,
-                                      subquery.m_join_condition, lifted_where))
+                                      needs_cardinality_check, &subquery,
+                                      lifted_where))
       return true;
 
     /*
@@ -8184,14 +8187,15 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     */
 
     // Replace in WHERE clause?
-    if (subquery.m_location & Item::Collect_scalar_subquery_info::L_WHERE) {
+    if (subquery.m_locations & Item::Collect_scalar_subquery_info::L_WHERE) {
       if (*where_expr_p != nullptr &&
           replace_subquery_in_expr(thd, &subquery, tl, where_expr_p))
         return true; /* purecov: inspected */
     }
 
     // Replace in join conditions?
-    if (subquery.m_location & Item::Collect_scalar_subquery_info::L_JOIN_COND) {
+    if (subquery.m_locations &
+        Item::Collect_scalar_subquery_info::L_JOIN_COND) {
       if (walk_join_conditions(
               m_table_nest,
               [&](Item **expr_p) mutable -> bool {
@@ -8231,7 +8235,7 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     } while (old_size != fields.size());
 
     // Replace in HAVING clause?
-    if (subquery.m_location & (Item::Collect_scalar_subquery_info::L_HAVING)) {
+    if (subquery.m_locations & (Item::Collect_scalar_subquery_info::L_HAVING)) {
       if (*having_expr_p != nullptr &&
           replace_subquery_in_expr(thd, &subquery, tl, having_expr_p))
         return true; /* purecov: inspected */

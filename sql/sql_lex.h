@@ -2264,7 +2264,7 @@ class Query_block : public Query_term {
                                      Query_expression *subs_query_expression,
                                      Item_subselect *subq, bool use_inner_join,
                                      bool reject_multiple_rows,
-                                     Item *join_condition,
+                                     Item::Css_info *subquery,
                                      Item *lifted_where_cond);
   bool transform_table_subquery_to_join_with_derived(
       THD *thd, Item_exists_subselect *subq_pred);
@@ -2282,9 +2282,9 @@ class Query_block : public Query_term {
       bool *selected_expr_added_to_group_by,
       mem_root_deque<Item *> *exprs_added_to_group_by);
   bool decorrelate_derived_scalar_subquery_pre(
-      THD *thd, Table_ref *derived, Item *lifted_where,
-      Lifted_expressions_map *lifted_where_expressions, bool *added_card_check,
-      size_t *added_window_card_checks);
+      THD *thd, Table_ref *derived, Item::Css_info *subquery,
+      Item *lifted_where, Lifted_expressions_map *lifted_where_expressions,
+      bool *added_card_check, size_t *added_window_card_checks);
   bool decorrelate_derived_scalar_subquery_post(
       THD *thd, Table_ref *derived, Lifted_expressions_map *lifted_exprs,
       bool added_card_check, size_t added_window_card_checks);

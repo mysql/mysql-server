@@ -317,16 +317,25 @@ class Item_singlerow_subselect : public Item_subselect {
     Argument for walk method replace_scalar_subquery
   */
   struct Scalar_subquery_replacement {
-    Item_singlerow_subselect *m_target;  ///< subquery to be replaced with field
-    Field *m_field;                      ///< the replacement field
-    Query_block *m_outer_query_block;    ///< The transformed query block.
-    Query_block *m_inner_query_block;    ///< The immediately surrounding query
-                                       ///< block. This will be the transformed
-                                       ///< block or a subquery of it
+    ///< subquery to be replaced with field from derived table
+    Item_singlerow_subselect *m_target;
+    ///< The derived table of the transform
+    TABLE *m_derived;
+    ///< the replacement field
+    Field *m_field;
+    ///< The transformed query block.
+    Query_block *m_outer_query_block;
+    ///< The immediately surrounding query block. This will be the transformed
+    ///< block or a subquery of it
+    Query_block *m_inner_query_block;
+    ///< True if subquery's selected item contains a COUNT aggregate
     bool m_add_coalesce{false};
-    Scalar_subquery_replacement(Item_singlerow_subselect *target, Field *field,
+
+    Scalar_subquery_replacement(Item_singlerow_subselect *target,
+                                TABLE *derived, Field *field,
                                 Query_block *select, bool add_coalesce)
         : m_target(target),
+          m_derived(derived),
           m_field(field),
           m_outer_query_block(select),
           m_inner_query_block(select),

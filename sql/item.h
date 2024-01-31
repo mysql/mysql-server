@@ -2933,16 +2933,16 @@ class Item : public Parse_tree_node {
   }
 
   /**
-     Minion class under Collect_scalar_subquery_info. Information about one
-     scalar subquery being considered for transformation
+     Minion class under \c Collect_scalar_subquery_info ("Css"). Information
+     about one scalar subquery being considered for transformation
   */
   struct Css_info {
     /// set of locations
-    int8 m_location{0};
+    int8 m_locations{0};
     /// the scalar subquery
     Item_singlerow_subselect *item{nullptr};
     table_map m_correlation_map{0};
-    /// Where did we find item above? Used when m_location == L_JOIN_COND,
+    /// Where did we find item above? Used when \c m_location == \c L_JOIN_COND,
     /// nullptr for other locations.
     Item *m_join_condition{nullptr};
     /// If true, we can forego cardinality checking of the derived table
