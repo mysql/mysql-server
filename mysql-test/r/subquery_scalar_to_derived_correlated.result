@@ -1562,4 +1562,99 @@ Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select (sum(`test`.`t3`.`b`) <=> NULL) from `test`.`t3` where (`test`.`t1`.`a` = `test`.`t3`.`a`)) AS `(SELECT SUM(t3.b) <=> NULL FROM t3 WHERE t1.a=t3.a)` from `test`.`t1`
 DROP TABLE t1, t3;
+#
+# Bug#36070647 unnesting scalar subquery containing count and having cond produces wrong result
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES(1), (2), (3), (4);
+INSERT INTO t2 VALUES(1), (2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+# The presence of a HAVING clause in the subquery can turn a COUNT of
+# zero to a NULL if the HAVING clause evaluates to false. This is now
+# handled in the transformed query.
+#
+# case 1) Aggregate alias in having clause
+SELECT ( SELECT COUNT(1) AS cnt
+FROM t2
+WHERE t2.a = t1.a
+HAVING cnt > 0 ) FROM t1;
+( SELECT COUNT(1) AS cnt
+FROM t2
+WHERE t2.a = t1.a
+HAVING cnt > 0 )
+1
+1
+NULL
+NULL
+EXPLAIN SELECT ( SELECT COUNT(1) AS cnt
+FROM t2
+WHERE t2.a = t1.a
+HAVING cnt > 0 ) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select coalesce(`derived_1_2`.`cnt`,if((`derived_1_2`.`Name_exp_3` is not null),0,NULL)) AS `( SELECT COUNT(1) AS cnt
+FROM t2
+WHERE t2.a = t1.a
+HAVING cnt > 0 )` from `test`.`t1` left join (/* select#2 */ select count(1) AS `cnt`,`test`.`t2`.`a` AS `a`,(`cnt` > 0) AS `Name_exp_3` from `test`.`t2` group by `test`.`t2`.`a` having (`cnt` > 0)) `derived_1_2` on((`derived_1_2`.`a` = `test`.`t1`.`a`)) where true
+# case 2) Aggregate in having clause
+SELECT ( SELECT COUNT(1) AS cnt
+FROM t2
+WHERE t2.a = t1.a
+HAVING COUNT(1) > 0 ) FROM t1;
+( SELECT COUNT(1) AS cnt
+FROM t2
+WHERE t2.a = t1.a
+HAVING COUNT(1) > 0 )
+1
+1
+NULL
+NULL
+EXPLAIN SELECT ( SELECT COUNT(1) AS cnt
+FROM t2
+WHERE t2.a = t1.a
+HAVING COUNT(1) > 0 ) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select coalesce(`derived_1_2`.`cnt`,if((`derived_1_2`.`Name_exp_3` is not null),0,NULL)) AS `( SELECT COUNT(1) AS cnt
+FROM t2
+WHERE t2.a = t1.a
+HAVING COUNT(1) > 0 )` from `test`.`t1` left join (/* select#2 */ select count(1) AS `cnt`,`test`.`t2`.`a` AS `a`,(count(1) > 0) AS `Name_exp_3` from `test`.`t2` group by `test`.`t2`.`a` having (count(1) > 0)) `derived_1_2` on((`derived_1_2`.`a` = `test`.`t1`.`a`)) where true
+# Bug found during review: forgot to increment m_added_non_hidden_fields
+TRUNCATE t2;
+INSERT INTO t2 VALUES (1), (2), (1), (2), (1), (2), (3);
+SELECT ( SELECT COUNT(1) AS cnt
+FROM t2
+WHERE t2.a = t1.a
+HAVING SUM(t2.a) + cnt > 4) AS cnt
+FROM t1;
+cnt
+3
+3
+NULL
+NULL
+EXPLAIN SELECT ( SELECT COUNT(1) AS cnt
+FROM t2
+WHERE t2.a = t1.a
+HAVING SUM(t2.a) + cnt > 4) AS cnt
+FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select coalesce(`derived_1_2`.`cnt`,if((`derived_1_2`.`Name_exp_3` is not null),0,NULL)) AS `cnt` from `test`.`t1` left join (/* select#2 */ select count(1) AS `cnt`,`test`.`t2`.`a` AS `a`,((sum(`test`.`t2`.`a`) + `cnt`) > 4) AS `Name_exp_3` from `test`.`t2` group by `test`.`t2`.`a` having ((sum(`test`.`t2`.`a`) + `cnt`) > 4)) `derived_1_2` on((`derived_1_2`.`a` = `test`.`t1`.`a`)) where true
+DROP TABLE t1, t2;
 SET optimizer_switch = 'subquery_to_derived=default';

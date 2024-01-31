@@ -1075,6 +1075,51 @@ eval EXPLAIN $query;
 
 DROP TABLE t1, t3;
 
+--echo #
+--echo # Bug#36070647 unnesting scalar subquery containing count and having cond produces wrong result
+--echo #
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES(1), (2), (3), (4);
+INSERT INTO t2 VALUES(1), (2);
+ANALYZE TABLE t1, t2;
+
+--echo # The presence of a HAVING clause in the subquery can turn a COUNT of
+--echo # zero to a NULL if the HAVING clause evaluates to false. This is now
+--echo # handled in the transformed query.
+--echo #
+--echo # case 1) Aggregate alias in having clause
+let $query=
+SELECT ( SELECT COUNT(1) AS cnt
+         FROM t2
+         WHERE t2.a = t1.a
+         HAVING cnt > 0 ) FROM t1;
+eval $query;
+eval EXPLAIN $query;
+
+--echo # case 2) Aggregate in having clause
+let $query=
+SELECT ( SELECT COUNT(1) AS cnt
+         FROM t2
+         WHERE t2.a = t1.a
+         HAVING COUNT(1) > 0 ) FROM t1;
+eval $query;
+eval EXPLAIN $query;
+
+--echo # Bug found during review: forgot to increment m_added_non_hidden_fields
+TRUNCATE t2;
+INSERT INTO t2 VALUES (1), (2), (1), (2), (1), (2), (3);
+let $query=
+SELECT ( SELECT COUNT(1) AS cnt
+         FROM t2
+         WHERE t2.a = t1.a
+         HAVING SUM(t2.a) + cnt > 4) AS cnt
+FROM t1;
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1, t2;
+
 SET optimizer_switch = 'subquery_to_derived=default';
 # Local Variables:
 # mode: sql

@@ -330,16 +330,25 @@ class Item_singlerow_subselect : public Item_subselect {
     Query_block *m_inner_query_block;
     ///< True if subquery's selected item contains a COUNT aggregate
     bool m_add_coalesce{false};
+    ///< Presence of HAVING clause in subquery: Only relevant if
+    ///< \c m_add_coalesce is true
+    bool m_add_having_compensation{false};
+    ///< Index of field holding value of having clause in derived table's list
+    ///< of fields. Only relevant if \c m_add_coalesce is true
+    uint m_having_idx{0};
 
     Scalar_subquery_replacement(Item_singlerow_subselect *target,
                                 TABLE *derived, Field *field,
-                                Query_block *select, bool add_coalesce)
+                                Query_block *select, bool add_coalesce,
+                                bool add_having_compensation, uint having_idx)
         : m_target(target),
           m_derived(derived),
           m_field(field),
           m_outer_query_block(select),
           m_inner_query_block(select),
-          m_add_coalesce(add_coalesce) {}
+          m_add_coalesce(add_coalesce),
+          m_add_having_compensation(add_having_compensation),
+          m_having_idx(having_idx) {}
   };
 
   Item *replace_scalar_subquery(uchar *arge) override;

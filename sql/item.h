@@ -2950,6 +2950,11 @@ class Item : public Parse_tree_node {
     /// If true, add a COALESCE around replaced subquery: used for implicitly
     /// grouped COUNT() in subquery select list when subquery is correlated
     bool m_add_coalesce{false};
+    /// Set iff \c m_add_coalesce is true: we may get a NULL anyway even for
+    /// COUNT if a HAVING clause is false in the subquery.
+    bool m_add_having_compensation{false};
+    /// Index of the having expression copied to select list
+    uint m_having_idx{0};
   };
 
   /**

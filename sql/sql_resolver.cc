@@ -6475,7 +6475,8 @@ bool Query_block::replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
       // make sure to not replace with one of the hidden fields, if present,
       // e.g. for INTERSECT:
       tr->table->field[tr->table->hidden_field_count], this,
-      subquery->m_add_coalesce);
+      subquery->m_add_coalesce, subquery->m_add_having_compensation,
+      subquery->m_having_idx);
 
   // ROLLUP wrappers might have been added to the expression at this point. Take
   // care to transform the inner item and keep the rollup wrappers as is.
@@ -7090,9 +7091,9 @@ bool Query_block::add_inner_func_calls_to_select_list(
                                COUNT(*) OVER (...) to be checked
 */
 bool Query_block::decorrelate_derived_scalar_subquery_pre(
-    THD *thd, Table_ref *derived, Item::Css_info *subquery [[maybe_unused]],
-    Item *lifted_where, Lifted_expressions_map *lifted_exprs,
-    bool *added_card_check, size_t *added_window_card_checks) {
+    THD *thd, Table_ref *derived, Item::Css_info *subquery, Item *lifted_where,
+    Lifted_expressions_map *lifted_exprs, bool *added_card_check,
+    size_t *added_window_card_checks) {
   const uint hidden_fields = CountHiddenFields(fields);
   const uint first_non_hidden = hidden_fields;
   assert((fields.size() - hidden_fields) ==
@@ -7272,6 +7273,17 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
       return true;
     *added_window_card_checks = 1 + exprs_added_to_group_by.size();
   }
+
+  if (subquery->m_add_coalesce && subquery->m_add_having_compensation) {
+    base_ref_items[fields.size()] = m_having_cond;
+    subquery->m_having_idx = fields.size() - hidden_fields;
+    fields.push_back(m_having_cond);
+    int item_no = fields.size() - hidden_fields;
+    baptize_item(thd, m_having_cond, &item_no);
+    m_added_non_hidden_fields++;
+    derived->derived_query_expression()->types.push_back(m_having_cond);
+  }
+
   return false;
 }
 
@@ -7787,6 +7799,10 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
       // because in a LEFT JOIN inner position, a COUNT(0) can yield NULL
       // which it could not in the original subquery position.
       subquery->m_add_coalesce = true;
+      // But the presence of a false HAVING condition in the subquery could
+      // alter that, so we need to check that value as well in the COALESCE
+      // before we yield a zero.
+      subquery->m_add_having_compensation = having_cond() != nullptr;
     }
   }
 

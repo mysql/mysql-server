@@ -3042,9 +3042,27 @@ Item *Item_singlerow_subselect::replace_scalar_subquery(uchar *arg) {
   }
 
   if (info->m_add_coalesce) {
-    Item_int *zero = new (current_thd->mem_root) Item_int_0();
-    if (zero == nullptr) return nullptr;
-    Item *coa = new (current_thd->mem_root) Item_func_coalesce(result, zero);
+    //
+    // COALESCE(query_result, 0)
+    //
+    Item *zero_or_if = new (mem_root) Item_int_0();
+    if (zero_or_if == nullptr) return nullptr;
+    if (info->m_add_having_compensation) {
+      //
+      // COALESCE(query_result, IF(derived.having-expr IS NOT NULL, 0, NULL))
+      //
+      Field *field_in_derived = info->m_derived->field[info->m_having_idx];
+      auto *having_i = new (mem_root) Item_field(field_in_derived);
+      if (having_i == nullptr) return nullptr;
+      auto *inn = new (mem_root) Item_func_isnotnull(having_i);
+      if (inn == nullptr) return nullptr;
+      auto *null_i = new (mem_root) Item_null();
+      if (null_i == nullptr) return nullptr;
+      Item_func_if *ifi = new (mem_root) Item_func_if(inn, zero_or_if, null_i);
+      if (ifi == nullptr) return nullptr;
+      zero_or_if = ifi;
+    }
+    Item *coa = new (mem_root) Item_func_coalesce(result, zero_or_if);
     if (coa == nullptr) return nullptr;
     if (coa->fix_fields(current_thd, &coa)) return nullptr;
     result = coa;
