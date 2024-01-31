@@ -37,7 +37,7 @@
 --source include/not_valgrind.inc
 --source include/have_log_bin.inc
 --source include/have_debug.inc
---source include/have_binlog_format_row.inc
+--source include/have_binlog_format_mixed.inc
 --source include/have_udf.inc
 --let $rpl_gtid_utils= 1
 --let $rpl_privilege_checks_user_grant_option = 1
