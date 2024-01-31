@@ -968,32 +968,33 @@ int configure_group_member_manager() {
   }
   // Configure Group Member Manager
   lv.plugin_version = server_version;
+  Member_version local_member_plugin_version(lv.plugin_version);
 
-  uint32 local_version = lv.plugin_version;
   DBUG_EXECUTE_IF("group_replication_compatibility_higher_major_version",
-                  { local_version = lv.plugin_version + (0x010000); };);
+                  { local_member_plugin_version.increment_major_version(); };);
   DBUG_EXECUTE_IF("group_replication_compatibility_higher_minor_version",
-                  { local_version = lv.plugin_version + (0x000100); };);
+                  { local_member_plugin_version.increment_minor_version(); };);
   DBUG_EXECUTE_IF("group_replication_compatibility_higher_patch_version",
-                  { local_version = lv.plugin_version + (0x000001); };);
+                  { local_member_plugin_version.increment_patch_version(); };);
   DBUG_EXECUTE_IF("group_replication_compatibility_lower_major_version",
-                  { local_version = lv.plugin_version - (0x010000); };);
+                  { local_member_plugin_version.decrement_major_version(); };);
   DBUG_EXECUTE_IF("group_replication_compatibility_lower_minor_version",
-                  { local_version = lv.plugin_version - (0x000100); };);
+                  { local_member_plugin_version.decrement_minor_version(); };);
   DBUG_EXECUTE_IF("group_replication_compatibility_lower_patch_version",
-                  { local_version = lv.plugin_version - (0x000001); };);
-  DBUG_EXECUTE_IF("group_replication_compatibility_restore_version",
-                  { local_version = lv.plugin_version; };);
-  DBUG_EXECUTE_IF("group_replication_legacy_election_version",
-                  { local_version = 0x080012; };);
-  DBUG_EXECUTE_IF("group_replication_legacy_election_version2",
-                  { local_version = 0x080015; };);
-  DBUG_EXECUTE_IF("group_replication_version_8_0_28",
-                  { local_version = 0x080028; };);
-  DBUG_EXECUTE_IF("group_replication_version_with_vcle", {
-    local_version = (MEMBER_VERSION_REMOVING_VCLE) - (0x000100);
+                  { local_member_plugin_version.decrement_patch_version(); };);
+  DBUG_EXECUTE_IF("group_replication_compatibility_restore_version", {
+    local_member_plugin_version = Member_version(lv.plugin_version);
   };);
-  Member_version local_member_plugin_version(local_version);
+  DBUG_EXECUTE_IF("group_replication_legacy_election_version",
+                  { local_member_plugin_version = Member_version(0x080012); };);
+  DBUG_EXECUTE_IF("group_replication_legacy_election_version2",
+                  { local_member_plugin_version = Member_version(0x080015); };);
+  DBUG_EXECUTE_IF("group_replication_version_8_0_28",
+                  { local_member_plugin_version = Member_version(0x080028); };);
+  DBUG_EXECUTE_IF("group_replication_version_with_vcle", {
+    local_member_plugin_version = Member_version(MEMBER_VERSION_REMOVING_VCLE);
+    local_member_plugin_version.decrement_minor_version();
+  };);
   DBUG_EXECUTE_IF("group_replication_force_member_uuid", {
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");
   };);
@@ -1084,38 +1085,46 @@ int configure_compatibility_manager() {
    */
   DBUG_EXECUTE_IF("group_replication_compatibility_rule_error_higher", {
     // Mark this member as being another version
-    Member_version other_version = lv.plugin_version + (0x010000);
+    Member_version other_version(lv.plugin_version);
+    other_version.increment_major_version();
     Member_version local_member_version(lv.plugin_version);
     compatibility_mgr->add_incompatibility(local_member_version, other_version);
   };);
   DBUG_EXECUTE_IF("group_replication_compatibility_rule_error_lower", {
     // Mark this member as being another version
-    Member_version other_version = lv.plugin_version;
-    Member_version local_member_version = lv.plugin_version + (0x000001);
+    Member_version other_version(lv.plugin_version);
+    Member_version local_member_version(lv.plugin_version);
+    local_member_version.increment_patch_version();
     compatibility_mgr->add_incompatibility(local_member_version, other_version);
   };);
   DBUG_EXECUTE_IF("group_replication_compatibility_higher_major_version", {
-    Member_version other_version = lv.plugin_version + (0x010000);
+    Member_version other_version(lv.plugin_version);
+    other_version.increment_major_version();
     compatibility_mgr->set_local_version(other_version);
   };);
   DBUG_EXECUTE_IF("group_replication_compatibility_higher_minor_version", {
-    Member_version other_version = lv.plugin_version + (0x000100);
+    Member_version other_version(lv.plugin_version);
+    other_version.increment_minor_version();
     compatibility_mgr->set_local_version(other_version);
   };);
   DBUG_EXECUTE_IF("group_replication_compatibility_higher_patch_version", {
-    Member_version other_version = lv.plugin_version + (0x000001);
+    Member_version other_version(lv.plugin_version);
+    other_version.increment_patch_version();
     compatibility_mgr->set_local_version(other_version);
   };);
   DBUG_EXECUTE_IF("group_replication_compatibility_lower_major_version", {
-    Member_version other_version = lv.plugin_version - (0x010000);
+    Member_version other_version(lv.plugin_version);
+    other_version.decrement_major_version();
     compatibility_mgr->set_local_version(other_version);
   };);
   DBUG_EXECUTE_IF("group_replication_compatibility_lower_minor_version", {
-    Member_version other_version = lv.plugin_version - (0x000100);
+    Member_version other_version(lv.plugin_version);
+    other_version.decrement_minor_version();
     compatibility_mgr->set_local_version(other_version);
   };);
   DBUG_EXECUTE_IF("group_replication_compatibility_lower_patch_version", {
-    Member_version other_version = lv.plugin_version - (0x000001);
+    Member_version other_version(lv.plugin_version);
+    other_version.decrement_patch_version();
     compatibility_mgr->set_local_version(other_version);
   };);
   DBUG_EXECUTE_IF("group_replication_compatibility_restore_version", {
@@ -1131,7 +1140,8 @@ int configure_compatibility_manager() {
     compatibility_mgr->set_local_version(higher_version);
   };);
   DBUG_EXECUTE_IF("group_replication_version_with_vcle", {
-    Member_version version = (MEMBER_VERSION_REMOVING_VCLE) - (0x000100);
+    Member_version version(MEMBER_VERSION_REMOVING_VCLE);
+    version.decrement_minor_version();
     compatibility_mgr->set_local_version(version);
   };);
 

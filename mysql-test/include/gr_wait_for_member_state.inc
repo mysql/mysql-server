@@ -64,12 +64,14 @@ let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group
 #   - when we are starting the primary in the single primary mode
 #   - when we are starting a server on multiple primary
 
---let $_group_member_lowest_version= `SELECT member_version FROM performance_schema.replication_group_members ORDER BY member_version ASC LIMIT 1`
-
-if (`SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_members WHERE group_members.member_id= "$_member_id" AND group_members.member_state="ONLINE" AND group_members.member_role = "PRIMARY" AND group_members.member_version = "$_group_member_lowest_version"`)
+if (`SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_members WHERE group_members.member_id="$_member_id" AND group_members.member_state="ONLINE" AND group_members.member_role="PRIMARY"`)
 {
-     --let $wait_condition= SELECT @@GLOBAL.read_only = '0'
-     --source include/wait_condition_or_abort.inc
+  --source include/gr_find_lowest_member_version.inc
+  if (`SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_members WHERE group_members.member_id="$_member_id" AND group_members.member_state="ONLINE" AND group_members.member_role="PRIMARY" AND group_members.member_version="$group_replication_lowest_member_version_out_var"`)
+  {
+    --let $wait_condition= SELECT @@GLOBAL.read_only = '0'
+    --source include/wait_condition_or_abort.inc
+  }
 }
 
 --let $include_filename= gr_wait_for_member_state.inc

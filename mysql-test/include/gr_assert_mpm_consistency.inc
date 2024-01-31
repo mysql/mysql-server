@@ -48,11 +48,10 @@ while ($_server_index <= $rpl_server_count)
     --let $skip_checking_read_only= 1
     --source include/gr_assert_multi_primary_mode.inc
 
-    # Do not rely on this. Manually set lowest version of group.
-    # Tests will fail when major version moves from 9 -> 10
     if (!$lowest_version_of_group)
     {
-      --let lowest_version_of_group = query_get_value(SELECT member_version FROM performance_schema.replication_group_members ORDER BY member_version ASC LIMIT 1,member_version,1)
+      --source include/gr_find_lowest_member_version.inc
+      --let $lowest_version_of_group = $group_replication_lowest_member_version_out_var
     }
     --let $_am_i_writable= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.replication_group_members WHERE member_version="$lowest_version_of_group" AND member_id="$_this_member_id", COUNT, 1)
     if ($_am_i_writable)

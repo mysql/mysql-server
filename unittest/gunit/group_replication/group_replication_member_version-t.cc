@@ -121,4 +121,118 @@ TEST_F(MemberVersionTest, AssertLtEqualsOperator) {
   ASSERT_TRUE(*version <= higher_version);
 }
 
+#ifndef NDEBUG
+TEST_F(MemberVersionTest, IncrementMajor) {
+  Member_version a(0x080400);  // version: 8.4.0
+  a.increment_major_version();
+  ASSERT_EQ("9.4.0", a.get_version_string());
+  ASSERT_EQ(0x090400, (int)a.get_version());
+
+  Member_version b(0x090000);  // version: 9.0.0
+  b.increment_major_version();
+  ASSERT_EQ("10.0.0", b.get_version_string());
+  ASSERT_EQ(0x100000, (int)b.get_version());
+
+  Member_version c(0x100000);  // version: 10.0.0
+  c.increment_major_version();
+  ASSERT_EQ("11.0.0", c.get_version_string());
+  ASSERT_EQ(0x110000, (int)c.get_version());
+
+  Member_version d(0x989999);  // version: 98.99.99
+  d.increment_major_version();
+  ASSERT_EQ("99.99.99", d.get_version_string());
+  ASSERT_EQ(0x999999, (int)d.get_version());
+}
+
+TEST_F(MemberVersionTest, DecrementMajor) {
+  Member_version a(0x080400);  // version: 8.4.0
+  a.decrement_major_version();
+  ASSERT_EQ("7.4.0", a.get_version_string());
+  ASSERT_EQ(0x070400, (int)a.get_version());
+
+  Member_version b(0x100000);  // version: 10.0.0
+  b.decrement_major_version();
+  ASSERT_EQ("9.0.0", b.get_version_string());
+  ASSERT_EQ(0x090000, (int)b.get_version());
+
+  Member_version c(0x110000);  // version: 11.0.0
+  c.decrement_major_version();
+  ASSERT_EQ("10.0.0", c.get_version_string());
+  ASSERT_EQ(0x100000, (int)c.get_version());
+}
+
+TEST_F(MemberVersionTest, IncrementMinor) {
+  Member_version a(0x080400);  // version: 8.4.0
+  a.increment_minor_version();
+  ASSERT_EQ("8.5.0", a.get_version_string());
+  ASSERT_EQ(0x080500, (int)a.get_version());
+
+  Member_version b(0x089900);  // version: 8.99.0
+  b.increment_minor_version();
+  ASSERT_EQ("9.0.0", b.get_version_string());
+  ASSERT_EQ(0x090000, (int)b.get_version());
+}
+
+TEST_F(MemberVersionTest, DecrementMinor) {
+  Member_version a(0x080400);  // version: 8.4.0
+  a.decrement_minor_version();
+  ASSERT_EQ("8.3.0", a.get_version_string());
+  ASSERT_EQ(0x080300, (int)a.get_version());
+
+  Member_version b(0x090000);  // version: 8.99.0
+  b.decrement_minor_version();
+  ASSERT_EQ("8.99.0", b.get_version_string());
+  ASSERT_EQ(0x089900, (int)b.get_version());
+
+  Member_version c(0x010000);  // version: 1.0.0
+  c.decrement_minor_version();
+  ASSERT_EQ("0.99.0", c.get_version_string());
+  ASSERT_EQ(0x009900, (int)c.get_version());
+}
+
+TEST_F(MemberVersionTest, IncrementPatch) {
+  Member_version a(0x080400);  // version: 8.4.0
+  a.increment_patch_version();
+  ASSERT_EQ("8.4.1", a.get_version_string());
+  ASSERT_EQ(0x080401, (int)a.get_version());
+
+  Member_version b(0x080099);  // version: 8.0.99
+  b.increment_patch_version();
+  ASSERT_EQ("8.1.0", b.get_version_string());
+  ASSERT_EQ(0x080100, (int)b.get_version());
+
+  Member_version c(0x089999);  // version: 8.99.99
+  c.increment_patch_version();
+  ASSERT_EQ("9.0.0", c.get_version_string());
+  ASSERT_EQ(0x090000, (int)c.get_version());
+
+  Member_version d(0x099999);  // version: 9.99.99
+  d.increment_patch_version();
+  ASSERT_EQ("10.0.0", d.get_version_string());
+  ASSERT_EQ(0x100000, (int)d.get_version());
+}
+
+TEST_F(MemberVersionTest, DecrementPatch) {
+  Member_version a(0x080401);  // version: 8.4.1
+  a.decrement_patch_version();
+  ASSERT_EQ("8.4.0", a.get_version_string());
+  ASSERT_EQ(0x080400, (int)a.get_version());
+
+  Member_version b(0x080100);  // version: 8.1.0
+  b.decrement_patch_version();
+  ASSERT_EQ("8.0.99", b.get_version_string());
+  ASSERT_EQ(0x080099, (int)b.get_version());
+
+  Member_version c(0x090000);  // version: 9.0.0
+  c.decrement_patch_version();
+  ASSERT_EQ("8.99.99", c.get_version_string());
+  ASSERT_EQ(0x089999, (int)c.get_version());
+
+  Member_version d(0x100000);  // version: 10.0.0
+  d.decrement_patch_version();
+  ASSERT_EQ("9.99.99", d.get_version_string());
+  ASSERT_EQ(0x099999, (int)d.get_version());
+}
+#endif /* NDEBUG */
+
 }  // namespace member_version_unittest
