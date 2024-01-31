@@ -50,6 +50,7 @@ leak:gss_acquire_cred_from
 
 # Memory leak due to JDK's assumption on object lifetime
 leak:java.lang.ProcessImpl*init
+leak:sun.nio.fs.NativeBuffer::NativeBuffer
 
 # ndb_sign_keys leaks in some error-exit situations
 leak:ndb_sign_keys
@@ -58,7 +59,7 @@ leak:ndb_sign_keys
 # google::protobuf::internal::InitSCCImpl()
 leak:libprotobuf-lite.so
 
-# Bug#36170703 ndb api tools leak with TLS required on data nodes 
+# Bug#36170703 ndb api tools leak with TLS required on data nodes
 # Suppress leak detection for them until leak is found.
 leak:ndb_blob_tool
 leak:ndb_config
