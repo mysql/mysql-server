@@ -111,6 +111,12 @@ class MetaManager {
     redo_log_curr_addr = redo_log_curr_addr_;
   }
 
+  ALWAYS_INLINE
+  void SetRedoLogSize(size_t sz) { this->redo_log_remote_buf_size = sz; }
+
+  ALWAYS_INLINE
+  size_t GetRedoLogSize(size_t sz) { return redo_log_remote_buf_size; }
+
  private:
   MetaManager();
   ~MetaManager() {}
