@@ -31,6 +31,7 @@
 #include "basic_protocol_splicer.h"
 #include "classic_connection_base.h"
 #include "classic_frame.h"
+#include "destination_error.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/poll.h"
 #include "mysql/harness/net_ts/internet.h"
@@ -272,24 +273,43 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::resolve() {
       destination->hostname(), std::to_string(destination->port()));
 
   if (!resolve_res) {
+    auto ec = resolve_res.error();
+
     const auto resolve_duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - started);
     connect_errors_.emplace_back(
         "resolve(" + destination->hostname() + ") failed after " +
             std::to_string(resolve_duration.count()) + "ms",
-        resolve_res.error());
+        ec);
 
-    log_debug("resolve(%s,%d) failed: %s:%s", destination->hostname().c_str(),
-              destination->port(), resolve_res.error().category().name(),
-              resolve_res.error().message().c_str());
-    destination->connect_status(resolve_res.error());
+    log_debug("resolve(%s,%d) failed: %s:%s",  //
+              destination->hostname().c_str(), destination->port(),
+              ec.category().name(), ec.message().c_str());
+
+    destination_ec_ = ec;
+
+    // resolve(...) failed, move host:port to the quarantine to monitor the
+    // solve to come back.
+
+    auto hostname = destination->hostname();
+    auto port = destination->port();
+
+    auto &ctx = connection()->context();
+
+    if (ctx.shared_quarantine().update({hostname, port}, false)) {
+      log_debug("[%s] add destination '%s:%d' to quarantine",
+                ctx.get_name().c_str(), hostname.c_str(), port);
+    } else {
+      // failed to connect, but not quarantined. Don't close the ports, yet.
+      all_quarantined_ = false;
+    }
 
     stage(Stage::NextDestination);
     return Result::Again;
   }
 
-  endpoints_ = resolve_res.value();
+  endpoints_ = *resolve_res;
 
 #if 0
   std::cerr << __LINE__ << ": " << destination->hostname() << "\n";

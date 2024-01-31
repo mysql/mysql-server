@@ -48,6 +48,7 @@
 #include "router_test_helpers.h"
 #include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
+#include "test/temp_directory.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
@@ -189,6 +190,74 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
       "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
+}
+
+TEST_F(RouterRoutingTest, ResolveFails) {
+  RecordProperty("Description",
+                 "If resolve fails due to timeout or not resolvable, move the "
+                 "destination to the quarantine.");
+  const auto router_port = port_pool_.get_next_available();
+
+  TempDirectory conf_dir("conf");
+
+  auto writer = config_writer(conf_dir.name());
+  writer.section("routing:does_not_resolve",
+                 {
+                     // the test needs a hostname that always fails to resolve.
+                     //
+                     // RFC2606 declares .invalid as reserved TLD.
+                     {"destinations", "does-not-resolve.invalid"},
+                     {"routing_strategy", "round-robin"},
+                     {"protocol", "classic"},
+                     {"bind_port", std::to_string(router_port)},
+                 });
+
+  auto &rtr = router_spawner().spawn({"-c", writer.write()});
+
+  mysqlrouter::MySQLSession sess;
+
+  SCOPED_TRACE(
+      "// make a connection that should fail as the host isn't resolvable");
+  try {
+    sess.connect("127.0.0.1", router_port, "user", "pass", "", "");
+    FAIL() << "expected connect fail.";
+  } catch (const MySQLSession::Error &e) {
+    EXPECT_EQ(e.code(), 2003) << e.what();
+    EXPECT_THAT(e.what(),
+                ::testing::HasSubstr("Can't connect to remote MySQL server"))
+        << e.what();
+  } catch (...) {
+    FAIL() << "expected connect fail with a mysql-error";
+  }
+
+  SCOPED_TRACE("// port should be closed now.");
+  try {
+    sess.connect("127.0.0.1", router_port, "user", "pass", "", "");
+    FAIL() << "expected connect fail.";
+  } catch (const MySQLSession::Error &e) {
+    EXPECT_EQ(e.code(), 2003) << e.what();
+    EXPECT_THAT(e.what(), ::testing::HasSubstr("Can't connect to MySQL server"))
+        << e.what();
+  } catch (...) {
+    FAIL() << "expected connect fail with a mysql-error";
+  }
+
+  rtr.send_clean_shutdown_event();
+  ASSERT_NO_THROW(rtr.wait_for_exit());
+
+  // connecting to backend(s) for client from 127.0.0.1:57804 failed:
+  // resolve(does-not-resolve-to-anything.foo) failed after 160ms: Name or
+  // service not known, end of destinations: no more destinations
+  auto logcontent = rtr.get_logfile_content();
+  EXPECT_THAT(
+      logcontent,
+      testing::HasSubstr("resolve(does-not-resolve.invalid) failed after"));
+
+  // check that it was actually added to the quarantine.
+  EXPECT_THAT(
+      logcontent,
+      testing::HasSubstr(
+          "add destination 'does-not-resolve.invalid:3306' to quarantine"));
 }
 
 struct ConnectTimeoutTestParam {
