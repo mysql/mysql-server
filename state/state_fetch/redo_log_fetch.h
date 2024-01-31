@@ -38,10 +38,11 @@ class RedoLogFetch {
    */
   bool redo_log_fetch() {
     if (this->getFailStatus()) {
+      // 开始读取
       this->setRedoLogItem(nullptr);
+
       this->setRedoLogBufferBuf(nullptr);
     }
-
     return true;
   }
 
