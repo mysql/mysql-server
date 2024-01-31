@@ -339,10 +339,13 @@ bool TransporterFacade::deliver_signal(SignalHeader *const header,
       theClusterMgr->execDUMP_STATE_ORD(&sig, ptr);
     } else if (header->theVerId_signalNumber != GSN_API_REGREQ) {
       TRP_DEBUG("TransporterFacade received signal to unknown block no.");
-      g_eventLogger->info("BLOCK NO: %u sig %u", tRecBlockNo,
-                          header->theVerId_signalNumber);
-      ndbout << *header << "-- Signal Data --" << endl;
-      ndbout.hexdump(theData, MAX(header->theLength, 25)) << flush;
+      fprintf(stderr,
+              "%s NDBAPI FATAL ERROR : TransporterFacade received signal to "
+              "unknown block number: %u sig %u",
+              Logger::Timestamp().c_str(), tRecBlockNo,
+              header->theVerId_signalNumber);
+      ndberr << *header << "-- Signal Data --" << endl;
+      ndberr.hexdump(theData, MAX(header->theLength, 25)) << flush;
       abort();
     }
   }
@@ -1153,8 +1156,9 @@ int TransporterFacade::unlock_recv_thread_cpu() {
   if (theReceiveThread) {
     int ret_code = Ndb_UnlockCPU(theReceiveThread);
     if (ret_code) {
-      g_eventLogger->info("Failed to unlock thread %d, ret_code: %d",
-                          NdbThread_GetTid(theReceiveThread), ret_code);
+      g_eventLogger->info(
+          "TransporterFacade (%u) : Failed to unlock thread %d, ret_code: %d",
+          theOwnId, NdbThread_GetTid(theReceiveThread), ret_code);
       return ret_code;
     }
   }
@@ -1166,8 +1170,10 @@ int TransporterFacade::lock_recv_thread_cpu() {
   if (cpu_id != NO_RECV_THREAD_CPU_ID && theReceiveThread) {
     int ret_code = Ndb_LockCPU(theReceiveThread, cpu_id);
     if (ret_code) {
-      g_eventLogger->info("Failed to lock thread %d to CPU %u, ret_code: %d",
-                          NdbThread_GetTid(theReceiveThread), cpu_id, ret_code);
+      g_eventLogger->info(
+          "TransporterFacade (%u) : Failed to lock thread %d to CPU %u, "
+          "ret_code: %d",
+          theOwnId, NdbThread_GetTid(theReceiveThread), cpu_id, ret_code);
       return ret_code;
     }
   }
@@ -1622,7 +1628,8 @@ bool TransporterFacade::configure(NodeId nodeId,
     if (!m_send_buffer.init(total_send_buffer_size_t,
                             reserved_send_buffer_size_t)) {
       g_eventLogger->info(
-          "Unable to allocate %zu bytes of memory for send buffers!!",
+          "TransporterFacade : Unable to allocate %zu bytes of memory for send "
+          "buffers!!",
           total_send_buffer_size_t);
       DBUG_RETURN(false);
     }
@@ -1652,7 +1659,8 @@ bool TransporterFacade::configure(NodeId nodeId,
 
   iter.get(CFG_MIXOLOGY_LEVEL, &mixologyLevel);
   if (mixologyLevel) {
-    g_eventLogger->info("Mixology level set to 0x%x", mixologyLevel);
+    g_eventLogger->info("TransporterFacade Mixology level set to 0x%x",
+                        mixologyLevel);
     theTransporterRegistry->setMixologyLevel(mixologyLevel);
   }
 #endif

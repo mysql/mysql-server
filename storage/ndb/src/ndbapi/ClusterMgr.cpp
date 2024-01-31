@@ -99,7 +99,10 @@ ClusterMgr::ClusterMgr(TransporterFacade &_facade)
 
   Uint32 ret = this->open(&theFacade, API_CLUSTERMGR);
   if (unlikely(ret == 0)) {
-    g_eventLogger->info("Failed to register ClusterMgr! ret: %d", ret);
+    fprintf(stderr,
+            "%s NDBAPI FATAL ERROR : Failed to register "
+            "ClusterMgr! ret: %d\n",
+            Logger::Timestamp().c_str(), ret);
     abort();
   }
   DBUG_VOID_RETURN;
@@ -223,10 +226,11 @@ void ClusterMgr::startThread() {
                        0,  // default stack size
                        "ndb_clustermgr", NDB_THREAD_PRIO_HIGH);
   if (theClusterMgrThread == nullptr) {
-    g_eventLogger->info(
-        "ClusterMgr::startThread:"
-        " Failed to create thread for cluster management.");
-    assert(theClusterMgrThread != nullptr);
+    fprintf(stderr,
+            "%s NDBAPI FATAL ERROR : ClusterMgr::startThread:"
+            " Failed to create thread for cluster management.\n",
+            Logger::Timestamp().c_str());
+    abort();
     DBUG_VOID_RETURN;
   }
 
@@ -904,8 +908,10 @@ void ClusterMgr::execAPI_REGREF(const Uint32 *theData) {
 
   switch (ref->errorCode) {
     case ApiRegRef::WrongType:
-      g_eventLogger->info("Node %d reports that this node should be a NDB node",
-                          nodeId);
+      fprintf(stderr,
+              "%s NDBAPI FATAL ERROR : Node %d reports that "
+              "this node %d should be an NDB node\n",
+              Logger::Timestamp().c_str(), nodeId, getOwnNodeId());
       abort();
     case ApiRegRef::UnsupportedVersion:
     default:
@@ -1462,9 +1468,11 @@ void ArbitMgr::doStart(const Uint32 *theData) {
                                0,  // default stack size
                                "ndb_arbitmgr", NDB_THREAD_PRIO_HIGH);
   if (theThread == nullptr) {
-    g_eventLogger->info(
-        "ArbitMgr::doStart: Failed to create thread for arbitration.");
-    assert(theThread != nullptr);
+    fprintf(stderr,
+            "%s NDBAPI FATAL ERROR : ArbitMgr::doStart: Failed to "
+            "create thread for arbitration.\n",
+            Logger::Timestamp().c_str());
+    abort();
   }
   NdbMutex_Unlock(theThreadMutex);
   DBUG_VOID_RETURN;

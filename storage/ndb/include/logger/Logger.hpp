@@ -122,6 +122,17 @@ class Logger {
   */
   static void format_timestamp(const time_t epoch, char *str, size_t len);
 
+  // Timestamp - handy class for getting a timestamp string
+  class Timestamp {
+   public:
+    Timestamp();
+    const char *c_str() const { return buff; }
+
+   private:
+    static constexpr Uint32 TsLen = 64;
+    char buff[TsLen];
+  };
+
   /** The log levels. NOTE: Could not use the name LogLevel since
    * it caused conflicts with another class.
    */

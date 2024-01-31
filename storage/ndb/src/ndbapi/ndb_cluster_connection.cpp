@@ -570,8 +570,8 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl() {
   if (m_first_ndb_object) {
     g_eventLogger->warning(
         "Waiting for Ndb instances belonging to "
-        "Ndb_cluster_connection %p to be deleted...",
-        this);
+        "Ndb_cluster_connection %u (%p) to be deleted...",
+        m_my_node_id, this);
 
     while (m_first_ndb_object) {
       NdbCondition_WaitTimeout(m_new_delete_ndb_cond, m_new_delete_ndb_mutex,
@@ -1391,7 +1391,9 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
   }
   m_latest_error = 1;
   m_latest_error_msg.assfmt("Configuration error: %s", erString);
-  g_eventLogger->info("%s", get_latest_error_msg());
+  if (verbose) {
+    fprintf(stdout, "%s\n", get_latest_error_msg());
+  }
   DBUG_PRINT("exit", ("connect failed, '%s' ret: -1", erString));
   DBUG_RETURN(-1);
 }

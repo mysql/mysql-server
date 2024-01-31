@@ -5,5 +5,5 @@ SELECT count(*) FROM ndbinfo.transporters
 WHERE status = 'CONNECTED' and encrypted = 1;
 count(*)
 2
- Configuration error: Not Authorized: TLS Required: Executing: ndb_mgm_alloc_nodeid
+Configuration error: Not Authorized: TLS Required: Executing: ndb_mgm_alloc_nodeid
 Unable to connect to management server.

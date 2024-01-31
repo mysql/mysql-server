@@ -22,7 +22,6 @@ SELECT count(*) FROM ndbinfo.transporters
 WHERE status = 'CONNECTED' and encrypted = 1;
 
 # ndb_desc fails without TLS
---replace_regex /^.*--//
 --error 1
 --exec $NDB_DESC --connect-retries=0
 

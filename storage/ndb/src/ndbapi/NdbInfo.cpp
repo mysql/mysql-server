@@ -25,6 +25,7 @@
 // Implements
 #include "NdbInfo.hpp"
 
+#include <Logger.hpp>
 #include <algorithm>
 #include <vector>
 #include "NdbInfoScanNodes.hpp"
@@ -529,8 +530,10 @@ bool NdbInfo::load_virtual_tables(void) {
     assert(tab->m_virt);
     const BaseString hash_key = mysql_table_name(*tab);
     if (m_tables.remove(hash_key)) {
-      fprintf(stderr, "Duplicate table name: %s\n", hash_key.c_str());
-      assert(false);
+      fprintf(stderr,
+              "%s NDBAPI FATAL ERROR : NdbInfo : Duplicate table name: %s\n",
+              Logger::Timestamp().c_str(), hash_key.c_str());
+      abort();
       return false;
     }
     tab->m_table_id = Table::VirtualTableIdBit | i;

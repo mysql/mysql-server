@@ -1720,7 +1720,9 @@ int NdbScanOperation::nextResultNdbRecord(const char *&out_row,
     case 2:
       return retVal;
     case -1:
-      g_eventLogger->info("1:4008 on connection %d", theNdbCon->ptr2int());
+      g_eventLogger->info(
+          "NdbScanOperation::nextResultNdbRecord() 1:4008 on connection %d",
+          theNdbCon->ptr2int());
       setErrorCode(4008);  // Timeout
       break;
     case -2:
@@ -1808,7 +1810,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp) {
   if (theNdbCon != nullptr) {
     if (DEBUG_NEXT_RESULT)
       g_eventLogger->info(
-          "close() theError.code = %d "
+          "NdbScanOperation::close() theError.code = %d "
           "m_api_receivers_count = %d "
           "m_conf_receivers_count = %d "
           "m_sent_receivers_count = %d",
@@ -3358,7 +3360,10 @@ int NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend) {
       int ret_code = poll_guard.wait_scan(3 * timeout, nodeId, forceSend);
       if (ret_code == 0 && seq == impl->getNodeSequence(nodeId)) continue;
       if (ret_code == -1) {
-        g_eventLogger->info("2:4008 on connection %d", theNdbCon->ptr2int());
+        g_eventLogger->info(
+            "NdbIndexScanOperation::ordered_send_scan_wait_for_all() "
+            "2:4008 on connection %d",
+            theNdbCon->ptr2int());
         setErrorCode(4008);
       } else {
         setErrorCode(4028);
@@ -3473,7 +3478,9 @@ int NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard) {
       case 0:
         break;
       case -1:
-        g_eventLogger->info("3:4008 on connection %d", theNdbCon->ptr2int());
+        g_eventLogger->info(
+            "NdbScanOperation::close_impl() 3:4008 on connection %d",
+            theNdbCon->ptr2int());
         setErrorCode(4008);
         [[fallthrough]];
       case -2:
@@ -3540,7 +3547,9 @@ int NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard) {
       case 0:
         break;
       case -1:
-        g_eventLogger->info("4:4008 on connection %d", theNdbCon->ptr2int());
+        g_eventLogger->info(
+            "NdbScanOperation::close_impl() 4:4008 on connection %d",
+            theNdbCon->ptr2int());
         setErrorCode(4008);
         [[fallthrough]];
       case -2:
