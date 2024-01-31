@@ -17,6 +17,8 @@ class RedoLogFetch {
  public:
   RedoLogFetch() {}
 
+  ~RedoLogFetch() { destroy_internal_thd(thd); }
+
   RedoLogFetch(bool status) : failStatus(status) {}
 
   void setFailStatus(bool status) { failStatus = status; }
