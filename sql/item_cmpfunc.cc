@@ -2766,7 +2766,7 @@ float Item_func_equal::get_filtering_effect(THD *thd,
   return GetEqualSelectivity(thd, this, *fld, rows_in_table);
 }
 
-float Item_func_inequality::get_filtering_effect(
+float Item_func_comparison::get_filtering_effect(
     THD *thd, table_map filter_for_table, table_map read_tables,
     const MY_BITMAP *fields_to_ignore, double rows_in_table) {
   // For comparing MATCH(...), generally reuse the same selectivity as for

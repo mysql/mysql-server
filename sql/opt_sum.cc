@@ -709,7 +709,7 @@ static bool move_endpoint(bool is_max, Item *cond) {
   // For BETWEEN, we check similarly, but only using the upper bound constant
   // for MAX and the lower bound constant for MIN.
   Item_func_between *const between = down_cast<Item_func_between *>(cond);
-  Item_func_inequality *compare_endpoints = nullptr;
+  Item_func_comparison *compare_endpoints = nullptr;
   if (is_max) {
     compare_endpoints =
         new Item_func_le(between->get_arg(0), between->get_arg(2));

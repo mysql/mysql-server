@@ -708,6 +708,11 @@ class Item_func_comparison : public Item_bool_func2 {
   bool is_null() override;
 
   bool cast_incompatible_args(uchar *) override;
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table) override;
+  bool gc_subst_analyzer(uchar **) override { return true; }
 };
 
 /**
@@ -1064,7 +1069,6 @@ class Item_func_eq final : public Item_eq_base {
   Item *negated_item() override;
   bool equality_substitution_analyzer(uchar **) override { return true; }
   Item *equality_substitution_transformer(uchar *arg) override;
-  bool gc_subst_analyzer(uchar **) override { return true; }
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
@@ -1140,27 +1144,15 @@ class Item_func_equal final : public Item_eq_base {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
-};
-
-/// '<,>,=<,=>' operators.
-class Item_func_inequality : public Item_func_comparison {
- public:
-  Item_func_inequality(Item *a, Item *b) : Item_func_comparison(a, b) {}
-
-  float get_filtering_effect(THD *thd, table_map filter_for_table,
-                             table_map read_tables,
-                             const MY_BITMAP *fields_to_ignore,
-                             double rows_in_table) override;
-
-  bool gc_subst_analyzer(uchar **) override { return true; }
+  bool gc_subst_analyzer(uchar **) override { return false; }
 };
 
 /**
   Implements the comparison operator greater than or equals (>=)
 */
-class Item_func_ge final : public Item_func_inequality {
+class Item_func_ge final : public Item_func_comparison {
  public:
-  Item_func_ge(Item *a, Item *b) : Item_func_inequality(a, b) {}
+  Item_func_ge(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return GE_FUNC; }
   enum Functype rev_functype() const override { return LE_FUNC; }
@@ -1172,9 +1164,9 @@ class Item_func_ge final : public Item_func_inequality {
 /**
   Implements the comparison operator greater than (>)
 */
-class Item_func_gt final : public Item_func_inequality {
+class Item_func_gt final : public Item_func_comparison {
  public:
-  Item_func_gt(Item *a, Item *b) : Item_func_inequality(a, b) {}
+  Item_func_gt(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return GT_FUNC; }
   enum Functype rev_functype() const override { return LT_FUNC; }
@@ -1186,9 +1178,9 @@ class Item_func_gt final : public Item_func_inequality {
 /**
   Implements the comparison operator less than or equals (<=)
 */
-class Item_func_le final : public Item_func_inequality {
+class Item_func_le final : public Item_func_comparison {
  public:
-  Item_func_le(Item *a, Item *b) : Item_func_inequality(a, b) {}
+  Item_func_le(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return LE_FUNC; }
   enum Functype rev_functype() const override { return GE_FUNC; }
@@ -1232,9 +1224,9 @@ class Item_func_reject_if : public Item_bool_func {
 /**
   Implements the comparison operator less than (<)
 */
-class Item_func_lt final : public Item_func_inequality {
+class Item_func_lt final : public Item_func_comparison {
  public:
-  Item_func_lt(Item *a, Item *b) : Item_func_inequality(a, b) {}
+  Item_func_lt(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return LT_FUNC; }
   enum Functype rev_functype() const override { return GT_FUNC; }
@@ -1264,6 +1256,7 @@ class Item_func_ne final : public Item_func_comparison {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+  bool gc_subst_analyzer(uchar **) override { return false; }
 };
 
 /*
@@ -2509,7 +2502,7 @@ class Item_cond : public Item_bool_func {
   bool equality_substitution_analyzer(uchar **) override { return true; }
 };
 
-/*
+/**
   The class Item_equal is used to represent conjunctions of equality
   predicates of the form field1 = field2, and field=const in where
   conditions and on expressions.
