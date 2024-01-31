@@ -1,3 +1,4 @@
+--source include/no_protocol.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 

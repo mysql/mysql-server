@@ -36,6 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "field_types.h"
 #include "mysql_com.h"
+#include "scope_guard.h"
 
 #include "utils.h"
 
@@ -95,6 +96,9 @@ static auto test_execute_regular_statement(UDF_INIT *, UDF_ARGS *arguments,
       mysql_cstring_with_length{arguments->args[0], strlen(arguments->args[0])};
   if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->init(&statement) != 0) return {};
 
+  Scope_guard free_statement_guard(
+      [&] { SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement); });
+
   if (SERVICE_PLACEHOLDER(mysql_stmt_execute_direct)
           ->execute(query, statement) != 0)
     return handle_error(statement, error, result, length);
@@ -110,8 +114,6 @@ static auto test_execute_regular_statement(UDF_INIT *, UDF_ARGS *arguments,
     if (SERVICE_PLACEHOLDER(mysql_stmt_attributes)
             ->set(statement, buffer_capacity_name,
                   reinterpret_cast<const void *>(3)) != 0) {
-      if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-        return {};
       return {};
     }
   }
@@ -119,8 +121,6 @@ static auto test_execute_regular_statement(UDF_INIT *, UDF_ARGS *arguments,
           ->lookup_debug_keyword("attribute_get")) {
     if (SERVICE_PLACEHOLDER(mysql_stmt_attributes)
             ->get(statement, buffer_capacity_name, &buffer_capacity) != 0) {
-      if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-        return {};
       return {};
     }
   }
@@ -134,8 +134,6 @@ static auto test_execute_regular_statement(UDF_INIT *, UDF_ARGS *arguments,
   if (field_count == 0) {
     *error = 0;
     auto output = handle_non_select_statement_result(statement, error);
-    if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-      return {};
     snprintf(result, 255, "%s", output.data());
     *length = output.length();
     return result;
@@ -166,8 +164,6 @@ static auto test_execute_regular_statement(UDF_INIT *, UDF_ARGS *arguments,
             ->next_result(statement, &has_next_cursor) != 0)
       return {};
   } while (has_next_cursor);
-
-  if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0) return {};
 
   *error = 0;
   auto output = std::string{};

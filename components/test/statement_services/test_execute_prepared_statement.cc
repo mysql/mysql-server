@@ -39,6 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "scope_guard.h"
 #include "sql/sql_udf.h"
 #include "template_utils.h"
 #include "utils.h"
@@ -110,6 +111,9 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
 
   if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->init(&statement) != 0) return {};
 
+  Scope_guard free_statement_guard(
+      [&] { SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement); });
+
   auto rows_per_fetch = size_t{3};
   auto prefetch_row_name =
       mysql_cstring_with_length{"prefetch_rows", strlen("prefetch_rows")};
@@ -169,8 +173,6 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
     if (SERVICE_PLACEHOLDER(mysql_stmt_attributes)
             ->set(statement, prefetch_row_name,
                   reinterpret_cast<const void *>(3)) != 0) {
-      if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-        return {};
       return {};
     }
   }
@@ -179,8 +181,6 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
           ->lookup_debug_keyword("attribute_get_after_prepare")) {
     if (SERVICE_PLACEHOLDER(mysql_stmt_attributes)
             ->get(statement, prefetch_row_name, &num_rows_per_fetch) != 0) {
-      if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-        return {};
       return {};
     }
   }
@@ -202,8 +202,6 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
             ->bind_param(statement, num_parameters, false,
                          MYSQL_SP_ARG_TYPE_LONG, false, &value,
                          sizeof(long long), nullptr, 0) != 0) {
-      if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-        return {};
       return {};
     }
   }
@@ -212,8 +210,6 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
     auto value = uint64_t{};
     if (SERVICE_PLACEHOLDER(mysql_stmt_metadata)
             ->param_metadata(statement, num_parameters, "type", &value) != 0) {
-      if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-        return {};
       return {};
     }
   }
@@ -366,8 +362,6 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
     if (SERVICE_PLACEHOLDER(mysql_stmt_attributes)
             ->set(statement, prefetch_row_name,
                   reinterpret_cast<const void *>(3)) != 0) {
-      if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-        return {};
       return {};
     }
   }
@@ -375,8 +369,6 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
           ->lookup_debug_keyword("attribute_get")) {
     if (SERVICE_PLACEHOLDER(mysql_stmt_attributes)
             ->get(statement, prefetch_row_name, &num_rows_per_fetch) != 0) {
-      if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-        return {};
       return {};
     }
   }
@@ -390,8 +382,6 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
     if (SERVICE_PLACEHOLDER(mysql_stmt_bind)
             ->bind_param(statement, 0, false, MYSQL_SP_ARG_TYPE_VARCHAR, false,
                          value.data(), value.length(), nullptr, 0) != 0) {
-      if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-        return {};
       return {};
     }
 
@@ -410,8 +400,6 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
   if (field_count == 0) {
     *error = 0;
     auto output = handle_non_select_statement_result(statement, error);
-    if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0)
-      return {};
     return print_output(result, length, output);
   }
 
@@ -440,8 +428,6 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
             ->next_result(statement, &has_next_cursor) != 0)
       return {};
   } while (has_next_cursor);
-
-  if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement) != 0) return {};
 
   *error = 0;
   auto output = std::string{};
