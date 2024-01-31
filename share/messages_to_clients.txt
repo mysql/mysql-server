@@ -10349,7 +10349,7 @@ ER_LANGUAGE_COMPONENT_RUNTIME
   eng "%s> %s"
 
 ER_LANGUAGE_COMPONENT_TIMEZONE
-  eng "%s> Time-zone %s is not supported."
+  eng "%s> Time zone %s is not supported."
 
 ER_LANGUAGE_COMPONENT_KEYWORD
   eng "%s> The identifier '%s' is a reserved word."
