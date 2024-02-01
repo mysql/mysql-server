@@ -1090,6 +1090,13 @@ struct MockServerCoreTestParam {
   ExitStatus expected_exit_status_;
 };
 
+#ifndef __APPLE__
+// enabling core dump on pb2 macos14 causes random (but often):
+// MySQLRouter:
+//    NOTE: core-file requested, but resource-limits say core-files are
+//    disabled for this process ('ulimit -c' is '0')
+// mysql_mock_server:
+//    std::exception
 class MockServerCoreTest
     : public RouterComponentTest,
       public ::testing::WithParamInterface<MockServerCoreTestParam> {};
@@ -1180,6 +1187,8 @@ const MockServerCoreTestParam mock_server_core_test_param[] = {
 INSTANTIATE_TEST_SUITE_P(Spec, MockServerCoreTest,
                          ::testing::ValuesIn(mock_server_core_test_param),
                          [](const auto &info) { return info.param.test_name; });
+
+#endif  // __APPLE__
 
 // session-tracker
 

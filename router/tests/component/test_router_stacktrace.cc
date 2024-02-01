@@ -45,6 +45,8 @@
 #include "test/temp_directory.h"
 
 namespace {
+
+#ifndef __APPLE__
 constexpr const int abrt_status{
 #ifdef _WIN32
     0x00000102  // STATUS_TIMEOUT
@@ -63,6 +65,7 @@ constexpr const int segv_status{
 #endif
 };
 
+#endif
 #endif
 
 }  // namespace
@@ -87,6 +90,14 @@ TEST_F(RouterStacktraceTest, help_has_core_file) {
   // Options
   EXPECT_THAT(r.get_full_output(), ::testing::HasSubstr("  --core-file"));
 }
+
+#ifndef __APPLE__
+// enabling core dump on pb2 macos14 causes random (but often):
+// MySQLRouter:
+//    NOTE: core-file requested, but resource-limits say core-files are
+//    disabled for this process ('ulimit -c' is '0')
+// mysql_mock_server:
+//    std::exception
 
 // TS_1_2
 TEST_F(RouterStacktraceTest, bootstrap_with_core_file) {
@@ -571,6 +582,8 @@ TEST_F(RouterStacktraceTest, core_file_0) {
 }
 
 #endif  // !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
+
+#endif  // __APPLE__
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
