@@ -21,8 +21,9 @@ ERROR HY000: Table definition has changed, please retry transaction
 show warnings;
 Level	Code	Message
 Error	1412	Table definition has changed, please retry transaction
-Warning	1296	Failed to discover table 't1' from NDB, table definition changed
-Error	159	Table definition has changed, please retry transaction
+Warning	1296	Failed to discover table 't1' from NDB, not allowed in active transaction
+Error	1412	Table definition has changed, please retry transaction
+rollback;
 SELECT * FROM t1 ORDER BY a;
 a	b	c	d	e
 1	1	NULL	NULL	NULL

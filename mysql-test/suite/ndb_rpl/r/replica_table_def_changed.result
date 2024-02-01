@@ -1,0 +1,67 @@
+#
+# Test replicas ability to retry when failure occurs to open
+# table due to "table definition changed".
+# This is done by introducing an artifical error every second time the
+# replica attempts to open a table while applying a row change, the
+# replica will then back off and retry according to its transaction
+# retry settings.
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b VARCHAR(32)
+) engine=ndb;
+include/sync_slave_sql_with_master.inc
+# Adding debug point 'ndb_replica_change_t1_version' to @@GLOBAL.debug
+# Case 1. insert
+[connection master]
+INSERT INTO t1 VALUES (1, "row 1"), (2, "row 2"),
+(3, "row 3"), (4, "row 4"), (5, "row 5");
+include/sync_slave_sql_with_master.inc
+include/rpl_stop_slaves.inc
+include/rpl_start_slaves.inc
+# Case 2. 2 update transactions
+[connection master]
+UPDATE t1 SET b = "row 2 updated" WHERE a = 2;
+# Wait for ndb_binlog thread...
+UPDATE t1 SET b = "row 4 updated" WHERE a = 4;
+include/sync_slave_sql_with_master.inc
+include/rpl_stop_slaves.inc
+include/rpl_start_slaves.inc
+# Case 3. delete
+[connection master]
+DELETE FROM t1 WHERE a = 5;
+include/sync_slave_sql_with_master.inc
+include/rpl_stop_slaves.inc
+include/rpl_start_slaves.inc
+# Case 4. transaction with more than one change
+[connection master]
+BEGIN;
+UPDATE t1 SET b = "row 3 updated in trans" WHERE a = 3;
+INSERT INTO t1 VALUES (6, "row 6 inserted in trans");
+COMMIT;
+include/sync_slave_sql_with_master.inc
+include/rpl_stop_slaves.inc
+include/rpl_start_slaves.inc
+# Case 5. alter, not in trans and thus unaffected
+[connection master]
+ALTER TABLE t1 ADD c INT;
+Warnings:
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	row 1	NULL
+2	row 2 updated	NULL
+3	row 3 updated in trans	NULL
+4	row 4 updated	NULL
+6	row 6 inserted in trans	NULL
+# Removing debug point 'ndb_replica_change_t1_version' from @@GLOBAL.debug
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

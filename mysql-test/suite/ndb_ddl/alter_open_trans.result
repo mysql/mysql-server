@@ -14,8 +14,8 @@ ERROR HY000: Table definition has changed, please retry transaction
 show warnings;
 Level	Code	Message
 Error	1412	Table definition has changed, please retry transaction
-Warning	1296	Failed to discover table 't1' from NDB, table definition changed
-Error	159	Table definition has changed, please retry transaction
+Warning	1296	Failed to discover table 't1' from NDB, not allowed in active transaction
+Error	1412	Table definition has changed, please retry transaction
 show tables;
 Tables_in_test
 t1
@@ -40,8 +40,8 @@ ERROR HY000: Table definition has changed, please retry transaction
 show warnings;
 Level	Code	Message
 Error	1412	Table definition has changed, please retry transaction
-Warning	1296	Failed to discover table 't1' from NDB, table definition changed
-Error	159	Table definition has changed, please retry transaction
+Warning	1296	Failed to discover table 't1' from NDB, not allowed in active transaction
+Error	1412	Table definition has changed, please retry transaction
 select * from t1;
-col0	col1	col2	col3	col4	col5	col6	col7	col8	col9	col10	col11	col12	col13	col14	col15	col16	col17	col18	col19	col20	col21	col22	col23	col24	col25	col26	col27	col28	col29	col30	col31	col32
+ERROR HY000: Table definition has changed, please retry transaction
 drop table t1;
