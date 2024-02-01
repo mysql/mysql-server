@@ -9428,13 +9428,14 @@ bool THD::is_binlog_cache_empty(bool is_transactional) const {
   // If opt_bin_log==0, it is not safe to call thd_get_cache_mngr
   // because binlog_hton has not been completely set up.
   assert(opt_bin_log);
-  binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(this);
 
-  // cache_mngr is NULL until we call thd->binlog_setup_trx_data, so
-  // we assert that this has been done.
-  assert(cache_mngr != nullptr);
+  binlog_cache_mngr *const cache_mngr = thd_get_cache_mngr(this);
+  if (cache_mngr == nullptr) {
+    // The cache has not been setup and is thus empty
+    return true;
+  }
 
-  binlog_cache_data *cache_data =
+  binlog_cache_data *const cache_data =
       cache_mngr->get_binlog_cache_data(is_transactional);
   assert(cache_data != nullptr);
 
