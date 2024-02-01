@@ -31,3 +31,5 @@ ndb.ndb_wait_until_ready @darwin: Bug #28995754 TEST FAILURE NDB.NDB_WAIT_UNTIL_
 # It only tests a specific startup scenario that has already been fixed in 8.0
 # and thus it is complex to maintain
 ndb.ndb_startup : Bug#33769850 NDB_STARTUP FAILS IN PB2 WITH WRONG ERROR
+
+ndb.ndb_transaction_max_size @solaris: Bug#35392266 ndb_transaction_max_size fails in PB2 Solaris due to content mismatch
