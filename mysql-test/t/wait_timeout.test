@@ -193,7 +193,7 @@ disconnect con1;
 #
 # Bug #28940167 WAIT_TIMEOUT ERROR NOT CLEAR AND NOT SENT TO CLIENT BEFORE CLOSING CONNECTION
 #
---echo # must find the pattern
---let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
---let SEARCH_PATTERN= 'wait_timeout' period of .* seconds was exceeded for .*\. The idle time since last command was too long\.
-source include/search_pattern.inc;
+--echo # Must find the expected message in the error log
+SELECT COUNT(*) > 0 AS EXPECTED_LOG_MESSAGE_FOUND
+FROM performance_schema.error_log
+WHERE ERROR_CODE = 'MY-015123';

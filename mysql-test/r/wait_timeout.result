@@ -52,5 +52,9 @@ SELECT 1;
 Got one of the listed errors
 SELECT "Check that we don't reconnect with reconnection disabled.";
 Got one of the listed errors
-# must find the pattern
-Pattern "'wait_timeout' period of .* seconds was exceeded for .*\. The idle time since last command was too long\." found
+# Must find the expected message in the error log
+SELECT COUNT(*) > 0 AS EXPECTED_LOG_MESSAGE_FOUND
+FROM performance_schema.error_log
+WHERE ERROR_CODE = 'MY-015123';
+EXPECTED_LOG_MESSAGE_FOUND
+1
