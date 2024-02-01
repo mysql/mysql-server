@@ -55,6 +55,7 @@
 #include <RefConvert.hpp>
 #include <portlib/NdbDir.hpp>
 #include "debugger/DebuggerNames.hpp"
+#include "util/cstrbuf.h"
 
 #include <EventLogger.hpp>
 
@@ -251,13 +252,27 @@ static bool validate_path(BaseString &dst, const char *path) {
   return true;
 }
 
+/* Ndbfs::get_base_path() is called from other threads by
+ * AsyncFile::log_set_odirect_result */
 const BaseString &Ndbfs::get_base_path(Uint32 no) const {
   if (no < NDB_ARRAY_SIZE(m_base_path) && strlen(m_base_path[no].c_str()) > 0) {
-    jam();
     return m_base_path[no];
   }
 
   return m_base_path[FsOpenReq::BP_FS];
+}
+
+BaseString Ndbfs::get_base_path_param_name(Uint32 no) {
+  require(no < FsOpenReq::BP_MAX);
+  static Uint32 param_id[FsOpenReq::BP_MAX] = {
+      CFG_DB_FILESYSTEM_PATH, CFG_DB_BACKUP_DATADIR, CFG_DB_DD_DATAFILE_PATH,
+      CFG_DB_DD_UNDOFILE_PATH};
+  ndb_mgm_param_info param_info;
+  size_t param_info_size = sizeof(param_info);
+  if (ndb_mgm_get_db_parameter_info(param_id[no], &param_info,
+                                    &param_info_size) == 0)
+    return {param_info.m_name};
+  return {};  // should never happen
 }
 
 void Ndbfs::execREAD_CONFIG_REQ(Signal *signal) {
@@ -417,6 +432,43 @@ void Ndbfs::execREAD_CONFIG_REQ(Signal *signal) {
       jam();
       break;
     }
+  }
+
+  Uint32 c_o_direct = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT, &c_o_direct);
+  if (!c_o_direct) {
+    // No ODirect configured
+    g_eventLogger->debug("ODirect not configured.");
+  } else if (!ndb_file::have_direct_io_support()) {
+    // ODirect configured but not supported in code warning? error?
+    g_eventLogger->warning(
+        "ODirect configured but not supported by program. "
+        "ODirect will be disabled. To skip warning please "
+        "turn off ODirect in configuration.");
+    c_o_direct = 0;
+  } else {
+    // Probe if file in root of each base path can use ODirect
+    int ok_count = 0;
+    AsyncFile *file = getIdleFile(false);
+    for (unsigned bp = 0; bp < FsOpenReq::BP_MAX; bp++) {
+      cstrbuf<PATH_MAX> namebuf;
+      namebuf.append(get_base_path(bp).c_str());
+      if (namebuf.appendf("ndb_%u_prb.tmp", getOwnNodeId()) != 0) {
+        g_eventLogger->warning("Could not probe ODirect under %s path %s.",
+                               get_base_path_param_name(bp).c_str(),
+                               get_base_path(bp).c_str());
+        continue;
+      }
+      int ret = file->probe_directory_direct_io(
+          get_base_path_param_name(bp).c_str(), namebuf.c_str());
+      ok_count += (ret == 0);
+    }
+    if (ok_count == 0) {  // warning or error
+      g_eventLogger->warning(
+          "ODirect configured but is not supported on any of the base paths. "
+          "Was that intentional?");
+    }
+    pushIdleFile(file);
   }
 
   setup_wakeup();
@@ -658,7 +710,6 @@ void Ndbfs::execFSREMOVEREQ(Signal *signal) {
   releaseSections(handle);
 
   Uint32 version = FsOpenReq::getVersion(req->fileNumber);
-  Uint32 bp = FsOpenReq::v5_getLcpNo(req->fileNumber);
 
   Request *request = theRequestPool->get();
   request->action = Request::rmrf;
@@ -670,7 +721,8 @@ void Ndbfs::execFSREMOVEREQ(Signal *signal) {
   request->theTrace = signal->getTrace();
   request->m_do_bind = bound;
 
-  if (version == 6) {
+  if (version == FsOpenReq::V_BASEPATH) {
+    Uint32 bp = FsOpenReq::v6_getBasePath(req->fileNumber);
     ndbrequire(bp < NDB_ARRAY_SIZE(m_base_path));
     if (strlen(m_base_path[bp].c_str()) == 0) {
       goto ignore;

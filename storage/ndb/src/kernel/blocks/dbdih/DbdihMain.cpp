@@ -22959,7 +22959,7 @@ void Dbdih::initRestorableGciFiles() {
   filePtr.p->fileName[0] = (Uint32)-1; /* T DIRECTORY NOT USED  */
   filePtr.p->fileName[1] = (Uint32)-1; /* F DIRECTORY NOT USED  */
   filePtr.p->fileName[2] = (Uint32)-1; /* S PART IGNORED        */
-  tirgTmp = 1;                         /* FILE NAME VERSION 1   */
+  tirgTmp = FsOpenReq::V_BLOCK;        /* FILE NAME VERSION 1   */
   tirgTmp = (tirgTmp << 8) + 6;        /* .SYSFILE              */
   tirgTmp = (tirgTmp << 8) + 1;        /* D1 DIRECTORY          */
   tirgTmp = (tirgTmp << 8) + 0;        /* P0 FILE NAME          */
@@ -22976,7 +22976,7 @@ void Dbdih::initRestorableGciFiles() {
   filePtr.p->fileName[0] = (Uint32)-1; /* T DIRECTORY NOT USED  */
   filePtr.p->fileName[1] = (Uint32)-1; /* F DIRECTORY NOT USED  */
   filePtr.p->fileName[2] = (Uint32)-1; /* S PART IGNORED        */
-  tirgTmp = 1;                         /* FILE NAME VERSION 1   */
+  tirgTmp = FsOpenReq::V_BLOCK;        /* FILE NAME VERSION 1   */
   tirgTmp = (tirgTmp << 8) + 6;        /* .SYSFILE              */
   tirgTmp = (tirgTmp << 8) + 2;        /* D1 DIRECTORY          */
   tirgTmp = (tirgTmp << 8) + 0;        /* P0 FILE NAME          */
@@ -23041,7 +23041,7 @@ void Dbdih::initTableFile(TabRecordPtr tabPtr) {
   filePtr.p->fileName[0] = (Uint32)-1; /* T DIRECTORY NOT USED  */
   filePtr.p->fileName[1] = (Uint32)-1; /* F DIRECTORY NOT USED  */
   filePtr.p->fileName[2] = tabPtr.i;   /* Stid FILE NAME        */
-  titfTmp = 1;                         /* FILE NAME VERSION 1   */
+  titfTmp = FsOpenReq::V_BLOCK;        /* FILE NAME VERSION 1   */
   titfTmp = (titfTmp << 8) + 3;        /* .FRAGLIST             */
   titfTmp = (titfTmp << 8) + 1;        /* D1 DIRECTORY          */
   titfTmp = (titfTmp << 8) + 255;      /* P PART IGNORED        */
@@ -23058,7 +23058,7 @@ void Dbdih::initTableFile(TabRecordPtr tabPtr) {
   filePtr.p->fileName[0] = (Uint32)-1; /* T DIRECTORY NOT USED  */
   filePtr.p->fileName[1] = (Uint32)-1; /* F DIRECTORY NOT USED  */
   filePtr.p->fileName[2] = tabPtr.i;   /* Stid FILE NAME        */
-  titfTmp = 1;                         /* FILE NAME VERSION 1   */
+  titfTmp = FsOpenReq::V_BLOCK;        /* FILE NAME VERSION 1   */
   titfTmp = (titfTmp << 8) + 3;        /* .FRAGLIST             */
   titfTmp = (titfTmp << 8) + 2;        /* D2 DIRECTORY          */
   titfTmp = (titfTmp << 8) + 255;      /* P PART IGNORED        */

@@ -161,6 +161,15 @@ class FsOpenReq {
     BP_MAX = 4
   };
 
+  enum Versions {
+    V_BLOCK = 1,     // D#/block/T#/F#/S#P#.Suffix
+    V_BACKUP = 2,    // BACKUP/.../BACKUP-...Suffix
+    V_DISK = 3,      // D#/
+    V_FILENAME = 4,  // Relative to BP or absolute path
+    V_LCP = 5,       // LCP/#/T#F#.Suffix
+    V_BASEPATH = 6   // Basepath
+  };
+
   static Uint32 getVersion(const Uint32 fileNumber[]);
   static Uint32 getSuffix(const Uint32 fileNumber[]);
 
@@ -168,7 +177,7 @@ class FsOpenReq {
   static void setSuffix(Uint32 fileNumber[], Uint8 val);
 
   /**
-   * V1
+   * V1 - Block
    */
   static Uint32 v1_getDisk(const Uint32 fileNumber[]);
   static Uint32 v1_getTable(const Uint32 fileNumber[]);
@@ -217,6 +226,12 @@ class FsOpenReq {
   static void v5_setLcpNo(Uint32 fileNumber[], Uint32 no);
   static void v5_setTableId(Uint32 fileNumber[], Uint32 no);
   static void v5_setFragmentId(Uint32 fileNumber[], Uint32 no);
+
+  /**
+   * V6 - Basepath
+   */
+  static Uint32 v6_getBasePath(const Uint32 fileNumber[]);
+  static void v6_setBasePath(Uint32 fileNumber[], Uint32 no);
 };
 
 DECLARE_SIGNAL_SCOPE(GSN_FSOPENREQ, Local);
@@ -398,6 +413,14 @@ inline Uint32 FsOpenReq::v5_getFragmentId(const Uint32 fileNumber[]) {
 
 inline void FsOpenReq::v5_setFragmentId(Uint32 fileNumber[], Uint32 val) {
   fileNumber[2] = val;
+}
+
+inline Uint32 FsOpenReq::v6_getBasePath(const Uint32 fileNumber[]) {
+  return fileNumber[1];
+}
+
+inline void FsOpenReq::v6_setBasePath(Uint32 fileNumber[], Uint32 val) {
+  fileNumber[1] = val;
 }
 
 #undef JAM_FILE_ID

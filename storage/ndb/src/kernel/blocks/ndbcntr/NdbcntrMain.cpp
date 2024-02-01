@@ -4946,21 +4946,21 @@ void Ndbcntr::clearFilesystem(Signal *signal) {
   const Uint32 DD = CLEAR_DX + CLEAR_LCP + CLEAR_DD;
 
   if (c_fsRemoveCount < DX) {
-    FsOpenReq::setVersion(req->fileNumber, 3);
+    FsOpenReq::setVersion(req->fileNumber, FsOpenReq::V_DISK);
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);  // Can by any...
     FsOpenReq::v1_setDisk(req->fileNumber, c_fsRemoveCount);
   } else if (c_fsRemoveCount < LCP) {
-    FsOpenReq::setVersion(req->fileNumber, 5);
+    FsOpenReq::setVersion(req->fileNumber, FsOpenReq::V_LCP);
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
     FsOpenReq::v5_setLcpNo(req->fileNumber, c_fsRemoveCount - CLEAR_DX);
     FsOpenReq::v5_setTableId(req->fileNumber, 0);
     FsOpenReq::v5_setFragmentId(req->fileNumber, 0);
   } else if (c_fsRemoveCount < DD) {
     req->ownDirectory = 0;
-    FsOpenReq::setVersion(req->fileNumber, 6);
+    FsOpenReq::setVersion(req->fileNumber, FsOpenReq::V_BASEPATH);
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
-    FsOpenReq::v5_setLcpNo(req->fileNumber,
-                           FsOpenReq::BP_DD_DF + c_fsRemoveCount - LCP);
+    FsOpenReq::v6_setBasePath(req->fileNumber,
+                              FsOpenReq::BP_DD_DF + c_fsRemoveCount - LCP);
   } else {
     ndbabort();
   }
@@ -5618,7 +5618,7 @@ void Ndbcntr::open_secretsfile(Signal *signal, Uint32 secretsfile_num,
   req->userReference = reference();
   req->userPointer = SecretsFileOperationRecord::FILE_ID;
 
-  FsOpenReq::setVersion(req->fileNumber, 1);
+  FsOpenReq::setVersion(req->fileNumber, FsOpenReq::V_BLOCK);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_SYSFILE);
   FsOpenReq::v1_setDisk(req->fileNumber, 1);
   FsOpenReq::v1_setTable(req->fileNumber, -1);
@@ -5661,7 +5661,7 @@ void Ndbcntr::open_secretsfile(Signal *signal, Uint32 secretsfile_num,
   req->fileFlags |= FsOpenReq::OM_ENCRYPT_PASSWORD;
 
   LinearSectionPtr lsptr[3];
-  ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+  ndbrequire(FsOpenReq::getVersion(req->fileNumber) != FsOpenReq::V_FILENAME);
   lsptr[FsOpenReq::FILENAME].p = nullptr;
   lsptr[FsOpenReq::FILENAME].sz = 0;
 

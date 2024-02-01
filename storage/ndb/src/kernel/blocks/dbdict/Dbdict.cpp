@@ -1488,7 +1488,7 @@ void Dbdict::openTableFile(Signal *signal, Uint32 fileNo, Uint32 fsConPtr,
     fsOpenReq->fileFlags = FsOpenReq::OM_READONLY;
   }                              // if
   fsOpenReq->fileNumber[3] = 0;  // Initialise before byte changes
-  FsOpenReq::setVersion(fsOpenReq->fileNumber, 1);
+  FsOpenReq::setVersion(fsOpenReq->fileNumber, FsOpenReq::V_BLOCK);
   FsOpenReq::setSuffix(fsOpenReq->fileNumber, FsOpenReq::S_TABLELIST);
   FsOpenReq::v1_setDisk(fsOpenReq->fileNumber, (fileNo + 1));
   FsOpenReq::v1_setTable(fsOpenReq->fileNumber, tableId);
@@ -1790,7 +1790,7 @@ void Dbdict::openSchemaFile(Signal *signal, Uint32 fileNo, Uint32 fsConPtr,
     fsOpenReq->fileFlags = FsOpenReq::OM_READONLY;
   }                              // if
   fsOpenReq->fileNumber[3] = 0;  // Initialise before byte changes
-  FsOpenReq::setVersion(fsOpenReq->fileNumber, 1);
+  FsOpenReq::setVersion(fsOpenReq->fileNumber, FsOpenReq::V_BLOCK);
   FsOpenReq::setSuffix(fsOpenReq->fileNumber, FsOpenReq::S_SCHEMALOG);
   FsOpenReq::v1_setDisk(fsOpenReq->fileNumber, (fileNo + 1));
   FsOpenReq::v1_setTable(fsOpenReq->fileNumber, (Uint32)-1);
