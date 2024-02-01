@@ -492,6 +492,8 @@ The following options may be given as the first argument:
  --keyring-migration-destination=name 
  Keyring plugin or component to which the keys are
  migrated to.
+ --keyring-migration-from-component 
+ Migrate from keyring component to keyring plugin.
  --keyring-migration-host=name 
  Connect to host.
  -p, --keyring-migration-password[=name] 
@@ -1721,6 +1723,7 @@ key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
 keyring-migration-destination (No default value)
+keyring-migration-from-component FALSE
 keyring-migration-host (No default value)
 keyring-migration-port 0
 keyring-migration-source (No default value)

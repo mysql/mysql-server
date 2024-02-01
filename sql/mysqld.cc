@@ -1224,6 +1224,7 @@ bool migrate_connect_options = false;
 uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 bool opt_keyring_migration_to_component = false;
+bool opt_keyring_migration_from_component = false;
 bool opt_persist_sensitive_variables_in_plaintext{true};
 
 #if defined(_WIN32)
@@ -9633,7 +9634,8 @@ int mysqld_main(int argc, char **argv)
                   opt_keyring_migration_destination, opt_keyring_migration_user,
                   opt_keyring_migration_host, opt_keyring_migration_password,
                   opt_keyring_migration_socket, opt_keyring_migration_port,
-                  opt_keyring_migration_to_component)) {
+                  opt_keyring_migration_to_component,
+                  opt_keyring_migration_from_component)) {
         LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
         log_error_dest = "stderr";
         flush_error_log_messages();
@@ -10723,6 +10725,11 @@ struct my_option my_long_early_options[] = {
      "Migrate from keyring plugin to keyring component.",
      &opt_keyring_migration_to_component, &opt_keyring_migration_to_component,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"keyring-migration-from-component", OPT_KEYRING_MIGRATION_FROM_COMPONENT,
+     "Migrate from keyring component to keyring plugin.",
+     &opt_keyring_migration_from_component,
+     &opt_keyring_migration_from_component, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"validate-config", 0,
      "Validate the server configuration specified by the user.",
      &opt_validate_config, &opt_validate_config, nullptr, GET_BOOL, NO_ARG, 0,

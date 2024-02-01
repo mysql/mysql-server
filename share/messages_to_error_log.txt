@@ -12664,6 +12664,12 @@ ER_SERVER_DOWNGRADE_SYS_SCHEMA
 ER_SERVER_DOWNGRADE_HELP_TABLE_STATUS
   eng "Downgrade of help tables %s."
 
+ER_KEYRING_MIGRATE_SKIPPED_KEY
+  eng "Could not find data pointed by data_id: %s, auth_id: %s. Skipping."
+
+ER_KEYRING_MIGRATE_MEMORY_DEALLOCATION_FAILED
+  eng "Failed to deallocate reader_object."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
