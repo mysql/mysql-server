@@ -929,8 +929,6 @@ void Gtid_state::update_gtids_impl_own_anonymous(THD *thd, bool *more_trx) {
     See comment for the update_gtids_impl_begin function.
   */
   if (opt_bin_log) {
-    // Needed before is_binlog_cache_empty.
-    thd->binlog_setup_trx_data();
     if (!thd->is_binlog_cache_empty(true)) {
       *more_trx = true;
       DBUG_PRINT("info", ("Transaction cache is non-empty: setting "
