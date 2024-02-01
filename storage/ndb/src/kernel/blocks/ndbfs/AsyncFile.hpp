@@ -159,7 +159,7 @@ class AsyncFile {
   static constexpr Uint64 odirect_set_log_suppress_period_s =
       4 * 60 * 60;  // 4 hours in seconds
   struct odirect_set_log_state {
-    std::atomic<NDB_TICKS> last_warning;
+    std::atomic<NDB_TICKS> last_warning = NDB_TICKS{0};
     std::atomic<Uint32> failures = 0;
     std::atomic<Uint32> successes = 0;
   };
