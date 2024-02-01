@@ -2222,21 +2222,44 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
 
 /// Find (via a multiple equality) and return a constant that should replace
 /// "item". If no such constant is found, return "item".
-Item *GetSubstitutionConst(Item *item) {
-  if (item->type() != Item_field::FIELD_ITEM) return item;
-  Item_equal *equal = down_cast<Item_field *>(item)->item_equal;
+Item *GetSubstitutionConst(Item_field *item, Item_func *parent_func) {
+  Item_equal *equal = item->item_equal;
   if (equal == nullptr) return item;
   Item *const_item = equal->const_arg();
-  if (const_item == nullptr || !item->has_compatible_context(const_item))
+  if (const_item == nullptr || !item->has_compatible_context(const_item) ||
+      !parent_func->allow_replacement(item, const_item))
     return item;
   return equal->const_arg();
 }
 
 /// Replace fields with constants in "cond".
 Item *PropagateConstants(Item *cond) {
+  // While walking down the item tree, maintain a stack of pointers to enclosing
+  // functions, so that the visitor can access the parent function.
+  Prealloced_array<Item_func *, 10> stack(PSI_NOT_INSTRUMENTED);
+
+  // Find all Item_fields in the condition and see if they can be replaced with
+  // a constant item.
   return CompileItem(
-      cond, [](Item *) { return true; },
-      [](Item *item) { return GetSubstitutionConst(item); });
+      cond,
+      [&stack](Item *item) {
+        if (item->type() == Item::FUNC_ITEM) {
+          stack.push_back(down_cast<Item_func *>(item));
+        }
+        return true;
+      },
+      [&stack](Item *item) -> Item * {
+        switch (item->type()) {
+          case Item::FUNC_ITEM:
+            stack.pop_back();
+            return item;
+          case Item::FIELD_ITEM:
+            return GetSubstitutionConst(down_cast<Item_field *>(item),
+                                        stack.back());
+          default:
+            return item;
+        }
+      });
 }
 
 /// Find (via a multiple equality) a field that should replace "item". If no
@@ -2255,8 +2278,8 @@ Item_field *GetSubstitutionField(Item_field *item, Item_func *parent,
 
   for (Item_field &subst_field : item_equal->get_fields()) {
     if (IsSubset(subst_field.used_tables(), allowed_tables) &&
-        parent->allow_replacement(item, &subst_field) &&
-        item->has_compatible_context(&subst_field)) {
+        item->has_compatible_context(&subst_field) &&
+        parent->allow_replacement(item, &subst_field)) {
       return &subst_field;
     }
   }
