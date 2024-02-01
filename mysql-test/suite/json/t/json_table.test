@@ -1,3 +1,4 @@
+--source include/elide_costs.inc
 # For stable statistics
 --source include/have_innodb_16k.inc
 --echo # 
@@ -1533,3 +1534,26 @@ SELECT * FROM JSON_TABLE('[1, 2]', '$' COLUMNS (
 --echo #
 --error ER_OPERAND_COLUMNS
 SELECT 1 FROM JSON_TABLE(ROW(1, 2), '$' COLUMNS (o FOR ORDINALITY)) AS jt;
+
+--echo #
+--echo # Bug#36130806 EstimateDeleteRowsCost()
+--echo # Assertion failed: val >= 0.0 || val == kUnknownCost
+--echo #
+
+CREATE TABLE t (c0 INT PRIMARY KEY);
+
+INSERT INTO t VALUES (1),(2);
+
+ANALYZE TABLE t;
+
+# Do a 'delete' using a subquery with a table function.
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN FORMAT=TREE DELETE FROM t WHERE EXISTS
+(
+  SELECT a FROM json_table('[{"a":"3"}]','$[0].a'
+  COLUMNS( a FOR ORDINALITY)
+ ) as q
+);
+
+DROP TABLE t;

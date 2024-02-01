@@ -1765,6 +1765,8 @@ static AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab,
     table_path = NewMaterializedTableFunctionAccessPath(
         thd, qep_tab->table(), qep_tab->table_ref->table_function,
         qep_tab->access_path());
+
+    CopyBasicProperties(*qep_tab->access_path(), table_path);
   } else if (qep_tab->materialize_table == QEP_TAB::MATERIALIZE_SEMIJOIN) {
     Semijoin_mat_exec *sjm = qep_tab->sj_mat_exec();
 
