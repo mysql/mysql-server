@@ -205,7 +205,17 @@ void Hash_duplicates::erase(const Cursor &target) {
   m_hash_table.erase(target.hash_iterator());
 }
 
-void Hash_duplicates::truncate() { m_hash_table.clear(); }
+void Hash_duplicates::truncate() {
+  /* If the index is truncated repeatedly (For instance : Query_expression
+  empties the temporary tables frequently) then clearing the container may
+  take noticeable time. This may happen because clear() may not deallocate
+  the internal hash buckets immediately, instead it memset(s) them to 0.
+  Usually buckets are deallocated when the container is destroyed.
+  Therefore, avoid calling clear() when it is not required. */
+  if (!m_hash_table.empty()) {
+    m_hash_table.clear();
+  }
+}
 
 Cursor Hash_duplicates::begin() const { return Cursor(m_hash_table.begin()); }
 
@@ -264,7 +274,17 @@ void Hash_unique::erase(const Cursor &target) {
   m_hash_table.erase(target.hash_iterator());
 }
 
-void Hash_unique::truncate() { m_hash_table.clear(); }
+void Hash_unique::truncate() {
+  /* If the index is truncated repeatedly (For instance : Query_expression
+  empties the temporary tables frequently) then clearing the container may
+  take noticeable time. This may happen because clear() may not deallocate
+  the internal hash buckets immediately, instead it memset(s) them to 0.
+  Usually buckets are deallocated when the container is destroyed.
+  Therefore, avoid calling clear() when it is not required. */
+  if (!m_hash_table.empty()) {
+    m_hash_table.clear();
+  }
+}
 
 Cursor Hash_unique::begin() const { return Cursor(m_hash_table.begin()); }
 
