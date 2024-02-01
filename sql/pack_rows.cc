@@ -188,7 +188,9 @@ static size_t CalculateColumnStorageSize(const Column &column) {
     // does not include the size of the length variable for blob types, so we
     // have to add that ourselves.
     const Field_blob *field_blob = down_cast<const Field_blob *>(column.field);
-    return field_blob->data_length() + field_blob->pack_length_no_ptr();
+    return field_blob->is_null()
+               ? 0
+               : field_blob->data_length() + field_blob->pack_length_no_ptr();
   }
 
   return column.field->max_data_length();
