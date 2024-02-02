@@ -33,6 +33,7 @@
 
 #include "map_helpers.h"  // mem_root_unordered_map
 #include "my_alloc.h"     // MEM_ROOT
+#include "my_compiler.h"
 
 #include "sql/histograms/histogram.h"
 #include "sql/psi_memory_key.h"
@@ -128,6 +129,8 @@ void Table_histograms_collection::release(const Table_histograms *histograms) {
   }
 }
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(28020)
 bool Table_histograms_collection::insert(Table_histograms *histograms) {
   size_t i = 0;
   while (m_table_histograms[i] != nullptr) {
@@ -145,6 +148,7 @@ bool Table_histograms_collection::insert(Table_histograms *histograms) {
   m_current_index = i;
   return false;
 }
+MY_COMPILER_DIAGNOSTIC_POP()
 
 size_t Table_histograms_collection::size() const {
   size_t size = 0;
