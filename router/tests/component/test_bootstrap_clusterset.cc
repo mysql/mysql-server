@@ -569,7 +569,7 @@ TEST_P(ClusterSetBootstrapParamsErrorTest, ClusterSetBootstrapParamsError) {
   cs_options.tracefile = "bootstrap_clusterset.js";
   create_clusterset(cs_options);
 
-  std::vector<std::string> bootsrtap_params{
+  std::vector<std::string> bootstrap_params{
       "--bootstrap=127.0.0.1:" +
           std::to_string(cs_options.topology.clusters[bootstrap_cluster_id]
                              .nodes[bootstrap_node_id]
@@ -579,11 +579,11 @@ TEST_P(ClusterSetBootstrapParamsErrorTest, ClusterSetBootstrapParamsError) {
       bootstrap_directory.name(),
   };
 
-  bootsrtap_params.insert(bootsrtap_params.end(),
+  bootstrap_params.insert(bootstrap_params.end(),
                           GetParam().bootstrap_params.begin(),
                           GetParam().bootstrap_params.end());
 
-  auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_FAILURE);
+  auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_FAILURE);
 
   // verify that appropriate message was logged
 
@@ -740,7 +740,7 @@ TEST_P(ClusterSetBootstrapClusterNotFoundErrorTest,
   cs_options.simulate_cluster_not_found = true;
   create_clusterset(cs_options);
 
-  std::vector<std::string> bootsrtap_params{
+  std::vector<std::string> bootstrap_params{
       "--bootstrap=127.0.0.1:" +
           std::to_string(cs_options.topology.clusters[bootstrap_cluster_id]
                              .nodes[bootstrap_node_id]
@@ -750,11 +750,11 @@ TEST_P(ClusterSetBootstrapClusterNotFoundErrorTest,
       bootstrap_directory.name(),
   };
 
-  bootsrtap_params.insert(bootsrtap_params.end(),
+  bootstrap_params.insert(bootstrap_params.end(),
                           GetParam().bootstrap_params.begin(),
                           GetParam().bootstrap_params.end());
 
-  auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_FAILURE);
+  auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_FAILURE);
 
   // verify that appropriate message was logged
 
@@ -854,7 +854,7 @@ TEST_F(RouterClusterSetBootstrapTest, ClusterSetBootstrapNoPrimaryError) {
   cs_options.tracefile = "bootstrap_clusterset.js";
   create_clusterset(cs_options);
 
-  std::vector<std::string> bootsrtap_params{
+  std::vector<std::string> bootstrap_params{
       "--bootstrap=127.0.0.1:" +
           std::to_string(cs_options.topology.clusters[0].nodes[0].classic_port),
       "--connect-timeout=1",
@@ -864,7 +864,7 @@ TEST_F(RouterClusterSetBootstrapTest, ClusterSetBootstrapNoPrimaryError) {
       "primary",
   };
 
-  auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_FAILURE);
+  auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_FAILURE);
 
   // verify that appropriate message was logged
   EXPECT_NO_THROW(router.wait_for_exit());

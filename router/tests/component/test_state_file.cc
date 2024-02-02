@@ -1039,7 +1039,7 @@ class StateFileDirectoryBootstrapTest : public StateFileTest {
 TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   TempDirectory temp_test_dir;
 
-  SCOPED_TRACE("// Launch our metadata server we bootsrtap against");
+  SCOPED_TRACE("// Launch our metadata server we bootstrap against");
 
   const auto trace_file = get_data_dir().join("bootstrap_gr.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();
@@ -1097,7 +1097,7 @@ class StateFileSystemBootstrapTest : public StateFileTest,
  * in case of system (non-directory) bootstrap.
  */
 TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
-  SCOPED_TRACE("// Launch our metadata server we bootsrtap against");
+  SCOPED_TRACE("// Launch our metadata server we bootstrap against");
 
   const auto trace_file = get_data_dir().join("bootstrap_gr.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();

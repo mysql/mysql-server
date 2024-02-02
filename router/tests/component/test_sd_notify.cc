@@ -910,7 +910,7 @@ class NotifyBootstrapNotAffectedTest
 TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
   TempDirectory temp_test_dir;
 
-  SCOPED_TRACE("// Launch our metadata server we bootsrtap against");
+  SCOPED_TRACE("// Launch our metadata server we bootstrap against");
   const auto trace_file = get_data_dir().join("bootstrap_gr.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();
   /*auto &md_server =*/ProcessManager::launch_mysql_server_mock(

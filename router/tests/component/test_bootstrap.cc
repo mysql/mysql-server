@@ -2889,12 +2889,12 @@ TEST_P(BootstrapChangeAuthPluginTest, Spec) {
     MockServerRestClient(http_port).set_globals(server_globals);
   }
 
-  std::vector<std::string> bootsrtap_params{
+  std::vector<std::string> bootstrap_params{
       "--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
       bootstrap_directory.name()};
 
   // launch the router in bootstrap mode
-  auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_SUCCESS);
+  auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_SUCCESS);
 
   check_exit_code(router, EXIT_SUCCESS);
 
