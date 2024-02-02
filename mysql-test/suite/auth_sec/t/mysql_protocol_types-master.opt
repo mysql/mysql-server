@@ -1,1 +1,1 @@
---local-infile=true
+--local-infile=true --loose-mysqlx=0

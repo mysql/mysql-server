@@ -67,7 +67,7 @@ Ssl_context_builder::get_mysqld_ssl_config() const {
     }
   } catch (const ngs::Error_code &DEBUG_VAR(e)) {
     log_debug(
-        "Can't get 'mysql_main' tls channels state - error: %i, messate: %s",
+        "Can't get 'mysql_main' tls channels state - error: %i, message: %s",
         e.error, e.message.c_str());
   }
 
