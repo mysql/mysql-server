@@ -116,6 +116,16 @@ MYSQL_ADD_PLUGIN(myisam ha_myisam.cc
 # Exclude myisam from PGO on Windows to avoid linker error LNK1248
 EXCLUDE_FROM_MSVC_PGO(myisam)
 
+# mtr tests are failing for RelWithDebInfo builds with Visual Studio 2022.
+# Disabling /O2 for this file fixes it.
+# Looks like a compiler bug, possibly some bad inlining of static functions?
+IF(MSVC AND MSVC_VERSION GREATER 1930)
+  ADD_COMPILE_FLAGS(
+    mi_delete.cc
+    COMPILE_FLAGS "/Od"
+    )
+ENDIF()
+
 DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.cc
