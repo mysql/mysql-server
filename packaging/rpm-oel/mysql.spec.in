@@ -1512,7 +1512,6 @@ fi
 %attr(755, root, root) %{_bindir}/my_openssl
 %endif # with_openssl3_fips
 %attr(755, root, root) %{_bindir}/comp_err
-%attr(755, root, root) %{_bindir}/i_mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_keyring_encryption_test
 %attr(755, root, root) %{_bindir}/mysql_test_event_tracking

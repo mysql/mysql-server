@@ -2933,11 +2933,10 @@ sub mysqldump_arguments ($) {
   return mtr_args2str($exe, @$args);
 }
 
-sub mysql_client_test_arguments($) {
-  my $client_name = shift;
+sub mysql_client_test_arguments() {
   my $exe;
   # mysql_client_test executable may _not_ exist
-  $exe = mtr_exe_maybe_exists("$path_client_bindir/$client_name");
+  $exe = mtr_exe_maybe_exists("$path_client_bindir/mysql_client_test");
   return "" unless $exe;
 
   my $args;
@@ -2949,7 +2948,7 @@ sub mysql_client_test_arguments($) {
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--testcase");
   mtr_add_arg($args, "--vardir=$opt_vardir");
-  client_debug_arg($args, "$client_name");
+  client_debug_arg($args, "mysql_client_test");
 
   return mtr_args2str($exe, @$args);
 }
@@ -3290,8 +3289,7 @@ sub environment_setup {
   $ENV{'MYSQL_OPTIONS'}       = substr($mysql_cmd, index($mysql_cmd, " "));
   $ENV{'MYSQL_BINLOG'}        = client_arguments("mysqlbinlog");
   $ENV{'MYSQL_CHECK'}         = client_arguments("mysqlcheck");
-  $ENV{'MYSQL_CLIENT_TEST'}   = mysql_client_test_arguments("mysql_client_test");
-  $ENV{'I_MYSQL_CLIENT_TEST'} = mysql_client_test_arguments("i_mysql_client_test");
+  $ENV{'MYSQL_CLIENT_TEST'}   = mysql_client_test_arguments();
   $ENV{'MYSQL_DUMP'}          = mysqldump_arguments(".1");
   $ENV{'MYSQL_DUMP_SLAVE'}    = mysqldump_arguments(".2");
   $ENV{'MYSQL_IMPORT'}        = client_arguments("mysqlimport");
