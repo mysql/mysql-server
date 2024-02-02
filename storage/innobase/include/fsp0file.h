@@ -408,10 +408,8 @@ class Datafile {
 
   /** Reads a few significant fields from the first page of the
   datafile, which must already be open.
-  @param[in]    read_only_mode  If true, then readonly mode checks
-                                  are enforced.
   @return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
-  [[nodiscard]] dberr_t read_first_page(bool read_only_mode);
+  [[nodiscard]] dberr_t read_first_page();
 
   /** Free the first page from memory when it is no longer needed. */
   void free_first_page();
