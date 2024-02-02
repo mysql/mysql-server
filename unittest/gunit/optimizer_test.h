@@ -190,7 +190,7 @@ inline void ResolveQueryBlock(
   // Also in any conditions and subqueries within the WHERE condition.
   if (query_block->where_cond() != nullptr) {
     WalkItem(query_block->where_cond(), enum_walk::POSTFIX, [&](Item *item) {
-      if (item->type() == Item::SUBSELECT_ITEM &&
+      if (item->type() == Item::SUBQUERY_ITEM &&
           down_cast<Item_subselect *>(item)->subquery_type() ==
               Item_subselect::IN_SUBQUERY) {
         Item_in_subselect *item_subselect =

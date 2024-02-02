@@ -314,7 +314,7 @@ string HashJoinTypeToString(RelationalExpression::Type join_type,
 static bool AddSubqueryPaths(const Item *item_arg, const char *source_text,
                              vector<ExplainChild> *children) {
   const auto add_subqueries = [children, source_text](const Item *item) {
-    if (item->type() != Item::SUBSELECT_ITEM) {
+    if (item->type() != Item::SUBQUERY_ITEM) {
       return false;
     }
 

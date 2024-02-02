@@ -131,7 +131,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
 
   DBUG_TRACE;
 
-  if (expr->type() == Item::SUBSELECT_ITEM) {
+  if (expr->type() == Item::SUBQUERY_ITEM) {
     Item_subselect *expr2 = (Item_subselect *)expr;
 
     if (expr2->subquery_type() == Item_subselect::SCALAR_SUBQUERY) {

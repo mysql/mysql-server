@@ -461,20 +461,16 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
 
       [[fallthrough]];
     case Item::COND_ITEM:
-    case Item::FIELD_AVG_ITEM:
-    case Item::FIELD_BIT_ITEM:
-    case Item::FIELD_STD_ITEM:
-    case Item::FIELD_VARIANCE_ITEM:
-    case Item::SUBSELECT_ITEM:
+    case Item::AGGR_FIELD_ITEM:
+    case Item::SUBQUERY_ITEM:
       /* The following can only happen with 'CREATE TABLE ... SELECT' */
-    case Item::PROC_ITEM:
     case Item::INT_ITEM:
     case Item::REAL_ITEM:
     case Item::DECIMAL_ITEM:
     case Item::STRING_ITEM:
     case Item::REF_ITEM:
     case Item::NULL_ITEM:
-    case Item::VARBIN_ITEM:
+    case Item::HEX_BIN_ITEM:
     case Item::PARAM_ITEM:
     case Item::SUM_FUNC_ITEM:
       if (type == Item::SUM_FUNC_ITEM && !is_wf) {
@@ -495,7 +491,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         }
       }
       break;
-    case Item::TYPE_HOLDER:
+    case Item::TYPE_HOLDER_ITEM:
       result = down_cast<Item_aggregate_type *>(item)->make_field_by_type(
           table, thd->is_strict_mode());
       break;
@@ -1035,7 +1031,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     if (not_all_columns) {
       if (item->has_aggregation() && type != Item::SUM_FUNC_ITEM) {
         if (item->is_outer_reference()) item->update_used_tables();
-        if (type == Item::SUBSELECT_ITEM ||
+        if (type == Item::SUBQUERY_ITEM ||
             (item->used_tables() & ~OUTER_REF_TABLE_BIT)) {
           /*
             Mark that we have ignored an item that refers to a summary

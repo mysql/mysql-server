@@ -2389,7 +2389,7 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
              (type() != REF_ITEM ||                                   // (2)
               down_cast<Item_ref *>(this)->ref_type() ==              //
                   Item_ref::VIEW_REF) &&                              //
-             (type() != SUBSELECT_ITEM ||                             // (3)
+             (type() != SUBQUERY_ITEM ||                              // (3)
               (down_cast<Item_subselect *>(this)->subquery_type() ==  //
                    Item_subselect::SCALAR_SUBQUERY &&
                down_cast<Item_subselect *>(this)
@@ -6593,7 +6593,7 @@ Field *Item::make_string_field(TABLE *table) const {
     field = new (*THR_MALLOC) Field_blob(
         max_length, m_nullable, item_name.ptr(), collation.collation, true);
   /* Item_type_holder holds the exact type, do not change it */
-  else if (type() != Item::TYPE_HOLDER || data_type() != MYSQL_TYPE_STRING)
+  else if (type() != Item::TYPE_HOLDER_ITEM || data_type() != MYSQL_TYPE_STRING)
     field = new (*THR_MALLOC) Field_varstring(
         max_length, m_nullable, item_name.ptr(), table->s, collation.collation);
   else
@@ -6703,7 +6703,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
-      if (this->type() == Item::TYPE_HOLDER)
+      if (this->type() == Item::TYPE_HOLDER_ITEM)
         field = new (*THR_MALLOC) Field_blob(
             max_length, m_nullable, item_name.ptr(), collation.collation, true);
       else
@@ -7731,7 +7731,7 @@ bool Item::cache_const_expr_analyzer(uchar **arg) {
     */
     if (const_for_execution() &&
         !(basic_const_item() || item->basic_const_item() ||
-          item->type() == Item::FIELD_ITEM || item->type() == SUBSELECT_ITEM ||
+          item->type() == Item::FIELD_ITEM || item->type() == SUBQUERY_ITEM ||
           item->type() == ROW_ITEM || item->type() == CACHE_ITEM ||
           item->type() == PARAM_ITEM))
       /*
@@ -10439,7 +10439,7 @@ bool Item_cache_row::cache_value() {
   null_value = example->null_value;
 
   const bool cached_item_is_assigned =
-      example->type() != SUBSELECT_ITEM ||
+      example->type() != SUBQUERY_ITEM ||
       down_cast<Item_subselect *>(example)->is_value_assigned();
 
   for (uint i = 0; i < item_count; i++) {

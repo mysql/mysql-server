@@ -1178,7 +1178,7 @@ class Item_avg_field : public Item_sum_num_field {
   uint f_precision, f_scale, dec_bin_size;
   uint prec_increment;
   Item_avg_field(Item_result res_type, Item_sum_avg *item);
-  enum Type type() const override { return FIELD_AVG_ITEM; }
+  enum Type type() const override { return AGGR_FIELD_ITEM; }
   double val_real() override;
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *) override;
@@ -1204,7 +1204,7 @@ class Item_sum_bit_field : public Item_sum_hybrid_field {
   bool resolve_type(THD *) override { return false; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
-  enum Type type() const override { return FIELD_BIT_ITEM; }
+  enum Type type() const override { return AGGR_FIELD_ITEM; }
   const char *func_name() const override {
     assert(0);
     return "sum_bit_field";
@@ -1360,7 +1360,7 @@ class Item_variance_field : public Item_sum_num_field {
 
  public:
   Item_variance_field(Item_sum_variance *item);
-  enum Type type() const override { return FIELD_VARIANCE_ITEM; }
+  enum Type type() const override { return AGGR_FIELD_ITEM; }
   double val_real() override;
   String *val_str(String *str) override { return val_string_from_real(str); }
   my_decimal *val_decimal(my_decimal *dec_buf) override {
@@ -1494,7 +1494,7 @@ class Item_sum_std;
 class Item_std_field final : public Item_variance_field {
  public:
   Item_std_field(Item_sum_std *item);
-  enum Type type() const override { return FIELD_STD_ITEM; }
+  enum Type type() const override { return AGGR_FIELD_ITEM; }
   double val_real() override;
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return REAL_RESULT; }

@@ -376,7 +376,7 @@ bool Item_singlerow_subselect::fix_fields(THD *thd, Item **ref) {
     if (item_name.is_set()) {
       single_field->item_name = item_name;
     }
-    if (single_field->type() == SUBSELECT_ITEM) {
+    if (single_field->type() == SUBQUERY_ITEM) {
       Item_subselect *subs = down_cast<Item_subselect *>(single_field);
       subs->query_expr()->set_explain_marker_from(thd, query_expr());
     }
@@ -433,7 +433,7 @@ bool Item_in_subselect::mark_as_outer(Item *left_row, size_t col) {
   const Item *left_col = left_row->element_index(col);
   return !left_col->const_item() ||
          (!abort_on_null && left_col->is_nullable()) ||
-         (left_row->type() == SUBSELECT_ITEM && !left_col->basic_const_item());
+         (left_row->type() == SUBQUERY_ITEM && !left_col->basic_const_item());
 }
 
 bool Item_in_subselect::finalize_exists_transform(THD *thd,
@@ -835,7 +835,7 @@ bool Item_in_subselect::exec(THD *thd) {
   return Item_subselect::exec(thd);
 }
 
-Item::Type Item_subselect::type() const { return SUBSELECT_ITEM; }
+Item::Type Item_subselect::type() const { return SUBQUERY_ITEM; }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg) {
   DBUG_TRACE;
@@ -1648,7 +1648,7 @@ bool Item_exists_subselect::is_derived_candidate(THD *thd) {
       (left_expr == nullptr || !left_expr->is_non_deterministic()) &&  //  8
       choose_semijoin_or_antijoin() &&                                 //  9
       !(left_expr != nullptr &&                                        // 10
-        left_expr->type() == Item::SUBSELECT_ITEM &&                   // 10
+        left_expr->type() == Item::SUBQUERY_ITEM &&                    // 10
         left_expr->cols() > 1) &&                                      // 10
       !thd->lex->m_subquery_to_derived_is_impossible) {                // 11
     return true;
@@ -2754,7 +2754,7 @@ bool Item_in_subselect::init_left_expr_cache(THD *thd) {
     If so, skip initializing a cache; for an empty set the subquery
     exec won't read any rows and so lead to uninitialized reads if attempted.
   */
-  if (left_expr->type() == SUBSELECT_ITEM && left_expr->null_value) {
+  if (left_expr->type() == SUBQUERY_ITEM && left_expr->null_value) {
     return false;
   }
 
@@ -2814,7 +2814,7 @@ std::optional<ContainedSubquery> Item_in_subselect::get_contained_subquery(
 }
 
 bool is_quantified_comp_predicate(Item *item) {
-  if (item->type() != Item::SUBSELECT_ITEM) {
+  if (item->type() != Item::SUBQUERY_ITEM) {
     return false;
   }
   switch (down_cast<Item_subselect *>(item)->subquery_type()) {

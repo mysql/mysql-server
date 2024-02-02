@@ -87,7 +87,7 @@ class Service_visitor : public Select_lex_visitor {
       case Item::DECIMAL_ITEM:
       case Item::REAL_ITEM:
       case Item::NULL_ITEM:
-      case Item::VARBIN_ITEM:
+      case Item::HEX_BIN_ITEM:
       case Item::CACHE_ITEM:
         return m_processor(item, m_arg);
       default:

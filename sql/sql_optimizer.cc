@@ -11551,7 +11551,7 @@ static double EstimateRowAccessesInNestedLoopJoin(const AccessPath *join_path,
 static double EstimateRowAccessesInItem(Item *item, double num_evaluations) {
   double rows = 0.0;
   WalkItem(item, enum_walk::PREFIX, [num_evaluations, &rows](Item *subitem) {
-    if (subitem->type() == Item::SUBSELECT_ITEM) {
+    if (subitem->type() == Item::SUBQUERY_ITEM) {
       Item_subselect *subselect = down_cast<Item_subselect *>(subitem);
       Query_expression *qe = subselect->query_expr();
       Query_block *query_block = qe->first_query_block();

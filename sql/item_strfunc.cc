@@ -3032,7 +3032,7 @@ String *Item_func_conv::val_str(String *str) {
 
   longlong dec;
   if (args[0]->data_type() == MYSQL_TYPE_BIT ||
-      args[0]->type() == VARBIN_ITEM) {
+      args[0]->type() == HEX_BIN_ITEM) {
     /*
      Special case: The string representation of BIT doesn't resemble the
      decimal representation, so we shouldn't change it to string and then to

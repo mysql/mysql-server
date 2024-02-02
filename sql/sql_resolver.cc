@@ -2702,7 +2702,7 @@ static bool build_sj_exprs(THD *thd, mem_root_deque<Item *> *sj_outer_exprs,
     (SELECT 1,2 FROM t1) = (x,y) in this case.
   */
   Item_subselect *left_subquery =
-      (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM)
+      (in_subq_pred->left_expr->type() == Item::SUBQUERY_ITEM)
           ? static_cast<Item_subselect *>(in_subq_pred->left_expr)
           : nullptr;
 
@@ -4724,7 +4724,7 @@ bool WalkAndReplace(
         return true;
       }
     }
-  } else if (item->type() == Item::SUBSELECT_ITEM) {
+  } else if (item->type() == Item::SUBQUERY_ITEM) {
     const Item_subselect::Subquery_type subquery_type =
         down_cast<Item_subselect *>(item)->subquery_type();
     if (subquery_type == Item_subselect::IN_SUBQUERY ||
@@ -7587,7 +7587,7 @@ bool Query_block::transform_subquery_to_derived(
 static std::pair<bool, bool> item_containing_non_correlated_field(Item *item) {
   const Item::Type typ = item->real_item()->type();
   if (typ == Item::FIELD_ITEM) return {true, false};
-  if (typ == Item::SUBSELECT_ITEM) return {false, true};
+  if (typ == Item::SUBQUERY_ITEM) return {false, true};
   if (typ != Item::FUNC_ITEM) return {false, false};
   Item_func *f = down_cast<Item_func *>(item->real_item());
   if (f->is_non_deterministic()) return {false, true};

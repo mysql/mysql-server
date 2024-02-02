@@ -5205,7 +5205,7 @@ bool Item_func_in::resolve_type(THD *thd) {
     if (!(*arg)->const_for_execution()) {
       m_values_are_const = false;
       // @todo - rewrite as has_subquery() ???
-      if ((*arg)->real_item()->type() == Item::SUBSELECT_ITEM)
+      if ((*arg)->real_item()->type() == Item::SUBQUERY_ITEM)
         dep_subq_in_list = true;
       break;
     } else {

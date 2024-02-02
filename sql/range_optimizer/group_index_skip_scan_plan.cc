@@ -1246,7 +1246,7 @@ static bool check_group_min_max_predicates(Item *cond,
     Need to handle subselect in min_max_inspect_cond_for_fields() once this
     is fixed.
   */
-  if (cond_type == Item::SUBSELECT_ITEM) return false;
+  if (cond_type == Item::SUBQUERY_ITEM) return false;
 
   /*
     Condition of the form 'field' is equivalent to 'field <> 0' and thus

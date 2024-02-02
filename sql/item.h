@@ -966,36 +966,29 @@ class Item : public Parse_tree_node {
                               const std::nothrow_t &) noexcept {}
 
   enum Type {
-    INVALID_ITEM = 0,
-    FIELD_ITEM,
-    FUNC_ITEM,
-    SUM_FUNC_ITEM,
-    STRING_ITEM,
-    INT_ITEM,
-    REAL_ITEM,
-    NULL_ITEM,
-    VARBIN_ITEM,
-    METADATA_COPY_ITEM,
-    FIELD_AVG_ITEM,
-    DEFAULT_VALUE_ITEM,
-    PROC_ITEM,
-    COND_ITEM,
-    REF_ITEM,
-    FIELD_STD_ITEM,
-    FIELD_VARIANCE_ITEM,
-    INSERT_VALUE_ITEM,
-    SUBSELECT_ITEM,
-    ROW_ITEM,
-    CACHE_ITEM,
-    TYPE_HOLDER,
-    PARAM_ITEM,
-    TRIGGER_FIELD_ITEM,
-    DECIMAL_ITEM,
-    XPATH_NODESET,
-    XPATH_NODESET_CMP,
-    VIEW_FIXER_ITEM,
-    FIELD_BIT_ITEM,
-    VALUES_COLUMN_ITEM
+    INVALID_ITEM,
+    FIELD_ITEM,          ///< A reference to a field (column) in a table.
+    FUNC_ITEM,           ///< A function call reference.
+    SUM_FUNC_ITEM,       ///< A grouped aggregate function, or window function.
+    AGGR_FIELD_ITEM,     ///< A special field for certain aggregate operations.
+    STRING_ITEM,         ///< A string literal value.
+    INT_ITEM,            ///< An integer literal value.
+    DECIMAL_ITEM,        ///< A decimal literal value.
+    REAL_ITEM,           ///< A floating-point literal value.
+    NULL_ITEM,           ///< A NULL value.
+    HEX_BIN_ITEM,        ///< A hexadecimal or binary literal value.
+    DEFAULT_VALUE_ITEM,  ///< A default value for a column.
+    COND_ITEM,           ///< An AND or OR condition.
+    REF_ITEM,            ///< An indirect reference to another item.
+    INSERT_VALUE_ITEM,   ///< A value from a VALUES function (deprecated).
+    SUBQUERY_ITEM,       ///< A subquery or predicate referencing a subquery.
+    ROW_ITEM,            ///< A row of other items.
+    CACHE_ITEM,          ///< An internal item used to cache values.
+    TYPE_HOLDER_ITEM,    ///< An internal item used to help aggregate a type.
+    PARAM_ITEM,          ///< A dynamic parameter used in a prepared statement.
+    TRIGGER_FIELD_ITEM,  ///< An OLD or NEW field, used in trigger definitions.
+    XPATH_NODESET_ITEM,  ///< Used in XPATH expressions.
+    VALUES_COLUMN_ITEM   ///< A value from a VALUES clause.
   };
 
   enum cond_result { COND_UNDEF, COND_OK, COND_TRUE, COND_FALSE };
@@ -5696,7 +5689,7 @@ class Item_blob final : public Item_partition_func_safe_string {
                                         &my_charset_bin) {
     set_data_type(MYSQL_TYPE_BLOB);
   }
-  enum Type type() const override { return TYPE_HOLDER; }
+  enum Type type() const override { return STRING_ITEM; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
@@ -5749,7 +5742,7 @@ class Item_hex_string : public Item_basic_constant {
 
   Item_hex_string(const POS &pos, const LEX_STRING &literal);
 
-  enum Type type() const override { return VARBIN_ITEM; }
+  enum Type type() const override { return HEX_BIN_ITEM; }
   double val_real() override {
     assert(fixed);
     return (double)(ulonglong)Item_hex_string::val_int();
@@ -6477,7 +6470,8 @@ class Item_metadata_copy final : public Item {
     collation.set(item->collation);
   }
 
-  enum Type type() const override { return METADATA_COPY_ITEM; }
+  // This is unused - use same code as type holder item.
+  enum Type type() const override { return TYPE_HOLDER_ITEM; }
   Item_result result_type() const override { return cached_result_type; }
   table_map used_tables() const override { return 1; }
 
@@ -7282,7 +7276,7 @@ class Item_type_holder final : public Item_aggregate_type {
   /// Query_expression::get_unit_column_types() always contains named items.
   Item_type_holder(THD *thd, Item *item) : super(thd, item) {}
 
-  enum Type type() const override { return TYPE_HOLDER; }
+  enum Type type() const override { return TYPE_HOLDER_ITEM; }
 
   double val_real() override;
   longlong val_int() override;

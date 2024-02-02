@@ -236,7 +236,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
     case INT_RESULT:
       break;
     case STRING_RESULT: {
-      if ((*const_val)->type() == Item::VARBIN_ITEM) {
+      if ((*const_val)->type() == Item::HEX_BIN_ITEM) {
         /*
           0x digits have STRING_RESULT but are ints in int
           context.
@@ -470,7 +470,7 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
     0xnnn numbers, which also have STRING result type, but should be treated
     the same as ints.
   */
-  if (ir == STRING_RESULT && (*const_val)->type() != Item::VARBIN_ITEM) {
+  if (ir == STRING_RESULT && (*const_val)->type() != Item::HEX_BIN_ITEM) {
     was_string_or_real = true;
     ir = DECIMAL_RESULT;
   }
@@ -1337,9 +1337,9 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
         [1] See `create_tmp_field_from_item' case INT_RESULT.
       */
       seen_field = true;
-    } else if (args[i]->const_for_execution() && type != Item::SUBSELECT_ITEM) {
+    } else if (args[i]->const_for_execution() && type != Item::SUBQUERY_ITEM) {
       /*
-        Re test on Item::SUBSELECT_ITEM above: we exclude optimize time
+        Re test on Item::SUBQUERY_ITEM above: we exclude optimize time
         evaluation of constant subqueries for now; since it could still be
         expensive to evaluate and we have no cost model to decide whether
         folding it would save total time spent. It may turn out not to be

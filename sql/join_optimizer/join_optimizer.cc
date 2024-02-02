@@ -2523,7 +2523,7 @@ bool ContainsSubqueries(Item *item_arg) {
   // Nearly the same as item_arg->has_subquery(), but different for
   // Item_func_not_all, which we currently do not support.
   return WalkItem(item_arg, enum_walk::POSTFIX, [](Item *item) {
-    return item->type() == Item::SUBSELECT_ITEM;
+    return item->type() == Item::SUBQUERY_ITEM;
   });
 }
 

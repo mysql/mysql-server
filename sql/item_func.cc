@@ -581,7 +581,7 @@ inline bool param_type_uses_non_param_inner(THD *thd, uint arg_count,
           return false;
         if (args[j]->type() == Item::ROW_ITEM)
           arguments[j] = down_cast<Item_row *>(args[j])->element_index(i);
-        else if (args[j]->type() == Item::SUBSELECT_ITEM)
+        else if (args[j]->type() == Item::SUBQUERY_ITEM)
           arguments[j] = (*down_cast<Item_subselect *>(args[j])
                                ->query_expr()
                                ->get_unit_column_types())[i];
@@ -952,7 +952,7 @@ const Item_field *Item_func::contributes_to_filter(
   for (uint i = 0; i < arg_count; i++) {
     const Item::Type arg_type = args[i]->real_item()->type();
 
-    if (arg_type == Item::SUBSELECT_ITEM) {
+    if (arg_type == Item::SUBQUERY_ITEM) {
       if (args[i]->const_for_execution()) {
         // Constant subquery, i.e., not a dependent subquery.
         found_comparable = true;
@@ -3279,8 +3279,8 @@ bool Item::bit_func_returns_binary(const Item *a, const Item *b) {
                            b->collation.collation == &my_charset_bin;
 
   return a_is_binary && (!b || b_is_binary) &&
-         ((a->type() != Item::VARBIN_ITEM && a->type() != Item::NULL_ITEM) ||
-          (b && b->type() != Item::VARBIN_ITEM &&
+         ((a->type() != Item::HEX_BIN_ITEM && a->type() != Item::NULL_ITEM) ||
+          (b && b->type() != Item::HEX_BIN_ITEM &&
            b->type() != Item::NULL_ITEM));
 }
 
