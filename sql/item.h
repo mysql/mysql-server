@@ -986,6 +986,7 @@ class Item : public Parse_tree_node {
     CACHE_ITEM,          ///< An internal item used to cache values.
     TYPE_HOLDER_ITEM,    ///< An internal item used to help aggregate a type.
     PARAM_ITEM,          ///< A dynamic parameter used in a prepared statement.
+    ROUTINE_FIELD_ITEM,  ///< A variable inside a routine (proc, func, trigger)
     TRIGGER_FIELD_ITEM,  ///< An OLD or NEW field, used in trigger definitions.
     XPATH_NODESET_ITEM,  ///< Used in XPATH expressions.
     VALUES_COLUMN_ITEM   ///< A value from a VALUES clause.
@@ -3896,9 +3897,6 @@ class Item_splocal final : public Item_sp_variable,
                            private Settable_routine_parameter {
   uint m_var_idx;
 
-  Type m_type;
-  Item_result m_result_type;
-
  public:
   /*
     If this variable is a parameter in LIMIT clause.
@@ -3941,10 +3939,12 @@ class Item_splocal final : public Item_sp_variable,
              enum_query_type query_type) const override;
 
  public:
-  inline uint get_var_idx() const { return m_var_idx; }
+  uint get_var_idx() const { return m_var_idx; }
 
-  inline enum Type type() const override { return m_type; }
-  inline Item_result result_type() const override { return m_result_type; }
+  Type type() const override { return ROUTINE_FIELD_ITEM; }
+  Item_result result_type() const override {
+    return type_to_result(data_type());
+  }
   bool val_json(Json_wrapper *result) override;
 
  private:

@@ -8461,6 +8461,16 @@ begin
   return a;
 end|
 
+--echo # Variables used in LIMIT and OFFSET must be of integer type
+--error ER_PARSE_ERROR
+create function f1() returns integer
+begin
+  declare a integer;
+  declare b, c real;
+  set a = (select count(*) from t1 limit a, b);
+  return a;
+end|
+
 create function f1()
   returns int
 begin

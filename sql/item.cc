@@ -76,7 +76,7 @@
 #include "sql/protocol.h"
 #include "sql/query_options.h"
 #include "sql/select_lex_visitor.h"
-#include "sql/sp.h"           // sp_map_item_type
+#include "sql/sp.h"           // sp_prepare_func_item
 #include "sql/sp_rcontext.h"  // sp_rcontext
 #include "sql/sql_base.h"     // view_ref_found
 #include "sql/sql_bitmap.h"
@@ -1961,10 +1961,7 @@ Item_splocal::Item_splocal(const Name_string sp_var_name, uint sp_var_idx,
       len_in_query(len_in_q) {
   set_nullable(true);
 
-  sp_var_type = real_type_to_type(sp_var_type);
-  m_type = sp_map_item_type(sp_var_type);
-  set_data_type(sp_var_type);
-  m_result_type = sp_map_result_type(sp_var_type);
+  set_data_type(real_type_to_type(sp_var_type));
 }
 
 Item *Item_splocal::this_item() {

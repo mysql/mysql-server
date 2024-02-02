@@ -399,8 +399,6 @@ void sp_finish_parsing(THD *thd);
 
 ///////////////////////////////////////////////////////////////////////////
 
-Item_result sp_map_result_type(enum enum_field_types type);
-Item::Type sp_map_item_type(enum enum_field_types type);
 uint sp_get_flags_for_command(LEX *lex);
 
 bool sp_check_name(LEX_STRING *ident);

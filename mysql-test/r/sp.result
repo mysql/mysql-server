@@ -7344,6 +7344,17 @@ set a = (select count(*) from t1 limit a, b);
 return a;
 end|
 ERROR 42000: Undeclared variable: b
+# Variables used in LIMIT and OFFSET must be of integer type
+create function f1() returns integer
+begin
+declare a integer;
+declare b, c real;
+set a = (select count(*) from t1 limit a, b);
+return a;
+end|
+ERROR 42000: The variable "b" has a non-integer based type near 'b);
+return a;
+end' at line 5
 create function f1()
 returns int
 begin

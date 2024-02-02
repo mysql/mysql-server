@@ -9461,10 +9461,89 @@ DO LEAD(1, 18446744073709551615) OVER();
 ERROR HY000: Incorrect arguments to lead
 DO NTILE(18446744073709551615) OVER();
 ERROR HY000: Incorrect arguments to ntile
-CREATE PROCEDURE p1(n INT) DO NTILE(n) OVER();
+CREATE PROCEDURE p1(n INTEGER) DO NTILE(n) OVER();
 CALL p1(NULL);
 ERROR HY000: Incorrect arguments to ntile
 DROP PROCEDURE p1;
+CREATE PROCEDURE p1(n INTEGER) DO LEAD('x', n) OVER();
+CALL p1(NULL);
+ERROR HY000: Incorrect arguments to lead
+CALL p1(0);
+CALL p1(-1);
+ERROR HY000: Incorrect arguments to lead
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(n INTEGER) DO LAG('x', n) OVER();
+CALL p1(NULL);
+ERROR HY000: Incorrect arguments to lag
+CALL p1(0);
+CALL p1(-1);
+ERROR HY000: Incorrect arguments to lag
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(n DATE) DO NTILE(n) OVER();
+ERROR 42000: The variable "n" has a non-integer based type near 'n) OVER()' at line 1
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE d DATE;
+DO NTILE(d) OVER();
+END
+//
+ERROR 42000: The variable "d" has a non-integer based type near 'd) OVER();
+END' at line 4
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE d DATE;
+DO LEAD('x', d) OVER();
+END
+//
+ERROR 42000: The variable "d" has a non-integer based type near 'd) OVER();
+END' at line 4
+CREATE PROCEDURE p3()
+BEGIN
+DECLARE d DATE;
+DO LAG('x', d) OVER();
+END
+//
+ERROR 42000: The variable "d" has a non-integer based type near 'd) OVER();
+END' at line 4
+CREATE PROCEDURE p1(n INTEGER)
+BEGIN
+DECLARE i INTEGER;
+SET i = n;
+DO NTILE(i) OVER();
+END
+//
+CREATE PROCEDURE p2(n INTEGER)
+BEGIN
+DECLARE i INTEGER;
+SET i = n;
+DO LEAD('x', i) OVER();
+END
+//
+CREATE PROCEDURE p3(n INTEGER)
+BEGIN
+DECLARE i INTEGER;
+SET i = n;
+DO LAG('x', i) OVER();
+END
+//
+CALL p1(NULL);
+ERROR HY000: Incorrect arguments to ntile
+CALL p1(0);
+ERROR HY000: Incorrect arguments to ntile
+CALL p1(1);
+CALL p2(NULL);
+ERROR HY000: Incorrect arguments to lead
+CALL p2(0);
+CALL p2(-1);
+ERROR HY000: Incorrect arguments to lead
+CALL p3(NULL);
+ERROR HY000: Incorrect arguments to lag
+CALL p3(0);
+CALL p3(-1);
+ERROR HY000: Incorrect arguments to lag
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
 SET @v = NULL;
 PREPARE stmt FROM 'DO NTILE(?) OVER()';
 EXECUTE stmt USING @v;

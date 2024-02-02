@@ -2279,50 +2279,6 @@ void sp_finish_parsing(THD *thd) {
   sp->m_parser_data.finish_parsing_sp_body(thd);
 }
 
-/// @return Item_result code corresponding to the RETURN-field type code.
-Item_result sp_map_result_type(enum enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_BIT:
-    case MYSQL_TYPE_BOOL:
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-    case MYSQL_TYPE_INT24:
-      return INT_RESULT;
-    case MYSQL_TYPE_DECIMAL:
-    case MYSQL_TYPE_NEWDECIMAL:
-      return DECIMAL_RESULT;
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE:
-      return REAL_RESULT;
-    default:
-      return STRING_RESULT;
-  }
-}
-
-/// @return Item::Type code corresponding to the RETURN-field type code.
-Item::Type sp_map_item_type(enum enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_BIT:
-    case MYSQL_TYPE_BOOL:
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-    case MYSQL_TYPE_INT24:
-      return Item::INT_ITEM;
-    case MYSQL_TYPE_DECIMAL:
-    case MYSQL_TYPE_NEWDECIMAL:
-      return Item::DECIMAL_ITEM;
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE:
-      return Item::REAL_ITEM;
-    default:
-      return Item::STRING_ITEM;
-  }
-}
-
 /**
   @param lex LEX-object, representing an SQL-statement inside SP.
 

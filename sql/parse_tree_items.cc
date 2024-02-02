@@ -693,7 +693,9 @@ bool PTI_int_splocal::do_itemize(Parse_context *pc, Item **res) {
   if (v == nullptr) {
     return true;  // undefined variable or OOM
   }
-  if (v->type() != Item::INT_ITEM) {
+  // Data type for a routine field is resolved during parsing, so this is OK:
+  if (v->type() == Item::ROUTINE_FIELD_ITEM &&
+      !is_integer_type(v->data_type())) {
     pc->thd->syntax_error_at(m_location, ER_SPVAR_NONINTEGER_TYPE, m_name.str);
     return true;
   }

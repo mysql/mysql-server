@@ -3206,6 +3206,7 @@ class user_var_entry {
   /* Routines to access the value and its type */
   const char *ptr() const { return m_ptr; }
   size_t length() const { return m_length; }
+  /// The data type of this variable.
   Item_result type() const { return m_type; }
   /* Item-alike routines to access the value */
   double val_real(bool *null_value) const;
