@@ -6745,7 +6745,7 @@ void ApplyDistinctParameters::ProposeDistinctPaths(
 }
 
 AccessPathArray ApplyDistinctParameters::ApplyDistinct() const {
-  JOIN *const join = query_block->join;
+  JOIN *const join [[maybe_unused]] = query_block->join;
   assert(join->select_distinct);
 
   if (TraceStarted(thd)) {
