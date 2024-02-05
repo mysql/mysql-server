@@ -886,8 +886,6 @@ MgmtSrvr::~MgmtSrvr() {
 
   delete m_local_config;
 
-  if (m_opts.bind_address != nullptr)
-    free(const_cast<char *>(m_opts.bind_address));
   NdbMutex_Destroy(m_local_config_mutex);
   NdbMutex_Destroy(m_reserved_nodes_mutex);
 }
