@@ -26,6 +26,8 @@
 #ifndef _PROCESS_WRAPPER_H_
 #define _PROCESS_WRAPPER_H_
 
+#include "mysql/harness/string_utils.h"    // split_string
+#include "mysql/harness/utility/string.h"  // starts_with
 #include "process_launcher.h"
 #include "router_test_helpers.h"
 
@@ -88,8 +90,38 @@ class ProcessWrapper {
    *         of calling this method.
    */
   std::string get_full_output() {
-    std::lock_guard<std::mutex> output_lock(output_mtx_);
-    return execute_output_raw_;
+    using mysql_harness::utility::starts_with;
+    std::vector<std::string> lines;
+    std::string result;
+
+    {
+      std::lock_guard<std::mutex> output_lock(output_mtx_);
+      lines = mysql_harness::split_string(execute_output_raw_, '\n');
+    }
+
+    if (lines.size() > 1) {
+      // remove last empty line
+      lines.pop_back();
+    }
+
+    bool core_file_req_failed{false};
+    for (const std::string &line : lines) {
+      // setrlimit sometimes fails on pb2 macos, resulting in additional,
+      // unwanted console output that we remove here
+      if (starts_with(line,
+                      "NOTE: core-file requested, but resource-limits say")) {
+        core_file_req_failed = true;
+        continue;
+      }
+      if (core_file_req_failed &&
+          starts_with(line, "stopping to log to the console") &&
+          lines.size() == 2) {
+        continue;
+      }
+      result += (line + "\n");
+    }
+
+    return result;
   }
 
   /** @brief returns the content of the process app logfile as a string

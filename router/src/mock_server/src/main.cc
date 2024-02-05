@@ -121,14 +121,6 @@ class MysqlServerMockFrontend {
   bool is_print_and_exit() { return do_print_and_exit_; }
 
   void run() {
-    signal_handler_.register_ignored_signals_handler();
-    signal_handler_.block_all_nonfatal_signals();
-    signal_handler_.register_fatal_signal_handler(config_.core_file);
-    signal_handler_.spawn_signal_handler_thread();
-#ifdef _WIN32
-    signal_handler_.register_ctrl_c_handler();
-#endif
-
     init_DIM();
     std::unique_ptr<mysql_harness::LoaderConfig> loader_config(
         new mysql_harness::LoaderConfig(mysql_harness::Config::allow_keys));
@@ -168,6 +160,15 @@ class MysqlServerMockFrontend {
     logger_conf.add("timestamp_precision", "ms");
     const std::string logfile_name = "mock_server_" + config_.port + ".log";
     logger_conf.add("filename", logfile_name);
+
+    // initialize the signal handler
+    signal_handler_.register_ignored_signals_handler();
+    signal_handler_.block_all_nonfatal_signals();
+    signal_handler_.register_fatal_signal_handler(config_.core_file);
+    signal_handler_.spawn_signal_handler_thread();
+#ifdef _WIN32
+    signal_handler_.register_ctrl_c_handler();
+#endif
 
     // assume all path relative to the installed binary
     auto plugin_dir = mysql_harness::get_plugin_dir(origin_dir_.str());
