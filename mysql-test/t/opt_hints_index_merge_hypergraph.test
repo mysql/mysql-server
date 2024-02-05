@@ -1,0 +1,3 @@
+--source include/have_hypergraph.inc
+--source include/opt_hints_index_merge.inc
+--source include/disable_hypergraph.inc
