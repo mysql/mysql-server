@@ -23,21 +23,21 @@
 
 #include "sql/iterators/hash_join_iterator.h"
 
-#include <assert.h>
 #include <algorithm>
 #include <atomic>
 #include <bit>
+#include <cassert>
+#include <cmath>
+#include <memory>
 #include <utility>
 #include <vector>
 
-#include "extra/robin-hood-hashing/robin_hood.h"
 #include "field_types.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
-#include "my_xxhash.h"
-
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "my_xxhash.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysqld_error.h"
 #include "sql/item.h"
@@ -49,11 +49,7 @@
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "template_utils.h"
 
-class JOIN;
-
-using hash_join_buffer::LoadBufferRowIntoTableBuffers;
 using hash_join_buffer::LoadImmutableStringIntoTableBuffers;
 
 // An arbitrary hash value for the empty string, to avoid the hash function
