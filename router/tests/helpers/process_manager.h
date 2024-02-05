@@ -120,19 +120,8 @@ class ProcessManager {
       return *this;
     }
 
-    Spawner &with_core_dump([[maybe_unused]] bool dump_core) {
-#ifndef __APPLE__
+    Spawner &with_core_dump(bool dump_core) {
       with_core_ = dump_core;
-#else
-      // enabling core dump on pb2 macos14 causes random (but often):
-      // MySQLRouter:
-      //    NOTE: core-file requested, but resource-limits say core-files are
-      //    disabled for this process ('ulimit -c' is '0')
-      // mysql_mock_server:
-      //    std::exception
-      with_core_ = false;
-#endif
-
       return *this;
     }
 
