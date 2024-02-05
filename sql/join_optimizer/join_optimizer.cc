@@ -158,6 +158,55 @@ AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
                               bool need_rowid,
                               bool force_materialization = false);
 
+struct PossibleRangeScan {
+  unsigned idx;
+  unsigned mrr_flags;
+  unsigned mrr_buf_size;
+  unsigned used_key_parts;
+  double cost;
+  ha_rows num_rows;
+  bool is_ror_scan;
+  bool is_imerge_scan;
+  OverflowBitset applied_predicates;
+  OverflowBitset subsumed_predicates;
+  Quick_ranges ranges;
+};
+
+/**
+  Represents a candidate index merge, ie. an OR expression of several
+  range scans across different indexes (that can be reconciled by doing
+  deduplication by sorting on row IDs).
+
+  Each predicate (in our usual sense of “part of a top-level AND conjunction in
+  WHERE”) can give rise to multiple index merges (if there are AND conjunctions
+  within ORs), but one index merge arises from exactly one predicate.
+  This is not an inherent limitation, but it is how tree_and() does it;
+  if it takes two SEL_TREEs with index merges, it just combines their candidates
+  wholesale; each will deal with one predicate, and the other one would just
+  have to be applied as a filter.
+
+  This is obviously suboptimal, as there are many cases where we could do
+  better. Imagine something like (a = 3 OR b > 3) AND b <= 5, with separate
+  indexes on a and b; obviously, we could have applied this as a single index
+  merge between two range scans: (a = 3 AND b <= 5) OR (b > 3 AND b <= 5). But
+  this is probably not a priority for us, so we follow the range optimizer's
+  lead here and record each index merge as covering a separate, single
+  predicate.
+ */
+struct PossibleIndexMerge {
+  // The index merge itself (a list of range optimizer trees,
+  // implicitly ORed together).
+  SEL_IMERGE *imerge;
+
+  // Which WHERE predicate it came from.
+  size_t pred_idx;
+
+  // If true, the index merge does not faithfully represent the entire
+  // predicate (it could return more rows), and needs to be re-checked
+  // with a filter.
+  bool inexact;
+};
+
 // Represents a candidate row-id ordered scan. For a ROR compatible
 // range scan, it stores the applied and subsumed predicates.
 struct PossibleRORScan {
@@ -167,6 +216,18 @@ struct PossibleRORScan {
 };
 
 using AccessPathArray = Prealloced_array<AccessPath *, 4>;
+
+/**
+  Represents a candidate index skip scan, i.e. a scan on a multi-column
+  index which uses some of, but not all, the columns of the index. Each
+  index skip scan is associated with a predicate. All candidate skip
+  scans are calculated and saved in skip_scan_paths for later proposal.
+*/
+struct PossibleIndexSkipScan {
+  SEL_TREE *tree;
+  size_t predicate_idx;  // = num_where_predicates if scan covers all predicates
+  Mem_root_array<AccessPath *> skip_scan_paths;
+};
 
 /**
   CostingReceiver contains the main join planning logic, selecting access paths
@@ -517,6 +578,20 @@ class CostingReceiver {
 
   bool FindIndexRangeScans(int node_idx, bool *impossible,
                            double *num_output_rows_after_filter);
+  bool SetUpRangeScans(int node_idx, bool *impossible,
+                       double *num_output_rows_after_filter,
+                       RANGE_OPT_PARAM *param, SEL_TREE **tree,
+                       Mem_root_array<PossibleRangeScan> *possible_scans,
+                       Mem_root_array<PossibleIndexMerge> *index_merges,
+                       Mem_root_array<PossibleIndexSkipScan> *index_skip_scans,
+                       MutableOverflowBitset *all_predicates);
+  void ProposeRangeScans(int node_idx, double num_output_rows_after_filter,
+                         RANGE_OPT_PARAM *param, SEL_TREE *tree,
+                         Mem_root_array<PossibleRangeScan> *possible_scans);
+  void ProposeAllIndexMergeScans(
+      int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
+      SEL_TREE *tree, const Mem_root_array<PossibleRangeScan> *possible_scans,
+      const Mem_root_array<PossibleIndexMerge> *index_merges);
   void ProposeIndexMerge(TABLE *table, int node_idx, const SEL_IMERGE &imerge,
                          int pred_idx, bool inexact,
                          bool allow_clustered_primary_key_scan,
@@ -540,6 +615,10 @@ class CostingReceiver {
       const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
       double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
       OverflowBitset needed_fields);
+  void ProposeAllSkipScans(
+      int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
+      SEL_TREE *tree, Mem_root_array<PossibleIndexSkipScan> *index_skip_scans,
+      MutableOverflowBitset *all_predicates);
   void ProposeIndexSkipScan(int node_idx, RANGE_OPT_PARAM *param,
                             AccessPath *skip_scan_path, TABLE *table,
                             OverflowBitset all_predicates,
@@ -1034,20 +1113,6 @@ void FindAppliedAndSubsumedPredicatesForRangeScan(
   *subsumed_predicates_out = std::move(subsumed_predicates);
 }
 
-struct PossibleRangeScan {
-  unsigned idx;
-  unsigned mrr_flags;
-  unsigned mrr_buf_size;
-  unsigned used_key_parts;
-  double cost;
-  ha_rows num_rows;
-  bool is_ror_scan;
-  bool is_imerge_scan;
-  OverflowBitset applied_predicates;
-  OverflowBitset subsumed_predicates;
-  Quick_ranges ranges;
-};
-
 bool CollectPossibleRangeScans(
     THD *thd, SEL_TREE *tree, RANGE_OPT_PARAM *param,
     OverflowBitset tree_applied_predicates,
@@ -1367,99 +1432,84 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
   return path;
 }
 
-/**
-  Represents a candidate index merge, ie. an OR expression of several
-  range scans across different indexes (that can be reconciled by doing
-  deduplication by sorting on row IDs).
-
-  Each predicate (in our usual sense of “part of a top-level AND conjunction in
-  WHERE”) can give rise to multiple index merges (if there are AND conjunctions
-  within ORs), but one index merge arises from exactly one predicate.
-  This is not an inherent limitation, but it is how tree_and() does it;
-  if it takes two SEL_TREEs with index merges, it just combines their candidates
-  wholesale; each will deal with one predicate, and the other one would just
-  have to be applied as a filter.
-
-  This is obviously suboptimal, as there are many cases where we could do
-  better. Imagine something like (a = 3 OR b > 3) AND b <= 5, with separate
-  indexes on a and b; obviously, we could have applied this as a single index
-  merge between two range scans: (a = 3 AND b <= 5) OR (b > 3 AND b <= 5). But
-  this is probably not a priority for us, so we follow the range optimizer's
-  lead here and record each index merge as covering a separate, single
-  predicate.
- */
-struct PossibleIndexMerge {
-  // The index merge itself (a list of range optimizer trees,
-  // implicitly ORed together).
-  SEL_IMERGE *imerge;
-
-  // Which WHERE predicate it came from.
-  size_t pred_idx;
-
-  // If true, the index merge does not faithfully represent the entire
-  // predicate (it could return more rows), and needs to be re-checked
-  // with a filter.
-  bool inexact;
-};
-
-/**
-  Represents a candidate index skip scan, i.e. a scan on a multi-column
-  index which uses some of, but not all, the columns of the index. Each
-  index skip scan is associated with a predicate. All candidate skip
-  scans are calculated and saved in skip_scan_paths for later proposal.
-*/
-struct PossibleIndexSkipScan {
-  SEL_TREE *tree;
-  size_t predicate_idx;  // = num_where_predicates if scan covers all predicates
-  Mem_root_array<AccessPath *> skip_scan_paths;
-};
-
 bool CostingReceiver::FindIndexRangeScans(
     int node_idx, bool *impossible, double *num_output_rows_after_filter) {
-  *impossible = false;
-  *num_output_rows_after_filter = -1.0;
-  TABLE *table = m_graph->nodes[node_idx].table();
-
   RANGE_OPT_PARAM param;
-  if (setup_range_optimizer_param(
-          m_thd, m_thd->mem_root, &m_range_optimizer_mem_root,
-          table->keys_in_use_for_query, table, m_query_block, &param)) {
-    return true;
-  }
-  m_thd->push_internal_handler(&param.error_handler);
-  auto cleanup =
-      create_scope_guard([thd{m_thd}] { thd->pop_internal_handler(); });
-
-  // For each predicate touching this table only, try to include it into our
-  // tree of ranges if we can.
-  MutableOverflowBitset all_predicates{m_thd->mem_root,
-                                       m_graph->predicates.size()};
-  MutableOverflowBitset tree_applied_predicates{m_thd->mem_root,
-                                                m_graph->predicates.size()};
-  MutableOverflowBitset tree_subsumed_predicates{m_thd->mem_root,
-                                                 m_graph->predicates.size()};
+  SEL_TREE *tree = nullptr;
+  Mem_root_array<PossibleRangeScan> possible_scans(&m_range_optimizer_mem_root);
   Mem_root_array<PossibleIndexMerge> index_merges(&m_range_optimizer_mem_root);
   Mem_root_array<PossibleIndexSkipScan> index_skip_scans(
       &m_range_optimizer_mem_root);
+  MutableOverflowBitset all_predicates{m_thd->mem_root,
+                                       m_graph->predicates.size()};
+  if (SetUpRangeScans(node_idx, impossible, num_output_rows_after_filter,
+                      &param, &tree, &possible_scans, &index_merges,
+                      &index_skip_scans, &all_predicates)) {
+    return true;
+  }
+  if (*impossible) {
+    return false;
+  }
+  if (Overlaps(m_graph->nodes[node_idx].table()->file->ha_table_flags(),
+               HA_NO_INDEX_ACCESS)) {
+    // We only wanted to use the index for estimation, and now we've done that.
+    return false;
+  }
+  if (tree != nullptr) {
+    ProposeRangeScans(node_idx, *num_output_rows_after_filter, &param, tree,
+                      &possible_scans);
+    ProposeAllIndexMergeScans(node_idx, *num_output_rows_after_filter, &param,
+                              tree, &possible_scans, &index_merges);
+  }
+  ProposeAllSkipScans(node_idx, *num_output_rows_after_filter, &param, tree,
+                      &index_skip_scans, &all_predicates);
+  return false;
+}
+
+bool CostingReceiver::SetUpRangeScans(
+    int node_idx, bool *impossible, double *num_output_rows_after_filter,
+    RANGE_OPT_PARAM *param, SEL_TREE **tree,
+    Mem_root_array<PossibleRangeScan> *possible_scans,
+    Mem_root_array<PossibleIndexMerge> *index_merges,
+    Mem_root_array<PossibleIndexSkipScan> *index_skip_scans,
+    MutableOverflowBitset *all_predicates) {
+  *impossible = false;
+  *num_output_rows_after_filter = -1.0;
+  TABLE *table = m_graph->nodes[node_idx].table();
   const bool skip_scan_hint =
       hint_table_state(m_thd, table->pos_in_table_list, SKIP_SCAN_HINT_ENUM, 0);
   const bool allow_skip_scan =
       skip_scan_hint || m_thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN);
 
+  if (setup_range_optimizer_param(
+          m_thd, m_thd->mem_root, &m_range_optimizer_mem_root,
+          table->keys_in_use_for_query, table, m_query_block, param)) {
+    return true;
+  }
+  m_thd->push_internal_handler(&param->error_handler);
+  auto cleanup =
+      create_scope_guard([thd{m_thd}] { thd->pop_internal_handler(); });
+
+  // For each predicate touching this table only, try to include it into our
+  // tree of ranges if we can.
+  MutableOverflowBitset tree_applied_predicates{m_thd->mem_root,
+                                                m_graph->predicates.size()};
+  MutableOverflowBitset tree_subsumed_predicates{m_thd->mem_root,
+                                                 m_graph->predicates.size()};
+
   const NodeMap my_map = TableBitmap(node_idx);
-  SEL_TREE *tree = nullptr;
   for (size_t i = 0; i < m_graph->num_where_predicates; ++i) {
     if (m_graph->predicates[i].total_eligibility_set != my_map) {
       // Only base predicates are eligible for being pushed into range scans.
       continue;
     }
-    all_predicates.SetBit(i);
+    (*all_predicates).SetBit(i);
 
     SEL_TREE *new_tree = get_mm_tree(
-        m_thd, &param, INNER_TABLE_BIT, INNER_TABLE_BIT,
+        m_thd, param, INNER_TABLE_BIT, INNER_TABLE_BIT,
         table->pos_in_table_list->map(),
         /*remove_jump_scans=*/true, m_graph->predicates[i].condition);
-    if (param.has_errors()) {
+    if (param->has_errors()) {
       // Probably out of RAM; give up using the range optimizer.
       return true;
     }
@@ -1517,7 +1567,7 @@ bool CostingReceiver::FindIndexRangeScans(
       // predicate in a filter on top of it.
       assert(merge.inexact || new_tree->keys_map.is_clear_all());
 
-      index_merges.push_back(merge);
+      index_merges->push_back(merge);
     }
 
     if (allow_skip_scan && (new_tree != nullptr) &&
@@ -1525,72 +1575,60 @@ bool CostingReceiver::FindIndexRangeScans(
       PossibleIndexSkipScan index_skip;
       // get all index skip scan access paths before tree is modified by AND-ing
       // of trees
-      index_skip.skip_scan_paths =
-          get_all_skip_scans(m_thd, &param, new_tree, ORDER_NOT_RELEVANT,
-                             /*skip_records_in_range=*/false, skip_scan_hint);
+      index_skip.skip_scan_paths = get_all_skip_scans(
+          m_thd, param, new_tree, ORDER_NOT_RELEVANT,
+          /*skip_records_in_range=*/false, /*skip_scan_hint=*/skip_scan_hint);
       index_skip.tree = new_tree;
       index_skip.predicate_idx = i;
-      index_skip_scans.push_back(std::move(index_skip));
+      index_skip_scans->push_back(std::move(index_skip));
     }
 
-    if (tree == nullptr) {
-      tree = new_tree;
+    if (*tree == nullptr) {
+      *tree = new_tree;
     } else {
-      tree = tree_and(&param, tree, new_tree);
-      if (param.has_errors()) {
+      *tree = tree_and(param, *tree, new_tree);
+      if (param->has_errors()) {
         // Probably out of RAM; give up using the range optimizer.
         return true;
       }
     }
-    if (tree->type == SEL_TREE::IMPOSSIBLE) {
+    if ((*tree)->type == SEL_TREE::IMPOSSIBLE) {
       *impossible = true;
       return false;
     }
   }
 
-  OverflowBitset all_predicates_fixed = std::move(all_predicates);
-  if (tree == nullptr) {
-    // The only possible range scan for a NULL tree is a group index skip
-    // scan. Collect and propose all group skip scans
-    Cost_estimate cost_est = table->file->table_scan_cost();
-    Mem_root_array<AccessPath *> skip_scan_paths = get_all_group_skip_scans(
-        m_thd, &param, tree, ORDER_NOT_RELEVANT,
-        /*skip_records_in_range=*/false, cost_est.total_cost());
-    for (AccessPath *group_skip_scan_path : skip_scan_paths) {
-      ProposeIndexSkipScan(
-          node_idx, &param, group_skip_scan_path, table, all_predicates_fixed,
-          m_graph->num_where_predicates, m_graph->num_where_predicates,
-          group_skip_scan_path->num_output_rows(), /*inexact=*/true);
-    }
+  if (*tree == nullptr) {
     return false;
   }
-  assert(tree->type == SEL_TREE::KEY);
+  assert((*tree)->type == SEL_TREE::KEY);
 
-  Mem_root_array<PossibleRangeScan> possible_scans(&m_range_optimizer_mem_root);
+  OverflowBitset all_predicates_fixed = std::move(*all_predicates);
   OverflowBitset tree_applied_predicates_fixed =
       std::move(tree_applied_predicates);
   OverflowBitset tree_subsumed_predicates_fixed =
       std::move(tree_subsumed_predicates);
   if (CollectPossibleRangeScans(
-          m_thd, tree, &param, tree_applied_predicates_fixed,
-          tree_subsumed_predicates_fixed, *m_graph, &possible_scans)) {
+          m_thd, *tree, param, tree_applied_predicates_fixed,
+          tree_subsumed_predicates_fixed, *m_graph, possible_scans)) {
     return true;
   }
   *num_output_rows_after_filter = EstimateOutputRowsFromRangeTree(
-      m_thd, param, table->file->stats.records, possible_scans, *m_graph,
+      m_thd, *param, table->file->stats.records, *possible_scans, *m_graph,
       all_predicates_fixed);
+  *all_predicates = all_predicates_fixed.Clone(m_thd->mem_root);
 
-  if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
-    // We only wanted to use the index for estimation, and now we've done that.
-    return false;
-  }
+  return false;
+}
 
-  Mem_root_array<PossibleRORScan> possible_ror_scans(
-      &m_range_optimizer_mem_root);
+void CostingReceiver::ProposeRangeScans(
+    int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
+    SEL_TREE *tree, Mem_root_array<PossibleRangeScan> *possible_scans) {
+  TABLE *table = m_graph->nodes[node_idx].table();
   // Propose all single-index index range scans.
-  for (PossibleRangeScan &scan : possible_scans) {
-    const uint keynr = param.real_keynr[scan.idx];
-    KEY *key = &param.table->key_info[keynr];
+  for (PossibleRangeScan &scan : *possible_scans) {
+    const uint keynr = param->real_keynr[scan.idx];
+    KEY *key = &param->table->key_info[keynr];
 
     AccessPath path;
     path.type = AccessPath::INDEX_RANGE_SCAN;
@@ -1600,7 +1638,7 @@ bool CostingReceiver::FindIndexRangeScans(
     path.num_output_rows_before_filter = scan.num_rows;
     path.index_range_scan().index = keynr;
     path.index_range_scan().num_used_key_parts = scan.used_key_parts;
-    path.index_range_scan().used_key_part = param.key[scan.idx];
+    path.index_range_scan().used_key_part = param->key[scan.idx];
     path.index_range_scan().ranges = &scan.ranges[0];
     path.index_range_scan().num_ranges = scan.ranges.size();
     path.index_range_scan().mrr_flags = scan.mrr_flags;
@@ -1613,17 +1651,6 @@ bool CostingReceiver::FindIndexRangeScans(
     path.index_range_scan().geometry = Overlaps(key->flags, HA_SPATIAL);
     path.index_range_scan().reverse = false;
     path.index_range_scan().using_extended_key_parts = false;
-
-    // Store the applied and subsumed predicates for this range scan
-    // if it is ROR compatible. This will be used in
-    // ProposeRowIdOrderedIntersect() later.
-    if (path.index_range_scan().can_be_used_for_ror) {
-      PossibleRORScan ror_scan;
-      ror_scan.idx = scan.idx;
-      ror_scan.applied_predicates = scan.applied_predicates;
-      ror_scan.subsumed_predicates = scan.subsumed_predicates;
-      possible_ror_scans.push_back(ror_scan);
-    }
 
     if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
       path.immediate_update_delete_table = node_idx;
@@ -1645,7 +1672,7 @@ bool CostingReceiver::FindIndexRangeScans(
           materialize_subqueries, &new_path, &new_fd_set);
 
       // Override the number of estimated rows, so that all paths get the same.
-      new_path.set_num_output_rows(*num_output_rows_after_filter);
+      new_path.set_num_output_rows(num_output_rows_after_filter);
 
       string description_for_trace = string(key->name) + " range";
       ProposeAccessPathWithOrderings(
@@ -1680,11 +1707,11 @@ bool CostingReceiver::FindIndexRangeScans(
       }
 
       // Rerun cost estimation, since sorting may have a cost.
-      const bool covering_index = param.table->covering_keys.is_set(keynr);
+      const bool covering_index = param->table->covering_keys.is_set(keynr);
       bool is_ror_scan, is_imerge_scan;
       Cost_estimate cost;
       ha_rows num_rows [[maybe_unused]] = check_quick_select(
-          m_thd, &param, scan.idx, covering_index, tree->keys[scan.idx],
+          m_thd, param, scan.idx, covering_index, tree->keys[scan.idx],
           /*update_tbl_stats=*/true, order_direction,
           /*skip_records_in_range=*/false, &path.index_range_scan().mrr_flags,
           &path.index_range_scan().mrr_buf_size, &cost, &is_ror_scan,
@@ -1720,7 +1747,7 @@ bool CostingReceiver::FindIndexRangeScans(
 
         // Override the number of estimated rows, so that all paths get the
         // same.
-        new_path.set_num_output_rows(*num_output_rows_after_filter);
+        new_path.set_num_output_rows(num_output_rows_after_filter);
 
         string description_for_trace = string(key->name) + " ordered range";
         auto access_path_it = m_access_paths.find(TableBitmap(node_idx));
@@ -1738,10 +1765,31 @@ bool CostingReceiver::FindIndexRangeScans(
       }
     }
   }
+}
+
+void CostingReceiver::ProposeAllIndexMergeScans(
+    int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
+    SEL_TREE *tree, const Mem_root_array<PossibleRangeScan> *possible_scans,
+    const Mem_root_array<PossibleIndexMerge> *index_merges) {
+  TABLE *table = m_graph->nodes[node_idx].table();
+  Mem_root_array<PossibleRORScan> possible_ror_scans(
+      &m_range_optimizer_mem_root);
+  for (const PossibleRangeScan &scan : *possible_scans) {
+    // Store the applied and subsumed predicates for this range scan
+    // if it is ROR compatible. This will be used in
+    // ProposeRowIdOrderedIntersect() later.
+    if (tree->ror_scans_map.is_set(scan.idx)) {
+      PossibleRORScan ror_scan;
+      ror_scan.idx = scan.idx;
+      ror_scan.applied_predicates = scan.applied_predicates;
+      ror_scan.subsumed_predicates = scan.subsumed_predicates;
+      possible_ror_scans.push_back(ror_scan);
+    }
+  }
   // Now Propose Row-ID ordered index merge intersect plans if possible.
   ProposeAllRowIdOrderedIntersectPlans(
       table, node_idx, tree, m_graph->num_where_predicates, possible_ror_scans,
-      *num_output_rows_after_filter, &param);
+      num_output_rows_after_filter, param);
 
   // Propose all index merges we have collected. This proposes both
   // "sort-index" merges, ie., generally collect all the row IDs,
@@ -1749,14 +1797,13 @@ bool CostingReceiver::FindIndexRangeScans(
   // the rows. If the indexes are “ROR compatible” (give out their rows in
   // row ID order directly, without any sort which is mostly the case
   // when a condition has equality predicates), we propose ROR union scans.
-  for (const PossibleIndexMerge &imerge : index_merges) {
+  for (const PossibleIndexMerge &imerge : *index_merges) {
     for (bool allow_clustered_primary_key_scan : {true, false}) {
       bool has_clustered_primary_key_scan = false;
-      ProposeIndexMerge(table, node_idx, *imerge.imerge, imerge.pred_idx,
-                        imerge.inexact, allow_clustered_primary_key_scan,
-                        m_graph->num_where_predicates,
-                        *num_output_rows_after_filter, &param,
-                        &has_clustered_primary_key_scan);
+      ProposeIndexMerge(
+          table, node_idx, *imerge.imerge, imerge.pred_idx, imerge.inexact,
+          allow_clustered_primary_key_scan, m_graph->num_where_predicates,
+          num_output_rows_after_filter, param, &has_clustered_primary_key_scan);
       if (!has_clustered_primary_key_scan) {
         // No need to check scans with clustered key scans disallowed
         // if we didn't choose one to begin with.
@@ -1764,27 +1811,55 @@ bool CostingReceiver::FindIndexRangeScans(
       }
     }
   }
+}
+
+void CostingReceiver::ProposeAllSkipScans(
+    int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
+    SEL_TREE *tree, Mem_root_array<PossibleIndexSkipScan> *index_skip_scans,
+    MutableOverflowBitset *all_predicates) {
+  TABLE *table = m_graph->nodes[node_idx].table();
+  const bool skip_scan_hint =
+      hint_table_state(m_thd, table->pos_in_table_list, SKIP_SCAN_HINT_ENUM, 0);
+  const bool allow_skip_scan =
+      skip_scan_hint || m_thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN);
+
+  OverflowBitset all_predicates_fixed = std::move(*all_predicates);
+  if (tree == nullptr) {
+    // The only possible range scan for a NULL tree is a group index skip
+    // scan. Collect and propose all group skip scans
+    Cost_estimate cost_est = table->file->table_scan_cost();
+    Mem_root_array<AccessPath *> skip_scan_paths = get_all_group_skip_scans(
+        m_thd, param, tree, ORDER_NOT_RELEVANT,
+        /*skip_records_in_range=*/false, cost_est.total_cost());
+    for (AccessPath *group_skip_scan_path : skip_scan_paths) {
+      ProposeIndexSkipScan(
+          node_idx, param, group_skip_scan_path, table, all_predicates_fixed,
+          m_graph->num_where_predicates, m_graph->num_where_predicates,
+          group_skip_scan_path->num_output_rows(), /*inexact=*/true);
+    }
+    return;
+  }
 
   if (allow_skip_scan && (m_graph->num_where_predicates > 1)) {
     // Multiple predicates, check for index skip scan which can be used to
     // evaluate entire WHERE condition
     PossibleIndexSkipScan index_skip;
     index_skip.skip_scan_paths =
-        get_all_skip_scans(m_thd, &param, tree, ORDER_NOT_RELEVANT,
+        get_all_skip_scans(m_thd, param, tree, ORDER_NOT_RELEVANT,
                            /*use_records_in_range=*/false, skip_scan_hint);
     index_skip.tree = tree;
     // Set predicate index to #predicates to indicate all predicates applied
     index_skip.predicate_idx = m_graph->num_where_predicates;
-    index_skip_scans.push_back(std::move(index_skip));
+    index_skip_scans->push_back(std::move(index_skip));
   }
 
   // Propose all index skip scans
-  for (const PossibleIndexSkipScan &iskip_scan : index_skip_scans) {
+  for (const PossibleIndexSkipScan &iskip_scan : *index_skip_scans) {
     for (AccessPath *skip_scan_path : iskip_scan.skip_scan_paths) {
       size_t pred_idx = iskip_scan.predicate_idx;
-      ProposeIndexSkipScan(node_idx, &param, skip_scan_path, table,
+      ProposeIndexSkipScan(node_idx, param, skip_scan_path, table,
                            all_predicates_fixed, m_graph->num_where_predicates,
-                           pred_idx, *num_output_rows_after_filter,
+                           pred_idx, num_output_rows_after_filter,
                            iskip_scan.tree->inexact);
     }
   }
@@ -1792,16 +1867,14 @@ bool CostingReceiver::FindIndexRangeScans(
   // Propose group index skip scans for whole predicate
   Cost_estimate cost_est = table->file->table_scan_cost();
   Mem_root_array<AccessPath *> group_skip_scan_paths = get_all_group_skip_scans(
-      m_thd, &param, tree, ORDER_NOT_RELEVANT, /*skip_records_in_range=*/false,
+      m_thd, param, tree, ORDER_NOT_RELEVANT, /*skip_records_in_range=*/false,
       cost_est.total_cost());
   for (AccessPath *group_skip_scan_path : group_skip_scan_paths) {
     ProposeIndexSkipScan(
-        node_idx, &param, group_skip_scan_path, table, all_predicates_fixed,
+        node_idx, param, group_skip_scan_path, table, all_predicates_fixed,
         m_graph->num_where_predicates, m_graph->num_where_predicates,
         group_skip_scan_path->num_output_rows(), tree->inexact);
   }
-
-  return false;
 }
 
 // Used by ProposeRowIdOrderedIntersect() to update the applied_predicates
