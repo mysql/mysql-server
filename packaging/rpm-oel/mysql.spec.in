@@ -561,7 +561,7 @@ to develop MySQL client applications.
 Summary:        Shared libraries for MySQL database client applications
 Group:          Applications/Databases
 Requires:       %{name}-common%{?_isa} >= %{min}
-Requires:       %{name}-client-plugins = %{version}-%{release}
+Requires:       %{name}-client-plugins >= %{version}-%{release}
 %if 0%{?commercial}
 Provides:       MySQL-shared-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
@@ -804,6 +804,8 @@ trademark of %{mysql_vendor}
 %else
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
 %endif # 0%{?compatlib}
+mkdir -p %{src_dir}/mysql-@MYSQL_BASE_VERSION@
+cp -p %{license_files_server} %{src_dir}/mysql-@MYSQL_BASE_VERSION@
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -1597,7 +1599,7 @@ fi
 
 %files libs
 %defattr(-, root, root, -)
-%doc %{?license_files_server}
+%doc %{src_dir}/mysql-@MYSQL_BASE_VERSION@
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.21*
