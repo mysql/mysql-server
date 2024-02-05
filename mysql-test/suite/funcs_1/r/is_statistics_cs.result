@@ -39,7 +39,7 @@ COLUMN_NAME	varchar(64)	YES		NULL
 COLLATION	varchar(1)	YES		NULL	
 CARDINALITY	bigint	YES		NULL	
 SUB_PART	bigint	YES		NULL	
-PACKED	binary(0)	YES		NULL	
+PACKED	varbinary(0)	YES		NULL	
 NULLABLE	varchar(3)	NO			
 INDEX_TYPE	varchar(11)	NO			
 COMMENT	varchar(8)	NO			
@@ -62,7 +62,7 @@ COLUMN_NAME	varchar(64)	YES		NULL
 COLLATION	varchar(1)	YES		NULL	
 CARDINALITY	bigint	YES		NULL	
 SUB_PART	bigint	YES		NULL	
-PACKED	binary(0)	YES		NULL	
+PACKED	varbinary(0)	YES		NULL	
 NULLABLE	varchar(3)	NO			
 INDEX_TYPE	varchar(11)	NO			
 COMMENT	varchar(8)	NO			

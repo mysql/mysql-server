@@ -32,7 +32,7 @@ CATALOG_NAME	varchar(64)	YES		NULL
 SCHEMA_NAME	varchar(64)	YES		NULL	
 DEFAULT_CHARACTER_SET_NAME	varchar(64)	NO		NULL	
 DEFAULT_COLLATION_NAME	varchar(64)	NO		NULL	
-SQL_PATH	binary(0)	YES		NULL	
+SQL_PATH	varbinary(0)	YES		NULL	
 DEFAULT_ENCRYPTION	enum('NO','YES')	NO		NULL	
 SHOW CREATE TABLE information_schema.SCHEMATA;
 View	Create View	character_set_client	collation_connection
@@ -43,7 +43,7 @@ CATALOG_NAME	varchar(64)	YES		NULL
 SCHEMA_NAME	varchar(64)	YES		NULL	
 DEFAULT_CHARACTER_SET_NAME	varchar(64)	NO		NULL	
 DEFAULT_COLLATION_NAME	varchar(64)	NO		NULL	
-SQL_PATH	binary(0)	YES		NULL	
+SQL_PATH	varbinary(0)	YES		NULL	
 DEFAULT_ENCRYPTION	enum('NO','YES')	NO		NULL	
 SELECT catalog_name, schema_name, sql_path
 FROM information_schema.schemata
