@@ -27,12 +27,16 @@
 #include <thread>
 
 #include <gmock/gmock.h>
+
+#define RAPIDJSON_HAVE_STDSTRING
+
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
 #endif
-
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
+#include <rapidjson/writer.h>
+
 #include "mysqlrouter/rest_client.h"
 
 #include "rest_api_testutils.h"
@@ -370,6 +374,15 @@ static void verify_swagger_content(
   }
 }
 
+static std::string to_string(const JsonDocument &json_doc) {
+  rapidjson::StringBuffer buffer;
+  rapidjson::PrettyWriter writer(buffer);
+
+  json_doc.Accept(writer);
+
+  return buffer.GetString();
+}
+
 void RestApiComponentTest::fetch_and_validate_schema_and_resource(
     const RestApiTestParams &test_params, ProcessWrapper &http_server,
     const std::string &http_hostname) {
@@ -468,8 +481,8 @@ void RestApiComponentTest::fetch_and_validate_schema_and_resource(
       // HEAD does not return a body
       if (method != HttpMethod::Head) {
         for (const auto &kv : test_params.value_checks) {
-          ASSERT_NO_FATAL_FAILURE(
-              validate_value(json_doc, kv.first, kv.second));
+          ASSERT_NO_FATAL_FAILURE(validate_value(json_doc, kv.first, kv.second))
+              << to_string(json_doc);
         }
       }
     }
