@@ -32,7 +32,6 @@ if (!$have_windows) {
    WHERE VARIABLE_NAME LIKE 'replica_parallel_workers'
    OR VARIABLE_NAME LIKE 'replica_parallel_type'
    OR VARIABLE_NAME LIKE 'replica_preserve_commit_order'
-   OR VARIABLE_NAME LIKE 'binlog_transaction_dependency_tracking'
    OR VARIABLE_NAME LIKE 'enforce_gtid_consistency'
    OR VARIABLE_NAME LIKE 'gtid_mode'
    ORDER BY VARIABLE_NAME;

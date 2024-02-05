@@ -45,9 +45,6 @@ SET GLOBAL replica_preserve_commit_order= ON;
 
 --source include/rpl_connection_master1.inc
 
-SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
-SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
-
 # Create table with subpartitions (HASH and RANGE PARTITION)
 
 CREATE TABLE t_part (i INTEGER) PARTITION BY RANGE(i)
@@ -492,7 +489,6 @@ UNLOCK TABLES;
 --echo
 
 --source include/rpl_connection_master1.inc
-SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc

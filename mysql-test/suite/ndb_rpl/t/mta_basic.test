@@ -9,9 +9,7 @@
 
 --echo # Check that the source is properly configured for to calculate
 --echo # transaction dependencies for changes coming from NDB
---echo # 1. using WRITESET mode
-select @@binlog_transaction_dependency_tracking;
---echo # 2. ndb_binlog transaction dependencies turned on
+--echo # 1. ndb_binlog transaction dependencies turned on
 select @@ndb_log_transaction_dependency;
 
 --echo # Check that the replica is configured to apply changes in parallel

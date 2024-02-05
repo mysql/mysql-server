@@ -1,13 +1,9 @@
 ################################################################################
 # ==== Purpose ====
-# Test referential actions of the foreign keys with different
-# binlog_transaction_dependency_tracking modes.
+# Test referential actions of the foreign keys.
 # Referential actions:
 #  RESTRICT | NO ACTION | CASCADE | SET NULL | SET DEFAULT
 #  Note* Table definition containing SET DEFAULT gets rejected thus not tested.
-# Modes:
-#  COMMIT_ORDER | WRITESET | WRITESET_SESSION
-#  Note* COMMIT_ORDER is purposefully not tested with this test.
 #
 # ==== Implementation ====
 # 1. FK parent table:
@@ -40,17 +36,11 @@
 --source include/have_binlog_format_row.inc
 
 --connection master
-SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
-
 --let $row_count= 1
 --let $referential_action= 0
 # RESTRICT, NO ACTION, CASCADE, SET NULL
 while ($referential_action < 4)
 {
-  # WRITESET, WRITESET_SESSION
-  --let $dependency_tracking= 0
-  while ($dependency_tracking < 2)
-  {
     --connection master
     if ($referential_action == 0)
     {
@@ -74,21 +64,10 @@ while ($referential_action < 4)
     }
 
     --echo
-    if ($dependency_tracking == 0)
-    {
-      SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
-      --let $text= $row_count. Test referential action $ref_action with WRITESET.
-    }
-    if ($dependency_tracking == 1)
-    {
-      SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
-      --let $text= $row_count. Test referential action $ref_action with WRITESET_SESSION.
-    }
+    --let $text= $row_count. Test referential action $ref_action with WRITESET.
 
     # Header according to all the parameters.
     --echo ######## $text ########
-    SELECT @@binlog_transaction_dependency_tracking;
-
     # In all these 8 cases, behavior should be identical.
     CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
     CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
@@ -194,15 +173,12 @@ while ($referential_action < 4)
     --echo # Verify that replication is correct
     --source include/sync_slave_sql_with_master.inc
 
-    --inc $dependency_tracking
     --inc $row_count
-  }
-  --inc $referential_action
+    --inc $referential_action
 }
 
 --echo
 --echo # Clean up
 --connection master
-SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 
 --source include/rpl_end.inc

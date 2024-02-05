@@ -9,12 +9,11 @@
 # default, so skip the test if they are set on the command line while
 # invoking mtr.
 --source include/have_binlog_format_row.inc
-let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order', 'replica_parallel_type', 'replica_transaction_retries', 'binlog_transaction_dependency_tracking';
+let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order', 'replica_parallel_type', 'replica_transaction_retries';
 --source include/skip_by_command_line_option.inc
 
 #####################################################################
 # WL#13968 : Deprecate sync_relay_log_info                          #
-# WL#13964: Deprecate binlog_transaction_dependency_tracking        #
 #####################################################################
 
 --source include/rpl_connection_slave.inc
@@ -35,11 +34,6 @@ SET GLOBAL replica_parallel_type='DATABASE';
 # assert deprecation warning replica_parallel_workers 0
 SET GLOBAL replica_parallel_workers=0;
 SET GLOBAL replica_parallel_workers=1;
-
-# assert deprecation warning for binlog_transaction_dependency_tracking
-SET GLOBAL binlog_transaction_dependency_tracking=COMMIT_ORDER;
-SET GLOBAL binlog_transaction_dependency_tracking=WRITESET;
-SET GLOBAL binlog_transaction_dependency_tracking=WRITESET_SESSION;
 
 --let $suppress_mode = IGNORE_GLOBAL_SUPPRESSIONS
 let $messages =
@@ -69,7 +63,7 @@ The syntax 'log_slave_updates' is deprecated and will be removed in a future rel
 
 while($i > 0) {
   if ($i == 2) {
-    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --skip-replica-start  --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0 --binlog-transaction-dependency-tracking=WRITESET_SESSION
+    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --skip-replica-start  --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0
   }
 
   if ($i == 1)
@@ -77,26 +71,19 @@ while($i > 0) {
     # check that warnings are emited when setting persist_only as well
     SET PERSIST_ONLY replica_parallel_type='DATABASE';
     SET PERSIST_ONLY replica_parallel_type='LOGICAL_CLOCK';
-    SET PERSIST_ONLY binlog_transaction_dependency_tracking=WRITESET_SESSION;
-    SET PERSIST_ONLY binlog_transaction_dependency_tracking=WRITESET;
-    SET PERSIST_ONLY binlog_transaction_dependency_tracking=COMMIT_ORDER;
 
     # Warning is not emitted when setting a deprecated value to
     # a variable with persist_only
     SET PERSIST_ONLY replica_parallel_workers=0;
 
     # check that warnings are emited when setting persist as well
-    SET PERSIST binlog_transaction_dependency_tracking = COMMIT_ORDER;
     SET PERSIST replica_parallel_type='DATABASE';
     SET PERSIST replica_parallel_type='LOGICAL_CLOCK';
     SET PERSIST replica_parallel_workers=0;
     SET PERSIST binlog_format=ROW;
     SET PERSIST sync_relay_log_info=10005;
-    SET PERSIST binlog_transaction_dependency_tracking=WRITESET_SESSION;
-    SET PERSIST binlog_transaction_dependency_tracking=WRITESET;
-    SET PERSIST binlog_transaction_dependency_tracking=COMMIT_ORDER;
 
-    --let $rpl_server_parameters= --binlog_format=ROW --binlog-transaction-dependency-tracking=COMMIT_ORDER
+    --let $rpl_server_parameters= --binlog_format=ROW
   }
 
   --let $rpl_omit_print_server_parameters = 2
@@ -111,7 +98,6 @@ while($i > 0) {
     '--sync-relay-log-info' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
-    The syntax '--binlog-transaction-dependency-tracking' is deprecated and will be removed in a future release.
     ;
     --source include/assert_error_log.inc
   }
@@ -120,14 +106,12 @@ while($i > 0) {
   {
     # Check that the warnings are logged in the Error log if the deprecated variables were persisted before server restart.
     let $error_pattern = 'binlog_format' is deprecated and will be removed in a future release.
-    The syntax '--binlog-transaction-dependency-tracking' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
     The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
     '@@binlog_format' is deprecated and will be removed in a future release.
     '@@sync_relay_log_info' is deprecated and will be removed in a future release.
-    '@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
     ;
     --source include/assert_error_log.inc
   }
@@ -145,12 +129,6 @@ The syntax '--replica-parallel-type' is deprecated and will be removed in a futu
 --let $suppress_mode = ADD_SUPPRESSIONS
 let $messages =
 The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
-;
---source include/suppress_messages.inc
-
---let $suppress_mode = ADD_SUPPRESSIONS
-let $messages =
-The syntax '--binlog-transaction-dependency-tracking' is deprecated and will be removed in a future release.
 ;
 --source include/suppress_messages.inc
 

@@ -284,7 +284,6 @@ memory::Aligned_atomic<bool> &Binlog_group_commit_ctx::manual_ticket_setting() {
 }
 
 void Rpl_thd_context::init() {
-  m_dependency_tracker_ctx.set_last_session_sequence_number(0);
   m_tx_rpl_delegate_stage_status = TX_RPL_STAGE_INIT;
 }
 

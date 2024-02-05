@@ -7,47 +7,46 @@
 # 1. We start replica (server2) with the binary log turned off. Replica
 #    also has replica_preserve_commit_order enabled and running with 4
 #    applier workers.
-# 2. On master binlog_transaction_dependency_tracking is set to COMMIT_ORDER.
-# 3. On master add some data and verify that data is successfully
+# 2. On master add some data and verify that data is successfully
 #    replicated to the slave. Also save a copy of slave redo log files to
 #    bring the slave server in same state after restart later in step 11.
-# 4. On server2 enable commit_order_manager_before_wait debug sync point
+# 3. On server2 enable commit_order_manager_before_wait debug sync point
 #    which will be activated for threads having @@session.timestamp 100,
 #    101 and 102.
-# 5. On master generate transactions (T1, T2 and T3) with timestamp
+# 4. On master generate transactions (T1, T2 and T3) with timestamp
 #    100, 101 and 102 which can be applied in parallel,
 #    by setting same commit parents for all the inserts.
-# 6. The slave threads executing inserts (added in step 5 on master)
+# 5. The slave threads executing inserts (added in step 5 on master)
 #    wait on commit_order_manager_before_wait debug sync point.
 #    Wait for all the threads to reach commit_order_manager_before_wait
 #    debug sync point, so that they use same flush stage queue.
-# 7. Enable after_commit_order_thread_becomes_leader and
+# 6. Enable after_commit_order_thread_becomes_leader and
 #    before_follower_wait debug sync point which would make
 #    leader (thread executing T1) and follower threads (thread executing
 #    T2, T3) wait on their respective debug sync point.
 #    Also release all the threads waiting on
 #    commit_order_manager_before_wait debug sync point.
-# 8. Now wait for leader (T1) and followers (T2, T3) to reach
+# 7. Now wait for leader (T1) and followers (T2, T3) to reach
 #    after_commit_order_thread_becomes_leader and
 #    before_follower_wait debug sync point. After leaders
 #    and follower threads reach there respective debug sync point signal
 #    follower threads to awake and continue.
-# 9. Now enable commit_order_leader_before_ha_flush_logs debug sync point which
+# 8. Now enable commit_order_leader_before_ha_flush_logs debug sync point which
 #    will make leader wait before it flush transactions of all waiting threads
 #    to the storage engine. It also unblocks leader from
 #    after_commit_order_thread_becomes_leader and waits for it to reach
 #    commit_order_leader_before_ha_flush_logs debug sync point.
-# 10. The server is crashed before leader flush transactions of
-#     waiting threads to the storage engine.
-# 11. When data inserted in step 5 is successfully received by slave,
+# 9. The server is crashed before leader flush transactions of
+#    waiting threads to the storage engine.
+# 10. When data inserted in step 5 is successfully received by slave,
 #     server aborts before it flushes to disk. We wait for slave to
 #     shutdown and after it is down we replace redo log files with files
 #     saved in step 3 and then restart replica.
-# 12. Verify data inserted in step 5 is not there on the slave as slave
+# 11. Verify data inserted in step 5 is not there on the slave as slave
 #     was aborted before data was flushed.
-# 13. Start replication on server2 and verify that missing data is now
+# 12. Start replication on server2 and verify that missing data is now
 #     successfully replicated to the slave.
-# 14. Cleanup.
+# 13. Cleanup.
 
 --source include/have_debug.inc
 --source include/not_valgrind.inc
@@ -78,17 +77,7 @@ SET GLOBAL replica_preserve_commit_order= ON;
 
 
 --echo
---echo # 2. On master binlog_transaction_dependency_tracking is set to COMMIT_ORDER.
---echo
-
---source include/rpl_connection_master.inc
-
-SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
-SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
-
-
---echo
---echo # 3. On master add some data and verify that data is successfully
+--echo # 2. On master add some data and verify that data is successfully
 --echo #    replicated to the slave. Also save a copy of slave redo log files to
 --echo #    bring the slave server in same state after restart later in step 11.
 --echo
@@ -114,7 +103,7 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 --copy_files_wildcard $MYSQLTEST_VARDIR/mysqld.2/data/#innodb_redo $MYSQL_TMP_DIR/#innodb_redo_tmp #ib_redo*
 
 --echo
---echo # 4. On server2 enable commit_order_manager_before_wait debug sync point
+--echo # 3. On server2 enable commit_order_manager_before_wait debug sync point
 --echo #    which will be activated for threads having @@session.timestamp 100,
 --echo #    101 and 102.
 --echo
@@ -132,7 +121,7 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 
 
 --echo
---echo # 5. On master generate transactions (T1, T2 and T3) with timestamp
+--echo # 4. On master generate transactions (T1, T2 and T3) with timestamp
 --echo #    100, 101 and 102 which can be applied in parallel,
 --echo #    by setting same commit parents for all the inserts.
 --echo
@@ -166,7 +155,7 @@ SET TIMESTAMP = 102; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;
 
 
 --echo
---echo # 6. The slave threads executing inserts (added in step 5 on master)
+--echo # 5. The slave threads executing inserts (added in step 5 on master)
 --echo #    wait on commit_order_manager_before_wait debug sync point.
 --echo #    Wait for all the threads to reach commit_order_manager_before_wait
 --echo #    debug sync point, so that they use same flush stage queue.
@@ -180,7 +169,7 @@ SET TIMESTAMP = 102; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;
 
 
 --echo
---echo # 7. Enable after_commit_order_thread_becomes_leader and
+--echo # 6. Enable after_commit_order_thread_becomes_leader and
 --echo #    before_follower_wait debug sync point which would make
 --echo #    leader (thread executing T1) and follower threads (thread executing
 --echo #    T2, T3) wait on their respective debug sync point.
@@ -204,7 +193,7 @@ SET TIMESTAMP = 102; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;
 
 
 --echo
---echo # 8. Now wait for leader (T1) and followers (T2, T3) to reach
+--echo # 7. Now wait for leader (T1) and followers (T2, T3) to reach
 --echo #    after_commit_order_thread_becomes_leader and
 --echo #    before_follower_wait debug sync point. After leaders
 --echo #    and follower threads reach there respective debug sync point signal
@@ -223,7 +212,7 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_after_commit_order_thread_becomes_leader_1
 
 
 --echo
---echo # 9. Now enable commit_order_leader_before_ha_flush_logs debug sync point
+--echo # 8. Now enable commit_order_leader_before_ha_flush_logs debug sync point
 --echo #    which will make leader wait before it flush transactions of all
 --echo #    waiting threads to the storage engine. It also unblocks leader from
 --echo #    after_commit_order_thread_becomes_leader and waits for it to reach
@@ -238,15 +227,15 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_commit_order_leader_before_ha_flush_logs_1
 
 
 --echo
---echo # 10. The server is crashed before leader flush transactions of
---echo #     waiting threads to the storage engine.
+--echo # 9. The server is crashed before leader flush transactions of
+--echo #    waiting threads to the storage engine.
 --echo
 
 --source include/dbug_crash_safe.inc
 
 
 --echo
---echo # 11. When data inserted in step 5 is successfully received by slave,
+--echo # 10. When data inserted in step 5 is successfully received by slave,
 --echo #     server aborts before it flushes to disk. We wait for slave to
 --echo #     shutdown and after it is down we replace redo log files with files
 --echo #     saved in step 3 and then restart replica.
@@ -272,7 +261,7 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_commit_order_leader_before_ha_flush_logs_1
 
 
 --echo
---echo # 12. Verify data inserted in step 5 is not there on the slave as slave
+--echo # 11. Verify data inserted in step 5 is not there on the slave as slave
 --echo #     was aborted before data was flushed.
 --echo
 
@@ -286,7 +275,7 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_commit_order_leader_before_ha_flush_logs_1
 
 
 --echo
---echo # 13. Start replication on server2 and verify that missing data is now
+--echo # 12. Start replication on server2 and verify that missing data is now
 --echo #     successfully replicated to the slave.
 --echo
 
@@ -311,15 +300,13 @@ SET GLOBAL replica_preserve_commit_order= ON;
 
 
 --echo
---echo # 14. Cleanup
+--echo # 13. Cleanup
 --echo
 
 --source include/rpl_connection_master.inc
 
 DROP TABLE t1;
 DROP TABLE t2;
-
-SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
 
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

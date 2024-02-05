@@ -69,8 +69,6 @@
 DROP TABLE t1;
 DROP TABLE t2;
 
-SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
-
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 

@@ -1,2 +1,0 @@
---binlog_transaction_dependency_tracking=COMMIT_ORDER
---binlog_transaction_dependency_history_size=3

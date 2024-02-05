@@ -6,7 +6,7 @@
 # SHOW BINARY LOGS
 #
 # SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE
-# 'binlog_transaction_dependency_tracking'
+# 'binlog_transaction_dependency_history_size'
 #
 # PURGE BINARY LOGS BEFORE $date;
 #
@@ -51,7 +51,7 @@ SET DEBUG_SYNC="purge_logs_after_lock_index_before_thread_count SIGNAL purge_rea
 
 SET DEBUG_SYNC="materialize_session_variable_array_THD_locked SIGNAL pfs_ready WAIT_FOR finish_pfs";
 
---send SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'binlog_transaction_dependency_tracking';
+--send SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'binlog_transaction_dependency_history_size'
 
 --connect(con3,localhost,root,,)
 

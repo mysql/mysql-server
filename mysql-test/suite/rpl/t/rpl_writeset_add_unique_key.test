@@ -15,10 +15,8 @@
 # 1) Create source-replica topology.
 # 2) Save current variables on Source.
 #    2.1) Save current binlog_row_image.
-#    2.2) Save current tracking mode.
 # 3) Setup neccesary varibales on source.
 #    3.1) Set the binlog_row_image=MINIMAL.
-#    3.2) Set the global BINLOG_TRANSACTION_DEPENDENCY_TRACKING=WRITESET.
 # 4) Create table and procedure on source.
 # 5) Switch to source and call procedure.
 # 6) Clear system variables on source.
@@ -30,31 +28,29 @@
 #
 --source include/have_binlog_format_row.inc
 --source include/only_mts_replica_parallel_workers.inc
---let $option_name = replica_transaction_retries
---let $option_operator = >
---let $option_value = 2
---source include/only_with_option.inc
 --let $skip_configuration_privilege_checks_user= 'skip'
 --let $rpl_privilege_checks_user_grant_all= 1
 --echo #
 --echo # 1. Create source-replica topology.
+--let $rpl_skip_start_slave = 1
 --source include/master-slave.inc
+
+# Configure replica options
+--source include/rpl_connection_slave.inc
+SET @old_replica_transaction_retries = @@global.replica_transaction_retries;
+SET @@global.replica_transaction_retries = 3;
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
 
 --echo
 --echo # 2. Save the current variables on source.
 --echo #    2.1 Save current binlog_row_image.
 SET @old_binlog_row_image= @@binlog_row_image;
 
-# 2.2 Save current tracking mode.
---let $old_trx_tracker = `SELECT @@GLOBAL.BINLOG_TRANSACTION_DEPENDENCY_TRACKING`
-
 --echo #
 --echo # 3. Setup neccsary variables on source.
 --echo #    3.1 Set the binlog_row_image=MINIMAL.
 SET @@session.binlog_row_image = 'MINIMAL';
-
-# 3.2 Set the global BINLOG_TRANSACTION_DEPENDENCY_TRACKING=WRITESET.
-SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = WRITESET;
 
 --echo #
 --echo # 4.Create table and procedure on source.
@@ -94,8 +90,6 @@ call p(1000);
 --echo #
 --source include/rpl_connection_master.inc
 SET SESSION binlog_row_image= @old_binlog_row_image;
---replace_result $old_trx_tracker OLD_TRX_TRACKER
---eval SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = $old_trx_tracker
 
 # Supress the error warning on replica.
 --source include/rpl_connection_slave.inc
@@ -105,5 +99,7 @@ CALL mtr.add_suppression("Worker .* failed executing transaction.*");
 --source include/rpl_connection_master.inc
 DROP TABLE t;
 DROP PROCEDURE p;
---source include/rpl_end.inc
+--source include/sync_slave_sql_with_master.inc
+eval SET @@global.replica_transaction_retries = @old_replica_transaction_retries;
 
+--source include/rpl_end.inc

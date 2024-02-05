@@ -57,9 +57,6 @@ SET GLOBAL replica_preserve_commit_order= ON;
 
 --source include/rpl_connection_master1.inc
 
-SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
-SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
-
 # Create tables on master
 CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
@@ -110,7 +107,6 @@ while($j <= $counter)
 --echo
 
 --source include/rpl_connection_master1.inc
-SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
 DROP TABLE t1,t2,commands;
 
 --source include/sync_slave_sql_with_master.inc

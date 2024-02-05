@@ -16,8 +16,8 @@
 # 1. We start replica (server2) with the binary log turned off. Replica
 #    also has replica_preserve_commit_order enabled and running with 4
 #    applier workers.
-# 2. On master binlog_transaction_dependency_tracking
-#    is set to COMMIT_ORDER.
+# 2. On source binlog_transaction_dependency_history_size is set to 1,
+#    which will fallback to commit order dependency tracking algorithm.
 # 3. On master create table t1 and t2 and sync it to slave.
 # 4. On server2 enable after_commit_order_thread_becomes_leader,
 #    before_binlog_leader_wait and before_follower_wait
@@ -79,14 +79,14 @@ SET GLOBAL replica_preserve_commit_order= ON;
 
 
 --echo
---echo # 2. On master binlog_transaction_dependency_tracking
---echo #    is set to COMMIT_ORDER.
---echo
+--echo # 2. On source binlog_transaction_dependency_history_size is set to 1,
+--echo #    which will fallback to commit order dependency tracking algorithm.
 
 --source include/rpl_connection_master.inc
 
-SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
-SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
+--let $sysvars_to_save = [ "GLOBAL.binlog_transaction_dependency_history_size" ]
+--source include/save_sysvars.inc
+SET GLOBAL binlog_transaction_dependency_history_size = 1;
 
 
 --echo
@@ -282,7 +282,7 @@ SET DEBUG_SYNC= "now SIGNAL continue_before_commit_order_leader_waits_for_binlog
 
 DROP TABLE t1;
 DROP TABLE t2;
-SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
+--source include/restore_sysvars.inc
 
 --source include/sync_slave_sql_with_master.inc
 

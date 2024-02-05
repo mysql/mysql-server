@@ -9,7 +9,7 @@ SET DEBUG_SYNC="purge_logs_after_lock_index_before_thread_count SIGNAL purge_rea
 PURGE BINARY LOGS BEFORE '2038-01-19';
 connect con2,localhost,root,,;
 SET DEBUG_SYNC="materialize_session_variable_array_THD_locked SIGNAL pfs_ready WAIT_FOR finish_pfs";
-SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'binlog_transaction_dependency_tracking';;
+SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'binlog_transaction_dependency_history_size';
 connect con3,localhost,root,,;
 SET DEBUG_SYNC="show_binlogs_after_lock_log_before_lock_index SIGNAL show_ready WAIT_FOR finish_show";
 SHOW BINARY LOGS;
@@ -26,7 +26,7 @@ Warning	1868	file binlog.000002 was not purged because it is the active log file
 disconnect con1;
 connection con2;
 VARIABLE_NAME	VARIABLE_VALUE
-binlog_transaction_dependency_tracking	WRITESET
+binlog_transaction_dependency_history_size	25000
 disconnect con2;
 connection con3;
 disconnect con3;

@@ -1,10 +1,6 @@
 # Tests for WL#12217
 --source include/have_binlog_format_row.inc
 
-# to allow setting transaction_write_set_extraction
---let $saved_btdt = `SELECT @@global.binlog_transaction_dependency_tracking`
-SET GLOBAL binlog_transaction_dependency_tracking=COMMIT_ORDER;
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -189,9 +185,6 @@ disconnect confr5;
 --echo # Cleanup
 DROP DATABASE wl12217;
 DROP USER wl12217@localhost;
-
---replace_result $saved_btdt SAVED_BINLOG_TRANSACTION_DEPENDENCY_TRACKING
---eval SET GLOBAL binlog_transaction_dependency_tracking=$saved_btdt
 
 --echo # Testing FR7
 

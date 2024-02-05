@@ -5,9 +5,6 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 # Generate epoch transactions without dependencies by using WRITESET
 # dependency tracking
-show variables like 'binlog_transaction_dependency_tracking';
-Variable_name	Value
-binlog_transaction_dependency_tracking	WRITESET
 show variables like 'ndb_log_transaction_dependency';
 Variable_name	Value
 ndb_log_transaction_dependency	ON

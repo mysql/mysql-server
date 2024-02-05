@@ -143,9 +143,6 @@ if (!$mts_spco_skip_init_statement)
 
   --source include/rpl_connection_master.inc
 
-  SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
-  SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
-
   --let $mts_spco_skip_init_statement = 1
 }
 
@@ -383,7 +380,6 @@ if ($mts_spco_cleanup_statement)
   --echo
 
   --source include/rpl_connection_master.inc
-  SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
   --source include/sync_slave_sql_with_master.inc
 
   --source include/stop_slave.inc

@@ -7,7 +7,6 @@
 
 --echo # Generate epoch transactions without dependencies by using WRITESET
 --echo # dependency tracking
-show variables like 'binlog_transaction_dependency_tracking';
 show variables like 'ndb_log_transaction_dependency';
 
 create table t1 (

@@ -149,14 +149,11 @@ perl mysql-test-run.pl --timer  --force  --comment=innodb_sync_debug --testcase-
 #
 ####SECTION 7 RPL/BINLOG EXTENDED-WEEKLY#############
 #
-# binlog-transaction-dependency-tracking=COMMIT_ORDER with replica-parallel-workers=4 (default) and replica-parallel-type=logical_clock (default)
-perl mysql-test-run.pl --timer --force --no-skip --testcase-timeout=60 --debug-server --comment=rpl-mta-trx-dependency-tracking-commit-order --vardir=var-rpl-mta-trx-dependency-tracking-commit-order --do-suite=rpl --mysqld=--binlog-format=row --mysqld=--binlog-transaction-dependency-tracking=COMMIT_ORDER
-
 # Rpl suite with MTA replica-parallel-type=logical_clock and replica-preserve-commit-order=0
 perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60  --comment=rpl-mta-lc-norpco --vardir=var-rpl-mta-lc-norpco  --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=logical_clock --mysqld=--replica-preserve-commit-order=0 --do-suite=rpl --no-skip
 
-# RPL suite + MTS + WRITESET + LOGICAL_CLOCK with binlog compression turned ON.
-perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60 --comment=replication_compression_mts_lc_ws --vardir=var-rpl-comp-mts-lc-ws --mysqld=--replica_parallel_type=LOGICAL_CLOCK --mysqld=--replica_parallel_workers=4 --mysqld=--binlog-format=ROW --mysqld=--binlog-transaction-dependency-tracking=WRITESET --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --no-skip
+# RPL suite + MTS + LOGICAL_CLOCK with binlog compression turned ON.
+perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60 --comment=replication_compression_mts_lc_ws --vardir=var-rpl-comp-mts-lc-ws --mysqld=--replica_parallel_type=LOGICAL_CLOCK --mysqld=--replica_parallel_workers=4 --mysqld=--binlog-format=ROW --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --no-skip
 
 # binlog suite with compression turned on
 perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60 --comment=binlog_compression --vardir=var-binlog-comp --mysqld=--binlog-transaction-compression=ON --suite=binlog,binlog_nogtid,binlog_gtid,i_binlog --mysqld=--binlog-format=ROW --no-skip

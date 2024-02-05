@@ -3,9 +3,6 @@
 [mysqld]
 # Turn on dependency tracking for ndb_binlog thread
 ndb-log-transaction-dependency=ON
-# Use WRITESET dependency tracking (which is the only mode where ndb_binlog
-# thread will be able to find independent transactions)
-binlog-transaction-dependency-tracking=WRITESET
 
 # Use several workers (current default)
 replica-parallel-workers=4

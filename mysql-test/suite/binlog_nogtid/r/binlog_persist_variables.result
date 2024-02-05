@@ -26,7 +26,7 @@ VARIABLE_NAME LIKE '%source%') AND
 'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 109 variables in the table.]
+include/assert.inc [Expect 108 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -61,10 +61,6 @@ SET PERSIST binlog_stmt_cache_size = @@GLOBAL.binlog_stmt_cache_size;
 SET PERSIST binlog_transaction_compression = @@GLOBAL.binlog_transaction_compression;
 SET PERSIST binlog_transaction_compression_level_zstd = @@GLOBAL.binlog_transaction_compression_level_zstd;
 SET PERSIST binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
-SET PERSIST binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET PERSIST enforce_gtid_consistency = @@GLOBAL.enforce_gtid_consistency;
 SET PERSIST group_replication_consistency = @@GLOBAL.group_replication_consistency;
 SET PERSIST gtid_executed = @@GLOBAL.gtid_executed;
@@ -242,16 +238,16 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 87 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 86 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 87 persisted variables in persisted_variables table.']
-include/assert.inc [Expect 87 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc [Expect 87 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 86 persisted variables in persisted_variables table.']
+include/assert.inc [Expect 86 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc [Expect 86 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
@@ -285,7 +281,6 @@ RESET PERSIST IF EXISTS binlog_stmt_cache_size;
 RESET PERSIST IF EXISTS binlog_transaction_compression;
 RESET PERSIST IF EXISTS binlog_transaction_compression_level_zstd;
 RESET PERSIST IF EXISTS binlog_transaction_dependency_history_size;
-RESET PERSIST IF EXISTS binlog_transaction_dependency_tracking;
 RESET PERSIST IF EXISTS enforce_gtid_consistency;
 RESET PERSIST IF EXISTS group_replication_consistency;
 RESET PERSIST IF EXISTS gtid_executed;

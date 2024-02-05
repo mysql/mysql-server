@@ -1,6 +1,3 @@
-SET GLOBAL binlog_transaction_dependency_tracking=COMMIT_ORDER;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 # Testing FR2
 Must have SESSION_VARIABLES_ADMIN with grant option
 SHOW GRANTS FOR root@localhost;
@@ -178,9 +175,6 @@ SET SESSION rbr_exec_mode = DEFAULT;
 # Cleanup
 DROP DATABASE wl12217;
 DROP USER wl12217@localhost;
-SET GLOBAL binlog_transaction_dependency_tracking=SAVED_BINLOG_TRANSACTION_DEPENDENCY_TRACKING;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 # Testing FR7
 # Must have SESSION_VARIABLES_ADMIN
 SHOW GRANTS for "mysql.session"@localhost;

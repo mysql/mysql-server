@@ -63,6 +63,10 @@ SET GLOBAL innodb_lock_wait_timeout = 1000;
 --source include/restart_slave_sql.inc
 
 --source include/rpl_connection_master.inc
+--let $sysvars_to_save = [ "GLOBAL.binlog_transaction_dependency_history_size" ]
+--source include/save_sysvars.inc
+SET GLOBAL binlog_transaction_dependency_history_size = 1;
+
 CREATE TABLE t1(c1 INT PRIMARY KEY);
 CREATE TABLE t2(c1 INT PRIMARY KEY);
 
@@ -147,4 +151,5 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 
 --source include/rpl_connection_master.inc
 DROP TABLE t1, t2;
+--source include/restore_sysvars.inc
 --source include/rpl_end.inc

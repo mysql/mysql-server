@@ -4020,8 +4020,7 @@ static Sys_var_enum Sys_replica_parallel_type(
     "databases. LOGICAL_CLOCK, which is the default, indicates that it decides "
     "whether two "
     "transactions can be applied in parallel using the logical timestamps "
-    "computed by the source, according to "
-    "binlog_transaction_dependency_tracking.",
+    "computed by the source.",
     PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option),
     CMD_LINE(REQUIRED_ARG, OPT_REPLICA_PARALLEL_TYPE), mts_parallel_type_names,
     DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK), NO_MUTEX_GUARD, NOT_IN_BINLOG,
@@ -4030,35 +4029,8 @@ static Sys_var_enum Sys_replica_parallel_type(
 static Sys_var_deprecated_alias Sys_slave_parallel_type(
     "slave_parallel_type", Sys_replica_parallel_type);
 
-static bool update_binlog_transaction_dependency_tracking(sys_var *, THD *,
-                                                          enum_var_type) {
-  /*
-    the writeset_history_start needs to be set to 0 whenever there is a
-    change in the transaction dependency source so that WS and COMMIT
-    transition smoothly.
-  */
-  mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
-  return false;
-}
-
 static PolyLock_mutex PLock_slave_trans_dep_tracker(
     &LOCK_replica_trans_dep_tracker);
-static const char *opt_binlog_transaction_dependency_tracking_names[] = {
-    "COMMIT_ORDER", "WRITESET", "WRITESET_SESSION", NullS};
-static Sys_var_enum Binlog_transaction_dependency_tracking(
-    "binlog_transaction_dependency_tracking",
-    "Selects the source of dependency information from which to "
-    "compute logical timestamps, which replicas can use to decide which "
-    "transactions can be executed in parallel when using "
-    "replica_parallel_type=LOGICAL_CLOCK. "
-    "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
-    GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
-    CMD_LINE(REQUIRED_ARG, OPT_BINLOG_TRANSACTION_DEPENDENCY_TRACKING),
-    opt_binlog_transaction_dependency_tracking_names,
-    DEFAULT(DEPENDENCY_TRACKING_WRITESET), &PLock_slave_trans_dep_tracker,
-    NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(update_binlog_transaction_dependency_tracking),
-    DEPRECATED_VAR(""));
 static Sys_var_ulong Binlog_transaction_dependency_history_size(
     "binlog_transaction_dependency_history_size",
     "Maximum number of rows to keep in the writeset history.",

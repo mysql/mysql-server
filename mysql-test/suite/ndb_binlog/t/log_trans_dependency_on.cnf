@@ -2,4 +2,3 @@
 
 [mysqld]
 ndb-log-transaction-dependency=ON
-binlog-transaction-dependency-tracking=WRITESET

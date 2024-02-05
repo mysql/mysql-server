@@ -1,3 +1,2 @@
 --replica-parallel-workers=6
---binlog_transaction_dependency_tracking='COMMIT_ORDER'
 --skip-log-bin --log-replica-updates=0

@@ -223,26 +223,6 @@ class Session_consistency_gtids_ctx {
       const Session_consistency_gtids_ctx &rsc);
 };
 
-/*
-  This object encapsulates the state kept between transactions of the same
-  client in order to compute logical timestamps based on WRITESET_SESSION.
-*/
-class Dependency_tracker_ctx {
- public:
-  Dependency_tracker_ctx() : m_last_session_sequence_number(0) {}
-
-  void set_last_session_sequence_number(int64 sequence_number) {
-    m_last_session_sequence_number = sequence_number;
-  }
-
-  int64 get_last_session_sequence_number() {
-    return m_last_session_sequence_number;
-  }
-
- private:
-  int64 m_last_session_sequence_number;
-};
-
 /**
   This class tracks the last used GTID per session.
 */
@@ -427,7 +407,6 @@ class Rpl_thd_context {
 
  private:
   Session_consistency_gtids_ctx m_session_gtids_ctx;
-  Dependency_tracker_ctx m_dependency_tracker_ctx;
   Last_used_gtid_tracker_ctx m_last_used_gtid_tracker_ctx;
   Transaction_compression_ctx m_transaction_compression_ctx;
   /** Manages interaction and keeps context w.r.t `Bgc_ticket_manager` */
@@ -452,10 +431,6 @@ class Rpl_thd_context {
 
   inline Session_consistency_gtids_ctx &session_gtids_ctx() {
     return m_session_gtids_ctx;
-  }
-
-  inline Dependency_tracker_ctx &dependency_tracker_ctx() {
-    return m_dependency_tracker_ctx;
   }
 
   inline Last_used_gtid_tracker_ctx &last_used_gtid_tracker_ctx() {

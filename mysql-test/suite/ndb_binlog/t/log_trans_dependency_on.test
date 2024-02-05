@@ -19,10 +19,6 @@ select @@ndb_log_transaction_dependency;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@ndb_log_transaction_dependency=ON;
 
---echo # Test assumes that WRITESET is used for dependency tracking as otherwise
---echo # the hash values calculated by ndb_binlog thread will not be used
-select @@binlog_transaction_dependency_tracking;
-
 CREATE TABLE t1 (
   a INT PRIMARY KEY,
   b CHAR(10)

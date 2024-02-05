@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Verify that we can avoid clearing writeset history when executing an empty
-# transaction if binlog-transaction-dependency-tracking is set to WRITESET.
+# transaction.
 #
 # ==== Implementation ====
 #
@@ -29,9 +29,6 @@
 RESET BINARY LOGS AND GTIDS;
 # Set the filter rule to filter out these DDLs and DMls on slave.
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= (test.t1);
-SET @save_binlog_transaction_dependency_tracking= @@GLOBAL.binlog_transaction_dependency_tracking;
-SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
-SET GLOBAL binlog_transaction_dependency_tracking= WRITESET;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -46,7 +43,7 @@ INSERT INTO t1 VALUES (3);
 --echo # since writeset history is not cleared when applying
 --echo # these empty transactions on slave.
 --echo #
---let $logical_timestamps=0 1;0 2;0 3;0 4
+--let $logical_timestamps=0 1;1 2;1 3;1 4
 --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --echo Processing binlog $binlog_file
 --let $source_file= $server_2_datadir/$binlog_file
@@ -58,8 +55,6 @@ DROP TABLE t1;
 
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_sql.inc
-SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
-SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= ();
 --source include/start_slave_sql.inc
 

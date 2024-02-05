@@ -222,12 +222,6 @@ The following options may be given as the first argument:
  transaction compression in the binary log.
  --binlog-transaction-dependency-history-size=# 
  Maximum number of rows to keep in the writeset history.
- --binlog-transaction-dependency-tracking=name 
- Selects the source of dependency information from which
- to compute logical timestamps, which replicas can use to
- decide which transactions can be executed in parallel
- when using replica_parallel_type=LOGICAL_CLOCK. Possible
- values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.
  --block-encryption-mode=name 
  mode for AES_ENCRYPT/AES_DECRYPT
  --bulk-insert-buffer-size=# 
@@ -1138,8 +1132,7 @@ The following options may be given as the first argument:
  databases. LOGICAL_CLOCK, which is the default, indicates
  that it decides whether two transactions can be applied
  in parallel using the logical timestamps computed by the
- source, according to
- binlog_transaction_dependency_tracking.
+ source.
  --replica-parallel-workers=# 
  Number of worker threads for executing events in parallel
  --replica-pending-jobs-size-max=# 
@@ -1645,7 +1638,6 @@ binlog-stmt-cache-size 32768
 binlog-transaction-compression FALSE
 binlog-transaction-compression-level-zstd 3
 binlog-transaction-dependency-history-size 25000
-binlog-transaction-dependency-tracking WRITESET
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
 caching-sha2-password-digest-rounds 5000

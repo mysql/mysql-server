@@ -6,15 +6,6 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection slave]
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= (test.t1);
-SET @save_binlog_transaction_dependency_tracking= @@GLOBAL.binlog_transaction_dependency_tracking;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
-SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
-SET GLOBAL binlog_transaction_dependency_tracking= WRITESET;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/start_slave.inc
 [connection master]
 CREATE TABLE t1 (c1 INT);
@@ -28,17 +19,11 @@ include/sync_slave_sql_with_master.inc
 # these empty transactions on slave.
 #
 Processing binlog slave-bin.000001
-include/include/assert_logical_timestamps.inc [0 1;0 2;0 3;0 4]
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4]
 [connection master]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
-SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
-SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= ();
 include/start_slave_sql.inc
 include/rpl_end.inc

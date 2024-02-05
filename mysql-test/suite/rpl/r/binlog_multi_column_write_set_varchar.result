@@ -4,13 +4,6 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
-# Initialization
-#
-include/save_sysvars.inc [ "GLOBAL.binlog_transaction_dependency_tracking" ]
-SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
-#
 # Check test_table last_committed and sequence_number
 #
 DROP TABLE IF EXISTS test_table;
@@ -68,7 +61,4 @@ include/include/assert_logical_timestamps.inc [7 8;8 9;9 10;10 11;11 12;12 13]
 #
 DROP TABLE test_table;
 DROP TABLE test2;
-include/restore_sysvars.inc
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/rpl_end.inc

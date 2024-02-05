@@ -9,6 +9,8 @@ SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout = 1000;
 include/restart_slave.inc
 [connection master]
+include/save_sysvars.inc [ "GLOBAL.binlog_transaction_dependency_history_size" ]
+SET GLOBAL binlog_transaction_dependency_history_size = 1;
 CREATE TABLE t1(c1 INT PRIMARY KEY);
 CREATE TABLE t2(c1 INT PRIMARY KEY);
 include/sync_slave_sql_with_master.inc
@@ -42,4 +44,5 @@ SET GLOBAL debug = '-d,wait_for_workers_to_finish_after_wait';
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 [connection master]
 DROP TABLE t1, t2;
+include/restore_sysvars.inc
 include/rpl_end.inc

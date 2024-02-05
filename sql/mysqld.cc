@@ -12246,10 +12246,6 @@ bool mysqld_get_one_option(int optid,
       binlog_format_used = true;
       LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT, "binlog_format");
       break;
-    case OPT_BINLOG_TRANSACTION_DEPENDENCY_TRACKING:
-      push_deprecated_warn_no_replacement(
-          nullptr, "--binlog-transaction-dependency-tracking");
-      break;
     case OPT_BINLOG_MAX_FLUSH_QUEUE_TIME:
       push_deprecated_warn_no_replacement(nullptr,
                                           "--binlog_max_flush_queue_time");

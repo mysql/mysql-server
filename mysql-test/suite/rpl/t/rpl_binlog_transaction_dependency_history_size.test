@@ -32,109 +32,77 @@
 
 --connection master
 
-SET @binlog_transaction_dependency_tracking_save = @@GLOBAL.binlog_transaction_dependency_tracking;
+--let $sysvars_to_save = [ "GLOBAL.binlog_transaction_dependency_history_size" ]
+--source include/save_sysvars.inc
+SET GLOBAL binlog_transaction_dependency_history_size = 3;
 
-# Loop between binlog_transaction_dependency_tracking modes
---let $type= 0
-while ($type < 3)
-{
-  --inc $type
+SELECT @@binlog_transaction_dependency_history_size;
 
-  --connection master
-  --echo
-  if ($type == 1)
-  {
-    SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
-    --echo ######## 1. WRITESET ########
-  }
-  if ($type == 2)
-  {
-    SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
-    --echo ######## 2. WRITESET_SESSION ########
-  }
-  if ($type == 3)
-  {
-    SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-    --echo ######## 3. COMMIT_ORDER ########
-  }
+CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
+CREATE TABLE test.tab2 (a INT);
+FLUSH LOGS;
 
-  SELECT @@binlog_transaction_dependency_tracking,
-         @@binlog_transaction_dependency_history_size;
-
-  CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
-  CREATE TABLE test.tab2 (a INT);
-  FLUSH LOGS;
-
-  # Expected commit orders:
-  #  for WRITESET and WRITESET_SESSION it is shown below in [] bracket.
-  #  for COMMIT_ORDER it is shown below in {} bracket.
-  # [0 1] {0 1} Case 1
-  --connection server_1_1
-  INSERT INTO tab1 VALUES (NULL); # 0 + 1 = 1
-  # [1 2] {1 2} Case 1
-  --connection server_1_2
-  INSERT INTO tab1 VALUES (NULL); # 1 + 1 = 2
-  # [1 3] {2 3} Case 2
-  --connection server_1_3
-  INSERT INTO tab1 VALUES (NULL); # 2 + 1 = 3
-  # [3 4] {3 4} Case 5
-  --connection server_1_4
-  INSERT INTO tab2 VALUES (1);    # 3 + 0 = 3
-  # [1 5] {4 5} Verify case 5 + 4.1: this should be scheduled in parallel with previous transactions.
-  --connection server_1_5
-  INSERT INTO tab1 VALUES (NULL); # 3 + 1 = 4 -> reset to 0
-  # [5 6] {5 6} Verify case 4.2 + 4.3: this should not be scheduled in parallel with previous transactions.
-  --connection server_1_6
-  INSERT INTO tab1 VALUES (NULL); # 0 + 1 = 1
-  # [5 7] {6 7} Case 3.1
-  --connection server_1_1
-  INSERT INTO tab1 VALUES (NULL), (NULL), (NULL); # 1 + 3 = 4 -> reset to 0
-  # [7 8] {7 8} Verify case 3.2 + 3.3
-  --connection server_1_2
-  INSERT INTO tab1 VALUES (NULL); # 0 + 1 = 1
-  # [7 9] {8 9}
-  --connection server_1_3
-  INSERT INTO tab1 VALUES (NULL); # 1 + 1 = 2
-  # [9 13] {9 13} Case 6 (this is not committed yet, and will be scheduled in parallel with the next
-  # three transactions even if two of them are not in history when this transaction commits).
-  --connection server_1_7
-  BEGIN;
-  INSERT INTO tab1 VALUES (NULL);
-  # [7 10] {9 10}
-  --connection server_1_4
-  INSERT INTO tab1 VALUES (NULL); # 2 + 1 = 3
-  # [7 11] {10 11}
-  --connection server_1_5
-  INSERT INTO tab1 VALUES (NULL); # 3 + 1 = 4 -> reset to 0
-  # [11 12] {11 12}
-  --connection server_1_6
-  INSERT INTO tab1 VALUES (NULL); # 0 + 1 = 1
-  # [9 13] {9 13} Case 6 cont'd
-  --connection server_1_7
-  COMMIT;
-
-  --connection master
-  --echo # Drop table and flush logs to force binlog to rotate
-  DROP TABLE test.tab1, test.tab2;
-
-  --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
-  FLUSH LOGS;
-
-  --echo # Processing binlog...
-  # For WRITESET and WRITESET_SESSION
-  --let $logical_timestamps=0 1;1 2;1 3;3 4;1 5;5 6;5 7;7 8;7 9;7 10;7 11;11 12;9 13;13 14
-  if ($type == 3)
-  { # For COMMIT_ORDER
-    --let $logical_timestamps=0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;9 13;13 14
-  }
-  --source include/assert_logical_timestamps.inc
-
-  --echo # Verify that replication is correct
-  --source include/sync_slave_sql_with_master.inc
-}
+# Expected commit orders is shown below in [] bracket.
+# [0 1] Case 1
+--connection server_1_1
+INSERT INTO tab1 VALUES (NULL); # 0 + 1 = 1
+# [1 2] Case 1
+--connection server_1_2
+INSERT INTO tab1 VALUES (NULL); # 1 + 1 = 2
+# [1 3] Case 2
+--connection server_1_3
+INSERT INTO tab1 VALUES (NULL); # 2 + 1 = 3
+# [3 4] Case 5
+--connection server_1_4
+INSERT INTO tab2 VALUES (1);    # 3 + 0 = 3
+# [1 5] Verify case 5 + 4.1: this should be scheduled in parallel with previous transactions.
+--connection server_1_5
+INSERT INTO tab1 VALUES (NULL); # 3 + 1 = 4 -> reset to 0
+# [5 6] Verify case 4.2 + 4.3: this should not be scheduled in parallel with previous transactions.
+--connection server_1_6
+INSERT INTO tab1 VALUES (NULL); # 0 + 1 = 1
+# [5 7] Case 3.1
+--connection server_1_1
+INSERT INTO tab1 VALUES (NULL), (NULL), (NULL); # 1 + 3 = 4 -> reset to 0
+# [7 8] Verify case 3.2 + 3.3
+--connection server_1_2
+INSERT INTO tab1 VALUES (NULL); # 0 + 1 = 1
+# [7 9]
+--connection server_1_3
+INSERT INTO tab1 VALUES (NULL); # 1 + 1 = 2
+# [9 13] Case 6 (this is not committed yet, and will be scheduled in parallel with the next
+# three transactions even if two of them are not in history when this transaction commits).
+--connection server_1_7
+BEGIN;
+INSERT INTO tab1 VALUES (NULL);
+# [7 10]
+--connection server_1_4
+INSERT INTO tab1 VALUES (NULL); # 2 + 1 = 3
+# [7 11]
+--connection server_1_5
+INSERT INTO tab1 VALUES (NULL); # 3 + 1 = 4 -> reset to 0
+# [11 12]
+--connection server_1_6
+INSERT INTO tab1 VALUES (NULL); # 0 + 1 = 1
+# [9 13] Case 6 cont'd
+--connection server_1_7
+COMMIT;
 
 --connection master
+--echo # Drop table and flush logs to force binlog to rotate
+DROP TABLE test.tab1, test.tab2;
 
-SET GLOBAL binlog_transaction_dependency_tracking = @binlog_transaction_dependency_tracking_save;
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+FLUSH LOGS;
+
+--echo # Processing binlog...
+--let $logical_timestamps=0 1;1 2;1 3;3 4;1 5;5 6;5 7;7 8;7 9;7 10;7 11;11 12;9 13;13 14
+--source include/assert_logical_timestamps.inc
+
+--echo # Verify that replication is correct
+--source include/sync_slave_sql_with_master.inc
+
+--connection master
+--source include/restore_sysvars.inc
 
 --source include/rpl_end.inc

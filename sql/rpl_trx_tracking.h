@@ -78,7 +78,18 @@ class Logical_clock {
 
 /**
   Generate logical timestamps for MTS using COMMIT_ORDER
-  in the binlog-transaction-dependency-tracking option.
+  binlog transaction dependency tracking algorithm.
+
+  Tracks dependencies based on the commit order of transactions.
+  The time intervals during which any transaction holds all its locks are
+  tracked (the interval ends just before storage engine commit, when locks
+  are released. For an autocommit transaction it begins just before storage
+  engine prepare. For BEGIN..COMMIT transactions it begins at the end of the
+  last statement before COMMIT). Two transactions are marked as
+  non-conflicting if their respective intervals overlap. In other words,
+  if trx1 appears before trx2 in the binlog, and trx2 had acquired all its
+  locks before trx1 released its locks, then trx2 is marked such that the
+  replica can schedule it in parallel with trx1.
 */
 class Commit_order_trx_dependency_tracker {
  public:
@@ -118,7 +129,10 @@ class Commit_order_trx_dependency_tracker {
 
 /**
   Generate logical timestamps for MTS using WRITESET
-  in the binlog-transaction-dependency-tracking option.
+  binlog transaction dependency tracking algorithm.
+
+  Tracks dependencies based on the set of rows updated. Any two transactions
+  that change disjoint sets of rows, are said concurrent and non-contending.
 */
 class Writeset_trx_dependency_tracker {
  public:
@@ -145,8 +159,7 @@ class Writeset_trx_dependency_tracker {
     commit parent when logical clock source is WRITE_SET, i.e., the most recent
     transaction that is not in the history, or 0 when the history is empty.
 
-    The m_writeset_history_start must to be set to 0 initially and whenever the
-    binlog_transaction_dependency_tracking variable is changed or the history
+    The m_writeset_history_start must to be set to 0 initially and the history
     is cleared, so that it is updated to the first transaction for which the
     dependencies are checked.
   */
@@ -161,67 +174,15 @@ class Writeset_trx_dependency_tracker {
 };
 
 /**
-  Generate logical timestamps for MTS using WRITESET_SESSION
-  in the binlog-transaction-dependency-tracking option.
-*/
-class Writeset_session_trx_dependency_tracker {
- public:
-  /**
-    Main function that gets the dependencies using the WRITESET_SESSION tracker.
-
-    @param [in]     thd             THD of the caller.
-    @param [in,out] sequence_number sequence_number initialized and returned.
-    @param [in,out] commit_parent   commit_parent to be returned.
-   */
-  void get_dependency(THD *thd, int64 &sequence_number, int64 &commit_parent);
-};
-
-/**
-  Modes for parallel transaction dependency tracking
-*/
-enum enum_binlog_transaction_dependency_tracking {
-  /**
-    Tracks dependencies based on the commit order of transactions.
-    The time intervals during which any transaction holds all its locks are
-    tracked (the interval ends just before storage engine commit, when locks
-    are released. For an autocommit transaction it begins just before storage
-    engine prepare. For BEGIN..COMMIT transactions it begins at the end of the
-    last statement before COMMIT). Two transactions are marked as
-    non-conflicting if their respective intervals overlap. In other words,
-    if trx1 appears before trx2 in the binlog, and trx2 had acquired all its
-    locks before trx1 released its locks, then trx2 is marked such that the
-    slave can schedule it in parallel with trx1.
-  */
-  DEPENDENCY_TRACKING_COMMIT_ORDER = 0,
-  /**
-    Tracks dependencies based on the set of rows updated. Any two transactions
-    that change disjoint sets of rows, are said concurrent and non-contending.
-  */
-  DEPENDENCY_TRACKING_WRITESET = 1,
-  /**
-    Tracks dependencies based on the set of rows updated per session. Any two
-    transactions that change disjoint sets of rows, on different sessions,
-    are said concurrent and non-contending. Transactions from the same session
-    are always said to be dependent, i.e., are never concurrent and
-    non-contending.
-  */
-  DEPENDENCY_TRACKING_WRITESET_SESSION = 2
-};
-
-/**
   Dependency tracker is a container singleton that dispatches between the three
-  methods associated with the binlog-transaction-dependency-tracking option.
+  methods associated with the binlog transaction dependency tracking algorithm.
   There is a singleton instance of each of these classes.
 */
 class Transaction_dependency_tracker {
  public:
-  Transaction_dependency_tracker()
-      : m_opt_tracking_mode(DEPENDENCY_TRACKING_COMMIT_ORDER),
-        m_writeset(25000) {}
+  Transaction_dependency_tracker() : m_writeset(25000) {}
 
   void get_dependency(THD *thd, int64 &sequence_number, int64 &commit_parent);
-
-  void tracking_mode_changed();
 
   void update_max_committed(THD *thd);
   int64 get_max_committed_timestamp();
@@ -230,15 +191,11 @@ class Transaction_dependency_tracker {
   void rotate();
 
  public:
-  /* option opt_binlog_transaction_dependency_tracking */
-  long m_opt_tracking_mode;
-
   Writeset_trx_dependency_tracker *get_writeset() { return &m_writeset; }
 
  private:
   Writeset_trx_dependency_tracker m_writeset;
   Commit_order_trx_dependency_tracker m_commit_order;
-  Writeset_session_trx_dependency_tracker m_writeset_session;
 };
 
 #endif /* RPL_TRX_TRACKING_INCLUDED */

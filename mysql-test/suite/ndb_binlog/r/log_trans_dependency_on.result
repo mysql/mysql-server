@@ -14,13 +14,6 @@ select @@ndb_log_transaction_dependency;
 #
 set @@ndb_log_transaction_dependency=ON;
 ERROR HY000: Variable 'ndb_log_transaction_dependency' is a read only variable
-# Test assumes that WRITESET is used for dependency tracking as otherwise
-# the hash values calculated by ndb_binlog thread will not be used
-select @@binlog_transaction_dependency_tracking;
-@@binlog_transaction_dependency_tracking
-WRITESET
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (
 a INT PRIMARY KEY,
 b CHAR(10)

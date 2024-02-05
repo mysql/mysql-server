@@ -94,12 +94,6 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1
 DROP TABLE t1;
 SET @start_row_image_value = @@session.binlog_row_image;
 SET @@session.binlog_row_image = MINIMAL;
-SET @save_btdt= @@global.binlog_transaction_dependency_tracking;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
-SET @@global.binlog_transaction_dependency_tracking = 'WRITESET';
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 FLUSH LOGS;
 include/save_binlog_position.inc
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, data JSON NOT NULL,
@@ -254,9 +248,6 @@ include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
 DROP TABLE t1;
-SET @@global.binlog_transaction_dependency_tracking = @save_btdt;
-Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 FLUSH LOGS;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

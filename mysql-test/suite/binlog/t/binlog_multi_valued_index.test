@@ -4,9 +4,8 @@
 
 # ==== Requirements ====
 #
-# R1. When using binlog_transaction_dependency_tracking = 'WRITESET', two
-#   transactions that conflict on a unique multi-valued index must be marked as
-#   dependent in the binary log.
+# R1. Two transactions that conflict on a unique multi-valued index must be
+#   marked as dependent in the binary log.
 # R2. When using binlog_row_image=MINIMAL, the before-image shall not be
 #   generated from a multi-valued index.
 #

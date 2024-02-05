@@ -1,7 +1,6 @@
 !include suite/ndb_rpl/my.cnf
 
 [mysqld]
-binlog-transaction-dependency-tracking=WRITESET
 ndb-log-transaction-dependency=ON
 replica-parallel-workers=10
 

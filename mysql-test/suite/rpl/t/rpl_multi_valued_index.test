@@ -1,5 +1,4 @@
 --source include/have_binlog_format_row.inc
---source include/have_binlog_transaction_dependency_tracking_commit_order.inc
 --source include/master-slave.inc
 
 
@@ -79,9 +78,6 @@ DROP TABLE t1;
 
 SET @start_row_image_value = @@session.binlog_row_image;
 SET @@session.binlog_row_image = MINIMAL;
-
-SET @save_btdt= @@global.binlog_transaction_dependency_tracking;
-SET @@global.binlog_transaction_dependency_tracking = 'WRITESET';
 
 # Test transactions dependency is properly calculated
 FLUSH LOGS;
@@ -219,7 +215,6 @@ INSERT INTO t1(data) VALUES ('[0,99]');
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 
-SET @@global.binlog_transaction_dependency_tracking = @save_btdt;
 FLUSH LOGS;
 --source include/sync_slave_sql_with_master.inc
 
