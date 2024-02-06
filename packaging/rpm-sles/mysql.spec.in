@@ -136,7 +136,7 @@ BuildRequires:  systemd-rpm-macros
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap2-devel
 
-%global _privatelibs libabsl_.*|libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*|libfido2.*|libpolyglot.*
+%global _privatelibs libabsl_.*|libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*|libfido2.*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
@@ -611,7 +611,6 @@ mkdir debug
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/run/mysql" \
            -DWITH_MEB=%{with_meb} \
-           -DWITH_MLE=1 \
            -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDB=1 \
@@ -653,7 +652,6 @@ mkdir release
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/run/mysql" \
            -DWITH_MEB=%{with_meb} \
-           -DWITH_MLE=1 \
            -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDB=1 \
@@ -906,9 +904,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_throw_delegate.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time_zone.so
-%if 0%{?commercial}
-%attr(755, root, root) %{_libdir}/mysql/private/libpolyglot.so
-%endif # commercial
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
@@ -971,7 +966,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_mle.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_scheduler.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
 %if 0%{?aws_sdk}
@@ -1049,7 +1043,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking_functions.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mle.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_scheduler.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_telemetry.so
 %if 0%{?aws_sdk}
