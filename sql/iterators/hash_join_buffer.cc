@@ -30,7 +30,8 @@
 #include <string>
 #include <utility>
 
-#include "extra/robin-hood-hashing/robin_hood.h"
+#include <ankerl/unordered_dense.h>
+
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
@@ -74,30 +75,34 @@ class KeyHasher {
   // map.find(Key). The type itself does not matter.
   using is_transparent = void;
 
-  size_t operator()(Key key) const {
-    return robin_hood::hash_bytes(key.data(), key.size());
+  // This is a marker telling ankerl::unordered_dense that the hash function has
+  // good quality.
+  using is_avalanching = void;
+
+  uint64_t operator()(Key key) const {
+    return ankerl::unordered_dense::hash<Key>()(key);
   }
 
-  size_t operator()(ImmutableStringWithLength key) const {
+  uint64_t operator()(ImmutableStringWithLength key) const {
     return operator()(key.Decode());
   }
 };
 
 }  // namespace
 
-// A wrapper class around robin_hood::unordered_flat_map, so that it can be
-// forward-declared in the header file. This is done to limit the number of
+// A wrapper class around ankerl::unordered_dense::segmented_map, so that it can
+// be forward-declared in the header file. This is done to limit the number of
 // files that include directly or indirectly headers from the third-party
 // library.
 class HashJoinRowBuffer::HashMap
-    : public robin_hood::unordered_flat_map<ImmutableStringWithLength,
-                                            LinkedImmutableString, KeyHasher,
-                                            KeyEquals> {
+    : public ankerl::unordered_dense::segmented_map<ImmutableStringWithLength,
+                                                    LinkedImmutableString,
+                                                    KeyHasher, KeyEquals> {
  public:
   // Inherit the constructors from the base class.
-  using robin_hood::unordered_flat_map<ImmutableStringWithLength,
-                                       LinkedImmutableString, KeyHasher,
-                                       KeyEquals>::unordered_flat_map;
+  using ankerl::unordered_dense::segmented_map<ImmutableStringWithLength,
+                                               LinkedImmutableString, KeyHasher,
+                                               KeyEquals>::segmented_map;
 };
 
 LinkedImmutableString
@@ -194,7 +199,7 @@ bool HashJoinRowBuffer::Init() {
   // table.
   m_row_size_upper_bound = ComputeRowSizeUpperBound(m_tables);
 
-  m_hash_map.reset(new HashMap(/*bucket_count=*/10));
+  m_hash_map.reset(new HashMap());
   if (m_hash_map == nullptr) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(*m_hash_map));
     return true;
@@ -276,7 +281,10 @@ StoreRowResult HashJoinRowBuffer::StoreRow(THD *thd,
     // Update the capacity available for the MEM_ROOT; our total may
     // have gone slightly over already, and if so, we will signal
     // that and immediately start spilling to disk.
-    size_t bytes_used = m_hash_map->calcNumBytesTotal(m_hash_map->mask() + 1);
+    const size_t bytes_used =
+        m_hash_map->bucket_count() * sizeof(HashMap::bucket_type) +
+        m_hash_map->values().capacity() *
+            sizeof(HashMap::value_container_type::value_type);
     if (bytes_used >= m_max_mem_available) {
       // 0 means no limit, so set the minimum possible limit.
       m_mem_root.set_max_capacity(1);
