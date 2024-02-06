@@ -1982,3 +1982,23 @@ HANDLER t1 OPEN ;
 HANDLER t1 READ FIRST WHERE c1 MEMBER ( c1 ) IS NOT FALSE LIMIT 100 , 100 ;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36155387: Hypergraph: Too many rows from index range scan
+--echo #               for JSON_CONTAINS
+--echo #
+
+CREATE TABLE t(j JSON, KEY ((CAST(j->'$[*]' AS SIGNED ARRAY))));
+INSERT INTO t VALUES ('[1,2,3]'), ('[1]'), ('[2]'), ('[3]');
+INSERT INTO t SELECT '[]' FROM t;
+INSERT INTO t SELECT '[]' FROM t;
+INSERT INTO t SELECT '[]' FROM t;
+INSERT INTO t SELECT '[]' FROM t;
+ANALYZE TABLE t;
+
+let $query = SELECT * FROM t WHERE JSON_CONTAINS(j->'$[*]', '[1,2,3]');
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t;
