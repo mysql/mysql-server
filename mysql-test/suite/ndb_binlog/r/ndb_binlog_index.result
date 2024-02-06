@@ -60,9 +60,12 @@ Check Binlog on other MySQLD to ensure that binlog index positions
 reset master;
 reset master;
 set sql_log_bin=0;
-create procedure dmlload (seconds int)
+create table dmlload_stop (
+value int primary key
+);
+create procedure dmlload ()
 begin
-set @x=time_to_sec(current_time()) + seconds;
+declare stop int default 0;
 repeat
 start transaction;
 insert into t1 values (2, repeat('I', 400));
@@ -73,23 +76,13 @@ commit;
 start transaction;
 delete from t1 where a=2;
 commit;
-until @x <= time_to_sec(current_time())
-end repeat;
-end%
-create procedure ddlload(seconds int)
-begin
-set @x=time_to_sec(current_time()) + seconds;
-repeat
-create table fmc (a int) engine=myisam;
-create table bah(a int) engine=ndb;
-drop table bah;
-drop table fmc;
-until @x <= time_to_sec(current_time())
+select value from dmlload_stop where value = 1 into stop;
+until stop
 end repeat;
 end%
 set sql_log_bin=1;
-call ddlload(25);
-call dmlload(25);
+call dmlload();
+insert into dmlload_stop values(1);
 Now check binlog index vs binlog itself on Server1
 flush logs;
 ---------------------------------------------------------------------------
@@ -104,8 +97,8 @@ Mismatches between Binlog index next_pos and Binlog COMMIT event pos
 ---------------------------------------------------------------------------
 epoch	calculated_pos	stored_pos
 Done
-drop procedure ddlload;
 drop procedure dmlload;
+drop table dmlload_stop;
 Cleanup
 drop table t1;
 drop table t2;
@@ -165,9 +158,12 @@ Check Binlog on other MySQLD to ensure that binlog index positions
 reset master;
 reset master;
 set sql_log_bin=0;
-create procedure dmlload (seconds int)
+create table dmlload_stop (
+value int primary key
+);
+create procedure dmlload ()
 begin
-set @x=time_to_sec(current_time()) + seconds;
+declare stop int default 0;
 repeat
 start transaction;
 insert into t1 values (2, repeat('I', 400));
@@ -178,23 +174,13 @@ commit;
 start transaction;
 delete from t1 where a=2;
 commit;
-until @x <= time_to_sec(current_time())
-end repeat;
-end%
-create procedure ddlload(seconds int)
-begin
-set @x=time_to_sec(current_time()) + seconds;
-repeat
-create table fmc (a int) engine=myisam;
-create table bah(a int) engine=ndb;
-drop table bah;
-drop table fmc;
-until @x <= time_to_sec(current_time())
+select value from dmlload_stop where value = 1 into stop;
+until stop
 end repeat;
 end%
 set sql_log_bin=1;
-call ddlload(25);
-call dmlload(25);
+call dmlload();
+insert into dmlload_stop values(1);
 Now check binlog index vs binlog itself on Server1
 flush logs;
 Nothing to verify
@@ -205,8 +191,8 @@ Mismatches between Binlog index next_pos and Binlog COMMIT event pos
 ---------------------------------------------------------------------------
 epoch	calculated_pos	stored_pos
 Done
-drop procedure ddlload;
 drop procedure dmlload;
+drop table dmlload_stop;
 Cleanup
 drop table t1;
 drop table t2;
