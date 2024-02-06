@@ -1,4 +1,4 @@
-# Copyright (c) 2023, Oracle and/or its affiliates.
+# Copyright (c) 2024, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,22 @@ SET(ABSL_PROPAGATE_CXX_STD ON)
 # note: due to ..... being dllexported
 IF(MSVC AND NOT WIN32_CLANG)
   SET(absl_BUILD_SHARED_LIBS ON)
+ENDIF()
+
+IF(MSVC AND (FPROFILE_GENERATE OR FPROFILE_USE))
+  # The use of CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS is incompatible with
+  # the MSVC /GL compiler option which is added by fprofile.cmake,
+  # along with the linker flags /LTCG, /GENPROFILE and /USEPROFILE
+  STRING(REPLACE "/GL" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  STRING(REPLACE "/GENPROFILE" "" CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO
+         "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "/USEPROFILE" "" CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO
+         "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "/LTCG" "" CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO
+         "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO}")
+  # Suppress linker warnings generated as a consequence of combining
+  # CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS with __declspec(dllexport)
+  STRING(APPEND CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO " /IGNORE:4197")
 ENDIF()
 
 MACRO(do_not_install)
