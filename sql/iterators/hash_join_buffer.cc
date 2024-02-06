@@ -24,35 +24,81 @@
 #include "sql/iterators/hash_join_buffer.h"
 
 #include <assert.h>
-#include <cstddef>
-#include <cstring>
-#include <iterator>
-#include <new>
-#include <unordered_map>
+#include <algorithm>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
-#include "field_types.h"
-#include "m_ctype.h"
+#include "extra/robin-hood-hashing/robin_hood.h"
 #include "my_alloc.h"
-#include "my_bit.h"
-#include "my_bitmap.h"
 #include "my_compiler.h"
-
 #include "my_inttypes.h"
-#include "sql/field.h"
-#include "sql/handler.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "sql/item_cmpfunc.h"
-#include "sql/join_optimizer/bit_utils.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sql_class.h"
-#include "sql/sql_executor.h"
-#include "sql/sql_optimizer.h"
-#include "sql/table.h"
-#include "tables_contained_in.h"
 #include "template_utils.h"
 
 using pack_rows::TableCollection;
 
 namespace hash_join_buffer {
+
+namespace {
+
+class KeyEquals {
+ public:
+  // This is a marker from C++17 that signals to the container that
+  // operator() can be called with arguments of which one of the types
+  // differs from the container's key type (ImmutableStringWithLength),
+  // and thus enables map.find(Key). The type itself does not matter.
+  using is_transparent = void;
+
+  bool operator()(const Key &str1,
+                  const ImmutableStringWithLength &other) const {
+    return str1 == other.Decode();
+  }
+
+  bool operator()(const ImmutableStringWithLength &str1,
+                  const ImmutableStringWithLength &str2) const {
+    return str1 == str2;
+  }
+};
+
+class KeyHasher {
+ public:
+  // This is a marker from C++17 that signals to the container that
+  // operator() can be called with an argument that differs from the
+  // container's key type (ImmutableStringWithLength), and thus enables
+  // map.find(Key). The type itself does not matter.
+  using is_transparent = void;
+
+  size_t operator()(Key key) const {
+    return robin_hood::hash_bytes(key.data(), key.size());
+  }
+
+  size_t operator()(ImmutableStringWithLength key) const {
+    return operator()(key.Decode());
+  }
+};
+
+}  // namespace
+
+// A wrapper class around robin_hood::unordered_flat_map, so that it can be
+// forward-declared in the header file. This is done to limit the number of
+// files that include directly or indirectly headers from the third-party
+// library.
+class HashJoinRowBuffer::HashMap
+    : public robin_hood::unordered_flat_map<ImmutableStringWithLength,
+                                            LinkedImmutableString, KeyHasher,
+                                            KeyEquals> {
+ public:
+  // Inherit the constructors from the base class.
+  using robin_hood::unordered_flat_map<ImmutableStringWithLength,
+                                       LinkedImmutableString, KeyHasher,
+                                       KeyEquals>::unordered_flat_map;
+};
 
 LinkedImmutableString
 HashJoinRowBuffer::StoreLinkedImmutableStringFromTableBuffers(
@@ -126,8 +172,12 @@ HashJoinRowBuffer::HashJoinRowBuffer(
   m_mem_root.set_max_capacity(0);
 }
 
+// Define the destructor here instead of in the header, so that the header can
+// forward declare types of member variables (m_hash_map in particular).
+HashJoinRowBuffer::~HashJoinRowBuffer() = default;
+
 bool HashJoinRowBuffer::Init() {
-  if (m_hash_map.get() != nullptr) {
+  if (m_hash_map != nullptr) {
     // Reset the unique_ptr, so that the hash map destructors are called before
     // clearing the MEM_ROOT.
     m_hash_map.reset(nullptr);
@@ -144,10 +194,9 @@ bool HashJoinRowBuffer::Init() {
   // table.
   m_row_size_upper_bound = ComputeRowSizeUpperBound(m_tables);
 
-  m_hash_map.reset(new hash_map_type(
-      /*bucket_count=*/10, KeyHasher()));
+  m_hash_map.reset(new HashMap(/*bucket_count=*/10));
   if (m_hash_map == nullptr) {
-    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(hash_map_type));
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(*m_hash_map));
     return true;
   }
 
@@ -212,7 +261,7 @@ StoreRowResult HashJoinRowBuffer::StoreRow(THD *thd,
     // Keep bytes_to_commit == 0; the value is already committed.
   }
 
-  std::pair<hash_map_type::iterator, bool> key_it_and_inserted;
+  std::pair<HashMap::iterator, bool> key_it_and_inserted;
   try {
     key_it_and_inserted =
         m_hash_map->emplace(key, LinkedImmutableString{nullptr});
@@ -258,6 +307,19 @@ StoreRowResult HashJoinRowBuffer::StoreRow(THD *thd,
   } else {
     return StoreRowResult::ROW_STORED;
   }
+}
+
+size_t HashJoinRowBuffer::size() const { return m_hash_map->size(); }
+
+std::optional<LinkedImmutableString> HashJoinRowBuffer::find(Key key) const {
+  const auto it = m_hash_map->find(key);
+  if (it == m_hash_map->end()) return {};
+  return it->second;
+}
+
+std::optional<LinkedImmutableString> HashJoinRowBuffer::first_row() const {
+  if (m_hash_map->empty()) return {};
+  return m_hash_map->begin()->second;
 }
 
 }  // namespace hash_join_buffer

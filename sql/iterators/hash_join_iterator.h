@@ -26,7 +26,6 @@
 
 #include <stdio.h>
 #include <cstdint>
-#include <memory>
 #include <vector>
 
 #include "my_alloc.h"
@@ -41,10 +40,10 @@
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/pack_rows.h"
+#include "sql/table.h"
 #include "sql_string.h"
 
 class Item;
-class JOIN;
 class THD;
 
 struct ChunkPair {
