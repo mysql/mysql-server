@@ -2,6 +2,12 @@
 -- source include/count_sessions.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
+# Turn off metadata check so it doesn't interfere with table discovery
+--disable_query_log
+SET @save_ndb_metadata_check = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+--enable_query_log
+
 --echo #
 --echo # 18075170 - sql node restart required to avoid deadlock after
 --echo #            restore
@@ -69,6 +75,9 @@ disconnect con2;
 connection default;
 drop table t1;
 drop table t2;
+
+--disable_query_log ONCE
+SET GLOBAL ndb_metadata_check = @save_ndb_metadata_check;
 
 # Wait till all disconnects are completed
 -- source include/wait_until_count_sessions.inc

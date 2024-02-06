@@ -172,7 +172,7 @@ static void short_usage_sub(void) {
   ndb_service_print_options("ndb_mgmd");
 }
 
-static void mgmd_exit(int result) {
+[[noreturn]] static void mgmd_exit(int result) {
   g_eventLogger->close();
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
@@ -400,15 +400,6 @@ static int mgmd_main(int argc, char **argv) {
       fprintf(stderr, "ERROR: Unable to parse nowait-nodes argument: '%s'\n",
               opt_nowait_nodes);
       mgmd_exit(1);
-    }
-  }
-
-  if (opts.bind_address) {
-    int len = strlen(opts.bind_address);
-    if ((opts.bind_address[0] == '[') && (opts.bind_address[len - 1] == ']')) {
-      opts.bind_address = strdup(opts.bind_address + 1);
-    } else {
-      opts.bind_address = strdup(opts.bind_address);
     }
   }
 
