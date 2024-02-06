@@ -1944,8 +1944,10 @@ EXPLAIN
 -> Limit: 10 row(s)  (rows=0.0556)
     -> Nested loop inner join  (rows=0.0556)
         -> Table scan on t1  (rows=1)
-        -> Filter: (((t2.col2 > 0) or (t2.col3 > 0)) and (t1.col1 = t2.col1))  (rows=0.0556)
-            -> Table scan on t2  (rows=1)
+        -> Filter: (t1.col1 = t2.col1)  (rows=0.0556)
+            -> Sort-deduplicate by row ID  (rows=0.556)
+                -> Index range scan on t2 using idx_a over (0 < col2)  (rows=1)
+                -> Index range scan on t2 using idx_b over (0 < col3)  (rows=1)
 
 SELECT /*+ JOIN_ORDER(t2, t1) INDEX_MERGE(t2) */ t1.col1
 FROM t1

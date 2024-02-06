@@ -577,7 +577,8 @@ class CostingReceiver {
   }
 
   bool FindIndexRangeScans(int node_idx, bool *impossible,
-                           double *num_output_rows_after_filter);
+                           double *num_output_rows_after_filter,
+                           bool force_imerge, bool *found_forced_plan);
   bool SetUpRangeScans(int node_idx, bool *impossible,
                        double *num_output_rows_after_filter,
                        RANGE_OPT_PARAM *param, SEL_TREE **tree,
@@ -591,30 +592,34 @@ class CostingReceiver {
   void ProposeAllIndexMergeScans(
       int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
       SEL_TREE *tree, const Mem_root_array<PossibleRangeScan> *possible_scans,
-      const Mem_root_array<PossibleIndexMerge> *index_merges);
+      const Mem_root_array<PossibleIndexMerge> *index_merges,
+      bool *found_imerge);
   void ProposeIndexMerge(TABLE *table, int node_idx, const SEL_IMERGE &imerge,
                          int pred_idx, bool inexact,
                          bool allow_clustered_primary_key_scan,
                          int num_where_predicates,
                          double num_output_rows_after_filter,
                          RANGE_OPT_PARAM *param,
-                         bool *has_clustered_primary_key_scan);
+                         bool *has_clustered_primary_key_scan,
+                         bool *found_imerge);
   void ProposeRowIdOrderedUnion(TABLE *table, int node_idx,
                                 const SEL_IMERGE &imerge, int pred_idx,
                                 bool inexact, int num_where_predicates,
                                 double num_output_rows_after_filter,
                                 const RANGE_OPT_PARAM *param,
-                                const Mem_root_array<AccessPath *> &paths);
+                                const Mem_root_array<AccessPath *> &paths,
+                                bool *found_imerge);
   void ProposeAllRowIdOrderedIntersectPlans(
       TABLE *table, int node_idx, SEL_TREE *tree, int num_where_predicates,
       const Mem_root_array<PossibleRORScan> &possible_ror_scans,
-      double num_output_rows_after_filter, const RANGE_OPT_PARAM *param);
+      double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
+      bool *found_imerge);
   void ProposeRowIdOrderedIntersect(
       TABLE *table, int node_idx, int num_where_predicates,
       const Mem_root_array<PossibleRORScan> &possible_ror_scans,
       const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
       double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
-      OverflowBitset needed_fields);
+      OverflowBitset needed_fields, bool *found_imerge);
   void ProposeAllSkipScans(
       int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
       SEL_TREE *tree, Mem_root_array<PossibleIndexSkipScan> *index_skip_scans,
@@ -848,9 +853,12 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
                                  m_graph->nodes[node_idx].table()->alias,
                                  table->file->stats.records);
   }
+  const bool force_index_merge = hint_table_state(
+      m_thd, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
+  const bool propose_all_scans = !force_index_merge;
 
   // First look for unique index lookups that use only constants.
-  {
+  if (propose_all_scans) {
     bool found_eq_ref = false;
     if (ProposeAllUniqueIndexLookupsWithConstantKey(node_idx, &found_eq_ref)) {
       return true;
@@ -891,8 +899,10 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       // the range optimizer could be out of RAM easily enough, which is
       // nonfatal. That just means we won't be using it for this table.
       bool impossible = false;
+      bool found_forced_plan = false;
       if (FindIndexRangeScans(node_idx, &impossible,
-                              &range_optimizer_row_estimate) &&
+                              &range_optimizer_row_estimate, force_index_merge,
+                              &found_forced_plan) &&
           m_thd->is_error()) {
         return true;
       }
@@ -927,6 +937,9 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
         if (TraceStarted(m_thd)) {
           TraceAccessPaths(TableBitmap(node_idx));
         }
+        return false;
+      }
+      if (force_index_merge && found_forced_plan) {
         return false;
       }
     }
@@ -967,8 +980,8 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       // An index scan is more interesting than a table scan if it follows an
       // interesting order that can be used to avoid a sort later, or if it is
       // covering so that it can reduce the volume of data to read. A scan of a
-      // clustered primary index reads as much data as a table scan, so it is
-      // not considered unless it follows an interesting order.
+      // clustered primary index reads as much data as a table scan, so it
+      // is not considered unless it follows an interesting order.
       if (order != 0 || (table->covering_keys.is_set(key_idx) &&
                          !IsClusteredPrimaryKey(key_idx, *table))) {
         if (ProposeIndexScan(table, node_idx, range_optimizer_row_estimate,
@@ -1367,6 +1380,9 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
     if (!is_ror_scan && need_rowid_ordered_rows) {
       continue;
     }
+    if (!compound_hint_key_enabled(param->table, idx, INDEX_MERGE_HINT_ENUM)) {
+      continue;
+    }
     if (is_ror_scan) {
       tree->n_ror_scans++;
       tree->ror_scans_map.set_bit(idx);
@@ -1432,8 +1448,10 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
   return path;
 }
 
-bool CostingReceiver::FindIndexRangeScans(
-    int node_idx, bool *impossible, double *num_output_rows_after_filter) {
+bool CostingReceiver::FindIndexRangeScans(int node_idx, bool *impossible,
+                                          double *num_output_rows_after_filter,
+                                          bool force_imerge,
+                                          bool *found_forced_plan) {
   RANGE_OPT_PARAM param;
   SEL_TREE *tree = nullptr;
   Mem_root_array<PossibleRangeScan> possible_scans(&m_range_optimizer_mem_root);
@@ -1448,6 +1466,7 @@ bool CostingReceiver::FindIndexRangeScans(
     return true;
   }
   if (*impossible) {
+    *found_forced_plan = true;
     return false;
   }
   if (Overlaps(m_graph->nodes[node_idx].table()->file->ha_table_flags(),
@@ -1455,11 +1474,22 @@ bool CostingReceiver::FindIndexRangeScans(
     // We only wanted to use the index for estimation, and now we've done that.
     return false;
   }
+  if (force_imerge && tree != nullptr) {
+    ProposeAllIndexMergeScans(node_idx, *num_output_rows_after_filter, &param,
+                              tree, &possible_scans, &index_merges,
+                              found_forced_plan);
+    if (*found_forced_plan) {
+      return false;
+    }
+  }
   if (tree != nullptr) {
     ProposeRangeScans(node_idx, *num_output_rows_after_filter, &param, tree,
                       &possible_scans);
-    ProposeAllIndexMergeScans(node_idx, *num_output_rows_after_filter, &param,
-                              tree, &possible_scans, &index_merges);
+    if (!force_imerge) {
+      ProposeAllIndexMergeScans(node_idx, *num_output_rows_after_filter, &param,
+                                tree, &possible_scans, &index_merges,
+                                found_forced_plan);
+    }
   }
   ProposeAllSkipScans(node_idx, *num_output_rows_after_filter, &param, tree,
                       &index_skip_scans, &all_predicates);
@@ -1770,8 +1800,19 @@ void CostingReceiver::ProposeRangeScans(
 void CostingReceiver::ProposeAllIndexMergeScans(
     int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
     SEL_TREE *tree, const Mem_root_array<PossibleRangeScan> *possible_scans,
-    const Mem_root_array<PossibleIndexMerge> *index_merges) {
+    const Mem_root_array<PossibleIndexMerge> *index_merges,
+    bool *found_imerge) {
   TABLE *table = m_graph->nodes[node_idx].table();
+  const bool force_index_merge = hint_table_state(
+      m_thd, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
+  const bool index_merge_allowed =
+      force_index_merge ||
+      m_thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE);
+  const bool index_merge_intersect_allowed =
+      (force_index_merge ||
+       (index_merge_allowed &&
+        m_thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT)));
+
   Mem_root_array<PossibleRORScan> possible_ror_scans(
       &m_range_optimizer_mem_root);
   for (const PossibleRangeScan &scan : *possible_scans) {
@@ -1787,9 +1828,11 @@ void CostingReceiver::ProposeAllIndexMergeScans(
     }
   }
   // Now Propose Row-ID ordered index merge intersect plans if possible.
-  ProposeAllRowIdOrderedIntersectPlans(
-      table, node_idx, tree, m_graph->num_where_predicates, possible_ror_scans,
-      num_output_rows_after_filter, param);
+  if (index_merge_intersect_allowed) {
+    ProposeAllRowIdOrderedIntersectPlans(
+        table, node_idx, tree, m_graph->num_where_predicates,
+        possible_ror_scans, num_output_rows_after_filter, param, found_imerge);
+  }
 
   // Propose all index merges we have collected. This proposes both
   // "sort-index" merges, ie., generally collect all the row IDs,
@@ -1797,17 +1840,20 @@ void CostingReceiver::ProposeAllIndexMergeScans(
   // the rows. If the indexes are “ROR compatible” (give out their rows in
   // row ID order directly, without any sort which is mostly the case
   // when a condition has equality predicates), we propose ROR union scans.
-  for (const PossibleIndexMerge &imerge : *index_merges) {
-    for (bool allow_clustered_primary_key_scan : {true, false}) {
-      bool has_clustered_primary_key_scan = false;
-      ProposeIndexMerge(
-          table, node_idx, *imerge.imerge, imerge.pred_idx, imerge.inexact,
-          allow_clustered_primary_key_scan, m_graph->num_where_predicates,
-          num_output_rows_after_filter, param, &has_clustered_primary_key_scan);
-      if (!has_clustered_primary_key_scan) {
-        // No need to check scans with clustered key scans disallowed
-        // if we didn't choose one to begin with.
-        break;
+  if (index_merge_allowed) {
+    for (const PossibleIndexMerge &imerge : *index_merges) {
+      for (bool allow_clustered_primary_key_scan : {true, false}) {
+        bool has_clustered_primary_key_scan = false;
+        ProposeIndexMerge(table, node_idx, *imerge.imerge, imerge.pred_idx,
+                          imerge.inexact, allow_clustered_primary_key_scan,
+                          m_graph->num_where_predicates,
+                          num_output_rows_after_filter, param,
+                          &has_clustered_primary_key_scan, found_imerge);
+        if (!has_clustered_primary_key_scan) {
+          // No need to check scans with clustered key scans disallowed
+          // if we didn't choose one to begin with.
+          break;
+        }
       }
     }
   }
@@ -1923,7 +1969,8 @@ void UpdateAppliedAndSubsumedPredicates(
 void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
     TABLE *table, int node_idx, SEL_TREE *tree, int num_where_predicates,
     const Mem_root_array<PossibleRORScan> &possible_ror_scans,
-    double num_output_rows_after_filter, const RANGE_OPT_PARAM *param) {
+    double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
+    bool *found_imerge) {
   if (tree->n_ror_scans < 2 || !table->file->stats.records) return;
 
   ROR_SCAN_INFO *cpk_scan = nullptr;
@@ -1950,9 +1997,10 @@ void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
   // We have only 2 scans available, one a non-cpk scan and
   // another a cpk scan. Propose the plan and return.
   if (ror_scans.size() == 1 && cpk_scan != nullptr) {
-    ProposeRowIdOrderedIntersect(
-        table, node_idx, num_where_predicates, possible_ror_scans, ror_scans,
-        cpk_scan, num_output_rows_after_filter, param, needed_fields);
+    ProposeRowIdOrderedIntersect(table, node_idx, num_where_predicates,
+                                 possible_ror_scans, ror_scans, cpk_scan,
+                                 num_output_rows_after_filter, param,
+                                 needed_fields, found_imerge);
     return;
   }
 
@@ -1980,7 +2028,7 @@ void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
       ProposeRowIdOrderedIntersect(table, node_idx, num_where_predicates,
                                    possible_ror_scans, ror_scans_to_use,
                                    cpk_scan, num_output_rows_after_filter,
-                                   param, needed_fields);
+                                   param, needed_fields, found_imerge);
     } while (std::next_permutation(scan_combination.begin(),
                                    scan_combination.end()));
   }
@@ -2008,7 +2056,7 @@ void CostingReceiver::ProposeRowIdOrderedIntersect(
     const Mem_root_array<PossibleRORScan> &possible_ror_scans,
     const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
     double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
-    OverflowBitset needed_fields) {
+    OverflowBitset needed_fields, bool *found_imerge) {
   ROR_intersect_plan plan(param, needed_fields.capacity());
   MutableOverflowBitset ap_mutable(param->return_mem_root,
                                    num_where_predicates);
@@ -2018,8 +2066,12 @@ void CostingReceiver::ProposeRowIdOrderedIntersect(
   OverflowBitset subsumed_predicates(std::move(sp_mutable));
   uint index = 0;
   bool cpk_scan_used = false;
-  while (index < ror_scans.size() && !plan.m_is_covering) {
+  for (index = 0; index < ror_scans.size() && !plan.m_is_covering; ++index) {
     ROR_SCAN_INFO *cur_scan = ror_scans[index];
+    if (!compound_hint_key_enabled(table, cur_scan->keynr,
+                                   INDEX_MERGE_HINT_ENUM)) {
+      continue;
+    }
     if (plan.add(needed_fields, cur_scan, /*is_cpk_scan=*/false,
                  /*trace_idx=*/nullptr, /*ignore_cost=*/false)) {
       UpdateAppliedAndSubsumedPredicates(cur_scan->idx, possible_ror_scans,
@@ -2028,24 +2080,28 @@ void CostingReceiver::ProposeRowIdOrderedIntersect(
     } else {
       return;
     }
-    index++;
-    // We have added a non-CPK key scan to the plan. Check if we should
-    // add a CPK scan. If the obtained ROR-intersection is covering, it
-    // does not make sense to add a CPK scan. If it is not covering and
-    // we have exhausted all the avaialble non-CPK key scans, then add a
-    // CPK scan.
-    if (!plan.m_is_covering && index == ror_scans.size() &&
-        cpk_scan != nullptr) {
-      if (plan.add(needed_fields, cpk_scan, /*is_cpk_scan=*/true,
-                   /*trace_idx=*/nullptr, /*ignore_cost=*/true)) {
-        cpk_scan_used = true;
-      }
-      UpdateAppliedAndSubsumedPredicates(cpk_scan->idx, possible_ror_scans,
-                                         param, &applied_predicates,
-                                         &subsumed_predicates);
+  }
+  if (plan.num_scans() == 0) {
+    return;
+  }
+  // We have added non-CPK key scans to the plan. Check if we should
+  // add a CPK scan. If the obtained ROR-intersection is covering, it
+  // does not make sense to add a CPK scan. If it is not covering and
+  // we have exhausted all the avaialble non-CPK key scans, then add a
+  // CPK scan.
+  if (!plan.m_is_covering && index == ror_scans.size() && cpk_scan != nullptr) {
+    if (plan.add(needed_fields, cpk_scan, /*is_cpk_scan=*/true,
+                 /*trace_idx=*/nullptr, /*ignore_cost=*/true)) {
+      cpk_scan_used = true;
     }
+    UpdateAppliedAndSubsumedPredicates(cpk_scan->idx, possible_ror_scans, param,
+                                       &applied_predicates,
+                                       &subsumed_predicates);
   }
 
+  if (plan.num_scans() == 1 && !cpk_scan_used) {
+    return;
+  }
   // Make the intersect plan here
   AccessPath ror_intersect_path;
   ror_intersect_path.type = AccessPath::ROWID_INTERSECTION;
@@ -2133,6 +2189,7 @@ void CostingReceiver::ProposeRowIdOrderedIntersect(
       break;
     }
   }
+  *found_imerge = true;
 }
 
 // Propose Row-ID ordered index merge plans. We propose both ROR-Union
@@ -2146,7 +2203,7 @@ void CostingReceiver::ProposeRowIdOrderedUnion(
     TABLE *table, int node_idx, const SEL_IMERGE &imerge, int pred_idx,
     bool inexact, int num_where_predicates, double num_output_rows_after_filter,
     const RANGE_OPT_PARAM *param,
-    const Mem_root_array<AccessPath *> &range_paths) {
+    const Mem_root_array<AccessPath *> &range_paths, bool *found_imerge) {
   double cost = 0.0;
   double num_output_rows = 0.0;
   double intersect_factor = 1.0;
@@ -2293,13 +2350,15 @@ void CostingReceiver::ProposeRowIdOrderedUnion(
       break;
     }
   }
+  *found_imerge = true;
 }
 
 void CostingReceiver::ProposeIndexMerge(
     TABLE *table, int node_idx, const SEL_IMERGE &imerge, int pred_idx,
     bool inexact, bool allow_clustered_primary_key_scan,
     int num_where_predicates, double num_output_rows_after_filter,
-    RANGE_OPT_PARAM *param, bool *has_clustered_primary_key_scan) {
+    RANGE_OPT_PARAM *param, bool *has_clustered_primary_key_scan,
+    bool *found_imerge) {
   double cost = 0.0;
   double num_output_rows = 0.0;
 
@@ -2318,6 +2377,14 @@ void CostingReceiver::ProposeIndexMerge(
   Mem_root_array<AccessPath *> ror_paths(m_thd->mem_root);
   bool all_scans_are_ror = true;
   bool all_scans_ror_able = true;
+  const bool force_index_merge = hint_table_state(
+      m_thd, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
+  const bool index_merge_union_allowed =
+      force_index_merge ||
+      m_thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_UNION);
+  const bool index_merge_sort_union_allowed =
+      force_index_merge ||
+      m_thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION);
   for (SEL_TREE *tree : imerge.trees) {
     inexact |= tree->inexact;
 
@@ -2374,16 +2441,19 @@ void CostingReceiver::ProposeIndexMerge(
     }
   }
   // Propose row-id ordered union plan if possible.
-  if (all_scans_ror_able) {
+  if (all_scans_ror_able && index_merge_union_allowed) {
     ProposeRowIdOrderedUnion(table, node_idx, imerge, pred_idx, inexact,
                              num_where_predicates, num_output_rows_after_filter,
-                             param, ror_paths);
+                             param, ror_paths, found_imerge);
     // If all chosen scans (best range scans) are ROR compatible, there
     // is no need to propose an Index Merge plan as ROR-Union plan will
     // always be better (Avoids sorting by row IDs).
     if (all_scans_are_ror) return;
   }
 
+  if (!index_merge_sort_union_allowed) {
+    return;
+  }
   double init_cost = non_cpk_cost;
 
   // If we have a clustered primary key scan, we scan it separately, without
@@ -2495,6 +2565,7 @@ void CostingReceiver::ProposeIndexMerge(
       break;
     }
   }
+  *found_imerge = true;
 }
 
 /**

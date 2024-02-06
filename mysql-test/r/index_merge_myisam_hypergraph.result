@@ -2507,16 +2507,15 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
 explain select * from t1 where a=1 or b=1;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (cost=0.0944..1.32 rows=14)
-    -> Index range scan on t1 using a over (a = 1)  (cost=0.36..0.36 rows=1)
-    -> Index range scan on t1 using b over (b = 1)  (cost=0.36..0.36 rows=1)
+-> Filter: ((t1.a = 1) or (t1.b = 1))  (cost=9.01..126 rows=14)
+    -> Table scan on t1  (cost=0.0257..25.7 rows=1000)
 
 This should use sort-union:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
 explain select * from t1 where a=1 or b=1;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (cost=0.0944..1.32 rows=14)
+-> Sort-deduplicate by row ID  (cost=1.01..1.47 rows=14)
     -> Index range scan on t1 using a over (a = 1)  (cost=0.36..0.36 rows=1)
     -> Index range scan on t1 using b over (b = 1)  (cost=0.36..0.36 rows=1)
 
@@ -2533,18 +2532,16 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_sort_union=off';
 explain select * from t1 where a<1 or b <1;
 EXPLAIN
--> Sort-deduplicate by row ID  (cost=19.9..27.9 rows=556)
-    -> Index range scan on t1 using a over (NULL < a < 1)  (cost=0.119..2.26 rows=19)
-    -> Index range scan on t1 using b over (NULL < b < 1)  (cost=0.119..2.26 rows=19)
+-> Filter: ((t1.a < 1) or (t1.b < 1))  (cost=0.226..126 rows=556)
+    -> Table scan on t1  (cost=0.0257..25.7 rows=1000)
 
 This should use ALL:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
 explain select * from t1 where a<1 or b <1;
 EXPLAIN
--> Sort-deduplicate by row ID  (cost=19.9..27.9 rows=556)
-    -> Index range scan on t1 using a over (NULL < a < 1)  (cost=0.119..2.26 rows=19)
-    -> Index range scan on t1 using b over (NULL < b < 1)  (cost=0.119..2.26 rows=19)
+-> Filter: ((t1.a < 1) or (t1.b < 1))  (cost=0.226..126 rows=556)
+    -> Table scan on t1  (cost=0.0257..25.7 rows=1000)
 
 This will use sort-union:
 set optimizer_switch=@default_optimizer_switch;
@@ -2571,10 +2568,10 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_sort_union=off';
 explain select * from t1 where (a=3 or b in (1,2)) and (c=3 or d=4);
 EXPLAIN
--> Filter: ((t1.c = 3) or (t1.d = 4))  (cost=1.33..2.32 rows=20.7)
-    -> Sort-deduplicate by row ID  (cost=1.33..2.02 rows=3)
-        -> Index range scan on t1 using a over (a = 3)  (cost=0.36..0.36 rows=1)
-        -> Index range scan on t1 using b over (b = 1) OR (b = 2)  (cost=0.233..0.466 rows=2)
+-> Filter: ((t1.a = 3) or (t1.b in (1,2)))  (cost=1.65..34.1 rows=20.7)
+    -> Deduplicate rows sorted by row ID  (cost=1.55..32.1 rows=20.7)
+        -> Index range scan on t1 using c over (c = 3)  (cost=0.108..10.7 rows=99)
+        -> Index range scan on t1 using d over (d = 4)  (cost=0.36..0.36 rows=1)
 
 drop table t1;
 create table t1 (
@@ -2598,18 +2595,16 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=0.48)
-    -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
-    -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
+-> Filter: (t1.b = 10)  (cost=17.5..17.5 rows=0.48)
+    -> Index lookup on t1 using a (a=10)  (cost=0.25..12.5 rows=50)
 
 No intersect if it is disabled:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_intersection=off';
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=0.48)
-    -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
-    -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
+-> Filter: (t1.b = 10)  (cost=17.5..17.5 rows=0.48)
+    -> Index lookup on t1 using a (a=10)  (cost=0.25..12.5 rows=50)
 
 Do intersect when union was disabled
 set optimizer_switch=@default_optimizer_switch;
@@ -2658,11 +2653,9 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
 explain select * from t1 where a=10 and b=10 or c=10;
 EXPLAIN
--> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=1.63..4.19 rows=5.5)
-    -> Deduplicate rows sorted by row ID  (cost=1.08..3.64 rows=5.5)
-        -> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=1)
-            -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
-            -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
+-> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=33..44.4 rows=5.5)
+    -> Sort-deduplicate by row ID  (cost=32.5..43.8 rows=5.5)
+        -> Index range scan on t1 using b over (b = 10)  (cost=0.111..5.44 rows=49)
         -> Index range scan on t1 using c over (c = 10)  (cost=0.157..0.783 rows=5)
 
 set optimizer_switch=@default_optimizer_switch;
