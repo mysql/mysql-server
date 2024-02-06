@@ -37,6 +37,8 @@
 #include <string_view>
 #include <vector>
 
+#include <ankerl/unordered_dense.h>
+
 #include "field_types.h"
 #include "mem_root_deque.h"
 #include "my_dbug.h"
@@ -83,7 +85,6 @@
 #include "sql/window.h"
 #include "template_utils.h"
 
-#include "extra/robin-hood-hashing/robin_hood.h"
 using pack_rows::TableCollection;
 using std::any_of;
 
@@ -606,8 +607,12 @@ class DummyIteratorProfiler final : public IteratorProfiler {
 /// a key in a hash map.
 class ImmutableStringHasher {
  public:
-  size_t operator()(ImmutableStringWithLength string) const {
-    return robin_hood::hash<std::string_view>()(string.Decode());
+  // This is a marker telling ankerl::unordered_dense that the hash function has
+  // good quality.
+  using is_avalanching = void;
+
+  uint64_t operator()(ImmutableStringWithLength string) const {
+    return ankerl::unordered_dense::hash<std::string_view>()(string.Decode());
   }
 };
 
@@ -635,7 +640,7 @@ using Operands = Mem_root_array<Operand>;
     StoreFromTableBuffersRaw            (pack_rows.h)
     LoadImmutableStringIntoTableBuffers (hash_join_buffer.h)
   \endverbatim
-  and furthermore, the Robin Hood hashing library (robin_hood.h), and the chunk
+  and furthermore, the ankerl::unordered_dense library, and the chunk
   file abstraction.
   \verbatim
   Definitions:
@@ -669,8 +674,8 @@ using Operands = Mem_root_array<Operand>;
         primary hash
           - MySQL record hash, aka. calc_row_hash(m_materialized_table)
         secondary hash
-          - the hash function used by Robin Hood for the in-memory hash map
-            based on primary hash
+          - the hash function used by ankerl::unordered_dense for the in-memory
+            hash map based on primary hash
         tertiary hash
           - hash function for distributing rows to chunk files, cf.
             MY_XXH64 based on primary hash
@@ -871,12 +876,12 @@ class SpillState {
 
   void set_secondary_overflow() { m_secondary_overflow = true; }
 
-  using hash_map_type = robin_hood::unordered_flat_map<
+  using hash_map_type = ankerl::unordered_dense::segmented_map<
       ImmutableStringWithLength, LinkedImmutableString, ImmutableStringHasher>;
 
   static void reset_hash_map(hash_map_type *hash_map) {
     hash_map->~hash_map_type();
-    auto *map = new (hash_map) hash_map_type{/*bucket_count=*/10};
+    auto *map = new (hash_map) hash_map_type();
     if (map == nullptr) {
       my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(hash_map_type));
     }
@@ -1894,11 +1899,12 @@ bool MaterializeIterator<Profiler>::materialize_hash_map(TABLE *t,
   if (m_hash_map == nullptr) return false;  // left operand is empty
 
   // a), c)
-  for (auto f = m_hash_map->begin(); f != m_hash_map->end(); f++) {
+  for (const auto &[hash_key, first_row] : *m_hash_map) {
     if (*stored_rows >= m_limit_rows) break;
 
-    LinkedImmutableString row_with_same_hash = f->second;
-    while (row_with_same_hash != nullptr) {
+    for (LinkedImmutableString row_with_same_hash = first_row;
+         row_with_same_hash != nullptr;
+         row_with_same_hash = row_with_same_hash.Decode().next) {
       hash_join_buffer::LoadImmutableStringIntoTableBuffers(m_table_collection,
                                                             row_with_same_hash);
       int error = t->file->ha_write_row(t->record[0]);
@@ -1928,7 +1934,6 @@ bool MaterializeIterator<Profiler>::materialize_hash_map(TABLE *t,
           }
         }
       }
-      row_with_same_hash = row_with_same_hash.Decode().next;
     }
   }
 
@@ -2041,7 +2046,7 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
     m_mem_root = make_unique_destroy_only<MEM_ROOT>(
         thd()->mem_root, key_memory_hash_op, /* blocksize 16K */ 16384);
     if (m_mem_root == nullptr) return true;
-    m_hash_map.reset(new hash_map_type{/*bucket_count=*/10});
+    m_hash_map.reset(new hash_map_type());
 
     if (m_hash_map == nullptr) {
       my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(hash_map_type));
@@ -2068,8 +2073,8 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
     // but takes unnecessary space in memory hash map.
     t->hash_field->store(static_cast<longlong>(primary_hash), true);
   }
-  // A secondary hash based on primary hash used as robin hood key
-  ImmutableStringWithLength robin_hood_key;
+  // A secondary hash based on primary hash.
+  ImmutableStringWithLength secondary_hash_key;
   const size_t required_key_bytes =
       ImmutableStringWithLength::RequiredBytesForEncode(sizeof(primary_hash));
   std::pair<char *, char *> block = m_mem_root->Peek();
@@ -2081,7 +2086,7 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
   size_t bytes_to_commit = 0;
   if (static_cast<size_t>(block.second - block.first) >= required_key_bytes) {
     char *ptr = block.first;
-    robin_hood_key = ImmutableStringWithLength::Encode(
+    secondary_hash_key = ImmutableStringWithLength::Encode(
         pointer_cast<const char *>(&primary_hash), sizeof(primary_hash), &ptr);
     assert(ptr < block.second);
     bytes_to_commit = ptr - block.first;
@@ -2096,8 +2101,8 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
   if (write) {
     std::pair<hash_map_type::iterator, bool> key_it_and_inserted;
     try {
-      key_it_and_inserted =
-          m_hash_map->emplace(robin_hood_key, LinkedImmutableString{nullptr});
+      key_it_and_inserted = m_hash_map->emplace(secondary_hash_key,
+                                                LinkedImmutableString{nullptr});
     } catch (const std::overflow_error &) {
       // This can only happen if the hash function is extremely bad
       // (should never happen in practice).
@@ -2109,7 +2114,7 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
     inserted = key_it_and_inserted.second;
     *found = false;
   } else {
-    m_hash_map_iterator = m_hash_map->find(robin_hood_key);
+    m_hash_map_iterator = m_hash_map->find(secondary_hash_key);
     if (m_hash_map_iterator == m_hash_map->end()) {
       return false;
     }
@@ -2121,7 +2126,10 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
     // Update the capacity available for the MEM_ROOT; our total may
     // have gone slightly over already, and if so, we will signal
     // that and immediately start spilling to disk.
-    size_t bytes_used = m_hash_map->calcNumBytesTotal(m_hash_map->mask() + 1);
+    const size_t bytes_used =
+        m_hash_map->bucket_count() * sizeof(hash_map_type::bucket_type) +
+        m_hash_map->values().capacity() *
+            sizeof(hash_map_type::value_container_type::value_type);
     if (bytes_used >= max_mem_available) {
       // spill to disk
       *spill = true;
@@ -2981,9 +2989,10 @@ bool SpillState::initialize_first_HF_chunk_files() {
 /// section of each chunk file.
 bool SpillState::spread_hash_map_to_HF_chunk_files() {
   for (size_t set = 0; set < m_no_of_chunk_file_sets; set++) {
-    for (auto f = m_hash_map->begin(); f != m_hash_map->end(); f++) {
-      LinkedImmutableString row_with_same_hash = f->second;
-      while (row_with_same_hash != nullptr) {
+    for (const auto &[hash_key, first_row] : *m_hash_map) {
+      for (LinkedImmutableString row_with_same_hash = first_row;
+           row_with_same_hash != nullptr;
+           row_with_same_hash = row_with_same_hash.Decode().next) {
         hash_join_buffer::LoadImmutableStringIntoTableBuffers(
             m_table_collection, row_with_same_hash);
         if (StoreFromTableBuffers(m_table_collection, &m_row_buffer)) {
@@ -3009,7 +3018,6 @@ bool SpillState::spread_hash_map_to_HF_chunk_files() {
             return true;
           }
         }
-        row_with_same_hash = row_with_same_hash.Decode().next;
       }
     }
 
@@ -3046,9 +3054,10 @@ bool SpillState::append_hash_map_to_HF() {
   m_chunk_files[m_current_chunk_idx].build_chunk.SetAppend();
 
   size_t rows_visited = 0;
-  for (auto f = m_hash_map->begin(); f != m_hash_map->end(); f++) {
-    LinkedImmutableString row_with_same_hash = f->second;
-    while (row_with_same_hash != nullptr) {
+  for (const auto &[hash_key, first_row] : *m_hash_map) {
+    for (LinkedImmutableString row_with_same_hash = first_row;
+         row_with_same_hash != nullptr;
+         row_with_same_hash = row_with_same_hash.Decode().next) {
       hash_join_buffer::LoadImmutableStringIntoTableBuffers(m_table_collection,
                                                             row_with_same_hash);
       if (StoreFromTableBuffers(m_table_collection, &m_row_buffer)) {
@@ -3074,7 +3083,6 @@ bool SpillState::append_hash_map_to_HF() {
         my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
         return true;
       }
-      row_with_same_hash = row_with_same_hash.Decode().next;
     }
   }
   m_row_counts[m_current_chunk_idx][m_current_chunk_file_set].HF_count =
