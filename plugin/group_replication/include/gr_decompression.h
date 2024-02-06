@@ -24,10 +24,10 @@
 #ifndef GROUP_REPLICATION_DECOMPRESSION_INCLUDE
 #define GROUP_REPLICATION_DECOMPRESSION_INCLUDE
 
-#include "libs/mysql/binlog/event/compression/buffer/managed_buffer.h"
-#include "libs/mysql/binlog/event/compression/decompress_status.h"
-#include "libs/mysql/binlog/event/compression/decompressor.h"
-#include "libs/mysql/binlog/event/compression/factory.h"
+#include "mysql/binlog/event/compression/buffer/managed_buffer.h"
+#include "mysql/binlog/event/compression/decompress_status.h"
+#include "mysql/binlog/event/compression/decompressor.h"
+#include "mysql/binlog/event/compression/factory.h"
 #include "plugin/group_replication/include/gr_compression.h"
 
 /*

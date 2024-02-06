@@ -24,9 +24,9 @@
 #ifndef GROUP_REPLICATION_COMPRESSION_INCLUDE
 #define GROUP_REPLICATION_COMPRESSION_INCLUDE
 
-#include "libs/mysql/binlog/event/compression/buffer/managed_buffer.h"
-#include "libs/mysql/binlog/event/compression/compressor.h"
-#include "libs/mysql/binlog/event/compression/factory.h"
+#include "mysql/binlog/event/compression/buffer/managed_buffer.h"
+#include "mysql/binlog/event/compression/compressor.h"
+#include "mysql/binlog/event/compression/factory.h"
 
 /*
   Implements Compressor.
