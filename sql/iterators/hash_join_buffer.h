@@ -60,17 +60,16 @@
 #include <stddef.h>
 #include <cassert>
 #include <memory>
-#include <string>
+#include <optional>
 #include <string_view>
 #include <vector>
 
-#include "extra/robin-hood-hashing/robin_hood.h"
 #include "my_alloc.h"
 #include "sql/immutable_string.h"
-#include "sql/item_cmpfunc.h"
 #include "sql/pack_rows.h"
 #include "sql_string.h"
 
+class HashJoinCondition;
 class THD;
 
 namespace hash_join_buffer {
@@ -102,45 +101,8 @@ namespace hash_join_buffer {
 /// not needed; the key object is only needed when the lookup is done.
 using Key = std::string_view;
 
-class KeyEquals {
- public:
-  // This is a marker from C++17 that signals to the container that
-  // operator() can be called with arguments of which one of the types
-  // differs from the container's key type (ImmutableStringWithLength),
-  // and thus enables map.find(Key). The type itself does not matter.
-  using is_transparent = void;
-
-  bool operator()(const Key &str1,
-                  const ImmutableStringWithLength &other) const {
-    return str1 == other.Decode();
-  }
-
-  bool operator()(const ImmutableStringWithLength &str1,
-                  const ImmutableStringWithLength &str2) const {
-    return str1 == str2;
-  }
-};
-
 // A row in the hash join buffer is the same as the Key class.
 using BufferRow = Key;
-
-class KeyHasher {
- public:
-  // This is a marker from C++17 that signals to the container that
-  // operator() can be called with an argument that differs from the
-  // container's key type (ImmutableStringWithLength), and thus enables
-  // map.find(Key). The type itself does not matter.
-  using is_transparent = void;
-
-  size_t operator()(hash_join_buffer::Key key) const {
-    return robin_hood::hash_bytes(key.data(), key.size());
-  }
-
-  size_t operator()(ImmutableStringWithLength key) const {
-    std::string_view decoded = key.Decode();
-    return robin_hood::hash_bytes(decoded.data(), decoded.size());
-  }
-};
 
 // A convenience form of LoadIntoTableBuffers() that also verifies the end
 // pointer for us.
@@ -162,6 +124,8 @@ class HashJoinRowBuffer {
                     std::vector<HashJoinCondition> join_conditions,
                     size_t max_mem_available_bytes);
 
+  ~HashJoinRowBuffer();
+
   // Initialize the HashJoinRowBuffer so it is ready to store rows. This
   // function can be called multiple times; subsequent calls will only clear the
   // buffer for existing rows.
@@ -182,33 +146,27 @@ class HashJoinRowBuffer {
   ///         my_error().
   StoreRowResult StoreRow(THD *thd, bool reject_duplicate_keys);
 
-  size_t size() const { return m_hash_map->size(); }
+  size_t size() const;
 
-  bool empty() const { return m_hash_map->empty(); }
+  bool empty() const { return size() == 0; }
 
-  bool inited() const { return m_hash_map != nullptr; }
+  std::optional<LinkedImmutableString> find(Key key) const;
 
-  using hash_map_type = robin_hood::unordered_flat_map<
-      ImmutableStringWithLength, LinkedImmutableString, KeyHasher, KeyEquals>;
-
-  using hash_map_iterator = hash_map_type::const_iterator;
-
-  hash_map_iterator find(const Key &key) const { return m_hash_map->find(key); }
-
-  hash_map_iterator begin() const { return m_hash_map->begin(); }
-
-  hash_map_iterator end() const { return m_hash_map->end(); }
+  std::optional<LinkedImmutableString> first_row() const;
 
   LinkedImmutableString LastRowStored() const {
     assert(Initialized());
     return m_last_row_stored;
   }
 
-  bool Initialized() const { return m_hash_map.get() != nullptr; }
+  bool Initialized() const { return m_hash_map != nullptr; }
 
-  bool contains(const Key &key) const { return find(key) != end(); }
+  bool contains(const Key &key) const { return find(key).has_value(); }
 
  private:
+  // The type of hash map in which the rows are stored.
+  class HashMap;
+
   const std::vector<HashJoinCondition> m_join_conditions;
 
   // A row can consist of parts from different tables. This structure tells us
@@ -228,7 +186,7 @@ class HashJoinRowBuffer {
   MEM_ROOT m_overflow_mem_root;
 
   // The hash table where the rows are stored.
-  std::unique_ptr<hash_map_type> m_hash_map;
+  std::unique_ptr<HashMap> m_hash_map;
 
   // A buffer we can use when we are constructing a join key from a join
   // condition. In order to avoid reallocating memory, the buffer never shrinks.

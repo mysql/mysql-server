@@ -29,6 +29,7 @@
 #include <cassert>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -220,7 +221,7 @@ bool HashJoinIterator::Init() {
   //
   // Note that this only ever happens in the hypergraph optimizer; see comments
   // in CreateIteratorFromAccessPath().
-  if (m_row_buffer.inited() &&
+  if (m_row_buffer.Initialized() &&
       (m_hash_join_type == HashJoinType::IN_MEMORY ||
        (m_hash_join_type == HashJoinType::SPILL_TO_DISK &&
         m_chunk_files_on_disk.empty())) &&
@@ -911,11 +912,8 @@ void HashJoinIterator::LookupProbeRowInHashTable() {
   if (m_join_conditions.empty()) {
     // Skip the call to find() in case we don't have any join conditions.
     // TODO(sgunders): Is this relevant for performance anymore?
-    if (m_row_buffer.empty()) {
-      m_current_row = LinkedImmutableString{nullptr};
-    } else {
-      m_current_row = m_row_buffer.begin()->second;
-    }
+    m_current_row =
+        m_row_buffer.first_row().value_or(LinkedImmutableString{nullptr});
     m_state = State::READING_FIRST_ROW_FROM_HASH_TABLE;
     return;
   }
@@ -942,12 +940,8 @@ void HashJoinIterator::LookupProbeRowInHashTable() {
   hash_join_buffer::Key key{m_temporary_row_and_join_key_buffer.ptr(),
                             m_temporary_row_and_join_key_buffer.length()};
 
-  auto it = m_row_buffer.find(key);
-  if (it == m_row_buffer.end()) {
-    m_current_row = LinkedImmutableString{nullptr};
-  } else {
-    m_current_row = it->second;
-  }
+  m_current_row =
+      m_row_buffer.find(key).value_or(LinkedImmutableString{nullptr});
 
   m_state = State::READING_FIRST_ROW_FROM_HASH_TABLE;
 }
