@@ -1709,11 +1709,12 @@ CREATE INDEX idx1 ON t1(f2);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN SELECT /*+ SKIP_SCAN(t1 idx1) */ count(*) FROM t1 WHERE f1 <= 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1,p2	range	PRIMARY,idx1	idx1	262	NULL	1	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t1`@`select#1` `idx1`) */ count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`f1` <= 3)
+EXPLAIN FORMAT=tree SELECT /*+ SKIP_SCAN(t1 idx1) */ count(*) FROM t1 WHERE f1 <= 3;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Filter: (t1.f1 <= 3)  (rows=1)
+        -> Covering index skip scan on t1 using idx1 over f1 <= 3  (rows=1)
+
 SELECT /*+ SKIP_SCAN(t1 idx1) */ count(*) FROM t1 WHERE f1 <= 3;
 count(*)
 3
@@ -1733,36 +1734,36 @@ INSERT INTO t1 SELECT c1, c2, c3+40, c4+80 FROM t1;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN SELECT c1, c2 FROM t1 WHERE c2 > 40;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	i1_t1,i2_t1	i1_t1	10	NULL	53	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` > 40)
-EXPLAIN SELECT /*+NO_SKIP_SCAN(t1 i1_t1)*/ c1, c2 FROM t1 WHERE c2 > 40;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	i2_t1	i2_t1	10	NULL	53	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SKIP_SCAN(`t1`@`select#1` `i1_t1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` > 40)
-EXPLAIN SELECT /*+NO_SKIP_SCAN(t1 i2_t1)*/ c1, c2 FROM t1 WHERE c2 > 40;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	i1_t1	i1_t1	10	NULL	53	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SKIP_SCAN(`t1`@`select#1` `i2_t1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` > 40)
-EXPLAIN SELECT /*+NO_SKIP_SCAN(t1)*/  c1, c2 FROM t1 WHERE c2 > 40;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	i1_t1	15	NULL	160	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SKIP_SCAN(`t1`@`select#1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` > 40)
-EXPLAIN SELECT /*+SKIP_SCAN(t1 i2_t1)*/  c1, c2 FROM t1 WHERE c2 > 40;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	i2_t1	i2_t1	10	NULL	53	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t1`@`select#1` `i2_t1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` > 40)
+EXPLAIN FORMAT=tree SELECT c1, c2 FROM t1 WHERE c2 > 40;
+EXPLAIN
+-> Filter: (t1.c2 > 40)  (rows=53)
+    -> Covering index skip scan on t1 using i1_t1 over 40 < c2  (rows=53)
+
+EXPLAIN FORMAT=tree SELECT /*+NO_SKIP_SCAN(t1 i1_t1)*/ c1, c2 FROM t1 WHERE c2 > 40;
+EXPLAIN
+-> Filter: (t1.c2 > 40)  (rows=53)
+    -> Covering index skip scan on t1 using i2_t1 over 40 < c2  (rows=53)
+
+EXPLAIN FORMAT=tree SELECT /*+NO_SKIP_SCAN(t1 i2_t1)*/ c1, c2 FROM t1 WHERE c2 > 40;
+EXPLAIN
+-> Filter: (t1.c2 > 40)  (rows=53)
+    -> Covering index skip scan on t1 using i1_t1 over 40 < c2  (rows=53)
+
+EXPLAIN FORMAT=tree SELECT /*+NO_SKIP_SCAN(t1)*/  c1, c2 FROM t1 WHERE c2 > 40;
+EXPLAIN
+-> Filter: (t1.c2 > 40)  (rows=53.3)
+    -> Covering index scan on t1 using i1_t1  (rows=160)
+
+EXPLAIN FORMAT=tree SELECT /*+SKIP_SCAN(t1 i2_t1)*/  c1, c2 FROM t1 WHERE c2 > 40;
+EXPLAIN
+-> Filter: (t1.c2 > 40)  (rows=53)
+    -> Covering index skip scan on t1 using i2_t1 over 40 < c2  (rows=53)
+
 SET OPTIMIZER_SWITCH = 'skip_scan=off';
-EXPLAIN SELECT c1, c2 FROM t1 WHERE c2 > 40;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	i1_t1	15	NULL	160	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` > 40)
+EXPLAIN FORMAT=tree SELECT c1, c2 FROM t1 WHERE c2 > 40;
+EXPLAIN
+-> Filter: (t1.c2 > 40)  (rows=53.3)
+    -> Covering index scan on t1 using i1_t1  (rows=160)
+
 DROP TABLE t1;
 SET OPTIMIZER_SWITCH = default;

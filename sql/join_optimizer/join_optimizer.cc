@@ -578,7 +578,8 @@ class CostingReceiver {
 
   bool FindIndexRangeScans(int node_idx, bool *impossible,
                            double *num_output_rows_after_filter,
-                           bool force_imerge, bool *found_forced_plan);
+                           bool force_imerge, bool force_skip_scan,
+                           bool *found_forced_plan);
   bool SetUpRangeScans(int node_idx, bool *impossible,
                        double *num_output_rows_after_filter,
                        RANGE_OPT_PARAM *param, SEL_TREE **tree,
@@ -623,7 +624,7 @@ class CostingReceiver {
   void ProposeAllSkipScans(
       int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
       SEL_TREE *tree, Mem_root_array<PossibleIndexSkipScan> *index_skip_scans,
-      MutableOverflowBitset *all_predicates);
+      MutableOverflowBitset *all_predicates, bool *found_skip_scan);
   void ProposeIndexSkipScan(int node_idx, RANGE_OPT_PARAM *param,
                             AccessPath *skip_scan_path, TABLE *table,
                             OverflowBitset all_predicates,
@@ -855,7 +856,9 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   }
   const bool force_index_merge = hint_table_state(
       m_thd, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
-  const bool propose_all_scans = !force_index_merge;
+  const bool force_skip_scan =
+      hint_table_state(m_thd, table->pos_in_table_list, SKIP_SCAN_HINT_ENUM, 0);
+  const bool propose_all_scans = !force_index_merge && !force_skip_scan;
 
   // First look for unique index lookups that use only constants.
   if (propose_all_scans) {
@@ -902,7 +905,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       bool found_forced_plan = false;
       if (FindIndexRangeScans(node_idx, &impossible,
                               &range_optimizer_row_estimate, force_index_merge,
-                              &found_forced_plan) &&
+                              force_skip_scan, &found_forced_plan) &&
           m_thd->is_error()) {
         return true;
       }
@@ -939,7 +942,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
         }
         return false;
       }
-      if (force_index_merge && found_forced_plan) {
+      if ((force_index_merge || force_skip_scan) && found_forced_plan) {
         return false;
       }
     }
@@ -1451,6 +1454,7 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
 bool CostingReceiver::FindIndexRangeScans(int node_idx, bool *impossible,
                                           double *num_output_rows_after_filter,
                                           bool force_imerge,
+                                          bool force_skip_scan,
                                           bool *found_forced_plan) {
   RANGE_OPT_PARAM param;
   SEL_TREE *tree = nullptr;
@@ -1482,6 +1486,13 @@ bool CostingReceiver::FindIndexRangeScans(int node_idx, bool *impossible,
       return false;
     }
   }
+  if (force_skip_scan) {
+    ProposeAllSkipScans(node_idx, *num_output_rows_after_filter, &param, tree,
+                        &index_skip_scans, &all_predicates, found_forced_plan);
+    if (*found_forced_plan) {
+      return false;
+    }
+  }
   if (tree != nullptr) {
     ProposeRangeScans(node_idx, *num_output_rows_after_filter, &param, tree,
                       &possible_scans);
@@ -1491,8 +1502,10 @@ bool CostingReceiver::FindIndexRangeScans(int node_idx, bool *impossible,
                                 found_forced_plan);
     }
   }
-  ProposeAllSkipScans(node_idx, *num_output_rows_after_filter, &param, tree,
-                      &index_skip_scans, &all_predicates);
+  if (!force_skip_scan) {
+    ProposeAllSkipScans(node_idx, *num_output_rows_after_filter, &param, tree,
+                        &index_skip_scans, &all_predicates, found_forced_plan);
+  }
   return false;
 }
 
@@ -1862,37 +1875,23 @@ void CostingReceiver::ProposeAllIndexMergeScans(
 void CostingReceiver::ProposeAllSkipScans(
     int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
     SEL_TREE *tree, Mem_root_array<PossibleIndexSkipScan> *index_skip_scans,
-    MutableOverflowBitset *all_predicates) {
+    MutableOverflowBitset *all_predicates, bool *found_skip_scan) {
   TABLE *table = m_graph->nodes[node_idx].table();
-  const bool skip_scan_hint =
+  const bool force_skip_scan =
       hint_table_state(m_thd, table->pos_in_table_list, SKIP_SCAN_HINT_ENUM, 0);
   const bool allow_skip_scan =
-      skip_scan_hint || m_thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN);
+      force_skip_scan || m_thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN);
 
   OverflowBitset all_predicates_fixed = std::move(*all_predicates);
-  if (tree == nullptr) {
-    // The only possible range scan for a NULL tree is a group index skip
-    // scan. Collect and propose all group skip scans
-    Cost_estimate cost_est = table->file->table_scan_cost();
-    Mem_root_array<AccessPath *> skip_scan_paths = get_all_group_skip_scans(
-        m_thd, param, tree, ORDER_NOT_RELEVANT,
-        /*skip_records_in_range=*/false, cost_est.total_cost());
-    for (AccessPath *group_skip_scan_path : skip_scan_paths) {
-      ProposeIndexSkipScan(
-          node_idx, param, group_skip_scan_path, table, all_predicates_fixed,
-          m_graph->num_where_predicates, m_graph->num_where_predicates,
-          group_skip_scan_path->num_output_rows(), /*inexact=*/true);
-    }
-    return;
-  }
 
-  if (allow_skip_scan && (m_graph->num_where_predicates > 1)) {
+  if (tree != nullptr && allow_skip_scan &&
+      (m_graph->num_where_predicates > 1)) {
     // Multiple predicates, check for index skip scan which can be used to
     // evaluate entire WHERE condition
     PossibleIndexSkipScan index_skip;
     index_skip.skip_scan_paths =
         get_all_skip_scans(m_thd, param, tree, ORDER_NOT_RELEVANT,
-                           /*use_records_in_range=*/false, skip_scan_hint);
+                           /*use_records_in_range=*/false, allow_skip_scan);
     index_skip.tree = tree;
     // Set predicate index to #predicates to indicate all predicates applied
     index_skip.predicate_idx = m_graph->num_where_predicates;
@@ -1907,19 +1906,39 @@ void CostingReceiver::ProposeAllSkipScans(
                            all_predicates_fixed, m_graph->num_where_predicates,
                            pred_idx, num_output_rows_after_filter,
                            iskip_scan.tree->inexact);
+      *found_skip_scan = true;
     }
   }
 
-  // Propose group index skip scans for whole predicate
-  Cost_estimate cost_est = table->file->table_scan_cost();
-  Mem_root_array<AccessPath *> group_skip_scan_paths = get_all_group_skip_scans(
-      m_thd, param, tree, ORDER_NOT_RELEVANT, /*skip_records_in_range=*/false,
-      cost_est.total_cost());
-  for (AccessPath *group_skip_scan_path : group_skip_scan_paths) {
-    ProposeIndexSkipScan(
-        node_idx, param, group_skip_scan_path, table, all_predicates_fixed,
-        m_graph->num_where_predicates, m_graph->num_where_predicates,
-        group_skip_scan_path->num_output_rows(), tree->inexact);
+  if (!force_skip_scan || !found_skip_scan) {
+    if (tree == nullptr) {
+      // The only possible range scan for a NULL tree is a group index skip
+      // scan. Collect and propose all group skip scans
+      Cost_estimate cost_est = table->file->table_scan_cost();
+      Mem_root_array<AccessPath *> skip_scan_paths = get_all_group_skip_scans(
+          m_thd, param, tree, ORDER_NOT_RELEVANT,
+          /*skip_records_in_range=*/false, cost_est.total_cost());
+      for (AccessPath *group_skip_scan_path : skip_scan_paths) {
+        ProposeIndexSkipScan(
+            node_idx, param, group_skip_scan_path, table, all_predicates_fixed,
+            m_graph->num_where_predicates, m_graph->num_where_predicates,
+            group_skip_scan_path->num_output_rows(), /*inexact=*/true);
+      }
+      return;
+    }
+
+    // Propose group index skip scans for whole predicate
+    Cost_estimate cost_est = table->file->table_scan_cost();
+    Mem_root_array<AccessPath *> group_skip_scan_paths =
+        get_all_group_skip_scans(m_thd, param, tree, ORDER_NOT_RELEVANT,
+                                 /*skip_records_in_range=*/false,
+                                 cost_est.total_cost());
+    for (AccessPath *group_skip_scan_path : group_skip_scan_paths) {
+      ProposeIndexSkipScan(
+          node_idx, param, group_skip_scan_path, table, all_predicates_fixed,
+          m_graph->num_where_predicates, m_graph->num_where_predicates,
+          group_skip_scan_path->num_output_rows(), tree->inexact);
+    }
   }
 }
 
