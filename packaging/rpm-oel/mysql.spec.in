@@ -249,7 +249,7 @@ BuildRequires:  openldap-devel
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global _privatelibs libabsl_.*|libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*%{?ssl_bundled:|libssl\.so\..*|libcrypto\.so\..*}|libfido2.*|libpolyglot.*
+%global _privatelibs libabsl_.*|libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*%{?ssl_bundled:|libssl\.so\..*|libcrypto\.so\..*}|libfido2.*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
@@ -861,7 +861,6 @@ mkdir debug
 %endif
 %if 0%{?commercial}
            -DWITH_MEB=%{with_meb} \
-           -DWITH_MLE=1 \
            %{?aws_sdk_option} \
 %endif
            %{?ssl_option} \
@@ -914,7 +913,6 @@ mkdir release
 %endif
 %if 0%{?commercial}
            -DWITH_MEB=%{with_meb} \
-           -DWITH_MLE=1 \
            %{?aws_sdk_option} \
 %endif
            %{?ssl_option} \
@@ -979,7 +977,6 @@ mkdir release
 %endif
 %if 0%{?commercial}
            -DWITH_MEB=%{with_meb} \
-           -DWITH_MLE=1 \
            %{?aws_sdk_option} \
 %endif
            %{?ssl_option} \
@@ -1236,9 +1233,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_throw_delegate.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time_zone.so
-%if 0%{?commercial}
-%attr(755, root, root) %{_libdir}/mysql/private/libpolyglot.so
-%endif # commercial
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
@@ -1300,7 +1294,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_mle.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_scheduler.so
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_firewall.sql
@@ -1388,7 +1381,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking_functions.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mle.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_scheduler.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
