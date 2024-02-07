@@ -3178,10 +3178,10 @@ void NdbEventBuffer::complete_memory_block(MonotonicEpoch highest_epoch) {
   }
 }
 
-Uint32 NdbEventBuffer::get_free_data_sz() const {
+Uint64 NdbEventBuffer::get_free_data_sz() const {
 #if defined(VM_TRACE)
   {
-    Uint32 free = 0;
+    Uint64 free = 0;
     EventMemoryBlock *mem_block = m_mem_block_free;
     while (mem_block != nullptr) {
       free += mem_block->get_size();
