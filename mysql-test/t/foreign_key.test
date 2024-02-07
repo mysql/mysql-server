@@ -4010,6 +4010,10 @@ CREATE TABLE t1(fld1 INT PRIMARY KEY, fld2 INT) ENGINE=INNODB;
 CREATE TABLE t2(fld1 INT PRIMARY KEY, fld2 INT, CONSTRAINT fk2
 FOREIGN KEY (fld1) REFERENCES t1 (fld1)) ENGINE=InnoDB;
 CREATE TABLE t3(fld1 INT PRIMARY KEY, fld2 INT) ENGINE=InnoDB;
+CREATE TABLE parent (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id)) ENGINE=INNODB;
+INSERT INTO parent (id) VALUES(1);
+INSERT INTO child (id,parent_id) VALUES(1,1);
 
 --echo # Set up stored routines
 CREATE PROCEDURE p1() SQL SECURITY INVOKER INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
@@ -4037,6 +4041,10 @@ CREATE SQL SECURITY DEFINER VIEW v2 AS SELECT * FROM t2;
 CREATE USER user1@localhost;
 CREATE USER user2@localhost;
 CREATE USER user3@localhost;
+CREATE USER user4@localhost;
+CREATE USER user5@localhost;
+CREATE USER user6@localhost;
+CREATE USER user7@localhost;
 GRANT INSERT (fld1, fld2) ON t2 TO user1@localhost;
 GRANT INSERT ON v1 TO user2@localhost;
 GRANT INSERT ON v2 TO user2@localhost;
@@ -4046,12 +4054,18 @@ GRANT EXECUTE ON PROCEDURE p1 TO user2@localhost;
 GRANT EXECUTE ON PROCEDURE p2 TO user2@localhost;
 GRANT EXECUTE ON FUNCTION f1 TO user2@localhost;
 GRANT EXECUTE ON FUNCTION f2 TO user2@localhost;
+GRANT SELECT, DELETE, INSERT, UPDATE on wl8910db.* to user4@localhost;
+GRANT SELECT, DELETE, INSERT, UPDATE on wl8910db.parent to user5@localhost;
+GRANT SELECT, DELETE, INSERT, UPDATE on wl8910db.parent to user6@localhost;
+GRANT SELECT, DELETE, INSERT, UPDATE on wl8910db.child to user6@localhost;
+GRANT SELECT ON wl8910db.* TO user7@localhost;
+GRANT DELETE ON wl8910db.parent TO user7@localhost;
 
 --enable_connect_log
 
 connect (con1, localhost, user1,,wl8910db);
 --echo # Without patch, reveals parent table's information.
---error ER_NO_REFERENCED_ROW
+--error ER_NO_REFERENCED_ROW_2
 INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
 
 --echo # Warning displayed does not reveal parent table information.
@@ -4070,7 +4084,7 @@ ALTER TABLE t2 ADD CONSTRAINT fk3 FOREIGN KEY (fld2) REFERENCES t3(fld1);
 
 connection con1;
 --echo # Without patch, reveals parent table's information.
---error ER_NO_REFERENCED_ROW
+--error ER_NO_REFERENCED_ROW_2
 INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
 
 --echo # Warning displayed does not reveal parent table information.
@@ -4087,14 +4101,13 @@ INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
 connection default;
 GRANT INSERT (fld1, fld2) ON t2 TO user2@localhost;
 GRANT CREATE ROUTINE ON wl8910db.* TO user2@localhost;
-GRANT CREATE VIEW ON wl8910db.* TO user2@localhost;
 
 --echo # Tests where DML reports FK constraint failure within Stored Routines.
 connect (con2, localhost, user2,,wl8910db);
 
 --echo # The SQL security for p1 is invoker where invoker lacks permission
 --echo # to parent table, hence parent table information is not displayed.
---error ER_NO_REFERENCED_ROW
+--error ER_NO_REFERENCED_ROW_2
 CALL p1();
 
 --echo # The SQL security p2 is definer, where the definer has access privilege
@@ -4104,7 +4117,7 @@ CALL p2();
 
 --echo # The SQL security for f1 is invoker where invoker lacks permission
 --echo # to parent table, hence parent table information is not displayed.
---error ER_NO_REFERENCED_ROW
+--error ER_NO_REFERENCED_ROW_2
 SELECT f1();
 
 --echo # The SQL security f2 is definer, where the definer has access privilege
@@ -4116,20 +4129,23 @@ SELECT f2();
 
 --echo # The invoker does not have access to the parent table, hence the parent
 --echo # table information is not displayed.
---error ER_NO_REFERENCED_ROW
+--error ER_NO_REFERENCED_ROW_2
 INSERT INTO v1 VALUES (1, 2);
 
 --echo # DML on view executed within the definer context where the invoker does
 --echo # not have access to the parent table, hence the parent table information
 --echo # is not displayed.
---error ER_NO_REFERENCED_ROW
+--error ER_NO_REFERENCED_ROW_2
 INSERT INTO v2 VALUES (1, 2);
 
 connection default;
 GRANT SELECT ON t1 TO user2@localhost;
 GRANT SELECT ON t3 TO user2@localhost;
+GRANT CREATE VIEW ON wl8910db.* TO user2@localhost;
 
-connection con2;
+disconnect con2;
+connect (con2, localhost, user2,,wl8910db);
+
 --echo # DML on view executed within the definer context where the invoker
 --echo # has access to the parent table, hence the parent table information
 --echo # is displayed.
@@ -4178,16 +4194,48 @@ SELECT f3();
 --error ER_NO_REFERENCED_ROW_2
 INSERT INTO v3 VALUES(4, 5);
 
+--echo # user4 have access to the child table, hence the child table
+--echo # information is displayed.
+connect (con4, localhost, user4,,wl8910db);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent WHERE id = 1;
+
+--echo # user5 do not have access to the child table, hence the child table
+--echo # information is not displayed.
+connect (con5, localhost, user5,,wl8910db);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent WHERE id = 1;
+
+--echo # user6 have access to the child table, hence the child table
+--echo # information is displayed.
+connect (con6, localhost, user6,,wl8910db);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent WHERE id = 1;
+
+--echo # user7 have access to the child table, hence the child table
+--echo # information is displayed.
+connect (con7, localhost, user7,,wl8910db);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent WHERE id = 1;
+
 --echo # Cleanup
 connection default;
 disconnect con1;
 disconnect con2;
 disconnect con3;
+disconnect con4;
+disconnect con5;
+disconnect con6;
+disconnect con7;
 DROP VIEW v1, v2, v3;
-DROP TABLE t2, t3, t1;
+DROP TABLE t2, t3, t1, parent, child;
 DROP USER user1@localhost;
 DROP USER user2@localhost;
 DROP USER user3@localhost;
+DROP USER user4@localhost;
+DROP USER user5@localhost;
+DROP USER user6@localhost;
+DROP USER user7@localhost;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;

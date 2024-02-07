@@ -4091,6 +4091,10 @@ CREATE TABLE t1(fld1 INT PRIMARY KEY, fld2 INT) ENGINE=INNODB;
 CREATE TABLE t2(fld1 INT PRIMARY KEY, fld2 INT, CONSTRAINT fk2
 FOREIGN KEY (fld1) REFERENCES t1 (fld1)) ENGINE=InnoDB;
 CREATE TABLE t3(fld1 INT PRIMARY KEY, fld2 INT) ENGINE=InnoDB;
+CREATE TABLE parent (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id)) ENGINE=INNODB;
+INSERT INTO parent (id) VALUES(1);
+INSERT INTO child (id,parent_id) VALUES(1,1);
 # Set up stored routines
 CREATE PROCEDURE p1() SQL SECURITY INVOKER INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
 CREATE PROCEDURE p2() SQL SECURITY DEFINER INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
@@ -4111,6 +4115,10 @@ CREATE SQL SECURITY DEFINER VIEW v2 AS SELECT * FROM t2;
 CREATE USER user1@localhost;
 CREATE USER user2@localhost;
 CREATE USER user3@localhost;
+CREATE USER user4@localhost;
+CREATE USER user5@localhost;
+CREATE USER user6@localhost;
+CREATE USER user7@localhost;
 GRANT INSERT (fld1, fld2) ON t2 TO user1@localhost;
 GRANT INSERT ON v1 TO user2@localhost;
 GRANT INSERT ON v2 TO user2@localhost;
@@ -4122,6 +4130,12 @@ GRANT EXECUTE ON PROCEDURE p1 TO user2@localhost;
 GRANT EXECUTE ON PROCEDURE p2 TO user2@localhost;
 GRANT EXECUTE ON FUNCTION f1 TO user2@localhost;
 GRANT EXECUTE ON FUNCTION f2 TO user2@localhost;
+GRANT SELECT, DELETE, INSERT, UPDATE on wl8910db.* to user4@localhost;
+GRANT SELECT, DELETE, INSERT, UPDATE on wl8910db.parent to user5@localhost;
+GRANT SELECT, DELETE, INSERT, UPDATE on wl8910db.parent to user6@localhost;
+GRANT SELECT, DELETE, INSERT, UPDATE on wl8910db.child to user6@localhost;
+GRANT SELECT ON wl8910db.* TO user7@localhost;
+GRANT DELETE ON wl8910db.parent TO user7@localhost;
 connect  con1, localhost, user1,,wl8910db;
 # Without patch, reveals parent table's information.
 INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
@@ -4129,10 +4143,10 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails
 # Warning displayed does not reveal parent table information.
 INSERT IGNORE INTO t2 (fld1, fld2) VALUES (1, 2);
 Warnings:
-Warning	1216	Cannot add or update a child row: a foreign key constraint fails
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1216	Cannot add or update a child row: a foreign key constraint fails
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails
 connection default;
 GRANT SELECT ON t1 TO user1@localhost;
 connection con1;
@@ -4147,10 +4161,10 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails
 # Warning displayed does not reveal parent table information.
 INSERT IGNORE INTO t2 (fld1, fld2) VALUES (1, 2);
 Warnings:
-Warning	1216	Cannot add or update a child row: a foreign key constraint fails
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1216	Cannot add or update a child row: a foreign key constraint fails
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails
 connection default;
 GRANT SELECT ON t3 TO user1@localhost;
 connection con1;
@@ -4159,7 +4173,6 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`
 connection default;
 GRANT INSERT (fld1, fld2) ON t2 TO user2@localhost;
 GRANT CREATE ROUTINE ON wl8910db.* TO user2@localhost;
-GRANT CREATE VIEW ON wl8910db.* TO user2@localhost;
 # Tests where DML reports FK constraint failure within Stored Routines.
 connect  con2, localhost, user2,,wl8910db;
 # The SQL security for p1 is invoker where invoker lacks permission
@@ -4191,7 +4204,9 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails
 connection default;
 GRANT SELECT ON t1 TO user2@localhost;
 GRANT SELECT ON t3 TO user2@localhost;
-connection con2;
+GRANT CREATE VIEW ON wl8910db.* TO user2@localhost;
+disconnect con2;
+connect  con2, localhost, user2,,wl8910db;
 # DML on view executed within the definer context where the invoker
 # has access to the parent table, hence the parent table information
 # is displayed.
@@ -4226,16 +4241,44 @@ SELECT f3();
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`wl8910db`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
 INSERT INTO v3 VALUES(4, 5);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`wl8910db`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
+# user4 have access to the child table, hence the child table
+# information is displayed.
+connect  con4, localhost, user4,,wl8910db;
+DELETE FROM parent WHERE id = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`wl8910db`.`child`, CONSTRAINT `child_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `parent` (`id`))
+# user5 do not have access to the child table, hence the child table
+# information is not displayed.
+connect  con5, localhost, user5,,wl8910db;
+DELETE FROM parent WHERE id = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+# user6 have access to the child table, hence the child table
+# information is displayed.
+connect  con6, localhost, user6,,wl8910db;
+DELETE FROM parent WHERE id = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`wl8910db`.`child`, CONSTRAINT `child_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `parent` (`id`))
+# user7 have access to the child table, hence the child table
+# information is displayed.
+connect  con7, localhost, user7,,wl8910db;
+DELETE FROM parent WHERE id = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`wl8910db`.`child`, CONSTRAINT `child_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `parent` (`id`))
 # Cleanup
 connection default;
 disconnect con1;
 disconnect con2;
 disconnect con3;
+disconnect con4;
+disconnect con5;
+disconnect con6;
+disconnect con7;
 DROP VIEW v1, v2, v3;
-DROP TABLE t2, t3, t1;
+DROP TABLE t2, t3, t1, parent, child;
 DROP USER user1@localhost;
 DROP USER user2@localhost;
 DROP USER user3@localhost;
+DROP USER user4@localhost;
+DROP USER user5@localhost;
+DROP USER user6@localhost;
+DROP USER user7@localhost;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;

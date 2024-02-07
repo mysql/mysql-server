@@ -4366,7 +4366,9 @@ void handler::print_error(int error, myf errflag) {
       */
       thd->push_internal_handler(&foreign_key_error_handler);
       get_error_message(error, &str);
-      my_error(ER_ROW_IS_REFERENCED_2, errflag, str.c_ptr_safe());
+      std::string err_msg = str.c_ptr_safe();
+      err_msg = " (" + err_msg + ")";
+      my_error(ER_ROW_IS_REFERENCED_2, errflag, err_msg.c_str());
       thd->pop_internal_handler();
       return;
     }
@@ -4378,7 +4380,9 @@ void handler::print_error(int error, myf errflag) {
       */
       thd->push_internal_handler(&foreign_key_error_handler);
       get_error_message(error, &str);
-      my_error(ER_NO_REFERENCED_ROW_2, errflag, str.c_ptr_safe());
+      std::string err_msg = str.c_ptr_safe();
+      err_msg = " (" + err_msg + ")";
+      my_error(ER_NO_REFERENCED_ROW_2, errflag, err_msg.c_str());
       thd->pop_internal_handler();
       return;
     }

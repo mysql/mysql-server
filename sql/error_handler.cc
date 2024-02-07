@@ -496,7 +496,9 @@ bool Info_schema_error_handler::handle_condition(
 
 bool Foreign_key_error_handler::handle_condition(
     THD *, uint sql_errno, const char *, Sql_condition::enum_severity_level *,
-    const char *) {
+    const char *msg) {
+  std::string message{msg};
+  if (!message.ends_with(')')) return false;
   const TABLE_SHARE *share = m_table_handler->get_table_share();
 
   if (sql_errno == ER_NO_REFERENCED_ROW_2) {
@@ -506,8 +508,9 @@ bool Foreign_key_error_handler::handle_condition(
                       fk->referenced_table_db.length,
                       fk->referenced_table_name.str,
                       fk->referenced_table_name.length, TL_READ);
-      if (check_table_access(m_thd, TABLE_OP_ACLS, &table, true, 1, true)) {
-        my_error(ER_NO_REFERENCED_ROW, MYF(0));
+      if (check_some_access(m_thd, TABLE_OP_ACLS, &table) ||
+          ((&table)->grant.privilege & TABLE_OP_ACLS) == 0) {
+        my_error(ER_NO_REFERENCED_ROW_2, MYF(0), "");
         return true;
       }
     }
@@ -519,8 +522,9 @@ bool Foreign_key_error_handler::handle_condition(
                       fk_p->referencing_table_db.length,
                       fk_p->referencing_table_name.str,
                       fk_p->referencing_table_name.length, TL_READ);
-      if (check_table_access(m_thd, TABLE_OP_ACLS, &table, true, 1, true)) {
-        my_error(ER_ROW_IS_REFERENCED, MYF(0));
+      if (check_some_access(m_thd, TABLE_OP_ACLS, &table) ||
+          ((&table)->grant.privilege & TABLE_OP_ACLS) == 0) {
+        my_error(ER_ROW_IS_REFERENCED_2, MYF(0), "");
         return true;
       }
     }
