@@ -52,7 +52,7 @@
     [Sim96] Simmen et al: “Fundamental Techniques for Order Optimization”
 
   All three papers deal with the issue of _logical_ orderings, where any
-  row stream may follow more than one order simultaneously, as inferred
+  tuple stream may follow more than one order simultaneously, as inferred
   through functional dependencies (FDs). For instance, if we have an ordering
   (ab) but also an active FD {a} → c (c is uniquely determined by a,
   for instance because a is a primary key in the same table as c), this means
@@ -272,9 +272,9 @@ struct FunctionalDependency {
     // Must be the first in the edge list.
     DECAY,
 
-    // A standard functional dependency {a} → b; if a row tuple
+    // A standard functional dependency {a} → b; if a tuple stream
     // is ordered on all elements of a and this FD is applied,
-    // it is also ordered on b. A typical example is if {a}
+    // it is also ordered on (a,b). A typical example is if {a}
     // is an unique key in a table, and b is a column of the
     // same table. head can be empty.
     FD,

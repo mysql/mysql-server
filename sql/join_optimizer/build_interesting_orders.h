@@ -40,6 +40,15 @@ struct TABLE;
 // interesting ordering or an ordering homogenized from one. It also includes
 // orderings that are used for sort-for-grouping, i.e. for GROUP BY,
 // PARTITION BY or DISTINCT.
+//
+// "Sort-ahead" means explicitly sorting rows (by adding a SORT access path) in
+// a way that could become beneficial to an operation later in the query
+// processing. The sort-ahead could come immediately before the operation that
+// can benefit from it (like a SORT on the GROUP BY columns just before the
+// AGGREGATE access path), or it can be further down in the access path tree if
+// all the intermediate access paths preserve the ordering (like sorting the
+// outer table of a nested loop join in order to satisfy the ordering
+// requirements of GROUP BY or ORDER BY after the join).
 struct SortAheadOrdering {
   // Pointer to an ordering in LogicalOrderings.
   int ordering_idx;
