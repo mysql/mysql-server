@@ -491,7 +491,7 @@ BEGIN_SERVICE_DEFINITION(mysql_stmt_attributes)
   - Buffer capacity of the statement ("buffer_capacity" of the input size_t type, default: 500)
   - Number of prefetch rows for prepared statements ("prefetch_rows" of the input size_t type, default: 1)
   - Expected charset name ("charset_name" of the input mysql_cstring_with_length type, default: utf8mb4)
-  - Enable cursor mode ("enable_cursor" of the input bool type, default: true)
+  - Use the existing protocol from thd ("use_thd_protocol" of the input bool type, default: false)
 
   @param [out] value The value of the attribute
   @retval false success

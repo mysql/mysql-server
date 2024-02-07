@@ -51,7 +51,7 @@ constexpr auto MYSQL_FAILURE = 1;
 struct Service_statement {
   size_t capacity = 500;
   size_t num_rows_per_fetch = 1;
-  bool enable_cursor = true;
+  bool use_thd_protocol = false;
   std::string charset_name = "utf8mb4";
   Statement_handle *stmt{nullptr};
 
@@ -358,8 +358,8 @@ DEFINE_BOOL_METHOD(mysql_stmt_attributes_imp::get,
       *reinterpret_cast<size_t *>(value) = service_stmt->capacity;
     } else if (strncmp(name.str, "prefetch_rows", name.length) == 0) {
       *reinterpret_cast<size_t *>(value) = service_stmt->num_rows_per_fetch;
-    } else if (strncmp(name.str, "enable_cursor", name.length) == 0) {
-      *reinterpret_cast<bool *>(value) = service_stmt->enable_cursor;
+    } else if (strncmp(name.str, "use_thd_protocol", name.length) == 0) {
+      *reinterpret_cast<bool *>(value) = service_stmt->use_thd_protocol;
     } else if (strncmp(name.str, "charset_name", name.length) == 0) {
       *reinterpret_cast<const char **>(value) =
           service_stmt->charset_name.data();
@@ -375,8 +375,8 @@ DEFINE_BOOL_METHOD(mysql_stmt_attributes_imp::get,
       *reinterpret_cast<size_t *>(value) = statement->get_capacity();
     } else if (strncmp(name.str, "prefetch_rows", name.length) == 0) {
       *reinterpret_cast<size_t *>(value) = statement->get_num_rows_per_fetch();
-    } else if (strncmp(name.str, "enable_cursor", name.length) == 0) {
-      *reinterpret_cast<bool *>(value) = !statement->is_using_thd_protocol();
+    } else if (strncmp(name.str, "use_thd_protocol", name.length) == 0) {
+      *reinterpret_cast<bool *>(value) = statement->is_using_thd_protocol();
     } else if (strncmp(name.str, "charset_name", name.length) == 0) {
       auto expected_charset = statement->get_expected_charset();
       if (expected_charset == nullptr) return MYSQL_FAILURE;
@@ -404,8 +404,8 @@ DEFINE_BOOL_METHOD(mysql_stmt_attributes_imp::set,
     service_stmt->capacity = *static_cast<const size_t *>(value);
   } else if (strncmp(name.str, "prefetch_rows", name.length) == 0) {
     service_stmt->num_rows_per_fetch = *static_cast<const size_t *>(value);
-  } else if (strncmp(name.str, "enable_cursor", name.length) == 0) {
-    service_stmt->enable_cursor = *static_cast<const bool *>(value);
+  } else if (strncmp(name.str, "use_thd_protocol", name.length) == 0) {
+    service_stmt->use_thd_protocol = *static_cast<const bool *>(value);
   } else if (strncmp(name.str, "charset_name", name.length) == 0) {
     auto parsed_value = *static_cast<const mysql_cstring_with_length *>(value);
     service_stmt->charset_name =
@@ -442,7 +442,7 @@ DEFINE_BOOL_METHOD(mysql_stmt_execute_imp::prepare,
 
   statement->set_capacity(service_stmt->capacity);
   statement->set_num_rows_per_fetch(service_stmt->num_rows_per_fetch);
-  statement->set_use_thd_protocol(!service_stmt->enable_cursor);
+  statement->set_use_thd_protocol(service_stmt->use_thd_protocol);
   statement->set_expected_charset(service_stmt->charset_name.data());
   if (statement->prepare()) return MYSQL_FAILURE;
   return MYSQL_SUCCESS;
@@ -512,7 +512,7 @@ DEFINE_BOOL_METHOD(mysql_stmt_execute_direct_imp::execute,
 
   statement->set_capacity(service_stmt->capacity);
   statement->set_num_rows_per_fetch(service_stmt->num_rows_per_fetch);
-  statement->set_use_thd_protocol(!service_stmt->enable_cursor);
+  statement->set_use_thd_protocol(service_stmt->use_thd_protocol);
   statement->set_expected_charset(service_stmt->charset_name.data());
   return execute_regular_statement(statement);
 }
