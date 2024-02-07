@@ -1,3 +1,5 @@
+# Test intentionally uses low timeouts
+--source include/not_valgrind.inc
 #
 # Test MySQL Server lifecycle, ie.
 # 1. stop/start
