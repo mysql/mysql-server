@@ -46,6 +46,7 @@
 #include "mysql/binlog/event/nodiscard.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/member_version.h"
+#include "plugin/group_replication/include/plugin_constants.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
@@ -156,8 +157,11 @@ class Group_member_info : public Plugin_gcs_message {
     // Length of the paylod item: variable
     PIT_GROUP_ACTION_RUNNING_DESCRIPTION = 24,
 
+    // Length of the paylod item: 1 byte
+    PIT_PREEMPTIVE_GARBAGE_COLLECTION = 25,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 25
+    PIT_MAX = 26
   };
 
   /*
@@ -289,6 +293,8 @@ class Group_member_info : public Plugin_gcs_message {
     @param[in] view_change_uuid_arg                   view change uuid
     advertised
     @param[in] allow_single_leader                    flag indicating whether or
+    @param[in] preemptive_garbage_collection          member's
+    group_replication_preemptive_garbage_collection value
     not to use single-leader behavior
     @param[in] psi_mutex_key_arg                      mutex key
    */
@@ -305,6 +311,7 @@ class Group_member_info : public Plugin_gcs_message {
                     bool default_table_encryption_arg,
                     const char *recovery_endpoints_arg,
                     const char *view_change_uuid_arg, bool allow_single_leader,
+                    bool preemptive_garbage_collection,
                     PSI_mutex_key psi_mutex_key_arg =
                         key_GR_LOCK_group_member_info_update_lock);
 
@@ -358,6 +365,8 @@ class Group_member_info : public Plugin_gcs_message {
     @param[in] view_change_uuid_arg                   view change uuid
     @param[in] allow_single_leader                    flag indicating whether or
     not to use single-leader behavior
+    @param[in] preemptive_garbage_collection          member's
+    group_replication_preemptive_garbage_collection value
    */
   void update(const char *hostname_arg, uint port_arg, const char *uuid_arg,
               int write_set_extraction_algorithm,
@@ -371,7 +380,8 @@ class Group_member_info : public Plugin_gcs_message {
               uint member_weight_arg, uint lower_case_table_names_arg,
               bool default_table_encryption_arg,
               const char *recovery_endpoints_arg,
-              const char *view_change_uuid_arg, bool allow_single_leader);
+              const char *view_change_uuid_arg, bool allow_single_leader,
+              bool preemptive_garbage_collection);
 
   /**
     Update Group_member_info.
@@ -692,6 +702,15 @@ class Group_member_info : public Plugin_gcs_message {
    */
   void set_view_change_uuid(const char *view_change_cnf);
 
+  /**
+    Get the value of 'group_replication_preemptive_garbage_collection'
+    option on this member.
+
+    @return true  enabled
+            false disabled
+  */
+  bool get_preemptive_garbage_collection();
+
  protected:
   void encode_payload(std::vector<unsigned char> *buffer) const override;
   void decode_payload(const unsigned char *buffer,
@@ -738,6 +757,7 @@ class Group_member_info : public Plugin_gcs_message {
   bool m_allow_single_leader;
   std::string m_group_action_running_name;
   std::string m_group_action_running_description;
+  bool m_preemptive_garbage_collection{PREEMPTIVE_GARBAGE_COLLECTION_DEFAULT};
 #ifndef NDEBUG
  public:
   bool skip_encode_default_table_encryption;

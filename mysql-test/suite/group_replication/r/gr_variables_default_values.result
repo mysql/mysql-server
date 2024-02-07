@@ -21,14 +21,16 @@ ERROR 42000: Variable 'group_replication_gtid_assignment_block_size' can't be se
 SET @@GLOBAL.group_replication_ip_allowlist= default;
 ERROR 42000: Variable 'group_replication_ip_allowlist' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_communication_max_message_size= default;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection = default;
+ERROR 42000: Variable 'group_replication_preemptive_garbage_collection' can't be set to the value of 'DEFAULT'
 include/stop_group_replication.inc
 # Take backup of group replication variables
 #
 # Test Unit#1
 # Set global/session group replication variables to default.
-# Curently there are 59 group replication variables.
+# Curently there are 61 group replication variables.
 #
-include/assert.inc [There are 59 GR variables at present.]
+include/assert.inc [There are 61 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -83,6 +85,7 @@ SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
 SET @@GLOBAL.group_replication_view_change_uuid= default;
 SET @@GLOBAL.group_replication_communication_stack = default;
 SET @@GLOBAL.group_replication_paxos_single_leader = default;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold = default;
 SET @@SESSION.group_replication_consistency= default;
 #
 # Test Unit#2
@@ -132,6 +135,8 @@ include/assert.inc [Default group_replication_advertise_recovery_endpoints is "D
 include/assert.inc [Default group_replication_view_change_uuid is "AUTOMATIC"]
 include/assert.inc [Default group_replication_communication_stack is XCom]
 include/assert.inc [Default group_replication_paxos_single_leader is 0]
+include/assert.inc [Default group_replication_preemptive_garbage_collection is 0]
+include/assert.inc [Default group_replication_preemptive_garbage_collection_rows_threshold is 100000]
 #
 # Clean up
 #

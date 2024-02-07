@@ -284,6 +284,10 @@ struct plugin_options_variables {
   ulong communication_stack_var;
 
   bool allow_single_leader_var{false};
+
+  bool preemptive_garbage_collection_var;
+
+  uint preemptive_garbage_collection_rows_threshold_var;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

@@ -44,6 +44,9 @@ const char *const server_uuid_not_valid_str =
     "Wrong arguments: The server uuid is not valid.";
 const char *const server_uuid_not_on_group_str =
     "The requested uuid is not a member of the group.";
+const char *const preemptive_garbage_collection_enabled_str =
+    "The option group_replication_preemptive_garbage_collection is "
+    "enabled thence the group mode cannot be changed.";
 
 /**
  * Result data type for user_has_gr_admin_privilege.

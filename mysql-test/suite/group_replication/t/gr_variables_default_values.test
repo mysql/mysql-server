@@ -36,6 +36,8 @@ SET @@GLOBAL.group_replication_gtid_assignment_block_size= default;
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_ip_allowlist= default;
 SET @@GLOBAL.group_replication_communication_max_message_size= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_preemptive_garbage_collection = default;
 
 --source include/stop_group_replication.inc
 
@@ -88,9 +90,11 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_view_change_uuid = `SELECT @@GLOBAL.group_replication_view_change_uuid;`
 --let $saved_gr_communication_stack = `SELECT @@GLOBAL.group_replication_communication_stack;`
 --let $saved_gr_paxos_single_leader = `SELECT @@GLOBAL.group_replication_paxos_single_leader;`
+--let $saved_group_replication_preemptive_garbage_collection = `SELECT @@GLOBAL.group_replication_preemptive_garbage_collection;`
+--let $saved_group_replication_preemptive_garbage_collection_rows_threshold = `SELECT @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold;`
 
 # Total number of GR variables.
---let $total_gr_vars= 59
+--let $total_gr_vars= 61
 
 --echo #
 --echo # Test Unit#1
@@ -160,6 +164,7 @@ SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
 SET @@GLOBAL.group_replication_view_change_uuid= default;
 SET @@GLOBAL.group_replication_communication_stack = default;
 SET @@GLOBAL.group_replication_paxos_single_leader = default;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold = default;
 
 # Session variables
 SET @@SESSION.group_replication_consistency= default;
@@ -389,6 +394,16 @@ SET @@SESSION.group_replication_consistency= default;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_paxos_single_leader]" = 0
 --source include/assert.inc
 
+# group_replication_preemptive_garbage_collection
+--let $assert_text= Default group_replication_preemptive_garbage_collection is 0
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_preemptive_garbage_collection] = 0
+--source include/assert.inc
+
+# group_replication_preemptive_garbage_collection_rows_threshold
+--let $assert_text= Default group_replication_preemptive_garbage_collection_rows_threshold is 100000
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold] = 100000
+--source include/assert.inc
+
 
 --echo #
 --echo # Clean up
@@ -445,6 +460,8 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
 --eval SET @@GLOBAL.group_replication_communication_stack= "$saved_gr_communication_stack"
 --eval SET @@GLOBAL.group_replication_paxos_single_leader= $saved_gr_paxos_single_leader
+--eval SET @@GLOBAL.group_replication_preemptive_garbage_collection= $saved_group_replication_preemptive_garbage_collection
+--eval SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= $saved_group_replication_preemptive_garbage_collection_rows_threshold
 --enable_query_log
 
 --let $total_gr_vars=

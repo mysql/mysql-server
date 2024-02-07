@@ -102,7 +102,7 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000002
---let $logical_timestamps= 0 0;5 6;5 7;6 8
+--let $logical_timestamps= 0 0;2 3;2 4;3 5
 --source include/assert_logical_timestamps.inc
 --let $is_relay_log= 1
 --source include/assert_transaction_length.inc

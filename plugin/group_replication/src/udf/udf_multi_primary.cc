@@ -115,6 +115,12 @@ static bool group_replication_switch_to_multi_primary_mode_init(
   }
   if (Charset_service::set_return_value_charset(initid)) return true;
 
+  if (get_preemptive_garbage_collection_var()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  preemptive_garbage_collection_enabled_str);
+    return true;
+  }
+
   initid->maybe_null = false;
   udf_counter.succeeded();
   return false;

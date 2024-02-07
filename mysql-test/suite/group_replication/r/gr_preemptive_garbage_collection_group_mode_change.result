@@ -1,0 +1,51 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start group with group_replication_preemptive_garbage_collection
+#    enabled.
+[connection server1]
+SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
+include/start_group_replication.inc
+
+############################################################
+# 2. Try to change group mode to single-primary, it will not
+#    be allowed.
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode();
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The option group_replication_preemptive_garbage_collection is enabled thence the group mode cannot be changed.
+SELECT group_replication_switch_to_single_primary_mode("SERVER1_UUID");
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The option group_replication_preemptive_garbage_collection is enabled thence the group mode cannot be changed.
+[connection server2]
+SELECT group_replication_switch_to_single_primary_mode();
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The option group_replication_preemptive_garbage_collection is enabled thence the group mode cannot be changed.
+SELECT group_replication_switch_to_single_primary_mode("SERVER1_UUID");
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The option group_replication_preemptive_garbage_collection is enabled thence the group mode cannot be changed.
+
+############################################################
+# 3. Try to change group mode to multi-primary, it will not
+#    be allowed.
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; The option group_replication_preemptive_garbage_collection is enabled thence the group mode cannot be changed.
+[connection server2]
+SELECT group_replication_switch_to_multi_primary_mode();
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; The option group_replication_preemptive_garbage_collection is enabled thence the group mode cannot be changed.
+
+############################################################
+# 4. Clean up.
+[connection server2]
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
+[connection server1]
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
+include/group_replication_end.inc

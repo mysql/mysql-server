@@ -208,9 +208,8 @@ class Certifier_interface : public Certifier_stats {
   virtual bool set_certification_info_recovery_metadata(
       Recovery_metadata_message *recovery_metadata_message) = 0;
   virtual bool initialize_server_gtid_set_after_distributed_recovery() = 0;
-  virtual int stable_set_handle() = 0;
-  virtual bool set_group_stable_transactions_set(
-      Gtid_set *executed_gtid_set) = 0;
+  virtual void garbage_collect(Gtid_set *executed_gtid_set = nullptr,
+                               bool on_member_join = false) = 0;
   virtual void enable_conflict_detection() = 0;
   virtual void disable_conflict_detection() = 0;
   virtual bool is_conflict_detection_enable() = 0;
@@ -426,30 +425,6 @@ class Certifier : public Certifier_interface {
   int add_gtid_to_group_gtid_executed(const Gtid &gtid);
 
   /**
-    Computes intersection between all sets received, so that we
-    have the already applied transactions on all servers.
-
-    @return the operation status
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  int stable_set_handle() override;
-
-  /**
-    This member function shall add transactions to the stable set
-
-    @param executed_gtid_set  The GTID set of the transactions to be added
-                              to the stable set.
-
-    @note when set, the stable set will cause the garbage collection
-          process to be invoked
-
-    @retval False  if adds successfully,
-    @retval True   otherwise.
-   */
-  bool set_group_stable_transactions_set(Gtid_set *executed_gtid_set) override;
-
-  /**
     Enables conflict detection.
   */
   void enable_conflict_detection() override;
@@ -471,6 +446,16 @@ class Certifier : public Certifier_interface {
     Compute GTID intervals.
   */
   void gtid_intervals_computation();
+
+  /**
+    Validates if garbage collect should run against the intersection of the
+    received transactions stable sets.
+
+    @param executed_gtid_set intersection gtid set
+    @param on_member_join    call due to member joining
+   */
+  void garbage_collect(Gtid_set *executed_gtid_set = nullptr,
+                       bool on_member_join = false) override;
 
  private:
   /**
@@ -621,10 +606,13 @@ class Certifier : public Certifier_interface {
   /// @brief Updates parallel applier indexes in GLE
   /// @param gle Gle currently processed
   /// @param has_write_set True in case transaction write set is not empty
+  /// @param has_write_set_large_size True in case number of write sets in
+  /// transactions is greater than
+  /// group_replication_preemptive_garbage_collection_rows_threshold
   /// @param transaction_last_committed The transaction's logical timestamps
   /// used for MTS
   void update_transaction_dependency_timestamps(
-      Gtid_log_event &gle, bool has_write_set,
+      Gtid_log_event &gle, bool has_write_set, bool has_write_set_large_size,
       int64 transaction_last_committed);
 
   bool inline is_initialized() { return initialized; }
@@ -827,12 +815,6 @@ class Certifier : public Certifier_interface {
   Gtid_set *get_certified_write_set_snapshot_version(const char *item);
 
   /**
-    Removes the intersection of the received transactions stable
-    sets from certification database.
-   */
-  void garbage_collect();
-
-  /**
     Clear incoming queue.
   */
   void clear_incoming();
@@ -849,6 +831,44 @@ class Certifier : public Certifier_interface {
     sequence_number.
   */
   bool is_first_remote_transaction_certified{true};
+
+  /**
+    Removes the intersection of the received transactions stable
+    sets from certification database.
+
+    @param intersection_gtid_set intersection gtid set
+    @param preemptive            is a preemptive run
+   */
+  void garbage_collect_internal(Gtid_set *intersection_gtid_set,
+                                bool preemptive = false);
+
+  /**
+    Computes intersection between all sets received, so that we
+    have the already applied transactions on all servers.
+
+    @return the operation status
+      @retval false  it did not run garbage_collect
+      @retval true   it did run garbage_collect
+  */
+  bool intersect_members_gtid_executed_and_garbage_collect();
+
+  enum enum_update_status {
+    // stable set successfully updated
+    STABLE_SET_UPDATED,
+    // stable set already contains set
+    STABLE_SET_ALREADY_CONTAINED,
+    // not able to update due error
+    STABLE_SET_ERROR
+  };
+
+  /**
+   * Update stable set with set if not already contained.
+   *
+   * @param set Gtid to add to stable set
+   *
+   * @return status of operation
+   */
+  enum enum_update_status update_stable_set(const Gtid_set &set);
 };
 
 /*

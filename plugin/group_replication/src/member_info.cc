@@ -55,6 +55,7 @@ Group_member_info::Group_member_info(PSI_mutex_key psi_mutex_key_arg)
       recovery_endpoints("DEFAULT"),
       m_view_change_uuid("AUTOMATIC"),
       m_allow_single_leader(false),
+      m_preemptive_garbage_collection(PREEMPTIVE_GARBAGE_COLLECTION_DEFAULT),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
       m_skip_encode_view_change_uuid(false),
@@ -74,7 +75,8 @@ Group_member_info::Group_member_info(
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
     uint lower_case_table_names_arg, bool default_table_encryption_arg,
     const char *recovery_endpoints_arg, const char *view_change_uuid_arg,
-    bool allow_single_leader, PSI_mutex_key psi_mutex_key_arg)
+    bool allow_single_leader, bool preemptive_garbage_collection,
+    PSI_mutex_key psi_mutex_key_arg)
     : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
       hostname(hostname_arg),
       port(port_arg),
@@ -96,6 +98,7 @@ Group_member_info::Group_member_info(
       m_view_change_uuid(view_change_uuid_arg ? view_change_uuid_arg
                                               : "AUTOMATIC"),
       m_allow_single_leader(allow_single_leader),
+      m_preemptive_garbage_collection(preemptive_garbage_collection),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
       m_skip_encode_view_change_uuid(false),
@@ -140,6 +143,8 @@ Group_member_info::Group_member_info(Group_member_info &other)
       m_group_action_running_name(other.get_group_action_running_name()),
       m_group_action_running_description(
           other.get_group_action_running_description()),
+      m_preemptive_garbage_collection(
+          other.get_preemptive_garbage_collection()),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
       m_skip_encode_view_change_uuid(false),
@@ -164,6 +169,7 @@ Group_member_info::Group_member_info(const uchar *data, size_t len,
       recovery_endpoints("DEFAULT"),
       m_view_change_uuid("AUTOMATIC"),
       m_allow_single_leader(false),
+      m_preemptive_garbage_collection(PREEMPTIVE_GARBAGE_COLLECTION_DEFAULT),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
       m_skip_encode_view_change_uuid(false),
@@ -190,7 +196,7 @@ void Group_member_info::update(
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
     uint lower_case_table_names_arg, bool default_table_encryption_arg,
     const char *recovery_endpoints_arg, const char *view_change_uuid_arg,
-    bool allow_single_leader) {
+    bool allow_single_leader, bool preemptive_garbage_collection) {
   MUTEX_LOCK(lock, &update_lock);
 
   hostname.assign(hostname_arg);
@@ -228,6 +234,7 @@ void Group_member_info::update(
 
   m_view_change_uuid.assign(view_change_uuid_arg);
   m_allow_single_leader = allow_single_leader;
+  m_preemptive_garbage_collection = preemptive_garbage_collection;
 }
 
 void Group_member_info::update(Group_member_info &other) {
@@ -261,6 +268,7 @@ void Group_member_info::update(Group_member_info &other) {
   m_group_action_running_name.assign(other.get_group_action_running_name());
   m_group_action_running_description.assign(
       other.get_group_action_running_description());
+  m_preemptive_garbage_collection = other.get_preemptive_garbage_collection();
 #ifndef NDEBUG
   skip_encode_default_table_encryption =
       other.skip_encode_default_table_encryption;
@@ -381,6 +389,11 @@ void Group_member_info::encode_payload(
                                m_group_action_running_description.c_str(),
                                m_group_action_running_description.length());
   }
+
+  char preemptive_garbage_collection_aux =
+      m_preemptive_garbage_collection ? '1' : '0';
+  encode_payload_item_char(buffer, PIT_PREEMPTIVE_GARBAGE_COLLECTION,
+                           preemptive_garbage_collection_aux);
 }
 
 void Group_member_info::decode_payload(const unsigned char *buffer,
@@ -539,6 +552,13 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
           m_group_action_running_description.assign(
               reinterpret_cast<const char *>(slider),
               static_cast<size_t>(payload_item_length));
+        }
+        break;
+      case PIT_PREEMPTIVE_GARBAGE_COLLECTION:
+        if (slider + payload_item_length <= end) {
+          unsigned char preemptive_garbage_collection_aux = *slider;
+          m_preemptive_garbage_collection =
+              (preemptive_garbage_collection_aux == '1') ? true : false;
         }
         break;
     }
@@ -877,6 +897,11 @@ bool Group_member_info::get_allow_single_leader() {
 void Group_member_info::set_view_change_uuid(const char *view_change_cnf) {
   MUTEX_LOCK(lock, &update_lock);
   m_view_change_uuid.assign(view_change_cnf);
+}
+
+bool Group_member_info::get_preemptive_garbage_collection() {
+  MUTEX_LOCK(lock, &update_lock);
+  return m_preemptive_garbage_collection;
 }
 
 bool Group_member_info::comparator_group_member_uuid(Group_member_info *m1,

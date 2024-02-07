@@ -74,6 +74,7 @@ INSERT INTO gr_options_that_cannot_be_change (name)
  AND VARIABLE_NAME != 'group_replication_start_on_boot'
  AND VARIABLE_NAME != 'group_replication_tls_source'
  AND VARIABLE_NAME != 'group_replication_transaction_size_limit'
+ AND VARIABLE_NAME != 'group_replication_preemptive_garbage_collection_rows_threshold'
  ORDER BY VARIABLE_NAME;
 SET SESSION sql_log_bin = 1;
 --let $gr_options_that_cannot_be_change_count= `SELECT COUNT(*) FROM gr_options_that_cannot_be_change;`

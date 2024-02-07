@@ -2066,6 +2066,16 @@ int Plugin_gcs_events_handler::compare_member_option_compatibility() const {
       }
       goto cleaning;
     }
+
+    if (local_member_info->get_preemptive_garbage_collection() !=
+        (*all_members_it)->get_preemptive_garbage_collection()) {
+      result = 1;
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_PREEMPTIVE_GARBAGE_COLLECTION_DIFF_FROM_GRP,
+                   local_member_info->get_preemptive_garbage_collection(),
+                   (*all_members_it)->get_preemptive_garbage_collection());
+      goto cleaning;
+    }
   }
 
 cleaning:

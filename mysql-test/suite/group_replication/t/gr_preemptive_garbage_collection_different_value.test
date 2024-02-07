@@ -1,0 +1,67 @@
+################################################################################
+# Validate that members with different group_replication_preemptive_garbage_collection
+# value are not allowed to join.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Start group on server1 with group_replication_preemptive_garbage_collection
+#    enabled.
+# 2. Try to join a server with
+#    group_replication_preemptive_garbage_collection disabled.
+#    Server will not be allowed to join.
+# 3. Clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start group on server1 with group_replication_preemptive_garbage_collection
+--echo #    enabled.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
+--source include/start_and_bootstrap_group_replication.inc
+
+--error ER_GROUP_REPLICATION_RUNNING
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= OFF;
+
+
+--echo
+--echo ############################################################
+--echo # 2. Try to join a server with
+--echo #    group_replication_preemptive_garbage_collection disabled.
+--echo #    Server will not be allowed to join.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The member is configured with a group_replication_preemptive_garbage_collection option value '0' different from the group '1'. The member will now exit the group.");
+SET SESSION sql_log_bin = 1;
+
+--let $assert_text= group_replication_preemptive_garbage_collection default value is OFF
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_preemptive_garbage_collection] = 0
+--source include/assert.inc
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text= The member has a different value of preemptive garbage collection and failed to start
+--let $assert_select=.*group_replication_preemptive_garbage_collection option value '0' different from the group '1'.*
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
+
+--source include/group_replication_end.inc

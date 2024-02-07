@@ -1,0 +1,216 @@
+################################################################################
+# Validate group_replication_preemptive_garbage_collection_rows_threshold behavior
+# in multi-primary mode, that is, it does not trigger preemptive garbage collection.
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Deploy group with certification info periodic garbage
+#    collection disabled and preemptive garbage collection
+#    enabled in multi-primary mode.
+# 2. Do some transactions so that we have 10000 write-sets on
+#    certification info.
+# 3. Set group_replication_preemptive_garbage_collection_rows_threshold
+#    to 10000 and check that certification info is not garbage collected.
+# 4. Increase group_replication_preemptive_garbage_collection_rows_threshold
+#    to 120000.
+# 5. Do a transaction that generates 120000 write-sets, despite 120000
+#    is equal to group_replication_preemptive_garbage_collection_rows_threshold
+#    these write-sets will be added to certification info.
+# 6. Clean up.
+################################################################################
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Deploy group with certification info periodic garbage
+--echo #    collection disabled and preemptive garbage collection
+--echo #    enabled in multi-primary mode.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
+--source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
+--source include/start_group_replication.inc
+
+# Block writes on "group_replication_applier" channel.
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+
+# Every time a member joins a garbage collection happens.
+--let $assert_text= 'There was 1 certification info garbage collection runs'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_count", VARIABLE_VALUE, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Every time a member joins a garbage collection happens.
+--let $assert_text= 'There were 2 certification info garbage collection runs'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_count", VARIABLE_VALUE, 1] = 2
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Do some transactions so that we have 10000 write-sets on
+--echo #    certification info.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--disable_query_log
+--let $trxs=20
+while($trxs)
+{
+  --let $rows=500
+  BEGIN;
+  while($rows)
+  {
+    --eval INSERT INTO t1 VALUES (NULL)
+    --dec $rows
+  }
+  COMMIT;
+  --dec $trxs
+}
+--enable_query_log
+
+--let $assert_text= 'Count_transactions_rows_validating must be equal to 10000 on server1'
+--let $assert_cond= "10000" = "[SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
+--source include/assert.inc
+
+--let $assert_text= GTID_EXECUTED must contain the INSERTs on server1
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-21"
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Writes on "group_replication_applier" channel are blocked, but
+# transactions are still being certified and queued on its relay log.
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+
+--let $wait_condition= SELECT Count_transactions_rows_validating=10000 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--let $assert_text= GTID_EXECUTED must not contain the INSERTs on server2
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Set group_replication_preemptive_garbage_collection_rows_threshold
+--echo #    to 10000 and check that certification info is not garbage collected.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 10000;
+--let $assert_text= 'Count_transactions_rows_validating must be equal to 10000 on server1'
+--let $assert_cond= "10000" = "[SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
+--source include/assert.inc
+
+--let $assert_text= 'Continue to be 2 certification info garbage collection runs'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_count", VARIABLE_VALUE, 1] = 2
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 10000;
+--let $assert_text= 'Count_transactions_rows_validating must be equal to 10000 on server1'
+--let $assert_cond= "10000" = "[SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
+--source include/assert.inc
+
+--let $assert_text= 'Continue to be 1 certification info garbage collection run'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_count", VARIABLE_VALUE, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Increase group_replication_preemptive_garbage_collection_rows_threshold
+--echo #    to 20000.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 20000;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= 20000;
+
+
+--echo
+--echo ############################################################
+--echo # 5. Do a transaction that generates 20000 write-sets, despite 20000
+--echo #    is equal to group_replication_preemptive_garbage_collection_rows_threshold
+--echo #    these write-sets will be added to certification info.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--disable_query_log
+--let $rows=20000
+BEGIN;
+while($rows)
+{
+  --eval INSERT INTO t1 VALUES (NULL)
+  --dec $rows
+}
+COMMIT;
+--enable_query_log
+
+--let $assert_text= 'Count_transactions_rows_validating must be equal to 30000 on server1'
+--let $assert_cond= "30000" = "[SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
+--source include/assert.inc
+
+--let $assert_text= GTID_EXECUTED must contain the INSERTs on server1
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-22"
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'Count_transactions_rows_validating must be equal to 30000 on server1'
+--let $assert_cond= "30000" = "[SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
+--source include/assert.inc
+
+--let $assert_text= GTID_EXECUTED must not contain the INSERTs on server2
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1"
+--source include/assert.inc
+
+--let $binlog_file= server-relay-log-group_replication_applier.000002
+--let $logical_timestamps= 0 0;1 3;1 4;1 5;1 6;1 7
+--source include/assert_logical_timestamps.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= DEFAULT;
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
+SET DEBUG_SYNC= 'RESET';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= DEFAULT;
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
+
+--source include/group_replication_end.inc

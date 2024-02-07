@@ -271,40 +271,23 @@ int Applier_module::apply_view_change_packet(
     Format_description_log_event *fde_evt, Continuation *cont) {
   int error = 0;
 
-  /* Start garbage collection duration. */
-  const auto garbage_collection_begin = Metrics_handler::get_current_time();
-
-  Gtid_set *group_executed_set = nullptr;
-  Tsid_map *tsid_map = nullptr;
+  Tsid_map sid_map(nullptr);
+  Gtid_set group_executed_set(&sid_map, nullptr);
   if (!view_change_packet->group_executed_set.empty()) {
-    tsid_map = new Tsid_map(nullptr);
-    group_executed_set = new Gtid_set(tsid_map, nullptr);
     if (intersect_group_executed_sets(view_change_packet->group_executed_set,
-                                      group_executed_set)) {
+                                      &group_executed_set)) {
       LogPluginErr(
           WARNING_LEVEL,
           ER_GRP_RPL_ERROR_GTID_EXECUTION_INFO); /* purecov: inspected */
-      delete tsid_map;                           /* purecov: inspected */
-      delete group_executed_set;                 /* purecov: inspected */
-      group_executed_set = nullptr;              /* purecov: inspected */
     }
   }
 
-  if (group_executed_set != nullptr) {
-    if (get_certification_handler()
-            ->get_certifier()
-            ->set_group_stable_transactions_set(group_executed_set)) {
-      LogPluginErr(WARNING_LEVEL,
-                   ER_GRP_RPL_CERTIFICATE_SIZE_ERROR); /* purecov: inspected */
-    }
-    delete tsid_map;
-    delete group_executed_set;
-  }
+  /*
+    We call `garbage_collect()` always to update the metrics.
+  */
+  get_certification_handler()->get_certifier()->garbage_collect(
+      &group_executed_set, true);
 
-  /* Update garbage collection metrics. */
-  const auto garbage_collection_end = Metrics_handler::get_current_time();
-  metrics_handler->add_garbage_collection_run(garbage_collection_begin,
-                                              garbage_collection_end);
   /*
     If all the group members are compatible to transfer the recovery metadata
     without using VCLE. Do not send the VCLE.

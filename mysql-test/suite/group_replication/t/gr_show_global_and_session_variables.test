@@ -30,7 +30,7 @@
 --source include/start_and_bootstrap_group_replication.inc
 --source include/stop_group_replication.inc
 
---let $gr_var_count= 59
+--let $gr_var_count= 61
 --echo
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 
@@ -86,6 +86,8 @@
 --let $saved_gr_recovery_tls_ciphersuites = `SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites`
 --let $saved_gr_view_change_uuid = `SELECT @@GLOBAL.group_replication_view_change_uuid`
 --let $saved_gr_paxos_single_leader = `SELECT @@GLOBAL.group_replication_paxos_single_leader`
+--let $saved_group_replication_preemptive_garbage_collection = `SELECT @@GLOBAL.group_replication_preemptive_garbage_collection`
+--let $saved_group_replication_preemptive_garbage_collection_rows_threshold = `SELECT @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold`
 --enable_query_log
 
 
@@ -179,6 +181,10 @@ SET @@SESSION.group_replication_recovery_tls_ciphersuites= "";
 SET @@SESSION.group_replication_view_change_uuid= "AUTOMATIC";
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_paxos_single_leader= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_preemptive_garbage_collection= ON;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_preemptive_garbage_collection_rows_threshold= 100000;
 
 # Set values to GLOBAL GR variables to test further.
 --disable_query_log
@@ -225,6 +231,8 @@ SET GLOBAL group_replication_recovery_tls_version= "";
 SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 SET GLOBAL group_replication_view_change_uuid= "aaaaaaaa-cccc-bbbb-dddd-eeeeeeeeeeee";
 SET GLOBAL group_replication_paxos_single_leader= 1;
+SET GLOBAL group_replication_preemptive_garbage_collection= ON;
+SET GLOBAL group_replication_preemptive_garbage_collection_rows_threshold= 100000;
 --enable_query_log
 
 
@@ -983,6 +991,40 @@ SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_paxos_single_leader\', VARIABLE_VALUE, 1]" = "ON"
 --source include/assert.inc
 
+# group_replication_preemptive_garbage_collection
+--let $assert_text= Verify GLOBAL value of group_replication_preemptive_garbage_collection
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_preemptive_garbage_collection\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_preemptive_garbage_collection
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_preemptive_garbage_collection\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_preemptive_garbage_collection
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_preemptive_garbage_collection\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_preemptive_garbage_collection
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_preemptive_garbage_collection\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+# group_replication_preemptive_garbage_collection_rows_threshold
+--let $assert_text= Verify GLOBAL value of group_replication_preemptive_garbage_collection_rows_threshold
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE \'group_replication_preemptive_garbage_collection_rows_threshold\', Value, 1] = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_preemptive_garbage_collection_rows_threshold
+--let $assert_cond= [SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_preemptive_garbage_collection_rows_threshold\', VARIABLE_VALUE, 1] = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_preemptive_garbage_collection_rows_threshold
+--let $assert_cond= [SHOW SESSION VARIABLES LIKE \'group_replication_preemptive_garbage_collection_rows_threshold\', Value, 1] = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_preemptive_garbage_collection_rows_threshold
+--let $assert_cond= [SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_preemptive_garbage_collection_rows_threshold\', VARIABLE_VALUE, 1] = 100000
+--source include/assert.inc
+
 --echo
 --echo # Clean up
 --source include/stop_group_replication.inc
@@ -1033,6 +1075,8 @@ SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 --eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
 --eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
 --eval SET @@GLOBAL.group_replication_paxos_single_leader= $saved_gr_paxos_single_leader
+--eval SET @@GLOBAL.group_replication_preemptive_garbage_collection= $saved_group_replication_preemptive_garbage_collection
+--eval SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= $saved_group_replication_preemptive_garbage_collection_rows_threshold
 --enable_query_log
 
 

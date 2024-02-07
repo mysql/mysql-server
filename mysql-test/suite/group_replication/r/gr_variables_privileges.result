@@ -95,6 +95,10 @@ SET GLOBAL group_replication_paxos_single_leader = @@GLOBAL.group_replication_pa
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_preemptive_garbage_collection = @@GLOBAL.group_replication_preemptive_garbage_collection;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_preemptive_garbage_collection_rows_threshold = @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_recovery_compression_algorithms = @@GLOBAL.group_replication_recovery_compression_algorithms;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_recovery_get_public_key = @@GLOBAL.group_replication_recovery_get_public_key;
@@ -195,6 +199,8 @@ SET GLOBAL group_replication_member_weight = @@GLOBAL.group_replication_member_w
 SET GLOBAL group_replication_message_cache_size = @@GLOBAL.group_replication_message_cache_size;
 SET GLOBAL group_replication_paxos_single_leader = @@GLOBAL.group_replication_paxos_single_leader;
 SET GLOBAL group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
+SET GLOBAL group_replication_preemptive_garbage_collection = @@GLOBAL.group_replication_preemptive_garbage_collection;
+SET GLOBAL group_replication_preemptive_garbage_collection_rows_threshold = @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold;
 SET GLOBAL group_replication_recovery_compression_algorithms = @@GLOBAL.group_replication_recovery_compression_algorithms;
 SET GLOBAL group_replication_recovery_get_public_key = @@GLOBAL.group_replication_recovery_get_public_key;
 SET GLOBAL group_replication_recovery_public_key_path = @@GLOBAL.group_replication_recovery_public_key_path;

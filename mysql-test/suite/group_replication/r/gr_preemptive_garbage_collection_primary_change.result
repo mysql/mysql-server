@@ -1,0 +1,37 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start group with group_replication_preemptive_garbage_collection
+#    enabled.
+[connection server1]
+SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @group_replication_preemptive_garbage_collection_saved= @@GLOBAL.group_replication_preemptive_garbage_collection;
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= ON;
+include/start_group_replication.inc
+
+############################################################
+# 2. Change the primary to server2.
+[connection server1]
+SELECT group_replication_set_as_primary("SERVER2_UUID");
+group_replication_set_as_primary("SERVER2_UUID")
+Primary server switched to: SERVER2_UUID
+include/gr_assert_secondary_member.inc
+[connection server2]
+include/gr_assert_primary_member.inc
+
+############################################################
+# 3. Clean up.
+[connection server2]
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
+[connection server1]
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_preemptive_garbage_collection= @group_replication_preemptive_garbage_collection_saved;
+include/group_replication_end.inc

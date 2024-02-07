@@ -4398,7 +4398,7 @@ ER_GRP_RPL_EVENT_HANDLING_ERROR
 ER_GRP_RPL_ERROR_GTID_EXECUTION_INFO
   eng "Error when extracting group GTID execution information, some recovery operations may face future issues."
 
-ER_GRP_RPL_CERTIFICATE_SIZE_ERROR
+OBSOLETE_ER_GRP_RPL_CERTIFICATE_SIZE_ERROR
   eng "An error occurred when trying to reduce the Certification information size for transmission."
 
 ER_GRP_RPL_CREATE_APPLIER_CACHE_ERROR
@@ -12673,6 +12673,9 @@ ER_KEYRING_MIGRATE_MEMORY_DEALLOCATION_FAILED
 
 ER_LOG_CLIENT_INTERACTION_TIMEOUT
   eng "A connection from %s was closed by the server due to a timeout in the communication layer (vio:%d, packet:%d) %ld seconds after the last command started. Currently configured wait_timeout is %ld seconds."
+
+ER_GRP_RPL_PREEMPTIVE_GARBAGE_COLLECTION_DIFF_FROM_GRP
+  eng "The member is configured with a group_replication_preemptive_garbage_collection option value '%d' different from the group '%d'. The member will now exit the group."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

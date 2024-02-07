@@ -168,10 +168,10 @@ void Certifier_broadcast_thread::dispatcher() {
     Certification_handler *cert = applier_module->get_certification_handler();
     Certifier_interface *cert_module = (cert ? cert->get_certifier() : nullptr);
 
-    // stable_set_handle() is capable to identify if all information required
+    // garbage_collect() is capable to identify if all information required
     // for it to run is already delivered to this member.
     if (cert_module) {
-      cert_module->stable_set_handle();
+      cert_module->garbage_collect();
     }
 
     mysql_mutex_lock(&broadcast_dispatcher_lock);
@@ -740,7 +740,8 @@ namespace {
 }  // namespace
 
 void Certifier::update_transaction_dependency_timestamps(
-    Gtid_log_event &gle, bool has_write_set, int64 transaction_last_committed) {
+    Gtid_log_event &gle, bool has_write_set, bool has_write_set_large_size,
+    int64 transaction_last_committed) {
   bool update_parallel_applier_last_committed_global = false;
 
   /*
@@ -754,7 +755,8 @@ void Certifier::update_transaction_dependency_timestamps(
     update_parallel_applier_last_committed_global = true;
   }
 
-  if (!has_write_set || update_parallel_applier_last_committed_global) {
+  if (!has_write_set || has_write_set_large_size ||
+      update_parallel_applier_last_committed_global) {
     /*
       DDL does not have write-set, so we need to ensure that it
       is applied without any other transaction in parallel.
@@ -769,7 +771,8 @@ void Certifier::update_transaction_dependency_timestamps(
   assert(gle.last_committed < gle.sequence_number);
 
   increment_parallel_applier_sequence_number(
-      !has_write_set || update_parallel_applier_last_committed_global);
+      !has_write_set || has_write_set_large_size ||
+      update_parallel_applier_last_committed_global);
 
   /*
     Every Group Replication is started and the first remote transaction
@@ -819,6 +822,7 @@ Certified_gtid Certifier::certify(Gtid_set *snapshot_version,
   rpl_gno gtid_gno = 0;
 
   const bool has_write_set = !write_set->empty();
+  bool write_set_large_size = false;
 
   auto end_certification = [
     &is_gtid_specified, &gtid_global_sidno, &gtid_group_sidno, &gtid_gno,
@@ -921,9 +925,24 @@ Certified_gtid Certifier::certify(Gtid_set *snapshot_version,
   last_conflict_free_transaction.set(gtid_group_sidno, gtid_gno);
 
   /*
+    When the group is in single-primary mode and
+    group_replication_preemptive_garbage_collection is enabled, if the number
+    of write-sets on a transaction is equal or greater than
+    group_replication_preemptive_garbage_collection_rows_threshold, the
+    write-sets are not added to certification info and the last_committed
+    timestamps is incremented.
+  */
+  if (get_single_primary_mode_var() &&
+      get_preemptive_garbage_collection_var() &&
+      write_set->size() >=
+          get_preemptive_garbage_collection_rows_threshold_var()) {
+    write_set_large_size = true;
+  }
+
+  /*
     Add the transaction's write set to certification info.
   */
-  if (has_write_set) {
+  if (has_write_set && !write_set_large_size) {
     auto add_writeset_code = add_writeset_to_certification_info(
         transaction_last_committed, snapshot_version, write_set,
         local_transaction);
@@ -934,8 +953,8 @@ Certified_gtid Certifier::certify(Gtid_set *snapshot_version,
 
   // Update parallel applier indexes for local transactions
   if (!local_transaction) {
-    update_transaction_dependency_timestamps(*gle, has_write_set,
-                                             transaction_last_committed);
+    update_transaction_dependency_timestamps(
+        *gle, has_write_set, write_set_large_size, transaction_last_committed);
   }
 
   return end_certification(Certification_result::positive);
@@ -1062,32 +1081,55 @@ int Certifier::get_group_stable_transactions_set_string(char **buffer,
   return error;
 }
 
-bool Certifier::set_group_stable_transactions_set(Gtid_set *executed_gtid_set) {
+void Certifier::garbage_collect(Gtid_set *executed_gtid_set,
+                                bool on_member_join) {
   DBUG_TRACE;
 
-  if (!is_initialized()) return true; /* purecov: inspected */
+  bool update_metrics = false;
 
-  if (executed_gtid_set == nullptr) {
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_INVALID_GTID_SET); /* purecov: inspected */
-    return true;                               /* purecov: inspected */
+  if (!is_initialized()) return; /* purecov: inspected */
+
+  /* Start garbage collection duration. */
+  const auto garbage_collection_begin = Metrics_handler::get_current_time();
+
+  if (!on_member_join) {
+    assert(nullptr == executed_gtid_set);
+
+    if (get_single_primary_mode_var() &&
+        get_preemptive_garbage_collection_var() &&
+        get_certification_info_size() >=
+            get_preemptive_garbage_collection_rows_threshold_var()) {
+      garbage_collect_internal(nullptr, true);
+      update_metrics = true;
+    }
+
+    if (intersect_members_gtid_executed_and_garbage_collect()) {
+      update_metrics = true;
+    }
+
+  } else {
+    /* executed_gtid_set only is empty when gtid_executed don't have
+     * any change, for example, when a group do boostrap without any
+     * GTID.
+     * To avoid don't have a increment on garbage collector counter on
+     * a view change we also do it when executed_gtid_set is empty.
+     */
+    update_metrics = true;
+    if (!executed_gtid_set->is_empty()) {
+      garbage_collect_internal(executed_gtid_set);
+    }
   }
 
-  stable_gtid_set_lock->wrlock();
-  if (stable_gtid_set->add_gtid_set(executed_gtid_set) != RETURN_STATUS_OK) {
-    stable_gtid_set_lock->unlock(); /* purecov: inspected */
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_UPDATE_GTID_SET_ERROR); /* purecov: inspected */
-    return true;                                    /* purecov: inspected */
+  if (update_metrics) {
+    /* Update garbage collection metrics. */
+    const auto garbage_collection_end = Metrics_handler::get_current_time();
+    metrics_handler->add_garbage_collection_run(garbage_collection_begin,
+                                                garbage_collection_end);
   }
-  stable_gtid_set_lock->unlock();
-
-  garbage_collect();
-
-  return false;
 }
 
-void Certifier::garbage_collect() {
+void Certifier::garbage_collect_internal(Gtid_set *executed_gtid_set,
+                                         bool preemptive) {
   DBUG_TRACE;
 
   if (!is_initialized()) {
@@ -1095,58 +1137,109 @@ void Certifier::garbage_collect() {
   }
 
   /*
-    This debug option works together with
-    `group_replication_certifier_broadcast_thread_big_period`
-    by disabling the manual garbage collection that happens when
-    a View_log_change_event is logged.
-    Applier_module::apply_view_change_packet() does call
-    Certifier::set_group_stable_transactions_set().
+    This debug option works on every call to garbage_collect
+    by disabling the garbage collection.
+    Calls to garbage collect happen:
+     1) when a member joins.
+     2) periodically, using the the intersection of members gtid executed.
+        Period that can be controlled by the debug flag.
+        `group_replication_certifier_broadcast_thread_big_period`.
+     3) preemptively, please see option
+        `group_replication_preemptive_garbage_collection`.
   */
   DBUG_EXECUTE_IF("group_replication_do_not_clear_certification_database",
                   { return; };);
 
-  mysql_mutex_lock(&LOCK_certification_info);
-
   /*
-    When a transaction "t" is applied to all group members and for all
-    ongoing, i.e., not yet committed or aborted transactions,
-    "t" was already committed when they executed (thus "t"
-    precedes them), then "t" is stable and can be removed from
-    the certification info.
+   If `executed_gtid_set` is already contained on `stable_gtid_set`,
+   no new transactions were committed on all members after the last
+   garbage collection run, thence there is nothing to garbage collect
+   with `executed_gtid_set`.
   */
-  Certification_info::iterator it = certification_info.begin();
-  stable_gtid_set_lock->wrlock();
-  while (it != certification_info.end()) {
-    if (it->second->is_subset_not_equals(stable_gtid_set)) {
-      if (it->second->unlink() == 0) delete it->second;
-      certification_info.erase(it++);
-    } else
-      ++it;
+  if (!preemptive &&
+      update_stable_set(*executed_gtid_set) != Certifier::STABLE_SET_UPDATED) {
+    return;
   }
-  stable_gtid_set_lock->unlock();
 
   /*
-    We need to update parallel applier indexes since we do not know
-    what write sets were purged, which may cause transactions
-    last committed to be incorrectly computed.
+    Data structures to hold a copy of certified gtids so that we can
+    use them without require to hold `LOCK_certification_info`.
   */
-  increment_parallel_applier_sequence_number(true);
+  bool update_stable_set_after_preemptive_garbage_collection = false;
+  Tsid_map certified_gtids_copy_sid_map(nullptr);
+  Gtid_set certified_gtids_copy_set(&certified_gtids_copy_sid_map, nullptr);
+
+  {
+    MUTEX_LOCK(lock, &LOCK_certification_info);
+
+    if (preemptive) {
+      assert(nullptr == executed_gtid_set);
+
+      if (!get_single_primary_mode_var() ||
+          !get_preemptive_garbage_collection_var()) {
+        return;
+      }
+      /*
+       On preemptive garbage collect runs we use group_gtid_executed,
+       we are on single primary so if transactions are certified by
+       the group we can add to stable gtid set and clear all certification
+       info.
+      */
+      clear_certification_info();
+      update_stable_set_after_preemptive_garbage_collection = true;
+      certified_gtids_copy_set.add_gtid_set(group_gtid_executed);
+    }
+
+    else {
+      /*
+        When a transaction "t" is applied to all group members and for all
+        ongoing, i.e., not yet committed or aborted transactions,
+        "t" was already committed when they executed (thus "t"
+        precedes them), then "t" is stable and can be removed from
+        the certification info.
+        */
+      Certification_info::iterator it = certification_info.begin();
+      stable_gtid_set_lock->wrlock();
+
+      while (it != certification_info.end()) {
+        if (it->second->is_subset_not_equals(stable_gtid_set)) {
+          if (it->second->unlink() == 0) delete it->second;
+          certification_info.erase(it++);
+        } else
+          ++it;
+      }
+      stable_gtid_set_lock->unlock();
+    }
+
+    /*
+      We need to update parallel applier indexes since we do not know
+      what write sets were purged, which may cause transactions
+      last committed to be incorrectly computed.
+      */
+    increment_parallel_applier_sequence_number(true);
 
 #if !defined(NDEBUG)
-  /*
-    This part blocks the garbage collection process for 300 sec in order to
-    simulate the case that while garbage collection is going on, we should
-    skip the stable set messages round in order to prevent simultaneous
-    access to stable_gtid_set.
-  */
-  if (certifier_garbage_collection_block) {
-    certifier_garbage_collection_block = false;
-    // my_sleep expects a given number of microseconds.
-    my_sleep(broadcast_thread->BROADCAST_GTID_EXECUTED_PERIOD * 1500000);
-  }
+    /*
+      This part blocks the garbage collection process for 300 sec in order to
+      simulate the case that while garbage collection is going on, we should
+      skip the stable set messages round in order to prevent simultaneous
+      access to stable_gtid_set.
+      */
+    if (certifier_garbage_collection_block) {
+      certifier_garbage_collection_block = false;
+      // my_sleep expects a given number of microseconds.
+      my_sleep(broadcast_thread->BROADCAST_GTID_EXECUTED_PERIOD * 1500000);
+    }
 #endif
+  }
 
-  mysql_mutex_unlock(&LOCK_certification_info);
+  /*
+    Update stable set using a copy of certified gtids so that we dot not
+    require to hold `LOCK_certification_info`.
+  */
+  if (preemptive && update_stable_set_after_preemptive_garbage_collection) {
+    update_stable_set(certified_gtids_copy_set);
+  }
 
   /*
     Applier channel received set does only contain the GTIDs of the
@@ -1162,6 +1255,23 @@ void Certifier::garbage_collect() {
         WARNING_LEVEL,
         ER_GRP_RPL_RECEIVED_SET_MISSING_GTIDS); /* purecov: inspected */
   }
+}
+
+Certifier::enum_update_status Certifier::update_stable_set(
+    const Gtid_set &set) {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*stable_gtid_set_lock,
+                            Checkable_rwlock::WRITE_LOCK);
+
+  if (set.is_subset(stable_gtid_set)) {
+    return STABLE_SET_ALREADY_CONTAINED;
+  }
+
+  if (stable_gtid_set->add_gtid_set(&set) != RETURN_STATUS_OK) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SET_STABLE_TRANS_ERROR);
+    return STABLE_SET_ERROR;
+  }
+  return STABLE_SET_UPDATED;
 }
 
 int Certifier::handle_certifier_data(
@@ -1241,11 +1351,11 @@ int Certifier::handle_certifier_data(
   return 0;
 }
 
-int Certifier::stable_set_handle() {
+bool Certifier::intersect_members_gtid_executed_and_garbage_collect() {
   DBUG_TRACE;
 
   if (!is_initialized() || nullptr == group_member_mgr) {
-    return 0;
+    return false;
   }
 
   /*
@@ -1260,11 +1370,8 @@ int Certifier::stable_set_handle() {
   if (incoming_size < 1 || number_of_members_online < 1 ||
       incoming_size != number_of_members_online) {
     mysql_mutex_unlock(&LOCK_members);
-    return 0;
+    return false;
   }
-
-  /* Start garbage collection duration. */
-  const auto garbage_collection_begin = Metrics_handler::get_current_time();
 
   Data_packet *packet = nullptr;
   int error = 0;
@@ -1339,21 +1446,13 @@ int Certifier::stable_set_handle() {
     delete packet;
   }
 
-  if (!error) {
-    stable_gtid_set_lock->wrlock();
-    if (stable_gtid_set->add_gtid_set(&executed_set) != RETURN_STATUS_OK) {
-      LogPluginErr(ERROR_LEVEL,
-                   ER_GRP_RPL_SET_STABLE_TRANS_ERROR); /* purecov: inspected */
-      error = 1;                                       /* purecov: inspected */
-    }
-    stable_gtid_set_lock->unlock();
-  }
-
 #if !defined(NDEBUG)
   char *executed_set_string;
   executed_set.to_string(&executed_set_string);
-  DBUG_PRINT("info", ("Certifier stable_set_handle: executed_set: %s",
-                      executed_set_string));
+  DBUG_PRINT("info",
+             ("Certifier intersect_members_gtid_executed_and_garbage_collect: "
+              "executed_set: %s",
+              executed_set_string));
   my_free(executed_set_string);
 #endif
 
@@ -1365,15 +1464,11 @@ int Certifier::stable_set_handle() {
   mysql_mutex_unlock(&LOCK_members);
 
   if (!error) {
-    garbage_collect();
-
-    /* Update garbage collection metrics. */
-    const auto garbage_collection_end = Metrics_handler::get_current_time();
-    metrics_handler->add_garbage_collection_run(garbage_collection_begin,
-                                                garbage_collection_end);
+    garbage_collect_internal(&executed_set);
+    return true;
   }
 
-  return error;
+  return false;
 }
 
 void Certifier::handle_view_change() {
