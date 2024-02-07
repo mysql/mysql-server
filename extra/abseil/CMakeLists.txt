@@ -21,6 +21,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
+IF(HAS_MISSING_PROFILE)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_MISSING_PROFILE}")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wchar-subscripts" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
