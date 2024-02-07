@@ -79,6 +79,10 @@ EXPLAIN FOR SCHEMA non_existent_schema SELECT 1;
 # Same error as regular EXPLAIN in schema
 --error ER_NO_SUCH_TABLE
 EXPLAIN FOR SCHEMA test_explain_for_schema SELECT * FROM non_existent_table;
+--error ER_WRONG_DB_NAME
+EXPLAIN FOR SCHEMA '' SELECT 1;
+--error ER_PARSE_ERROR
+EXPLAIN FOR SCHEMA SELECT 1;
 
 SELECT @dummy_var IS NULL;
 

@@ -60,3 +60,9 @@ let $elide_trace_costs_and_rows=$elide_trace_costs_and_rows /rows_to_scan\": [0-
 let $elide_trace_costs_and_rows=$elide_trace_costs_and_rows /num_rows_estimate\": [0-9.]+/num_rows_estimate\": "elided"/;
 
 let $elide_json_costs=/cost": "[0-9.]*"/cost": "elided"/;
+
+# Usage: --replace_regex $elide_json_ms
+# Remove actual execution times from EXPLAIN ANALYZE FORMAT=JSON
+#  "actual_first_row_ms": 0.328761 -> "actual_first_row_ms": "elided"
+#  "actual_last_row_ms": 0.328761 -> "actual_last_row_ms": "elided"
+let $elide_json_ms=/row_ms": [0-9.]*/row_ms": "elided"/;

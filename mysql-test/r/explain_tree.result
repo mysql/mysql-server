@@ -740,7 +740,7 @@ ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE FOR CONN
 EXPLAIN ANALYZE FORMAT=TRADITIONAL SELECT 1;
 ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE with TRADITIONAL format'
 EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
-ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE with JSON format'
+ERROR 0A000: EXPLAIN ANALYZE does not support FORMAT=JSON with explain_json_format_version=1.
 EXPLAIN ANALYZE FORMAT=TREE SELECT 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1) (actual rows=1 loops=1)

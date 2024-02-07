@@ -14029,11 +14029,27 @@ opt_explain_format:
         ;
 
 opt_explain_options:
-          ANALYZE_SYM opt_explain_format
+          ANALYZE_SYM opt_explain_format opt_explain_into
           {
             $$ = $2;
             $$.is_analyze = true;
-            $$.explain_into_variable_name = NULL_STR;
+
+            if ($3.length) {
+              if (!$$.is_explicit) {
+                MYSQL_YYABORT_ERROR(
+                  ER_EXPLAIN_INTO_IMPLICIT_FORMAT_NOT_SUPPORTED, MYF(0));
+              }
+              if ($$.explain_format_type != Explain_format_type::JSON) {
+                if ($$.explain_format_type == Explain_format_type::TREE) {
+                  MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED,
+                                      MYF(0), "TREE");
+                } else {
+                  MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED,
+                                      MYF(0), "TRADITIONAL");
+                }
+              }
+            }
+            $$.explain_into_variable_name = $3;
           }
         | opt_explain_format opt_explain_into
           {
@@ -14066,6 +14082,9 @@ opt_explain_into:
           }
         | INTO '@' ident_or_text
           {
+            if(check_column_name($3.str)) {
+              MYSQL_YYABORT_ERROR(ER_ILLEGAL_USER_VAR, MYF(0), $3.str);
+            }
             $$ = $3;
           }
         ;
@@ -14077,6 +14096,9 @@ opt_explain_for_schema:
           }
         | FOR_SYM DATABASE ident_or_text
           {
+            if (check_and_convert_db_name(&$3, false) != Ident_name_check::OK) {
+              MYSQL_YYABORT;
+            }
             $$ = to_lex_cstring($3);
           }
         ;

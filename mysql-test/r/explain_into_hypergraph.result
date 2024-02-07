@@ -5,8 +5,6 @@ SET @v1 = 'UNCHANGED';
 SET @v2 = @v1;
 
 # Unsupported functionality.
-EXPLAIN ANALYZE FORMAT=JSON INTO @v1 SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v1 SELECT 1' at line 1
 EXPLAIN INTO @v1 SELECT 1;
 ERROR 0A000: EXPLAIN INTO does not support implicit FORMAT.
 EXPLAIN FORMAT=TRADITIONAL INTO @v1 SELECT 1;
@@ -15,6 +13,10 @@ EXPLAIN FORMAT=TREE INTO @v1 SELECT 1;
 ERROR 0A000: EXPLAIN INTO does not support FORMAT=TREE.
 EXPLAIN FORMAT=JSON INTO @v1 FOR CONNECTION 1;
 ERROR 0A000: EXPLAIN FOR CONNECTION does not support the INTO clause.
+EXPLAIN FORMAT=JSON INTO @ SELECT 1;
+ERROR 42000: User variable name '' is illegal
+EXPLAIN FORMAT=JSON INTO @'' SELECT 1;
+ERROR 42000: User variable name '' is illegal
 # Check that the variable was not changed on error.
 SELECT @v1, @v1 = @v2;
 @v1	@v1 = @v2
@@ -154,6 +156,160 @@ SET @v1 = NULL;
 
 # EXPLAIN multitable DELETE.
 EXPLAIN FORMAT=JSON INTO @v1 DELETE t1, t2 FROM t1, t2;
+SELECT JSON_VALID(@v1),
+(SELECT COUNT(*) = 3 FROM t1) AS t1_no_change,
+(SELECT COUNT(*) = 3 FROM t2) AS t2_no_change;
+JSON_VALID(@v1)	t1_no_change	t2_no_change
+1	1	1
+
+# EXPLAIN ANALYZE INTO
+SET explain_json_format_version=2;
+
+# EXPLAIN ANALYZE SELECT.
+EXPLAIN ANALYZE FORMAT=JSON INTO @v1 SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
+SELECT @v1, JSON_VALID(@v1);
+@v1	JSON_VALID(@v1)
+{
+  "query": "/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t2`.`i3` AS `i3`,`test`.`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`i2` = 2) and (`test`.`t1`.`i1` = `test`.`t2`.`i3`))",
+  "inputs": [
+    {
+      "inputs": [
+        {
+          "operation": "Table scan on t1",
+          "table_name": "t1",
+          "access_type": "table",
+          "actual_rows": 3.0,
+          "schema_name": "test",
+          "actual_loops": 1,
+          "used_columns": [
+            "i1",
+            "i2"
+          ],
+          "estimated_rows": 3.0,
+          "actual_last_row_ms": "elided",
+          "actual_first_row_ms": "elided",
+          "estimated_total_cost": 0.25,
+          "estimated_first_row_cost": 0.08333333333333333
+        }
+      ],
+      "condition": "(t1.i2 = 2)",
+      "operation": "Filter: (t1.i2 = 2)",
+      "access_type": "filter",
+      "actual_rows": 1.0,
+      "actual_loops": 1,
+      "estimated_rows": 0.30000000447034836,
+      "filter_columns": [
+        "test.t1.i2"
+      ],
+      "actual_last_row_ms": "elided",
+      "actual_first_row_ms": "elided",
+      "estimated_total_cost": 0.55,
+      "estimated_first_row_cost": 0.55
+    },
+    {
+      "inputs": [
+        {
+          "operation": "Table scan on t2",
+          "table_name": "t2",
+          "access_type": "table",
+          "actual_rows": 3.0,
+          "schema_name": "test",
+          "actual_loops": 1,
+          "used_columns": [
+            "i3",
+            "i4"
+          ],
+          "estimated_rows": 3.0,
+          "actual_last_row_ms": "elided",
+          "actual_first_row_ms": "elided",
+          "estimated_total_cost": 0.25,
+          "estimated_first_row_cost": 0.08333333333333333
+        }
+      ],
+      "condition": "(t1.i1 = t2.i3)",
+      "operation": "Filter: (t1.i1 = t2.i3)",
+      "access_type": "filter",
+      "actual_rows": 0.0,
+      "actual_loops": 1,
+      "estimated_rows": 1.0,
+      "filter_columns": [
+        "test.t1.i1",
+        "test.t2.i3"
+      ],
+      "actual_last_row_ms": "elided",
+      "actual_first_row_ms": "elided",
+      "estimated_total_cost": 0.55,
+      "estimated_first_row_cost": 0.55
+    }
+  ],
+  "join_type": "inner join",
+  "operation": "Nested loop inner join",
+  "query_type": "select",
+  "access_type": "join",
+  "actual_rows": 0.0,
+  "actual_loops": 1,
+  "estimated_rows": 0.30000000447034836,
+  "join_algorithm": "nested_loop",
+  "actual_last_row_ms": "elided",
+  "actual_first_row_ms": "elided",
+  "estimated_total_cost": 1.1,
+  "estimated_first_row_cost": 1.1
+}	1
+
+# User variable is overwritten on successful execution.
+SET @v2 = @v1;
+EXPLAIN ANALYZE FORMAT=JSON INTO @v1 SELECT * FROM t1;
+SELECT JSON_VALID(@v1), @v1 != @v2, @v1 NOT LIKE CONCAT(@v2, '%');
+JSON_VALID(@v1)	@v1 != @v2	@v1 NOT LIKE CONCAT(@v2, '%')
+1	1	1
+SET @v1 = NULL;
+
+# EXPLAIN ANALYZE single table INSERT VALUES.
+EXPLAIN ANALYZE FORMAT=JSON INTO @v1 INSERT INTO t1 VALUES (4,5);
+SELECT JSON_VALID(@v1), COUNT(*) = 3 FROM t1;
+JSON_VALID(@v1)	COUNT(*) = 3
+1	1
+SET @v1 = NULL;
+
+# EXPLAIN ANALYZE single table INSERT SELECT.
+EXPLAIN ANALYZE FORMAT=JSON INTO @v1 INSERT INTO t1 SELECT * FROM t2;
+SELECT JSON_VALID(@v1), COUNT(*) = 3 FROM t1;
+JSON_VALID(@v1)	COUNT(*) = 3
+1	1
+SET @v1 = NULL;
+
+# EXPLAIN ANALYZE single table UPDATE.
+EXPLAIN ANALYZE FORMAT=JSON INTO @v1 UPDATE t1 SET i2 = i2 + 1 WHERE i1 = 1;
+SELECT JSON_VALID(@v1), i2 = 2 FROM t1 WHERE i1 = 1;
+JSON_VALID(@v1)	i2 = 2
+1	1
+SET @v1 = NULL;
+
+# EXPLAIN ANALYZE single table REPLACE.
+EXPLAIN ANALYZE FORMAT=JSON INTO @v1 REPLACE t1 SELECT * FROM t2;
+SELECT JSON_VALID(@v1), COUNT(*) = 3 FROM t1;
+JSON_VALID(@v1)	COUNT(*) = 3
+1	1
+SET @v1 = NULL;
+
+# EXPLAIN ANALYZE single table DELETE.
+EXPLAIN ANALYZE FORMAT=JSON INTO @v1 DELETE FROM t1;
+SELECT JSON_VALID(@v1), COUNT(*) = 3 FROM t1;
+JSON_VALID(@v1)	COUNT(*) = 3
+1	1
+SET @v1 = NULL;
+
+# EXPLAIN ANALYZE multitable UPDATE.
+EXPLAIN ANALYZE FORMAT=JSON INTO @v1 UPDATE t1, t2 SET i1 = i1 - 1, i3 = i3 + 1;
+SELECT JSON_VALID(@v1),
+(SELECT COUNT(*) = 3 FROM t1) AS t1_no_change,
+(SELECT COUNT(*) = 3 FROM t2) AS t2_no_change;
+JSON_VALID(@v1)	t1_no_change	t2_no_change
+1	1	1
+SET @v1 = NULL;
+
+# EXPLAIN ANALYZE multitable DELETE.
+EXPLAIN ANALYZE FORMAT=JSON INTO @v1 DELETE t1, t2 FROM t1, t2;
 SELECT JSON_VALID(@v1),
 (SELECT COUNT(*) = 3 FROM t1) AS t1_no_change,
 (SELECT COUNT(*) = 3 FROM t2) AS t2_no_change;

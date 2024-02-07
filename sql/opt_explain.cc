@@ -2286,11 +2286,14 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   }
 
   // Non-iterator-based formats are not supported with EXPLAIN ANALYZE.
-  if (lex->is_explain_analyze)
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-             (lex->explain_format->is_hierarchical()
-                  ? "EXPLAIN ANALYZE with JSON format"
-                  : "EXPLAIN ANALYZE with TRADITIONAL format"));
+  if (lex->is_explain_analyze) {
+    if (lex->explain_format->is_hierarchical()) {
+      my_error(ER_EXPLAIN_ANALYZE_JSON_FORMAT_VERSION_NOT_SUPPORTED, MYF(0));
+    } else {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "EXPLAIN ANALYZE with TRADITIONAL format");
+    }
+  }
 
   // Non-iterator-based formats are not supported with the hypergraph
   // optimizer. But we still want to be able to use EXPLAIN with no format

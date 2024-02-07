@@ -10021,7 +10021,7 @@ ER_LANGUAGE_COMPONENT_CANNOT_UNINSTALL
 ER_SP_NO_ALTER_LANGUAGE
   eng "Altering the language of an existing routine is not possible."
 
-ER_EXPLAIN_INTO_ANALYZE_NOT_SUPPORTED 0A000
+OBSOLETE_ER_EXPLAIN_INTO_ANALYZE_NOT_SUPPORTED 0A000
   eng "EXPLAIN ANALYZE does not support the INTO clause."
 
 ER_EXPLAIN_INTO_IMPLICIT_FORMAT_NOT_SUPPORTED 0A000
@@ -10481,6 +10481,9 @@ ER_LH_UNSTRUCTURED_FILE_TOO_LARGE
 
 ER_EXCEEDED_MAX_REGULAR_STATEMENT_HANDLE_LIMIT
   eng "Exceeded limit of %u regular SQL statement handles per session."
+
+ER_EXPLAIN_ANALYZE_JSON_FORMAT_VERSION_NOT_SUPPORTED 0A000
+  eng "EXPLAIN ANALYZE does not support FORMAT=JSON with explain_json_format_version=1."
 
 #
 #  End of 9.x error messages (server-to-client).

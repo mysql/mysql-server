@@ -86,6 +86,10 @@ EXPLAIN FOR SCHEMA non_existent_schema SELECT 1;
 ERROR 42000: Unknown database 'non_existent_schema'
 EXPLAIN FOR SCHEMA test_explain_for_schema SELECT * FROM non_existent_table;
 ERROR 42S02: Table 'test_explain_for_schema.non_existent_table' doesn't exist
+EXPLAIN FOR SCHEMA '' SELECT 1;
+ERROR 42000: Incorrect database name ''
+EXPLAIN FOR SCHEMA SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1' at line 1
 SELECT @dummy_var IS NULL;
 @dummy_var IS NULL
 1
