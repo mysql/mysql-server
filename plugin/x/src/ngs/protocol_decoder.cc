@@ -137,7 +137,7 @@ Protocol_decoder::Decode_error Protocol_decoder::read_and_decode(
 
 Protocol_decoder::Decode_error Protocol_decoder::read_and_decode_impl(
     xpl::iface::Waiting_for_io *wait_for_io) {
-  uint8_t message_type;
+  uint8_t message_type = 0;
   uint32_t message_size;
   int io_error = 0;
 
