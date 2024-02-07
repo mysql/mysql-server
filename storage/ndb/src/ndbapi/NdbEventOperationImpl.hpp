@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -879,7 +879,7 @@ public:
                      EventBufData* blob_data);
 
   void *alloc(Uint32 sz);
-  Uint32 get_free_data_sz() const;
+  Uint64 get_free_data_sz() const;
   Uint64 get_used_data_sz() const;
 
   //Must report status if buffer manager state is changed
@@ -974,7 +974,7 @@ private:
     (Included in ::get_free_data_sz())
   */
   EventMemoryBlock *m_mem_block_free;
-  Uint32 m_mem_block_free_sz; //Total size of above
+  Uint64 m_mem_block_free_sz; //Total size of above
 
   bool m_queue_empty_epoch;
 

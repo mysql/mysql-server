@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3473,12 +3473,12 @@ NdbEventBuffer::complete_memory_block(MonotonicEpoch highest_epoch)
   }
 }
 
-Uint32
+Uint64
 NdbEventBuffer::get_free_data_sz() const
 {
 #if defined(VM_TRACE)
   {
-    Uint32 free = 0;
+    Uint64 free = 0;
     EventMemoryBlock *mem_block = m_mem_block_free;
     while (mem_block != NULL)
     {
