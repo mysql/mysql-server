@@ -32,14 +32,17 @@ if ($have_next_pos)
 {
 
   let $MYSQLD_DATADIR= `select @@datadir;`;
-  --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+  let $tmp_file = $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql;
+  --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $tmp_file
 
   create table raw_binlog_rows(
     txt varchar(1000) character set latin1
   );
 
-  --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+  --eval load data local infile '$tmp_file' into table raw_binlog_rows columns terminated by '\n';
+  --remove_file $tmp_file
 
+  #select count(*) FROM raw_binlog_rows;
 
   create table binlog_stmt_parts_unassoc(
     txt varchar(1000) character set latin1,

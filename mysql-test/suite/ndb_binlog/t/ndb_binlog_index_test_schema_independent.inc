@@ -95,10 +95,16 @@ reset binary logs and gtids;
 --connection server1con1
 
 set sql_log_bin=0;
+
+# Table to tell dmlload to stop
+create table dmlload_stop (
+  value int primary key
+);
+
 delimiter %;
-create procedure dmlload (seconds int)
+create procedure dmlload ()
 begin
-  set @x=time_to_sec(current_time()) + seconds;
+  declare stop int default 0;
   repeat
     start transaction;
       insert into t1 values (2, repeat('I', 400));
@@ -109,35 +115,66 @@ begin
     start transaction;
       delete from t1 where a=2;
     commit;
-  until @x <= time_to_sec(current_time())
+    select value from dmlload_stop where value = 1 into stop;
+  until stop
   end repeat;
 end%
 
-create procedure ddlload(seconds int)
-begin
-  set @x=time_to_sec(current_time()) + seconds;
-  repeat
-    create table fmc (a int) engine=myisam;
-    create table bah(a int) engine=ndb;
-    drop table bah;
-    drop table fmc;
-  until @x <= time_to_sec(current_time())
-  end repeat;
-end%
 
 delimiter ;%
 
 set sql_log_bin=1;
 
-# Set DDL running in 'background'
+# Set DML running in 'background'
 --connection server1con2
-send call ddlload(25);
+send call dmlload();
 
-# And do DML in 'foreground'
+# Do DDL in 'foreground' until binlog size reach 2Mb.
+# more sensible
 --connection server1con1
-call dmlload(25);
+let $i = 1;
+let $continue = 1;
+let $start_time= `select time_to_sec(current_time())`;
+while ($continue)
+{
+  --disable_query_log
+  create table fmc (a int) engine=myisam;
+  create table bah(a int) engine=ndb;
+  drop table bah;
+  drop table fmc;
+  --enable_query_log
 
-# Retrieve DDL result
+  # Stop generating binlog when:
+  # - at least 4 loops AND binlog size exceeds 2M (fast machine)
+  #  OR
+  # - 25 seconds has passed (slow machine, like with valgrind)
+  # These limit are choosen to avoid that too much binlog is generated
+  # which then take very long to analyze (using `mysqlbinlog --verbose` + load
+  # into table and select).
+  # For example fast machine generates 20M binlog during 25 seconds which
+  # yields 600000 lines to analyze, while slow only generates 136k binlog
+  # during those 25 seconds which are possible to analyze even on slow machine
+  if ($i >= 4)
+  {
+    let $log_pos = query_get_value("SHOW BINARY LOGS", File_size, 1);
+    if ($log_pos > 2000000)
+    {
+     #echo [$i]: Size of binlog, log_pos: $log_pos;
+     let $continue = 0;
+    }
+  }
+  if (`select time_to_sec(current_time()) >= $start_time + 25`)
+  {
+    #echo [$i]: time exceeded;
+    #eval select $start_time, time_to_sec(current_time());
+    let $continue = 0;
+  }
+  inc $i;
+}
+# Stop the DML load
+insert into dmlload_stop values(1);
+
+# Retrieve DML result
 --connection server1con2
 reap;
 
@@ -154,9 +191,8 @@ flush logs;
 
 --connection server1con1
 
-drop procedure ddlload;
 drop procedure dmlload;
-
+drop table dmlload_stop;
 
 --echo Cleanup
 drop table t1;

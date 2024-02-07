@@ -77,5 +77,3 @@ where
 --echo Disable
 set global ndb_log_empty_epochs=0;
 
---remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
-
