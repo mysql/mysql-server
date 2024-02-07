@@ -51,7 +51,7 @@ connect (con3,"::1",plug,plug_dest,test,$MASTER_MYPORT,,,auth_test_plugin);
 eval install plugin test_plugin_server soname '$PLUGIN_AUTH';
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_ACCESS_DENIED_NO_PROXY_GRANT
 connect (con2,"::1",plug,plug_dest,test,$MASTER_MYPORT,,,auth_test_plugin);
 --enable_query_log
 
@@ -59,7 +59,7 @@ connect (con2,"::1",plug,plug_dest,test,$MASTER_MYPORT,,,auth_test_plugin);
 --source ../include/hostcache_dump.inc
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_ACCESS_DENIED_NO_PROXY_GRANT
 connect (con3,"::1",plug,plug_dest,test,$MASTER_MYPORT,,,auth_test_plugin);
 --enable_query_log
 

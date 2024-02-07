@@ -5325,7 +5325,7 @@ ER_LDAP_AUTH_SETTING_USERNAME
 ER_LDAP_AUTH_USER_AUTH_DATA
   eng "User authentication data: %s size: %lu"
 
-ER_LDAP_AUTH_INFO_FOR_USER
+OBSOLETE_ER_LDAP_AUTH_INFO_FOR_USER
   eng "User is authenticated as: %s external user: %s"
 
 ER_LDAP_AUTH_USER_GROUP_SEARCH_INFO
@@ -12697,6 +12697,15 @@ ER_THREAD_POOL_MTL_DISABLE
 
 ER_THREAD_POOL_MTL_REENABLE
   eng "Re-enabling MTL in thread group %u since it is down to %u long running transactions."
+
+ER_LDAP_AUTH_INFO_USER_MAP
+  eng "Login user: %s@%s (external: %s) authenticated as: %s"
+
+ER_ACCESS_DENIED_NO_PROXY_GRANT_WITH_NAME
+  eng "Access denied for user '%s'@'%s', missing proxy privilege to '%s'."
+
+ER_ACCESS_DENIED_NO_PROXY_WITH_NAME
+  eng "Access denied for user '%s'@'%s', proxied user '%s' doesn't exist."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

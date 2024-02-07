@@ -14,7 +14,7 @@ SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 plugin	authentication_string
 test_plugin_server	plug_dest
 ## test plugin auth
-ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
+ERROR HY000: Access denied for user 'plug'@'localhost', missing proxy privilege.
 GRANT PROXY ON plug_dest TO plug;
 test proxies_priv columns
 SELECT * FROM mysql.proxies_priv WHERE user !='root';
@@ -87,7 +87,7 @@ CREATE USER grant_plug_dest2 IDENTIFIED BY 'grant_plug_dest_passwd2';
 # ALL PRIVILEGES doesn't include PROXY
 GRANT ALL PRIVILEGES ON *.* TO grant_plug;
 REVOKE SYSTEM_USER ON *.* FROM grant_plug;
-ERROR 28000: Access denied for user 'grant_plug'@'localhost' (using password: YES)
+ERROR HY000: Access denied for user 'grant_plug'@'localhost', missing proxy privilege.
 GRANT ALL PRIVILEGES,PROXY ON grant_plug_dest TO grant_plug;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',PROXY ON grant_plug_dest TO grant_plug' at line 1
 this should fail : can't combine PROXY
@@ -464,7 +464,7 @@ CREATE USER user_name_len_22_0dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 plugin	authentication_string
 ## test plugin auth
-ERROR 28000: Access denied for user 'user_name_len_22_01234'@'localhost' (using password: YES)
+ERROR HY000: Access denied for user 'user_name_len_22_01234'@'localhost', missing proxy privilege.
 GRANT PROXY ON user_name_len_22_0dest TO user_name_len_22_01234;
 test proxies_priv columns
 SELECT * FROM mysql.proxies_priv WHERE user !='root';
@@ -495,7 +495,7 @@ CREATE USER очень_очень_очень_длинный_дест__ IDENTIFIE
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 plugin	authentication_string
 ## test plugin auth
-ERROR 28000: Access denied for user 'очень_очень_очень_длинный_'@'localhost' (using password: YES)
+ERROR HY000: Access denied for user 'очень_очень_очень_длинный_'@'localhost', missing proxy privilege.
 GRANT PROXY ON очень_очень_очень_длинный_дест__ TO очень_очень_очень_длинный_юзер__;
 test proxies_priv columns
 SELECT * FROM mysql.proxies_priv WHERE user !='root';
