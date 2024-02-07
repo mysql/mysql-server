@@ -265,12 +265,15 @@ SELECT * FROM t1 INTERSECT ALL SELECT * FROM t2;
 SELECT * FROM t2 INTERSECT ALL SELECT * FROM t1;
 SELECT * FROM t1 INTERSECT ALL SELECT * FROM t3;
 SELECT * FROM t3 INTERSECT ALL SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t2 INTERSECT ALL SELECT * FROM t3;
+--sorted_result
 SELECT * FROM t3 INTERSECT ALL SELECT * FROM t2;
 
 SELECT * FROM t1 EXCEPT    ALL SELECT * FROM t2;
 SELECT * FROM t2 EXCEPT    ALL SELECT * FROM t1;
 SELECT * FROM t1 EXCEPT    ALL SELECT * FROM t3;
+--sorted_result
 SELECT * FROM t3 EXCEPT    ALL SELECT * FROM t1;
 SELECT * FROM t2 EXCEPT    ALL SELECT * FROM t3;
 SELECT * FROM t3 EXCEPT    ALL SELECT * FROM t2;
@@ -313,6 +316,7 @@ eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 let $query = SELECT * FROM t3 EXCEPT (SELECT * FROM t2 EXCEPT SELECT * FROM t1);
+--sorted_result
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
@@ -329,6 +333,7 @@ eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 let $query = SELECT * FROM t3 EXCEPT ALL (SELECT * FROM t2 EXCEPT ALL SELECT * FROM t1);
+--sorted_result
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
@@ -345,6 +350,7 @@ eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 let $query = SELECT * FROM t3 EXCEPT ALL (SELECT * FROM t2 EXCEPT SELECT * FROM t1);
+--sorted_result
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
@@ -461,12 +467,16 @@ eval EXPLAIN FORMAT=tree $query;
 --echo #
 let $query =
 SELECT i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1;
+# Non-deterministic because ORDER BY is missing. Both 1 and 2 is correct.
+--replace_regex /^[12]$/CORRECT/
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 let $query =
 SELECT i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1 OFFSET 1;
+# Non-deterministic because ORDER BY is missing. Both 1 and 2 is correct.
+--replace_regex /^[12]$/CORRECT/
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
@@ -476,6 +486,8 @@ eval EXPLAIN FORMAT=tree $query;
 --echo #
 let $query =
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1) t;
+# Non-deterministic because ORDER BY is missing. Both 1 and 2 is correct.
+--replace_regex /^[12]$/CORRECT/
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
@@ -488,18 +500,24 @@ eval EXPLAIN FORMAT=tree $query;
 
 let $query =
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2) t LIMIT 1;
+# Non-deterministic because ORDER BY is missing. Both 1 and 2 is correct.
+--replace_regex /^[12]$/CORRECT/
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 let $query =
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1 OFFSET 1) t;
+# Non-deterministic because ORDER BY is missing. Both 1 and 2 is correct.
+--replace_regex /^[12]$/CORRECT/
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 let $query =
 SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2) t LIMIT 1 OFFSET 1 ;
+# Non-deterministic because ORDER BY is missing. Both 1 and 2 is correct.
+--replace_regex /^[12]$/CORRECT/
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
@@ -509,16 +527,22 @@ eval EXPLAIN FORMAT=tree $query;
 #
 let $query =
 SELECT SQL_CALC_FOUND_ROWS i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1;
+# Non-deterministic because ORDER BY is missing. Both 1 and 2 is correct.
+--replace_regex /^[12]$/CORRECT/
 eval $query;
 SELECT FOUND_ROWS();
 
 let $query =
 SELECT SQL_CALC_FOUND_ROWS * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2) t LIMIT 1;
+# Non-deterministic because ORDER BY is missing. Both 1 and 2 is correct.
+--replace_regex /^[12]$/CORRECT/
 eval $query;
 SELECT FOUND_ROWS();
 
 let $query =
 SELECT SQL_CALC_FOUND_ROWS * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2 LIMIT 1) t;
+# Non-deterministic because ORDER BY is missing. Both 1 and 2 is correct.
+--replace_regex /^[12]$/CORRECT/
 eval $query;
 SELECT FOUND_ROWS();
 

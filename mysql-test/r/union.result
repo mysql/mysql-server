@@ -224,14 +224,14 @@ set SQL_SELECT_LIMIT=2;
 a
 1
 11
-(select * from t1 limit 3) intersect (select * from t1 limit 3);
+(select * from t1 limit 3) intersect (select * from t1 limit 3) order by a;
 a
 1
-3
-(select * from t1 limit 4) except (select * from t1 limit 1);
-a
-3
 2
+(select * from t1 limit 4) except (select * from t1 limit 1) order by a;
+a
+2
+3
 set SQL_SELECT_LIMIT=DEFAULT;
 drop table t1,t2;
 CREATE TABLE t1 (

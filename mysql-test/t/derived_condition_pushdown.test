@@ -857,6 +857,7 @@ let query = SELECT *
 --replace_regex $elide_costs
 --skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
+--sorted_result
 eval $query;
 
 # Nested derived table with fields that have different aliases

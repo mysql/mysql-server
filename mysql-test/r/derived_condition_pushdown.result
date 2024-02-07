@@ -1390,8 +1390,8 @@ INTERSECT
 SELECT * FROM t2) as dt2
 WHERE (f1+f2) > 22;
 f1	f2	f3
-3	33	333
 2	22	222
+3	33	333
 4	44	444
 EXPLAIN FORMAT=tree SELECT i, j, k
 FROM (SELECT f1 as i, f2 as j, f3 as k FROM t1
