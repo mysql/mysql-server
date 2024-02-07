@@ -515,13 +515,13 @@ AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH IS NULL
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
-NULL	varbinary	NULL	NULL
 NULL	datetime	NULL	NULL
 NULL	double	NULL	NULL
 NULL	int	NULL	NULL
 NULL	json	NULL	NULL
 NULL	timestamp	NULL	NULL
 NULL	tinyint	NULL	NULL
+NULL	varbinary	NULL	NULL
 NULL	varchar	utf8mb3	utf8mb3_general_ci
 --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values
 --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL
