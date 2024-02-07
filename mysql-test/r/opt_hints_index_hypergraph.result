@@ -15,103 +15,102 @@ test.t1	analyze	status	OK
 SET EXPLAIN_FORMAT=tree;
 EXPLAIN SELECT /*+ INDEX(t1) JOIN_INDEX(t1) */ a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Table scan on t1  (rows=256)
 
 Warnings:
 Warning	3126	Hint JOIN_INDEX(`t1` ) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b, i_c) INDEX(t1 i_d) */ a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Table scan on t1  (rows=256)
 
 Warnings:
 Warning	3126	Hint INDEX(`t1`  `i_d`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a) JOIN_INDEX(t1 i_a, i_b) JOIN_INDEX(t1 i_b) */ a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Table scan on t1  (rows=256)
 
 Warnings:
 Warning	3126	Hint JOIN_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a) GROUP_INDEX(t1 i_a, i_b) GROUP_INDEX(t1 i_b) */ a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Table scan on t1  (rows=256)
 
 Warnings:
 Warning	3126	Hint GROUP_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a) GROUP_INDEX(t1) */ a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Table scan on t1  (rows=256)
 
 Warnings:
 Warning	3126	Hint GROUP_INDEX(`t1` ) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a) ORDER_INDEX(t1 i_a, i_b) ORDER_INDEX(t1 i_b) */ a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Table scan on t1  (rows=256)
 
 Warnings:
 Warning	3126	Hint ORDER_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a) ORDER_INDEX(t1) */ a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Table scan on t1  (rows=256)
 
 Warnings:
 Warning	3126	Hint ORDER_INDEX(`t1` ) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+  ORDER_INDEX(t1 i_a, i_b) ORDER_INDEX(t1 i_b) INDEX(t1 i_c)*/ a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Table scan on t1  (rows=256)
 
 Warnings:
 Warning	3126	Hint ORDER_INDEX(`t1`  `i_b`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+  ORDER_INDEX(t1 i_a, i_b) GROUP_INDEX(t1 i_b) INDEX(t1)*/ a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Table scan on t1  (rows=256)
 
 Warnings:
 Warning	3126	Hint INDEX(`t1` ) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+  ORDER_INDEX(t1) GROUP_INDEX(t1) INDEX(t1)*/ a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Table scan on t1  (rows=256)
 
 Warnings:
 Warning	3126	Hint INDEX(`t1` ) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b) */ a FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
--> Filter: ((t1.c = 3) and (t1.b = 2) and (t1.a = 1))  (rows=0.05)
-    -> Intersect rows sorted by row ID  (rows=4)
+-> Filter: (t1.c = 3)  (rows=0.0156)
+    -> Intersect rows sorted by row ID  (rows=0.0156)
         -> Index range scan on t1 using i_a over (a = 1)  (rows=32)
         -> Index range scan on t1 using i_b over (b = 2)  (rows=32)
 
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_ab) */ a FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
--> Filter: (t1.c = 3)  (rows=0.05)
-    -> Index lookup on t1 using i_ab (a=1, b=2)  (rows=1)
+-> Filter: (t1.c = 3)  (rows=0.00391)
+    -> Index range scan on t1 using i_ab over (a = 1 AND b = 2)  (rows=1)
 
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b) JOIN_INDEX(t1 i_c) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
--> Filter: ((t1.b = 2) and (t1.a = 1))  (rows=0.05)
+-> Filter: ((t1.a = 1) and (t1.b = 2))  (rows=0.0156)
     -> Index lookup on t1 using i_c (c=3)  (rows=1)
 
 EXPLAIN SELECT /*+ NO_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>
-    -> Aggregate using temporary table
+-> Table scan on <temporary>  (rows=8)
+    -> Aggregate using temporary table  (rows=8)
         -> Index lookup on t1 using i_b (b=2)  (rows=32)
 
 EXPLAIN SELECT /*+ NO_JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>
-    -> Aggregate using temporary table
+-> Table scan on <temporary>  (rows=8)
+    -> Aggregate using temporary table  (rows=8)
         -> Index lookup on t1 using i_b (b=2)  (rows=32)
 
 EXPLAIN SELECT /*+ GROUP_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 EXPLAIN
--> Group aggregate: max(t1.b)  (rows=8)
-    -> Covering index scan on t1 using i_ab  (rows=256)
+-> Table scan on <temporary>  (rows=8)
+    -> Aggregate using temporary table  (rows=8)
+        -> Table scan on t1  (rows=256)
 
 EXPLAIN SELECT /*+ JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>  (rows=9)
-    -> Temporary table with deduplication  (rows=9)
-        -> Covering index skip scan for grouping on t1 using i_ab  (rows=9)
+-> Covering index skip scan for grouping on t1 using i_ab  (rows=2.83)
 
 EXPLAIN SELECT /*+ NO_ORDER_INDEX(t1 i_ab) */ a FROM t1
 ORDER BY a;
@@ -121,44 +120,49 @@ EXPLAIN
 EXPLAIN SELECT /*+ NO_ORDER_INDEX(t1 i_a) */ a FROM t1
 ORDER BY a;
 EXPLAIN
--> Sort: t1.a  (rows=256)
-    -> Covering index scan on t1 using i_a  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_ab) */ a FROM t1
 ORDER BY a;
 EXPLAIN
--> Covering index scan on t1 using i_ab  (rows=256)
+-> Sort: t1.a  (rows=256)
+    -> Table scan on t1  (rows=256)
 
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ a FROM t1
 ORDER BY a;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Sort: t1.a  (rows=256)
+    -> Table scan on t1  (rows=256)
 
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ * FROM t1
 ORDER BY a;
 EXPLAIN
--> Index scan on t1 using i_a  (rows=256)
+-> Sort: t1.a  (rows=256)
+    -> Table scan on t1  (rows=256)
 
 EXPLAIN SELECT /*+ NO_INDEX(t1) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
--> Filter: ((t1.c = 3) and (t1.b = 2) and (t1.a = 1))  (rows=1)
+-> Filter: ((t1.c = 3) and (t1.a = 1) and (t1.b = 2))  (rows=0.0156)
     -> Table scan on t1  (rows=256)
 
 EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 IGNORE INDEX (i_a)
 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
--> Filter: ((t1.c = 3) and (t1.b = 2) and (t1.a = 1))  (rows=1)
-    -> Intersect rows sorted by row ID  (rows=1)
-        -> Index range scan on t1 using i_ab over (a = 1 AND b = 2)  (rows=1)
-        -> Index range scan on t1 using i_c over (c = 3)  (rows=1)
+-> Intersect rows sorted by row ID  (rows=0.00391)
+    -> Index range scan on t1 using i_ab over (a = 1 AND b = 2)  (rows=1)
+    -> Index range scan on t1 using i_c over (c = 3)  (rows=1)
 
 EXPLAIN UPDATE /*+ INDEX(t1 i_a) */ t1 SET d = 1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
--> <not executable by iterator executor>
+-> Update t1 (immediate)  (rows=0.0156)
+    -> Filter: ((t1.c = 3) and (t1.b = 2))  (rows=0.0156)
+        -> Index lookup on t1 using i_a (a=1)  (rows=32)
 
 EXPLAIN DELETE /*+ INDEX(t1 i_a) */ FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
--> <not executable by iterator executor>
+-> Delete from t1 (immediate)  (rows=0.0156)
+    -> Filter: ((t1.c = 3) and (t1.b = 2))  (rows=0.0156)
+        -> Index lookup on t1 using i_a (a=1)  (rows=32)
 
 CREATE VIEW v1 AS SELECT /*+ NO_INDEX(t1 i_a,i_b) */ a FROM t1 WHERE
 b IN (SELECT /*+ NO_INDEX(t1 i_ab,i_b) */ a FROM t1 WHERE a > 3)
@@ -168,27 +172,22 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select /*+ NO_INDEX(`t1`@`select#1` `i_a`, `i_b`) NO_INDEX(`t1`@`select#2` `i_ab`, `i_b`) */ `t1`.`a` AS `a` from `t1` where `t1`.`b` in (select `t1`.`a` from `t1` where (`t1`.`a` > 3)) order by `t1`.`a`	utf8mb4	utf8mb4_0900_ai_ci
 EXPLAIN SELECT a FROM v1;
 EXPLAIN
--> Sort: a
-    -> Stream results  (rows=256)
-        -> Inner hash join (t1.b = t1.a)  (rows=256)
-            -> Covering index scan on t1 using i_ab  (rows=256)
-            -> Hash
-                -> Remove duplicates from input sorted on i_a  (rows=8)
-                    -> Filter: (t1.a > 3)  (rows=8)
-                        -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
+-> Sort: a  (rows=256)
+    -> Hash semijoin (t1.b = t1.a)  (rows=256)
+        -> Table scan on t1  (rows=256)
+        -> Hash
+            -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
 
 EXPLAIN SELECT /*+ INDEX(ta i_a) */ ta.a FROM v1, t1 ta WHERE ta.a > 3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=40960)
-    -> Filter: (ta.a > 3)  (rows=160)
-        -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
+    -> Inner hash join (t1.b = t1.a)  (rows=256)
+        -> Remove duplicates from input grouped on t1.a  (rows=8)
+            -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
+        -> Hash
+            -> Table scan on t1  (rows=256)
     -> Hash
-        -> Inner hash join (t1.b = t1.a)  (rows=256)
-            -> Covering index scan on t1 using i_ab  (rows=256)
-            -> Hash
-                -> Remove duplicates from input sorted on i_a  (rows=8)
-                    -> Filter: (t1.a > 3)  (rows=8)
-                        -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
+        -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
 
 CREATE VIEW v2 AS SELECT /*+ INDEX(ta i_a) */ ta.a FROM v1, t1 ta WHERE ta.a > 3;
 SHOW CREATE VIEW v2;
@@ -197,37 +196,31 @@ v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 EXPLAIN SELECT a FROM v2;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=40960)
-    -> Filter: (ta.a > 3)  (rows=160)
-        -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
+    -> Inner hash join (t1.b = t1.a)  (rows=256)
+        -> Remove duplicates from input grouped on t1.a  (rows=8)
+            -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
+        -> Hash
+            -> Table scan on t1  (rows=256)
     -> Hash
-        -> Inner hash join (t1.b = t1.a)  (rows=256)
-            -> Covering index scan on t1 using i_ab  (rows=256)
-            -> Hash
-                -> Remove duplicates from input sorted on i_a  (rows=8)
-                    -> Filter: (t1.a > 3)  (rows=8)
-                        -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
+        -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
 
 EXPLAIN SELECT /*+ INDEX(tb i_a) */ tb.a FROM v2, t1 tb WHERE tb.a > 3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=6.55e+6)
-    -> Filter: (tb.a > 3)  (rows=160)
-        -> Covering index range scan on tb using i_a over (3 < a)  (rows=160)
+    -> Nested loop inner join  (rows=40960)
+        -> Nested loop inner join  (rows=256)
+            -> Remove duplicates from input grouped on t1.a  (rows=8)
+                -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
+            -> Filter: (t1.b = t1.a)  (rows=32)
+                -> Table scan on t1  (rows=256)
+        -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
     -> Hash
-        -> Inner hash join (no condition)  (rows=40960)
-            -> Filter: (ta.a > 3)  (rows=160)
-                -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
-            -> Hash
-                -> Inner hash join (t1.b = t1.a)  (rows=256)
-                    -> Covering index scan on t1 using i_ab  (rows=256)
-                    -> Hash
-                        -> Remove duplicates from input sorted on i_a  (rows=8)
-                            -> Filter: (t1.a > 3)  (rows=8)
-                                -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
+        -> Covering index range scan on tb using i_a over (3 < a)  (rows=160)
 
 EXPLAIN SELECT /*+ INDEX(t1 i_a) */ * FROM t1 IGNORE INDEX(i_a)
 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
--> Filter: ((t1.c = 3) and (t1.b = 2))  (rows=0.125)
+-> Filter: ((t1.c = 3) and (t1.b = 2))  (rows=0.0156)
     -> Index lookup on t1 using i_a (a=1)  (rows=32)
 
 CREATE VIEW v3 AS SELECT /*+ INDEX_MERGE(t1) */a FROM t1
