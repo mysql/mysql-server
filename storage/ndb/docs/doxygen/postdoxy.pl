@@ -1,4 +1,4 @@
-# Copyright (C) 2003, 2005 MySQL AB
+# Copyright (C) 2003, 2024, Oracle and/or its affiliates.
 # Use is subject to license terms
 #
 # This program is free software; you can redistribute it and/or modify
@@ -105,9 +105,9 @@ open (OUTFILE, "> ${destdir}/doxygen.sty.new")
 while (<INFILE>) 
 {
     if (/\\rfoot/) {
-	print OUTFILE "\\rfoot[\\fancyplain{}{\\bfseries\\small \\copyright~Copyright 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.\\hfill support-cluster\@mysql.com}]{}\n";
+	print OUTFILE "\\rfoot[\\fancyplain{}{\\bfseries\\small \\copyright~Copyright (C) 2003, 2024, Oracle and/or its affiliates.\\hfill support-cluster\@mysql.com}]{}\n";
     } elsif (/\\lfoot/) {
-	print OUTFILE "\\lfoot[]{\\fancyplain{}{\\bfseries\\small support-cluster\@mysql.com\\hfill \\copyright~Copyright 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.}}\n";
+	print OUTFILE "\\lfoot[]{\\fancyplain{}{\\bfseries\\small support-cluster\@mysql.com\\hfill \\copyright~Copyright (C) 2003, 2024, Oracle and/or its affiliates.}}\n";
     } else {
 	print OUTFILE;
     }
