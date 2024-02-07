@@ -1021,7 +1021,7 @@ WHERE alias3.pk >= table1.pk));
 EXPLAIN
 -> Hash antijoin (no condition), extra conditions: (alias3.pk >= table1.pk)  (rows=1.33)
     -> Nested loop inner join  (rows=2)
-        -> Table scan on table2  (rows=1)
+        -> Covering index scan on table2 using varchar_key  (rows=1)
         -> Filter: ((table2.pk = table1.pk) or (table1.col_varchar < 'D'))  (rows=2)
             -> Table scan on table1  (rows=4)
     -> Hash
@@ -2145,9 +2145,9 @@ EXPLAIN
                 -> Table scan on t2  (rows=17)
             -> Hash
                 -> Nested loop inner join  (rows=1)
-                    -> Table scan on t1  (rows=1)
+                    -> Covering index scan on t1 using idx  (rows=1)
                     -> Filter: (t1_2.col1 = t1.col1)  (rows=1)
-                        -> Table scan on t1_2  (rows=1)
+                        -> Covering index scan on t1_2 using idx  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t2.col1' of SELECT #3 was resolved in SELECT #1

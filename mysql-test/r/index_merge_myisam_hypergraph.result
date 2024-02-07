@@ -111,8 +111,9 @@ EXPLAIN
 
 explain select * from t0 force index (i1,i2) where (key1 > 1 or key2  > 2);
 EXPLAIN
--> Filter: ((t0.key1 > 1) or (t0.key2 > 2))  (rows=569)
-    -> Table scan on t0  (rows=1024)
+-> Sort-deduplicate by row ID  (rows=569)
+    -> Index range scan on t0 using i1 over (1 < key1)  (rows=1023)
+    -> Index range scan on t0 using i2 over (2 < key2)  (rows=1022)
 
 # 4. Check if conjuncts are grouped by keyuse
 explain
@@ -301,7 +302,9 @@ or
 ((key3 >4 or key5 < 2) and (key5 < 5 or key6 < 4));
 EXPLAIN
 -> Filter: ((((t0.key3 < 3) or (t0.key5 < 4)) and ((t0.key1 < 3) or (t0.key2 < 3))) or (((t0.key3 > 4) or (t0.key5 < 2)) and ((t0.key5 < 5) or (t0.key6 < 4))))  (rows=534)
-    -> Table scan on t0  (rows=1024)
+    -> Sort-deduplicate by row ID  (rows=534)
+        -> Index range scan on t0 using i3 over (key3 < 3) OR (4 < key3)  (rows=1023)
+        -> Index range scan on t0 using i5 over (key5 < 4)  (rows=4)
 
 # Can't merge any indexes here (predicate on key3 is always true)
 explain select * from t0 force index(i1, i2, i3, i4, i5, i6 ) where
@@ -570,11 +573,13 @@ and   (b.key1 < 500000 or b.key2 < 3);
 EXPLAIN
 -> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (...)
     -> Inner hash join (no condition)  (...)
-        -> Filter: ((a.key1 < 500000) or (a.key2 < 3))  (...)
-            -> Table scan on a  (...)
+        -> Sort-deduplicate by row ID  (...)
+            -> Index range scan on a using i1 over (key1 < 500000)  (...)
+            -> Index range scan on a using i2 over (key2 < 3)  (...)
         -> Hash
-            -> Filter: ((b.key1 < 500000) or (b.key2 < 3))  (...)
-                -> Table scan on b  (...)
+            -> Sort-deduplicate by row ID  (...)
+                -> Index range scan on b using i1 over (key1 < 500000)  (...)
+                -> Index range scan on b using i2 over (key2 < 3)  (...)
 
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
@@ -889,8 +894,12 @@ ORDER BY a,b;
 EXPLAIN
 -> Sort: t1.a, t1.b  (rows=13.4)
     -> Filter: ((t1.a like 'a%') or (t1.b like 'b%'))  (rows=13.4)
-        -> Table scan on t1  (rows=64)
+        -> Sort-deduplicate by row ID  (rows=13.4)
+            -> Index range scan on t1 using a over ('a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' <= a <= 'a???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????')  (rows=63)
+            -> Index range scan on t1 using b over ('b\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' <= b <= 'b???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????')  (rows=63)
 
+Warnings:
+Warning	1300	Invalid utf8mb3 character string: 'FFFFFF'
 # we don't actually care about the result : we're checking if it crashes
 SELECT * FROM t1 FORCE INDEX(a,b) WHERE a LIKE 'a%' OR b LIKE 'b%' 
 ORDER BY a,b;

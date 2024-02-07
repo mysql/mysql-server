@@ -589,7 +589,8 @@ class CostingReceiver {
                        MutableOverflowBitset *all_predicates);
   void ProposeRangeScans(int node_idx, double num_output_rows_after_filter,
                          RANGE_OPT_PARAM *param, SEL_TREE *tree,
-                         Mem_root_array<PossibleRangeScan> *possible_scans);
+                         Mem_root_array<PossibleRangeScan> *possible_scans,
+                         bool *found_range_scan);
   void ProposeAllIndexMergeScans(
       int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
       SEL_TREE *tree, const Mem_root_array<PossibleRangeScan> *possible_scans,
@@ -658,7 +659,8 @@ class CostingReceiver {
                                 int ordering_idx);
   bool ProposeRefAccess(TABLE *table, int node_idx, unsigned key_idx,
                         double force_num_output_rows_after_filter, bool reverse,
-                        table_map allowed_parameter_tables, int ordering_idx);
+                        table_map allowed_parameter_tables, int ordering_idx,
+                        bool *found_ref);
   bool ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx, bool *found);
   bool RedundantThroughSargable(
       OverflowBitset redundant_against_sargable_predicates,
@@ -668,7 +670,8 @@ class CostingReceiver {
       Item *condition, const AccessPath *left_path,
       const AccessPath *right_path);
   bool ProposeAllFullTextIndexScans(TABLE *table, int node_idx,
-                                    double force_num_output_rows_after_filter);
+                                    double force_num_output_rows_after_filter,
+                                    bool *found_fulltext);
   bool ProposeFullTextIndexScan(TABLE *table, int node_idx,
                                 Item_func_match *match, int predicate_idx,
                                 int ordering_idx,
@@ -859,6 +862,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   const bool force_skip_scan =
       hint_table_state(m_thd, table->pos_in_table_list, SKIP_SCAN_HINT_ENUM, 0);
   const bool propose_all_scans = !force_index_merge && !force_skip_scan;
+  bool found_index_scan = false;
 
   // First look for unique index lookups that use only constants.
   if (propose_all_scans) {
@@ -909,6 +913,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
           m_thd->is_error()) {
         return true;
       }
+      found_index_scan = found_forced_plan;
       if (impossible) {
         const char *const cause = "WHERE condition is always false";
         if (!IsBitSet(tl->tableno(), m_graph->tables_inner_to_outer_or_anti)) {
@@ -948,13 +953,12 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
     }
   }
 
-  if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate)) {
-    return true;
-  }
-
   if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS) ||
       tl->is_recursive_reference()) {
-    // We can't use any indexes, so end here.
+    // We can't use any indexes, so propose only table scans and end here.
+    if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate)) {
+      return true;
+    }
     if (TraceStarted(m_thd)) {
       TraceAccessPaths(TableBitmap(node_idx));
     }
@@ -964,12 +968,13 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   // Propose index scan (for getting interesting orderings).
   // We only consider those that are more interesting than a table scan;
   // for the others, we don't even need to create the access path and go
-  // through the tournament.
+  // through the tournament. However, if a force index is specified, then
+  // we propose index scans.
   for (const ActiveIndexInfo &order_info : *m_active_indexes) {
-    if (order_info.table != table) {
+    if (order_info.table != table ||
+        Overlaps(table->key_info[order_info.key_idx].flags, HA_SPATIAL)) {
       continue;
     }
-
     const int forward_order =
         m_orderings->RemapOrderingIndex(order_info.forward_order);
     const int reverse_order =
@@ -985,22 +990,23 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       // covering so that it can reduce the volume of data to read. A scan of a
       // clustered primary index reads as much data as a table scan, so it
       // is not considered unless it follows an interesting order.
+      // If force index is specified, we propose index scan anyway.
       if (order != 0 || (table->covering_keys.is_set(key_idx) &&
                          !IsClusteredPrimaryKey(key_idx, *table))) {
         if (ProposeIndexScan(table, node_idx, range_optimizer_row_estimate,
                              key_idx, reverse, order)) {
           return true;
         }
+        found_index_scan = true;
       }
 
       // Propose ref access using only sargable predicates that reference no
       // other table.
-      if (ProposeRefAccess(table, node_idx, key_idx,
-                           range_optimizer_row_estimate, reverse,
-                           /*allowed_parameter_tables=*/0, order)) {
+      if (ProposeRefAccess(
+              table, node_idx, key_idx, range_optimizer_row_estimate, reverse,
+              /*allowed_parameter_tables=*/0, order, &found_index_scan)) {
         return true;
       }
-
       // Propose ref access using all sargable predicates that also refer to
       // other tables (e.g. t1.x = t2.x). Such access paths can only be used
       // on the inner side of a nested loop join, where all the other
@@ -1011,9 +1017,9 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       // up being parameterized on multiple outer tables. However, since
       // parameterized paths are less flexible in joining than
       // non-parameterized ones, it can be advantageous to not use all parts
-      // of the index; it's impossible to say locally. Thus, we enumerate all
-      // possible subsets of table parameters that may be useful, to make sure
-      // we don't miss any such paths.
+      // of the index; it's impossible to say locally. Thus, we enumerate
+      // all possible subsets of table parameters that may be useful, to
+      // make sure we don't miss any such paths.
       table_map want_parameter_tables = 0;
       for (const SargablePredicate &sp :
            m_graph->nodes[node_idx].sargable_predicates()) {
@@ -1025,9 +1031,10 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       }
       for (table_map allowed_parameter_tables :
            NonzeroSubsetsOf(want_parameter_tables)) {
+        bool found_ref = false;
         if (ProposeRefAccess(table, node_idx, key_idx,
                              range_optimizer_row_estimate, reverse,
-                             allowed_parameter_tables, order)) {
+                             allowed_parameter_tables, order, &found_ref)) {
           return true;
         }
       }
@@ -1041,18 +1048,24 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
 
     const int order = m_orderings->RemapOrderingIndex(order_info.forward_order);
 
-    if (order != 0) {
+    if (table->force_index || order != 0) {
       if (ProposeDistanceIndexScan(table, node_idx,
                                    range_optimizer_row_estimate, order_info,
                                    order)) {
         return true;
       }
     }
+    found_index_scan = true;
   }
 
   if (tl->is_fulltext_searched()) {
-    if (ProposeAllFullTextIndexScans(table, node_idx,
-                                     range_optimizer_row_estimate)) {
+    if (ProposeAllFullTextIndexScans(
+            table, node_idx, range_optimizer_row_estimate, &found_index_scan)) {
+      return true;
+    }
+  }
+  if (!table->force_index || !found_index_scan) {
+    if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate)) {
       return true;
     }
   }
@@ -1493,18 +1506,24 @@ bool CostingReceiver::FindIndexRangeScans(int node_idx, bool *impossible,
       return false;
     }
   }
+  bool found_range_scan = false;
   if (tree != nullptr) {
     ProposeRangeScans(node_idx, *num_output_rows_after_filter, &param, tree,
-                      &possible_scans);
+                      &possible_scans, &found_range_scan);
     if (!force_imerge) {
       ProposeAllIndexMergeScans(node_idx, *num_output_rows_after_filter, &param,
                                 tree, &possible_scans, &index_merges,
-                                found_forced_plan);
+                                &found_range_scan);
     }
   }
   if (!force_skip_scan) {
     ProposeAllSkipScans(node_idx, *num_output_rows_after_filter, &param, tree,
-                        &index_skip_scans, &all_predicates, found_forced_plan);
+                        &index_skip_scans, &all_predicates, &found_range_scan);
+  }
+  if (force_imerge || force_skip_scan) {
+    *found_forced_plan = false;
+  } else {
+    *found_forced_plan = found_range_scan;
   }
   return false;
 }
@@ -1666,7 +1685,8 @@ bool CostingReceiver::SetUpRangeScans(
 
 void CostingReceiver::ProposeRangeScans(
     int node_idx, double num_output_rows_after_filter, RANGE_OPT_PARAM *param,
-    SEL_TREE *tree, Mem_root_array<PossibleRangeScan> *possible_scans) {
+    SEL_TREE *tree, Mem_root_array<PossibleRangeScan> *possible_scans,
+    bool *found_range_scan) {
   TABLE *table = m_graph->nodes[node_idx].table();
   // Propose all single-index index range scans.
   for (PossibleRangeScan &scan : *possible_scans) {
@@ -1807,6 +1827,7 @@ void CostingReceiver::ProposeRangeScans(
         }
       }
     }
+    *found_range_scan = true;
   }
 }
 
@@ -2705,7 +2726,7 @@ bool ContainsSubqueries(Item *item_arg) {
 bool CostingReceiver::ProposeRefAccess(
     TABLE *table, int node_idx, unsigned key_idx,
     double force_num_output_rows_after_filter, bool reverse,
-    table_map allowed_parameter_tables, int ordering_idx) {
+    table_map allowed_parameter_tables, int ordering_idx, bool *found_ref) {
   KEY *key = &table->key_info[key_idx];
 
   if (key->flags & HA_FULLTEXT) {
@@ -2976,6 +2997,7 @@ bool CostingReceiver::ProposeRefAccess(
   ProposeAccessPathForIndex(
       node_idx, std::move(applied_predicates), std::move(subsumed_predicates),
       force_num_output_rows_after_filter, key->name, &path);
+  *found_ref = true;
   return false;
 }
 
@@ -3040,11 +3062,13 @@ bool CostingReceiver::ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx,
                                                     key_part.field);
                })) {
       *found = true;
+      bool found_ref = false;
       if (ProposeRefAccess(
               table, node_idx, index_info.key_idx,
               /*force_num_output_rows_after_filter=*/-1.0, /*reverse=*/false,
               /*allowed_parameter_tables=*/0,
-              m_orderings->RemapOrderingIndex(index_info.forward_order))) {
+              m_orderings->RemapOrderingIndex(index_info.forward_order),
+              &found_ref)) {
         return true;
       }
     }
@@ -3483,7 +3507,8 @@ bool IsLimitHintPushableToFullTextSearch(const Item_func_match *match,
 // explicitly ordered scan is no more expensive than an implicitly ordered scan,
 // and it could potentially avoid a sort higher up in the query plan.)
 bool CostingReceiver::ProposeAllFullTextIndexScans(
-    TABLE *table, int node_idx, double force_num_output_rows_after_filter) {
+    TABLE *table, int node_idx, double force_num_output_rows_after_filter,
+    bool *found_fulltext) {
   for (const FullTextIndexInfo &info : *m_fulltext_searches) {
     if (info.match->table_ref != table->pos_in_table_list) {
       continue;
@@ -3536,6 +3561,7 @@ bool CostingReceiver::ProposeAllFullTextIndexScans(
                                      force_num_output_rows_after_filter)) {
           return true;
         }
+        *found_fulltext = true;
       }
     }
   }

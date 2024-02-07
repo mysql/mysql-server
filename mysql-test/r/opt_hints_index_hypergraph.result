@@ -15,43 +15,43 @@ test.t1	analyze	status	OK
 SET EXPLAIN_FORMAT=tree;
 EXPLAIN SELECT /*+ INDEX(t1) JOIN_INDEX(t1) */ a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint JOIN_INDEX(`t1` ) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b, i_c) INDEX(t1 i_d) */ a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint INDEX(`t1`  `i_d`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a) JOIN_INDEX(t1 i_a, i_b) JOIN_INDEX(t1 i_b) */ a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint JOIN_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a) GROUP_INDEX(t1 i_a, i_b) GROUP_INDEX(t1 i_b) */ a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint GROUP_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a) GROUP_INDEX(t1) */ a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint GROUP_INDEX(`t1` ) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a) ORDER_INDEX(t1 i_a, i_b) ORDER_INDEX(t1 i_b) */ a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint ORDER_INDEX(`t1`  `i_a`, `i_b`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ INDEX(t1 i_a) ORDER_INDEX(t1) */ a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint ORDER_INDEX(`t1` ) is ignored as conflicting/duplicated

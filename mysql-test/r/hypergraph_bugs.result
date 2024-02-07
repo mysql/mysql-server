@@ -616,8 +616,8 @@ EXPLAIN
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.e=x2.e AND x1.f=x2.f AND x1.g=x2.g;
 EXPLAIN
 -> Nested loop inner join  (rows=100) (actual rows=100 loops=1)
-    -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on x1 using k1 (e=x2.e, f=x2.f, g=x2.g)  (rows=1) (actual rows=1 loops=100)
+    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Index lookup on x2 using k1 (e=x1.e, f=x1.f, g=x1.g)  (rows=1) (actual rows=1 loops=100)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.e=x2.e;
 EXPLAIN
@@ -670,8 +670,8 @@ EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b
 AND x1.c=x2.c;
 EXPLAIN
 -> Nested loop inner join  (rows=100) (actual rows=100 loops=1)
-    -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
-    -> Single-row index lookup on x1 using PRIMARY (a=x2.a, b=x2.b, c=x2.c)  (rows=1) (actual rows=1 loops=100)
+    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Single-row index lookup on x2 using PRIMARY (a=x1.a, b=x1.b, c=x1.c)  (rows=1) (actual rows=1 loops=100)
 
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE a=b;
 EXPLAIN
@@ -1031,7 +1031,7 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t1 x1 WHERE EXISTS
 WHERE x2.b=x3.d AND x2.c=x3.e AND x3.d=x4.b AND x2.e=x4.e);
 EXPLAIN
 -> Nested loop semijoin  (rows=0.1)
-    -> Table scan on x1  (rows=1)
+    -> Covering index scan on x1 using k1  (rows=1)
     -> Nested loop inner join  (rows=0.1)
         -> Table scan on x3  (rows=1)
         -> Filter: ((x2.b = x3.d) and (x2.c = x3.e))  (rows=0.1)
