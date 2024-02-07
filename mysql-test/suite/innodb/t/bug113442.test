@@ -1,0 +1,46 @@
+##########################################################################
+# This test checks that if a drop column is done with a column order
+# change in the same ALTER statement and no ALTER ALGORITHM explicitly
+# provided, ALGORITHM=INSTANT is not used by default under-the-hood.
+# If ALGORITHM=INSTANT were used, the table would get corrupted.
+##########################################################################
+# Perform a fast shutdown so that the DB performs recovery on restart
+SET GLOBAL innodb_fast_shutdown=2;
+
+CREATE TABLE `t1` (
+  c1 int,
+  c2 int,
+  c3 int,
+  c4 datetime
+);
+
+ALTER TABLE `t1` DROP COLUMN c3, MODIFY COLUMN c4 datetime after c1;
+
+# Insert sufficiently large amounts of data that will have to be recovered
+# after a fast shutdown.
+INSERT INTO t1  (c1, c2)  VALUES (1, 10);
+INSERT INTO t1  (c1, c2)  VALUES (2, 20);
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+
+--source include/kill_and_restart_mysqld.inc
+
+# After the restart, without the bugfix, the database will crash
+# and never successfully start up. Run a select to confirm that 
+# the database started up successfully
+SELECT c1, c2 FROM t1 LIMIT 1;
+DROP TABLE t1;

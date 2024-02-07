@@ -150,7 +150,6 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INSTANT_ALLOWED =
     Alter_inplace_info::DROP_VIRTUAL_COLUMN |
     Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER |
     Alter_inplace_info::ADD_STORED_BASE_COLUMN |
-    Alter_inplace_info::ALTER_STORED_COLUMN_ORDER |
     Alter_inplace_info::DROP_STORED_COLUMN;
 
 /** Operations on foreign key definitions (changing the schema only) */

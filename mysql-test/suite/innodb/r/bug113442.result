@@ -1,0 +1,31 @@
+SET GLOBAL innodb_fast_shutdown=2;
+CREATE TABLE `t1` (
+c1 int,
+c2 int,
+c3 int,
+c4 datetime
+);
+ALTER TABLE `t1` DROP COLUMN c3, MODIFY COLUMN c4 datetime after c1;
+INSERT INTO t1  (c1, c2)  VALUES (1, 10);
+INSERT INTO t1  (c1, c2)  VALUES (2, 20);
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+# Kill and restart
+SELECT c1, c2 FROM t1 LIMIT 1;
+c1	c2
+1	10
+DROP TABLE t1;
