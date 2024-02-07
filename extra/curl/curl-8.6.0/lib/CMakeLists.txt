@@ -212,6 +212,7 @@ if(BUILD_SHARED_LIBS)
     $<BUILD_INTERFACE:${CURL_SOURCE_DIR}/include>)
 endif()
 
+# Here we do: add_library(libcurl ALIAS libcurl_static})
 add_library(${LIB_NAME} ALIAS ${LIB_SELECTED})
 add_library(${PROJECT_NAME}::${LIB_NAME} ALIAS ${LIB_SELECTED})
 
