@@ -705,6 +705,7 @@ DROP TABLE a, b;
 # spills to disk when trying to write the second row to the hash table.
 CREATE TABLE t1 (col1 TEXT);
 INSERT INTO t1 VALUES (REPEAT('A', 50000)), (REPEAT('A', 50000));
+ANALYZE TABLE t1;
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
 --replace_regex $elide_costs
@@ -788,6 +789,8 @@ INSERT INTO t1 VALUES (0);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t2 VALUES (0);
 
+ANALYZE TABLE t1, t2;
+
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
@@ -805,6 +808,8 @@ CREATE TABLE t2 (
   col1 CHAR(40)
 ) DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs;
 INSERT INTO t2 VALUES ("foo");
+
+ANALYZE TABLE t1, t2;
 
 SET sql_mode="PAD_CHAR_TO_FULL_LENGTH";
 --replace_regex $elide_costs
@@ -1235,6 +1240,7 @@ CREATE TABLE b(pk INT PRIMARY KEY, col_varchar VARCHAR(1));
 CREATE TABLE cc(pk INT PRIMARY KEY, col_varchar VARCHAR(1));
 INSERT INTO b VALUES (1, '4');
 INSERT INTO cc VALUES (1, 'c'), (2, 'c');
+ANALYZE TABLE b, cc;
 
 # A complicated test case, but what we want to achieve is a weedout over a
 # hash join, where the hash join build input is a combination of left join over
@@ -1391,6 +1397,7 @@ CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
 
 let $query = SELECT /*+ JOIN_ORDER(table1, t2) */
   *
@@ -1439,6 +1446,7 @@ CREATE TABLE t1 (c VARCHAR(255) COLLATE utf8mb4_bin);
 CREATE TABLE t2 (c VARCHAR(255) COLLATE utf8mb4_bin);
 INSERT INTO t1 VALUES ('foo');
 INSERT INTO t2 VALUES ('foo ');
+ANALYZE TABLE t1, t2;
 
 let $query = SELECT * FROM t1 JOIN t2 ON t1.c = t2.c;
 --replace_regex $elide_costs
@@ -1687,6 +1695,7 @@ INSERT INTO probe SELECT col1 + POW(2, 7) FROM probe;
 INSERT INTO build SELECT col1 FROM probe;
 INSERT INTO build SELECT col1 * 2 FROM probe;
 INSERT INTO build SELECT col1 * 3 FROM probe;
+ANALYZE TABLE build, probe;
 
 let $query = SELECT COUNT(*) FROM probe WHERE col1 IN (SELECT col1 FROM build);
 
@@ -1721,6 +1730,7 @@ INSERT INTO probe SELECT col1 + POW(2, 6) FROM probe;
 INSERT INTO probe SELECT col1 + POW(2, 7) FROM probe;
 INSERT INTO build SELECT col1 FROM probe;
 INSERT INTO build SELECT col1 FROM probe ORDER BY col1 DESC;
+ANALYZE TABLE build, probe;
 
 SET optimizer_switch = "materialization=off";
 SET join_buffer_size = 1024;
@@ -1815,6 +1825,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (NULL);
+ANALYZE TABLE t1, t2;
 let $query = SELECT * FROM t1
   WHERE 1 IN (SELECT 1 FROM t2 WHERE t1.col1 = t2.col1) IS FALSE;
 --replace_regex $elide_costs
@@ -1884,6 +1895,8 @@ INSERT INTO build SELECT col1 * 3 FROM probe;
 # This value should be the only one returned from the antijoin below.
 DELETE FROM build WHERE col1 = 254;
 
+ANALYZE TABLE build, probe;
+
 let $query = SELECT * FROM probe WHERE col1 NOT IN (SELECT col1 FROM build);
 
 SET join_buffer_size = 128;
@@ -1903,6 +1916,7 @@ CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
 
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
@@ -1961,6 +1975,7 @@ DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
 CREATE TABLE t3 (col1 INTEGER);
+ANALYZE TABLE t1, t2, t3;
 
 let $query = SELECT * FROM t1 LEFT JOIN (t2 INNER JOIN t3 ON t2.col1 = t3.col1)
   ON t1.col1 = t2.col1;
@@ -1976,6 +1991,7 @@ CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
 
 # RAND() always returns a number in the range [0.0, 1.0), so the query is
 # deterministic (the condition will always be false).
@@ -2002,6 +2018,7 @@ DROP TABLE t1, t2;
 --echo # hash join iterator, and not as a filter after it.
 CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
 INSERT INTO t1 VALUES (1,1), (2,2);
+ANALYZE TABLE t1;
 let $query = SELECT
   tt.t
 FROM
@@ -2023,6 +2040,7 @@ DROP TABLE t1;
 --echo # condition.
 CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
+ANALYZE TABLE t1, t2;
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND RAND() < RAND();
@@ -2066,6 +2084,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
 CREATE TABLE t3 (i INTEGER);
+ANALYZE TABLE t1, t2, t3;
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT * FROM t1 LEFT JOIN
@@ -2077,6 +2096,7 @@ DROP TABLE t1, t2, t3;
 --echo # join iterator.
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
+ANALYZE TABLE t1, t2;
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=1;
 DROP TABLE t1, t2;
@@ -2088,6 +2108,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
 CREATE TABLE t3 (i INTEGER);
+ANALYZE TABLE t1, t2, t3;
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON TRUE) ON t3.i = t2.i;
@@ -2153,8 +2174,8 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (f1 INTEGER);
-
 INSERT INTO t1 VALUES ( 100 ), ( 200 );
+ANALYZE TABLE t1;
 
 let $query =
   SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias2.f1 = alias1.f1
@@ -2355,6 +2376,8 @@ CREATE TABLE t (
   c TEXT
 );
 
+ANALYZE TABLE t;
+
 # The join condition attached to the topmost hash join iterator should not be
 # inside a "found_match" trigger.
 --replace_regex $elide_costs
@@ -2407,6 +2430,7 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t (i INTEGER);
 INSERT INTO t VALUES (1), (2);
+ANALYZE TABLE t;
 
 # The first argument to JSON_EXTRACT should be a JSON document. An error
 # is expected when building the hash table for t1 since
@@ -2563,6 +2587,7 @@ CREATE TABLE t (
   b TEXT CHARACTER SET utf32 COLLATE utf32_german2_ci
 );
 INSERT INTO t(a, b) VALUES('h','k'), ('w','e');
+ANALYZE TABLE t;
 let $query =
 SELECT 1 FROM t AS a INNER JOIN t AS b ON a.a=b.b;
 --replace_regex $elide_costs
@@ -2577,6 +2602,8 @@ CREATE TABLE t2(str_name VARCHAR(64) COLLATE ascii_general_ci);
 
 INSERT INTO t1 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
 INSERT INTO t2 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
+
+ANALYZE TABLE t1, t2;
 
 let $query =
 SELECT wstr_name, str_name
@@ -2620,6 +2647,8 @@ CREATE VIEW vmerge AS SELECT 1 AS f1, f1 AS b_f1 FROM t2;
 
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t2 VALUES (1),(2);
+
+ANALYZE TABLE t1, t2;
 
 --replace_regex $elide_costs_and_rows
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN vmerge AS v ON t1.f1 = v.f1;

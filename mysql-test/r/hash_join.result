@@ -1061,6 +1061,9 @@ DROP TABLE a, b;
 #
 CREATE TABLE t1 (col1 TEXT);
 INSERT INTO t1 VALUES (REPEAT('A', 50000)), (REPEAT('A', 50000));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT a.col1 FROM t1 AS a, t1 AS b;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=4)
@@ -1134,6 +1137,10 @@ CREATE TABLE t1 (col1 DECIMAL(4, 2));
 INSERT INTO t1 VALUES (0);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t2 VALUES (0);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 EXPLAIN
 -> Inner hash join (t1.col1 = t2.col1)  (rows=1)
@@ -1156,6 +1163,10 @@ CREATE TABLE t2 (
 col1 CHAR(40)
 ) DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs;
 INSERT INTO t2 VALUES ("foo");
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SET sql_mode="PAD_CHAR_TO_FULL_LENGTH";
 Warnings:
 Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
@@ -1783,6 +1794,10 @@ CREATE TABLE b(pk INT PRIMARY KEY, col_varchar VARCHAR(1));
 CREATE TABLE cc(pk INT PRIMARY KEY, col_varchar VARCHAR(1));
 INSERT INTO b VALUES (1, '4');
 INSERT INTO cc VALUES (1, 'c'), (2, 'c');
+ANALYZE TABLE b, cc;
+Table	Op	Msg_type	Msg_text
+test.b	analyze	status	OK
+test.cc	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT
 table1.col_varchar
 FROM
@@ -1975,6 +1990,10 @@ CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT /*+ JOIN_ORDER(table1, t2) */
 *
 FROM
@@ -2030,6 +2049,10 @@ CREATE TABLE t1 (c VARCHAR(255) COLLATE utf8mb4_bin);
 CREATE TABLE t2 (c VARCHAR(255) COLLATE utf8mb4_bin);
 INSERT INTO t1 VALUES ('foo');
 INSERT INTO t2 VALUES ('foo ');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.c = t2.c;
 EXPLAIN
 -> Inner hash join (t2.c = t1.c)  (rows=1)
@@ -2441,6 +2464,10 @@ INSERT INTO probe SELECT col1 + POW(2, 7) FROM probe;
 INSERT INTO build SELECT col1 FROM probe;
 INSERT INTO build SELECT col1 * 2 FROM probe;
 INSERT INTO build SELECT col1 * 3 FROM probe;
+ANALYZE TABLE build, probe;
+Table	Op	Msg_type	Msg_text
+test.build	analyze	status	OK
+test.probe	analyze	status	OK
 SELECT COUNT(*) AS expected_num_rows FROM probe;
 expected_num_rows
 256
@@ -2478,6 +2505,10 @@ INSERT INTO probe SELECT col1 + POW(2, 6) FROM probe;
 INSERT INTO probe SELECT col1 + POW(2, 7) FROM probe;
 INSERT INTO build SELECT col1 FROM probe;
 INSERT INTO build SELECT col1 FROM probe ORDER BY col1 DESC;
+ANALYZE TABLE build, probe;
+Table	Op	Msg_type	Msg_text
+test.build	analyze	status	OK
+test.probe	analyze	status	OK
 SET optimizer_switch = "materialization=off";
 SET join_buffer_size = 1024;
 EXPLAIN FORMAT=tree SELECT * FROM probe WHERE col1 IN (SELECT * FROM build);
@@ -3095,6 +3126,10 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (NULL);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1
 WHERE 1 IN (SELECT 1 FROM t2 WHERE t1.col1 = t2.col1) IS FALSE;
 EXPLAIN
@@ -3194,6 +3229,10 @@ INSERT INTO build SELECT col1 FROM probe;
 INSERT INTO build SELECT col1 * 2 FROM probe;
 INSERT INTO build SELECT col1 * 3 FROM probe;
 DELETE FROM build WHERE col1 = 254;
+ANALYZE TABLE build, probe;
+Table	Op	Msg_type	Msg_text
+test.build	analyze	status	OK
+test.probe	analyze	status	OK
 SET join_buffer_size = 128;
 SET optimizer_switch="materialization=off";
 EXPLAIN FORMAT=tree SELECT * FROM probe WHERE col1 NOT IN (SELECT col1 FROM build);
@@ -3214,6 +3253,10 @@ CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
 EXPLAIN
 -> Left hash join (t2.col1 = t1.col1)  (rows=2)
@@ -3318,6 +3361,11 @@ DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
 CREATE TABLE t3 (col1 INTEGER);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN (t2 INNER JOIN t3 ON t2.col1 = t3.col1)
 ON t1.col1 = t2.col1;
 EXPLAIN
@@ -3337,6 +3385,10 @@ CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON RAND() < -1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: (rand() < <cache>(-(1)))  (rows=1)
@@ -3377,6 +3429,9 @@ DROP TABLE t1, t2;
 # hash join iterator, and not as a filter after it.
 CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
 INSERT INTO t1 VALUES (1,1), (2,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT
 tt.t
 FROM
@@ -3410,6 +3465,10 @@ DROP TABLE t1;
 # condition.
 CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND RAND() < RAND();
 EXPLAIN
@@ -3479,6 +3538,11 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
 CREATE TABLE t3 (i INTEGER);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 LEFT JOIN
 (t2 LEFT JOIN t3 ON ABS(t2.i) = t3.i)
@@ -3497,6 +3561,10 @@ DROP TABLE t1, t2, t3;
 # join iterator.
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=1;
 EXPLAIN
 -> Left hash join (no condition)  (rows=1)
@@ -3512,6 +3580,11 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
 CREATE TABLE t3 (i INTEGER);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON TRUE) ON t3.i = t2.i;
 EXPLAIN
@@ -3626,6 +3699,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (f1 INTEGER);
 INSERT INTO t1 VALUES ( 100 ), ( 200 );
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias2.f1 = alias1.f1
 AND NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE alias1.f1 <= 1 );
 EXPLAIN
@@ -3865,6 +3941,9 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE t (
 c TEXT
 );
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT c FROM
 (
 SELECT 1 AS c FROM t AS a
@@ -3943,6 +4022,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t (i INTEGER);
 INSERT INTO t VALUES (1), (2);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
 EXPLAIN
 -> Filter: (json_extract(t1.i,t1.i) = t2.i)  (rows=2)
@@ -4113,6 +4195,9 @@ Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	4079	'ucs2_sinhala_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t(a, b) VALUES('h','k'), ('w','e');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT 1 FROM t AS a INNER JOIN t AS b ON a.a=b.b;
 EXPLAIN
 -> Filter: (a.a = b.b)  (rows=2)
@@ -4131,6 +4216,10 @@ Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set uc
 CREATE TABLE t2(str_name VARCHAR(64) COLLATE ascii_general_ci);
 INSERT INTO t1 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
 INSERT INTO t2 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT wstr_name, str_name
 FROM t1 INNER JOIN t2 ON t1.wstr_name = t2.str_name;
 EXPLAIN
@@ -4192,6 +4281,10 @@ CREATE TABLE t2 (f1 INTEGER);
 CREATE VIEW vmerge AS SELECT 1 AS f1, f1 AS b_f1 FROM t2;
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t2 VALUES (1),(2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN vmerge AS v ON t1.f1 = v.f1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: (t1.f1 = 1)  (...)
