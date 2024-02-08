@@ -7,9 +7,7 @@ add_library(libprotobuf-lite ${protobuf_SHARED_OR_STATIC}
   ${libprotobuf_lite_srcs}
   ${libprotobuf_lite_hdrs}
   ${protobuf_version_rc_file})
-
-# Disable this, we have our own version script
-if(FALSE AND protobuf_HAVE_LD_VERSION_SCRIPT)
+if(protobuf_HAVE_LD_VERSION_SCRIPT)
   if(${CMAKE_VERSION} VERSION_GREATER 3.13 OR ${CMAKE_VERSION} VERSION_EQUAL 3.13)
     target_link_options(libprotobuf-lite PRIVATE -Wl,--version-script=${protobuf_SOURCE_DIR}/src/libprotobuf-lite.map)
   elseif(protobuf_BUILD_SHARED_LIBS)
@@ -59,16 +57,6 @@ IF(protobuf_BUILD_SHARED_LIBS)
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
     )
 
-  IF(LINUX)
-    SET_TARGET_PROPERTIES(libprotobuf-lite
-      PROPERTIES LINK_FLAGS
-      "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.ver"
-      )
-    SET_TARGET_PROPERTIES(libprotobuf-lite
-      PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.ver
-      )
-  ENDIF()
-
   IF(WIN32)
     ADD_CUSTOM_COMMAND(TARGET libprotobuf-lite POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -84,6 +72,9 @@ IF(protobuf_BUILD_SHARED_LIBS)
       )
   ENDIF()
 
+  IF(LINUX)
+    ADD_INSTALL_RPATH(libprotobuf-lite "\$ORIGIN")
+  ENDIF()
   INSTALL_PRIVATE_LIBRARY(libprotobuf-lite)
 
   IF(WITH_ROUTER)

@@ -1,3 +1,7 @@
+/*
+  extra symbol export needed for gcc/clang with UBSAN:
+  ZTIN2pb11CppFeaturesE = typeinfo for pb::CppFeatures
+*/
 {
   global:
     extern "C++" {
@@ -6,7 +10,7 @@
     };
     scc_info_*;
     descriptor_table_*;
-
+    _ZTIN2pb11CppFeaturesE;
   local:
     *;
 };

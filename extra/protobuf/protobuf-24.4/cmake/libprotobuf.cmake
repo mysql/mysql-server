@@ -12,8 +12,7 @@ ADD_OBJDUMP_TARGET(show_libprotobuf "$<TARGET_FILE:libprotobuf>"
   DEPENDS libprotobuf)
 ADD_LIBRARY(ext::libprotobuf ALIAS libprotobuf)
 
-# Disable this, we have our own version script
-if(FALSE AND protobuf_HAVE_LD_VERSION_SCRIPT)
+if(protobuf_HAVE_LD_VERSION_SCRIPT)
   if(${CMAKE_VERSION} VERSION_GREATER 3.13 OR ${CMAKE_VERSION} VERSION_EQUAL 3.13)
     target_link_options(libprotobuf PRIVATE -Wl,--version-script=${protobuf_SOURCE_DIR}/src/libprotobuf.map)
   elseif(protobuf_BUILD_SHARED_LIBS)
@@ -62,16 +61,6 @@ IF(protobuf_BUILD_SHARED_LIBS)
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
     )
 
-  IF(LINUX)
-    SET_TARGET_PROPERTIES(libprotobuf
-      PROPERTIES LINK_FLAGS
-      "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.ver"
-      )
-    SET_TARGET_PROPERTIES(libprotobuf
-      PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.ver
-      )
-  ENDIF()
-
   IF(WIN32)
     ADD_CUSTOM_COMMAND(TARGET libprotobuf POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -87,6 +76,9 @@ IF(protobuf_BUILD_SHARED_LIBS)
       )
   ENDIF()
 
+  IF(LINUX)
+    ADD_INSTALL_RPATH(libprotobuf "\$ORIGIN")
+  ENDIF()
   INSTALL_PRIVATE_LIBRARY(libprotobuf)
 
 ENDIF()

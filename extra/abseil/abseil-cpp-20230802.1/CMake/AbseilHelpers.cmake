@@ -248,7 +248,28 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
       )
 
     elseif(_build_type STREQUAL "static" OR _build_type STREQUAL "shared")
-      add_library(${_NAME} "")
+      if (_build_type STREQUAL "static")
+        add_library(${_NAME} STATIC)
+      else()
+        ADD_SHARED_LIBRARY(${_NAME} SKIP_INSTALL)
+        INSTALL_PRIVATE_LIBRARY(${_NAME})
+        IF(LINUX)
+          ADD_INSTALL_RPATH(${_NAME} "\$ORIGIN")
+        ENDIF()
+        TARGET_LINK_OPTIONS(${_NAME} PRIVATE
+          -Wl,--version-script=${CMAKE_SOURCE_DIR}/extra/abseil/absllib.map
+          )
+        SET_TARGET_PROPERTIES(${_NAME}
+          PROPERTIES LINK_DEPENDS ${CMAKE_SOURCE_DIR}/extra/abseil/absllib.map
+          )
+        IF(WITH_ROUTER)
+          INSTALL(TARGETS ${_NAME}
+            LIBRARY
+            DESTINATION "${ROUTER_INSTALL_LIBDIR}"
+            COMPONENT Router
+            )
+        ENDIF()
+      endif()
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_link_libraries(${_NAME}
       PUBLIC ${ABSL_CC_LIB_DEPS}

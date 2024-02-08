@@ -8,8 +8,7 @@ add_library(libprotoc ${protobuf_SHARED_OR_STATIC}
   ${libprotoc_hdrs}
   ${protobuf_version_rc_file})
 
-# Disable this, we have our own version script
-if(FALSE AND protobuf_HAVE_LD_VERSION_SCRIPT)
+if(protobuf_HAVE_LD_VERSION_SCRIPT)
   if(${CMAKE_VERSION} VERSION_GREATER 3.13 OR ${CMAKE_VERSION} VERSION_EQUAL 3.13)
     target_link_options(libprotoc PRIVATE -Wl,--version-script=${protobuf_SOURCE_DIR}/src/libprotoc.map)
   elseif(protobuf_BUILD_SHARED_LIBS)

@@ -123,7 +123,7 @@ BuildRequires:  systemd
 BuildRequires:  time
 BuildRequires:  zlib-devel
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global _privatelibs libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*
+%global _privatelibs libabsl_.*|libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
@@ -711,6 +711,91 @@ fi
 %dir %{_libdir}/mysql/private
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.24.4.0
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.24.4.0
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_any_cast_impl.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_optional_access.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_variant_access.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_base.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_city.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_civil_time.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cord_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cord.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cordz_functions.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cordz_handle.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cordz_info.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cordz_sample_token.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc32c.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc_cord_state.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc_cpu_detect.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_debugging_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_demangle_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_die_if_null.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_examine_stack.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_exponential_biased.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_failure_signal_handler.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_commandlineflag_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_commandlineflag.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_config.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_marshalling.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_parse.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_private_handle_accessor.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_program_name.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_reflection.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_usage_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_usage.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_graphcycles_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_hash.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_hashtablez_sampler.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_int128.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_kernel_timeout_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_leak_check.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_entry.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_flags.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_globals.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_initialize.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_check_op.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_conditions.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_format.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_globals.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_log_sink_set.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_message.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_nullguard.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_proto.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_severity.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_sink.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_low_level_hash.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_malloc_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_periodic_sampler.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_distributions.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_distribution_test_util.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_platform.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_pool_urbg.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_hwaes_impl.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_hwaes.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_slow.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_seed_material.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_seed_gen_exception.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_seed_sequences.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_raw_hash_set.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_raw_logging_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_scoped_set_env.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_spinlock_wait.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_stacktrace.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_statusor.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_status.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_strerror.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_str_format_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_strings_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_strings.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_string_view.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_symbolize.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_synchronization.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_throw_delegate.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_time.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_time_zone.so
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
@@ -1222,6 +1307,7 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing.so.*
 %{_libdir}/mysqlrouter/private/libprotobuf-lite.so.24.4.0
+%{_libdir}/mysqlrouter/private/libabsl_*.so
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
 %{_libdir}/mysqlrouter/*.so
