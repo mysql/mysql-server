@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2325,8 +2325,11 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
 
   ndb->setDatabaseName(m_dbname);
   Ndb_table_guard ndbtab_g(dict, m_tabname);
-  if (!(tab= ndbtab_g.get_table()))
+  if (!(tab = ndbtab_g.get_table())) {
+    my_free(data);
+    my_free(pack_data);
     ERR_RETURN(dict->getNdbError());
+  }
 
   if (get_ndb_share_state(m_share) != NSS_ALTERED 
       && cmp_frm(tab, pack_data, pack_length))
@@ -15399,7 +15402,6 @@ NDB_SHARE::create(const char* key, TABLE* table)
   share->op= 0;
   share->new_op= 0;
   share->event_data= 0;
-  share->stored_columns.bitmap= 0;
 
   if (ndbcluster_binlog_init_share(current_thd, share, table))
   {

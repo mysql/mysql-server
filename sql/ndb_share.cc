@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,8 +60,6 @@ NDB_SHARE::destroy(NDB_SHARE* share)
     delete event_data;
     event_data= 0;
   }
-
-  bitmap_free(& (share->stored_columns));
 
   // Release memory for the variable length strings held by
   // key but also referenced by db, table_name and shadow_table->db etc.
@@ -279,7 +277,7 @@ void NDB_SHARE::set_binlog_flags_for_table(TABLE* table)
   }
 
   const int n_fields = table->s->fields;
-  bitmap_init(&stored_columns, 0, n_fields, FALSE);
+  bitmap_init(&stored_columns, stored_columns_buf, n_fields, FALSE);
   if (table->s->primary_key == MAX_KEY)
     flags |= NSF_HIDDEN_PK;
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,8 @@ struct Ndb_statistics {
 
 
 struct NDB_SHARE {
+  my_bitmap_map stored_columns_buf[(NDB_MAX_ATTRIBUTES_IN_TABLE + 8 * sizeof(my_bitmap_map) - 1)
+                                   / (8 * sizeof(my_bitmap_map))];
   MY_BITMAP stored_columns;
   NDB_SHARE_STATE state;
   THR_LOCK lock;
