@@ -544,8 +544,12 @@ sub main {
       # Scan all sub-directories for available test suites.
       # The variable $opt_suites is updated by get_all_suites()
       find(\&get_all_suites, "$glob_mysql_test_dir");
-      find({ wanted => \&get_all_suites, follow => 1 }, "$basedir/internal")
+      find({ wanted => \&get_all_suites, follow => 1 },
+	   "$basedir/internal/mysql-test")
         if (-d "$basedir/internal");
+      find({ wanted => \&get_all_suites, follow => 1 },
+           "$basedir/internal/cloud/mysql-test")
+        if (-d "$basedir/internal/cloud");
 
       if ($suite_set == 1) {
         # Run only with non-default suites
@@ -3113,9 +3117,7 @@ sub get_all_suites {
   #     'engines/funcs' and 'engines/iuds'
   my $suite_name = $1
     if ($File::Find::name =~ /mysql\-test[\/\\]suite[\/\\](.*)[\/\\]t$/ or
-       $File::Find::name =~ /mysql\-test[\/\\]suite[\/\\]([^\/\\]*).*/     or
-       $File::Find::name =~ /plugin[\/\\](.*)[\/\\]tests[\/\\]mtr[\/\\]t$/ or
-       $File::Find::name =~ /components[\/\\](.*)[\/\\]tests[\/\\]mtr[\/\\]t$/);
+       $File::Find::name =~ /mysql\-test[\/\\]suite[\/\\]([^\/\\]*).*/);
   return if not defined $suite_name;
 
   # Skip extracting suite name if the path is already processed
