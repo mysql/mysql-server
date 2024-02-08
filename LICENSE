@@ -19,13 +19,14 @@ Licensing Information
    the GNU General Public License (GPLv2), as set forth below, with the
    following additional permissions:
 
-   This distribution of MySQL NDB Cluster 7.6.29 Community is distributed
+   This distribution of MySQL NDB Cluster 7.6.29 Community is designed to work
    with certain software (including but not limited to OpenSSL) that is
    licensed under separate terms, as designated in a particular file or
    component or in the license documentation. Without limiting your rights
    under the GPLv2, the authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with the program.
+   separately licensed software that they have either included with the
+   program or referenced in the documentation.
 
    This distribution includes the MySQL C API client library
    (libmysqlclient) otherwise known as MySQL Connector/C. Without limiting
