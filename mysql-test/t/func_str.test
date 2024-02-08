@@ -2675,3 +2675,15 @@ SELECT QUOTE(NULL);
 SELECT QUOTE(x'80');
 --error ER_INVALID_CHARACTER_STRING
 SELECT QUOTE(_utf8mb4 x'80');
+
+--echo #
+--echo # Bug: The locate function does not find correct substring
+--echo #
+set names utf8mb4;
+select locate('a', 'Å');
+select locate('Å', 'a');
+select locate('aÅ', 'aÅ');
+select locate('Åa', 'Åa');
+select locate('ss', 'ß');
+select locate('ß', 'ss');
+select locate("", "ÅÅ", 2);

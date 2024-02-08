@@ -5822,3 +5822,28 @@ SELECT QUOTE(x'80');
 ERROR HY000: Cannot convert string '\x80' from binary to utf8mb4
 SELECT QUOTE(_utf8mb4 x'80');
 ERROR HY000: Invalid utf8mb4 character string: '80'
+#
+# Bug: The locate function does not find correct substring
+#
+set names utf8mb4;
+select locate('a', 'Å');
+locate('a', 'Å')
+1
+select locate('Å', 'a');
+locate('Å', 'a')
+1
+select locate('aÅ', 'aÅ');
+locate('aÅ', 'aÅ')
+1
+select locate('Åa', 'Åa');
+locate('Åa', 'Åa')
+1
+select locate('ss', 'ß');
+locate('ss', 'ß')
+1
+select locate('ß', 'ss');
+locate('ß', 'ss')
+1
+select locate("", "ÅÅ", 2);
+locate("", "ÅÅ", 2)
+2

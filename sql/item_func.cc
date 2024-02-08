@@ -4212,7 +4212,7 @@ longlong Item_func_locate::val_int() {
   }
 
   if (!b->length())  // Found empty string at start
-    return start + 1;
+    return start0 + 1;
 
   if (!cs->coll->strstr(cs, a->ptr() + start,
                         static_cast<uint>(a->length() - start), b->ptr(),

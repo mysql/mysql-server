@@ -359,42 +359,40 @@ unsigned my_instr_mb(const CHARSET_INFO *cs, const char *b, size_t b_length,
   const char *end, *b0;
   int res = 0;
 
-  if (s_length <= b_length) {
-    if (!s_length) {
+  if (!s_length) {
+    if (nmatch) {
+      match->beg = 0;
+      match->end = 0;
+      match->mb_len = 0;
+    }
+    return 1; /* Empty string is always found */
+  }
+
+  b0 = b;
+  end = b + b_length;
+
+  while (b < end) {
+    int mb_len;
+
+    if (!cs->coll->strnncoll(cs, pointer_cast<const uint8_t *>(b), b_length,
+                              pointer_cast<const uint8_t *>(s), s_length,
+                              true)) {
       if (nmatch) {
-        match->beg = 0;
-        match->end = 0;
-        match->mb_len = 0;
-      }
-      return 1; /* Empty string is always found */
-    }
-
-    b0 = b;
-    end = b + b_length - s_length + 1;
-
-    while (b < end) {
-      int mb_len;
-
-      if (!cs->coll->strnncoll(cs, pointer_cast<const uint8_t *>(b), s_length,
-                               pointer_cast<const uint8_t *>(s), s_length,
-                               false)) {
-        if (nmatch) {
-          match[0].beg = 0;
-          match[0].end = (unsigned)(b - b0);
-          match[0].mb_len = res;
-          if (nmatch > 1) {
-            match[1].beg = match[0].end;
-            match[1].end = match[0].end + (unsigned)s_length;
-            match[1].mb_len = 0; /* Not computed */
-          }
+        match[0].beg = 0;
+        match[0].end = (unsigned)(b - b0);
+        match[0].mb_len = res;
+        if (nmatch > 1) {
+          match[1].beg = match[0].end;
+          match[1].end = match[0].end + (unsigned)s_length;
+          match[1].mb_len = 0; /* Not computed */
         }
-        return 2;
       }
-      mb_len = (mb_len = my_ismbchar(cs, b, end)) ? mb_len : 1;
-      b += mb_len;
-      b_length -= mb_len;
-      res++;
+      return 2;
     }
+    mb_len = (mb_len = my_ismbchar(cs, b, end)) ? mb_len : 1;
+    b += mb_len;
+    b_length -= mb_len;
+    res++;
   }
   return 0;
 }
