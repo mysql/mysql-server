@@ -83,9 +83,10 @@ MACRO(do_not_install)
 ENDMACRO()
 
 # Avoid ODR violations when running protoc for grpc.
+# This broke group replication.
 IF(UNIX)
-  STRING_APPEND(CMAKE_C_FLAGS   " -fvisibility=hidden")
-  STRING_APPEND(CMAKE_CXX_FLAGS " -fvisibility=hidden")
+#  STRING_APPEND(CMAKE_C_FLAGS   " -fvisibility=hidden")
+#  STRING_APPEND(CMAKE_CXX_FLAGS " -fvisibility=hidden")
 ENDIF()
 
 ADD_SUBDIRECTORY(abseil-cpp-20230802.1)
