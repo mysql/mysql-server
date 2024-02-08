@@ -40,7 +40,13 @@
 #include "nulls.h"
 #include "scripts/mysql_fix_privilege_tables_sql.h"
 #include "scripts/sql_commands_system_tables_data_fix.h"
-#include "scripts/sql_firewall_stored_procedures.h"
+#include "scripts/sql_firewall_sp_firewall_group_delist.h"
+#include "scripts/sql_firewall_sp_firewall_group_enlist.h"
+#include "scripts/sql_firewall_sp_reload_firewall_group_rules.h"
+#include "scripts/sql_firewall_sp_reload_firewall_rules.h"
+#include "scripts/sql_firewall_sp_set_firewall_group_mode.h"
+#include "scripts/sql_firewall_sp_set_firewall_group_mode_and_user.h"
+#include "scripts/sql_firewall_sp_set_firewall_mode.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"  // dd::warn_on_deprecated_prefix_key_partition
@@ -423,7 +429,8 @@ class MySQL_check {
   }
 };
 
-bool ignore_error_and_execute(THD *thd, const char *query_ptr) {
+bool ignore_error_and_execute(THD *thd, const char *query_ptr,
+                              bool print_err = true) {
   Ed_connection con(thd);
   LEX_STRING str;
   lex_string_strmake(thd->mem_root, &str, query_ptr, strlen(query_ptr));
@@ -432,10 +439,102 @@ bool ignore_error_and_execute(THD *thd, const char *query_ptr) {
   if (con.execute_direct(str) &&
       std::find(ignored_errors.begin(), ignored_errors.end(),
                 con.get_last_errno()) == ignored_errors.end()) {
-    LogErr(ERROR_LEVEL, ER_DD_INITIALIZE_SQL_ERROR, query_ptr,
-           con.get_last_errno(), con.get_last_error());
+    if (print_err)
+      LogErr(ERROR_LEVEL, ER_DD_INITIALIZE_SQL_ERROR, query_ptr,
+             con.get_last_errno(), con.get_last_error());
     return true;
   }
+  return false;
+}
+
+/**
+ * This function will create the firewall's stored procedures.
+ *
+ * @param[in]        thd                thread context
+ * @param[in]        drop_query         DROP statement to drop procedure
+ * @param[in]        fw_proc            stored procedure's SQL definition
+ *
+ * @retval           false              execution of query successful
+ * @retval           true               execution of query failed
+ */
+static bool reinstall_firewall_procedures(THD *thd, const char *drop_query,
+                                          const char *fw_proc[]) {
+  if (!ignore_error_and_execute(thd, drop_query, false))
+    for (auto query = fw_proc; *query != nullptr; query++)
+      if (ignore_error_and_execute(thd, *query)) return true;
+
+  return false;
+}
+
+/**
+ * This function will check and create the firewall's stored procedures.
+ *
+ * @param[in]        thd                thread context
+ *
+ * @retval           false              execution of query successful
+ * @retval           true               execution of query failed
+ */
+static bool upgrade_firewall_procedures(THD *thd) {
+  struct firewall_installer {
+    const char *drop_query;
+    const char **fwproc;
+  };
+
+  static firewall_installer fw_commands[] = {
+      {"DROP PROCEDURE sp_set_firewall_mode", firewall_sp_set_firewall_mode},
+      {"DROP PROCEDURE sp_reload_firewall_rules",
+       firewall_sp_reload_firewall_rules},
+      {"DROP PROCEDURE sp_set_firewall_group_mode",
+       firewall_sp_set_firewall_group_mode},
+      {"DROP PROCEDURE sp_set_firewall_group_mode_and_user",
+       firewall_sp_set_firewall_group_mode_and_user},
+      {"DROP PROCEDURE sp_reload_firewall_group_rules",
+       firewall_sp_reload_firewall_group_rules},
+      {"DROP PROCEDURE sp_firewall_group_enlist",
+       firewall_sp_firewall_group_enlist},
+      {"DROP PROCEDURE sp_firewall_group_delist",
+       firewall_sp_firewall_group_delist},
+  };
+
+  for (auto &fw : fw_commands)
+    if (reinstall_firewall_procedures(thd, fw.drop_query, fw.fwproc))
+      return true;
+
+  return false;
+}
+
+/**
+ * This function will switch to the schema which is pointed by the
+ * mysql-firewall-database variable by executing USE.
+ *
+ * @param[in]        thd                thread context
+ * @param[out]       fw_schema          value of mysql-firewall-database
+ *
+ * @retval           false              execution of USE successful
+ * @retval           true               execution of USE failed
+ */
+static bool switch_to_firewall_schema(THD *thd, std::string &fw_schema) {
+  LEX_STRING firewall_schema_name = {nullptr, 0};
+  Ed_connection conn(thd);
+
+  lex_string_strmake(thd->mem_root, &firewall_schema_name,
+                     STRING_WITH_LEN("SELECT @@mysql_firewall_database"));
+
+  if (conn.execute_direct(firewall_schema_name)) return true;
+
+  const List<Ed_row> rows = *(conn.get_result_sets());
+  const MYSQL_LEX_STRING *result = rows[0]->get_column(0);
+  fw_schema = result->str;
+
+  // if firewall is installed in a schema other than mysql
+  // then switch to that schema
+
+  std::string command = "USE ";
+  command.append(fw_schema);  // forms USE <schema>
+
+  if (strcmp("mysql", fw_schema.c_str()))
+    if (ignore_error_and_execute(thd, command.c_str())) return true;
+
   return false;
 }
 
@@ -443,6 +542,8 @@ bool ignore_error_and_execute(THD *thd, const char *query_ptr) {
 static bool upgrade_firewall(THD *thd) {
   bool has_old_firewall_tables{false};
   bool has_new_firewall_tables{false};
+  bool error{false};
+  std::string fw_schema("mysql");
 
   {
     // lock required tables before checking their existence
@@ -453,7 +554,7 @@ static bool upgrade_firewall(THD *thd) {
                      "firewall_groups", MDL_SHARED, MDL_TRANSACTION);
 
     // check whether firewall tables exist
-    bool error =
+    error =
         (thd->mdl_context.acquire_lock(&request1,
                                        thd->variables.lock_wait_timeout) ||
          thd->mdl_context.acquire_lock(&request2,
@@ -468,13 +569,17 @@ static bool upgrade_firewall(THD *thd) {
     if (error) return true;
   }
 
-  // upgrade stored procedures, leave on error
-  if (has_old_firewall_tables && !has_new_firewall_tables)
-    for (auto query = &firewall_stored_procedures[0]; *query != nullptr;
-         query++)
-      if (ignore_error_and_execute(thd, *query)) return true;
+  // upgrade the procedures
+  if (has_old_firewall_tables || has_new_firewall_tables) {
+    error = switch_to_firewall_schema(thd, fw_schema) ||
+            upgrade_firewall_procedures(thd);
 
-  return false;
+    // we might have switched to another schema during fw upgrade
+    // go back to mysql
+    if (fw_schema != "mysql")
+      error |= ignore_error_and_execute(thd, "USE mysql");
+  }
+  return error;
 }
 
 bool fix_sys_schema(THD *thd) {

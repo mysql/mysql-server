@@ -130,14 +130,80 @@ ADD_CUSTOM_COMMAND(
 )
 
 ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_stored_procedures.h
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_set_firewall_mode.h
   COMMAND comp_sql
-  firewall_stored_procedures
-  ${CMAKE_CURRENT_SOURCE_DIR}/firewall_stored_procedures.sql
-  sql_firewall_stored_procedures.h
+  firewall_sp_set_firewall_mode
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_set_firewall_mode.sql
+  sql_firewall_sp_set_firewall_mode.h
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS comp_sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/firewall_stored_procedures.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_set_firewall_mode.sql
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_reload_firewall_rules.h
+  COMMAND comp_sql
+  firewall_sp_reload_firewall_rules
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_reload_firewall_rules.sql
+  sql_firewall_sp_reload_firewall_rules.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_reload_firewall_rules.sql
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_set_firewall_group_mode.h
+  COMMAND comp_sql
+  firewall_sp_set_firewall_group_mode
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_set_firewall_group_mode.sql
+  sql_firewall_sp_set_firewall_group_mode.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_set_firewall_group_mode.sql
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_set_firewall_group_mode_and_user.h
+  COMMAND comp_sql
+  firewall_sp_set_firewall_group_mode_and_user
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_set_firewall_group_mode_and_user.sql
+  sql_firewall_sp_set_firewall_group_mode_and_user.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_set_firewall_group_mode_and_user.sql
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_reload_firewall_group_rules.h
+  COMMAND comp_sql
+  firewall_sp_reload_firewall_group_rules
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_reload_firewall_group_rules.sql
+  sql_firewall_sp_reload_firewall_group_rules.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_reload_firewall_group_rules.sql
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_firewall_group_enlist.h
+  COMMAND comp_sql
+  firewall_sp_firewall_group_enlist
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_firewall_group_enlist.sql
+  sql_firewall_sp_firewall_group_enlist.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_firewall_group_enlist.sql
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_firewall_group_delist.h
+  COMMAND comp_sql
+  firewall_sp_firewall_group_delist
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_firewall_group_delist.sql
+  sql_firewall_sp_firewall_group_delist.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/firewall/firewall_sp_firewall_group_delist.sql
 )
 
 # Add target for the above to be built
@@ -149,7 +215,13 @@ IF(NOT WITHOUT_SERVER)
     ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_users.h
     ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_help_data.h
     ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables_data_fix.h
-    ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_stored_procedures.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_set_firewall_mode.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_reload_firewall_rules.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_set_firewall_group_mode.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_set_firewall_group_mode_and_user.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_reload_firewall_group_rules.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_firewall_group_enlist.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_sp_firewall_group_delist.h
   )
 ENDIF()
 
