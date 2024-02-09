@@ -4680,6 +4680,8 @@ static void init_sql_statement_names() {
   assert(strcmp(sql_statement_names[(uint)SQLCOM_SIGNAL].str, "signal") == 0);
 
   sql_statement_names[(uint)SQLCOM_END].str = "error";
+  sql_statement_names[(uint)SQLCOM_END].length =
+      strlen(sql_statement_names[(uint)SQLCOM_END].str);
 }
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
