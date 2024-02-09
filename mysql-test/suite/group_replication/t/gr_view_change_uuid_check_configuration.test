@@ -44,6 +44,15 @@ SET PERSIST_ONLY group_replication_view_change_uuid = "";
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/restart_mysqld.inc
 
+# include/restart_mysqld.inc will only wait for the server to be up, that is,
+# the server is accepting client connections.
+# That point is before the Group Replication start, which may cause this
+# client session to assert the error log before the error condition was reached.
+# Before assert the error log we wait until the error is logged into the table
+# performance_schema.error_log.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-013748' AND data LIKE '%Invalid input value for group_replication_view_change_uuid %'
+--source include/wait_condition.inc
+
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_select= Invalid input value for group_replication_view_change_uuid ''. Please, provide a valid UUID.
 --let $assert_count= 1
@@ -78,6 +87,15 @@ SET GLOBAL group_replication_view_change_uuid = "";
 --let $restart_parameters=restart:--group-replication-start-on-boot=1 --group-replication-group-name=$group_replication_group_name --group_replication_view_change_uuid=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/restart_mysqld.inc
+
+# include/restart_mysqld.inc will only wait for the server to be up, that is,
+# the server is accepting client connections.
+# That point is before the Group Replication start, which may cause this
+# client session to assert the error log before the error condition was reached.
+# Before assert the error log we wait until the error is logged into the table
+# performance_schema.error_log.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-013750' AND data LIKE '%which is the same as group_replication_view_change_uuid. Please change group_replication_view_change_uuid to AUTOMATIC%'
+--source include/wait_condition.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_select= group_replication_group_name '.*', which is the same as group_replication_view_change_uuid. Please change group_replication_view_change_uuid to AUTOMATIC
@@ -116,6 +134,14 @@ START GROUP_REPLICATION;
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/restart_mysqld.inc
 
+# include/restart_mysqld.inc will only wait for the server to be up, that is,
+# the server is accepting client connections.
+# That point is before the Group Replication start, which may cause this
+# client session to assert the error log before the error condition was reached.
+# Before assert the error log we wait until the error is logged into the table
+# performance_schema.error_log.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-013752' AND data LIKE '%group_replication_view_change_uuid is incompatible with group. group_replication_view_change_uuid %'
+--source include/wait_condition.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_select= group_replication_view_change_uuid is incompatible with group. group_replication_view_change_uuid.*matches server_uuid.*.
