@@ -3462,8 +3462,7 @@ class Update_rows_log_event : public Rows_log_event,
 
     @param thd_arg The THD object for the session.
 
-    @return One of UPDATE_ROWS_EVENT_V1, PARTIAL_UPDATE_ROWS_EVENT, or
-    UPDATE_ROWS_EVENT.
+    @return One of PARTIAL_UPDATE_ROWS_EVENT, or UPDATE_ROWS_EVENT.
   */
   static mysql::binlog::event::Log_event_type get_update_rows_event_type(
       const THD *thd_arg);

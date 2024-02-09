@@ -316,12 +316,13 @@ enum Log_event_type {
 
   TABLE_MAP_EVENT = 19,
 
-  /**
+  /*
     The V1 event numbers are used from 5.1.16 until mysql-5.6.
+    Not generated since 8.2.0, and rejected by the applier since 8.4.0
   */
-  WRITE_ROWS_EVENT_V1 = 23,
-  UPDATE_ROWS_EVENT_V1 = 24,
-  DELETE_ROWS_EVENT_V1 = 25,
+  OBSOLETE_WRITE_ROWS_EVENT_V1 = 23,
+  OBSOLETE_UPDATE_ROWS_EVENT_V1 = 24,
+  OBSOLETE_DELETE_ROWS_EVENT_V1 = 25,
 
   /**
     Something out of the ordinary happened on the master

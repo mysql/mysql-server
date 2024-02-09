@@ -112,10 +112,11 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
           RAND_HEADER_LEN, USER_VAR_HEADER_LEN, FORMAT_DESCRIPTION_HEADER_LEN,
           XID_HEADER_LEN, BEGIN_LOAD_QUERY_HEADER_LEN,
           EXECUTE_LOAD_QUERY_HEADER_LEN, TABLE_MAP_HEADER_LEN, 0, 0, 0,
-          ROWS_HEADER_LEN_V1,     /* WRITE_ROWS_EVENT_V1*/
-          ROWS_HEADER_LEN_V1,     /* UPDATE_ROWS_EVENT_V1*/
-          ROWS_HEADER_LEN_V1,     /* DELETE_ROWS_EVENT_V1*/
-          INCIDENT_HEADER_LEN, 0, /* HEARTBEAT_LOG_EVENT*/
+          /*
+            First three values are unused as the code for V1 Rows events
+            were removed in 8.4.0
+          */
+          0, 0, 0, INCIDENT_HEADER_LEN, 0, /* HEARTBEAT_LOG_EVENT*/
           IGNORABLE_HEADER_LEN, IGNORABLE_HEADER_LEN, ROWS_HEADER_LEN_V2,
           ROWS_HEADER_LEN_V2, ROWS_HEADER_LEN_V2,
           Gtid_event::POST_HEADER_LENGTH, /*GTID_EVENT*/

@@ -2389,18 +2389,15 @@ void Log_event::print_base64(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
         print_event_info->m_table_map.set_table(map->get_table_id(), map);
         break;
       }
-      case mysql::binlog::event::WRITE_ROWS_EVENT:
-      case mysql::binlog::event::WRITE_ROWS_EVENT_V1: {
+      case mysql::binlog::event::WRITE_ROWS_EVENT: {
         ev = new Write_rows_log_event((const char *)ptr, &fd_evt);
         break;
       }
-      case mysql::binlog::event::DELETE_ROWS_EVENT:
-      case mysql::binlog::event::DELETE_ROWS_EVENT_V1: {
+      case mysql::binlog::event::DELETE_ROWS_EVENT: {
         ev = new Delete_rows_log_event((const char *)ptr, &fd_evt);
         break;
       }
       case mysql::binlog::event::UPDATE_ROWS_EVENT:
-      case mysql::binlog::event::UPDATE_ROWS_EVENT_V1:
       case mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT: {
         ev = new Update_rows_log_event((const char *)ptr, &fd_evt);
         break;
@@ -7892,7 +7889,6 @@ Rows_log_event::Rows_log_event(
       m_cols.bitmap;  // See explanation below while setting is_valid.
 
   if (m_type == mysql::binlog::event::UPDATE_ROWS_EVENT ||
-      m_type == mysql::binlog::event::UPDATE_ROWS_EVENT_V1 ||
       m_type == mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT) {
     /* if bitmap_init fails, is_valid will be set to false*/
     if (likely(!bitmap_init(
@@ -8090,21 +8086,14 @@ size_t Rows_log_event::get_data_size() {
                   : 0) +
              (m_rows_cur - m_rows_buf););
 
-  int data_size = 0;
-  const bool is_v2_event =
-      common_header->type_code > mysql::binlog::event::DELETE_ROWS_EVENT_V1;
-  if (is_v2_event) {
-    data_size = Binary_log_event::ROWS_HEADER_LEN_V2;
-    if (m_extra_row_info.have_ndb_info())
-      data_size +=
-          EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_ndb_length();
+  int data_size = Binary_log_event::ROWS_HEADER_LEN_V2;
+  if (m_extra_row_info.have_ndb_info())
+    data_size +=
+        EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_ndb_length();
 
-    if (m_extra_row_info.have_part())
-      data_size +=
-          EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_part_length();
-  } else {
-    data_size = Binary_log_event::ROWS_HEADER_LEN_V1;
-  }
+  if (m_extra_row_info.have_part())
+    data_size +=
+        EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_part_length();
   data_size += no_bytes_in_map(&m_cols);
   data_size += (uint)(end - buf);
 

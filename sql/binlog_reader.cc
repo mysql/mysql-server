@@ -250,18 +250,6 @@ Binlog_read_error::Error_type binlog_event_deserialize(
     case mysql::binlog::event::FORMAT_DESCRIPTION_EVENT:
       ev = new Format_description_log_event(buf, fde);
       break;
-    case mysql::binlog::event::WRITE_ROWS_EVENT_V1:
-      if (!(fde->post_header_len.empty()))
-        ev = new Write_rows_log_event(buf, fde);
-      break;
-    case mysql::binlog::event::UPDATE_ROWS_EVENT_V1:
-      if (!(fde->post_header_len.empty()))
-        ev = new Update_rows_log_event(buf, fde);
-      break;
-    case mysql::binlog::event::DELETE_ROWS_EVENT_V1:
-      if (!(fde->post_header_len.empty()))
-        ev = new Delete_rows_log_event(buf, fde);
-      break;
     case mysql::binlog::event::TABLE_MAP_EVENT:
       if (!(fde->post_header_len.empty()))
         ev = new Table_map_log_event(buf, fde);

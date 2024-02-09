@@ -13,21 +13,6 @@ SELECT COUNT(*) FROM t3;
 COUNT(*)
 17920
 DROP TABLE t1, t2, t3;
-==== Read modern binlog (version 5.1.23) ====
-SELECT * FROM t1 ORDER BY a;
-a	b
-0	last_insert_id
-1	one
-3	last stm in trx: next event should be xid
-4	four
-674568	random
-SELECT * FROM t2 ORDER BY a;
-a	b
-3	first stm in trx
-SELECT COUNT(*) FROM t3;
-COUNT(*)
-17920
-DROP TABLE t1, t2, t3;
 *** wl#2540 Replication events checksum is not yet defined 
 *** its born-version. One that is temporarily chosen conflicts with 
 *** the version in the following pre-recorded binlogs

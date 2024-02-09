@@ -83,9 +83,6 @@ static int check_event_type(int type, Relay_log_info *rli) {
     case mysql::binlog::event::WRITE_ROWS_EVENT:
     case mysql::binlog::event::UPDATE_ROWS_EVENT:
     case mysql::binlog::event::DELETE_ROWS_EVENT:
-    case mysql::binlog::event::WRITE_ROWS_EVENT_V1:
-    case mysql::binlog::event::UPDATE_ROWS_EVENT_V1:
-    case mysql::binlog::event::DELETE_ROWS_EVENT_V1:
     case mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT:
       /*
         Row events are only allowed if a Format_description_event has

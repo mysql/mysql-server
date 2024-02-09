@@ -114,12 +114,6 @@ bool Transaction_boundary_parser::check_row_logging_constraints(
         log_event_info.event_type != mysql::binlog::event::UPDATE_ROWS_EVENT &&
         log_event_info.event_type != mysql::binlog::event::DELETE_ROWS_EVENT &&
         log_event_info.event_type !=
-            mysql::binlog::event::WRITE_ROWS_EVENT_V1 &&
-        log_event_info.event_type !=
-            mysql::binlog::event::UPDATE_ROWS_EVENT_V1 &&
-        log_event_info.event_type !=
-            mysql::binlog::event::DELETE_ROWS_EVENT_V1 &&
-        log_event_info.event_type !=
             mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT &&
         log_event_info.event_type !=
             mysql::binlog::event::ROWS_QUERY_LOG_EVENT &&
@@ -232,9 +226,6 @@ Transaction_boundary_parser::get_event_boundary_type(
     case mysql::binlog::event::WRITE_ROWS_EVENT:
     case mysql::binlog::event::UPDATE_ROWS_EVENT:
     case mysql::binlog::event::DELETE_ROWS_EVENT:
-    case mysql::binlog::event::WRITE_ROWS_EVENT_V1:
-    case mysql::binlog::event::UPDATE_ROWS_EVENT_V1:
-    case mysql::binlog::event::DELETE_ROWS_EVENT_V1:
     case mysql::binlog::event::VIEW_CHANGE_EVENT:
     case mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT:
       boundary_type = EVENT_BOUNDARY_TYPE_STATEMENT;

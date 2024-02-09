@@ -1617,18 +1617,12 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
       case mysql::binlog::event::WRITE_ROWS_EVENT:
       case mysql::binlog::event::DELETE_ROWS_EVENT:
       case mysql::binlog::event::UPDATE_ROWS_EVENT:
-      case mysql::binlog::event::WRITE_ROWS_EVENT_V1:
-      case mysql::binlog::event::UPDATE_ROWS_EVENT_V1:
-      case mysql::binlog::event::DELETE_ROWS_EVENT_V1:
       case mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT: {
         bool stmt_end = false;
         Table_map_log_event *ignored_map = nullptr;
         if (ev_type == mysql::binlog::event::WRITE_ROWS_EVENT ||
             ev_type == mysql::binlog::event::DELETE_ROWS_EVENT ||
             ev_type == mysql::binlog::event::UPDATE_ROWS_EVENT ||
-            ev_type == mysql::binlog::event::WRITE_ROWS_EVENT_V1 ||
-            ev_type == mysql::binlog::event::DELETE_ROWS_EVENT_V1 ||
-            ev_type == mysql::binlog::event::UPDATE_ROWS_EVENT_V1 ||
             ev_type == mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT) {
           Rows_log_event *new_ev = (Rows_log_event *)ev;
           if (new_ev->get_flags(Rows_log_event::STMT_END_F)) stmt_end = true;

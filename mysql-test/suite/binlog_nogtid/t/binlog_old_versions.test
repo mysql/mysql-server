@@ -41,19 +41,6 @@ SELECT COUNT(*) FROM t3;
 # Reset.
 DROP TABLE t1, t2, t3;
 
-
---echo ==== Read modern binlog (version 5.1.23) ====
-
-# Read binlog.
---exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/ver_5_1_23.001 | $MYSQL --local-infile=1
-# Show result.
-SELECT * FROM t1 ORDER BY a;
-SELECT * FROM t2 ORDER BY a;
-SELECT COUNT(*) FROM t3;
-# Reset.
-DROP TABLE t1, t2, t3;
-
-
 --echo *** wl#2540 Replication events checksum is not yet defined 
 --echo *** its born-version. One that is temporarily chosen conflicts with 
 --echo *** the version in the following pre-recorded binlogs

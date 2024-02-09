@@ -476,12 +476,6 @@ bool show_replicas(THD *thd) {
     <td>0</td><td colspan="2">---</td></tr>
   <tr><td>@ref sect_protocol_replication_event_write_rows_v0</td>
     <td>0</td><td colspan="2">---</td></tr>
-  <tr><td>@ref sect_protocol_replication_event_delete_rows_v1</td>
-    <td>8/6</td><td colspan="2">---</td></tr>
-  <tr><td>@ref sect_protocol_replication_event_update_rows_v1</td>
-    <td>8/6</td><td colspan="2">---</td></tr>
-  <tr><td>@ref sect_protocol_replication_event_write_rows_v1</td>
-    <td>8/6</td><td colspan="2">---</td></tr>
   <tr><td>@ref sect_protocol_replication_event_incident</td>
     <td>2</td><td colspan="2">---</td></tr>
   <tr><td>@ref sect_protocol_replication_event_heartbeat</td>
@@ -798,9 +792,6 @@ bool show_replicas(THD *thd) {
   @subsection sect_protocol_replication_event_delete_rows_v0 DELETE_ROWS_EVENTv0
   @subsection sect_protocol_replication_event_update_rows_v0 UPDATE_ROWS_EVENTv0
   @subsection sect_protocol_replication_event_write_rows_v0 WRITE_ROWS_EVENTv0
-  @subsection sect_protocol_replication_event_delete_rows_v1 DELETE_ROWS_EVENTv1
-  @subsection sect_protocol_replication_event_update_rows_v1 UPDATE_ROWS_EVENTv1
-  @subsection sect_protocol_replication_event_write_rows_v1 WRITE_ROWS_EVENTv1
   @subsection sect_protocol_replication_event_delete_rows_v2 DELETE_ROWS_EVENTv2
   @subsection sect_protocol_replication_event_update_rows_v2 UPDATE_ROWS_EVENTv2
   @subsection sect_protocol_replication_event_write_rows_v2 WRITE_ROWS_EVENTv2

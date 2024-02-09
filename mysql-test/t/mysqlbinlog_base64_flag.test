@@ -40,8 +40,8 @@ select * from t1;
 
 error ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT;
 BINLOG '
-SVtYRxMBAAAAKQAAADQBAAAAABAAAAAAAAAABHRlc3QAAnQxAAEDAAE=
-SVtYRxcBAAAAIgAAAFYBAAAQABAAAAAAAAEAAf/+AgAAAA==
+RaNlZRMBAAAAMAAAAG0DAAAAAG8AAAAAAAEABHRlc3QAAnQxAAEDAAEBAQAg5VHP
+RaNlZR4BAAAAKAAAAJUDAAAAAG8AAAAAAAEAAgAB/wACAAAAczmjEA==
 ';
 # The above line should fail and 2 should not be in the table
 select * from t1;
@@ -55,15 +55,16 @@ select * from t1;
 # This is a binlog statement containing a Format_description_log_event
 # from the same version as the Table_map and Write_rows_log_event.
 BINLOG '
-ODdYRw8BAAAAZgAAAGoAAAABAAQANS4xLjIzLXJjLWRlYnVnLWxvZwAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA4N1hHEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
+YKFlZQ8BAAAAegAAAH4AAAABAAQAOC4zLjAtZGVidWcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAABgoWVlEwANAAgAAAAABAAEAAAAYgAEGggAAAAICAgCAAAACgoKKioAEjQA
+CigAAcmi5+o=
 ';
 
 # This is a Table_map_log_event+Write_rows_log_event corresponding to:
 # INSERT INTO TABLE test.t1 VALUES (3)
 BINLOG '
-TFtYRxMBAAAAKQAAAH8BAAAAABAAAAAAAAAABHRlc3QAAnQxAAEDAAE=
-TFtYRxcBAAAAIgAAAKEBAAAQABAAAAAAAAEAAf/+AwAAAA==
+YKNlZRMBAAAAMAAAAKsEAAAAAG8AAAAAAAEABHRlc3QAAnQxAAEDAAEBAQDVsdOK
+YKNlZR4BAAAAKAAAANMEAAAAAG8AAAAAAAEAAgAB/wADAAAA50UVkQ==
 ';
 # The above line should succeed and 3 should be in the table
 select * from t1;
@@ -93,14 +94,14 @@ BINLOG '
 AAAAAAAAAAAAAAAAAADgJ1hHEzgNAAgAEgAEBAQEEgAATwAEGggICAg=
 ';
 
-# The following is a Write_rows_log_event with event type 23, i.e.,
+# The following is a Write_rows_log_event with event type 30, i.e.,
 # not supported by the Format_description_log_event above.  It
 # corresponds to the following query:
 # INSERT INTO t1 VALUES (5)
 error 1149;
 BINLOG '
-Dl1YRxMBAAAAKQAAADQBAAAAABAAAAAAAAAABHRlc3QAAnQxAAEDAAE=
-Dl1YRxcBAAAAIgAAAFYBAAAQABAAAAAAAAEAAf/+BQAAAA==
+jKNlZRMBAAAAMAAAAOkFAAAAAG8AAAAAAAEABHRlc3QAAnQxAAEDAAEBAQCwxzWH
+jKNlZR4BAAAAKAAAABEGAAAAAG8AAAAAAAEAAgAB/wAFAAAAVI7NfA==
 ';
 # the above line should fail and 5 should not be in the binlog.
 select * from t1;

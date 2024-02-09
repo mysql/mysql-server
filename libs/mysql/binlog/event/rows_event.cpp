@@ -446,7 +446,6 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
           READER_TRY_SET(part_id_placeholder, read<uint16_t>);
           m_extra_row_info.set_partition_id(part_id_placeholder);
           if (event_type == UPDATE_ROWS_EVENT ||
-              event_type == UPDATE_ROWS_EVENT_V1 ||
               event_type == PARTIAL_UPDATE_ROWS_EVENT) {
             READER_TRY_SET(part_id_placeholder, read<uint16_t>);
             m_extra_row_info.set_source_partition_id(part_id_placeholder);
@@ -467,7 +466,7 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
   n_bits_len = (m_width + 7) / 8;
   READER_TRY_CALL(assign, &columns_before_image, n_bits_len);
 
-  if (event_type == UPDATE_ROWS_EVENT || event_type == UPDATE_ROWS_EVENT_V1 ||
+  if (event_type == UPDATE_ROWS_EVENT ||
       event_type == PARTIAL_UPDATE_ROWS_EVENT) {
     READER_TRY_CALL(assign, &columns_after_image, n_bits_len);
   } else
@@ -611,16 +610,11 @@ void Rows_event::print_long_info(std::ostream &info) {
   this->print_event_info(info);
 
   // TODO: Extract table names and column data.
-  if (this->get_event_type() == WRITE_ROWS_EVENT_V1 ||
-      this->get_event_type() == WRITE_ROWS_EVENT)
-    info << "\nType: Insert";
+  if (this->get_event_type() == WRITE_ROWS_EVENT) info << "\nType: Insert";
 
-  if (this->get_event_type() == DELETE_ROWS_EVENT_V1 ||
-      this->get_event_type() == DELETE_ROWS_EVENT)
-    info << "\nType: Delete";
+  if (this->get_event_type() == DELETE_ROWS_EVENT) info << "\nType: Delete";
 
-  if (this->get_event_type() == UPDATE_ROWS_EVENT_V1 ||
-      this->get_event_type() == UPDATE_ROWS_EVENT ||
+  if (this->get_event_type() == UPDATE_ROWS_EVENT ||
       this->get_event_type() == PARTIAL_UPDATE_ROWS_EVENT)
     info << "\nType: Update";
 }
