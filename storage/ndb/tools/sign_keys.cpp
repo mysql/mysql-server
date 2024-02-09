@@ -370,7 +370,7 @@ struct {
 
   void print() {
     if (nodes)
-      fprintf(stderr, "Read %d node%s from custer configuration.\n", nodes,
+      fprintf(stderr, "Read %d node%s from cluster configuration.\n", nodes,
               plural(nodes));
     if (matched) {
       fprintf(stderr, "Found %d node%s configured to run on this host", matched,

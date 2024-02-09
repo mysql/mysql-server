@@ -1035,7 +1035,7 @@ bool CertLifetime::set_lifetime(int expire_days, int extra_days) {
   int extra_hours = extra_days * 24;
   if (extra_hours) {
     union {
-      long rn;
+      unsigned long rn;
       unsigned char c[sizeof(long)];
     } u;
     RAND_bytes(u.c, sizeof(long));
