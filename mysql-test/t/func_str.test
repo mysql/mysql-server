@@ -2675,3 +2675,9 @@ SELECT QUOTE(NULL);
 SELECT QUOTE(x'80');
 --error ER_INVALID_CHARACTER_STRING
 SELECT QUOTE(_utf8mb4 x'80');
+
+--echo #
+--echo # Bug: The insert function does handle inserting beyond the string for multibyte characters
+--echo #
+set names utf8mb4;
+select insert('Å', 2, 1, 'a');

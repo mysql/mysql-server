@@ -5822,3 +5822,10 @@ SELECT QUOTE(x'80');
 ERROR HY000: Cannot convert string '\x80' from binary to utf8mb4
 SELECT QUOTE(_utf8mb4 x'80');
 ERROR HY000: Invalid utf8mb4 character string: '80'
+#
+# Bug: The insert function does handle inserting beyond the string for multibyte characters
+#
+set names utf8mb4;
+select insert('Å', 2, 1, 'a');
+insert('Å', 2, 1, 'a')
+Å

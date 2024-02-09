@@ -1355,7 +1355,7 @@ String *Item_func_insert::val_str(String *str) {
       res->charpos(static_cast<size_t>(length), static_cast<size_t>(start));
 
   /* Re-testing with corrected params */
-  if (start > orig_len)
+  if (start >= orig_len)
     return res; /* purecov: inspected */  // Wrong param; skip insert
   if (length > orig_len - start) length = orig_len - start;
 
