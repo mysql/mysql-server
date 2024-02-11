@@ -3,15 +3,8 @@
 
 ###############################################################################
 #
-# Bug#29941988 : PREFIX INDEX LENGTH IGNORED WHILE UPGRADING PARTITIONED TABLES
-# Bug#29941959 : PREFIX KEYS REFERRED BY PARTITIONING FUNC NOT REQUIRED TO BE
-#                PART OF UNIQUE KEY
-#     WL#13588 : Deprecate support for prefix keys in partition functions
-#
-###############################################################################
-#
-# WL#13588 : Deprecate support for prefix keys in partition functions
 # WL#16054 : Remove support for prefix keys in partition functions
+# Checks whether upgrade fails when prefix keys are found in partition function
 #
 ################################################################################
 #   Test for upgrade error to be shown in the error log on upgrade
