@@ -556,25 +556,22 @@ inline void Filesort_info::unpack_addon_fields(
   }
 
   // Unpack the actual addon fields (if any).
-  const uchar *start_of_record = buff + addon_fields->first_addon_offset();
+  const uchar *next_record = buff + addon_fields->first_addon_offset();
   for (const Sort_addon_field &addonf : *addon_fields) {
     Field *field = addonf.field;
+    const uchar *end_of_record = next_record;
     const bool is_null =
         addonf.null_bit && (addonf.null_bit & nulls[addonf.null_offset]);
     if (is_null) {
       field->set_null();
+    } else if (!field->table->has_null_row()) {
+      field->set_notnull();
+      end_of_record = field->unpack(next_record);
     }
-    if (Packed_addon_fields) {
-      if (!is_null && !field->table->has_null_row()) {
-        field->set_notnull();
-        start_of_record = field->unpack(start_of_record);
-      }
+    if constexpr (Packed_addon_fields) {
+      next_record = end_of_record;
     } else {
-      if (!is_null) {
-        field->set_notnull();
-        field->unpack(start_of_record);
-      }
-      start_of_record += addonf.max_length;
+      next_record += addonf.max_length;
     }
   }
 }

@@ -216,3 +216,29 @@ a	LENGTH(b)
 1	40001
 SET sort_buffer_size=DEFAULT;
 DROP TABLE t1;
+#
+# Bug#36104667: Assertion failure in Sort_param::make_sortkey with
+#               hypergraph_optimizer
+#
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (), ();
+CREATE TABLE t2 (
+pk INT PRIMARY KEY,
+vc VARCHAR(1) NOT NULL,
+gc INT GENERATED ALWAYS AS (1));
+INSERT INTO t2 VALUES (1, 'a', DEFAULT), (2, 'b', DEFAULT);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT gc FROM t2;
+gc
+1
+1
+SELECT 1
+FROM t1,
+t2 RIGHT OUTER JOIN t1 AS t3 ON t2.pk = t3.i
+WHERE (SELECT 1 FROM t1 WHERE t2.vc = 'x')
+ORDER BY t2.vc;
+1
+DROP TABLE t1, t2;

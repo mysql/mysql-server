@@ -1523,7 +1523,9 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
         if (static_cast<size_t>(to_end - to) < addonf.max_length) {
           return UINT_MAX;
         }
-        if (addonf.null_bit && field->is_null()) {
+        if (field->table->has_null_row()) {
+          assert(field->table->is_nullable());
+        } else if (addonf.null_bit && field->is_null()) {
           nulls[addonf.null_offset] |= addonf.null_bit;
         } else {
           uchar *ptr [[maybe_unused]] =

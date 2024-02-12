@@ -211,3 +211,34 @@ SELECT a, LENGTH(b) FROM t1 ORDER BY a DESC;
 SET sort_buffer_size=DEFAULT;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36104667: Assertion failure in Sort_param::make_sortkey with
+--echo #               hypergraph_optimizer
+--echo #
+
+CREATE TABLE t1 (i INT);
+
+INSERT INTO t1 VALUES (), ();
+
+CREATE TABLE t2 (
+  pk INT PRIMARY KEY,
+  vc VARCHAR(1) NOT NULL,
+  gc INT GENERATED ALWAYS AS (1));
+
+INSERT INTO t2 VALUES (1, 'a', DEFAULT), (2, 'b', DEFAULT);
+
+ANALYZE TABLE t1, t2;
+
+# The next query doesn't fail unless we do this first. (It fills the
+# vc column in t2's record buffer with garbage.)
+SELECT gc FROM t2;
+
+# Used to hit an assertion failure with the hypergraph optimizer.
+SELECT 1
+FROM t1,
+     t2 RIGHT OUTER JOIN t1 AS t3 ON t2.pk = t3.i
+WHERE (SELECT 1 FROM t1 WHERE t2.vc = 'x')
+ORDER BY t2.vc;
+
+DROP TABLE t1, t2;
