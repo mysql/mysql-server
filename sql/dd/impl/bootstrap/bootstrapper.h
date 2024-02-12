@@ -270,7 +270,6 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version);
   and in place upgrade.
 
   @param thd            Thread context.
-  @param is_dd_upgrade  Flag to indicate if it is in place upgrade.
   @param d              Dictionary instance
 
   @return       Upon failure, return true, otherwise false.
