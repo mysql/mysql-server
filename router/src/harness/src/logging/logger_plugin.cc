@@ -57,7 +57,7 @@ using LoggerHandlersList = std::vector<std::pair<std::string, HandlerPtr>>;
 std::vector<on_switch_to_configured_loggers>
     g_on_switch_to_configured_loggers_clbs;
 
-#ifdef WIN32
+#ifdef _WIN32
 #define NULL_DEVICE_NAME "NUL"
 #define STDOUT_DEVICE_NAME "CON"
 // no equivalent for STDERR_DEVICE_NAME
@@ -73,7 +73,7 @@ std::vector<on_switch_to_configured_loggers>
 static inline bool legal_consolelog_destination(
     const std::string &destination) {
   if ((destination != NULL_DEVICE_NAME) &&
-#ifndef WIN32
+#ifndef _WIN32
       (destination != STDERR_DEVICE_NAME) &&
 #endif
       (destination != STDOUT_DEVICE_NAME))
