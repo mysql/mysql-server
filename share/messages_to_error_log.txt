@@ -4263,43 +4263,43 @@ ER_KEYRING_OKV_FAILED_TO_SET_KEY_FILE
 ER_KEYRING_OKV_KEY_MISMATCH
   eng "Private key does not match the certificate public key"
 
-ER_KEYRING_ENCRYPTED_FILE_INCORRECT_KEYRING_FILE
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_INCORRECT_KEYRING_FILE
   eng "Incorrect Keyring file"
 
-ER_KEYRING_ENCRYPTED_FILE_DECRYPTION_FAILED
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_DECRYPTION_FAILED
   eng "Keyring_encrypted_file decryption failed. Please verify --keyring-encrypted-file-password option value."
 
-ER_KEYRING_ENCRYPTED_FILE_FOUND_MALFORMED_BACKUP_FILE
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_FOUND_MALFORMED_BACKUP_FILE
   eng "Found malformed keyring backup file - removing it"
 
-ER_KEYRING_ENCRYPTED_FILE_FAILED_TO_RESTORE_KEYRING
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_FAILED_TO_RESTORE_KEYRING
   eng "Error while restoring keyring from backup file cannot overwrite keyring with backup"
 
-ER_KEYRING_ENCRYPTED_FILE_FAILED_TO_FLUSH_KEYRING
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_FAILED_TO_FLUSH_KEYRING
   eng "Error while flushing in-memory keyring into keyring file"
 
-ER_KEYRING_ENCRYPTED_FILE_ENCRYPTION_FAILED
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_ENCRYPTION_FAILED
   eng "Keyring_encrypted_file encryption failed. Please verify --keyring-encrypted-file-password option value."
 
-ER_KEYRING_ENCRYPTED_FILE_INVALID_KEYRING_DIR
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_INVALID_KEYRING_DIR
   eng "keyring_encrypted_file_data cannot be set to new value as the keyring file cannot be created/accessed in the provided path"
 
-ER_KEYRING_ENCRYPTED_FILE_FAILED_TO_CREATE_KEYRING_DIR
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_FAILED_TO_CREATE_KEYRING_DIR
   eng "Could not create keyring directory The keyring_encrypted_file will stay unusable until correct path to the keyring directory gets provided"
 
-ER_KEYRING_ENCRYPTED_FILE_PASSWORD_IS_INVALID
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_PASSWORD_IS_INVALID
   eng "The keyring_encrypted_file_password must be set to a valid value."
 
-ER_KEYRING_ENCRYPTED_FILE_PASSWORD_IS_TOO_LONG
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_PASSWORD_IS_TOO_LONG
   eng "Too long keyring_encrypted_file_password value."
 
-ER_KEYRING_ENCRYPTED_FILE_INIT_FAILURE
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_INIT_FAILURE
   eng "keyring_encrypted_file initialization failure. Please check if the keyring_encrypted_file_data points to readable keyring file or keyring file can be created in the specified location or password to decrypt keyring file is correct."
 
-ER_KEYRING_ENCRYPTED_FILE_INIT_FAILED_DUE_TO_INTERNAL_ERROR
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_INIT_FAILED_INTERNAL_ERROR
   eng "keyring_encrypted_file initialization failure due to internal exception inside the plugin"
 
-ER_KEYRING_ENCRYPTED_FILE_GEN_KEY_FAILED_DUE_TO_INTERNAL_ERROR
+OBSOLETE_ER_KEYRING_ENCRYPTED_FILE_GEN_KEY_FAILED_INTERNAL_ERROR
   eng "Failed to generate a key due to internal exception inside keyring_encrypted_file plugin"
 
 ER_KEYRING_AWS_FAILED_TO_SET_CMK_ID

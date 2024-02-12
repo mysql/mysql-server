@@ -596,7 +596,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/telemetry_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
@@ -627,6 +626,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Tue Jan 30 2024 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.4.0-1
+- Removed keyring_encrypted_file plugin
+
 * Thu Jan 25 2024 Georgi "Joro" Kodinov <Georgi.Kodinov@oracle.com> - 8.4.0-1
 - Removed mysql_ssl_rsa_setup
 
