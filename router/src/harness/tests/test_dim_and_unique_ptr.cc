@@ -307,7 +307,8 @@ class TestDIM : public mysql_harness::DIM {
 
  public:
   TestDIM(const TestDIM &) = delete;
-  TestDIM &operator==(const TestDIM &) = delete;
+  TestDIM &operator=(const TestDIM &) = delete;
+
   static TestDIM &instance() {
     static TestDIM manager;
     return manager;
