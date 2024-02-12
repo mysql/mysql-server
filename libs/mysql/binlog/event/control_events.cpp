@@ -815,7 +815,7 @@ Heartbeat_event::Heartbeat_event(const char *buf,
   if (ident_len > FN_REFLEN - 1) ident_len = FN_REFLEN - 1;
 
   READER_TRY_SET(log_ident, strndup<const char *>, ident_len);
-  if (log_ident == 0)
+  if (log_ident == nullptr)
     READER_THROW("Invalid binary log file name in Heartbeat event");
 
   READER_CATCH_ERROR;
