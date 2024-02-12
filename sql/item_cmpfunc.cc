@@ -1393,22 +1393,22 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
  */
 inline bool wrap_in_cast(Item **item, enum_field_types type) {
   THD *thd = current_thd;
-  Item *cast;
+  Item *cast = nullptr;
   switch (type) {
     case MYSQL_TYPE_DATETIME: {
-      if (!(cast = new Item_typecast_datetime(*item, false))) return true;
+      cast = new Item_typecast_datetime(*item, false);
       break;
     }
     case MYSQL_TYPE_DATE: {
-      if (!(cast = new Item_typecast_date(*item, false))) return true;
+      cast = new Item_typecast_date(*item, false);
       break;
     }
     case MYSQL_TYPE_TIME: {
-      if (!(cast = new Item_typecast_time(*item))) return true;
+      cast = new Item_typecast_time(*item);
       break;
     }
     case MYSQL_TYPE_DOUBLE: {
-      if (!(cast = new Item_typecast_real(*item))) return true;
+      cast = new Item_typecast_real(*item);
       break;
     }
     default: {
@@ -1416,8 +1416,9 @@ inline bool wrap_in_cast(Item **item, enum_field_types type) {
       return true;
     }
   }
+  if (cast == nullptr) return true;
 
-  cast->fix_fields(thd, item);
+  if (cast->fix_fields(thd, item)) return true;
   thd->change_item_tree(item, cast);
 
   return false;

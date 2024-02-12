@@ -778,7 +778,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
   */
   for (uint i = const_tables; i < tables; ++i) {
     JOIN_TAB *const tab = best_ref[i];
-    if (tab->position() && tab->join_cond()) {
+    if (tab->position() != nullptr && tab->join_cond() != nullptr) {
       tab->set_join_cond(substitute_for_best_equal_field(
           thd, tab->join_cond(), tab->cond_equal, map2table));
       if (thd->is_error()) {
@@ -787,9 +787,10 @@ bool JOIN::optimize(bool finalize_access_paths) {
         return true;
       }
       tab->join_cond()->update_used_tables();
-      if (tab->join_cond())
-        tab->join_cond()->walk(&Item::cast_incompatible_args,
-                               enum_walk::POSTFIX, nullptr);
+      if (tab->join_cond()->walk(&Item::cast_incompatible_args,
+                                 enum_walk::POSTFIX, nullptr)) {
+        return true;
+      }
     }
   }
 
@@ -813,10 +814,10 @@ bool JOIN::optimize(bool finalize_access_paths) {
   }
 
   // Inject cast nodes into the WHERE conditions
-  if (where_cond)
-    where_cond->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
-                     nullptr);
-
+  if (where_cond != nullptr && where_cond->walk(&Item::cast_incompatible_args,
+                                                enum_walk::POSTFIX, nullptr)) {
+    return true;
+  }
   error = -1; /* if goto err */
 
   if (optimize_distinct_group_order()) return true;
@@ -866,21 +867,28 @@ bool JOIN::optimize(bool finalize_access_paths) {
   }
 
   // Inject cast nodes into the HAVING conditions
-  if (having_cond)
-    having_cond->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
-                      nullptr);
-
+  if (having_cond != nullptr &&
+      having_cond->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                        nullptr)) {
+    return true;
+  }
   // Traverse the expressions and inject cast nodes to compatible data types,
   // if needed.
   for (Item *item : *fields) {
-    item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+    if (item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                   nullptr)) {
+      return true;
+    }
   }
 
   // Also GROUP BY expressions, so that find_in_group_list() doesn't
   // inadvertently fail because the SELECT list has casts that GROUP BY doesn't.
   for (ORDER *ord = group_list.order; ord != nullptr; ord = ord->next) {
-    (*ord->item)
-        ->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+    if ((*ord->item)
+            ->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                   nullptr)) {
+      return true;
+    }
   }
 
   // See if this subquery can be evaluated with subselect_indexsubquery_engine
