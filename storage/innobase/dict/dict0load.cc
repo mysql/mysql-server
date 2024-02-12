@@ -1273,7 +1273,8 @@ TODO - This function is to be removed by WL#16210
 
 @param[in]      validate        true when the previous shutdown was not clean
 @return the highest space ID found. */
-static inline space_id_t dict_check_sys_tablespaces(bool validate) {
+[[maybe_unused]] static inline space_id_t dict_check_sys_tablespaces(
+    bool validate) {
   space_id_t max_space_id = 0;
   btr_pcur_t pcur;
   const rec_t *rec;
@@ -1428,7 +1429,7 @@ TODO - This function is to be removed by WL#16210
 
 @param[in]      validate        Whether to do validation on the table.
 @return the highest space ID found. */
-static inline space_id_t dict_check_sys_tables(bool validate) {
+[[maybe_unused]] static inline space_id_t dict_check_sys_tables(bool validate) {
   space_id_t max_space_id = 0;
   btr_pcur_t pcur;
   const rec_t *rec;
