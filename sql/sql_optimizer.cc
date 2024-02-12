@@ -1552,12 +1552,6 @@ bool JOIN::optimize_distinct_group_order() {
     }
     ORDER *o;
     bool all_order_fields_used;
-    /*
-      There is possibility where the REF_SLICE_ACTIVE points to
-      freed-up Items like in case of non-first row of a UPDATE
-      trigger. Re-load the Items before using the slice.
-    */
-    refresh_base_slice();
     if ((o = create_order_from_distinct(
              thd, ref_items[REF_SLICE_ACTIVE], order.order, fields,
              /*skip_aggregates=*/true,

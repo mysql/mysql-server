@@ -4274,6 +4274,10 @@ bool Query_block::save_properties(THD *thd) {
 
   saved_cond_count = cond_count;
 
+  if (!base_ref_items.empty()) {
+    m_saved_base_items =
+        base_ref_items.prefix(fields.size()).Clone(thd->mem_root);
+  }
   if (group_list.first &&
       save_order_properties(thd, &group_list, &group_list_ptrs))
     return true;
@@ -4801,6 +4805,11 @@ bool Query_block::save_cmd_properties(THD *thd) {
   they are ready for optimization.
 */
 void Query_block::restore_cmd_properties() {
+  // Restore base_ref_items. Do this before we dive into subqueries, so that
+  // their outer references point to valid items when they update used tables.
+  std::copy(m_saved_base_items.begin(), m_saved_base_items.end(),
+            base_ref_items.begin());
+
   for (Query_expression *u = first_inner_query_expression(); u;
        u = u->next_query_expression())
     u->restore_cmd_properties();

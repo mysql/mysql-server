@@ -2360,6 +2360,11 @@ class Query_block : public Query_term {
   /// Number of GROUP BY expressions added to all_fields
   int hidden_group_field_count;
 
+  /// A backup of the items in base_ref_items at the end of preparation, so that
+  /// base_ref_items can be restored between executions of prepared statements.
+  /// Empty if it's a regular statement.
+  Ref_item_array m_saved_base_items;
+
   /**
     True if query block has semi-join nests merged into it. Notice that this
     is updated earlier than sj_nests, so check this if info is needed
