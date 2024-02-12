@@ -258,6 +258,9 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
   }
 
 #if !defined(NDEBUG)
+  // The following bind calls are just for code coverage. The query from the
+  // test is "SELECT * FROM mle_db.my_table WHERE col_c = ?". The calls are
+  // expected to fail as param_index = 1 which is >= number of parameters.
   if (SERVICE_PLACEHOLDER(mysql_debug_keyword_service)
           ->lookup_debug_keyword("code_coverage")) {
     SERVICE_PLACEHOLDER(mysql_stmt_bind)

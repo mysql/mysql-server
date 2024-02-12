@@ -106,6 +106,7 @@ SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_
 SET SESSION DEBUG = '-d,attribute_get';
 
 SET SESSION DEBUG = '+d,code_coverage';
+--error ER_DATA_OUT_OF_RANGE
 SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
 SET SESSION DEBUG = '-d,code_coverage';
 

@@ -166,11 +166,7 @@ id	col_a	col_b	col_c	col_d
 SET SESSION DEBUG = '-d,attribute_get';
 SET SESSION DEBUG = '+d,code_coverage';
 SELECT test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12);
-test_execute_prepared_statement("SELECT * FROM mle_db.my_table WHERE col_c = ?", 12)
-id	col_a	col_b	col_c	col_d
-2	row_b	13	12	1.200000
-5	row_a	12	12	1.200000
-
+ERROR 22003: Parameter index value is out of range in 'statement'
 SET SESSION DEBUG = '-d,code_coverage';
 DROP TABLE my_table;
 DROP DATABASE mle_db;
