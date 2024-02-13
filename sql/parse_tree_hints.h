@@ -289,6 +289,21 @@ class PT_hint_max_execution_time : public PT_hint {
   }
 };
 
+class PT_hint_force_join : public PT_hint {
+  typedef PT_hint super;
+
+public:
+  LEX_CSTRING force_join;
+
+  explicit PT_hint_force_join(const LEX_CSTRING join_method)
+      : PT_hint(FORCE_JOIN_HINT_ENUM, true),
+        force_join(join_method) {
+    printf("FORCE JOIN hint made \n");
+  }
+
+  bool do_contextualize(Parse_context *pc) override;
+};
+
 class PT_hint_sys_var : public PT_hint {
   const LEX_CSTRING sys_var_name;
   Item *sys_var_value;

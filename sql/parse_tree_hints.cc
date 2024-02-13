@@ -520,6 +520,12 @@ bool PT_hint_max_execution_time::do_contextualize(Parse_context *pc) {
   return false;
 }
 
+bool PT_hint_force_join::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
+  pc->thd->force_join = &force_join;
+  return false;
+}
+
 bool PT_hint_sys_var::do_contextualize(Parse_context *pc) {
   if (!sys_var_value) {
     // No warning here, warning is issued by parser.

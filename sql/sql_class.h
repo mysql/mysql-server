@@ -929,7 +929,11 @@ using Event_tracking_data_stack = std::stack<Event_tracking_data>;
 class THD : public MDL_context_owner,
             public Query_arena,
             public Open_tables_state {
- public:
+public:
+  LEX_CSTRING *force_join = nullptr;
+
+public:
+
   /**
     Controlled memory stats for this session.
     This member is the first in THD,

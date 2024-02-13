@@ -4112,6 +4112,8 @@ void CostingReceiver::ProposeHashJoin(
     bool *wrote_trace) {
   if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_HASH_JOIN)) return;
 
+  if (this->m_thd->force_join != nullptr && strcmp(this->m_thd->force_join->str, "HJ") != 0) return;
+
   if (Overlaps(left_path->parameter_tables, right) ||
       Overlaps(right_path->parameter_tables, left | RAND_TABLE_BIT)) {
     // Parameterizations must be resolved by nested loop.
@@ -4684,6 +4686,9 @@ void CostingReceiver::ProposeNestedLoopJoin(
     bool *wrote_trace) {
   if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN))
     return;
+
+  if (this->m_thd->force_join != nullptr && strcmp(this->m_thd->force_join->str, "NLJ") != 0) return;
+
 
   if (Overlaps(left_path->parameter_tables, right)) {
     // The outer table cannot pick up values from the inner,
