@@ -39,7 +39,7 @@ const char dir_sep = '/';
 const std::string path_sep = ":";
 #else
 const char dir_sep = '\\';
-const std::string path_sep = ";";
+// const std::string path_sep = ";";
 #endif
 
 static const char kProgramName[] = "mysqlrouter";
