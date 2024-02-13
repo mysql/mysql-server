@@ -1387,10 +1387,6 @@ CREATE PROCEDURE low_priority()
    SELECT * from t1 where f2=f1;
 
 --error ER_PARSE_ERROR
-CREATE PROCEDURE master_ssl_verify_server_cert()
-   SELECT * from t1 where f2=f1;
-
---error ER_PARSE_ERROR
 CREATE PROCEDURE match()
    SELECT * from t1 where f2=f1;
 
@@ -4305,17 +4301,6 @@ delimiter //;
 --error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   low_priority:BEGIN
-    SELECT @x;
-END//
-delimiter ;//
-
---disable_warnings ER_SP_DOES_NOT_EXIST ONCE
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error ER_PARSE_ERROR
-CREATE PROCEDURE sp1()
-  master_ssl_verify_server_cert:BEGIN
     SELECT @x;
 END//
 delimiter ;//
@@ -9363,16 +9348,6 @@ delimiter ;//
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP PROCEDURE IF EXISTS sp1;
 
-delimiter //;
---error ER_PARSE_ERROR
-CREATE PROCEDURE sp1()
-BEGIN
-    declare master_ssl_verify_server_cert char;
-END//
-delimiter ;//
-
---disable_warnings ER_SP_DOES_NOT_EXIST ONCE
-DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
 --error ER_PARSE_ERROR
@@ -11929,17 +11904,6 @@ delimiter //;
 --error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
-    declare master_ssl_verify_server_cert condition for sqlstate '02000';
-    declare exit handler for int set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error ER_PARSE_ERROR
-CREATE PROCEDURE sp1( )
-BEGIN
     declare match condition for sqlstate '02000';
     declare exit handler for match set @var2 = 1;
 END//
@@ -14392,16 +14356,6 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare low_priority handler for sqlstate '02000' set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error ER_PARSE_ERROR
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare master_ssl_verify_server_cert handler for sqlstate '02000' set @var2 = 1;
 END//
 delimiter ;//
 

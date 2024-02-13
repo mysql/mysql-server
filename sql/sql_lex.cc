@@ -174,7 +174,7 @@ void st_parsing_options::reset() {
 /**
  Cleans slave connection info.
 */
-void struct_slave_connection::reset() {
+void struct_replica_connection::reset() {
   user = nullptr;
   password = nullptr;
   plugin_auth = nullptr;
@@ -464,7 +464,7 @@ void LEX::reset() {
   is_explain_analyze = false;
   set_using_hypergraph_optimizer(false);
   is_lex_started = true;
-  reset_slave_info.all = false;
+  reset_replica_info.all = false;
   mi.channel = nullptr;
 
   wild = nullptr;
@@ -482,7 +482,6 @@ void LEX::reset() {
   clear_privileges();
   grant_as.cleanup();
   alter_user_attribute = enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED;
-  m_is_replication_deprecated_syntax_used = false;
   m_was_replication_command_executed = false;
 
   grant_if_exists = false;
@@ -4999,7 +4998,7 @@ bool LEX::set_wild(LEX_STRING w) {
   return wild == nullptr;
 }
 
-void LEX_MASTER_INFO::initialize() {
+void LEX_SOURCE_INFO::initialize() {
   host = user = password = log_file_name = bind_addr = nullptr;
   network_namespace = nullptr;
   port = connect_retry = 0;
@@ -5036,7 +5035,7 @@ void LEX_MASTER_INFO::initialize() {
   assign_gtids_to_anonymous_transactions_manual_uuid = nullptr;
 }
 
-void LEX_MASTER_INFO::set_unspecified() {
+void LEX_SOURCE_INFO::set_unspecified() {
   initialize();
   sql_delay = -1;
 }

@@ -2668,3 +2668,91 @@ SET @@sql_mode=@save_sql_mode;
 
 DROP TABLE `full`;
 
+--echo #
+--echo # WL#14189: Replace old terms in CHANGE MASTER TO and START SLAVE params
+--echo # Check keywords can still be used in other contexts.
+--echo #
+
+CREATE TABLE get_source_public_key(i INT);
+
+CREATE TABLE source_auto_position(i INT);
+
+CREATE TABLE source_bind(i INT);
+
+CREATE TABLE source_compression_algorithm(i INT);
+
+CREATE TABLE source_connect_retry(i INT);
+
+CREATE TABLE source_delay(i INT);
+
+CREATE TABLE source_heartbeat_period(i INT);
+
+CREATE TABLE source_host(i INT);
+
+CREATE TABLE source_log_file(i INT);
+
+CREATE TABLE source_log_pos(i INT);
+
+CREATE TABLE source_password(i INT);
+
+CREATE TABLE source_port(i INT);
+
+CREATE TABLE source_public_key_path(i INT);
+
+CREATE TABLE source_retry_count(i INT);
+
+CREATE TABLE source_ssl(i INT);
+
+CREATE TABLE source_ssl_ca(i INT);
+
+CREATE TABLE source_ssl_capath(i INT);
+
+CREATE TABLE source_ssl_cert(i INT);
+
+CREATE TABLE source_ssl_cipher(i INT);
+
+CREATE TABLE source_ssl_crl(i INT);
+
+CREATE TABLE source_ssl_crlpath(i INT);
+
+CREATE TABLE source_ssl_key(i INT);
+
+CREATE TABLE source_ssl_verify_server_cert(i INT);
+
+CREATE TABLE source_tls_ciphersuites(i INT);
+
+CREATE TABLE source_tls_version(i INT);
+
+CREATE TABLE source_user(i INT);
+
+CREATE TABLE source_zstd_compression_level(i INT);
+
+# Clean up
+
+DROP TABLE get_source_public_key;
+DROP TABLE source_auto_position;
+DROP TABLE source_bind;
+DROP TABLE source_compression_algorithm;
+DROP TABLE source_connect_retry;
+DROP TABLE source_delay;
+DROP TABLE source_heartbeat_period;
+DROP TABLE source_host;
+DROP TABLE source_log_file;
+DROP TABLE source_log_pos;
+DROP TABLE source_password;
+DROP TABLE source_port;
+DROP TABLE source_public_key_path;
+DROP TABLE source_retry_count;
+DROP TABLE source_ssl;
+DROP TABLE source_ssl_ca;
+DROP TABLE source_ssl_capath;
+DROP TABLE source_ssl_cert;
+DROP TABLE source_ssl_cipher;
+DROP TABLE source_ssl_crl;
+DROP TABLE source_ssl_crlpath;
+DROP TABLE source_ssl_key;
+DROP TABLE source_ssl_verify_server_cert;
+DROP TABLE source_tls_ciphersuites;
+DROP TABLE source_tls_version;
+DROP TABLE source_user;
+DROP TABLE source_zstd_compression_level;

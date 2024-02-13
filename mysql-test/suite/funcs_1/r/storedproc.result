@@ -2478,10 +2478,6 @@ CREATE PROCEDURE low_priority()
 SELECT * from t1 where f2=f1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'low_priority()
 SELECT * from t1 where f2=f1' at line 1
-CREATE PROCEDURE master_ssl_verify_server_cert()
-SELECT * from t1 where f2=f1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'master_ssl_verify_server_cert()
-SELECT * from t1 where f2=f1' at line 1
 CREATE PROCEDURE match()
 SELECT * from t1 where f2=f1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'match()
@@ -5072,14 +5068,6 @@ low_priority:BEGIN
 SELECT @x;
 END//
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'low_priority:BEGIN
-SELECT @x;
-END' at line 2
-DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1()
-master_ssl_verify_server_cert:BEGIN
-SELECT @x;
-END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'master_ssl_verify_server_cert:BEGIN
 SELECT @x;
 END' at line 2
 DROP PROCEDURE IF EXISTS sp1;
@@ -8727,13 +8715,6 @@ END' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
-declare master_ssl_verify_server_cert char;
-END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'master_ssl_verify_server_cert char;
-END' at line 3
-DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1()
-BEGIN
 declare match char;
 END//
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'match char;
@@ -10894,16 +10875,6 @@ declare exit handler for low_priority set @var2 = 1;
 END//
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'low_priority condition for sqlstate '02000';
 declare exit handler for low_priori' at line 3
-DROP PROCEDURE IF EXISTS sp1;
-Warnings:
-Note	1305	PROCEDURE db_storedproc.sp1 does not exist
-CREATE PROCEDURE sp1( )
-BEGIN
-declare master_ssl_verify_server_cert condition for sqlstate '02000';
-declare exit handler for int set @var2 = 1;
-END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'master_ssl_verify_server_cert condition for sqlstate '02000';
-declare exit handl' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
 Note	1305	PROCEDURE db_storedproc.sp1 does not exist
@@ -13101,15 +13072,6 @@ BEGIN
 declare low_priority handler for sqlstate '02000' set @var2 = 1;
 END//
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'low_priority handler for sqlstate '02000' set @var2 = 1;
-END' at line 3
-DROP PROCEDURE IF EXISTS sp1;
-Warnings:
-Note	1305	PROCEDURE db_storedproc.sp1 does not exist
-CREATE PROCEDURE sp1( )
-BEGIN
-declare master_ssl_verify_server_cert handler for sqlstate '02000' set @var2 = 1;
-END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'master_ssl_verify_server_cert handler for sqlstate '02000' set @var2 = 1;
 END' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:

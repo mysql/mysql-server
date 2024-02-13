@@ -350,12 +350,12 @@ using Group_list_ptrs = Mem_root_array<ORDER *>;
   would better be renamed to st_lex_replication_info).  Some fields,
   e.g., delay, are saved in Relay_log_info, not in Master_info.
 */
-struct LEX_MASTER_INFO {
+struct LEX_SOURCE_INFO {
   /*
     The array of IGNORE_SERVER_IDS has a preallocation, and is not expected
     to grow to any significant size, so no instrumentation.
   */
-  LEX_MASTER_INFO() : repl_ignore_server_ids(PSI_NOT_INSTRUMENTED) {
+  LEX_SOURCE_INFO() : repl_ignore_server_ids(PSI_NOT_INSTRUMENTED) {
     initialize();
   }
   char *host, *user, *password, *log_file_name, *bind_addr, *network_namespace;
@@ -372,7 +372,7 @@ struct LEX_MASTER_INFO {
     UNTIL_SQL_AFTER_GTIDS
   } gtid_until_condition;
   bool until_after_gaps;
-  bool slave_until;
+  bool replica_until;
   bool for_channel;
 
   /*
@@ -453,11 +453,11 @@ struct LEX_MASTER_INFO {
 
  private:
   // Not copyable or assignable.
-  LEX_MASTER_INFO(const LEX_MASTER_INFO &);
-  LEX_MASTER_INFO &operator=(const LEX_MASTER_INFO &);
+  LEX_SOURCE_INFO(const LEX_SOURCE_INFO &);
+  LEX_SOURCE_INFO &operator=(const LEX_SOURCE_INFO &);
 };
 
-struct LEX_RESET_SLAVE {
+struct LEX_RESET_REPLICA {
   bool all;
 };
 
@@ -2542,14 +2542,14 @@ class Secondary_engine_execution_context {
   virtual ~Secondary_engine_execution_context() = default;
 };
 
-typedef struct struct_slave_connection {
+typedef struct struct_replica_connection {
   char *user;
   char *password;
   char *plugin_auth;
   char *plugin_dir;
 
   void reset();
-} LEX_SLAVE_CONNECTION;
+} LEX_REPLICA_CONNECTION;
 
 struct st_sp_chistics {
   LEX_CSTRING comment;
@@ -4068,11 +4068,11 @@ struct LEX : public Query_tables_list {
   HA_CHECK_OPT check_opt;  // check/repair options
   HA_CREATE_INFO *create_info;
   KEY_CREATE_INFO key_create_info;
-  LEX_MASTER_INFO mi;  // used by CHANGE REPLICATION SOURCE
-  LEX_SLAVE_CONNECTION slave_connection;
+  LEX_SOURCE_INFO mi;  // used by CHANGE REPLICATION SOURCE
+  LEX_REPLICA_CONNECTION replica_connection;
   Server_options server_options;
   USER_RESOURCES mqh;
-  LEX_RESET_SLAVE reset_slave_info;
+  LEX_RESET_REPLICA reset_replica_info;
   ulong type;
   /**
     This field is used as a work field during resolving to validate
@@ -4147,7 +4147,7 @@ struct LEX : public Query_tables_list {
    to all dynamic privileges.
   */
   bool grant_privilege;
-  uint slave_thd_opt, start_transaction_opt;
+  uint replica_thd_opt, start_transaction_opt;
   int select_number;  ///< Number of query block (by EXPLAIN)
   uint8 create_view_algorithm;
   uint8 create_view_check;
@@ -4611,18 +4611,6 @@ struct LEX : public Query_tables_list {
     @return True if the query cannot be run with old optimizer, false otherwise.
   */
   bool validate_use_in_old_optimizer();
-
- private:
-  bool m_is_replication_deprecated_syntax_used{false};
-
- public:
-  bool is_replication_deprecated_syntax_used() {
-    return m_is_replication_deprecated_syntax_used;
-  }
-
-  void set_replication_deprecated_syntax_used() {
-    m_is_replication_deprecated_syntax_used = true;
-  }
 
  private:
   bool m_was_replication_command_executed{false};
