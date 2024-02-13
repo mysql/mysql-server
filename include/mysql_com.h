@@ -226,18 +226,12 @@
 #define REFRESH_REPLICA                         \
   64 /**< Reset source info and restart replica \
         thread, RESET REPLICA */
-#define REFRESH_SLAVE                                        \
-  REFRESH_REPLICA /**< Reset source info and restart replica \
-        thread, RESET REPLICA. This is deprecated,           \
-        use REFRESH_REPLICA instead. */
 
 #define REFRESH_SOURCE                       \
   128 /**< Remove all bin logs in the index  \
          and truncate the index. Also resets \
          GTID information. Command:          \
          RESET BINARY LOGS AND GTIDS */
-#define REFRESH_MASTER \
-  REFRESH_SOURCE /**< This is deprecated, use REFRESH_SOURCE instead. */
 
 #define REFRESH_ERROR_LOG 256    /**< Rotate only the error log */
 #define REFRESH_ENGINE_LOG 512   /**< Flush all storage engine logs */

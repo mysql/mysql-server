@@ -60,6 +60,7 @@
 #define MAX_MYSQL_VAR 8192
 #define SHUTDOWN_DEF_TIMEOUT 3600 /* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
+#define FIRST_SOURCE_COMMAND_VERSION 80200
 
 const char *host = nullptr;
 char *user = nullptr;
@@ -676,6 +677,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
   for (; argc > 0; argv++, argc--) {
     int option;
     bool log_warnings = true;
+    std::string admin_reset_command = "RESET REPLICA, BINARY LOGS AND GTIDS";
     switch (option = find_type(argv[0], &command_typelib, FIND_TYPE_BASIC)) {
       case ADMIN_CREATE: {
         char buff[FN_REFLEN + 20];
@@ -747,9 +749,13 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         }
         break;
       case ADMIN_REFRESH:
+        if (mysql_get_server_version(mysql) < FIRST_SOURCE_COMMAND_VERSION) {
+          admin_reset_command = "RESET REPLICA, MASTER";
+        }
+
         if (mysql_query(mysql, "FLUSH PRIVILEGES, STATUS") ||
             mysql_query(mysql, "FLUSH TABLES WITH READ LOCK") ||
-            mysql_query(mysql, "RESET REPLICA, MASTER")) {
+            mysql_query(mysql, admin_reset_command.c_str())) {
           my_printf_error(0, "refresh failed; error: '%s'", error_flags,
                           mysql_error(mysql));
           return -1;
