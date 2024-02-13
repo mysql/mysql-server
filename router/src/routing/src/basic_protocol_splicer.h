@@ -359,7 +359,9 @@ class TlsSwitchableConnection {
     conn_->async_recv(channel_.recv_buffer(),
                       [this, func = std::forward<Func>(func)](
                           std::error_code ec, size_t transferred) {
-                        channel_.view_sync_raw();
+                        if (ec == std::error_code()) {
+                          channel_.view_sync_raw();
+                        }
 
                         func(ec, transferred);
                       });
