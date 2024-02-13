@@ -1131,8 +1131,11 @@ static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
       tree->keys_map.set_bit(key_part->key);
       // A range constructed for a multi-valued index is never exact.
       // So it needs the filter to be placed on top of the range access.
-      if (field->is_array()) {
-        tree->inexact = true;
+      if (param->using_real_indexes) {
+        int index = param->real_keynr[key_part->key];
+        if (param->table->key_info[index].flags & HA_MULTI_VALUED_KEY) {
+          tree->inexact = true;
+        }
       }
     }
   }

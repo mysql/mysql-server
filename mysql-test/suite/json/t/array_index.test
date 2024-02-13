@@ -1946,12 +1946,6 @@ EXPLAIN ANALYZE SELECT * FROM test WHERE "3" MEMBER OF (j->'$[*]')
 SELECT * FROM test WHERE "3" MEMBER OF (j->'$[*]') ORDER BY id DESC;
 DROP TABLE test;
 
-# If the unique record filter is not properly closed by any of queries above,
-# then the TempTable plugin will have ref_count > 0 on restart. This should be
-# at the very end of the test.
---let $restart_parameters= restart:
---source include/restart_mysqld.inc
-
 --echo #
 --echo # Bug#35507211 virtual longlong Item_typecast_signed::val_int():
 --echo #              Assertion `is_nullable()' fail
@@ -2002,3 +1996,38 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36288425: Hypergraph: Wrong result with range queries
+--echo #               and multi-valued indexes
+--echo #
+
+CREATE TABLE t (
+  id int NOT NULL,
+  doc_id int DEFAULT NULL,
+  doc json DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY mv_doc_id (doc_id,(cast(json_extract(doc,'$.val') as unsigned array)))
+);
+
+INSERT INTO t VALUES
+(1, 2, '{"val":[1,2,3,4,5]}'), (2, 1, '{"val":[2,3,4,5]}'),
+(3, 2, '{"val":[2]}'), (4, NULL, '{"val":[3,4,5]}'),
+(5, 2, '{"val":[4,5]}'), (6, 3, '{"val":[1]}'),
+(7, 4, '{"val":[2,3,4,5]}'),(9, NULL, '{"val":[3,4,5]}'),
+(10, 4, '{"val":[4,5]}');
+
+ANALYZE TABLE t;
+
+let $query = SELECT * FROM t WHERE doc_id >= 3 and doc_id < 4;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval $query;
+
+DROP TABLE t;
+
+# If the unique record filter is not properly closed by any of queries above,
+# then the TempTable plugin will have ref_count > 0 on restart. This should be
+# at the very end of the test.
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc

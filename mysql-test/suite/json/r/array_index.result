@@ -3359,7 +3359,6 @@ id	j
 5	["6", "3", "10", "95"]
 4	["7", "15", "3", "27"]
 DROP TABLE test;
-# restart:
 #
 # Bug#35507211 virtual longlong Item_typecast_signed::val_int():
 #              Assertion `is_nullable()' fail
@@ -3404,3 +3403,33 @@ SELECT * FROM t WHERE JSON_CONTAINS(j->'$[*]', '[1,2,3]');
 j
 [1, 2, 3]
 DROP TABLE t;
+#
+# Bug#36288425: Hypergraph: Wrong result with range queries
+#               and multi-valued indexes
+#
+CREATE TABLE t (
+id int NOT NULL,
+doc_id int DEFAULT NULL,
+doc json DEFAULT NULL,
+PRIMARY KEY (id),
+KEY mv_doc_id (doc_id,(cast(json_extract(doc,'$.val') as unsigned array)))
+);
+INSERT INTO t VALUES
+(1, 2, '{"val":[1,2,3,4,5]}'), (2, 1, '{"val":[2,3,4,5]}'),
+(3, 2, '{"val":[2]}'), (4, NULL, '{"val":[3,4,5]}'),
+(5, 2, '{"val":[4,5]}'), (6, 3, '{"val":[1]}'),
+(7, 4, '{"val":[2,3,4,5]}'),(9, NULL, '{"val":[3,4,5]}'),
+(10, 4, '{"val":[4,5]}');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT = tree SELECT * FROM t WHERE doc_id >= 3 and doc_id < 4;
+EXPLAIN
+-> Filter: ((t.doc_id >= 3) and (t.doc_id < 4))  (rows=1)
+    -> Index range scan on t using mv_doc_id over (3 <= doc_id < 4)  (rows=1)
+
+SELECT * FROM t WHERE doc_id >= 3 and doc_id < 4;
+id	doc_id	doc
+6	3	{"val": [1]}
+DROP TABLE t;
+# restart:
