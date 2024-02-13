@@ -226,10 +226,10 @@ void initialize_channel_connection_info(Channel_connection_info *channel_info) {
   channel_info->view_id = nullptr;
 }
 
-static void set_mi_ssl_options(LEX_MASTER_INFO *lex_mi,
+static void set_mi_ssl_options(LEX_SOURCE_INFO *lex_mi,
                                Channel_ssl_info *channel_ssl_info) {
-  lex_mi->ssl = (channel_ssl_info->use_ssl) ? LEX_MASTER_INFO::LEX_MI_ENABLE
-                                            : LEX_MASTER_INFO::LEX_MI_DISABLE;
+  lex_mi->ssl = (channel_ssl_info->use_ssl) ? LEX_SOURCE_INFO::LEX_MI_ENABLE
+                                            : LEX_SOURCE_INFO::LEX_MI_DISABLE;
 
   if (channel_ssl_info->ssl_ca_file_name != nullptr) {
     lex_mi->ssl_ca = channel_ssl_info->ssl_ca_file_name;
@@ -264,15 +264,15 @@ static void set_mi_ssl_options(LEX_MASTER_INFO *lex_mi,
   }
 
   if (channel_ssl_info->tls_ciphersuites != nullptr) {
-    lex_mi->tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_STRING;
+    lex_mi->tls_ciphersuites = LEX_SOURCE_INFO::SPECIFIED_STRING;
     lex_mi->tls_ciphersuites_string = channel_ssl_info->tls_ciphersuites;
   } else {
-    lex_mi->tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_NULL;
+    lex_mi->tls_ciphersuites = LEX_SOURCE_INFO::SPECIFIED_NULL;
   }
 
   lex_mi->ssl_verify_server_cert = (channel_ssl_info->ssl_verify_server_cert)
-                                       ? LEX_MASTER_INFO::LEX_MI_ENABLE
-                                       : LEX_MASTER_INFO::LEX_MI_DISABLE;
+                                       ? LEX_SOURCE_INFO::LEX_MI_ENABLE
+                                       : LEX_SOURCE_INFO::LEX_MI_DISABLE;
 }
 
 int channel_create(const char *channel, Channel_creation_info *channel_info) {
@@ -280,7 +280,7 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
 
   Master_info *mi = nullptr;
   int error = 0;
-  LEX_MASTER_INFO *lex_mi = nullptr;
+  LEX_SOURCE_INFO *lex_mi = nullptr;
 
   bool thd_created = false;
   THD *thd = current_thd;
@@ -306,7 +306,7 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
     if ((error = add_new_channel(&mi, channel))) goto err;
   }
 
-  lex_mi = new LEX_MASTER_INFO();
+  lex_mi = new LEX_SOURCE_INFO();
   lex_mi->channel = channel;
   lex_mi->host = channel_info->hostname;
   /*
@@ -314,24 +314,24 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
     or 'group_replication_applier' channel wants to set the port number
     to '0' as there is no actual network usage on these channels.
   */
-  lex_mi->port_opt = LEX_MASTER_INFO::LEX_MI_ENABLE;
+  lex_mi->port_opt = LEX_SOURCE_INFO::LEX_MI_ENABLE;
   lex_mi->port = channel_info->port;
   lex_mi->user = channel_info->user;
   lex_mi->password = channel_info->password;
   lex_mi->sql_delay = channel_info->sql_delay;
   lex_mi->connect_retry = channel_info->connect_retry;
   if (channel_info->retry_count) {
-    lex_mi->retry_count_opt = LEX_MASTER_INFO::LEX_MI_ENABLE;
+    lex_mi->retry_count_opt = LEX_SOURCE_INFO::LEX_MI_ENABLE;
     lex_mi->retry_count = channel_info->retry_count;
   }
 
   if (channel_info->auto_position) {
-    lex_mi->auto_position = LEX_MASTER_INFO::LEX_MI_ENABLE;
+    lex_mi->auto_position = LEX_SOURCE_INFO::LEX_MI_ENABLE;
     if ((mi && mi->is_auto_position()) ||
         channel_info->auto_position == RPL_SERVICE_SERVER_DEFAULT) {
       // So change replication source allows new configurations with a running
       // SQL thread
-      lex_mi->auto_position = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+      lex_mi->auto_position = LEX_SOURCE_INFO::LEX_MI_UNCHANGED;
     }
   }
 
@@ -340,18 +340,18 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
   }
 
   if (channel_info->get_public_key) {
-    lex_mi->get_public_key = LEX_MASTER_INFO::LEX_MI_ENABLE;
+    lex_mi->get_public_key = LEX_SOURCE_INFO::LEX_MI_ENABLE;
     if (mi && mi->get_public_key) {
       // So change replication source allows new configurations with a running
       // SQL thread
-      lex_mi->get_public_key = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+      lex_mi->get_public_key = LEX_SOURCE_INFO::LEX_MI_UNCHANGED;
     }
   } else {
-    lex_mi->get_public_key = LEX_MASTER_INFO::LEX_MI_DISABLE;
+    lex_mi->get_public_key = LEX_SOURCE_INFO::LEX_MI_DISABLE;
     if (mi && !mi->get_public_key) {
       // So change replication source allows new configurations with a running
       // SQL thread
-      lex_mi->get_public_key = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+      lex_mi->get_public_key = LEX_SOURCE_INFO::LEX_MI_UNCHANGED;
     }
   }
 
@@ -362,16 +362,16 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
     lex_mi->zstd_compression_level = channel_info->zstd_compression_level;
   }
 
-  lex_mi->m_source_connection_auto_failover = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+  lex_mi->m_source_connection_auto_failover = LEX_SOURCE_INFO::LEX_MI_UNCHANGED;
   if (channel_info->m_source_connection_auto_failover) {
     if (mi && !mi->is_source_connection_auto_failover()) {
       lex_mi->m_source_connection_auto_failover =
-          LEX_MASTER_INFO::LEX_MI_ENABLE;
+          LEX_SOURCE_INFO::LEX_MI_ENABLE;
     }
   } else {
     if (mi && mi->is_source_connection_auto_failover()) {
       lex_mi->m_source_connection_auto_failover =
-          LEX_MASTER_INFO::LEX_MI_DISABLE;
+          LEX_SOURCE_INFO::LEX_MI_DISABLE;
     }
   }
 
@@ -418,7 +418,7 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   DBUG_TRACE;
   int error = 0;
   int thread_mask = 0;
-  LEX_MASTER_INFO lex_mi;
+  LEX_SOURCE_INFO lex_mi;
   ulong thread_start_id = 0;
   bool thd_created = false;
   THD *thd = current_thd;
@@ -445,16 +445,16 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   }
 
   if (threads_to_start & CHANNEL_APPLIER_THREAD) {
-    thread_mask |= SLAVE_SQL;
+    thread_mask |= REPLICA_SQL;
   }
   if (threads_to_start & CHANNEL_RECEIVER_THREAD) {
-    thread_mask |= SLAVE_IO;
+    thread_mask |= REPLICA_IO;
   }
 
   // Nothing to be done here
   if (!thread_mask) goto err;
 
-  LEX_SLAVE_CONNECTION lex_connection;
+  LEX_REPLICA_CONNECTION lex_connection;
   lex_connection.reset();
 
   if (!Rpl_channel_credentials::get_instance().get_credentials(channel, user,
@@ -470,18 +470,18 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   if (connection_info->until_condition != CHANNEL_NO_UNTIL_CONDITION) {
     switch (connection_info->until_condition) {
       case CHANNEL_UNTIL_APPLIER_AFTER_GTIDS:
-        lex_mi.gtid_until_condition = LEX_MASTER_INFO::UNTIL_SQL_AFTER_GTIDS;
+        lex_mi.gtid_until_condition = LEX_SOURCE_INFO::UNTIL_SQL_AFTER_GTIDS;
         lex_mi.gtid = connection_info->gtid;
         break;
       case CHANNEL_UNTIL_APPLIER_BEFORE_GTIDS:
-        lex_mi.gtid_until_condition = LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS;
+        lex_mi.gtid_until_condition = LEX_SOURCE_INFO::UNTIL_SQL_BEFORE_GTIDS;
         lex_mi.gtid = connection_info->gtid;
         break;
       case CHANNEL_UNTIL_APPLIER_AFTER_GAPS:
         lex_mi.until_after_gaps = true;
         break;
       case CHANNEL_UNTIL_VIEW_ID:
-        assert((thread_mask & SLAVE_SQL) && connection_info->view_id);
+        assert((thread_mask & REPLICA_SQL) && connection_info->view_id);
         lex_mi.view_id = connection_info->view_id;
         break;
       default:
@@ -489,7 +489,7 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
     }
   }
 
-  if (wait_for_connection && (thread_mask & SLAVE_IO))
+  if (wait_for_connection && (thread_mask & REPLICA_IO))
     thread_start_id = mi->slave_run_id;
 
   if (!thd) {
@@ -500,7 +500,7 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   error = start_slave(thd, &lex_connection, &lex_mi, thread_mask, mi,
                       use_server_mta_configuration);
 
-  if (wait_for_connection && (thread_mask & SLAVE_IO) && !error) {
+  if (wait_for_connection && (thread_mask & REPLICA_IO) && !error) {
     mysql_mutex_lock(&mi->run_lock);
     /*
       If the ids are still equal this means the start thread method did not
@@ -551,12 +551,12 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
   init_thread_mask(&server_thd_mask, mi, false /* not inverse*/);
 
   if ((threads_to_stop & CHANNEL_APPLIER_THREAD) &&
-      (server_thd_mask & SLAVE_SQL)) {
-    thread_mask |= SLAVE_SQL;
+      (server_thd_mask & REPLICA_SQL)) {
+    thread_mask |= REPLICA_SQL;
   }
   if ((threads_to_stop & CHANNEL_RECEIVER_THREAD) &&
-      (server_thd_mask & SLAVE_IO)) {
-    thread_mask |= SLAVE_IO;
+      (server_thd_mask & REPLICA_IO)) {
+    thread_mask |= REPLICA_IO;
   }
   if ((threads_to_stop & CHANNEL_RECEIVER_THREAD) &&
       (server_thd_mask & SLAVE_MONITOR)) {
@@ -716,9 +716,9 @@ bool channel_is_active(const char *channel,
     case CHANNEL_NO_THD:
       return true;  // return true as the channel exists
     case CHANNEL_RECEIVER_THREAD:
-      return thread_mask & SLAVE_IO;
+      return thread_mask & REPLICA_IO;
     case CHANNEL_APPLIER_THREAD:
-      return thread_mask & SLAVE_SQL;
+      return thread_mask & REPLICA_SQL;
     default:
       assert(0);
   }
@@ -1206,7 +1206,7 @@ bool is_any_slave_channel_running(int thread_mask) {
     mi = it->second;
 
     if (mi) {
-      if ((thread_mask & SLAVE_IO) != 0) {
+      if ((thread_mask & REPLICA_IO) != 0) {
         mysql_mutex_lock(&mi->run_lock);
         is_running = mi->slave_running;
         mysql_mutex_unlock(&mi->run_lock);
@@ -1216,7 +1216,7 @@ bool is_any_slave_channel_running(int thread_mask) {
         }
       }
 
-      if ((thread_mask & SLAVE_SQL) != 0) {
+      if ((thread_mask & REPLICA_SQL) != 0) {
         mysql_mutex_lock(&mi->rli->run_lock);
         is_running = mi->rli->slave_running;
         mysql_mutex_unlock(&mi->rli->run_lock);
@@ -1245,7 +1245,7 @@ bool is_any_slave_channel_running_with_failover_enabled(int thread_mask) {
 
     if (mi && Master_info::is_configured(mi) &&
         mi->is_source_connection_auto_failover()) {
-      if ((thread_mask & SLAVE_IO) != 0) {
+      if ((thread_mask & REPLICA_IO) != 0) {
         mysql_mutex_lock(&mi->run_lock);
         is_running = mi->slave_running;
         mysql_mutex_unlock(&mi->run_lock);
@@ -1255,7 +1255,7 @@ bool is_any_slave_channel_running_with_failover_enabled(int thread_mask) {
         }
       }
 
-      if ((thread_mask & SLAVE_SQL) != 0) {
+      if ((thread_mask & REPLICA_SQL) != 0) {
         mysql_mutex_lock(&mi->rli->run_lock);
         is_running = mi->rli->slave_running;
         mysql_mutex_unlock(&mi->rli->run_lock);

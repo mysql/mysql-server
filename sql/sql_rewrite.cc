@@ -87,7 +87,7 @@
 #include "sql/auth/auth_common.h"  // GRANT_ACL
 #include "sql/handler.h"
 #include "sql/log_event.h"    // append_query_string
-#include "sql/rpl_replica.h"  // SLAVE_SQL, SLAVE_IO
+#include "sql/rpl_replica.h"  // REPLICA_SQL, REPLICA_IO
 #include "sql/set_var.h"
 #include "sql/sql_admin.h"  // Sql_cmd_clone
 #include "sql/sql_class.h"  // THD
@@ -274,10 +274,10 @@ bool rewrite_query(THD *thd, Consumer_type type, const Rewrite_params *params,
     case SQLCOM_SHOW_CREATE_USER:
       rw.reset(new Rewriter_show_create_user(thd, type, params));
       break;
-    case SQLCOM_CHANGE_MASTER:
+    case SQLCOM_CHANGE_REPLICATION_SOURCE:
       rw.reset(new Rewriter_change_replication_source(thd, type));
       break;
-    case SQLCOM_SLAVE_START:
+    case SQLCOM_REPLICA_START:
       rw.reset(new Rewriter_replica_start(thd, type));
       break;
     case SQLCOM_CREATE_SERVER:
@@ -1486,15 +1486,15 @@ bool Rewriter_change_replication_source::rewrite(String &rlb) const {
                      lex->mi.connect_retry, lex->mi.connect_retry > 0);
   comma = append_int(
       &rlb, comma, STRING_WITH_LEN("SOURCE_RETRY_COUNT ="), lex->mi.retry_count,
-      lex->mi.retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
+      lex->mi.retry_count_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED);
   // SOURCE_DELAY 0..SOURCE_DELAY_MAX; -1 == unspecified
   comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_DELAY ="),
                      lex->mi.sql_delay, lex->mi.sql_delay >= 0);
 
-  if (lex->mi.heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
+  if (lex->mi.heartbeat_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED) {
     comma_maybe(&rlb, &comma);
     rlb.append(STRING_WITH_LEN("SOURCE_HEARTBEAT_PERIOD = "));
-    if (lex->mi.heartbeat_opt == LEX_MASTER_INFO::LEX_MI_DISABLE)
+    if (lex->mi.heartbeat_opt == LEX_SOURCE_INFO::LEX_MI_DISABLE)
       rlb.append(STRING_WITH_LEN("0"));
     else {
       char buf[64];
@@ -1510,8 +1510,8 @@ bool Rewriter_change_replication_source::rewrite(String &rlb) const {
                      lex->mi.pos, lex->mi.pos != 0);
   comma = append_int(
       &rlb, comma, STRING_WITH_LEN("SOURCE_AUTO_POSITION ="),
-      (lex->mi.auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE) ? 1 : 0,
-      lex->mi.auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
+      (lex->mi.auto_position == LEX_SOURCE_INFO::LEX_MI_ENABLE) ? 1 : 0,
+      lex->mi.auto_position != LEX_SOURCE_INFO::LEX_MI_UNCHANGED);
 
   // log file (slave SQL thread)
   comma = append_str(&rlb, comma, "RELAY_LOG_FILE =", lex->mi.relay_log_name);
@@ -1521,8 +1521,8 @@ bool Rewriter_change_replication_source::rewrite(String &rlb) const {
 
   // SSL
   comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_SSL ="),
-                     lex->mi.ssl == LEX_MASTER_INFO::LEX_MI_ENABLE ? 1 : 0,
-                     lex->mi.ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
+                     lex->mi.ssl == LEX_SOURCE_INFO::LEX_MI_ENABLE ? 1 : 0,
+                     lex->mi.ssl != LEX_SOURCE_INFO::LEX_MI_UNCHANGED);
   comma = append_str(&rlb, comma, "SOURCE_SSL_CA =", lex->mi.ssl_ca);
   comma = append_str(&rlb, comma, "SOURCE_SSL_CAPATH =", lex->mi.ssl_capath);
   comma = append_str(&rlb, comma, "SOURCE_SSL_CERT =", lex->mi.ssl_cert);
@@ -1532,15 +1532,15 @@ bool Rewriter_change_replication_source::rewrite(String &rlb) const {
   comma = append_str(&rlb, comma, "SOURCE_SSL_CIPHER =", lex->mi.ssl_cipher);
   comma = append_int(
       &rlb, comma, STRING_WITH_LEN("SOURCE_SSL_VERIFY_SERVER_CERT ="),
-      (lex->mi.ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE) ? 1
+      (lex->mi.ssl_verify_server_cert == LEX_SOURCE_INFO::LEX_MI_ENABLE) ? 1
                                                                          : 0,
-      lex->mi.ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
+      lex->mi.ssl_verify_server_cert != LEX_SOURCE_INFO::LEX_MI_UNCHANGED);
 
   comma = append_str(&rlb, comma, "SOURCE_TLS_VERSION =", lex->mi.tls_version);
-  if (LEX_MASTER_INFO::SPECIFIED_NULL == lex->mi.tls_ciphersuites) {
+  if (LEX_SOURCE_INFO::SPECIFIED_NULL == lex->mi.tls_ciphersuites) {
     comma_maybe(&rlb, &comma);
     rlb.append(STRING_WITH_LEN("SOURCE_TLS_CIPHERSUITES = NULL"));
-  } else if (LEX_MASTER_INFO::SPECIFIED_STRING == lex->mi.tls_ciphersuites) {
+  } else if (LEX_SOURCE_INFO::SPECIFIED_STRING == lex->mi.tls_ciphersuites) {
     comma = append_str(&rlb, comma, "SOURCE_TLS_CIPHERSUITES =",
                        lex->mi.tls_ciphersuites_string);
   }
@@ -1550,11 +1550,11 @@ bool Rewriter_change_replication_source::rewrite(String &rlb) const {
                      "SOURCE_PUBLIC_KEY_PATH =", lex->mi.public_key_path);
   comma = append_int(
       &rlb, comma, STRING_WITH_LEN("GET_SOURCE_PUBLIC_KEY ="),
-      (lex->mi.get_public_key == LEX_MASTER_INFO::LEX_MI_ENABLE) ? 1 : 0,
-      lex->mi.get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
+      (lex->mi.get_public_key == LEX_SOURCE_INFO::LEX_MI_ENABLE) ? 1 : 0,
+      lex->mi.get_public_key != LEX_SOURCE_INFO::LEX_MI_UNCHANGED);
 
   // IGNORE_SERVER_IDS
-  if (lex->mi.repl_ignore_server_ids_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
+  if (lex->mi.repl_ignore_server_ids_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED) {
     bool comma_list = false;
 
     comma_maybe(&rlb, &comma);
@@ -1578,11 +1578,11 @@ bool Rewriter_change_replication_source::rewrite(String &rlb) const {
   comma = append_int(&rlb, comma,
                      STRING_WITH_LEN("SOURCE_CONNECTION_AUTO_FAILOVER ="),
                      (lex->mi.m_source_connection_auto_failover ==
-                      LEX_MASTER_INFO::LEX_MI_ENABLE)
+                      LEX_SOURCE_INFO::LEX_MI_ENABLE)
                          ? 1
                          : 0,
                      lex->mi.m_source_connection_auto_failover !=
-                         LEX_MASTER_INFO::LEX_MI_UNCHANGED);
+                         LEX_SOURCE_INFO::LEX_MI_UNCHANGED);
 
   /* channel options -- no preceding comma here! */
   if (lex->mi.for_channel)
@@ -1607,12 +1607,13 @@ bool Rewriter_replica_start::rewrite(String &rlb) const {
 
   /* thread_types */
 
-  if (lex->slave_thd_opt & SLAVE_IO) rlb.append(STRING_WITH_LEN(" IO_THREAD"));
+  if (lex->replica_thd_opt & REPLICA_IO)
+    rlb.append(STRING_WITH_LEN(" IO_THREAD"));
 
-  if (lex->slave_thd_opt & SLAVE_IO && lex->slave_thd_opt & SLAVE_SQL)
+  if (lex->replica_thd_opt & REPLICA_IO && lex->replica_thd_opt & REPLICA_SQL)
     rlb.append(STRING_WITH_LEN(","));
 
-  if (lex->slave_thd_opt & SLAVE_SQL)
+  if (lex->replica_thd_opt & REPLICA_SQL)
     rlb.append(STRING_WITH_LEN(" SQL_THREAD"));
 
   /* UNTIL options */
@@ -1620,7 +1621,7 @@ bool Rewriter_replica_start::rewrite(String &rlb) const {
   // GTID
   if (lex->mi.gtid) {
     rlb.append((lex->mi.gtid_until_condition ==
-                LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS)
+                LEX_SOURCE_INFO::UNTIL_SQL_BEFORE_GTIDS)
                    ? " UNTIL SQL_BEFORE_GTIDS"
                    : " UNTIL SQL_AFTER_GTIDS");
     append_str(&rlb, false, " =", lex->mi.gtid);
@@ -1646,13 +1647,14 @@ bool Rewriter_replica_start::rewrite(String &rlb) const {
   }
 
   /* connection options */
-  append_str(&rlb, false, " USER =", lex->slave_connection.user);
+  append_str(&rlb, false, " USER =", lex->replica_connection.user);
 
-  if (lex->slave_connection.password)
+  if (lex->replica_connection.password)
     rlb.append(STRING_WITH_LEN(" PASSWORD = <secret>"));
 
-  append_str(&rlb, false, " DEFAULT_AUTH =", lex->slave_connection.plugin_auth);
-  append_str(&rlb, false, " PLUGIN_DIR =", lex->slave_connection.plugin_dir);
+  append_str(&rlb, false,
+             " DEFAULT_AUTH =", lex->replica_connection.plugin_auth);
+  append_str(&rlb, false, " PLUGIN_DIR =", lex->replica_connection.plugin_dir);
 
   /* channel options */
   if (lex->mi.for_channel)
@@ -1789,17 +1791,17 @@ bool Rewriter_start_group_replication::rewrite(String &rlb) const {
 
   rlb.append(STRING_WITH_LEN("START GROUP_REPLICATION"));
 
-  if (lex->slave_connection.user) {
-    comma = append_str(&rlb, comma, " USER =", lex->slave_connection.user);
+  if (lex->replica_connection.user) {
+    comma = append_str(&rlb, comma, " USER =", lex->replica_connection.user);
   }
 
-  if (lex->slave_connection.password) {
+  if (lex->replica_connection.password) {
     comma = append_str(&rlb, comma, " PASSWORD =", "<secret>");
   }
 
-  if (lex->slave_connection.plugin_auth) {
+  if (lex->replica_connection.plugin_auth) {
     comma = append_str(&rlb, comma,
-                       " DEFAULT_AUTH =", lex->slave_connection.plugin_auth);
+                       " DEFAULT_AUTH =", lex->replica_connection.plugin_auth);
   }
 
   return true;

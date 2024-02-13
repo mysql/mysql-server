@@ -53,15 +53,15 @@ void init_thread_mask(int *mask, Master_info *mi, bool inverse,
   int tmp_mask{0};
   DBUG_TRACE;
 
-  if (set_io) tmp_mask |= SLAVE_IO;
-  if (set_sql) tmp_mask |= SLAVE_SQL;
+  if (set_io) tmp_mask |= REPLICA_IO;
+  if (set_sql) tmp_mask |= REPLICA_SQL;
   if (!ignore_monitor_thread && set_monitor &&
       mi->is_source_connection_auto_failover()) {
     tmp_mask |= SLAVE_MONITOR;
   }
 
   if (inverse) {
-    tmp_mask ^= (SLAVE_IO | SLAVE_SQL);
+    tmp_mask ^= (REPLICA_IO | REPLICA_SQL);
     if (!ignore_monitor_thread && mi->is_source_connection_auto_failover()) {
       tmp_mask ^= SLAVE_MONITOR;
     }

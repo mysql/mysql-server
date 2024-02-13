@@ -1383,51 +1383,6 @@ bool is_require_row_format_violation(const THD *thd) {
   return false;
 }
 
-// TODO: once the old syntax is removed, remove this as well.
-static const std::unordered_map<std::string, std::string> deprecated_field_map{
-    {"Replica_IO_State", "Slave_IO_State"},
-    {"Source_Host", "Master_Host"},
-    {"Source_User", "Master_User"},
-    {"Source_Port", "Master_Port"},
-    {"Source_Log_File", "Master_Log_File"},
-    {"Read_Source_Log_Pos", "Read_Master_Log_Pos"},
-    {"Relay_Source_Log_File", "Relay_Master_Log_File"},
-    {"Replica_IO_Running", "Slave_IO_Running"},
-    {"Replica_SQL_Running", "Slave_SQL_Running"},
-    {"Exec_Source_Log_Pos", "Exec_Master_Log_Pos"},
-    {"Source_SSL_Allowed", "Master_SSL_Allowed"},
-    {"Source_SSL_CA_File", "Master_SSL_CA_File"},
-    {"Source_SSL_CA_Path", "Master_SSL_CA_Path"},
-    {"Source_SSL_Cert", "Master_SSL_Cert"},
-    {"Source_SSL_Cipher", "Master_SSL_Cipher"},
-    {"Source_SSL_Key", "Master_SSL_Key"},
-    {"Seconds_Behind_Source", "Seconds_Behind_Master"},
-    {"Source_SSL_Verify_Server_Cert", "Master_SSL_Verify_Server_Cert"},
-    {"Source_Server_Id", "Master_Server_Id"},
-    {"Source_UUID", "Master_UUID"},
-    {"Source_Info_File", "Master_Info_File"},
-    {"Replica_SQL_Running_State", "Slave_SQL_Running_State"},
-    {"Source_Retry_Count", "Master_Retry_Count"},
-    {"Source_Bind", "Master_Bind"},
-    {"Source_SSL_Crl", "Master_SSL_Crl"},
-    {"Source_SSL_Crlpath", "Master_SSL_Crlpath"},
-    {"Source_TLS_Version", "Master_TLS_Version"},
-    {"Source_public_key_path", "Master_public_key_path"},
-    {"Get_Source_public_key", "Get_master_public_key"},
-    {"Server_Id", "Server_id"},
-    {"Source_Id", "Master_id"},
-    {"Replica_UUID", "Slave_UUID"}};
-
-void rename_fields_use_old_replica_source_terms(
-    THD *thd, mem_root_deque<Item *> &field_list) {
-  for (auto &item : field_list) {
-    std::string name{item->full_name()};
-    auto itr = deprecated_field_map.find(name);
-    if (itr != deprecated_field_map.end()) name = itr->second;
-    item->rename(thd->mem_strdup(name.c_str()));
-  }
-}
-
 bool is_immediate_server_gipk_ready(THD &thd) {
   return thd.variables.immediate_server_version != UNDEFINED_SERVER_VERSION &&
          thd.variables.immediate_server_version >= 80030;

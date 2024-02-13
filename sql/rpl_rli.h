@@ -72,7 +72,7 @@ class Rpl_info_handler;
 class Slave_committed_queue;
 class Slave_worker;
 class String;
-struct LEX_MASTER_INFO;
+struct LEX_SOURCE_INFO;
 struct db_worker_hash_entry;
 
 extern uint sql_replica_skip_counter;
@@ -2098,7 +2098,7 @@ class Relay_log_info : public Rpl_info {
      @retval 0      Succeeds to initialize until option object.
      @retval <> 0   A defined error number is return if any error happens.
    */
-  int init_until_option(THD *thd, const LEX_MASTER_INFO *master_param);
+  int init_until_option(THD *thd, const LEX_SOURCE_INFO *master_param);
 
   /**
     Detaches the engine ha_data from THD. The fact

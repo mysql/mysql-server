@@ -3407,7 +3407,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
          thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
 
   if (binary_log->is_open()) {
-    LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
+    LEX_SOURCE_INFO *lex_mi = &thd->lex->mi;
     Query_expression *unit = thd->lex->unit;
     ha_rows event_count, limit_start, limit_end;
     my_off_t pos =
@@ -3753,7 +3753,7 @@ static int find_uniq_filename(char *name, uint32 new_index_number) {
   }
 
   /* print warning if reaching the end of available extensions. */
-  if (next > MAX_ALLOWED_FN_EXT_RESET_MASTER)
+  if (next > MAX_ALLOWED_FN_EXT_RESET_BIN_LOGS)
     LogErr(WARNING_LEVEL, ER_BINLOG_FILE_EXTENSION_NUMBER_RUNNING_LOW, next,
            (MAX_LOG_UNIQUE_FN_EXT - next));
 

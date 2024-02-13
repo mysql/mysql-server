@@ -424,7 +424,7 @@ ReplicaInitializer::ReplicaInitializer(bool opt_initialize,
                                        char **replica_skip_erors)
     : m_opt_initialize_replica(!opt_initialize),
       m_opt_skip_replica_start(opt_initialize),
-      m_thread_mask(SLAVE_SQL | SLAVE_IO) {
+      m_thread_mask(REPLICA_SQL | REPLICA_IO) {
   if (m_opt_initialize_replica) {
     // Make @@replica_skip_errors show the nice human-readable value.
     set_replica_skip_errors(replica_skip_erors);
@@ -612,8 +612,8 @@ bool start_slave(THD *thd) {
   if (channel_map.get_num_instances() == 1) {
     mi = channel_map.get_default_channel_mi();
     assert(mi);
-    if (start_slave(thd, &thd->lex->slave_connection, &thd->lex->mi,
-                    thd->lex->slave_thd_opt, mi, true))
+    if (start_slave(thd, &thd->lex->replica_connection, &thd->lex->mi,
+                    thd->lex->replica_thd_opt, mi, true))
       return true;
   } else {
     /*
@@ -622,7 +622,8 @@ bool start_slave(THD *thd) {
     */
     mysql_mutex_lock(&LOCK_sql_replica_skip_counter);
     /* sql_replica_skip_counter > 0 && !(START REPLICA IO_THREAD) */
-    if (sql_replica_skip_counter > 0 && !(thd->lex->slave_thd_opt & SLAVE_IO)) {
+    if (sql_replica_skip_counter > 0 &&
+        !(thd->lex->replica_thd_opt & REPLICA_IO)) {
       my_error(ER_REPLICA_CHANNEL_SQL_SKIP_COUNTER, MYF(0));
       mysql_mutex_unlock(&LOCK_sql_replica_skip_counter);
       return true;
@@ -639,8 +640,8 @@ bool start_slave(THD *thd) {
           && mi->host[0];            // host is set
 
       if (channel_configured) {
-        if (start_slave(thd, &thd->lex->slave_connection, &thd->lex->mi,
-                        thd->lex->slave_thd_opt, mi, true)) {
+        if (start_slave(thd, &thd->lex->replica_connection, &thd->lex->mi,
+                        thd->lex->replica_thd_opt, mi, true)) {
           LogErr(ERROR_LEVEL, ER_RPL_REPLICA_CANT_START_REPLICA_FOR_CHANNEL,
                  mi->get_channel());
           error = true;
@@ -733,10 +734,10 @@ bool start_slave_cmd(THD *thd) {
 
   if (!lex->mi.for_channel) {
     /*
-      If slave_until options are provided when multiple channels exist
+      If replica_until options are provided when multiple channels exist
       without explicitly providing FOR CHANNEL clause, error out.
     */
-    if (lex->mi.slave_until && channel_map.get_num_instances() > 1) {
+    if (lex->mi.replica_until && channel_map.get_num_instances() > 1) {
       my_error(ER_REPLICA_MULTIPLE_CHANNELS_CMD, MYF(0));
       goto err;
     }
@@ -758,14 +759,15 @@ bool start_slave_cmd(THD *thd) {
     */
     if (mi &&
         channel_map.is_group_replication_channel_name(mi->get_channel()) &&
-        ((!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO)) ||
+        ((!thd->lex->replica_thd_opt ||
+          (thd->lex->replica_thd_opt & REPLICA_IO)) ||
          (!(channel_map.is_group_replication_channel_name(mi->get_channel(),
                                                           true)) &&
-          (thd->lex->slave_thd_opt & SLAVE_SQL)))) {
+          (thd->lex->replica_thd_opt & REPLICA_SQL)))) {
       const char *command = "START REPLICA FOR CHANNEL";
-      if (thd->lex->slave_thd_opt & SLAVE_IO)
+      if (thd->lex->replica_thd_opt & REPLICA_IO)
         command = "START REPLICA IO_THREAD FOR CHANNEL";
-      else if (thd->lex->slave_thd_opt & SLAVE_SQL)
+      else if (thd->lex->replica_thd_opt & REPLICA_SQL)
         command = "START REPLICA SQL_THREAD FOR CHANNEL";
 
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0), command,
@@ -789,8 +791,8 @@ bool start_slave_cmd(THD *thd) {
     }
 
     if (mi)
-      res = start_slave(thd, &thd->lex->slave_connection, &thd->lex->mi,
-                        thd->lex->slave_thd_opt, mi, true);
+      res = start_slave(thd, &thd->lex->replica_connection, &thd->lex->mi,
+                        thd->lex->replica_thd_opt, mi, true);
     else if (strcmp(channel_map.get_default_channel(), lex->mi.channel))
       my_error(ER_REPLICA_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
 
@@ -830,7 +832,8 @@ bool stop_slave_cmd(THD *thd) {
   MDL_lock_guard backup_sentry{thd};
   /* During provisioning we stop replica after acquiring backup lock. */
   if (!Clone_handler::is_provisioning() &&
-      (!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_SQL))) {
+      (!thd->lex->replica_thd_opt ||
+       (thd->lex->replica_thd_opt & REPLICA_SQL))) {
     if (backup_sentry.lock(MDL_key::BACKUP_LOCK, MDL_INTENTION_EXCLUSIVE)) {
       my_error(ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP, MYF(0));
       channel_map.unlock();
@@ -856,14 +859,15 @@ bool stop_slave_cmd(THD *thd) {
     */
     if (mi &&
         channel_map.is_group_replication_channel_name(mi->get_channel()) &&
-        ((!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO)) ||
+        ((!thd->lex->replica_thd_opt ||
+          (thd->lex->replica_thd_opt & REPLICA_IO)) ||
          (!(channel_map.is_group_replication_channel_name(mi->get_channel(),
                                                           true)) &&
-          (thd->lex->slave_thd_opt & SLAVE_SQL)))) {
+          (thd->lex->replica_thd_opt & REPLICA_SQL)))) {
       const char *command = "STOP REPLICA FOR CHANNEL";
-      if (thd->lex->slave_thd_opt & SLAVE_IO)
+      if (thd->lex->replica_thd_opt & REPLICA_IO)
         command = "STOP REPLICA IO_THREAD FOR CHANNEL";
-      else if (thd->lex->slave_thd_opt & SLAVE_SQL)
+      else if (thd->lex->replica_thd_opt & REPLICA_SQL)
         command = "STOP REPLICA SQL_THREAD FOR CHANNEL";
 
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0), command,
@@ -1289,10 +1293,10 @@ int load_mi_and_rli_from_repositories(
 
   /*
     This takes care of the startup dependency between the master_info
-    and relay_info. It initializes the master info if the SLAVE_IO
+    and relay_info. It initializes the master info if the REPLICA_IO
     thread is being started and the relay log info if either the
-    SLAVE_SQL thread is being started or was not initialized as it is
-    required by the SLAVE_IO thread.
+    REPLICA_SQL thread is being started or was not initialized as it is
+    required by the REPLICA_IO thread.
   */
   check_return = mi->check_info();
   if (check_return == ERROR_CHECKING_REPOSITORY) {
@@ -1301,7 +1305,7 @@ int load_mi_and_rli_from_repositories(
   }
 
   if (!ignore_if_no_info || check_return != REPOSITORY_DOES_NOT_EXIST) {
-    if ((thread_mask & SLAVE_IO) != 0) {
+    if ((thread_mask & REPLICA_IO) != 0) {
       if (!mi->inited || force_load) {
         if (mi->mi_init_info()) {
           init_error = 1;
@@ -1316,7 +1320,7 @@ int load_mi_and_rli_from_repositories(
     goto end;
   }
   if (!ignore_if_no_info || check_return != REPOSITORY_DOES_NOT_EXIST) {
-    if ((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited)) {
+    if ((thread_mask & REPLICA_SQL) != 0 || !(mi->rli->inited)) {
       if (!mi->rli->inited || force_load) {
         if (mi->rli->rli_init_info(
                 skip_received_gtid_set_and_relaylog_recovery)) {
@@ -1705,7 +1709,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
   */
   ulong total_stop_wait_timeout = stop_wait_timeout;
 
-  if (thread_mask & (SLAVE_SQL | SLAVE_FORCE_ALL)) {
+  if (thread_mask & (REPLICA_SQL | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating SQL thread"));
     mi->rli->abort_slave = true;
 
@@ -1753,7 +1757,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
     }
   }
 
-  if (thread_mask & (SLAVE_IO | SLAVE_FORCE_ALL)) {
+  if (thread_mask & (REPLICA_IO | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating IO thread"));
     mi->abort_slave = true;
     DBUG_EXECUTE_IF("pause_after_queue_event",
@@ -2089,23 +2093,23 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
     lock_cond_sql = &mi->rli->run_lock;
   }
 
-  if (thread_mask & SLAVE_IO)
+  if (thread_mask & REPLICA_IO)
     is_error = start_slave_thread(key_thread_replica_io, handle_slave_io,
                                   lock_io, lock_cond_io, cond_io,
                                   &mi->slave_running, &mi->slave_run_id, mi);
 
-  if (!is_error && (thread_mask & (SLAVE_IO | SLAVE_MONITOR)) &&
+  if (!is_error && (thread_mask & (REPLICA_IO | SLAVE_MONITOR)) &&
       mi->is_source_connection_auto_failover() &&
       !Source_IO_monitor::get_instance()->is_monitoring_process_running()) {
     is_error = Source_IO_monitor::get_instance()->launch_monitoring_process(
         key_thread_replica_monitor_io);
 
     if (is_error)
-      terminate_slave_threads(mi, thread_mask & (SLAVE_IO | SLAVE_MONITOR),
+      terminate_slave_threads(mi, thread_mask & (REPLICA_IO | SLAVE_MONITOR),
                               rpl_stop_replica_timeout, need_lock_slave);
   }
 
-  if (!is_error && (thread_mask & SLAVE_SQL)) {
+  if (!is_error && (thread_mask & REPLICA_SQL)) {
     /*
       MTS-recovery gaps gathering is placed onto common execution path
       for either START-SLAVE and --skip-start-replica= 0
@@ -2121,7 +2125,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
           key_thread_replica_sql, handle_slave_sql, lock_sql, lock_cond_sql,
           cond_sql, &mi->rli->slave_running, &mi->rli->slave_run_id, mi);
     if (is_error)
-      terminate_slave_threads(mi, thread_mask & (SLAVE_IO | SLAVE_MONITOR),
+      terminate_slave_threads(mi, thread_mask & (REPLICA_IO | SLAVE_MONITOR),
                               rpl_stop_replica_timeout, need_lock_slave);
   }
   return is_error;
@@ -3527,10 +3531,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
       until_type = "None";
       break;
     case Relay_log_info::UNTIL_MASTER_POS:
-      if (thd->lex->is_replication_deprecated_syntax_used())
-        until_type = "Master";
-      else
-        until_type = "Source";
+      until_type = "Source";
       break;
     case Relay_log_info::UNTIL_RELAY_POS:
       until_type = "Relay";
@@ -3805,10 +3806,6 @@ bool show_slave_status(THD *thd) {
   show_slave_status_metadata(&field_list, max_io_gtid_set_size,
                              sql_gtid_set_size);
 
-  // TODO: once the old syntax is removed, remove this as well.
-  if (thd->lex->is_replication_deprecated_syntax_used())
-    rename_fields_use_old_replica_source_terms(thd, field_list);
-
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     goto err;
@@ -3887,10 +3884,6 @@ bool show_slave_status(THD *thd, Master_info *mi) {
 
   mem_root_deque<Item *> field_list(thd->mem_root);
   show_slave_status_metadata(&field_list, io_gtid_set_size, sql_gtid_set_size);
-
-  // TODO: once the old syntax is removed, remove this as well.
-  if (thd->lex->is_replication_deprecated_syntax_used())
-    rename_fields_use_old_replica_source_terms(thd, field_list);
 
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
@@ -5124,7 +5117,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
              We need to figure out if there is a test case that covers
              this part. \Alfranio.
           */
-          if (load_mi_and_rli_from_repositories(rli->mi, false, SLAVE_SQL,
+          if (load_mi_and_rli_from_repositories(rli->mi, false, REPLICA_SQL,
                                                 false, true))
             LogErr(ERROR_LEVEL,
                    ER_RPL_REPLICA_FAILED_TO_INIT_CONNECTION_METADATA_STRUCTURE,
@@ -8813,8 +8806,8 @@ uint sql_replica_skip_counter;
    @retval false success
    @retval true error
 */
-bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
-                 LEX_MASTER_INFO *master_param, int thread_mask_input,
+bool start_slave(THD *thd, LEX_REPLICA_CONNECTION *connection_param,
+                 LEX_SOURCE_INFO *master_param, int thread_mask_input,
                  Master_info *mi, bool set_mts_settings) {
   bool is_error = false;
   int thread_mask;
@@ -8862,12 +8855,12 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
     if (load_mi_and_rli_from_repositories(mi, false, thread_mask)) {
       is_error = true;
       my_error(ER_CONNECTION_METADATA, MYF(0));
-    } else if (*mi->host || !(thread_mask & SLAVE_IO)) {
+    } else if (*mi->host || !(thread_mask & REPLICA_IO)) {
       /*
         If we will start IO thread we need to take care of possible
         options provided through the START REPLICA if there is any.
       */
-      if (thread_mask & SLAVE_IO) {
+      if (thread_mask & REPLICA_IO) {
         if (connection_param->user) {
           mi->set_start_user_configured(true);
           mi->set_user(connection_param->user);
@@ -8887,7 +8880,7 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
         not and they are specified we will ignore them and warn user
         about this fact.
       */
-      if (thread_mask & SLAVE_SQL) {
+      if (thread_mask & REPLICA_SQL) {
         /*
           sql_replica_skip_counter only effects the applier thread which is
           first started. So after sql_replica_skip_counter is copied to
@@ -8956,7 +8949,8 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
     Clean up start information if there was an attempt to start
     the IO thread to avoid any security issue.
   */
-  if (is_error && (thread_mask & SLAVE_IO) == SLAVE_IO) mi->reset_start_info();
+  if (is_error && (thread_mask & REPLICA_IO) == REPLICA_IO)
+    mi->reset_start_info();
 
   unlock_slave_threads(mi);
 
@@ -9030,14 +9024,15 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
     was stopped (as we don't want to touch the other thread), so set the
     bit to 0 for the other thread
   */
-  if (thd->lex->slave_thd_opt) {
-    thread_mask &= thd->lex->slave_thd_opt;
+  if (thd->lex->replica_thd_opt) {
+    thread_mask &= thd->lex->replica_thd_opt;
 
     /*
       If we are stopping IO thread, we also need to consider
       IO Monitor thread.
     */
-    if ((thread_mask & SLAVE_IO) && mi->is_source_connection_auto_failover()) {
+    if ((thread_mask & REPLICA_IO) &&
+        mi->is_source_connection_auto_failover()) {
       thread_mask |= SLAVE_MONITOR;
     }
   }
@@ -9116,10 +9111,10 @@ int reset_slave(THD *thd) {
   Master_info *mi = nullptr;
   int result = 0;
   mi_map::iterator it, gr_channel_map_it;
-  if (thd->lex->reset_slave_info.all) {
+  if (thd->lex->reset_replica_info.all) {
     /* First do reset_slave for default channel */
     mi = channel_map.get_default_channel_mi();
-    if (mi && reset_slave(thd, mi, thd->lex->reset_slave_info.all)) return 1;
+    if (mi && reset_slave(thd, mi, thd->lex->reset_replica_info.all)) return 1;
     /* Do while iteration for rest of the channels */
     it = channel_map.begin();
     while (it != channel_map.end()) {
@@ -9129,7 +9124,7 @@ int reset_slave(THD *thd) {
       }
       mi = it->second;
       assert(mi);
-      if ((result = reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
+      if ((result = reset_slave(thd, mi, thd->lex->reset_replica_info.all)))
         break;
       it = channel_map.begin();
     }
@@ -9147,7 +9142,7 @@ int reset_slave(THD *thd) {
                  "RESET REPLICA ALL FOR CHANNEL", mi->get_channel());
         return 1;
       }
-      if ((result = reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
+      if ((result = reset_slave(thd, mi, thd->lex->reset_replica_info.all)))
         break;
       gr_channel_map_it = channel_map.begin(GROUP_REPLICATION_CHANNEL);
     }
@@ -9156,7 +9151,7 @@ int reset_slave(THD *thd) {
     while (it != channel_map.end()) {
       mi = it->second;
       assert(mi);
-      if ((result = reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
+      if ((result = reset_slave(thd, mi, thd->lex->reset_replica_info.all)))
         break;
       it++;
     }
@@ -9175,7 +9170,7 @@ int reset_slave(THD *thd) {
                  "RESET REPLICA FOR CHANNEL", mi->get_channel());
         return 1;
       }
-      if ((result = reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
+      if ((result = reset_slave(thd, mi, thd->lex->reset_replica_info.all)))
         break;
       gr_channel_map_it++;
     }
@@ -9341,7 +9336,7 @@ bool reset_slave_cmd(THD *thd) {
     }
 
     if (mi)
-      res = reset_slave(thd, mi, thd->lex->reset_slave_info.all);
+      res = reset_slave(thd, mi, thd->lex->reset_replica_info.all);
     else if (strcmp(channel_map.get_default_channel(), lex->mi.channel))
       my_error(ER_REPLICA_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
   }
@@ -9364,7 +9359,7 @@ bool reset_slave_cmd(THD *thd) {
   @retval true  At least one receive option was found.
 */
 static bool have_change_replication_source_receive_option(
-    const LEX_MASTER_INFO *lex_mi) {
+    const LEX_SOURCE_INFO *lex_mi) {
   bool have_receive_option = false;
 
   DBUG_TRACE;
@@ -9373,19 +9368,19 @@ static bool have_change_replication_source_receive_option(
   if (lex_mi->host || lex_mi->user || lex_mi->password ||
       lex_mi->log_file_name || lex_mi->pos || lex_mi->bind_addr ||
       lex_mi->network_namespace || lex_mi->port || lex_mi->connect_retry ||
-      lex_mi->server_id || lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->server_id || lex_mi->ssl != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_verify_server_cert != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->heartbeat_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->retry_count_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->ssl_key || lex_mi->ssl_cert || lex_mi->ssl_ca ||
       lex_mi->ssl_capath || lex_mi->tls_version ||
-      lex_mi->tls_ciphersuites != LEX_MASTER_INFO::UNSPECIFIED ||
+      lex_mi->tls_ciphersuites != LEX_SOURCE_INFO::UNSPECIFIED ||
       lex_mi->ssl_cipher || lex_mi->ssl_crl || lex_mi->ssl_crlpath ||
-      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
+      lex_mi->repl_ignore_server_ids_opt == LEX_SOURCE_INFO::LEX_MI_ENABLE ||
       lex_mi->public_key_path ||
-      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->get_public_key != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
-      lex_mi->require_row_format != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+      lex_mi->require_row_format != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
     have_receive_option = true;
 
   return have_receive_option;
@@ -9411,7 +9406,7 @@ static bool have_change_replication_source_receive_option(
   @retval true  At least one execute option was there.
 */
 static bool have_change_replication_source_execute_option(
-    const LEX_MASTER_INFO *lex_mi, bool *need_relay_log_purge) {
+    const LEX_SOURCE_INFO *lex_mi, bool *need_relay_log_purge) {
   bool have_execute_option = false;
 
   DBUG_TRACE;
@@ -9421,9 +9416,9 @@ static bool have_change_replication_source_execute_option(
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1 || lex_mi->privilege_checks_username != nullptr ||
       lex_mi->privilege_checks_none ||
-      lex_mi->require_row_format != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->require_row_format != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->require_table_primary_key_check !=
-          LEX_MASTER_INFO::LEX_MI_PK_CHECK_UNCHANGED)
+          LEX_SOURCE_INFO::LEX_MI_PK_CHECK_UNCHANGED)
     have_execute_option = true;
 
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos)
@@ -9445,18 +9440,18 @@ static bool have_change_replication_source_execute_option(
   @retval true  At least one option affects both the applier and receiver.
 */
 static bool have_change_replication_source_applier_and_receive_option(
-    const LEX_MASTER_INFO *lex_mi) {
+    const LEX_SOURCE_INFO *lex_mi) {
   bool have_applier_receive_option = false;
 
   DBUG_TRACE;
 
   /* Check if *at least one* receive option is given to change rep source*/
   if (lex_mi->assign_gtids_to_anonymous_transactions_type !=
-          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED ||
-      lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+          LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED ||
+      lex_mi->auto_position != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->m_source_connection_auto_failover !=
-          LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->m_gtid_only != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+          LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->m_gtid_only != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
     have_applier_receive_option = true;
 
   return have_applier_receive_option;
@@ -9477,7 +9472,7 @@ static bool have_change_replication_source_applier_and_receive_option(
    @retval false    in case of success
    @retval true     in case of failures
 */
-static bool change_master_set_compression(THD *, const LEX_MASTER_INFO *lex_mi,
+static bool change_master_set_compression(THD *, const LEX_SOURCE_INFO *lex_mi,
                                           Master_info *mi) {
   DBUG_TRACE;
 
@@ -9526,7 +9521,7 @@ static bool change_master_set_compression(THD *, const LEX_MASTER_INFO *lex_mi,
   @retval 0    no error i.e., success.
   @retval !=0  error.
 */
-static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
+static int change_receive_options(THD *thd, LEX_SOURCE_INFO *lex_mi,
                                   Master_info *mi) {
   int ret = 0; /* return value. Set if there is an error. */
 
@@ -9600,13 +9595,13 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
     or 'group_replication_applier' channel wants to set the port number
     to '0' as there is no actual network usage on these channels.
   */
-  if (lex_mi->port || lex_mi->port_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
+  if (lex_mi->port || lex_mi->port_opt == LEX_SOURCE_INFO::LEX_MI_ENABLE)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry) mi->connect_retry = lex_mi->connect_retry;
-  if (lex_mi->retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+  if (lex_mi->retry_count_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
     mi->retry_count = lex_mi->retry_count;
 
-  if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+  if (lex_mi->heartbeat_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
   else if (lex_mi->host || lex_mi->port) {
     /*
@@ -9619,7 +9614,7 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
       SOURCE did not specify it.  (no data loss in conversion as hb period has a
       max)
     */
-    mi->heartbeat_period = std::min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+    mi->heartbeat_period = std::min<float>(REPLICA_MAX_HEARTBEAT_PERIOD,
                                            (replica_net_timeout / 2.0f));
     assert(mi->heartbeat_period > (float)0.001 || mi->heartbeat_period == 0);
 
@@ -9633,7 +9628,7 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
     reset the last time server_id list if the current CHANGE REPLICATION SOURCE
     is mentioning IGNORE_SERVER_IDS= (...)
   */
-  if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
+  if (lex_mi->repl_ignore_server_ids_opt == LEX_SOURCE_INFO::LEX_MI_ENABLE)
     mi->ignore_server_ids->dynamic_ids.clear();
   for (size_t i = 0; i < lex_mi->repl_ignore_server_ids.size(); i++) {
     ulong s_id = lex_mi->repl_ignore_server_ids[i];
@@ -9647,20 +9642,20 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
     }
   }
 
-  if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
-    mi->ssl = (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
+  if (lex_mi->ssl != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
+    mi->ssl = (lex_mi->ssl == LEX_SOURCE_INFO::LEX_MI_ENABLE);
 
-  if (lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+  if (lex_mi->ssl_verify_server_cert != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
     mi->ssl_verify_server_cert =
-        (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE);
+        (lex_mi->ssl_verify_server_cert == LEX_SOURCE_INFO::LEX_MI_ENABLE);
 
   if (lex_mi->public_key_path)
     strmake(mi->public_key_path, lex_mi->public_key_path,
             sizeof(mi->public_key_path) - 1);
 
-  if (lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+  if (lex_mi->get_public_key != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
     mi->get_public_key =
-        (lex_mi->get_public_key == LEX_MASTER_INFO::LEX_MI_ENABLE);
+        (lex_mi->get_public_key == LEX_SOURCE_INFO::LEX_MI_ENABLE);
 
   if (lex_mi->ssl_ca)
     strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca) - 1);
@@ -9669,10 +9664,10 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
   if (lex_mi->tls_version)
     strmake(mi->tls_version, lex_mi->tls_version, sizeof(mi->tls_version) - 1);
 
-  if (LEX_MASTER_INFO::SPECIFIED_NULL == lex_mi->tls_ciphersuites) {
+  if (LEX_SOURCE_INFO::SPECIFIED_NULL == lex_mi->tls_ciphersuites) {
     mi->tls_ciphersuites.first = true;
     mi->tls_ciphersuites.second.clear();
-  } else if (LEX_MASTER_INFO::SPECIFIED_STRING == lex_mi->tls_ciphersuites) {
+  } else if (LEX_SOURCE_INFO::SPECIFIED_STRING == lex_mi->tls_ciphersuites) {
     mi->tls_ciphersuites.first = false;
     mi->tls_ciphersuites.second.assign(lex_mi->tls_ciphersuites_string);
   }
@@ -9713,7 +9708,7 @@ err:
   @return       false if the execute options were successfully set and true,
                 otherwise.
 */
-static bool change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
+static bool change_execute_options(LEX_SOURCE_INFO *lex_mi, Master_info *mi) {
   DBUG_TRACE;
 
   if (lex_mi->privilege_checks_username != nullptr ||
@@ -9731,27 +9726,27 @@ static bool change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
     }
   }
 
-  if (lex_mi->require_row_format != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
+  if (lex_mi->require_row_format != LEX_SOURCE_INFO::LEX_MI_UNCHANGED) {
     mi->rli->set_require_row_format(lex_mi->require_row_format ==
-                                    LEX_MASTER_INFO::LEX_MI_ENABLE);
+                                    LEX_SOURCE_INFO::LEX_MI_ENABLE);
   }
 
   if (lex_mi->require_table_primary_key_check !=
-      LEX_MASTER_INFO::LEX_MI_PK_CHECK_UNCHANGED) {
+      LEX_SOURCE_INFO::LEX_MI_PK_CHECK_UNCHANGED) {
     switch (lex_mi->require_table_primary_key_check) {
-      case (LEX_MASTER_INFO::LEX_MI_PK_CHECK_STREAM):
+      case (LEX_SOURCE_INFO::LEX_MI_PK_CHECK_STREAM):
         mi->rli->set_require_table_primary_key_check(
             Relay_log_info::PK_CHECK_STREAM);
         break;
-      case (LEX_MASTER_INFO::LEX_MI_PK_CHECK_ON):
+      case (LEX_SOURCE_INFO::LEX_MI_PK_CHECK_ON):
         mi->rli->set_require_table_primary_key_check(
             Relay_log_info::PK_CHECK_ON);
         break;
-      case (LEX_MASTER_INFO::LEX_MI_PK_CHECK_OFF):
+      case (LEX_SOURCE_INFO::LEX_MI_PK_CHECK_OFF):
         mi->rli->set_require_table_primary_key_check(
             Relay_log_info::PK_CHECK_OFF);
         break;
-      case (LEX_MASTER_INFO::LEX_MI_PK_CHECK_GENERATE):
+      case (LEX_SOURCE_INFO::LEX_MI_PK_CHECK_GENERATE):
         if (channel_map.is_group_replication_channel_name(lex_mi->channel)) {
           my_error(ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR, MYF(0));
           return true;
@@ -9799,12 +9794,12 @@ static bool change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
 
   @return       false if successfully set, true otherwise.
 */
-static bool change_applier_receiver_options(THD *thd, LEX_MASTER_INFO *lex_mi,
+static bool change_applier_receiver_options(THD *thd, LEX_SOURCE_INFO *lex_mi,
                                             Master_info *mi) {
   if (lex_mi->m_source_connection_auto_failover !=
-      LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
+      LEX_SOURCE_INFO::LEX_MI_UNCHANGED) {
     if (lex_mi->m_source_connection_auto_failover ==
-        LEX_MASTER_INFO::LEX_MI_ENABLE) {
+        LEX_SOURCE_INFO::LEX_MI_ENABLE) {
       mi->set_source_connection_auto_failover();
       /*
         Send replication channel SOURCE_CONNECTION_AUTO_FAILOVER attribute of
@@ -9864,15 +9859,15 @@ static bool change_applier_receiver_options(THD *thd, LEX_MASTER_INFO *lex_mi,
     }
   }
 
-  if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
+  if (lex_mi->auto_position != LEX_SOURCE_INFO::LEX_MI_UNCHANGED) {
     mi->set_auto_position(
-        (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE));
+        (lex_mi->auto_position == LEX_SOURCE_INFO::LEX_MI_ENABLE));
   }
 
   if (lex_mi->assign_gtids_to_anonymous_transactions_type !=
-      LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED) {
+      LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED) {
     if (lex_mi->assign_gtids_to_anonymous_transactions_type >
-        LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF) {
+        LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF) {
       push_warning(
           thd, Sql_condition::SL_NOTE,
           ER_USING_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_AS_LOCAL_OR_UUID,
@@ -9882,19 +9877,19 @@ static bool change_applier_receiver_options(THD *thd, LEX_MASTER_INFO *lex_mi,
     }
 
     switch (lex_mi->assign_gtids_to_anonymous_transactions_type) {
-      case (LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL):
+      case (LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL):
         mi->rli->m_assign_gtids_to_anonymous_transactions_info.set_info(
             Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_LOCAL,
             ::server_uuid);
         break;
-      case (LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID):
+      case (LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID):
         if (mi->rli->m_assign_gtids_to_anonymous_transactions_info.set_info(
                 Assign_gtids_to_anonymous_transactions_info::enum_type::
                     AGAT_UUID,
                 lex_mi->assign_gtids_to_anonymous_transactions_manual_uuid))
           return true;
         break;
-      case (LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF):
+      case (LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF):
         mi->rli->m_assign_gtids_to_anonymous_transactions_info.set_info(
             Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF,
             "");
@@ -9905,9 +9900,9 @@ static bool change_applier_receiver_options(THD *thd, LEX_MASTER_INFO *lex_mi,
     }
   }
 
-  if (lex_mi->m_gtid_only != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
+  if (lex_mi->m_gtid_only != LEX_SOURCE_INFO::LEX_MI_UNCHANGED) {
     mi->set_gtid_only_mode(
-        (lex_mi->m_gtid_only == LEX_MASTER_INFO::LEX_MI_ENABLE));
+        (lex_mi->m_gtid_only == LEX_SOURCE_INFO::LEX_MI_ENABLE));
   }
 
   return false;
@@ -9926,7 +9921,7 @@ static bool change_applier_receiver_options(THD *thd, LEX_MASTER_INFO *lex_mi,
   @return       false if the configuration is valid
                 true  some configuration option is invalid with GTID_MODE
 */
-static int validate_gtid_option_restrictions(const LEX_MASTER_INFO *lex_mi,
+static int validate_gtid_option_restrictions(const LEX_SOURCE_INFO *lex_mi,
                                              Master_info *mi) {
   int error = 0;
 
@@ -9935,7 +9930,7 @@ static int validate_gtid_option_restrictions(const LEX_MASTER_INFO *lex_mi,
       GTID_MODE != OFF
   */
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
-    if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE) {
+    if (lex_mi->auto_position == LEX_SOURCE_INFO::LEX_MI_ENABLE) {
       error = ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF;
       my_error(ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF, MYF(0));
       return error;
@@ -9947,7 +9942,7 @@ static int validate_gtid_option_restrictions(const LEX_MASTER_INFO *lex_mi,
       requires GTID_MODE = ON
   */
   if (lex_mi->assign_gtids_to_anonymous_transactions_type >
-      LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF) {
+      LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF) {
     error = ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON;
     my_error(ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON,
              MYF(0));
@@ -9958,7 +9953,7 @@ static int validate_gtid_option_restrictions(const LEX_MASTER_INFO *lex_mi,
     CHANGE REPLICATION SOURCE TO GTID_ONLY= 1 requires
       GTID_MODE = ON
   */
-  if (lex_mi->m_gtid_only == LEX_MASTER_INFO::LEX_MI_ENABLE) {
+  if (lex_mi->m_gtid_only == LEX_SOURCE_INFO::LEX_MI_ENABLE) {
     error = ER_CHANGE_REPLICATION_SOURCE_NO_OPTIONS_FOR_GTID_ONLY;
     my_error(ER_CHANGE_REPLICATION_SOURCE_NO_OPTIONS_FOR_GTID_ONLY, MYF(0),
              mi->get_channel());
@@ -9970,7 +9965,7 @@ static int validate_gtid_option_restrictions(const LEX_MASTER_INFO *lex_mi,
       GTID_MODE = ON
   */
   if (lex_mi->m_source_connection_auto_failover ==
-      LEX_MASTER_INFO::LEX_MI_ENABLE) {
+      LEX_SOURCE_INFO::LEX_MI_ENABLE) {
     error = ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF;
     my_error(ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF, MYF(0));
     return error;
@@ -10000,13 +9995,13 @@ static int validate_gtid_option_restrictions(const LEX_MASTER_INFO *lex_mi,
 bool is_option_enabled_or_will_be(bool base_value, int option_value) {
   bool var_enabled = base_value;
   switch (option_value) {
-    case LEX_MASTER_INFO::LEX_MI_ENABLE:
+    case LEX_SOURCE_INFO::LEX_MI_ENABLE:
       var_enabled = true;
       break;
-    case LEX_MASTER_INFO::LEX_MI_DISABLE:
+    case LEX_SOURCE_INFO::LEX_MI_DISABLE:
       var_enabled = false;
       break;
-    case LEX_MASTER_INFO::LEX_MI_UNCHANGED:
+    case LEX_SOURCE_INFO::LEX_MI_UNCHANGED:
       break;
     default:
       assert(0);
@@ -10032,7 +10027,7 @@ bool is_option_enabled_or_will_be(bool base_value, int option_value) {
   @return 0     if no issues are found
           != 0  the error number associated to the issue, if one is found
 */
-int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
+int evaluate_inter_option_dependencies(const LEX_SOURCE_INFO *lex_mi,
                                        Master_info *mi) {
   int error = 0;
 
@@ -10044,13 +10039,13 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
       mi->is_auto_position(), lex_mi->auto_position);
   bool will_auto_position_be_disable =
       mi->is_auto_position() &&
-      lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_DISABLE;
+      lex_mi->auto_position == LEX_SOURCE_INFO::LEX_MI_DISABLE;
 
   bool is_or_will_require_row_format_be_enabled = is_option_enabled_or_will_be(
       mi->rli->is_row_format_required(), lex_mi->require_row_format);
   bool will_require_row_format_be_disable =
       mi->rli->is_row_format_required() &&
-      lex_mi->require_row_format == LEX_MASTER_INFO::LEX_MI_DISABLE;
+      lex_mi->require_row_format == LEX_SOURCE_INFO::LEX_MI_DISABLE;
 
   bool is_or_will_source_connection_auto_failover_be_enabled =
       is_option_enabled_or_will_be(mi->is_source_connection_auto_failover(),
@@ -10060,24 +10055,24 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
       mi->is_gtid_only_mode(), lex_mi->m_gtid_only);
   bool will_gtid_only_mode_be_disable =
       mi->is_gtid_only_mode() &&
-      lex_mi->m_gtid_only == LEX_MASTER_INFO::LEX_MI_DISABLE;
+      lex_mi->m_gtid_only == LEX_SOURCE_INFO::LEX_MI_DISABLE;
 
   auto assign_gtids_to_anonymous_transactions_type =
       mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type();
   switch (lex_mi->assign_gtids_to_anonymous_transactions_type) {
-    case LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF:
+    case LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF:
       assign_gtids_to_anonymous_transactions_type =
           Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF;
       break;
-    case LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL:
+    case LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL:
       assign_gtids_to_anonymous_transactions_type =
           Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_LOCAL;
       break;
-    case LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID:
+    case LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID:
       assign_gtids_to_anonymous_transactions_type =
           Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_UUID;
       break;
-    case LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED:
+    case LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED:
       break;
     default:
       assert(0);
@@ -10093,8 +10088,8 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
   */
   if (lex_mi->log_file_name != nullptr || lex_mi->pos != 0 ||
       lex_mi->relay_log_name != nullptr || lex_mi->relay_log_pos != 0) {
-    if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE ||
-        (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_DISABLE &&
+    if (lex_mi->auto_position == LEX_SOURCE_INFO::LEX_MI_ENABLE ||
+        (lex_mi->auto_position != LEX_SOURCE_INFO::LEX_MI_DISABLE &&
          mi->is_auto_position())) {
       error = ER_BAD_REPLICA_AUTO_POSITION;
       my_error(error, MYF(0));
@@ -10120,7 +10115,7 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
       SOURCE_AUTO_POSITION = 1
       REQUIRE_ROW_FORMAT = 1
    */
-  if (lex_mi->m_gtid_only == LEX_MASTER_INFO::LEX_MI_ENABLE &&
+  if (lex_mi->m_gtid_only == LEX_SOURCE_INFO::LEX_MI_ENABLE &&
       (!is_or_will_auto_position_be_enabled ||
        !is_or_will_require_row_format_be_enabled)) {
     error = ER_CHANGE_REPLICATION_SOURCE_NO_OPTIONS_FOR_GTID_ONLY;
@@ -10133,7 +10128,7 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
       SOURCE_AUTO_POSITION = 1
   */
   if (lex_mi->m_source_connection_auto_failover ==
-          LEX_MASTER_INFO::LEX_MI_ENABLE &&
+          LEX_SOURCE_INFO::LEX_MI_ENABLE &&
       !is_or_will_auto_position_be_enabled) {
     error = ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF;
     my_error(error, MYF(0));
@@ -10158,7 +10153,7 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
     secondary member.
   */
   if (lex_mi->m_source_connection_auto_failover !=
-          LEX_MASTER_INFO::LEX_MI_UNCHANGED &&
+          LEX_SOURCE_INFO::LEX_MI_UNCHANGED &&
       is_group_replication_member_secondary()) {
     error = ER_OPERATION_NOT_ALLOWED_ON_GR_SECONDARY;
     my_error(error, MYF(0));
@@ -10170,14 +10165,14 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
     can't use the same value as the group replication name or view change uuid
   */
   if (lex_mi->assign_gtids_to_anonymous_transactions_type >
-      LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF) {
+      LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF) {
     std::string group_name = get_group_replication_group_name();
     if (group_name.length() > 0) {
       bool is_same = false;
       auto type = lex_mi->assign_gtids_to_anonymous_transactions_type;
-      if (type == LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL)
+      if (type == LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL)
         if (!(group_name.compare(::server_uuid))) is_same = true;
-      if (type == LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID)
+      if (type == LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID)
         if (!(group_name.compare(
                 lex_mi->assign_gtids_to_anonymous_transactions_manual_uuid)))
           is_same = true;
@@ -10195,9 +10190,9 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
         return error;
         /* purecov: end */
       } else {
-        if (type == LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL)
+        if (type == LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL)
           if (!(view_change_uuid.compare(::server_uuid))) is_same = true;
-        if (type == LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID)
+        if (type == LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID)
           if (!(view_change_uuid.compare(
                   lex_mi->assign_gtids_to_anonymous_transactions_manual_uuid)))
             is_same = true;
@@ -10293,10 +10288,10 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
   @param mi     Pointer to Master_info object
 */
 static void log_invalid_position_warning(THD *thd,
-                                         const LEX_MASTER_INFO *lex_mi,
+                                         const LEX_SOURCE_INFO *lex_mi,
                                          Master_info *mi) {
-  if (lex_mi->m_gtid_only == LEX_MASTER_INFO::LEX_MI_DISABLE ||
-      lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_DISABLE) {
+  if (lex_mi->m_gtid_only == LEX_SOURCE_INFO::LEX_MI_DISABLE ||
+      lex_mi->auto_position == LEX_SOURCE_INFO::LEX_MI_DISABLE) {
     if (mi->is_receiver_position_info_invalid() ||
         mi->rli->is_applier_source_position_info_invalid()) {
       push_warning_printf(
@@ -10332,9 +10327,9 @@ static void log_invalid_position_warning(THD *thd,
           remove_mta_info: if true remove MTA worker info
 */
 static std::pair<bool, bool> validate_change_replication_source_options(
-    THD *thd, const LEX_MASTER_INFO *lex_mi, Master_info *mi, int thread_mask) {
+    THD *thd, const LEX_SOURCE_INFO *lex_mi, Master_info *mi, int thread_mask) {
   bool mta_remove_worker_info = false;
-  if ((thread_mask & SLAVE_SQL) == 0)  // If execute threads are stopped
+  if ((thread_mask & REPLICA_SQL) == 0)  // If execute threads are stopped
   {
     if (mi->rli->mts_recovery_group_cnt) {
       /*
@@ -10413,7 +10408,7 @@ static std::pair<bool, bool> validate_change_replication_source_options(
   @return returns true if an error occurred, false otherwise
 */
 static bool update_change_replication_source_options(
-    THD *thd, LEX_MASTER_INFO *lex_mi, Master_info *mi,
+    THD *thd, LEX_SOURCE_INFO *lex_mi, Master_info *mi,
     bool have_both_receive_execute_option, bool have_execute_option,
     bool have_receive_option) {
   if (have_both_receive_execute_option) {
@@ -10469,7 +10464,7 @@ static bool update_change_replication_source_options(
   @retval 0   success
   @retval !=0 error
 */
-int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
+int change_master(THD *thd, Master_info *mi, LEX_SOURCE_INFO *lex_mi,
                   bool preserve_logs) {
   int error = 0;
 
@@ -10570,23 +10565,23 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
      Then tell the user the replica must stop
    */
   if ((have_both_receive_execute_option &&
-       ((thread_mask & SLAVE_IO) || (thread_mask & SLAVE_SQL))) ||
-      (have_receive_option && have_execute_option && (thread_mask & SLAVE_IO) &&
-       (thread_mask & SLAVE_SQL))) {
+       ((thread_mask & REPLICA_IO) || (thread_mask & REPLICA_SQL))) ||
+      (have_receive_option && have_execute_option &&
+       (thread_mask & REPLICA_IO) && (thread_mask & REPLICA_SQL))) {
     error = ER_REPLICA_CHANNEL_MUST_STOP;
     my_error(ER_REPLICA_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
     goto err;
   }
 
   /* With receiver thread running, we dont allow changing receive options. */
-  if (have_receive_option && (thread_mask & SLAVE_IO)) {
+  if (have_receive_option && (thread_mask & REPLICA_IO)) {
     error = ER_REPLICA_CHANNEL_IO_THREAD_MUST_STOP;
     my_error(ER_REPLICA_CHANNEL_IO_THREAD_MUST_STOP, MYF(0), mi->get_channel());
     goto err;
   }
 
   /* With an execute thread running, we don't allow changing execute options. */
-  if (have_execute_option && (thread_mask & SLAVE_SQL)) {
+  if (have_execute_option && (thread_mask & REPLICA_SQL)) {
     error = ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP;
     my_error(ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0),
              mi->get_channel());
@@ -10705,14 +10700,14 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
            mi->bind_addr);
 
   /* If the receiver is stopped, flush master_info to disk. */
-  if ((thread_mask & SLAVE_IO) == 0 && flush_master_info(mi, true)) {
+  if ((thread_mask & REPLICA_IO) == 0 && flush_master_info(mi, true)) {
     error = ER_RELAY_LOG_INIT;
     my_error(ER_RELAY_LOG_INIT, MYF(0),
              "Failed to flush connection metadata repository");
     goto err;
   }
 
-  if ((thread_mask & SLAVE_SQL) == 0) /* Applier module is not executing */
+  if ((thread_mask & REPLICA_SQL) == 0) /* Applier module is not executing */
   {
     if (need_relay_log_purge) {
       /*
@@ -10792,7 +10787,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       goto err;
     }
 
-  } /* end 'if (thread_mask & SLAVE_SQL == 0)' */
+  } /* end 'if (thread_mask & REPLICA_SQL == 0)' */
 
   log_invalid_position_warning(thd, lex_mi, mi);
 
@@ -10883,7 +10878,7 @@ err:
    with the given option(s) for the recovery channel.
 */
 static bool is_invalid_change_master_for_group_replication_recovery(
-    const LEX_MASTER_INFO *lex_mi) {
+    const LEX_SOURCE_INFO *lex_mi) {
   DBUG_TRACE;
   bool have_extra_option_received = false;
 
@@ -10892,26 +10887,26 @@ static bool is_invalid_change_master_for_group_replication_recovery(
   if (lex_mi->host || lex_mi->log_file_name || lex_mi->pos ||
       lex_mi->bind_addr || lex_mi->port || lex_mi->connect_retry ||
       lex_mi->server_id ||
-      lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->auto_position != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_verify_server_cert != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->heartbeat_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->retry_count_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->ssl_key || lex_mi->ssl_cert || lex_mi->ssl_ca ||
       lex_mi->ssl_capath || lex_mi->tls_version ||
-      lex_mi->tls_ciphersuites != LEX_MASTER_INFO::UNSPECIFIED ||
+      lex_mi->tls_ciphersuites != LEX_SOURCE_INFO::UNSPECIFIED ||
       lex_mi->ssl_cipher || lex_mi->ssl_crl || lex_mi->ssl_crlpath ||
-      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
+      lex_mi->repl_ignore_server_ids_opt == LEX_SOURCE_INFO::LEX_MI_ENABLE ||
       lex_mi->relay_log_name || lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1 || lex_mi->public_key_path ||
-      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->get_public_key != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
-      lex_mi->require_row_format != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->require_row_format != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->m_source_connection_auto_failover !=
-          LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+          LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->assign_gtids_to_anonymous_transactions_type !=
-          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED ||
-      lex_mi->m_gtid_only != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+          LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED ||
+      lex_mi->m_gtid_only != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
     have_extra_option_received = true;
 
   return have_extra_option_received;
@@ -10933,7 +10928,7 @@ static bool is_invalid_change_master_for_group_replication_recovery(
    with the given option(s) for the recovery channel.
 */
 static bool is_invalid_change_master_for_group_replication_applier(
-    const LEX_MASTER_INFO *lex_mi) {
+    const LEX_SOURCE_INFO *lex_mi) {
   DBUG_TRACE;
   bool have_extra_option_received = false;
 
@@ -10942,25 +10937,25 @@ static bool is_invalid_change_master_for_group_replication_applier(
   if (lex_mi->host || lex_mi->user || lex_mi->password ||
       lex_mi->log_file_name || lex_mi->pos || lex_mi->bind_addr ||
       lex_mi->port || lex_mi->connect_retry || lex_mi->server_id ||
-      lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->auto_position != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_verify_server_cert != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->heartbeat_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->retry_count_opt != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->ssl_key || lex_mi->ssl_cert || lex_mi->ssl_ca ||
       lex_mi->ssl_capath || lex_mi->tls_version || lex_mi->ssl_cipher ||
       lex_mi->ssl_crl || lex_mi->ssl_crlpath ||
-      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
+      lex_mi->repl_ignore_server_ids_opt == LEX_SOURCE_INFO::LEX_MI_ENABLE ||
       lex_mi->relay_log_name || lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1 || lex_mi->public_key_path ||
-      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->get_public_key != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
-      lex_mi->require_row_format != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->require_row_format != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->m_source_connection_auto_failover !=
-          LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+          LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->assign_gtids_to_anonymous_transactions_type !=
-          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED ||
-      lex_mi->m_gtid_only != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+          LEX_SOURCE_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED ||
+      lex_mi->m_gtid_only != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
     have_extra_option_received = true;
 
   return have_extra_option_received;
@@ -10997,7 +10992,7 @@ bool change_master_cmd(THD *thd) {
       If the chosen name is for group_replication_applier channel we allow the
       channel creation based on the check as to which field is being updated.
     */
-    LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
+    LEX_SOURCE_INFO *lex_mi = &thd->lex->mi;
     if (is_invalid_change_master_for_group_replication_applier(lex_mi)) {
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "CHANGE REPLICATION SOURCE with the given parameters",
@@ -11024,7 +11019,7 @@ bool change_master_cmd(THD *thd) {
   // channel creation based on the check as to which field is being updated.
   if (channel_map.is_group_replication_channel_name(lex->mi.channel) &&
       !channel_map.is_group_replication_channel_name(lex->mi.channel, true)) {
-    LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
+    LEX_SOURCE_INFO *lex_mi = &thd->lex->mi;
     if (is_invalid_change_master_for_group_replication_recovery(lex_mi)) {
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "CHANGE REPLICATION SOURCE with the given parameters",
@@ -11264,7 +11259,7 @@ static void check_replica_configuration_restrictions() {
 static bool check_replica_configuration_errors(Master_info *mi,
                                                int thread_mask) {
   if (global_gtid_mode.get() != Gtid_mode::ON) {
-    if (mi->is_auto_position() && (thread_mask & SLAVE_IO) &&
+    if (mi->is_auto_position() && (thread_mask & REPLICA_IO) &&
         global_gtid_mode.get() == Gtid_mode::OFF) {
       my_error(ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF, MYF(0),
                mi->get_for_channel_str());

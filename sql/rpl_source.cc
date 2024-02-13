@@ -243,10 +243,6 @@ bool show_replicas(THD *thd) {
   field_list.push_back(new Item_return_int("Source_Id", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Replica_UUID", UUID_LENGTH));
 
-  // TODO: once the old syntax is removed, remove this as well.
-  if (thd->lex->is_replication_deprecated_syntax_used())
-    rename_fields_use_old_replica_source_terms(thd, field_list);
-
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;

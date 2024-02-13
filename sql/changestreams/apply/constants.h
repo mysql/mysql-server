@@ -25,9 +25,9 @@
 #ifndef CHANGE_STREAM_APPLY_CONSTANTS_H_
 #define CHANGE_STREAM_APPLY_CONSTANTS_H_
 
-/* masks for start/stop operations on io and sql slave threads */
-static constexpr unsigned long SLAVE_IO = 1;
-static constexpr unsigned long SLAVE_SQL = 2;
+/* masks for start/stop operations on io and sql threads */
+static constexpr unsigned long REPLICA_IO = 1;
+static constexpr unsigned long REPLICA_SQL = 2;
 // We also have SLAVE_FORCE_ALL 4
 static constexpr unsigned long SLAVE_MONITOR = 8;
 

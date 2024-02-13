@@ -1270,12 +1270,12 @@ bool Prepared_statement::prepare_query(THD *thd) {
     case SQLCOM_REPAIR:
     case SQLCOM_ANALYZE:
     case SQLCOM_OPTIMIZE:
-    case SQLCOM_CHANGE_MASTER:
+    case SQLCOM_CHANGE_REPLICATION_SOURCE:
     case SQLCOM_CHANGE_REPLICATION_FILTER:
     case SQLCOM_RESET:
     case SQLCOM_FLUSH:
-    case SQLCOM_SLAVE_START:
-    case SQLCOM_SLAVE_STOP:
+    case SQLCOM_REPLICA_START:
+    case SQLCOM_REPLICA_STOP:
     case SQLCOM_INSTALL_PLUGIN:
     case SQLCOM_UNINSTALL_PLUGIN:
     case SQLCOM_CREATE_DB:
@@ -1344,7 +1344,7 @@ bool Prepared_statement::prepare_query(THD *thd) {
     case SQLCOM_SHOW_FUNC_CODE:
     case SQLCOM_SHOW_GRANTS:
     case SQLCOM_SHOW_KEYS:
-    case SQLCOM_SHOW_MASTER_STAT:
+    case SQLCOM_SHOW_BINLOG_STATUS:
     case SQLCOM_SHOW_OPEN_TABLES:
     case SQLCOM_SHOW_PLUGINS:
     case SQLCOM_SHOW_PRIVILEGES:
@@ -1353,8 +1353,8 @@ bool Prepared_statement::prepare_query(THD *thd) {
     case SQLCOM_SHOW_PROFILE:
     case SQLCOM_SHOW_PROFILES:
     case SQLCOM_SHOW_RELAYLOG_EVENTS:
-    case SQLCOM_SHOW_SLAVE_HOSTS:
-    case SQLCOM_SHOW_SLAVE_STAT:
+    case SQLCOM_SHOW_REPLICAS:
+    case SQLCOM_SHOW_REPLICA_STATUS:
     case SQLCOM_SHOW_STATUS:
     case SQLCOM_SHOW_STATUS_PROC:
     case SQLCOM_SHOW_STATUS_FUNC:

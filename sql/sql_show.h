@@ -441,7 +441,7 @@ class Sql_cmd_show_keys : public Sql_cmd_show_table_base {
 class Sql_cmd_show_binary_log_status : public Sql_cmd_show_noplan {
  public:
   Sql_cmd_show_binary_log_status()
-      : Sql_cmd_show_noplan(SQLCOM_SHOW_MASTER_STAT) {}
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_BINLOG_STATUS) {}
   bool check_privileges(THD *thd) override;
   bool execute_inner(THD *thd) override;
 };
@@ -529,7 +529,7 @@ class Sql_cmd_show_relaylog_events : public Sql_cmd_show_noplan {
 
 class Sql_cmd_show_replicas : public Sql_cmd_show_noplan {
  public:
-  Sql_cmd_show_replicas() : Sql_cmd_show_noplan(SQLCOM_SHOW_SLAVE_HOSTS) {}
+  Sql_cmd_show_replicas() : Sql_cmd_show_noplan(SQLCOM_SHOW_REPLICAS) {}
   bool check_privileges(THD *thd) override;
   bool execute_inner(THD *thd) override;
 };
@@ -538,7 +538,8 @@ class Sql_cmd_show_replicas : public Sql_cmd_show_noplan {
 
 class Sql_cmd_show_replica_status : public Sql_cmd_show_noplan {
  public:
-  Sql_cmd_show_replica_status() : Sql_cmd_show_noplan(SQLCOM_SHOW_SLAVE_STAT) {}
+  Sql_cmd_show_replica_status()
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_REPLICA_STATUS) {}
   bool check_privileges(THD *thd) override;
   bool execute_inner(THD *thd) override;
 };
