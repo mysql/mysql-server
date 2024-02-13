@@ -3023,6 +3023,12 @@ String *Item_func_conv::val_str(String *str) {
   return str;
 }
 
+bool Item_func_conv_charset::eq_specific(const Item *item) const {
+  const Item_func_conv_charset *item_func_cc =
+      down_cast<const Item_func_conv_charset *>(item);
+  return collation.collation == item_func_cc->collation.collation;
+}
+
 void Item_func_conv_charset::print(const THD *thd, String *str,
                                    enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("convert("));

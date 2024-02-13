@@ -1085,6 +1085,7 @@ class Item_func_conv_charset final : public Item_charset_conversion {
   const char *func_name() const override { return "convert"; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  bool eq_specific(const Item *item) const override;
 };
 
 class Item_func_set_collation final : public Item_str_func {
