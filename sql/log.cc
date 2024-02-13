@@ -2355,8 +2355,15 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
       return 1;
   }
 
+  std::string plugin_name;
+  if (plugin) {
+    plugin_name = plugin->name.str;
+  } else {
+    plugin_name = "'Unknown' (plugin_ptr parameter has unexpected nullptr)";
+  }
+
   snprintf(format2, sizeof(format2) - 1, "Plugin %.*s reported: '%s'",
-           (int)plugin->name.length, plugin->name.str, format);
+           (int)plugin_name.length(), plugin_name.c_str(), format);
 
   va_start(args, format);
   vsnprintf(msg, sizeof(msg) - 1, format2, args);
@@ -2373,7 +2380,7 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
         richer (service) interface can use that to add such
         information.
       */
-      .component(plugin->name.str)
+      .component(plugin_name.c_str())
       .verbatim(msg);
 
   return 0;
