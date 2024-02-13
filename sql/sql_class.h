@@ -4097,6 +4097,18 @@ class THD : public MDL_context_owner,
   const String normalized_query();
 
   /**
+    Set query to be displayed in performance schema (threads table only).
+  */
+  void set_query_for_display_in_pfs_threads(const char *query_arg [[maybe_unused]],
+                                           size_t query_length_arg [[maybe_unused]]) {
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    // Set in pfs threads table
+    PSI_THREAD_CALL(set_thread_info)
+    (query_arg, static_cast<uint>(query_length_arg));
+#endif
+  }
+
+  /**
     Set query to be displayed in performance schema (threads table etc.). Also
     mark the query safe to display for information_schema.process_list.
   */
@@ -4105,11 +4117,7 @@ class THD : public MDL_context_owner,
     // Set in pfs events statements table
     MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg,
                              static_cast<uint>(query_length_arg));
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    // Set in pfs threads table
-    PSI_THREAD_CALL(set_thread_info)
-    (query_arg, static_cast<uint>(query_length_arg));
-#endif
+    set_query_for_display_in_pfs_threads(query_arg, query_length_arg);
     set_safe_display(true);
   }
 
