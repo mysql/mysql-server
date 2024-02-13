@@ -285,31 +285,22 @@ class TlsSwitchableConnection {
   using protocol_state_type = T;
 
   TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
-                          std::unique_ptr<RoutingConnectionBase> routing_conn,
                           SslMode ssl_mode, protocol_state_type state)
       : conn_{std::move(conn)},
-        routing_conn_{std::move(routing_conn)},
-        ssl_mode_{std::move(ssl_mode)},
+        ssl_mode_(ssl_mode),
         channel_{},
         protocol_{std::move(state)} {
     channel_.recv_buffer().reserve(kRecvBufferSize);
   }
 
   TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
-                          std::unique_ptr<RoutingConnectionBase> routing_conn,
                           SslMode ssl_mode, Channel channel,
                           protocol_state_type state)
       : conn_{std::move(conn)},
-        routing_conn_{std::move(routing_conn)},
-        ssl_mode_{std::move(ssl_mode)},
+        ssl_mode_(ssl_mode),
         channel_{std::move(channel)},
         protocol_{std::move(state)} {
     channel_.recv_buffer().reserve(kRecvBufferSize);
-  }
-
-  [[nodiscard]] std::vector<std::pair<std::string, std::string>>
-  initial_connection_attributes() const {
-    return routing_conn_->initial_connection_attributes();
   }
 
   /**
@@ -400,16 +391,6 @@ class TlsSwitchableConnection {
     return conn_->endpoint();
   }
 
-  [[nodiscard]] uint64_t reset_error_count(
-      BlockedEndpoints &blocked_endpoints) {
-    return routing_conn_->reset_error_count(blocked_endpoints);
-  }
-
-  [[nodiscard]] uint64_t increment_error_count(
-      BlockedEndpoints &blocked_endpoints) {
-    return routing_conn_->increment_error_count(blocked_endpoints);
-  }
-
   [[nodiscard]] stdx::expected<void, std::error_code> cancel() {
     if (!conn_) return {};
 
@@ -437,7 +418,6 @@ class TlsSwitchableConnection {
  private:
   // tcp/unix-socket
   std::unique_ptr<ConnectionBase> conn_;
-  std::unique_ptr<RoutingConnectionBase> routing_conn_;
 
   SslMode ssl_mode_;
 
@@ -446,6 +426,47 @@ class TlsSwitchableConnection {
 
   // higher-level protocol
   protocol_state_type protocol_;
+};
+
+template <class T>
+class TlsSwitchableClientConnection : public TlsSwitchableConnection<T> {
+  using base_class_ = TlsSwitchableConnection<T>;
+
+ public:
+  using protocol_state_type = typename base_class_::protocol_state_type;
+
+  TlsSwitchableClientConnection(
+      std::unique_ptr<ConnectionBase> conn,
+      std::unique_ptr<RoutingConnectionBase> routing_conn, SslMode ssl_mode,
+      protocol_state_type state)
+      : base_class_(std::move(conn), ssl_mode, std::move(state)),
+        routing_conn_(std::move(routing_conn)) {}
+
+  TlsSwitchableClientConnection(
+      std::unique_ptr<ConnectionBase> conn,
+      std::unique_ptr<RoutingConnectionBase> routing_conn, SslMode ssl_mode,
+      Channel channel, protocol_state_type state)
+      : base_class_(std::move(conn), ssl_mode, std::move(channel),
+                    std::move(state)),
+        routing_conn_(std::move(routing_conn)) {}
+
+  [[nodiscard]] std::vector<std::pair<std::string, std::string>>
+  initial_connection_attributes() const {
+    return routing_conn_->initial_connection_attributes();
+  }
+
+  [[nodiscard]] uint64_t reset_error_count(
+      BlockedEndpoints &blocked_endpoints) {
+    return routing_conn_->reset_error_count(blocked_endpoints);
+  }
+
+  [[nodiscard]] uint64_t increment_error_count(
+      BlockedEndpoints &blocked_endpoints) {
+    return routing_conn_->increment_error_count(blocked_endpoints);
+  }
+
+ private:
+  std::unique_ptr<RoutingConnectionBase> routing_conn_;
 };
 
 #endif

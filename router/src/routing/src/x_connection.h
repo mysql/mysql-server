@@ -62,7 +62,7 @@ class MysqlRoutingXConnection
     : public MySQLRoutingConnectionBase,
       public std::enable_shared_from_this<MysqlRoutingXConnection> {
  private:
-  using ClientSideConnection = TlsSwitchableConnection<XProtocolState>;
+  using ClientSideConnection = TlsSwitchableClientConnection<XProtocolState>;
   using ServerSideConnection = TlsSwitchableConnection<XProtocolState>;
 
   // constructor
@@ -82,7 +82,7 @@ class MysqlRoutingXConnection
                      std::move(client_routing_connection),
                      context.source_ssl_mode(),
                      ClientSideConnection::protocol_state_type{}},
-        server_conn_{nullptr, nullptr, context.dest_ssl_mode(),
+        server_conn_{nullptr, context.dest_ssl_mode(),
                      ServerSideConnection::protocol_state_type{}} {}
 
  public:

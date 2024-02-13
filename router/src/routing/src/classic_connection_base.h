@@ -72,7 +72,7 @@ class MysqlRoutingClassicConnectionBase
                      std::move(client_routing_connection),
                      context.source_ssl_mode(),
                      ClientSideConnection::protocol_state_type{}},
-        server_conn_{nullptr, nullptr, context.dest_ssl_mode(),
+        server_conn_{nullptr, context.dest_ssl_mode(),
                      ServerSideConnection::protocol_state_type{}},
         read_timer_{client_conn_.connection()->io_ctx()},
         connect_timer_{client_conn_.connection()->io_ctx()},
@@ -81,7 +81,7 @@ class MysqlRoutingClassicConnectionBase
 
  public:
   using ClientSideConnection =
-      TlsSwitchableConnection<ClientSideClassicProtocolState>;
+      TlsSwitchableClientConnection<ClientSideClassicProtocolState>;
   using ServerSideConnection =
       TlsSwitchableConnection<ServerSideClassicProtocolState>;
 

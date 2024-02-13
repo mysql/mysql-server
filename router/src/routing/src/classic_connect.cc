@@ -97,9 +97,8 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::process() {
 
 static MysqlRoutingClassicConnectionBase::ServerSideConnection
 make_connection_from_pooled(PooledClassicConnection &&other) {
-  return {std::move(other.connection()),
-          nullptr,  // routing_conn
-          other.ssl_mode(), Channel(std::move(other.ssl())),
+  return {std::move(other.connection()), other.ssl_mode(),
+          Channel(std::move(other.ssl())),
           MysqlRoutingClassicConnectionBase::ServerSideConnection::
               protocol_state_type(other.server_capabilities(),
                                   other.client_capabilities(),

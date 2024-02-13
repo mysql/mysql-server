@@ -71,9 +71,8 @@ static PooledClassicConnection make_pooled_connection(
 
 static MysqlRoutingClassicConnectionBase::ServerSideConnection
 make_connection_from_pooled(PooledClassicConnection &&other) {
-  return {std::move(other.connection()),
-          nullptr,  // routing_conn
-          other.ssl_mode(), Channel(std::move(other.ssl())),
+  return {std::move(other.connection()), other.ssl_mode(),
+          Channel(std::move(other.ssl())),
           MysqlRoutingClassicConnectionBase::ServerSideConnection::
               protocol_state_type(other.server_capabilities(),
                                   other.client_capabilities(),
@@ -102,7 +101,6 @@ ForwardingProcessor::pool_server_connection() {
           std::exchange(connection()->server_conn(),
                         TlsSwitchableConnection{
                             nullptr,   // connection
-                            nullptr,   // routing-connection
                             ssl_mode,  //
                             MysqlRoutingClassicConnectionBase::
                                 ServerSideConnection::protocol_state_type()})));

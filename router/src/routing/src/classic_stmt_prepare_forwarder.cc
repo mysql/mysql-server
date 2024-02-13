@@ -318,7 +318,6 @@ StmtPrepareForwarder::switch_backend() {
   auto ssl_mode = server_conn.ssl_mode();
   server_conn =
       TlsSwitchableConnection{nullptr,   // connection
-                              nullptr,   // routing-connection
                               ssl_mode,  //
                               MysqlRoutingClassicConnectionBase::
                                   ServerSideConnection::protocol_state_type()};

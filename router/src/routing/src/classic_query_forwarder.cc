@@ -2546,7 +2546,6 @@ QueryForwarder::switch_backend() {
   auto ssl_mode = connection()->server_conn().ssl_mode();
   connection()->server_conn() =
       TlsSwitchableConnection{nullptr,  // connection
-                              nullptr,  // routing-connection
                               ssl_mode,
                               MysqlRoutingClassicConnectionBase::
                                   ServerSideConnection::protocol_state_type()};

@@ -363,7 +363,7 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::error() {
   // - reset all channel state
 
   connection()->server_conn() = {
-      nullptr, nullptr, connection()->context().dest_ssl_mode(),
+      nullptr, connection()->context().dest_ssl_mode(),
       MysqlRoutingClassicConnectionBase::ServerSideConnection::
           protocol_state_type()};
 
