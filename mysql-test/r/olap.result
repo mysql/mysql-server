@@ -2373,3 +2373,17 @@ EXECUTE ps;
 x
 DROP PREPARE ps;
 DROP TABLE t;
+#
+# Bug#36257081: Assertion `!OrderItemsReferenceUnavailableTables
+#               ( path, used_tables_before_repla
+#
+CREATE TABLE t1 (f1 JSON);
+CREATE VIEW v1 AS SELECT 1;
+SELECT 1
+FROM t1, LATERAL (SELECT f1 AS f2
+FROM v1
+GROUP BY CUBE(f2)) AS dt1
+GROUP BY CUBE(f2);
+ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+DROP VIEW v1;
+DROP TABLE t1;

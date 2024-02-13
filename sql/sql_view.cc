@@ -1635,12 +1635,16 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
   view_ref->derived_key_list.clear();
 
   assert(view_lex == thd->lex);
-  old_lex->set_execute_only_in_hypergraph_optimizer(
-      view_lex->can_execute_only_in_hypergraph_optimizer(),
-      view_lex->get_only_supported_in_hypergraph_reason());
-  old_lex->set_execute_only_in_secondary_engine(
-      view_lex->can_execute_only_in_secondary_engine(),
-      view_lex->get_not_supported_in_primary_reason());
+  if (view_lex->can_execute_only_in_hypergraph_optimizer()) {
+    old_lex->set_execute_only_in_hypergraph_optimizer(
+        /*execute_in_hypergraph_optimizer_param=*/true,
+        view_lex->get_only_supported_in_hypergraph_reason());
+  }
+  if (view_lex->can_execute_only_in_secondary_engine()) {
+    old_lex->set_execute_only_in_secondary_engine(
+        /*execute_only_in_secondary_engine_param=*/true,
+        view_lex->get_not_supported_in_primary_reason());
+  }
 
   thd->lex = old_lex;  // Needed for prepare_security
 
