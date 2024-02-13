@@ -55,31 +55,6 @@
 #include "mysqlrouter/connection_base.h"
 #include "ssl_mode.h"
 
-enum class TlsContentType {
-  kChangeCipherSpec = 0x14,
-  kAlert,
-  kHandshake,
-  kApplication,
-  kHeartbeat
-};
-
-inline std::string tls_content_type_to_string(TlsContentType v) {
-  switch (v) {
-    case TlsContentType::kChangeCipherSpec:
-      return "change-cipher-spec";
-    case TlsContentType::kAlert:
-      return "alert";
-    case TlsContentType::kHandshake:
-      return "handshake";
-    case TlsContentType::kApplication:
-      return "application";
-    case TlsContentType::kHeartbeat:
-      return "heartbeat";
-  }
-
-  return "unknown-" + std::to_string(static_cast<int>(v));
-}
-
 class TlsSwitchable {
  public:
   using ssl_ctx_gettor_type = std::function<SSL_CTX *(const std::string &id)>;
