@@ -3,6 +3,14 @@
 --source include/not_valgrind.inc
 --source include/have_case_sensitive_file_system.inc
 --source include/mysql_upgrade_preparation.inc
+--source include/not_parallel.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component_customized.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Cannot unload component from specified URN");
+CALL mtr.add_suppression("Received an error while unloading components");
+--enable_query_log
 
 --echo # This test upgrades schema from 8.0 to 8.0.15 where we
 --echo # introduce serveral ENCRYPTION control capabilities in MySQL
@@ -46,7 +54,7 @@ let $BUGDATA_80012_DATADIR = $MYSQL_TMP_DIR/data_80012;
 --echo ########################################################################
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80012.log;
 
---exec echo "restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$BUGDATA_80012_DATADIR/mysecret_keyring $KEYRING_PLUGIN_OPT --datadir=$BUGDATA_80012_DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: $PLUGIN_DIR_OPT --datadir=$BUGDATA_80012_DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
@@ -88,7 +96,7 @@ let $BUGDATA_80013_DATADIR = $MYSQL_TMP_DIR/data_80013;
 --echo # Restart the server against the unzipped datadir.
 --echo ########################################################################
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80013.log;
---exec echo "restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$BUGDATA_80013_DATADIR/mysecret_keyring $KEYRING_PLUGIN_OPT --datadir=$BUGDATA_80013_DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: $PLUGIN_DIR_OPT --datadir=$BUGDATA_80013_DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
@@ -126,8 +134,8 @@ let $restart_parameters =;
 
 alter tablespace mysql encryption='Y';
 
---replace_result $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
---let $restart_parameters = restart: --upgrade=FORCE --early-plugin-load=keyring_file=$KEYRING_PLUGIN $KEYRING_PLUGIN_OPT
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
+--let $restart_parameters = restart: --upgrade=FORCE $PLUGIN_DIR_OPT
 --let $wait_counter=10000
 --source include/restart_mysqld.inc
 --source include/wait_until_connected_again.inc
@@ -139,6 +147,8 @@ alter tablespace mysql encryption='N';
 --echo ########################################################################
 --echo # Cleanup: Restart with default options.
 --echo ########################################################################
+--source suite/component_keyring_file/inc/teardown_component_customized.inc
 let $restart_parameters =;
 --source include/start_mysqld.inc
+
 

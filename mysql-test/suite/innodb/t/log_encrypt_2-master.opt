@@ -1,4 +1,0 @@
---early-plugin-load="keyring_file=$KEYRING_PLUGIN"
---loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2
---innodb_redo_log_encrypt=ON
-$KEYRING_PLUGIN_OPT

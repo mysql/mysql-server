@@ -1,12 +1,16 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# restart: --innodb_redo_log_encrypt=ON --plugin-dir=PLUGIN_DIR_OPT
 CREATE DATABASE tde_db;
 USE tde_db;
 SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
 1
-INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
-ERROR HY000: Function 'keyring_file' already exists
-UNINSTALL PLUGIN keyring_file;
-# restart:
+# restart: --innodb_redo_log_encrypt=ON --plugin-dir=PLUGIN_DIR_OPT
 SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
 1
@@ -41,13 +45,11 @@ SELECT a,LEFT(b,10) FROM tde_db.t4;
 a	LEFT(b,10)
 1	aaaaaaaaaa
 FLUSH LOGS;
-# restart:
-SELECT
-PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
-FROM INFORMATION_SCHEMA.PLUGINS
-WHERE PLUGIN_NAME LIKE '%keyring_file%' ;
-PLUGIN_NAME	PLUGIN_STATUS	PLUGIN_TYPE
-keyring_file	ACTIVE	KEYRING
+# restart: --innodb_redo_log_encrypt=ON --plugin-dir=PLUGIN_DIR_OPT
+SELECT * FROM performance_schema.keyring_component_status WHERE STATUS_KEY LIKE 'Component_name' OR STATUS_KEY LIKE 'Component_status';
+STATUS_KEY	STATUS_VALUE
+Component_name	component_keyring_file
+Component_status	Active
 SELECT a,LEFT(b,10) FROM tde_db.t1;
 a	LEFT(b,10)
 1	aaaaaaaaaa
@@ -115,13 +117,17 @@ SELECT a,LEFT(b,10) FROM tde_db.t4;
 a	LEFT(b,10)
 2	aaaaaaaaaa
 COMMIT;
-# restart:
-SELECT
-PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
-FROM INFORMATION_SCHEMA.PLUGINS
-WHERE PLUGIN_NAME LIKE '%keyring_file%' ;
-PLUGIN_NAME	PLUGIN_STATUS	PLUGIN_TYPE
-keyring_file	ACTIVE	KEYRING
+# restart: --innodb_redo_log_encrypt=ON --plugin-dir=PLUGIN_DIR_OPT
+SELECT * FROM performance_schema.keyring_component_status;
+STATUS_KEY	STATUS_VALUE
+Component_name	component_keyring_file
+Author	Oracle Corporation
+License	GPL
+Implementation_name	component_keyring_file
+Version	1.0
+Component_status	Active
+Data_file	MYSQLTEST_VARDIR/keyring_file
+Read_only	No
 SELECT a,LEFT(b,10) FROM tde_db.t1;
 a	LEFT(b,10)
 2	aaaaaaaaaa
@@ -197,3 +203,10 @@ SELECT @@global.innodb_undo_log_encrypt ;
 0
 # In connection default
 DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

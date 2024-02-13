@@ -1,6 +1,10 @@
 --source include/have_debug.inc
 --source include/no_valgrind_without_big.inc
 --source include/have_case_sensitive_file_system.inc
+--source include/have_component_keyring_file.inc
+--source include/big_test.inc
+--source include/not_parallel.inc
+--source ../mysql-test/suite/component_keyring_file/inc/setup_component_customized.inc
 
 --copy_file $MYSQLTEST_VARDIR/std_data/wl12261_dump.zip $MYSQL_TMP_DIR/wl12261_dump.zip
 --file_exists $MYSQL_TMP_DIR/wl12261_dump.zip
@@ -124,3 +128,4 @@ DROP USER u1@localhost;
 --remove_file $MYSQL_TMP_DIR/wl12261_5_7_25.sql
 --remove_file $MYSQL_TMP_DIR/wl12261_8_0_12.sql
 --remove_file $MYSQL_TMP_DIR/wl12261_8_0_13.sql
+--source ../mysql-test/suite/component_keyring_file/inc/teardown_component_customized.inc

@@ -8,6 +8,8 @@
 --source include/have_innodb_16k.inc
 --source include/have_debug.inc
 --source include/not_windows.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 #########################
 #  how to record test result for 32bit test case table_encrypt_portable_32 content mismatch
@@ -59,4 +61,6 @@ SELECT * FROM t1;
 
 # Cleanup
 DROP TABLE t1;
+--source suite/component_keyring_file/inc/teardown_component.inc
+
 

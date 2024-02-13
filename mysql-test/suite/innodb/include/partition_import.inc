@@ -6,8 +6,15 @@
 
 --echo # Test to create schema for Upgrade in old version
 
+--source include/big_test.inc
+--source include/not_parallel.inc
 --source include/have_innodb_16k.inc
 --source include/no_valgrind_without_big.inc
+--source include/have_component_keyring_file.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Component component_keyring_file reported:");
+--enable_query_log
 
 # Check import across platforms for 8.0.19
 if ($OLD_VERSION != 8019) {
@@ -68,8 +75,9 @@ if (!$IS_FIXED_PATH)
 --remove_file $MYSQL_TMP_DIR/data_export.zip
 
 --echo # Starting server with keyring plugin
---let $restart_parameters = restart: --innodb_directories=$EXTERNAL_DIRECTORY --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring  $KEYRING_PLUGIN_OPT
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so $EXTERNAL_DIRECTORY /tmp/mysql_wl13352_data/
+--source ../mysql-test/suite/component_keyring_file/inc/setup_component_customized.inc
+--let $restart_parameters = restart: --innodb_directories=$EXTERNAL_DIRECTORY $PLUGIN_DIR_OPT
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR $EXTERNAL_DIRECTORY /tmp/mysql_wl13352_data/
 --source include/restart_mysqld.inc
 
 --echo
@@ -108,4 +116,5 @@ if (!$IS_FIXED_PATH)
 {
   --force-rmdir $MYSQL_TMP_DIR/tmp
 }
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
+--source ../mysql-test/suite/component_keyring_file/inc/teardown_component_customized.inc
+

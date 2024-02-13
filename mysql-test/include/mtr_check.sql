@@ -115,7 +115,6 @@ BEGIN
     WHERE variable_name NOT IN ('timestamp', 'server_uuid',
                                 'gtid_executed', 'gtid_purged',
                                 'group_replication_group_name',
-                                'keyring_file_data',
                                 'innodb_thread_sleep_delay')
   ORDER BY VARIABLE_NAME;
 

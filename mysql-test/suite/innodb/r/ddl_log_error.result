@@ -13,6 +13,12 @@ DROP TABLE t1;
 ERROR HY000: Storage engine can't drop table 'test.t1'
 SET SESSION DEBUG="-d,ddl_log_return_error_from_insert";
 # Restart with keyring plugin
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 SET SESSION DEBUG="+d,ddl_log_return_error_from_insert";
 ALTER TABLESPACE my_ts ENCRYPTION='Y';
 ERROR HY000: Failed to alter: TABLESPACE my_ts
@@ -20,6 +26,13 @@ SET SESSION DEBUG="-d,ddl_log_return_error_from_insert";
 # Cleanup
 DROP TABLESPACE my_ts;
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # Restarting server without keyring to restore server state
 # restart: 
 #

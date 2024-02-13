@@ -15,6 +15,7 @@
 # --source include/no_valgrind_without_big.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
+--source include/have_component_keyring_file.inc
 # Waiting time when (re)starting the server
 --let $explicit_default_wait_counter=10000
 
@@ -24,7 +25,7 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't f
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
 --enable_query_log
 
---echo # START : WITHOUT KEYRING PLUGIN
+--echo # START : WITHOUT KEYRING COMPONENT
 --echo
 --echo #########
 --echo # SETUP #
@@ -80,8 +81,9 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --let $rc=1
 --echo #-------------------------- TEST 1 -------------------------------------#
 
---echo # RESTART $rc : WITH KEYRING PLUGIN
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--echo # RESTART $rc : WITH KEYRING COMPONENT
+--source suite/component_keyring_file/inc/setup_component.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --source include/restart_mysqld_no_echo.inc
 --inc $rc
 
@@ -89,11 +91,11 @@ let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLU
 --let $crash_point_desc=just before flushing page 0 at the end
 --source suite/innodb/include/resume_test_encryption.inc
 --source suite/innodb/include/resume_test_unencryption.inc
-
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --echo #-------------------------- TEST 2 -------------------------------------#
 
---echo # RESTART $rc : WITH KEYRING PLUGIN
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--echo # RESTART $rc : WITH KEYRING COMPONENT
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --source include/restart_mysqld_no_echo.inc
 --inc $rc
 
@@ -101,11 +103,11 @@ let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLU
 --let $crash_point_desc=just after flushing page 0 at the end
 --source suite/innodb/include/resume_test_encryption.inc
 --source suite/innodb/include/resume_test_unencryption.inc
-
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --echo #-------------------------- TEST 3 -------------------------------------#
 
---echo # RESTART $rc : WITH KEYRING PLUGIN
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--echo # RESTART $rc : WITH KEYRING COMPONENT
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --source include/restart_mysqld_no_echo.inc
 --inc $rc
 
@@ -113,11 +115,11 @@ let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLU
 --let $crash_point_desc=just before resetting_progress on page 0
 --source suite/innodb/include/resume_test_encryption.inc
 --source suite/innodb/include/resume_test_unencryption.inc
-
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --echo #-------------------------- TEST 4 -------------------------------------#
 
---echo # RESTART $rc : WITH KEYRING PLUGIN
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--echo # RESTART $rc : WITH KEYRING COMPONENT
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --source include/restart_mysqld_no_echo.inc
 --inc $rc
 
@@ -127,11 +129,11 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --let $crash_point=alter_encrypt_tablespace_crash_before_updating_flags
 --let $crash_point_desc=just before updating flags
 --source suite/innodb/include/resume_test_unencryption.inc
-
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --echo #-------------------------- TEST 5 -------------------------------------#
 
---echo # RESTART $rc : WITH KEYRING PLUGIN
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--echo # RESTART $rc : WITH KEYRING COMPONENT
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --source include/restart_mysqld_no_echo.inc
 --inc $rc
 
@@ -139,11 +141,11 @@ let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLU
 --let $crash_point_desc=just before encryption processing is started
 --source suite/innodb/include/resume_test_encryption.inc
 --source suite/innodb/include/resume_test_unencryption.inc
-
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --echo #-------------------------- TEST 6 -------------------------------------#
 
---echo # RESTART $rc : WITH KEYRING PLUGIN
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--echo # RESTART $rc : WITH KEYRING COMPONENT
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --source include/restart_mysqld_no_echo.inc
 --inc $rc
 
@@ -151,11 +153,11 @@ let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLU
 --let $crash_point_desc=just after encryption processing is finished
 --source suite/innodb/include/resume_test_encryption.inc
 --source suite/innodb/include/resume_test_unencryption.inc
-
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --echo #-------------------------- TEST 7 -------------------------------------#
 
---echo # RESTART $rc : WITH KEYRING PLUGIN
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--echo # RESTART $rc : WITH KEYRING COMPONENT
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --source include/restart_mysqld_no_echo.inc
 --inc $rc
 
@@ -163,16 +165,17 @@ let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLU
 --let $crash_point_desc=just after inserting DDL Log Entry
 --source suite/innodb/include/resume_test_encryption.inc
 --source suite/innodb/include/resume_test_unencryption.inc
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 
 --echo ###########
 --echo # Cleanup #
 --echo ###########
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 --echo # RESTART $rc : final
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/encryption_error_log.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/unencryption_error_log.inc
---remove_file $MYSQL_TMP_DIR/mysecret_keyring

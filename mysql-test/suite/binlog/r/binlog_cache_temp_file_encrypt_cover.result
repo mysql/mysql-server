@@ -1,3 +1,10 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Restart mysql server with binlog_encryption on.
 CREATE TABLE t1 (c1 TEXT);
 # Adding debug point 'verify_mysql_encryption_file_write_bytes' to @@GLOBAL.debug
 INSERT INTO t1 VALUES (REPEAT('123', 16384.0));
@@ -7,3 +14,10 @@ INSERT INTO t1 VALUES (REPEAT('456', 16384.0));
 ERROR HY000: Error writing file 'binlog' ((errno: #)
 # Removing debug point 'simulate_binlog_cache_temp_file_encrypt_fail' from @@GLOBAL.debug
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

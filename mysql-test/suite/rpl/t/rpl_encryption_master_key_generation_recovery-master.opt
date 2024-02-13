@@ -1,2 +1,0 @@
-$KEYRING_PLUGIN_OPT
---log-error=$MYSQL_TMP_DIR/master.err

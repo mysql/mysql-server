@@ -1,4 +1,5 @@
 --source include/have_innodb_16k.inc
+--source include/have_component_keyring_file.inc
 
 --echo #
 --echo # IMPORT/EXPORT for non-partitioned tables with autoextend_size
@@ -8,6 +9,7 @@
 --disable_query_log
 call mtr.add_suppression("\\[Warning] .*MY-\\d+.* Cannot calculate statistics for table");
 --enable_query_log
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --echo # Create source and destination databases and stored procedure to load the tables
 --echo
@@ -713,3 +715,4 @@ DROP DATABASE db_source;
 USE db_destination;
 DROP PROCEDURE bulk_insert_dest;
 DROP DATABASE db_destination;
+--source suite/component_keyring_file/inc/teardown_component.inc

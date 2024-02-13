@@ -34,9 +34,6 @@ let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASE
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 SELECT @@datadir;
 
---replace_result $MYSQL_TMP_DIR key_file
-SHOW VARIABLES LIKE 'keyring_file%';
-
 SELECT @@innodb_undo_log_encrypt;
 
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
@@ -69,6 +66,8 @@ DROP DATABASE nath;
 --let $shutdown_server_timeout= 300
 --source include/shutdown_mysqld.inc
 
+--source include/keyring_tests/helper/binary_backup_manifest.inc
+
 # Restart with MTR default server
 --let $wait_counter= 3000
 --replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
@@ -99,7 +98,9 @@ let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASE
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
 
---let $restart_parameters="restart: $PLUGIN_DIR_OPT --log_error_verbosity=3 --datadir=$MYSQLD_DATADIR1 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/my_keyfile --innodb_undo_log_encrypt=1"
+--source include/keyring_tests/helper/binary_restore_manifest.inc
+
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT --log_error_verbosity=3 --datadir=$MYSQLD_DATADIR1 --innodb_undo_log_encrypt=1"
 --source include/start_mysqld_no_echo.inc
 
 --echo # Show that a master key with a blank Server UUID is not used.
@@ -114,7 +115,6 @@ SELECT * FROM performance_schema.keyring_keys where KEY_ID='INNODBKey--1';
 --let $restart_parameters="restart: $PLUGIN_DIR_OPT"
 --source include/start_mysqld_no_echo.inc
 
---remove_file $MYSQL_TMP_DIR/my_keyfile
 --remove_file $MYSQL_TMP_DIR/boot.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bootstrap2.log
 --force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir1

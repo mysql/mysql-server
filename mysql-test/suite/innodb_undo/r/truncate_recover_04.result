@@ -101,7 +101,6 @@ SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
 SET GLOBAL innodb_purge_run_now=ON;
 Recovery from crash point = 'ib_undo_trunc_empty_file'.
 Pattern "ib_undo_trunc_empty_file" found
-# restart:
 SELECT NAME, SPACE_TYPE, STATE, AUTOEXTEND_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 NAME	SPACE_TYPE	STATE	AUTOEXTEND_SIZE

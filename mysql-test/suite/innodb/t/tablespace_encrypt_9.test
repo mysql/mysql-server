@@ -2,7 +2,7 @@
 # InnoDB transparent tablespace data encryption for general shared tablespace.
 # This test case will test
 #    - Crash during encrypting an unencrypted tablespace.
-#      - And then restart without loading keyring plugin. Server should fail to
+#      - And then restart without loading keyring component. Server should fail to
 #        start.
 #      - Restart with keyring pluing. Server should start and recover properly.
 ################################################################################
@@ -12,19 +12,19 @@
 # --source include/no_valgrind_without_big.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
+--source include/have_component_keyring_file.inc
 # Waiting time when (re)starting the server
 --let $explicit_default_wait_counter=10000
 
 --let $PLUGIN_DIR   =   `select @@plugin_dir`
 --disable_query_log
-call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
 call mtr.add_suppression(" Encryption information in datafile:");
 --enable_query_log
 
 --echo #########################################################################
---echo # START : WITHOUT KEYRING PLUGIN
+--echo # START : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
 --echo
 --echo #########
@@ -61,10 +61,9 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --echo #############################################################
 --echo
 --echo #########################################################################
---echo # RESTART 1 : WITH KEYRING PLUGIN
+--echo # RESTART 1 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---source include/restart_mysqld_no_echo.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --echo ############################################################
 --echo # ALTER TABLESPACE 1 :    Unencrypted => Encrypted         #
@@ -81,7 +80,8 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 --source include/expect_crash.inc
 --error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
---echo # Restart after crash without Keyring plugin loaded
+--echo # Restart after crash without Keyring component loaded
+--source include/keyring_tests/helper/instance_backup_manifest.inc
 --error 1,42
 --exec $MYSQLD_CMD --plugin-dir=$PLUGIN_DIR --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
 
@@ -95,9 +95,9 @@ let SEARCH_PATTERN=CORRUPT LOG RECORD FOUND;
 SELECT * from test.t1 limit 10;
 
 --echo #########################################################################
---echo # RESTART 2 : WITH KEYRING PLUGIN
+--echo # RESTART 2 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --source include/start_mysqld_no_echo.inc
 
 --echo # Server should have restarted properly.
@@ -127,7 +127,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 
 --echo # Restart after crash with sleep_resume_alter_encrypt to make resume
 --echo # thread to sleep.
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --debug=d,sleep_resume_alter_encrypt;
+let $restart_parameters = restart: $PLUGIN_DIR_OPT --debug=d,sleep_resume_alter_encrypt;
 --source include/start_mysqld_no_echo.inc
 
 --echo # Connection con2:
@@ -158,8 +158,8 @@ set global innodb_buf_flush_list_now = 1;
 --echo # Now restart without sleep_resume_alter_encrypt.
 # NOTE : resume processing for connection con1 wouldn't have finished yet and
 #        should be tried again in next restart.
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --source include/kill_and_restart_mysqld.inc
 
 --echo # Wait for Encryption processing to finish in background thread
@@ -180,7 +180,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --echo ###########
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
-remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+--source suite/component_keyring_file/inc/teardown_component.inc
 remove_file $SEARCH_FILE;
 
 --echo # Restarting server without keyring to restore server state

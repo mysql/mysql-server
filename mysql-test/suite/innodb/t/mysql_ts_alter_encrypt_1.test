@@ -18,6 +18,7 @@
 --source include/have_debug.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
+--source include/have_component_keyring_file.inc
 # Waiting time when (re)starting the server
 --let $explicit_default_wait_counter=10000
 
@@ -32,10 +33,9 @@ call mtr.add_suppression("\\[Warning\\] \\[MY-013675\\] \\[InnoDB\\] Encryption 
 --echo #############################################################
 --echo
 --echo #########################################################################
---echo # RESTART 1 : WITH KEYRING PLUGIN
+--echo # RESTART 1 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---source include/restart_mysqld_no_echo.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 SET debug='+d,skip_dd_table_access_check';
 
 --echo # Initially, mysql should be unencrypted by default
@@ -89,9 +89,8 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='m
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 
 --echo #########################################################################
---echo # RESTART 2 : WITH KEYRING PLUGIN
+--echo # RESTART 2 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
 SET debug='+d,skip_dd_table_access_check';
 
@@ -132,9 +131,8 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='m
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 
 --echo #########################################################################
---echo # RESTART 3 : WITHOUT KEYRING PLUGIN
+--echo # RESTART 3 : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
 SET debug='+d,skip_dd_table_access_check';
 
@@ -146,9 +144,8 @@ SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 --echo #############################################################
 --echo
 --echo #########################################################################
---echo # RESTART 4 : WITH KEYRING PLUGIN
+--echo # RESTART 4 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
 SET debug='+d,skip_dd_table_access_check';
 
@@ -208,9 +205,8 @@ SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 --echo #############################################################
 --echo
 --echo #########################################################################
---echo # RESTART 5 : WITH KEYRING PLUGIN
+--echo # RESTART 5 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
 SET debug='+d,skip_dd_table_access_check';
 
@@ -289,10 +285,10 @@ DROP USER myuser@localhost;
 ALTER TABLESPACE mysql ENCRYPTION='N';
 
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
-remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 --echo #########################################################################
---echo # RESTART 6 : WITHOUT KEYRING PLUGIN
+--echo # RESTART 6 : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
 let $restart_parameters = restart: ;
 --source include/restart_mysqld.inc

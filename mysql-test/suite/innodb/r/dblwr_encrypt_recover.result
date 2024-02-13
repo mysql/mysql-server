@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 create table t1 (f1 int primary key, f2 blob) ENCRYPTION='Y';
 START TRANSACTION;
 INSERT INTO t1 VALUES(1, repeat('#',12));
@@ -36,7 +42,6 @@ SELECT @@session.innodb_interpreter_output INTO @space_page_size;
 SET SESSION innodb_interpreter = 'destroy';
 # Kill the server
 # Corrupt the root page of table t1 in the user tablespace.
-# restart
 SET SESSION innodb_interpreter = 'init';
 SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
 SET SESSION innodb_interpreter = 'destroy';
@@ -53,4 +58,11 @@ f1	f2
 4	------------
 5	............
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # Test End

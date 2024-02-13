@@ -3,8 +3,14 @@
 #########
 
 #########################################################################
-# RESTART 1 : WITH KEYRING PLUGIN
+# RESTART 1 : WITH KEYRING COMPONENT
 #########################################################################
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 # Create a new 'unencrypted' tablespace 'encrypt_ts'
 SELECT NAME, FLAG, SPACE_TYPE FROM information_schema.INNODB_TABLESPACES
 where NAME="encrypt_ts";
@@ -87,5 +93,12 @@ table space is Unencrypted.
 ###########
 DROP TABLE test.t1;
 DROP TABLESPACE encrypt_ts;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # Restarting server without keyring to restore server state
 # restart: 

@@ -7,6 +7,7 @@
 ################################################################################
 
 --source include/no_valgrind_without_big.inc
+--source include/have_component_keyring_file.inc
 # Waiting time when (re)starting the server
 --let $explicit_default_wait_counter=10000
 
@@ -26,8 +27,9 @@ call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] Encryption can't find master k
 --echo #########################################################################
 --echo # RESTART 1 : WITH KEYRING PLUGIN
 --echo #########################################################################
+--source suite/component_keyring_file/inc/setup_component.inc
 let $restart_parameters = restart:
---early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --performance-schema-consumer-events-stages-current=ON;
+$PLUGIN_DIR_OPT --performance-schema-consumer-events-stages-current=ON;
 --source include/restart_mysqld_no_echo.inc
 
 --echo #########################################################################
@@ -455,7 +457,7 @@ DROP TABLESPACE encrypt_ts;
 DROP TABLESPACE encrypt_ts1;
 DROP TABLESPACE unencrypt_ts;
 DROP TABLESPACE unencrypt_ts1;
-remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 --echo # Restarting server without keyring to restore server state
 let $restart_parameters = restart: ;

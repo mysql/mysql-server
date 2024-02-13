@@ -524,7 +524,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
@@ -626,6 +625,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Mon Feb 12 2024 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.4.0-1
+- Removed keyring_file plugin
+
 * Tue Jan 30 2024 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.4.0-1
 - Removed keyring_encrypted_file plugin
 
@@ -640,6 +642,9 @@ rm -r $(readlink var) var
 
 * Mon Nov 27 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.4.0-1
 - Removed mysqlpump, mysql_upgrade, zlib_decompress and lz4_decompress binaries
+
+* Mon Nov 20 2023 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.4.0-1
+- Removed keyring_oci plugin
 
 * Mon Jul 24 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.2.0-1
 - Added component_test_server_telemetry_metrics test component

@@ -13,6 +13,8 @@
 #
 # Reference: WL#10957
 ###############################################################################
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 # Save initial value
 --let $saved_binlog_encryption= `SELECT @@global.binlog_encryption`
@@ -135,3 +137,4 @@ DROP USER user1;
 --disable_query_log
 --eval SET GLOBAL binlog_encryption= $saved_binlog_encryption
 --enable_query_log
+--source suite/component_keyring_file/inc/teardown_component.inc

@@ -7,6 +7,7 @@
 
 --source include/no_valgrind_without_big.inc
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
 # Waiting time when (re)starting the server
 --let $explicit_default_wait_counter=10000
 
@@ -17,7 +18,7 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail
 --enable_query_log
 
 --echo #########################################################################
---echo # START : WITHOUT KEYRING PLUGIN
+--echo # START : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
 --echo
 --echo #########
@@ -52,10 +53,11 @@ SELECT * FROM t1 LIMIT 10;
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 
 --echo #########################################################################
---echo # RESTART 1 : WITH KEYRING PLUGIN
+--echo # RESTART 1 : WITH KEYRING COMPONENT
 --echo #########################################################################
+--source suite/component_keyring_file/inc/setup_component.inc
 let $restart_parameters = restart:
---early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --performance-schema-consumer-events-stages-current=ON --performance-schema-events-stages-history-size=1000;
+$PLUGIN_DIR_OPT --performance-schema-consumer-events-stages-current=ON --performance-schema-events-stages-history-size=1000;
 --source include/restart_mysqld_no_echo.inc
 
 --echo # Monitoring connection
@@ -163,20 +165,22 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 2 : WITHOUT KEYRING PLUGIN
+--echo # RESTART 2 : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
+--source include/keyring_tests/helper/instance_backup_manifest.inc
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
 
 # We shouldn't be able to read t1 records as it is encrypted now and keyring
-# plugin is not loaded.
+# component is not loaded.
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 3 : WITH KEYRING PLUGIN
+--echo # RESTART 3 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--source include/keyring_tests/helper/instance_restore_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --source include/restart_mysqld_no_echo.inc
 
 # Disable all consumers
@@ -190,7 +194,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
-remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 --let $restart_parameters= restart:
 --source include/restart_mysqld.inc

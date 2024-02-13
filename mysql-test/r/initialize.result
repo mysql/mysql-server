@@ -97,12 +97,6 @@ a
 # delete mysqld log
 # delete datadir
 #
-# Bug#22777039 - MYSQLD --INITIALIZE DOES NOT SUPPORT THE KEYRING_FILE_DATA OPTION
-#
-# delete mysqld log
-# delete temp keyring file
-# delete datadir
-#
 # Bug#29584642 DATABASE INITIALISATION FAILURE WITH INNODB_DEFAULT_ROW_FORMAT=REDUNDANT
 #
 # The database initialization would fail without the fix.

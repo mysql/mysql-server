@@ -69,7 +69,7 @@ print FILE chr(0) x 38;
 close FILE;
 EOF
 
---source include/start_mysqld.inc
+--source include/start_mysqld_no_echo.inc
 
 SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
 SET SESSION innodb_interpreter = 'destroy';

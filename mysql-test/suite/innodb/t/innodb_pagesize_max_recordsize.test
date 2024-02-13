@@ -37,7 +37,7 @@ CREATE DATABASE test;
 EOF
 
 # Set the bootstrap parameter page size 32k for datadir1
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 32k
 --exec $NEW_CMD
@@ -190,7 +190,7 @@ DROP TABLE tab5;
 --source include/shutdown_mysqld.inc
 
 # Check Server startup failure when page sizes are mismatch
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Check Server startup failure when page size 64K
 --error 1,42
@@ -219,7 +219,7 @@ SELECT @@innodb_page_size;
 --force-rmdir $MYSQL_TMP_DIR/datadir1/data
 
 # Set the bootstrap parameters for datadir1 and page size 64k
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 64k
 --exec $NEW_CMD

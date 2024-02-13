@@ -197,9 +197,9 @@ if ($CRASH_ON_SHUTDOWN == 1)
 # The truncate will get started during shutdown using the settings above.
 # The restarted engine does not need these settings to complete the truncate
 # if the injected crash was far enough along.
---let $restart_parameters="restart:"
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT"
 --let $explicit_default_wait_counter = 15000
---source include/start_mysqld.inc
+--source include/start_mysqld_no_echo.inc
 
 let FILE_SIZE_13 = `SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = '$UNDO_NAME_1'`;
 let FILE_SIZE_23 = `SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = '$UNDO_NAME_2'`;

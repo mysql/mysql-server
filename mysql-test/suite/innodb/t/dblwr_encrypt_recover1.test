@@ -1,4 +1,11 @@
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
+--let $restart_parameters= restart:--binlog-encryption=on --innodb-redo-log-encrypt=on --innodb-undo-log-encrypt=on $PLUGIN_DIR_OPT
+--source include/restart_mysqld.inc
+
 --let $MYSQLD_DATADIR=`select @@datadir`
 --let $DB = `SELECT DATABASE()`
 
@@ -24,6 +31,7 @@ COMMIT WORK;
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/kill_and_restart_mysqld.inc
 
 select 2;
@@ -42,4 +50,5 @@ let SEARCH_PATTERN= \\[Note\\] \\[MY-\\d+\\] \\[InnoDB\\] Recovered page \\[page
 
 
 DROP TABLE t1;
+--source suite/component_keyring_file/inc/teardown_component.inc
 --echo # Test End

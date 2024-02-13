@@ -1,5 +1,8 @@
 # Test clone error conditions with incompatible features
+--source include/big_test.inc
+--source include/not_parallel.inc
 
+--source include/have_component_keyring_file.inc
 --disable_query_log
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
@@ -159,9 +162,15 @@ UNINSTALL PLUGIN clone;
 
 --exec $NEW_CMD
 
---replace_result $KEYRING_PLUGIN KEYRING_PLUGIN $MYSQL_TMP_DIR MYSQL_TMP_DIR $ENCRYPT_DATADIR ENCRYPT_DATADIR
---let $restart_parameters=restart: --datadir=$ENCRYPT_DATADIR --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $ENCRYPT_DATADIR ENCRYPT_DATADIR
+--let $restart_parameters=restart: --datadir=$ENCRYPT_DATADIR
 --source include/start_mysqld.inc
+
+--source ../mysql-test/suite/component_keyring_file/inc/setup_component_customized.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $ENCRYPT_DATADIR ENCRYPT_DATADIR $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
+--let $restart_parameters=restart: --datadir=$ENCRYPT_DATADIR $PLUGIN_DIR_OPT
+--source include/restart_mysqld.inc
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -224,14 +233,13 @@ SET global sql_require_primary_key = @saved_sql_require_primary_key;
 --echo #Cleanup
 
 UNINSTALL PLUGIN clone;
-UNINSTALL PLUGIN keyring_file;
 
 let $restart_parameters = "restart:";
 --source include/restart_mysqld.inc
+--source ../mysql-test/suite/component_keyring_file/inc/teardown_component_customized.inc
 
 DROP TABLE t1;
 
 --force-rmdir $ENCRYPT_DATADIR
 --remove_file $ENCRYPT_ERROR_FILE
 --remove_file $BOOTSTRAP_SQL
---remove_file $MYSQL_TMP_DIR/mysecret_keyring

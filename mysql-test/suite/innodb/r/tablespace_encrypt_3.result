@@ -1,5 +1,5 @@
 #########################################################################
-# START : WITHOUT KEYRING PLUGIN
+# START : WITHOUT KEYRING COMPONENT
 #########################################################################
 
 #########
@@ -28,8 +28,14 @@ SOME VALUES
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
-# RESTART 1 : WITH KEYRING PLUGIN
+# RESTART 1 : WITH KEYRING COMPONENT
 #########################################################################
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 # Monitoring connection
 UPDATE performance_schema.setup_consumers SET ENABLED='YES';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -132,13 +138,15 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 2 : WITHOUT KEYRING PLUGIN
+# RESTART 2 : WITHOUT KEYRING COMPONENT
 #########################################################################
+# Taking backup of local manifest file for MySQL server instance
 SELECT * FROM t1 LIMIT 10;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
-# RESTART 3 : WITH KEYRING PLUGIN
+# RESTART 3 : WITH KEYRING COMPONENT
 #########################################################################
+# Restore local manifest file for MySQL server instance from backup
 UPDATE performance_schema.setup_consumers SET ENABLED='NO';
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 ###########
@@ -149,4 +157,11 @@ COUNT(*)
 32
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # restart:

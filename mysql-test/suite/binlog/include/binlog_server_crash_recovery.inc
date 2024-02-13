@@ -36,5 +36,5 @@
 
 --source include/wait_until_disconnected.inc
 --echo # Restart the master server
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo $restart_parameters > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc

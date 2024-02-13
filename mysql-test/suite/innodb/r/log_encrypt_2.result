@@ -1,3 +1,10 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# restart: --innodb_redo_log_encrypt=ON --plugin-dir=PLUGIN_DIR_OPT
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
 innodb_redo_log_encrypt	ON
@@ -41,7 +48,7 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
-# restart:
+# restart: --innodb_redo_log_encrypt=ON --plugin-dir=PLUGIN_DIR_OPT
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
 innodb_redo_log_encrypt	ON
@@ -70,7 +77,7 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-# Kill and restart:
+# Kill and restart: --innodb_redo_log_encrypt=ON --plugin-dir=PLUGIN_DIR_OPT
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
 innodb_redo_log_encrypt	ON
@@ -87,7 +94,7 @@ c1	c2
 8	iiiii
 9	jjjjj
 DROP TABLE t1;
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=MYSQL_TMP_DIR/keyring_query_log --plugin-dir=KEYRING_PLUGIN_PATH --innodb_redo_log_encrypt=ON
+# restart: --general-log --log-output=FILE --general_log_file=MYSQL_TMP_DIR/keyring_query_log --plugin-dir=PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
 innodb_redo_log_encrypt	ON
@@ -145,5 +152,12 @@ c1	c2
 3	NULL
 4	NULL
 DROP DATABASE tde_db;
-# restart:
+# restart: --general-log --log-output=FILE --general_log_file=MYSQL_TMP_DIR/keyring_query_log --plugin-dir=PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON
 SET GLOBAL innodb_file_per_table=1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

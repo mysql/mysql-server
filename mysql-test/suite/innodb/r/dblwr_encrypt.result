@@ -6,6 +6,12 @@
 # tablespace is corrupted.  Valid copy of that page is there
 # in DBLWR file.
 #
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 SET SESSION innodb_interpreter = 'init';
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENCRYPTION='Y';
 START TRANSACTION;
@@ -27,7 +33,6 @@ INSERT INTO t1 VALUES(4, repeat('.',12));
 SET SESSION innodb_interpreter = CONCAT('dblwr_force_crash ', @space_id, ' 0');
 SET SESSION innodb_interpreter = CONCAT('make_page_dirty ', @space_id, ' 0');
 ERROR HY000: Lost connection to MySQL server during query
-# restart
 Pattern "\[Note\] .* Restoring page \[page id: space=\d+, page number=0\] of datafile .* from the doublewrite buffer. Writing .*" found
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -39,3 +44,10 @@ f1	f2
 3	////////////
 DROP TABLE t1;
 # Test End
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

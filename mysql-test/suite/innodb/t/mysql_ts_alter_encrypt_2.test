@@ -2,7 +2,7 @@
 # InnoDB transparent tablespace data encryption for mysql.tablespace.
 # For mysql.tablespace, this test will test
 #    1 - Alter mysql.tablespace with
-#        - and without loading keyring plugin
+#        - and without loading keyring component
 #        - valid/invalid encryption option
 #        -ENCRYPTION='n' to ENCRYPTION='y'
 #    2 - Actual encryption taking place or not
@@ -11,22 +11,23 @@
 #    5 - Create view using mysql.tablespace
 #    6 - Delete/truncate/drop DD table part of mysql tablespace
 #    7 - Changing encryption attribute of tables in mysql tablespace
-#    8 - Restart with same keyring plugin option and access mysql tables
-#    9 - Restart without keyring plugin option, Install plugin explicitly and alter encryption to Y
+#    8 - Restart with same keyring component option and access mysql tables
+#    9 - Restart without keyring component option, Install component explicitly and alter encryption to Y
 #   10 - Monitor progress of encryption in performance_schema table
 #   11 - Rename/drop mysql tablespace
 #   12 - Create tablespace with name as mysql
 ################################################################################
 
 --source include/big_test.inc
+--source include/not_parallel.inc
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
-call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'keyring_file initialization failure.");
-call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'File .*keyring' not found .*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Component component_keyring_file reported:");
 --enable_query_log
 
 --echo #########
@@ -38,7 +39,7 @@ let datadir=`SELECT @@datadir`;
 let search_pattern=mysql.plugin;
 let ts_name=mysql.ibd;
 --echo #########################################################################
---echo # START : WITHOUT KEYRING PLUGIN
+--echo # START : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
 # Alter mysql.tablespace with encryption, should fail since keyring is not
 # loaded.
@@ -50,10 +51,9 @@ ALTER TABLESPACE mysql ENCRYPTION='Y';
 ALTER TABLESPACE mysql ENCRYPTION='N';
 
 --echo #########################################################################
---echo # RESTART 1 : WITH KEYRING PLUGIN
+--echo # RESTART 1 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysql_ts_keyring $KEYRING_PLUGIN_OPT;
---source include/restart_mysqld_no_echo.inc
+--source suite/component_keyring_file/inc/setup_component_customized.inc
 
 --echo --------------------------------------------------
 --echo By Default, mysql tablespace should be unencrypted
@@ -289,11 +289,10 @@ ALTER TABLESPACE mysql ENGINE=myisam;
 ALTER TABLESPACE mysql ENGINE=memory;
 
 --echo #########################################################################
---echo # Restart with same keyring plugin option
+--echo # Restart with same keyring component option
 --echo #   - tables in mysql ts should be accessible
 --echo #########################################################################
 ALTER TABLESPACE mysql ENCRYPTION='Y';
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysql_ts_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
 SELECT help_keyword_id FROM mysql.help_keyword ORDER BY help_keyword_id LIMIT 2;
@@ -301,32 +300,24 @@ SELECT help_keyword_id FROM mysql.help_keyword ORDER BY help_keyword_id LIMIT 2;
 
 ALTER TABLESPACE mysql ENCRYPTION='N';
 --echo #########################################################################
---echo # Restart without keyring plugin option
---echo #   - Install plugin explicitly and alter encryption to Y
+--echo # Restart without keyring component option
+--echo #   - Install component explicitly and alter encryption to Y
 --echo #########################################################################
-let $restart_parameters = restart: ;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--source include/keyring_tests/helper/global_keyring_config_backup.inc
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/restart_mysqld.inc
+--source include/keyring_tests/helper/global_keyring_config_restore.inc
 --disable_warnings
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+ALTER INSTANCE RELOAD KEYRING;
 --enable_warnings
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/mysql_ts_keyring';
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT @@global.keyring_file_data;
 ALTER TABLESPACE mysql ENCRYPTION='Y';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
---replace_regex /\.dll/.so/
-UNINSTALL PLUGIN keyring_file;
---error ER_CANNOT_FIND_KEY_IN_KEYRING
-ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 --echo #########################################################################
---echo # Restart with keyring plugin
+--echo # Restart with keyring component
 --echo #   - monitor progress of encryption in performance_schema table
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysql_ts_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
 ALTER TABLESPACE mysql ENCRYPTION='N';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
@@ -421,12 +412,11 @@ SELECT help_keyword_id FROM mysql.help_keyword ORDER BY help_keyword_id LIMIT 2;
 ALTER TABLESPACE mysql ENCRYPTION='N';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
 
-remove_file $MYSQL_TMP_DIR/mydummy_key;
-remove_file $MYSQL_TMP_DIR/mysql_ts_keyring;
 remove_file $MYSQLTEST_VARDIR/tmpfile.txt;
+--source suite/component_keyring_file/inc/teardown_component_customized.inc
 
 --echo #########################################################################
---echo # RESTART : WITHOUT KEYRING PLUGIN
+--echo # RESTART : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
 let $restart_parameters = restart: ;
 --source include/restart_mysqld.inc

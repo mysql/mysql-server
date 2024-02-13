@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 #
 # Bug #29820184 REDO LOGS MAY SILENTLY BE IGNORED WHEN ENCRYPTED TABLE
 # CANNOT BE DECRYPTED.
@@ -22,7 +28,7 @@ a INT NOT NULL PRIMARY KEY,
 c CHAR(200),
 b BLOB,
 INDEX(b(10))) ENGINE=innodb ENCRYPTION='Y';
-# restart
+# restart: PLUGIN_DIR_OPT
 INSERT INTO t2 SELECT * FROM t1;
 INSERT INTO t3 SELECT * FROM t1;
 INSERT INTO t4 SELECT * FROM t1;
@@ -39,6 +45,15 @@ INSERT into t3 (a,c,b) VALUES (21, REPEAT('secret9',20), REPEAT('secre10',6000))
 INSERT into t4 (a,c,b) VALUES (21, REPEAT('secre11',20), REPEAT('secre12',6000));
 COMMIT;
 # Kill the server
-# Restart mysqld without keyring plugin
-# Restart mysqld with keyring plugin
+# Restart mysqld without keyring component
+# Taking backup of local manifest file for MySQL server instance
+# Restart mysqld with keyring component
+# Restore local manifest file for MySQL server instance from backup
 drop TABLE t1,t2,t3,t4;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

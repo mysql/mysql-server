@@ -1,5 +1,0 @@
---early-plugin-load="keyring_file=$KEYRING_PLUGIN"
---keyring_file_data=$MYSQL_TMP_DIR/keyring_master
---binlog_encryption=ON
---max_binlog_size=4096
-$KEYRING_PLUGIN_OPT

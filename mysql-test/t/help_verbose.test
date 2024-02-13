@@ -15,7 +15,7 @@
 
 --mkdir $BUGDIR
 
---exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR --secure-file-priv="" $KEYRING_PLUGIN_OPT > $LOG_FILE 2>&1
+--exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR --secure-file-priv="" > $LOG_FILE 2>&1
 
 --echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE
@@ -38,7 +38,7 @@
 --mkdir $BUGDIR
 --mkdir $TEST_DATADIR
 
---exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" $KEYRING_PLUGIN_OPT --loose-skip-log-bin > $LOG_FILE 2>&1
+--exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" --loose-skip-log-bin > $LOG_FILE 2>&1
 
 --echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE
@@ -63,7 +63,7 @@
 
 --mkdir $BUGDIR
 
---exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" $KEYRING_PLUGIN_OPT > $LOG_FILE 2>&1
+--exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" > $LOG_FILE 2>&1
 
 --echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE
@@ -85,7 +85,7 @@
 --mkdir $BUGDIR
 --mkdir $TEST_DATADIR
 
---exec $MYSQLD --no-defaults --help --verbose --log-bin --server-id=1 --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" $KEYRING_PLUGIN_OPT > $LOG_FILE 2>&1
+--exec $MYSQLD --no-defaults --help --verbose --log-bin --server-id=1 --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" > $LOG_FILE 2>&1
 
 --echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE

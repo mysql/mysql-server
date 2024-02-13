@@ -16,6 +16,7 @@
 # will be turned off and server will continue. 4 different test cases are
 # added to check both the behaviours.
 ###############################################################################
+--source include/have_component_keyring_file.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
 # Don't test this under valgrind, memory leaks will occur
@@ -500,12 +501,10 @@ DROP table t1, t2;
 ############################
 
 # Failed to write a binlog encrypted header
+--source ../mysql-test/suite/component_keyring_file/inc/setup_component.inc
 
---let $keyring_data= $MYSQLTEST_VARDIR/tmp/keyring_data
---source include/shutdown_mysqld.inc
---let $restart_parameters=restart: $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_data --binlog_encryption=ON
---replace_result $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD KEYRING_PLUGIN_LOAD $keyring_data keyring_data
---source include/start_mysqld.inc
+--let $restart_parameters=restart: $PLUGIN_DIR_OPT --binlog_encryption=ON
+--source include/restart_mysqld_no_echo.inc
 --let $debug_point=fail_to_serialize_encryption_header
 --source include/add_debug_point.inc
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -516,8 +515,7 @@ FLUSH LOGS;
 --source include/wait_until_connected_again.inc
 SET @@GLOBAL.binlog_encryption=OFF;
 RESET BINARY LOGS AND GTIDS;
-UNINSTALL PLUGIN keyring_file;
---remove_file $keyring_data
+--source ../mysql-test/suite/component_keyring_file/inc/teardown_component.inc
 --let $restart_parameters=
 --source include/restart_mysqld.inc
 
@@ -526,12 +524,10 @@ UNINSTALL PLUGIN keyring_file;
 ############################
 
 # Failed to generate new file password
+--source ../mysql-test/suite/component_keyring_file/inc/setup_component.inc
 
---let $keyring_data= $MYSQLTEST_VARDIR/tmp/keyring_data
---source include/shutdown_mysqld.inc
---let $restart_parameters=restart: $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_data --binlog_encryption=ON
---replace_result $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD KEYRING_PLUGIN_LOAD $keyring_data keyring_data
---source include/start_mysqld.inc
+--let $restart_parameters=restart: $PLUGIN_DIR_OPT --binlog_encryption=ON
+--source include/restart_mysqld_no_echo.inc
 --let $debug_point=fail_to_generate_new_file_password
 --source include/add_debug_point.inc
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -542,7 +538,6 @@ FLUSH LOGS;
 --source include/wait_until_connected_again.inc
 SET @@GLOBAL.binlog_encryption=OFF;
 RESET BINARY LOGS AND GTIDS;
-UNINSTALL PLUGIN keyring_file;
---remove_file $keyring_data
+--source ../mysql-test/suite/component_keyring_file/inc/teardown_component.inc
 --let $restart_parameters=
 --source include/restart_mysqld.inc

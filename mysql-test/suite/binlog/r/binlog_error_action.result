@@ -189,20 +189,42 @@ Occurrences of 'An error occurred during' in the input file: 1
 DROP table t1, t2;
 # restart
 Test case17
-# restart: KEYRING_PLUGIN_OPT KEYRING_PLUGIN_LOAD --keyring_file_data=keyring_data --binlog_encryption=ON
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 # Adding debug point 'fail_to_serialize_encryption_header' to @@GLOBAL.debug
 FLUSH LOGS;
 ERROR HY000: Binary logging not possible. Message: Either disk is full, file system is read only or there was an encryption error while opening the binlog. Aborting the server.
 SET @@GLOBAL.binlog_encryption=OFF;
 RESET BINARY LOGS AND GTIDS;
-UNINSTALL PLUGIN keyring_file;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # restart
 Test case18
-# restart: KEYRING_PLUGIN_OPT KEYRING_PLUGIN_LOAD --keyring_file_data=keyring_data --binlog_encryption=ON
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 # Adding debug point 'fail_to_generate_new_file_password' to @@GLOBAL.debug
 FLUSH LOGS;
 ERROR HY000: Binary logging not possible. Message: Either disk is full, file system is read only or there was an encryption error while opening the binlog. Aborting the server.
 SET @@GLOBAL.binlog_encryption=OFF;
 RESET BINARY LOGS AND GTIDS;
-UNINSTALL PLUGIN keyring_file;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # restart

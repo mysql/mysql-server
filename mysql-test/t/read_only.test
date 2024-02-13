@@ -1,3 +1,5 @@
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 # Skipping the test when binlog format is mix/statement due to Bug#22173401
 --source include/have_binlog_format_row.inc
@@ -615,3 +617,4 @@ DROP USER user1@localhost;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+--source suite/component_keyring_file/inc/teardown_component.inc

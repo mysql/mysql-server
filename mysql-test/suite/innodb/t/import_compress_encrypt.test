@@ -4,6 +4,9 @@
 --source include/have_innodb_16k.inc
 --source include/have_punch_hole.inc
 --source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/not_parallel.inc
+--source include/have_component_keyring_file.inc
 
 --echo #
 --echo # Bug#31313533 : IMPORT FAILS FOR ENCRYPT AND COMPRESSION ENABLED TDE TABLES
@@ -12,9 +15,8 @@
 --echo # SETUP
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
---echo # RESTART WITH KEYRING PLUGIN
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---source include/restart_mysqld_no_echo.inc
+--echo # RESTART WITH KEYRING COMPONENT
+--source suite/component_keyring_file/inc/setup_component_customized.inc
 
 --echo
 --echo # Test 1 : Check that EXPORT and IMPORT is working fine on same FS
@@ -159,48 +161,50 @@ DROP TABLE t1;
 --file_exists $MYSQL_TMP_DIR/import2_8021.zip
 --force-rmdir $MYSQL_TMP_DIR/import2_8021
 --remove_file $MYSQL_TMP_DIR/import2_8021.zip
+--source suite/component_keyring_file/inc/teardown_component_customized.inc
 
---echo
---echo # Test 4 : check table from old version are read correctly after upgrade
---echo
+#--echo
+#--echo # Test 4 : check table from old version are read correctly after upgrade
+#                  (The datadir zip used in this test case needs to be created against other keyring plugin/component, Bug#36205233)
+#--echo
 
---echo # Stop the running the server
---source include/shutdown_mysqld.inc
+#--echo # Stop the running the server
+#--source include/shutdown_mysqld.inc
 
---echo # Copy and unzip the datadir.
---copy_file $MYSQLTEST_VARDIR/std_data/data_8021.zip $MYSQL_TMP_DIR/data_8021.zip
---file_exists $MYSQL_TMP_DIR/data_8021.zip
---exec unzip -qo $MYSQL_TMP_DIR/data_8021.zip -d $MYSQL_TMP_DIR
-let $DATADIR = $MYSQL_TMP_DIR/data;
+#--echo # Copy and unzip the datadir.
+#--copy_file $MYSQLTEST_VARDIR/std_data/data_8021.zip $MYSQL_TMP_DIR/data_8021.zip
+#--file_exists $MYSQL_TMP_DIR/data_8021.zip
+#--exec unzip -qo $MYSQL_TMP_DIR/data_8021.zip -d $MYSQL_TMP_DIR
+#let $DATADIR = $MYSQL_TMP_DIR/data;
 
---echo # Restart the server against the unzipped datadir
---replace_result $DATADIR DATADIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
---let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/data/keyring $KEYRING_PLUGIN_OPT
---let $wait_counter=3000
---source include/start_mysqld.inc
+#--echo # Restart the server against the unzipped datadir
+#--replace_result $DATADIR DATADIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
+#--let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/data/keyring $KEYRING_PLUGIN_OPT
+#--let $wait_counter=3000
+#--source include/start_mysqld.inc
 
---echo # Verify tables after upgrade
-USE test;
-SHOW CREATE TABLE t1;
-SELECT c1, SUBSTRING(c2, 10, 10), SUBSTRING(c3, 10, 10), SUBSTRING(c4, 10, 10), b FROM t1 ORDER BY c1 limit 10;
+#--echo # Verify tables after upgrade
+#USE test;
+#SHOW CREATE TABLE t1;
+#SELECT c1, SUBSTRING(c2, 10, 10), SUBSTRING(c3, 10, 10), SUBSTRING(c4, 10, 10), b FROM t1 ORDER BY c1 limit 10;
 
---echo # Run some DML statements
-INSERT INTO t1(c2,b,p_c1) VALUES(AES_ENCRYPT("5dd0786a3c7adf503202b8e234a95cbe643bc752028e1792ca8e6ef86c69582eb1cc478670c8e5d6c0133d1b4e5c98017aeb893f9db5f1bff397bc9e0f5fde48","abc"),10,100);
-DELETE FROM t1 WHERE c1=50001;
+#--echo # Run some DML statements
+#INSERT INTO t1(c2,b,p_c1) VALUES(AES_ENCRYPT("5dd0786a3c7adf503202b8e234a95cbe643bc752028e1792ca8e6ef86c69582eb1cc478670c8e5d6c0133d1b4e5c98017aeb893f9db5f1bff397bc9e0f5fde48","abc"),10,100);
+#DELETE FROM t1 WHERE c1=50001;
 
---echo # Verify results
-SELECT c1, SUBSTRING(c2, 10, 10), SUBSTRING(c3, 10, 10), SUBSTRING(c4, 10, 10), b FROM t1 ORDER BY c1 limit 10;
+#--echo # Verify results
+#SELECT c1, SUBSTRING(c2, 10, 10), SUBSTRING(c3, 10, 10), SUBSTRING(c4, 10, 10), b FROM t1 ORDER BY c1 limit 10;
 
---echo # Cleanup
-DROP TABLE t1;
-remove_file $MYSQL_TMP_DIR/mysecret_keyring;
---echo # Shutdown server
---source include/shutdown_mysqld.inc
+#--echo # Cleanup
+#DROP TABLE t1;
+#remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+#--echo # Shutdown server
+#--source include/shutdown_mysqld.inc
 
---echo # Remove copied files
---file_exists $MYSQL_TMP_DIR/data_8021.zip
---force-rmdir $MYSQL_TMP_DIR/data
---remove_file $MYSQL_TMP_DIR/data_8021.zip
+#--echo # Remove copied files
+#--file_exists $MYSQL_TMP_DIR/data_8021.zip
+#--force-rmdir $MYSQL_TMP_DIR/data
+#--remove_file $MYSQL_TMP_DIR/data_8021.zip
 
 --echo # Restarting server without keyring to restore server state
 let $restart_parameters =;

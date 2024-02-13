@@ -1,3 +1,10 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# restart:--binlog-encryption=on --innodb-redo-log-encrypt=on --innodb-undo-log-encrypt=on PLUGIN_DIR_OPT
 select @@binlog_encryption;
 @@binlog_encryption
 1
@@ -24,7 +31,7 @@ COMMIT WORK;
 # Ensure that dirty pages of table t1 is flushed.
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
-# Kill and restart
+# Kill and restart:--binlog-encryption=on --innodb-redo-log-encrypt=on --innodb-undo-log-encrypt=on PLUGIN_DIR_OPT
 select 2;
 2
 2
@@ -34,4 +41,11 @@ SET SESSION innodb_interpreter = 'destroy';
 Pattern "Double write file has encrypted pages" found
 Pattern "\[Note\] \[MY-\d+\] \[InnoDB\] Recovered page \[page id: space=\d+, page number=\d+\] from the doublewrite buffer" not found
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # Test End

@@ -1,9 +1,10 @@
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
 
 --echo #
 --echo # WL#13775: InnoDB: Encrypt DBLWR files
 --echo #
-
+--source suite/component_keyring_file/inc/setup_component.inc
 create table t1 (f1 int primary key, f2 blob) ENCRYPTION='Y';
 
 START TRANSACTION;
@@ -38,3 +39,4 @@ SELECT @page_type;
 set global innodb_interpreter = 'destroy';
 
 drop table t1;
+--source suite/component_keyring_file/inc/teardown_component.inc

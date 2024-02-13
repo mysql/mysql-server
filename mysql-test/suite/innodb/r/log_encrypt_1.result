@@ -1,3 +1,10 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# restart:--plugin-dir=PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --general-log --general_log_file=MYSQL_TMP_DIR/keyring_query_log --log-output=FILE
 CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -33,7 +40,7 @@ c1	c2
 0	aaaaa
 0	aaaaa
 0	aaaaa
-# restart:
+# restart:--plugin-dir=PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --general-log --general_log_file=MYSQL_TMP_DIR/keyring_query_log --log-output=FILE
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -59,7 +66,7 @@ INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 # Kill the server
-# restart:
+# restart:--plugin-dir=PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --general-log --general_log_file=MYSQL_TMP_DIR/keyring_query_log --log-output=FILE
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -84,7 +91,7 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-# restart:
+# restart:--plugin-dir=PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --general-log --general_log_file=MYSQL_TMP_DIR/keyring_query_log --log-output=FILE
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 INSERT INTO t1 VALUES(0, "aaaaa");
@@ -110,3 +117,10 @@ c1	c2
 8	iiiii
 9	jjjjj
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

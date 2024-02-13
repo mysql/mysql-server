@@ -1,6 +1,12 @@
 #
 # WL#13775: InnoDB: Encrypt DBLWR files
 #
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 create table t1 (f1 int primary key, f2 blob) ENCRYPTION='Y';
 START TRANSACTION;
 INSERT INTO t1 VALUES(1, repeat('#',12));
@@ -29,3 +35,10 @@ SELECT @page_type;
 FIL_PAGE_ENCRYPTED
 set global innodb_interpreter = 'destroy';
 drop table t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

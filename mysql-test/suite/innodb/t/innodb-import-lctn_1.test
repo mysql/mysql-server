@@ -1,6 +1,7 @@
 --source include/have_debug.inc
 --source include/no_valgrind_without_big.inc
 --source include/not_windows.inc
+--source include/have_component_keyring_file.inc
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 
@@ -101,10 +102,7 @@ DROP TABLE t1;
 --echo # Test 3 : With encryption
 
 # restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
---replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB ENCRYPTION='Y'
 PARTITION BY RANGE (c1) ( PARTITION ABC VALUES LESS THAN (10));
@@ -135,8 +133,7 @@ SELECT * FROM t1 ORDER BY c1;
 DROP TABLE t1;
 
 --echo # Restarting server without keyring to restore server state
-let $restart_parameters = restart: ;
---source include/restart_mysqld.inc
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 --echo Test 4 : Missing cfg file
 
@@ -235,7 +232,6 @@ SELECT * from t1 ORDER BY f1;
 DROP TABLE t1;
 --remove_files_wildcard $MYSQLD_DATADIR/db1 t1*.cfg
 --remove_files_wildcard $MYSQLD_DATADIR/db1 *.zip
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
-
 DROP DATABASE db1;
+
 

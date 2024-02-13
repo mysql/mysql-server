@@ -2,6 +2,12 @@
 # IMPORT/EXPORT for non-partitioned tables with autoextend_size
 #
 
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 # Create source and destination databases and stored procedure to load the tables
 
 CREATE DATABASE db_source;
@@ -740,3 +746,10 @@ DROP DATABASE db_source;
 USE db_destination;
 DROP PROCEDURE bulk_insert_dest;
 DROP DATABASE db_destination;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

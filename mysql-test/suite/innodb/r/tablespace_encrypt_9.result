@@ -1,5 +1,5 @@
 #########################################################################
-# START : WITHOUT KEYRING PLUGIN
+# START : WITHOUT KEYRING COMPONENT
 #########################################################################
 
 #########
@@ -30,8 +30,14 @@ ERROR HY000: Can't find master key from keyring, please check in the server log 
 #############################################################
 
 #########################################################################
-# RESTART 1 : WITH KEYRING PLUGIN
+# RESTART 1 : WITH KEYRING COMPONENT
 #########################################################################
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 ############################################################
 # ALTER TABLESPACE 1 :    Unencrypted => Encrypted         #
 #                         (crash at page 10)               #
@@ -44,14 +50,16 @@ SET GLOBAL innodb_dict_stats_disabled_debug = 1;
 SET GLOBAL innodb_master_thread_disabled_debug = 1;
 # Encrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-# Restart after crash without Keyring plugin loaded
+# Restart after crash without Keyring component loaded
+# Taking backup of local manifest file for MySQL server instance
 Pattern "CORRUPT LOG RECORD FOUND" found
 # Server shouldn't have restarted, so query should fail.
 SELECT * from test.t1 limit 10;
 ERROR HY000: Lost connection to MySQL server during query
 #########################################################################
-# RESTART 2 : WITH KEYRING PLUGIN
+# RESTART 2 : WITH KEYRING COMPONENT
 #########################################################################
+# Restore local manifest file for MySQL server instance from backup
 # Server should have restarted properly.
 SELECT * from test.t1 limit 10;
 c1
@@ -108,7 +116,7 @@ connection_id()
 ALTER TABLESPACE temp_ts ENCRYPTION='Y';
 set global innodb_buf_flush_list_now = 1;
 # Now restart without sleep_resume_alter_encrypt.
-# Kill and restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# Kill and restart: PLUGIN_DIR_OPT
 # Wait for Encryption processing to finish in background thread
 # After restart/recovery, check that Encryption was roll-forward
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
@@ -133,5 +141,12 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 ###########
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # Restarting server without keyring to restore server state
 # restart: 

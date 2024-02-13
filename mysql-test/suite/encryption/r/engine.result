@@ -1,6 +1,12 @@
 #
 # WL#12261 Control (enforce and disable) table encryption
 #
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 # Check for use of ENCRYPTION clause on tables using engines that
 # does not support encryption.
 #
@@ -160,3 +166,10 @@ TABLE_NAME	CREATE_OPTIONS
 t1	ENCRYPTION='y'
 DROP TABLE t1;
 DROP TABLESPACE ts1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

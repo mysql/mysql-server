@@ -101,7 +101,12 @@ f1	f2
 90	10
 DROP TABLE t1;
 # Test 3 : With encryption
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB ENCRYPTION='Y'
 PARTITION BY RANGE (c1) ( PARTITION ABC VALUES LESS THAN (10));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6);
@@ -132,7 +137,13 @@ c1
 6
 DROP TABLE t1;
 # Restarting server without keyring to restore server state
-# restart: 
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 Test 4 : Missing cfg file
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
 PARTITION BY RANGE (c1) ( PARTITION ABCD VALUES LESS THAN (10));

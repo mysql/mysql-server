@@ -10,6 +10,9 @@
 ## 8. dml_stmt21     : DML to be executed after DDL before sending DDL metadata in PAGE COPY
 ## 9. ddl_skip_check : Skip checking data. Used tables are dropped
 ##10. ddl_encryption : restart server with keyring plugin
+--source include/big_test.inc
+--source include/not_parallel.inc
+--source include/have_component_keyring_file.inc
 
 --source include/count_sessions.inc
 
@@ -241,8 +244,12 @@ if (!$remote_clone) {
 
 --echo # Restart server on cloned data directory
 if ($ddl_encryption) {
-  --replace_result $CLONE_DATADIR CLONE_DATADIR $KEYRING_PLUGIN KEYRING_PLUGIN $MYSQL_TMP_DIR MYSQL_TMP_DIR
-  --let restart_parameters="restart: --datadir=$CLONE_DATADIR --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring"
+  --let keyring_status=`SELECT STATUS_VALUE FROM performance_schema.keyring_component_status WHERE STATUS_KEY = "Component_status"`
+  if (!$keyring_status){
+    --source suite/component_keyring_file/inc/setup_component_customized.inc
+  }
+  --replace_result $CLONE_DATADIR CLONE_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
+  --let restart_parameters="restart: --datadir=$CLONE_DATADIR $PLUGIN_DIR_OPT"
 }
 
 if (!$ddl_encryption) {
@@ -279,8 +286,8 @@ if (!$ddl_skip_check) {
 --echo # Restart server back on base data directory
 
 if ($ddl_encryption) {
-  --replace_result $KEYRING_PLUGIN KEYRING_PLUGIN $MYSQL_TMP_DIR MYSQL_TMP_DIR $ENCRYPT_DATADIR ENCRYPT_DATADIR
-  --let restart_parameters=restart: --datadir=$ENCRYPT_DATADIR --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
+  --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $ENCRYPT_DATADIR ENCRYPT_DATADIR $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
+  --let restart_parameters=restart: --datadir=$ENCRYPT_DATADIR $PLUGIN_DIR_OPT
 }
 
 if (!$ddl_encryption) {

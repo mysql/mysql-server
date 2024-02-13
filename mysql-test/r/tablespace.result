@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 #
 # WL#3627 Add COLUMN_FORMAT and STORAGE for fields
 #
@@ -577,7 +583,7 @@ UNLOCK TABLES;
 # Verify that ALTER TABLESPACE does not fail with the fix.
 # Verify that server restarts after the fix.
 SET DEBUG_SYNC= "RESET";
-# restart
+# restart: PLUGIN_DIR_OPT
 DROP TABLE t1;
 DROP TABLESPACE ts;
 #
@@ -594,7 +600,7 @@ ALTER TABLESPACE ts ENCRYPTION='Y';
 UNLOCK TABLES;
 # Verify that ALTER TABLESPACE does not fail with the fix.
 # Verify that server restarts after the fix.
-# restart
+# restart: PLUGIN_DIR_OPT
 DROP TABLE t1;
 DROP TABLESPACE ts;
 #
@@ -639,3 +645,10 @@ TABLESPACE_NAME	ENGINE_ATTRIBUTE
 ts11	{"foo": "bar"}
 DROP TABLESPACE ts2;
 DROP TABLESPACE ts11;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

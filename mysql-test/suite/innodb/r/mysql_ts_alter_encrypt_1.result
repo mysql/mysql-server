@@ -4,8 +4,14 @@
 #############################################################
 
 #########################################################################
-# RESTART 1 : WITH KEYRING PLUGIN
+# RESTART 1 : WITH KEYRING COMPONENT
 #########################################################################
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 SET debug='+d,skip_dd_table_access_check';
 # Initially, mysql should be unencrypted by default
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
@@ -60,7 +66,7 @@ SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
 mysql	encryption=Y;
 #########################################################################
-# RESTART 2 : WITH KEYRING PLUGIN
+# RESTART 2 : WITH KEYRING COMPONENT
 #########################################################################
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
@@ -96,7 +102,7 @@ SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
 mysql	encryption=N;
 #########################################################################
-# RESTART 3 : WITHOUT KEYRING PLUGIN
+# RESTART 3 : WITHOUT KEYRING COMPONENT
 #########################################################################
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
@@ -110,7 +116,7 @@ mysql	encryption=N;
 #############################################################
 
 #########################################################################
-# RESTART 4 : WITH KEYRING PLUGIN
+# RESTART 4 : WITH KEYRING COMPONENT
 #########################################################################
 SET debug='+d,skip_dd_table_access_check';
 ALTER TABLESPACE mysql ENCRYPTION='Y';
@@ -149,7 +155,7 @@ mysql	encryption=N;
 #############################################################
 
 #########################################################################
-# RESTART 5 : WITH KEYRING PLUGIN
+# RESTART 5 : WITH KEYRING COMPONENT
 #########################################################################
 SET debug='+d,skip_dd_table_access_check';
 ALTER TABLESPACE mysql ENCRYPTION='Y';
@@ -204,7 +210,14 @@ ALTER TABLESPACE mysql ENCRYPTION='N';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
 mysql	encryption=N;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 #########################################################################
-# RESTART 6 : WITHOUT KEYRING PLUGIN
+# RESTART 6 : WITHOUT KEYRING COMPONENT
 #########################################################################
 # restart: 

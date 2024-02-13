@@ -8,6 +8,12 @@
 #########################################################################
 # RESTART 1 : WITH KEYRING PLUGIN
 #########################################################################
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 #########################################################################
 # Non Partitioned Table                                                 #
 #########################################################################
@@ -606,5 +612,12 @@ DROP TABLESPACE encrypt_ts;
 DROP TABLESPACE encrypt_ts1;
 DROP TABLESPACE unencrypt_ts;
 DROP TABLESPACE unencrypt_ts1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # Restarting server without keyring to restore server state
 # restart: 

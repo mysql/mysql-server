@@ -16,6 +16,14 @@
 
 # Suppression of error messages
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+
+--source include/have_component_keyring_file.inc
+--source ../mysql-test/suite/component_keyring_file/inc/setup_component.inc
+
+--echo # Restart mysql server with binlog_encryption on.
+--let $restart_parameters=restart:--binlog_encryption=ON $PLUGIN_DIR_OPT
+--source include/restart_mysqld_no_echo.inc
+
 --let $binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 TEXT, pos INT);
@@ -57,3 +65,4 @@ while ($trx)
 
 # Cleanup
 DROP TABLE t1;
+--source ../mysql-test/suite/component_keyring_file/inc/teardown_component.inc

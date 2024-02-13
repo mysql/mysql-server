@@ -76,7 +76,6 @@ usr/lib/mysql/plugin/rewriter.so
 usr/lib/mysql/plugin/mypluglib.so
 usr/lib/mysql/plugin/locking_service.so
 usr/lib/mysql/plugin/adt_null.so
-usr/lib/mysql/plugin/keyring_file.so
 usr/lib/mysql/plugin/keyring_udf.so
 usr/lib/mysql/plugin/auth_socket.so
 usr/lib/mysql/plugin/validate_password.so

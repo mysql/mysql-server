@@ -1,5 +1,2 @@
 --innodb-doublewrite=off
 --innodb-doublewrite-pages=512
---early-plugin-load="keyring_file=$KEYRING_PLUGIN"
---keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
-$KEYRING_PLUGIN_OPT

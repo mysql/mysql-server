@@ -1,4 +1,7 @@
 --source include/have_perl_64bit_int.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
 DO innodb_redo_log_consumer_register();
 SELECT @@global.innodb_redo_log_encrypt ;
 CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
@@ -13,7 +16,7 @@ FLUSH LOGS;
 CHECKSUM TABLE t1;
 --source include/kill_mysqld.inc
 
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR
 --source include/start_mysqld.inc
 
 CHECKSUM TABLE t1;
@@ -60,7 +63,8 @@ perl;
   }
 EOF
 
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR
 --source include/start_mysqld.inc
 SELECT a,LEFT(b,8) FROM t1;
 DROP TABLE t1;
+--source suite/component_keyring_file/inc/teardown_component.inc

@@ -1,5 +1,7 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --echo #
 --echo # WL#3627 Add COLUMN_FORMAT and STORAGE for fields
@@ -450,7 +452,8 @@ SET AUTOCOMMIT=ON;
 # CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
 #
 # --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-# let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
+# let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR $PLUGIN_DIR_OPT;
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 # --source include/restart_mysqld.inc
 #
 # --disable_query_log
@@ -722,6 +725,7 @@ disconnect con1;
 --echo # Verify that server restarts after the fix.
 connection default;
 SET DEBUG_SYNC= "RESET";
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/restart_mysqld.inc
 
 DROP TABLE t1;
@@ -759,6 +763,7 @@ disconnect con1;
 
 --echo # Verify that server restarts after the fix.
 connection default;
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/restart_mysqld.inc
 
 DROP TABLE t1;
@@ -808,4 +813,4 @@ SELECT * FROM information_schema.tablespaces_extensions WHERE tablespace_name = 
 
 DROP TABLESPACE ts2;
 DROP TABLESPACE ts11;
-
+--source suite/component_keyring_file/inc/teardown_component.inc

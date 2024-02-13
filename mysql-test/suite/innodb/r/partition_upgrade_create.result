@@ -5,8 +5,14 @@ select case when @@version like "5.7.27%" then '5727'
             when @@version like "8.0.17%" then '8017'
             when @@version like "8.0.19%" then '8019'
             else 'none' end as VERSION into @current_server_version;
-# Starting server with keyring plugin
-# restart: --innodb_directories=/tmp/mysql_wl13352_data/ --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring  --plugin-dir=KEYRING_PLUGIN_PATH
+# Starting server with keyring component
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# restart: --innodb_directories=/tmp/mysql_wl13352_data/ --plugin-dir=PLUGIN_DIR
 
 # A. Create tables for upgrade and fill data
 Creating partitioned tables
@@ -928,7 +934,14 @@ SET NAMES DEFAULT;
 # Copy and zip old version exported partitions.
 # Copy and zip old version external directory.
 # Cleanup: Restart with default options.
-# restart
+# restart: PLUGIN_DIR_OPT
+# ----------------------------------------------------------------------
+# Teardown
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing global configuration file for keyring component: component_keyring_file
+# Removing global manifest file for MySQL server
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 
 # Drop all tables created for upgrade
 Dropping partitioned tables

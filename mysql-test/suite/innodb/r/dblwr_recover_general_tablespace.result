@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB ENCRYPTION='Y';
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) TABLESPACE=ts1 ENCRYPTION='Y' ENGINE=InnoDB;
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='ts1';
@@ -11,7 +17,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`f1`)
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SET GLOBAL innodb_fast_shutdown = 0;
-# restart
+# restart: PLUGIN_DIR_OPT
 # Wait for purge to complete
 START TRANSACTION;
 INSERT INTO t1 VALUES(1, repeat('#',12));
@@ -54,7 +60,7 @@ INSERT INTO t1 VALUES(6, repeat('?',12));
 SET GLOBAL innodb_log_flush_now = ON;
 # Kill the server
 # Corrupt the root page of table t1 in the user tablespace.
-# restart
+# restart: PLUGIN_DIR_OPT
 Pattern "Double write file has encrypted pages" found
 Pattern "\[Note\] \[MY-\d+\] \[InnoDB\] Recovered page \[page id: space=\d+, page number=\d+\] from the doublewrite buffer" found
 CHECK TABLE t1;
@@ -69,4 +75,11 @@ f1	f2
 5	............
 DROP TABLE t1;
 DROP TABLESPACE ts1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # Test End

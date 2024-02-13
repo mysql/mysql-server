@@ -1,5 +1,7 @@
 --source include/have_debug.inc
 --source include/not_valgrind.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --echo #
 --echo # WL#13775 - InnoDB: Encrypt DBLWR files
@@ -79,6 +81,7 @@ print FILE chr(0) x $page_size;
 close FILE;
 EOF
 
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/start_mysqld.inc
 
 SET SESSION innodb_interpreter = 'init';
@@ -97,4 +100,5 @@ CHECK TABLE t1;
 SELECT f1, f2 FROM t1;
 
 DROP TABLE t1;
+--source suite/component_keyring_file/inc/teardown_component.inc
 --echo # Test End

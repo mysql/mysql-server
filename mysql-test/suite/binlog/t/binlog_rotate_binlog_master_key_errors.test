@@ -15,6 +15,12 @@
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/have_component_keyring_file.inc
+--source ../mysql-test/suite/component_keyring_file/inc/setup_component.inc
+
+--echo # Restart mysql server with binlog_encryption on.
+--let $restart_parameters=restart:--binlog_encryption=ON $PLUGIN_DIR_OPT
+--source include/restart_mysqld_no_echo.inc
 
 --let $MASTER_DATADIR= `select @@datadir`
 
@@ -392,3 +398,4 @@ ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 --source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
 
 DROP TABLE t1;
+--source ../mysql-test/suite/component_keyring_file/inc/teardown_component.inc

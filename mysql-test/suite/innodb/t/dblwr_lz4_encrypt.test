@@ -2,6 +2,8 @@
 --source include/not_valgrind.inc
 --source include/have_innodb_16k.inc
 --source include/have_punch_hole.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --echo #
 --echo # WL#13775 - InnoDB: Encrypt DBLWR files
@@ -21,6 +23,7 @@ call mtr.add_suppression("Header page contains inconsistent data in datafile");
 
 # Slow shutdown and restart to make sure ibuf merge is finished
 SET GLOBAL innodb_fast_shutdown = 0;
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/restart_mysqld.inc
 
 SET SESSION innodb_interpreter = 'init';
@@ -62,6 +65,7 @@ SET SESSION innodb_interpreter = @cmd;
 SET SESSION innodb_interpreter = 'corrupt_ondisk_page0 test/t1';
 SET SESSION innodb_interpreter = 'destroy';
 
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/kill_and_restart_mysqld.inc
 
 SET SESSION innodb_interpreter = 'init';
@@ -79,4 +83,5 @@ CHECK TABLE t1;
 SELECT f1, f2 FROM t1;
 
 DROP TABLE t1;
+--source suite/component_keyring_file/inc/teardown_component.inc
 --echo # Test End

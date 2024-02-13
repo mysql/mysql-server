@@ -1,6 +1,20 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Restart mysql server with binlog_encryption on.
 RESET BINARY LOGS AND GTIDS;
 # Adding debug point 'purge_logs_during_reencryption' to @@GLOBAL.debug
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 Warnings:
 Error	29	File './binlog.000001' not found (OS errno 2 - No such file or directory)
 # Removing debug point 'purge_logs_during_reencryption' from @@GLOBAL.debug
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

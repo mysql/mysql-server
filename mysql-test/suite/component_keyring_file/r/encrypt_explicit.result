@@ -17,8 +17,6 @@ CREATE table tab1(c1 int);
 SELECT @@datadir;
 @@datadir
 MYSQLD_DATADIR1/
-SHOW VARIABLES LIKE 'keyring_file%';
-Variable_name	Value
 SELECT @@innodb_undo_log_encrypt;
 @@innodb_undo_log_encrypt
 1
@@ -37,6 +35,7 @@ DROP UNDO TABLESPACE undo_004;
 DROP TABLE tab2;
 DROP DATABASE nath;
 # Stop the encrypt server
+# Taking backup of global manifest file for MySQL server
 SELECT @@datadir;
 @@datadir
 MYSQLD_OLD_DATADIR
@@ -47,6 +46,7 @@ DROP TABLE tab1;
 #
 # Stop the non-encrypted server
 # Run the bootstrap command of datadir1
+# Restore global manifest file for MySQL server from backup
 # Show that a master key with a blank Server UUID is not used.
 SELECT * FROM performance_schema.keyring_keys where KEY_ID='INNODBKey--1';
 KEY_ID	KEY_OWNER	BACKEND_KEY_ID

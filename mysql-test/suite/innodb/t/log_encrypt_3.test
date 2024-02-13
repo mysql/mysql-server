@@ -3,10 +3,15 @@
 
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+--let $restart_parameters= restart: --innodb_redo_log_encrypt=ON $PLUGIN_DIR_OPT
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR_OPT
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc
 
 #Suppress following messages from myslqd log
 --disable_query_log
-call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
 call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
 call mtr.add_suppression("\\[Warning\\] .* Plugin mysqlx reported.*");
@@ -25,16 +30,11 @@ USE tde_db;
 # Expected : plugin already installed
 
 SELECT @@global.innodb_redo_log_encrypt ;
---replace_regex /\.dll/.so/
---error ER_UDF_EXISTS
-eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
-UNINSTALL PLUGIN keyring_file;
 
 # Flush logs
 #  (closes and reopens any flushable logs for installed storage engines.
 #  This causes InnoDB to flush its logs to disk. )
---let $restart_parameters = restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR_OPT
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
 
@@ -58,16 +58,12 @@ CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB)
 INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t4;
 FLUSH LOGS;
---let $restart_parameters = restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR_OPT
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
 
 
-SELECT
-  PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
-FROM INFORMATION_SCHEMA.PLUGINS
-  WHERE PLUGIN_NAME LIKE '%keyring_file%' ;
+SELECT * FROM performance_schema.keyring_component_status WHERE STATUS_KEY LIKE 'Component_name' OR STATUS_KEY LIKE 'Component_status';
 SELECT a,LEFT(b,10) FROM tde_db.t1;
 SELECT a,LEFT(b,10) FROM tde_db.t2;
 SELECT a,LEFT(b,10) FROM tde_db.t3;
@@ -110,16 +106,12 @@ INSERT INTO t4 (a, b) VALUES (2, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t3;
 SELECT a,LEFT(b,10) FROM tde_db.t4;
 COMMIT;
---let $restart_parameters = restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR_OPT
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
 
-
-SELECT
-  PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
-FROM INFORMATION_SCHEMA.PLUGINS
-  WHERE PLUGIN_NAME LIKE '%keyring_file%' ;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SELECT * FROM performance_schema.keyring_component_status;
 SELECT a,LEFT(b,10) FROM tde_db.t1;
 SELECT a,LEFT(b,10) FROM tde_db.t2;
 SELECT a,LEFT(b,10) FROM tde_db.t3;
@@ -172,3 +164,4 @@ eval SET GLOBAL innodb_redo_log_encrypt=$old_innodb_redo_log_encrypt;
 DROP USER encryptnonprivuser@localhost;
 DROP DATABASE tde_db;
 --enable_query_log
+--source suite/component_keyring_file/inc/teardown_component.inc

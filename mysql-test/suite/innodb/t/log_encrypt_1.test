@@ -3,6 +3,12 @@
 
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+let $restart_parameters = restart:$PLUGIN_DIR_OPT --innodb_redo_log_encrypt=ON --general-log --general_log_file=$MYSQL_TMP_DIR/keyring_query_log --log-output=FILE;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR_OPT
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it could not be opened");
@@ -39,8 +45,7 @@ INSERT INTO t1 select * from t1;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
-let $restart_parameters = restart:;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR_OPT
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
 
@@ -64,7 +69,7 @@ INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
 --source include/kill_mysqld.inc
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR_OPT
 --replace_regex /\.dll/.so/
 --source include/start_mysqld.inc
 
@@ -84,8 +89,7 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
-let $restart_parameters = restart:;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR_OPT
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
 
@@ -106,3 +110,4 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Cleanup
 DROP TABLE t1;
+--source suite/component_keyring_file/inc/teardown_component.inc

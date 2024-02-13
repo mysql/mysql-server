@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 SELECT COUNT(@@GLOBAL.binlog_encryption);
 COUNT(@@GLOBAL.binlog_encryption)
 1
@@ -56,3 +62,10 @@ SET GLOBAL binlog_encryption=OFF;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 REVOKE BINLOG_ENCRYPTION_ADMIN ON *.* FROM user1@'%';
 DROP USER user1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

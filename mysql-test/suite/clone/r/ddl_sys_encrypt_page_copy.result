@@ -1,7 +1,14 @@
 # Prepare for creating Encrypted Table
 # create bootstrap file
 # Create and start mysqld with keyring plugin.
-# restart: --datadir=ENCRYPT_DATADIR --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring
+# restart
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# restart: --datadir=ENCRYPT_DATADIR PLUGIN_DIR_OPT
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 # In connection CON1
 CREATE TABLESPACE tbs;
@@ -71,3 +78,10 @@ DROP TABLESPACE tbs;
 UNINSTALL PLUGIN clone;
 # Restart server and remove encrypted data directory
 # restart:
+# ----------------------------------------------------------------------
+# Teardown
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing global configuration file for keyring component: component_keyring_file
+# Removing global manifest file for MySQL server
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

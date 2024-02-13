@@ -1,3 +1,10 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Restart mysql server with binlog_encryption on.
 include/gtid_utils.inc
 include/install_replication_observers_example.inc
 CALL mtr.add_suppression(".*was not purged because it was being read by.*");
@@ -572,16 +579,13 @@ RESET BINARY LOGS AND GTIDS;
 ###
 ### Scenario 9: Restart the server so that Stop events are dealt with
 ###
-# restart
 USE test;
 SET GTID_NEXT="00000000-0000-0000-0000-000000000000:1";
 CREATE TABLE t1 (c1 INT);
 SET GTID_NEXT=AUTOMATIC;
-# restart
 SET GTID_NEXT="00000000-0000-0000-0000-000000000000:2";
 INSERT INTO t1 VALUES (1);
 SET GTID_NEXT=AUTOMATIC;
-# restart
 SET GTID_NEXT="00000000-0000-0000-0000-000000000000:3";
 INSERT INTO t1 VALUES (2);
 SET GTID_NEXT=AUTOMATIC;
@@ -638,3 +642,10 @@ DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
 include/uninstall_replication_observers_example.inc
 include/gtid_utils_end.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

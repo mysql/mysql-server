@@ -1,5 +1,19 @@
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Restart mysql server with binlog_encryption on.
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 TEXT, pos INT);
 # Inserting 100 random transaction
 # Asserting we can show binlog events from each transaction
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

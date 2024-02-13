@@ -710,18 +710,18 @@ RESET BINARY LOGS AND GTIDS;
 --echo ### Scenario 9: Restart the server so that Stop events are dealt with
 --echo ###
 
---source include/restart_mysqld.inc
+--source include/restart_mysqld_no_echo.inc
 USE test;
 --eval SET GTID_NEXT="$uuid0:1"
 CREATE TABLE t1 (c1 INT);
 SET GTID_NEXT=AUTOMATIC;
 
---source include/restart_mysqld.inc
+--source include/restart_mysqld_no_echo.inc
 --eval SET GTID_NEXT="$uuid0:2"
 INSERT INTO t1 VALUES (1);
 SET GTID_NEXT=AUTOMATIC;
 
---source include/restart_mysqld.inc
+--source include/restart_mysqld_no_echo.inc
 --eval SET GTID_NEXT="$uuid0:3"
 INSERT INTO t1 VALUES (2);
 SET GTID_NEXT=AUTOMATIC;

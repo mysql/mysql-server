@@ -5,7 +5,7 @@
 # --let DESTINATION_KEYRING_CONFIG_CONTENT = <config file content>
 # --source include/keyring_tests/encryption/upgrade.inc
 
---let SOURCE_KEYRING_PLUGIN = $KEYRING_PLUGIN
+--let SOURCE_KEYRING_PLUGIN = $KEYRING_AWS_PLUGIN
 
 --echo # This test upgrades schema from 8.0 to 8.0.15 where we
 --echo # introduce serveral ENCRYPTION control capabilities in MySQL
@@ -52,7 +52,7 @@ let $BUGDATA_80012_DATADIR = $MYSQL_TMP_DIR/data_80012;
 --echo ########################################################################
 # Take backup of global manifest file
 --source include/keyring_tests/helper/binary_backup_manifest.inc
---let $SOURCE_KEYRING_OPTIONS=--loose-keyring_file_data=$BUGDATA_80012_DATADIR/mysecret_keyring
+--let $SOURCE_KEYRING_OPTIONS=--loose-keyring_aws_conf_file=$ALL_PLUGINS_CONF --loose-keyring_aws_data_file=$MYSQL_TMP_DIR/keyring_aws/keyring_data --loose-keyring_aws_cmk_id=$ALL_PLUGINS_CMK_ID
 --source include/keyring_tests/helper/migrate_from_plugin_to_component.inc
 # Restore global manifest file
 --source include/keyring_tests/helper/binary_restore_manifest.inc
@@ -107,7 +107,7 @@ let $BUGDATA_80013_DATADIR = $MYSQL_TMP_DIR/data_80013;
 --echo ########################################################################
 # Take backup of global manifest file
 --source include/keyring_tests/helper/binary_backup_manifest.inc
---let $SOURCE_KEYRING_OPTIONS=--loose-keyring_file_data=$BUGDATA_80013_DATADIR/mysecret_keyring
+--let $SOURCE_KEYRING_OPTIONS=--loose-keyring_aws_conf_file=$ALL_PLUGINS_CONF --loose-keyring_aws_data_file=$MYSQL_TMP_DIR/keyring_aws/keyring_data --loose-keyring_aws_cmk_id=$ALL_PLUGINS_CMK_ID
 --source include/keyring_tests/helper/migrate_from_plugin_to_component.inc
 # Restore global manifest file
 --source include/keyring_tests/helper/binary_restore_manifest.inc

@@ -5,9 +5,9 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_mysqlx_plugin.inc
-
---let plugins= KEYRING_PLUGIN
---source include/check_plugin_dir.inc
+--source include/big_test.inc
+--source include/not_parallel.inc
+--source include/have_component_keyring_file.inc
 
 # Create a table with encryption, should fail since keyring is not
 # loaded
@@ -17,6 +17,8 @@ let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
 let $old_innodb_undo_log_encrypt = `SELECT @@innodb_undo_log_encrypt`;
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
+
+--source suite/component_keyring_file/inc/setup_component_customized.inc
 
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
@@ -38,14 +40,14 @@ CREATE DATABASE test;
 EOF
 
 --echo # Prepare new datadir
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_dedicated_server=OFF --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR_1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_dedicated_server=OFF --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR_1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" $PLUGIN_DIR_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
 
 --echo # Run the bootstrap command with keyring
 --exec $NEW_CMD
 
 --echo # Starting server with keyring plugin
 --replace_result $MYSQLD_HOME_DATA_DIR MYSQLD_HOME_DATA_DIR $MYSQLD_UNDO_DATADIR MYSQLD_UNDO_DATADIR $MYSQLD_DATADIR_1 MYSQLD_DATADIR
---let $restart_parameters=restart: --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--let $restart_parameters=restart: --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1 $PLUGIN_DIR_OPT
 --source include/start_mysqld_no_echo.inc
 
 SELECT @@global.innodb_redo_log_encrypt;
@@ -132,19 +134,20 @@ SELECT @@global.innodb_undo_log_encrypt;
 
 --echo # Restarting server with keyring plugin
 --replace_result $MYSQLD_HOME_DATA_DIR MYSQLD_HOME_DATA_DIR $MYSQLD_UNDO_DATADIR MYSQLD_UNDO_DATADIR $MYSQLD_DATADIR_1 MYSQLD_DATADIR
---let $restart_parameters=restart: --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--let $restart_parameters=restart: --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1 $PLUGIN_DIR_OPT
 --source include/start_mysqld_no_echo.inc
 SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_encrypt;
 SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_non_encrypt;
 DROP DATABASE tde_db;
 
 # restart the server with MTR default
---let $restart_parameters=
+--let $restart_parameters=restart: $PLUGIN_DIR_OPT
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/restart_mysqld.inc
+--source suite/component_keyring_file/inc/teardown_component_customized.inc
 
 ## Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/bootstrap2.log
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
 --remove_file $BOOTSTRAP_SQL
 --force-rmdir $MYSQL_TMP_DIR/datadir
 --force-rmdir $MYSQL_TMP_DIR/innodb_data_home_dir

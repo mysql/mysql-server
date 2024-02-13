@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 CREATE TABLE t1(a int) TABLESPACE ts ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -187,3 +193,10 @@ Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ...
 ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=MYISAM;
 ERROR HY000: Engine 'MYISAM' does not match stored engine 'InnoDB' for tablespace 'ts1'
 DROP TABLESPACE ts1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

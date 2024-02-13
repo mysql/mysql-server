@@ -1,2 +1,0 @@
-$CLONE_PLUGIN_OPT
-$KEYRING_PLUGIN_OPT --loose-keyring-file-data=$MYSQL_TMP_DIR/gr_clone_integration_error_fallback

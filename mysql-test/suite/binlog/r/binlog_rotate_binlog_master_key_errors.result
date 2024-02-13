@@ -1,3 +1,10 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Restart mysql server with binlog_encryption on.
 CREATE TABLE t1 (c1 INT);
 include/assert.inc [the first encrypted binary log is encrypted using first master key]
 # Part 1: fail_to_set_old_master_key_seqno_on_keyring
@@ -16,7 +23,7 @@ include/assert.inc [the first encrypted binary log is re-encrypted using rotated
 # Part 2: fail_to_decrypt_file_password
 # Adding debug point 'fail_to_decrypt_file_password' to @@GLOBAL.debug
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
-ERROR HY000: Failed to re-encrypt log file './binlog.000002': failed to decrypt the file password. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+ERROR HY000: Failed to re-encrypt log file './binlog.000004': failed to decrypt the file password. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
 # Removing debug point 'fail_to_decrypt_file_password' from @@GLOBAL.debug
 include/assert.inc [the before binary log is encrypted using current master key with key id: 3]
 # Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
@@ -29,7 +36,7 @@ include/assert.inc [the first encrypted binary log is re-encrypted using rotated
 # Part 3: fail_to_reset_file_stream
 # Adding debug point 'fail_to_reset_file_stream' to @@GLOBAL.debug
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
-ERROR HY000: Failed to re-encrypt log file './binlog.000004': failed to reset the file out stream. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+ERROR HY000: Failed to re-encrypt log file './binlog.000006': failed to reset the file out stream. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
 # Removing debug point 'fail_to_reset_file_stream' from @@GLOBAL.debug
 include/assert.inc [the before binary log is encrypted using current master key with key id: 5]
 # Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
@@ -42,7 +49,7 @@ include/assert.inc [the first encrypted binary log is re-encrypted using rotated
 # Part 4: fail_to_encrypt_file_password
 # Adding debug point 'fail_to_encrypt_file_password' to @@GLOBAL.debug
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
-ERROR HY000: Failed to re-encrypt log file './binlog.000006': failed to encrypt the file password with current encryption key. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+ERROR HY000: Failed to re-encrypt log file './binlog.000008': failed to encrypt the file password with current encryption key. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
 # Removing debug point 'fail_to_encrypt_file_password' from @@GLOBAL.debug
 include/assert.inc [the before binary log is encrypted using current master key with key id: 7]
 # Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
@@ -55,7 +62,7 @@ include/assert.inc [the first encrypted binary log is re-encrypted using rotated
 # Part 5: fail_to_write_reencrypted_header
 # Adding debug point 'fail_to_write_reencrypted_header' to @@GLOBAL.debug
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
-ERROR HY000: Failed to re-encrypt log file './binlog.000008': failed to write the new reencrypted file header. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+ERROR HY000: Failed to re-encrypt log file './binlog.000010': failed to write the new reencrypted file header. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
 # Removing debug point 'fail_to_write_reencrypted_header' from @@GLOBAL.debug
 include/assert.inc [the before binary log is encrypted using current master key with key id: 9]
 # Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
@@ -68,7 +75,7 @@ include/assert.inc [the first encrypted binary log is re-encrypted using rotated
 # Part 6: fail_to_flush_reencrypted_header
 # Adding debug point 'fail_to_flush_reencrypted_header' to @@GLOBAL.debug
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
-ERROR HY000: Failed to re-encrypt log file './binlog.000010': failed to flush the new reencrypted file header. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+ERROR HY000: Failed to re-encrypt log file './binlog.000012': failed to flush the new reencrypted file header. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
 # Removing debug point 'fail_to_flush_reencrypted_header' from @@GLOBAL.debug
 include/assert.inc [the before binary log is encrypted using current master key with key id: 11]
 # Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
@@ -81,7 +88,7 @@ include/assert.inc [the first encrypted binary log is re-encrypted using rotated
 # Part 7: fail_to_sync_reencrypted_header
 # Adding debug point 'fail_to_sync_reencrypted_header' to @@GLOBAL.debug
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
-ERROR HY000: Failed to re-encrypt log file './binlog.000012': failed to synchronize the new reencrypted file header. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+ERROR HY000: Failed to re-encrypt log file './binlog.000014': failed to synchronize the new reencrypted file header. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
 # Removing debug point 'fail_to_sync_reencrypted_header' from @@GLOBAL.debug
 include/assert.inc [the before binary log is encrypted using current master key with key id: 13]
 # Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
@@ -94,7 +101,7 @@ include/assert.inc [the first encrypted binary log is re-encrypted using rotated
 # Part 8: fail_to_open_log_file
 # Adding debug point 'fail_to_open_log_file' to @@GLOBAL.debug
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
-ERROR HY000: Failed to open log file './binlog.000014'. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+ERROR HY000: Failed to open log file './binlog.000016'. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
 # Removing debug point 'fail_to_open_log_file' from @@GLOBAL.debug
 include/assert.inc [the before binary log is encrypted using current master key with key id: 15]
 # Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
@@ -350,3 +357,10 @@ include/assert.inc [the after binary log is encrypted using rotated master key w
 include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 43]
 include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 43]
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

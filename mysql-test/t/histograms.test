@@ -1,6 +1,7 @@
 --echo ##################
 --echo # UPDATE HISTOGRAM
 --echo ##################
+--source include/have_component_keyring_file.inc
 
 --echo #
 --echo # Verify that we can build and store a histogram for all valid data types.
@@ -899,11 +900,7 @@ DROP SCHEMA bar;
 --echo #
 
 --echo # Restart the server with keyring enabled
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 CREATE TABLE not_encrypted1 (col1 INT) ENCRYPTION='n';
 CREATE TABLE not_encrypted2 (col1 INT) ENCRYPTION='N';
@@ -934,7 +931,6 @@ DROP TABLE encrypted1;
 DROP TABLE not_encrypted1;
 DROP TABLE encrypted2;
 DROP TABLE not_encrypted2;
---remove_file $MYSQL_TMP_DIR/mysecret_keyring2
 
 --echo #
 --echo # Bug#26114424 WL8943:SIG11 IN DROP_HISTOGRAMS AT SQL/SQL_TABLE.CC
@@ -2312,12 +2308,7 @@ EXPLAIN SELECT * FROM t1 WHERE col1 <> FLOOR(RAND(0));
 
 DROP TABLE t1;
 
-
-# Run a restart without any special parameters, which causes "check testcase" to
-# be run. Always keep this at the very end of the test!
-let $restart_parameters = restart:;
-source include/restart_mysqld.inc;
-
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 -- echo #
 -- echo # WL#15786 Automatically updated histograms
@@ -2348,3 +2339,8 @@ EXPLAIN SELECT x AS should_filter_100 FROM column_statistics WHERE x > 0;
 ANALYZE TABLE column_statistics DROP HISTOGRAM on x;
 SELECT COUNT(*) FROM information_schema.column_statistics;
 DROP TABLE column_statistics;
+
+# Run a restart without any special parameters, which causes "check testcase" to
+# be run. Always keep this at the very end of the test!
+let $restart_parameters = restart:;
+source include/restart_mysqld.inc;

@@ -1,5 +1,6 @@
 --source include/have_debug.inc
 --source include/not_valgrind.inc
+--source include/have_component_keyring_file.inc
 
 --echo #
 --echo # WL#13775 - InnoDB: Encrypt DBLWR files
@@ -16,6 +17,7 @@ call mtr.add_suppression("Checksum mismatch in datafile");
 call mtr.add_suppression("\\[ERROR\\] .* Space ID in fsp header is \\d+, but in the page header it is \\d+");
 call mtr.add_suppression("\\[ERROR\\] .* A bad Space ID was found in datafile");
 --enable_query_log
+--source suite/component_keyring_file/inc/setup_component.inc
 
 SET SESSION innodb_interpreter = 'init';
 
@@ -67,7 +69,7 @@ print FILE chr(0) x 38;
 close FILE;
 EOF
 
---source include/start_mysqld.inc
+--source include/start_mysqld_no_echo.inc
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_PATTERN=\\[Note\\] .* Restoring page \\[page id: space=\\d+, page number=0\\] of datafile .* from the doublewrite buffer. Writing .*;
@@ -78,3 +80,4 @@ SELECT f1, f2 FROM t1;
 
 DROP TABLE t1;
 --echo # Test End
+--source suite/component_keyring_file/inc/teardown_component.inc

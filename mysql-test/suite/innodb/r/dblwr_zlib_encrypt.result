@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 #
 # WL#13775 - InnoDB: Encrypt DBLWR files
 #
@@ -7,7 +13,7 @@
 # in DBLWR file.
 #
 SET GLOBAL innodb_fast_shutdown = 0;
-# restart
+# restart: PLUGIN_DIR_OPT
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) COMPRESSION='zlib' ENCRYPTION='Y';
 START TRANSACTION;
 INSERT INTO t1 VALUES(1, repeat('#',12));
@@ -33,7 +39,7 @@ SET @cmd = CONCAT('make_page_dirty ', @space_id, ' 0');
 SET SESSION innodb_interpreter = @cmd;
 SET SESSION innodb_interpreter = 'corrupt_ondisk_page0 test/t1';
 SET SESSION innodb_interpreter = 'destroy';
-# Kill and restart
+# Kill and restart: PLUGIN_DIR_OPT
 SET SESSION innodb_interpreter = 'init';
 SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
 SET SESSION innodb_interpreter = 'destroy';
@@ -50,4 +56,11 @@ f1	f2
 4	------------
 5	............
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # Test End

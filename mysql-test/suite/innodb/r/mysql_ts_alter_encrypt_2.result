@@ -3,15 +3,21 @@
 #########
 
 #########################################################################
-# START : WITHOUT KEYRING PLUGIN
+# START : WITHOUT KEYRING COMPONENT
 #########################################################################
 ALTER TABLESPACE mysql ENCRYPTION='Y';
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 ALTER TABLESPACE mysql ENCRYPTION='N';
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
-# RESTART 1 : WITH KEYRING PLUGIN
+# RESTART 1 : WITH KEYRING COMPONENT
 #########################################################################
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 --------------------------------------------------
 By Default, mysql tablespace should be unencrypted
 --------------------------------------------------
@@ -222,7 +228,7 @@ ERROR HY000: Engine 'myisam' does not match stored engine 'InnoDB' for tablespac
 ALTER TABLESPACE mysql ENGINE=memory;
 ERROR HY000: Engine 'memory' does not match stored engine 'InnoDB' for tablespace 'mysql'
 #########################################################################
-# Restart with same keyring plugin option
+# Restart with same keyring component option
 #   - tables in mysql ts should be accessible
 #########################################################################
 ALTER TABLESPACE mysql ENCRYPTION='Y';
@@ -235,24 +241,19 @@ help_keyword_id
 1
 ALTER TABLESPACE mysql ENCRYPTION='N';
 #########################################################################
-# Restart without keyring plugin option
-#   - Install plugin explicitly and alter encryption to Y
+# Restart without keyring component option
+#   - Install component explicitly and alter encryption to Y
 #########################################################################
-# restart: 
-INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
-SET @@global.keyring_file_data='MYSQL_TMP_DIR/mysql_ts_keyring';
-SELECT @@global.keyring_file_data;
-@@global.keyring_file_data
-MYSQL_TMP_DIR/mysql_ts_keyring
+# Taking backup of global configuration file for keyring component: component_keyring_file
+# restart: PLUGIN_DIR_OPT
+# Restoring global configuration file from backup for keyring component: component_keyring_file
+ALTER INSTANCE RELOAD KEYRING;
 ALTER TABLESPACE mysql ENCRYPTION='Y';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
 NAME	ENCRYPTION
 mysql	Y
-UNINSTALL PLUGIN keyring_file;
-ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
-# Restart with keyring plugin
+# Restart with keyring component
 #   - monitor progress of encryption in performance_schema table
 #########################################################################
 ALTER TABLESPACE mysql ENCRYPTION='N';
@@ -332,7 +333,14 @@ ALTER TABLESPACE mysql ENCRYPTION='N';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
 NAME	ENCRYPTION
 mysql	N
+# ----------------------------------------------------------------------
+# Teardown
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing global configuration file for keyring component: component_keyring_file
+# Removing global manifest file for MySQL server
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 #########################################################################
-# RESTART : WITHOUT KEYRING PLUGIN
+# RESTART : WITHOUT KEYRING COMPONENT
 #########################################################################
 # restart: 

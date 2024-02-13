@@ -6,12 +6,17 @@ SELECT @@innodb_file_per_table;
 DROP TABLE IF EXISTS t_encrypt;
 CREATE TABLE t_encrypt(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
-UNINSTALL PLUGIN keyring_file;
-ERROR 42000: PLUGIN keyring_file does not exist
+UNINSTALL PLUGIN keyring_aws;
+ERROR 42000: PLUGIN keyring_aws does not exist
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # Starting server with keyring plugin
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 DROP DATABASE IF EXISTS tde_db;
 DROP TABLE IF EXISTS tde_db.t_encrypt;
 CREATE DATABASE tde_db;
@@ -141,7 +146,7 @@ SELECT COUNT(*) FROM tde_db.t_encrypt_1;
 COUNT(*)
 64
 # Starting server with keyring plugin  restart with keying
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: PLUGIN_DIR_OPT
 SELECT  c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
 c1	c2	right(c3, 20)
 0	aaaaa	AAAAAAAAAAAAAAAAAAAA
@@ -308,7 +313,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   SPATIAL KEY `idx2` (`c7`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC ENCRYPTION='Y'
 # restart with keying
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: PLUGIN_DIR_OPT
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 c2	c4	c5	c6	ST_AsText(c7)
 2	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
@@ -392,7 +397,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   SPATIAL KEY `idx2` (`c7`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT ENCRYPTION='Y'
 # restart with keying
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: PLUGIN_DIR_OPT
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 c2	c4	c5	c6	ST_AsText(c7)
 2	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
@@ -476,7 +481,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   SPATIAL KEY `idx2` (`c7`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT ENCRYPTION='Y'
 # restart with keying
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: PLUGIN_DIR_OPT
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 c2	c4	c5	c6	ST_AsText(c7)
 2	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
@@ -560,7 +565,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   SPATIAL KEY `idx2` (`c7`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
 # restart with keying
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: PLUGIN_DIR_OPT
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 c2	c4	c5	c6	ST_AsText(c7)
 2	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
@@ -644,7 +649,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   SPATIAL KEY `idx2` (`c7`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 ENCRYPTION='Y'
 # restart with keying
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: PLUGIN_DIR_OPT
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 c2	c4	c5	c6	ST_AsText(c7)
 2	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
@@ -767,7 +772,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
  PARTITION p2 VALUES LESS THAN (8) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN (1000) ENGINE = InnoDB) */
 # restart with keying
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: PLUGIN_DIR_OPT
 SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
 c2	c4	c5	c6
 2	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2
@@ -990,7 +995,7 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 1800	aaaaaaaaaaaaaaaa1800	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 2000	aaaaaaaaaaaaaaaa2000	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 # restart with keying
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: PLUGIN_DIR_OPT
 SELECT c2,right(c3,20),c4,c5,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 c2	right(c3,20)	c4	c5	ST_AsText(c7)
 1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	POINT(383293632 1754448)
@@ -1160,7 +1165,7 @@ c1	c2	right(c3, 20)
 0	aaaaa	AAAAAAAAAAAAAAAAAAAA
 # In connection default
 # Starting server with keyring plugin
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: PLUGIN_DIR_OPT
 SELECT  c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
 c1	c2	right(c3, 20)
 0	aaaaa	AAAAAAAAAAAAAAAAAAAA
@@ -1356,7 +1361,7 @@ c2	RIGHT(c3,20)	c4
 1961	19611961196119611961	{"key_a": 1, "key_b": 2, "key_c": 3}
 1952	19521952195219521952	{"key_a": 21, "key_b": 22, "key_c": 23}
 # Starting server with keyring plugin
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: PLUGIN_DIR_OPT
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 COUNT(*)
 401
@@ -1418,5 +1423,12 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or ENCRYPTION_KEY_ADMIN privilege(s) for this operation
 DROP USER encryption_admin@localhost;
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # restart:
 SET GLOBAL innodb_file_per_table=1;

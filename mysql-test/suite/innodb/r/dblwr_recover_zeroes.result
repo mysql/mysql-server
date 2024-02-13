@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 #
 # WL#13775 - InnoDB: Encrypt DBLWR files
 #
@@ -43,7 +49,7 @@ SELECT @@session.innodb_interpreter_output INTO @space_page_size;
 SET SESSION innodb_interpreter = 'destroy';
 # Kill the server
 # Corrupt the root page of table t1 in the user tablespace.
-# restart
+# restart: PLUGIN_DIR_OPT
 SET SESSION innodb_interpreter = 'init';
 SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
 SET SESSION innodb_interpreter = 'destroy';
@@ -60,4 +66,11 @@ f1	f2
 4	------------
 5	............
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # Test End

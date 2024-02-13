@@ -1,6 +1,8 @@
 --source include/have_debug.inc
 --source include/have_innodb_16k.inc
 --source include/not_valgrind.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 let $row_format = redundant;
 --source suite/innodb/include/dblwr_encrypt_rowcomp.inc
@@ -10,4 +12,5 @@ let $row_format = dynamic;
 --source suite/innodb/include/dblwr_encrypt_rowcomp.inc
 let $row_format = compressed;
 --source suite/innodb/include/dblwr_encrypt_rowcomp.inc
+--source suite/component_keyring_file/inc/teardown_component.inc
 

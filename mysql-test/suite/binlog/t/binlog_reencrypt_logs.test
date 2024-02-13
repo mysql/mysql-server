@@ -16,6 +16,12 @@
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/have_component_keyring_file.inc
+--source ../mysql-test/suite/component_keyring_file/inc/setup_component.inc
+
+--echo # Restart mysql server with binlog_encryption on.
+--let $restart_parameters=restart:--binlog_encryption=ON $PLUGIN_DIR_OPT
+--source include/restart_mysqld_no_echo.inc
 
 RESET BINARY LOGS AND GTIDS;
 
@@ -24,3 +30,4 @@ RESET BINARY LOGS AND GTIDS;
 --replace_result \\ /
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 --source include/remove_debug_point.inc
+--source ../mysql-test/suite/component_keyring_file/inc/teardown_component.inc

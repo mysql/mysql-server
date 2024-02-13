@@ -1,6 +1,8 @@
 --source include/have_innodb_max_16k.inc
 --source include/not_asan.inc
 --source include/not_valgrind.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --echo #
 --echo # Bug #29820184 REDO LOGS MAY SILENTLY BE IGNORED WHEN ENCRYPTED TABLE
@@ -31,6 +33,7 @@ CREATE TABLE t4(
   b BLOB,
   INDEX(b(10))) ENGINE=innodb ENCRYPTION='Y';
 
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/restart_mysqld.inc
 
 --source include/no_checkpoint_start.inc
@@ -70,13 +73,16 @@ let $cleanup= drop TABLE t1,t2,t3,t4;
 --let CLEANUP_IF_CHECKPOINT= $cleanup; --skip 'Unexpected checkpoint happened';
 --source include/no_checkpoint_end.inc
 
---echo # Restart mysqld without keyring plugin
+--echo # Restart mysqld without keyring component
+--source include/keyring_tests/helper/instance_backup_manifest.inc
 
 --error 1,2
 --exec $MYSQLD_CMD
 
---echo # Restart mysqld with keyring plugin
---let $restart_parameters=restart:
+--echo # Restart mysqld with keyring component
+--source include/keyring_tests/helper/instance_restore_manifest.inc
+--let $restart_parameters=restart: $PLUGIN_DIR_OPT
 --source include/start_mysqld_no_echo.inc
 
 drop TABLE t1,t2,t3,t4;
+--source suite/component_keyring_file/inc/teardown_component.inc

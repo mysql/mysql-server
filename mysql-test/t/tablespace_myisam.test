@@ -1,6 +1,8 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 #
 # Check that the table options for TABLESPACE and STORAGE
@@ -153,3 +155,4 @@ SHOW WARNINGS;
 ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=MYISAM;
 
 DROP TABLESPACE ts1;
+--source suite/component_keyring_file/inc/teardown_component.inc

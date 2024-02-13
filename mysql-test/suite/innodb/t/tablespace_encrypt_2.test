@@ -17,6 +17,7 @@
 
 --source include/big_test.inc
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
 # --source include/no_valgrind_without_big.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
@@ -33,7 +34,7 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption informa
 --enable_query_log
 
 --echo #########################################################################
---echo # START : WITHOUT KEYRING PLUGIN
+--echo # START : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
 --echo
 --echo #########
@@ -70,10 +71,9 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --echo #############################################################
 --echo
 --echo #########################################################################
---echo # RESTART 1 : WITH KEYRING PLUGIN
+--echo # RESTART 1 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---source include/restart_mysqld_no_echo.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --echo ############################################################
 --echo # ALTER TABLESPACE 1 :    Unencrypted => Encrypted         #
@@ -103,20 +103,20 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 2 : WITHOUT KEYRING PLUGIN
+--echo # RESTART 2 : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart:;
+--source include/keyring_tests/helper/instance_backup_manifest.inc
 --source include/restart_mysqld_no_echo.inc
 
 # We shouldn't be able to read t1 records as it is encrypted now and keyring
-# plugin is not loaded.
+# component is not loaded.
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 3 : WITH KEYRING PLUGIN
+--echo # RESTART 3 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --source include/restart_mysqld_no_echo.inc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
@@ -150,13 +150,13 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 4 : WITHOUT KEYRING PLUGIN
+--echo # RESTART 4 : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart:;
+--source include/keyring_tests/helper/instance_backup_manifest.inc
 --source include/restart_mysqld_no_echo.inc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-# We should be able to read t1 records even without OKV keyring plugin as it should
+# We should be able to read t1 records even without OKV keyring component as it should
 # be unencrypted now.
 SELECT * FROM t1 LIMIT 10;
 
@@ -189,9 +189,9 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 SELECT * FROM t2 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 5 : WITH KEYRING PLUGIN
+--echo # RESTART 5 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --source include/restart_mysqld_no_echo.inc
 
 --echo ############################################################
@@ -223,20 +223,20 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 SELECT * FROM t2 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 6 : WITHOUT KEYRING PLUGIN
+--echo # RESTART 6 : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart:;
+--source include/keyring_tests/helper/instance_backup_manifest.inc
 --source include/restart_mysqld_no_echo.inc
 
 # We shouldn't be able to read t2 records as it is encrypted now and keyring
-# plugin is not loaded.
+# component is not loaded.
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t2 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 7 WITH KEYRING PLUGIN
+--echo # RESTART 7 WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --source include/restart_mysqld_no_echo.inc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -272,13 +272,13 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 SELECT * FROM t2 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 8 : WITHOUT KEYRING PLUGIN
+--echo # RESTART 8 : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart:;
+--source include/keyring_tests/helper/instance_backup_manifest.inc
 --source include/restart_mysqld_no_echo.inc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-# We should be able to read t1 records even without keyring plugin as it should
+# We should be able to read t1 records even without keyring component as it should
 # be unencrypted now.
 SELECT * FROM t2 LIMIT 10;
 
@@ -290,9 +290,9 @@ DROP TABLESPACE compress_ts;
 --echo #############################################################
 --echo
 --echo #########################################################################
---echo # RESTART 9 : WITH KEYRING PLUGIN
+--echo # RESTART 9 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --source include/restart_mysqld_no_echo.inc
 
 # Encrypt tablespace
@@ -347,9 +347,8 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 --echo #############################################################
 --echo
 --echo #########################################################################
---echo # RESTART 10 : WITH KEYRING PLUGIN
+--echo # RESTART 10 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
 
 # Encrypt tablespace
@@ -481,7 +480,7 @@ SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
-remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 --echo # Restarting server without keyring to restore server state
 let $restart_parameters = restart: ;

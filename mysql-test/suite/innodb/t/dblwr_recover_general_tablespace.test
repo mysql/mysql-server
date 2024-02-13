@@ -1,4 +1,6 @@
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB ENCRYPTION='Y';
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) TABLESPACE=ts1 ENCRYPTION='Y' ENGINE=InnoDB;
@@ -8,6 +10,7 @@ SHOW CREATE TABLE t1;
 
 # Slow shutdown and restart to make sure ibuf merge is finished
 SET GLOBAL innodb_fast_shutdown = 0;
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/restart_mysqld.inc
 
 --echo # Wait for purge to complete
@@ -79,6 +82,7 @@ print FILE chr(0) x 38;
 close FILE;
 EOF
 
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/start_mysqld.inc
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
@@ -94,4 +98,5 @@ SELECT f1, f2 FROM t1;
 
 DROP TABLE t1;
 DROP TABLESPACE ts1;
+--source suite/component_keyring_file/inc/teardown_component.inc
 --echo # Test End

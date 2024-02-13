@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 set @start_read_only= @@global.read_only;
 DROP TABLE IF EXISTS t1,t2,t3;
 set @orig_sql_mode= @@sql_mode;
@@ -970,3 +976,10 @@ ERROR HY000: The MySQL server is running with the --super-read-only option so it
 SET GLOBAL read_only= @save_read_only;
 SET GLOBAL super_read_only= @save_super_read_only;
 DROP USER user1@localhost;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

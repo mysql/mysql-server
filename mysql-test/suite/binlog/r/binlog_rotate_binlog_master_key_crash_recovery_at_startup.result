@@ -1,3 +1,10 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Restart mysql server with binlog_encryption on.
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 include/assert.inc [the first encrypted binary log is encrypted using first master key]
@@ -116,3 +123,10 @@ include/assert.inc [the after binary log is encrypted using rotated master key w
 include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 17]
 include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 17]
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

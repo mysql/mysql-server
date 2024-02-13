@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 # Pre-define user u1, which is used in different tests below.
 CREATE USER u1@localhost;
 GRANT ALL ON db1.* TO u1@localhost;
@@ -337,3 +343,10 @@ DROP TABLESPACE ts3;
 DROP TABLESPACE ts4;
 # Cleanup
 DROP USER u1@localhost;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing global configuration file for keyring component: component_keyring_file
+# Removing global manifest file for MySQL server
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

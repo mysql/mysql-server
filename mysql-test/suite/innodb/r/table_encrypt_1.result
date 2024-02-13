@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -42,7 +48,7 @@ INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 # Kill the server
-# restart:
+# restart: --plugin-dir=PLUGIN_PATH
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -102,7 +108,7 @@ c1
 7
 8
 9
-# restart:
+# restart: --plugin-dir=PLUGIN_PATH
 SELECT * FROM t1 ORDER BY c1;
 c1
 0
@@ -137,7 +143,7 @@ c1
 7
 8
 9
-# restart:
+# restart: --plugin-dir=PLUGIN_PATH
 SELECT * FROM t1 ORDER BY c1;
 c1
 0
@@ -184,7 +190,7 @@ c1	ST_AsText(g)
 7	POINT(7 7)
 8	POINT(8 8)
 9	POINT(9 9)
-# restart: --innodb_strict_mode=OFF --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart: --innodb_strict_mode=OFF --plugin-dir=PLUGIN_PATH
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 c1	ST_AsText(g)
 0	POINT(0 0)
@@ -210,4 +216,11 @@ ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SET GLOBAL innodb_file_per_table=1;
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # restart:

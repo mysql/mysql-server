@@ -2,6 +2,9 @@
 --echo # WL#12261 Control (enforce and disable) table encryption
 --echo #
 
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
 --echo # Check for use of ENCRYPTION clause on tables using engines that
 --echo # does not support encryption.
 
@@ -110,3 +113,4 @@ SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
   WHERE TABLE_NAME='t1';
 DROP TABLE t1;
 DROP TABLESPACE ts1;
+--source suite/component_keyring_file/inc/teardown_component.inc

@@ -6,8 +6,14 @@
 #########
 
 #########################################################################
-# RESTART 1 : WITH KEYRING PLUGIN
+# RESTART 1 : WITH KEYRING COMPONENT
 #########################################################################
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 # Create a new 'unencrypted' table
 CREATE TABLE t1 (id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 C1 TEXT(500),
@@ -42,4 +48,10 @@ table space is Encrypted.
 ###########
 DROP TABLE test.t1;
 # Restarting server without keyring to restore server state
-# restart: 
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

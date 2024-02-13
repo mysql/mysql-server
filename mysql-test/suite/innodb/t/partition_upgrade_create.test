@@ -20,6 +20,9 @@
 # result file would need to change.
 
 --echo # Test to create schema for Upgrade in old version
+--source include/big_test.inc
+--source include/not_parallel.inc
+--source include/have_component_keyring_file.inc
 
 # Disable for creating zip files in other platforms
 --source include/linux.inc
@@ -102,8 +105,9 @@ if ($HAVE_PLATFORM_LCTN_EXTN) {
   --let $OLD_EXTN = $OLD_VERSION$OLD_PLATFORM$OLD_LCTN
 }
 
---echo # Starting server with keyring plugin
---let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring  $KEYRING_PLUGIN_OPT
+--echo # Starting server with keyring component
+--source suite/component_keyring_file/inc/setup_component_customized.inc
+--let $restart_parameters = restart: $PLUGIN_DIR_OPT
 
 if (!$NO_EXT_PATH)
 {
@@ -113,7 +117,7 @@ if (!$NO_EXT_PATH)
     --error 0, 1
     --force-rmdir $EXTERNAL_DIRECTORY
 
-    --let $restart_parameters = restart: --innodb_directories=$EXTERNAL_DIRECTORY --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring  $KEYRING_PLUGIN_OPT
+    --let $restart_parameters = restart: --innodb_directories=$EXTERNAL_DIRECTORY $PLUGIN_DIR_OPT
   }
 
   if ($IS_57)
@@ -127,7 +131,7 @@ if (!$NO_EXT_PATH)
   }
 }
 
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so $EXTERNAL_DIRECTORY /tmp/mysql_wl13352_data/
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR $EXTERNAL_DIRECTORY /tmp/mysql_wl13352_data/
 --source include/restart_mysqld.inc
 
 --echo
@@ -199,8 +203,10 @@ if (!$NO_EXT_PATH) {
 }
 
 --echo # Cleanup: Restart with default options.
-let $restart_parameters =;
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/start_mysqld.inc
+--source suite/component_keyring_file/inc/teardown_component_customized.inc
 --echo
 --echo # Drop all tables created for upgrade
 --let $check_option = DROP
@@ -242,8 +248,6 @@ if (!$NO_EXT_PATH)
     }
   }
 }
-
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\].* The datafile '.*' for tablespace .* is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories");

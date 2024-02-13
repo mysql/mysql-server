@@ -22,6 +22,12 @@
 --source include/have_binlog_format_row.inc
 # Restrict the test runs to only debug builds, since we set DEBUG point in the test.
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
+--source ../mysql-test/suite/component_keyring_file/inc/setup_component.inc
+
+--echo # Restart mysql server with binlog_encryption on.
+--let $restart_parameters=restart:--binlog_encryption=ON $PLUGIN_DIR_OPT
+--source include/restart_mysqld_no_echo.inc
 
 --let $data_size= `select 0.5 * @@global.binlog_cache_size`
 
@@ -47,3 +53,4 @@ eval INSERT INTO t1 VALUES (REPEAT('456', $data_size));
 --source include/remove_debug_point.inc
 
 DROP TABLE t1;
+--source ../mysql-test/suite/component_keyring_file/inc/teardown_component.inc

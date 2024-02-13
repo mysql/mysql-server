@@ -1,7 +1,0 @@
-# Loading keyring_file plugin at startup
-# restart
-# Searching for deprecation warning in server log
-Pattern "'keyring_file plugin' is deprecated and will be removed in a future release. Please use component_keyring_file instead" found
-# Search completed.
-UNINSTALL PLUGIN keyring_file;
-# restart

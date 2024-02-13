@@ -13,7 +13,7 @@
 # ==== References ====
 #
 # WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
-# Please see ./internal/mysql-test/suite/i_rpl/t/rpl_row_create_drop_temporary_in_transaction.test
+# Please see rpl_row_create_drop_temporary_in_transaction.test
 # and mysql-test/suite/rpl/t/rpl_mixed_create_drop_temporary_in_transaction.test.
 
 --source include/have_log_bin.inc

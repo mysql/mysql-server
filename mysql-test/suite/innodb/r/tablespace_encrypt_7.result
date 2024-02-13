@@ -1,5 +1,5 @@
 #########################################################################
-# START : WITHOUT KEYRING PLUGIN
+# START : WITHOUT KEYRING COMPONENT
 #########################################################################
 
 #########
@@ -27,8 +27,14 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #-------------------------- TEST 0 -------------------------------------#
 #########################################################################
-# RESTART 1 : WITH KEYRING PLUGIN
+# RESTART 1 : WITH KEYRING COMPONENT
 #########################################################################
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 ########################################################################
 # ALTER TABLESPACE 1 :    Unencrypted => Encrypted                     #
 #                         crash just before flushing page 0 at the end #
@@ -38,7 +44,7 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_ddl_entry';
 # Encrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 #########################################################################
-# RESTART 2 : WITH KEYRING PLUGIN after crash
+# RESTART 2 : WITH KEYRING COMPONENT after crash
 #########################################################################
 # Wait for Encryption processing to finish in background thread
 set global innodb_buf_flush_list_now = 1;
@@ -59,13 +65,15 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 3 : WITHOUT KEYRING PLUGIN
+# RESTART 3 : WITHOUT KEYRING COMPONENT
 #########################################################################
+# Taking backup of local manifest file for MySQL server instance
 SELECT * FROM t1 LIMIT 10;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
-# RESTART 4 : WITH KEYRING PLUGIN
+# RESTART 4 : WITH KEYRING COMPONENT
 #########################################################################
+# Restore local manifest file for MySQL server instance from backup
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	Y
@@ -90,7 +98,7 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_ddl_entry';
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 #########################################################################
-# RESTART 5 : WITH KEYRING PLUGIN after crash
+# RESTART 5 : WITH KEYRING COMPONENT after crash
 #########################################################################
 # Wait for Unencryption processing to finish in background thread
 set global innodb_buf_flush_list_now = 1;
@@ -111,8 +119,9 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 6 : WITHOUT KEYRING PLUGIN
+# RESTART 6 : WITHOUT KEYRING COMPONENT
 #########################################################################
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -129,8 +138,9 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 7 : WITH KEYRING PLUGIN
+# RESTART 7 : WITH KEYRING COMPONENT
 #########################################################################
+# Restore local manifest file for MySQL server instance from backup
 ########################################################################
 # ALTER TABLESPACE 1 :    Unencrypted => Encrypted                     #
 #                         crash just before flushing page 0 at the end #
@@ -140,7 +150,7 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_flushing_page_0';
 # Encrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 #########################################################################
-# RESTART 8 : WITH KEYRING PLUGIN after crash
+# RESTART 8 : WITH KEYRING COMPONENT after crash
 #########################################################################
 # Wait for Encryption processing to finish in background thread
 set global innodb_buf_flush_list_now = 1;
@@ -161,13 +171,15 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 9 : WITHOUT KEYRING PLUGIN
+# RESTART 9 : WITHOUT KEYRING COMPONENT
 #########################################################################
+# Taking backup of local manifest file for MySQL server instance
 SELECT * FROM t1 LIMIT 10;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
-# RESTART 10 : WITH KEYRING PLUGIN
+# RESTART 10 : WITH KEYRING COMPONENT
 #########################################################################
+# Restore local manifest file for MySQL server instance from backup
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	Y
@@ -192,7 +204,7 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_flushing_page_0';
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 #########################################################################
-# RESTART 11 : WITH KEYRING PLUGIN after crash
+# RESTART 11 : WITH KEYRING COMPONENT after crash
 #########################################################################
 # Wait for Unencryption processing to finish in background thread
 set global innodb_buf_flush_list_now = 1;
@@ -213,8 +225,9 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 12 : WITHOUT KEYRING PLUGIN
+# RESTART 12 : WITHOUT KEYRING COMPONENT
 #########################################################################
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -231,8 +244,9 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 13 : WITH KEYRING PLUGIN
+# RESTART 13 : WITH KEYRING COMPONENT
 #########################################################################
+# Restore local manifest file for MySQL server instance from backup
 ########################################################################
 # ALTER TABLESPACE 3 :    Unencrypted => Encrypted                     #
 #                         crash just after flushing page 0 at the end  #
@@ -242,7 +256,7 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_flushing_page_0';
 # Encrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 #########################################################################
-# RESTART 14 : WITH KEYRING PLUGIN after crash
+# RESTART 14 : WITH KEYRING COMPONENT after crash
 #########################################################################
 # Wait for Encryption processing to finish in background thread
 set global innodb_buf_flush_list_now = 1;
@@ -263,13 +277,15 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 15 : WITHOUT KEYRING PLUGIN
+# RESTART 15 : WITHOUT KEYRING COMPONENT
 #########################################################################
+# Taking backup of local manifest file for MySQL server instance
 SELECT * FROM t1 LIMIT 10;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
-# RESTART 16 : WITH KEYRING PLUGIN
+# RESTART 16 : WITH KEYRING COMPONENT
 #########################################################################
+# Restore local manifest file for MySQL server instance from backup
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	Y
@@ -294,7 +310,7 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_flushing_page_0';
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 #########################################################################
-# RESTART 17 : WITH KEYRING PLUGIN after crash
+# RESTART 17 : WITH KEYRING COMPONENT after crash
 #########################################################################
 # Wait for Unencryption processing to finish in background thread
 set global innodb_buf_flush_list_now = 1;
@@ -315,8 +331,9 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 18 : WITHOUT KEYRING PLUGIN
+# RESTART 18 : WITHOUT KEYRING COMPONENT
 #########################################################################
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -334,9 +351,10 @@ SOME VALUES
 SOME VALUES
 #-------------------------- TEST 2 -------------------------------------#
 #########################################################################
-# RESTART 19 : WITH KEYRING PLUGIN
+# RESTART 19 : WITH KEYRING COMPONENT
 # and INJECT error TOO_MANY_CONCURRENT_TXNS in startup location #3
 #########################################################################
+# Restore local manifest file for MySQL server instance from backup
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -362,7 +380,7 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_updating_flags';
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 #########################################################################
-# RESTART 20 : WITH KEYRING PLUGIN after crash
+# RESTART 20 : WITH KEYRING COMPONENT after crash
 #########################################################################
 # Wait for Unencryption processing to finish in background thread
 set global innodb_buf_flush_list_now = 1;
@@ -383,8 +401,9 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 21 : WITHOUT KEYRING PLUGIN
+# RESTART 21 : WITHOUT KEYRING COMPONENT
 #########################################################################
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -401,8 +420,9 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 22 : WITH KEYRING PLUGIN
+# RESTART 22 : WITH KEYRING COMPONENT
 #########################################################################
+# Restore local manifest file for MySQL server instance from backup
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -428,7 +448,7 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_resetting_progress'
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 #########################################################################
-# RESTART 23 : WITH KEYRING PLUGIN after crash
+# RESTART 23 : WITH KEYRING COMPONENT after crash
 #########################################################################
 # Wait for Unencryption processing to finish in background thread
 set global innodb_buf_flush_list_now = 1;
@@ -449,8 +469,9 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 #########################################################################
-# RESTART 24: WITHOUT KEYRING PLUGIN
+# RESTART 24: WITHOUT KEYRING COMPONENT
 #########################################################################
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -468,8 +489,9 @@ SOME VALUES
 SOME VALUES
 #-------------------------- TEST 3 -------------------------------------#
 #########################################################################
-# RESTART 25 : WITH KEYRING PLUGIN
+# RESTART 25 : WITH KEYRING COMPONENT
 #########################################################################
+# Restore local manifest file for MySQL server instance from backup
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
 CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd';
@@ -499,13 +521,20 @@ SET SESSION debug= '+d,flush_each_dirtied_page';
 # Flush dirtied pages encrypted with KEY2 before crash
 ALTER TABLESPACE encrypt_ts encryption='Y';
 #########################################################################
-# RESTART 26: WITH KEYRING PLUGIN after crash
+# RESTART 26: WITH KEYRING COMPONENT after crash
 #########################################################################
 ###########
 # Cleanup #
 ###########
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 #########################################################################
 # RESTART 27 : final
 #########################################################################

@@ -1,7 +1,14 @@
 # Prepare for creating Encrypted Table
 # create bootstrap file
 # Create and start mysqld with keyring plugin.
-# restart: --datadir=ENCRYPT_DATADIR --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring
+# restart
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# restart: --datadir=ENCRYPT_DATADIR PLUGIN_DIR_OPT
 ## Install plugin
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
@@ -160,7 +167,7 @@ ID	STAGE	STATE
 1	RESTART	Not Started
 1	RECOVERY	Not Started
 # Restart cloned database
-# restart: --datadir=CLONE_DATADIR --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring
+# restart: --datadir=CLONE_DATADIR PLUGIN_DIR_OPT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -271,7 +278,7 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 7	70	Clone Test Row - 7	umn Data Large Column Data Large
 8	80	Clone Test Row - 8	umn Data Large Column Data Large
 9	90	Clone Test Row - 9	umn Data Large Column Data Large
-# restart: --datadir=ENCRYPT_DATADIR --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring
+# restart: --datadir=ENCRYPT_DATADIR PLUGIN_DIR_OPT
 SET GLOBAL innodb_redo_log_encrypt = ON;
 SET GLOBAL innodb_undo_log_encrypt = ON;
 # In connection default - Cloning database
@@ -296,7 +303,7 @@ COMMIT;
 SET DEBUG_SYNC = 'now SIGNAL resume_clone2';
 # In connection default - Cloning database
 # Restart cloned database
-# restart: --datadir=CLONE_DATADIR --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring
+# restart: --datadir=CLONE_DATADIR PLUGIN_DIR_OPT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -419,13 +426,19 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 192	1920	Clone Test Row - 192	umn Data Large Column Data Large
 191	1910	Clone Test Row - 191	umn Data Large Column Data Large
 190	1900	Clone Test Row - 190	umn Data Large Column Data Large
-# restart: --datadir=ENCRYPT_DATADIR --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring
+# restart: --datadir=ENCRYPT_DATADIR PLUGIN_DIR_OPT
 DROP TABLE t1;
 DROP TABLE t2;
 DROP PROCEDURE execute_dml;
 DROP TABLESPACE tbs1;
 UNINSTALL PLUGIN clone;
-UNINSTALL PLUGIN keyring_file;
 SET DEBUG_SYNC = 'RESET';
 # Restart server and remove encrypted data directory
 # restart:
+# ----------------------------------------------------------------------
+# Teardown
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing global configuration file for keyring component: component_keyring_file
+# Removing global manifest file for MySQL server
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

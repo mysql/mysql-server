@@ -2,7 +2,7 @@
 # InnoDB transparent tablespace data encryption for general shared tablespace.
 # This test case will test
 #    - Create/Alter general shared table spaces with
-#      - and without loading keyring plugin
+#      - and without loading keyring component
 #      - valid/invalid encryption option
 #      - creating table with mix and match encryption option of tablespace
 #      - algorithm specified
@@ -41,6 +41,7 @@
 ####################################################################################################
 
 --source include/no_valgrind_without_big.inc
+--source include/have_component_keyring_file.inc
 # Waiting time when (re)starting the server
 --let $explicit_default_wait_counter=10000
 
@@ -51,7 +52,7 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail
 --enable_query_log
 
 --echo #########################################################################
---echo # START : WITHOUT KEYRING PLUGIN
+--echo # START : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
 # Create a tablespace with encryption, should fail since keyring is not
 # loaded.
@@ -69,10 +70,9 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION="Y";
 DROP TABLESPACE encrypt_ts;
 
 --echo #########################################################################
---echo # RESTART 1 : WITH KEYRING PLUGIN
+--echo # RESTART 1 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---source include/restart_mysqld_no_echo.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -520,19 +520,19 @@ INSERT INTO t1 select * from t1;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 2 : WITHOUT KEYRING PLUGIN
+--echo # RESTART 2 : WITHOUT KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart:;
--- source include/restart_mysqld_no_echo.inc
+--source include/keyring_tests/helper/instance_backup_manifest.inc
+--source include/restart_mysqld_no_echo.inc
 
 # Try to access table in encrypted tablespace
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART 3 : WITH KEYRING PLUGIN
+--echo # RESTART 3 : WITH KEYRING COMPONENT
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --source include/restart_mysqld_no_echo.inc
 
 # Confirm the encryption info can be retrieved properly and table can be read.
@@ -869,9 +869,9 @@ DROP DATABASE tde_db;
 DROP TABLESPACE encrypt_ts;
 
 --echo #########################################################################
---echo # RESTART 4 : WITH KEYRING PLUGIN AND --INNODB_DIRECTORIES
+--echo # RESTART 4 : WITH KEYRING COMPONENT AND --INNODB_DIRECTORIES
 --echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb-directories=$MYSQL_TMP_DIR;
+let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR $PLUGIN_DIR_OPT;
 --source include/restart_mysqld_no_echo.inc
 
 # Check encrypted tablespace is getting created in remote directory(outside of datadir)
@@ -894,8 +894,7 @@ DROP DATABASE tde_db;
 --echo # Cleanup
 --echo #########################################################################
 DROP TABLESPACE encrypt_ts;
-remove_file $MYSQL_TMP_DIR/mysecret_keyring;
-remove_file $MYSQL_TMP_DIR/mysecret_keyring.backup;
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 --echo # Restarting server without keyring to restore server state
 let $restart_parameters = restart: ;

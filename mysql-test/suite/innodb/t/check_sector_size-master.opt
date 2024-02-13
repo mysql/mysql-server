@@ -1,1 +1,1 @@
---innodb_flush_method=O_DIRECT $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --loose-keyring-file-data=$MYSQL_TMP_DIR/mydummy_key
+--innodb_flush_method=O_DIRECT

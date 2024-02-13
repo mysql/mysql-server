@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 # Wait for purge to complete
 CREATE TABLE t1 (f1 int, f2 blob) ENCRYPTION='Y' ROW_FORMAT=redundant;
 SHOW CREATE TABLE t1;
@@ -43,7 +49,6 @@ SELECT @@session.innodb_interpreter_output INTO @space_page_size;
 SET SESSION innodb_interpreter = 'destroy';
 # Kill the server
 # Corrupt the root page of table t1 in the user tablespace.
-# restart
 SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
 SET SESSION innodb_interpreter = 'destroy';
 Pattern "Double write file has encrypted pages" found
@@ -105,7 +110,6 @@ SELECT @@session.innodb_interpreter_output INTO @space_page_size;
 SET SESSION innodb_interpreter = 'destroy';
 # Kill the server
 # Corrupt the root page of table t1 in the user tablespace.
-# restart
 SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
 SET SESSION innodb_interpreter = 'destroy';
 Pattern "Double write file has encrypted pages" found
@@ -167,7 +171,6 @@ SELECT @@session.innodb_interpreter_output INTO @space_page_size;
 SET SESSION innodb_interpreter = 'destroy';
 # Kill the server
 # Corrupt the root page of table t1 in the user tablespace.
-# restart
 SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
 SET SESSION innodb_interpreter = 'destroy';
 Pattern "Double write file has encrypted pages" found
@@ -229,7 +232,6 @@ SELECT @@session.innodb_interpreter_output INTO @space_page_size;
 SET SESSION innodb_interpreter = 'destroy';
 # Kill the server
 # Corrupt the root page of table t1 in the user tablespace.
-# restart
 SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
 SET SESSION innodb_interpreter = 'destroy';
 Pattern "Double write file has encrypted pages" found
@@ -246,3 +248,10 @@ f1	f2
 5	............
 DROP TABLE t1;
 # Wait for purge to complete
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

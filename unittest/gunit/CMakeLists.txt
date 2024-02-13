@@ -421,7 +421,6 @@ MYSQL_ADD_EXECUTABLE(rpl_commit_order_queue-t rpl_commit_order_queue-t.cc
 
 ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
-ADD_SUBDIRECTORY(keyring)
 ADD_SUBDIRECTORY(components/mysql_server)
 ADD_SUBDIRECTORY(components/keyring_common)
 ADD_SUBDIRECTORY(xplugin)

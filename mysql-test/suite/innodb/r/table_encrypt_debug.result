@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -187,23 +193,28 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 ERROR HY000: Tablespace has been discarded for table 't1'
 DROP TABLE tde_db.t1;
+# Taking backup of local manifest file for MySQL server instance
 DROP DATABASE tde_db;
 #
 # Bug #27307740 [ERROR] [MY-011066] INNODB: CORRUPT LOG RECORD FOUND
 # DURING CRASH RECOVERY
 #
 CREATE DATABASE tde_db;
+# Restore local manifest file for MySQL server instance from backup
 CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
-SET SESSION DEBUG="+d,keyring_file_backup_fail";
-ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Lost connection to MySQL server during query
-SET SESSION DEBUG="-d,keyring_file_backup_fail";
 SELECT COUNT(*) FROM tde_db.test_tbl;
 COUNT(*)
 0
 DROP TABLE tde_db.test_tbl;
 DROP DATABASE tde_db;
 SET GLOBAL innodb_file_per_table=1;
-# restart
+# restart: PLUGIN_DIR_OPT
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 CREATE TABLE test.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 DROP TABLE test.t1;

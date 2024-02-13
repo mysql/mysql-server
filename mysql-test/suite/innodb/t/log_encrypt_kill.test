@@ -4,6 +4,9 @@
 
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
+--source include/big_test.inc
+--source include/not_parallel.inc
+--source include/have_component_keyring_file.inc
 
 --disable_query_log
 call mtr.add_suppression('Error in Log_event::read_log_event()');
@@ -32,8 +35,8 @@ SET GLOBAL innodb_undo_log_encrypt = 1;
 --let $wait_condition=SELECT @@global.innodb_redo_log_encrypt = 0
 --source include/wait_condition.inc
 
---error ER_SP_DOES_NOT_EXIST
-UNINSTALL PLUGIN keyring_file;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select * from performance_schema.keyring_component_status;
 
 # Create Non encrypt table with innodb_redo_log_encrypt=ON
 CREATE TABLE tne_1(c1 INT, c2 varchar(2000)) ENGINE = InnoDB;
@@ -41,6 +44,9 @@ INSERT INTO tne_1 VALUES (1,REPEAT('a',1990)),(2,REPEAT('b',1990)),(100,REPEAT('
 SELECT c1,LEFT(c2,10) FROM tne_1;
 DROP TABLE tne_1;
 --echo # Stop the MTR default DB server
+
+--source suite/component_keyring_file/inc/setup_component_customized.inc
+
 --source include/shutdown_mysqld.inc
 
 # Grep for message in server error log
@@ -61,13 +67,13 @@ CREATE DATABASE test;
 EOF
 
 --echo # Prepare new datadir
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR_1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR_1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" $PLUGIN_DIR_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
 
 --echo # Run the bootstrap command with keyring
 --exec $NEW_CMD
 
 --echo # Starting server with keyring plugin
---let $restart_parameters=restart: --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--let $restart_parameters=restart: --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1 $PLUGIN_DIR_OPT
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
@@ -78,17 +84,17 @@ SET GLOBAL innodb_redo_log_encrypt = 1;
 SELECT @@global.innodb_undo_log_encrypt;
 SET GLOBAL innodb_undo_log_encrypt = 1;
 SELECT @@global.innodb_undo_log_encrypt;
---replace_regex /\.dll/.so/
---error ER_UDF_EXISTS
-eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select * from performance_schema.keyring_component_status;
 
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
 SET GLOBAL innodb_undo_log_encrypt = 0;
 SELECT @@global.innodb_undo_log_encrypt;
---replace_regex /\.dll/.so/
---error ER_UDF_EXISTS
-eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select * from performance_schema.keyring_component_status;
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -242,7 +248,7 @@ send call tde_db.populate_table_set_redo_encrypt('tde_db.t_non_encrypt');
 --connection default
 --sleep 3
 --echo # Starting server with keyring plugin
-let $restart_parameters = restart: --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1;
+let $restart_parameters = restart: --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE $PLUGIN_DIR_OPT --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1;
 --sleep 3
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
@@ -303,7 +309,7 @@ send call tde_db.query_table('tde_db.t_non_encrypt');
 --connection default
 --sleep 20
 --echo # Starting server with keyring plugin
-let $restart_parameters = restart: --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1;
+let $restart_parameters = restart: --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE $PLUGIN_DIR_OPT --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1;
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
 --exec echo "$restart_parameters" > $_expect_file_name
@@ -344,15 +350,15 @@ send call tde_db.populate_table_set_redo_encrypt('tde_db.t_non_encrypt');
 --connection default
 DROP DATABASE tde_db;
 
-# restart the server with MTR default
---let $restart_parameters=
+--let $restart_parameters="restart: $PLUGIN_DIR_OPT"
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/restart_mysqld.inc
+--source suite/component_keyring_file/inc/teardown_component_customized.inc
 
 --echo #
 --echo # Cleanup
 --echo #
 --remove_file $MYSQLTEST_VARDIR/tmp/bootstrap2.log
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
 --remove_file $BOOTSTRAP_SQL
 --remove_file $SEARCH_FILE
 --force-rmdir $MYSQL_TMP_DIR/datadir

@@ -5,6 +5,8 @@
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
 --source include/have_punch_hole.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 #let $KEYRING_PLUGIN = 'keyring_file.so';
 
@@ -19,7 +21,6 @@ call mtr.add_suppression("\\[ERROR\\] .* If you are installing InnoDB, remember 
 call mtr.add_suppression("\\[ERROR\\] .* Tablespace [0-9]+, name 'test.*t1', unable to open file '.*test.*t1.ibd' - Data structure corruption");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption information in datafile: .* can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded");
 call mtr.add_suppression("\\[ERROR\\] .* ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .* Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -73,9 +74,8 @@ INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
 --source include/kill_mysqld.inc
---let $restart_parameters= restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
+--let $restart_parameters= restart: $PLUGIN_DIR_OPT
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_PATH
 --source include/start_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
@@ -125,9 +125,7 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters= restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_PATH
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1;
@@ -147,9 +145,7 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters= restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_PATH
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1;
@@ -180,9 +176,8 @@ UNLOCK TABLES;
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters= restart: --innodb_strict_mode=OFF --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
+--let $restart_parameters= restart: --innodb_strict_mode=OFF $PLUGIN_DIR_OPT
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_PATH
 --source include/restart_mysqld.inc
 
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
@@ -204,9 +199,10 @@ ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 # Cleanup
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 DROP TABLE t1;
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 # Restart with default innodb_strict_mode
 --let $restart_parameters= restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_PATH
 --source include/restart_mysqld.inc
+

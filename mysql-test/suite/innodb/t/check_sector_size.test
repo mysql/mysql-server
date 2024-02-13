@@ -1,12 +1,10 @@
 # Test for checking disk sector size
 --source include/not_windows.inc
+--source include/have_component_keyring_file.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Function 'keyring_file' already exists");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
-call mtr.add_suppression("Plugin keyring_file reported");
 CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Failed to set O_DIRECT on file.*");
 
 # The below mtr suppression to avoid failure in solaris platform.
@@ -14,21 +12,18 @@ CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to set DIRECTIO_ON on f
 CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to create check sector file*");
 --enable_query_log
 
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/mysecret_keyring10";
-
 # Confirm the flush method is O_DIRECT
 # And the sector size has been set in I/O system initialization.
 SHOW VARIABLES LIKE 'innodb_flush_method';
+--source suite/component_keyring_file/inc/setup_component.inc
 
 #  Create an encrypted table, and it will use sector size to align the
 #  write buffer.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 # Restart the server with keyring loaded
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
---replace_regex /\.dll/.so/
---let $restart_parameters= restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring10 $KEYRING_PLUGIN_OPT
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR
+--let $restart_parameters= restart:$PLUGIN_DIR_OPT
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 LIMIT 10;
@@ -36,7 +31,7 @@ SELECT * FROM t1 LIMIT 10;
 DROP TABLE t1;
 
 # Cleanup
---remove_file $MYSQL_TMP_DIR/mydummy_key
---remove_file $MYSQL_TMP_DIR/mysecret_keyring10
+--source suite/component_keyring_file/inc/teardown_component.inc
 --let $restart_parameters= restart:
 --source include/restart_mysqld.inc
+

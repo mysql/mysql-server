@@ -4119,16 +4119,16 @@ ER_KEYRING_INVALID_KEY_TYPE
 ER_KEYRING_INVALID_KEY_LENGTH
   eng "Invalid key length for given block cipher"
 
-ER_KEYRING_FAILED_TO_CREATE_KEYRING_DIR
+OBSOLETE_ER_KEYRING_FAILED_TO_CREATE_KEYRING_DIR
   eng "Could not create keyring directory. The keyring_file will stay unusable until correct path to the keyring directory gets provided"
 
-ER_KEYRING_FILE_INIT_FAILED
+OBSOLETE_ER_KEYRING_FILE_INIT_FAILED
   eng "keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided"
 
-ER_KEYRING_INTERNAL_EXCEPTION_FAILED_FILE_INIT
+OBSOLETE_ER_KEYRING_INTERNAL_EXCEPTION_FAILED_FILE_INIT
   eng "keyring_file initialization failure due to internal exception inside the plugin."
 
-ER_KEYRING_FAILED_TO_GENERATE_KEY
+OBSOLETE_ER_KEYRING_FAILED_TO_GENERATE_KEY
   eng "Failed to generate a key due to internal exception inside keyring_file plugin"
 
 ER_KEYRING_CHECK_KEY_FAILED_DUE_TO_INVALID_KEY
@@ -4164,7 +4164,7 @@ ER_KEYRING_FAILED_TO_TRUNCATE_FILE
 ER_KEYRING_UNKNOWN_ERROR
   eng "Unknown error %d"
 
-ER_KEYRING_FAILED_TO_SET_KEYRING_FILE_DATA
+OBSOLETE_ER_KEYRING_FAILED_TO_SET_KEYRING_FILE_DATA
   eng "keyring_file_data cannot be set to new value as the keyring file cannot be created/accessed in the provided path"
 
 ER_KEYRING_FILE_IO_ERROR

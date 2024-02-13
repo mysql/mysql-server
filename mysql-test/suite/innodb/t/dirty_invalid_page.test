@@ -1,4 +1,6 @@
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENCRYPTION='Y';
 START TRANSACTION;
@@ -21,3 +23,4 @@ SET GLOBAL innodb_saved_page_number_debug = 6;
 SET global innodb_fil_make_page_dirty_debug=@space_id;
 SET GLOBAL innodb_saved_page_number_debug = 0;
 DROP TABLE t1;
+--source suite/component_keyring_file/inc/teardown_component.inc

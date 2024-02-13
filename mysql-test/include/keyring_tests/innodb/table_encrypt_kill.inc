@@ -275,7 +275,7 @@ let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --sleep 1
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $PLUGIN_DIR_OPT --plugin-dir=PLUGIN_DIR_OPT
 --exec echo "$restart_parameters" > $_expect_file_name
 --shutdown_server 0
 --source include/wait_until_disconnected.inc

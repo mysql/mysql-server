@@ -11,6 +11,7 @@
 --source include/big_test.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
+--source include/have_component_keyring_file.inc
 
 #suppress warning
 -- disable_query_log
@@ -27,19 +28,13 @@ call mtr.add_suppression("\\[Warning\\] .* Please refer to .* for how to resolve
 call mtr.add_suppression("\\[Warning\\] .* Database page corruption or a failed file read of page");
 call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'Could not create keyring directory");
 call mtr.add_suppression("\\[ERROR\\] .* Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 -- enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
---echo # Starting server with keyring plugin
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
---replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
-
-
+--echo # Starting server with keyring component
+--source suite/component_keyring_file/inc/setup_component.inc
 
 #------------------------------------------------------------------------------
 # Initial setup
@@ -176,7 +171,7 @@ send call tde_db.populate_t_non_encrypt();
 
 --connection default
 --echo # kill and restart the server
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --sleep 3
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
@@ -232,7 +227,7 @@ send call tde_db.delete_t_encrypt();
 
 --connection default
 --echo # kill and restart the server
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --sleep 3
 
 --let $_server_id= `SELECT @@server_id`
@@ -287,11 +282,11 @@ send call tde_db.read_t_encrypt();
 --connection default
 --echo # kill and restart the server
 
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
 --sleep 1
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --exec echo "$restart_parameters" > $_expect_file_name
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
@@ -343,7 +338,6 @@ DROP DATABASE tde_db;
 
 # Cleanup
 --echo # restart server without keyring
-let $restart_parameters = restart: ;
---source include/restart_mysqld.inc
+--source suite/component_keyring_file/inc/teardown_component.inc
+
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
---remove_file $MYSQL_TMP_DIR/mysecret_keyring

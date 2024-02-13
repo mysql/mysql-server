@@ -2,6 +2,12 @@
 # WL#6965: Truncate UNDO logs during recovery.
 # Crash after ddl log, before truncate, with encryption on.
 #
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 # While the purge thread is turned off, perform enough DML to cause
 # undo tablespace sizes grow beyond the truncation threshold.
 # Then inject a crash at ib_undo_trunc_before_truncate and check that recovery occurs
@@ -101,7 +107,6 @@ SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
 SET GLOBAL innodb_purge_run_now=ON;
 Recovery from crash point = 'ib_undo_trunc_before_truncate'.
 Pattern "ib_undo_trunc_before_truncate" found
-# restart:
 SELECT NAME, SPACE_TYPE, STATE, AUTOEXTEND_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 NAME	SPACE_TYPE	STATE	AUTOEXTEND_SIZE
@@ -115,3 +120,10 @@ WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 NAME	SPACE_TYPE	STATE	AUTOEXTEND_SIZE
 innodb_undo_001	Undo	active	0
 innodb_undo_002	Undo	active	0
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

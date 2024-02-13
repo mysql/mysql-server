@@ -2,7 +2,11 @@
 # This test case will test export/import encrypted tablespace.
 
 --source include/no_valgrind_without_big.inc
+--source include/big_test.inc
+--source include/not_parallel.inc
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component_customized.inc
 
 --disable_query_log
 call mtr.add_suppression("Trying to import a encrypted tablespace, but could not get encryption information from .cfp file");
@@ -86,8 +90,8 @@ if($source_db != $dest_db) {
 	eval DROP TABLE $dest_db.t1;
 }
 
---let $restart_parameters= restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--let $restart_parameters= restart: $PLUGIN_DIR_OPT
+--replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
 
@@ -177,3 +181,4 @@ eval DROP TABLE IF EXISTS $source_db.t1;
 --remove_file $MYSQLD_DATADIR/t1.cfg_back
 --remove_file $MYSQLD_DATADIR/t1.cfp_back
 --remove_file $MYSQLD_DATADIR/t1.ibd_back
+--source suite/component_keyring_file/inc/teardown_component_customized.inc

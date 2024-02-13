@@ -1126,6 +1126,12 @@ DROP SCHEMA bar;
 #              ENCRYPTION='N'
 #
 # Restart the server with keyring enabled
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 CREATE TABLE not_encrypted1 (col1 INT) ENCRYPTION='n';
 CREATE TABLE not_encrypted2 (col1 INT) ENCRYPTION='N';
 CREATE TABLE encrypted1 (col1 INT) ENCRYPTION='y';
@@ -4006,7 +4012,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` <> floor(rand(0)))
 DROP TABLE t1;
-# restart:
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 #
 # WL#15786 Automatically updated histograms
 # -- Explicit removal of histogram support on the mysql schema.
@@ -4053,3 +4065,4 @@ SELECT COUNT(*) FROM information_schema.column_statistics;
 COUNT(*)
 0
 DROP TABLE column_statistics;
+# restart:
