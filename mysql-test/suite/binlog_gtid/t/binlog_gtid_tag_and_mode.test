@@ -117,6 +117,8 @@
 # This test is independent from binlog format
 --source include/have_binlog_format_row.inc
 
+RESET BINARY LOGS AND GTIDS;
+
 --echo
 --echo # T1.1 - T1.3
 --echo
@@ -266,12 +268,16 @@ SET GTID_NEXT='AUTOMATIC:test_3';
 --disconnect conn_other
 
 SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
-SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
-
+# We need to wait for below query to succeed since the counter value may be
+# decreased after the 'conn_other' disconnects - update of the counter is
+# placed in THD destructor
+--let $query = SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE'
+--source include/wait_for_query_to_succeed.inc
 
 --echo
 --echo # Clean-up after T3
 --echo
 
+SET GTID_NEXT='AUTOMATIC';
 SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
 SET GLOBAL GTID_MODE = 'ON';
