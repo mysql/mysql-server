@@ -48,8 +48,8 @@ include/assert_grep.inc [Check for SOURCE_LOG_FILE]
 include/assert_grep.inc [Check for SOURCE_LOG_POS]
 #
 # Test application of dumps with either terminology
+# Old terminology is no longer accepted
 [connection slave]
-include/assert.inc ["CHANGE MASTER set the valid position"]
 include/assert.inc ["CHANGE REPLICATION SOURCE set the valid position"]
 #
 # Mid test cleanup
@@ -111,7 +111,8 @@ include/assert_grep.inc [Check for SOURCE_HOST]
 include/assert_grep.inc [Check for SOURCE_LOG_FILE]
 include/assert_grep.inc [Check for SOURCE_LOG_POS]
 #
-# Test application of dumps with either terminology
+# Test application of dumps
+# Old terminology is no longer accepted
 [connection slave]
 include/stop_slave.inc
 [connection master]

@@ -653,11 +653,11 @@ source include/implicit_commit_helper.inc;
 --echo #
 
 --echo #
---echo # SQLCOM_SLAVE_START
+--echo # SQLCOM_REPLICA_START
 --echo #
 
 --echo #
---echo # SQLCOM_SLAVE_STOP
+--echo # SQLCOM_REPLICA_STOP
 --echo #
 
 --echo #
@@ -669,7 +669,7 @@ let $statement=
 source include/implicit_commit_helper.inc;
 
 --echo #
---echo # SQLCOM_CHANGE_MASTER
+--echo # SQLCOM_CHANGE_REPLICATION_SOURCE
 --echo #
 
 --echo #

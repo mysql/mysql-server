@@ -163,14 +163,14 @@ INSERT INTO mysqldump_test_db.t1 VALUES (2);
 
 --echo #
 --echo # Test application of dumps with either terminology
+--echo # Old terminology is no longer accepted
 
 --source include/rpl_connection_slave.inc
 
+--error 1
 --exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT < $dump_file_master
 
---let $assert_text= "CHANGE MASTER set the valid position"
---let $assert_cond= [SHOW REPLICA STATUS, Read_Source_Log_Pos, 1] = $master_pos
---source include/assert.inc
+# New terminology
 
 --exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT < $dump_file_rep_source
 
@@ -332,7 +332,7 @@ INSERT INTO mysqldump_test_db.t1 VALUES (2);
 --source include/assert_grep.inc
 
 --let $source_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
---let $dump_file_rep_source= $assert_file
+--let $dump_file_master= $assert_file
 
 --echo #
 --echo # Case settings:
@@ -385,10 +385,11 @@ SET @@GLOBAL.terminology_use_previous = BEFORE_8_0_26;
 --source include/assert_grep.inc
 
 --let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
---let $dump_file_master= $assert_file
+--let $dump_file_rep_source= $assert_file
 
 --echo #
---echo # Test application of dumps with either terminology
+--echo # Test application of dumps
+--echo # Old terminology is no longer accepted
 
 --source include/rpl_connection_slave.inc
 
@@ -400,11 +401,10 @@ INSERT INTO mysqldump_test_db.t1 VALUES (3);
 
 --source include/rpl_connection_slave.inc
 
+--error 1
 --exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT < $dump_file_master
 
-# The dump deletes and then applies the data and starts replication, so there should be 3 rows on the table
---let $wait_condition = SELECT COUNT(*) = 3 FROM mysqldump_test_db.t1
---source include/wait_condition.inc
+# New terminology
 
 --exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT < $dump_file_rep_source
 
