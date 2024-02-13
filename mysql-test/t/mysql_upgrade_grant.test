@@ -652,6 +652,66 @@ SHOW GRANTS FOR sheldon;
 --echo # Cleanup
 DROP USER sheldon;
 
+--echo #
+--echo # WL#15819: New privilege to control OPTIMIZE LOCAL TABLE Operation
+--echo #
+
+--echo # User having SYSTEN_USER privilege, is to be granted
+--echo # OPTIMIZE_LOCAL_TABLE privilege upon upgrade (provided that there
+--echo # isn't a user who already has the OPTIMIZE_LOCAL_TABLE privilege).
+--echo #
+
+--echo # Revoke OPTIMIZE_LOCAL_TABLE from root user (since the upgrade scenario
+--echo # takes place only if no user had this privilege before)
+REVOKE OPTIMIZE_LOCAL_TABLE ON *.* FROM root@localhost;
+
+--echo # Create new user
+CREATE USER user1;
+
+--echo # Grant global select privilege to new user
+GRANT SYSTEM_USER ON *.* TO user1;
+
+--echo # Show grants before upgrade
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR user1;
+
+--echo # Start upgrade
+
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
+
+--echo # Show grants after upgrade
+--echo # Should contain OPTIMIZE_LOCAL_TABLE privilege in both cases
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR user1;
+
+--echo # Now run upgrade against database where there is a user with granted
+--echo # privilege OPTIMIZE_LOCAL_TABLE and check that for those users who have
+--echo # the privilege SYSTEM_USER won't be granted OPTIMIZE_LOCAL_TABLE
+--echo # privilege during upgrade.
+
+--echo # Revoke the OPTIMIZE_LOCAL_TABLE privilege from user1
+REVOKE OPTIMIZE_LOCAL_TABLE ON *.* FROM user1;
+
+--echo # Start upgrade
+
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
+
+--echo # It is expected that after upgrade is finished the privilege
+--echo # OPTIMIZE_LOCAL_TABLE won't be granted to user1 since
+--echo # there was another user (root@localhost) who had the privilege
+--echo # OPTIMIZE_LOCAL_TABLE at the time when upgrade was started
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR user1;
+
+--echo # Cleanup
+DROP USER user1;
+
 --source include/mysql_upgrade_cleanup.inc
 
 --echo End of tests

@@ -1,0 +1,87 @@
+#
+# WL#15819 - New privilege to control OPTIMIZE LOCAL TABLE Operation
+#
+CREATE USER 'user01'@'localhost' IDENTIFIED BY '';
+CREATE DATABASE test01;
+CREATE TABLE test01.tbl01 (id int primary key, a varchar(100));
+INSERT INTO test01.tbl01 SET id = 1, a = "xyz";
+# Ensure root has OPTIMIZE_LOCAL_TABLE priv by defualt
+SELECT COUNT(*)=1 FROM mysql.global_grants WHERE USER='root' AND priv='OPTIMIZE_LOCAL_TABLE';
+COUNT(*)=1
+1
+# Root user executing optimize local|NO_WRITE_TO_BINLOG table statement.
+OPTIMIZE LOCAL TABLE test01.tbl01;
+Table	Op	Msg_type	Msg_text
+test01.tbl01	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test01.tbl01	optimize	status	OK
+OPTIMIZE NO_WRITE_TO_BINLOG TABLE test01.tbl01;
+Table	Op	Msg_type	Msg_text
+test01.tbl01	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test01.tbl01	optimize	status	OK
+# Root user executing optimize table statement.
+OPTIMIZE TABLE test01.tbl01;
+Table	Op	Msg_type	Msg_text
+test01.tbl01	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test01.tbl01	optimize	status	OK
+connect  con1, localhost, user01,,;
+# user01 without OPTIMIZE_LOCAL_TABLE privilege executing 
+# optimize local|NO_WRITE_TO_BINLOG table statement. An error is reported.
+OPTIMIZE LOCAL TABLE test01.tbl01;
+ERROR 42000: Access denied; you need (at least one of) the OPTIMIZE_LOCAL_TABLE privilege(s) for this operation
+OPTIMIZE NO_WRITE_TO_BINLOG TABLE test01.tbl01;
+ERROR 42000: Access denied; you need (at least one of) the OPTIMIZE_LOCAL_TABLE privilege(s) for this operation
+# user01 without INSERT & SELECT privilege executing OPTIMIZE TABLE statement.
+# An error is reported.
+OPTIMIZE TABLE test01.tbl01;
+ERROR 42000: SELECT, INSERT command denied to user 'user01'@'localhost' for table 'tbl01'
+connection default;
+# Error is reported if the dynamic privilege is not granted at global level. 
+GRANT OPTIMIZE_LOCAL_TABLE on test01.tbl01 TO 'user01'@'localhost';
+ERROR HY000: Illegal privilege level specified for tbl01
+GRANT OPTIMIZE_LOCAL_TABLE on test01.* TO 'user01'@'localhost';
+ERROR HY000: Illegal privilege level specified for OPTIMIZE_LOCAL_TABLE
+# user01 is granted OPTIMIZE_LOCAL_TABLE privilege.
+GRANT OPTIMIZE_LOCAL_TABLE on *.* TO 'user01'@'localhost';
+SELECT COUNT(*)=1 FROM mysql.global_grants WHERE USER='user01' AND priv='OPTIMIZE_LOCAL_TABLE';
+COUNT(*)=1
+1
+SELECT COUNT(*)=1 from INFORMATION_SCHEMA.USER_PRIVILEGES WHERE GRANTEE="'user01'@'localhost'" and PRIVILEGE_TYPE ="OPTIMIZE_LOCAL_TABLE";
+COUNT(*)=1
+1
+connection con1;
+# optimize local|NO_WRITE_TO_BINLOG table executed by user01 is successful 
+OPTIMIZE LOCAL TABLE test01.tbl01;
+Table	Op	Msg_type	Msg_text
+test01.tbl01	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test01.tbl01	optimize	status	OK
+OPTIMIZE NO_WRITE_TO_BINLOG TABLE test01.tbl01;
+Table	Op	Msg_type	Msg_text
+test01.tbl01	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test01.tbl01	optimize	status	OK
+# user01 does not have INSERT and SELECT privilege.
+# Hence optimize table operation fails.
+OPTIMIZE TABLE test01.tbl01;
+ERROR 42000: SELECT, INSERT command denied to user 'user01'@'localhost' for table 'tbl01'
+connection default;
+# Grant INSERT and SELECT for optimize table operation.
+GRANT INSERT, SELECT on test01.tbl01 TO 'user01'@'localhost';
+connection con1;
+# optimize table executed by user01 is successful
+OPTIMIZE TABLE test01.tbl01;
+Table	Op	Msg_type	Msg_text
+test01.tbl01	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test01.tbl01	optimize	status	OK
+connection default;
+CREATE USER 'user02'@'localhost' IDENTIFIED BY '';
+# Insert the OPTIMIZE_LOCAL_TABLE privilege in global_grants and check if user has the priv.
+INSERT INTO mysql.global_grants VALUES('user02', 'localhost', 'OPTIMIZE_LOCAL_TABLE', 'Y');
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR 'user02'@'localhost';
+Grants for user02@localhost
+GRANT USAGE ON *.* TO `user02`@`localhost`
+GRANT OPTIMIZE_LOCAL_TABLE ON *.* TO `user02`@`localhost` WITH GRANT OPTION
+# Clean up
+disconnect con1;
+DROP DATABASE test01;
+DROP USER 'user01'@'localhost';
+DROP USER 'user02'@'localhost';

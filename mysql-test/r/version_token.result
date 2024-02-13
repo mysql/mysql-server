@@ -293,6 +293,7 @@ INNODB_REDO_LOG_ENABLE	Server Admin
 Index	Tables	To create or drop indexes
 Insert	Tables	To insert data into tables
 Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
+OPTIMIZE_LOCAL_TABLE	Server Admin	
 PASSWORDLESS_USER_ADMIN	Server Admin	
 PERSIST_RO_VARIABLES_ADMIN	Server Admin	
 Process	Server Admin	To view the plain text of currently executing queries

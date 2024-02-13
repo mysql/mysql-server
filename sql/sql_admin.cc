@@ -1889,14 +1889,46 @@ error:
   return res;
 }
 
+/*
+  Check if appropriate privilege exists for executing
+  OPTIMIZE [NO_WRITE_TO_BINLOG | LOCAL] TABLE command.
+
+  SYNOPSIS
+    check_optimize_table_access()
+    thd         Thread object
+
+  RETURN VALUES
+    false ok
+    true  error
+*/
+
+static bool check_optimize_table_access(THD *thd) {
+  Table_ref *first_table = thd->lex->query_block->get_table_list();
+  Security_context *sctx = thd->security_context();
+
+  /* For OPTIMIZE LOCAL|NO_WRITE_TO_BINLOG TABLE, we check for
+     OPTIMIZE_LOCAL_TABLE privilege and for OPTIMIZE TABLE we check
+     for SELECT and INSERT */
+  if (thd->lex->no_write_to_binlog) {
+    if (!sctx->has_global_grant(STRING_WITH_LEN("OPTIMIZE_LOCAL_TABLE"))
+             .first) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "OPTIMIZE_LOCAL_TABLE");
+      return true;
+    }
+  } else if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
+                                false, UINT_MAX, false))
+    return true;
+
+  return false;
+}
+
 bool Sql_cmd_optimize_table::execute(THD *thd) {
   Table_ref *first_table = thd->lex->query_block->get_table_list();
   bool res = true;
   DBUG_TRACE;
 
-  if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table, false,
-                         UINT_MAX, false))
-    goto error; /* purecov: inspected */
+  if (check_optimize_table_access(thd)) goto error; /* purecov: inspected */
+
   thd->enable_slow_log = opt_log_slow_admin_statements;
   res = (specialflag & SPECIAL_NO_NEW_FUNC)
             ? mysql_recreate_table(thd, first_table, true)

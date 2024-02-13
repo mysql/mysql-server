@@ -1598,6 +1598,12 @@ INSERT INTO global_grants SELECT user, host, 'ALLOW_NONEXISTENT_DEFINER',
 IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N') FROM global_grants WHERE priv = 'SET_USER_ID' AND @hadAllowNonexistentDefinerPriv = 0;
 COMMIT;
 
+--  Add the privilege OPTIMIZE_LOCAL_TABLE for every user who has SYSTEM_USER privilege
+SET @hadOptimizeLocalTable = (SELECT COUNT(*) FROM global_grants WHERE priv = 'OPTIMIZE_LOCAL_TABLE');
+INSERT INTO global_grants SELECT user, host, 'OPTIMIZE_LOCAL_TABLE',
+IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N') FROM global_grants WHERE priv = 'SYSTEM_USER' AND @hadOptimizeLocalTable = 0;
+COMMIT;
+
 SET @@session.sql_mode = @old_sql_mode;
 
 ALTER TABLE gtid_executed
