@@ -30,16 +30,14 @@
 --echo
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET @debug1_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_lower_patch_version';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_lower_minor_version';
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET @debug2_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Member version is read compatible with the group.");
 SET SESSION sql_log_bin=1;
@@ -50,11 +48,11 @@ SET SESSION sql_log_bin=1;
 --echo # 2. Block dump thread on M1.
 --echo
 
-## STATUS - ASSUMING 8.0.17 is original version
+## STATUS - ASSUMING 8.4.0 is original version
 # Server - State - Version - Weight - R/W
-#  M1    - ON    - 8.0.16  - 50     - W
-#  M2    - ON    - 8.0.18  - 50     - W
-#  M3    - OFF   - 8.0.17  - 50     - R
+#  M1    - ON    - 8.3.0  - 50     - W
+#  M2    - ON    - 8.5.0  - 50     - W
+#  M3    - OFF   - 8.4.0  - 50     - R
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -138,12 +136,12 @@ DROP TABLE t1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-SET @@GLOBAL.DEBUG= @debug2_save;
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_minor_version';
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET @@GLOBAL.DEBUG= @debug1_save;
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_lower_minor_version';
 SET DEBUG_SYNC= 'RESET';
 SET SESSION sql_log_bin = 0;
 DROP TABLE t1;

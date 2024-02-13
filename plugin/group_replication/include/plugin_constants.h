@@ -93,6 +93,14 @@
 */
 #define MEMBER_VERSION_REMOVING_VCLE 0x080300
 
+/*
+  Starting on 8.4.0, inclusive, all 8.4 patch versions are compatible.
+*/
+#define MEMBER_8_4_LTS_VERSION 0x080400
+
+/*
+  Preemptive garbage collection configuration default values.
+*/
 static constexpr bool PREEMPTIVE_GARBAGE_COLLECTION_DEFAULT{false};
 
 static constexpr unsigned int

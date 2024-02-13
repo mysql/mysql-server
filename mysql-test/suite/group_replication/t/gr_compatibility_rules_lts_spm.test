@@ -1,0 +1,250 @@
+################################################################################
+# Validate that a LTS server version can join a group in single-primary mode,
+# which group version is a higher patch version of the same LTS.
+#
+# Test:
+#  0. The test requires three servers: M1, M2 and M3.
+#     The test will only run when the server version is LTS.
+#  1. Bootstrap the group with server1 that is one patch version
+#     higher than the current version.
+#  2. Join server2 that is one patch version
+#     higher than the current version.
+#  3. Join server3 that is one patch lower than the group version.
+#  4. Validate that the group has one primary and two secondaries.
+#  5. Try to make server2, a higher version, the primary.
+#     It must fail.
+#  6. After the primary, server1, leaves, server3 is the new
+#     primary.
+#  7. server3 leaves the group.
+#     server2 becomes the primary.
+#  8. server1 joins the group as a higher major version.
+#  9. Try to add server3 that is from a lower LTS patch version.
+#     It will not be allowed to join because not all group members
+#     are LTS version.
+# 10. Clean up.
+################################################################################
+--source include/have_debug.inc
+--source include/have_mysql_version_maturity_lts.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_group_replication_single_primary_mode =1
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  1. Bootstrap the group with server1 that is one patch version
+--echo #     higher than the current version.
+# Group status assuming 8.4.0 as the current version
+# +---------+---------+---------+-----------+------------+
+# | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
+# +---------+---------+---------+-----------+------------+
+# | server1 | ONLINE  | 8.4.1   | Primary   | LTS        |
+# +---------+---------+---------+-----------+------------+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+SET SESSION sql_log_bin= 1;
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  2. Join server2 that is one patch version
+--echo #     higher than the current version.
+# Group status assuming 8.4.0 as the current version
+# +---------+---------+---------+-----------+------------+
+# | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
+# +---------+---------+---------+-----------+------------+
+# | server1 | ONLINE  | 8.4.1   | Primary   | LTS        |
+# | server2 | ONLINE  | 8.4.1   | Secondary | LTS        |
+# +---------+---------+---------+-----------+------------+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+SET SESSION sql_log_bin= 1;
+
+--let $server2_uuid = `SELECT @@server_uuid`
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  3. Join server3 that is one patch lower than the group version.
+# Group status assuming 8.4.0 as the current version
+# +---------+---------+---------+-----------+------------+
+# | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
+# +---------+---------+---------+-----------+------------+
+# | server1 | ONLINE  | 8.4.1   | Primary   | LTS        |
+# | server2 | ONLINE  | 8.4.1   | Secondary | LTS        |
+# | server3 | ONLINE  | 8.4.0   | Secondary | LTS        |
+# +---------+---------+---------+-----------+------------+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  4. Validate that the group has one primary and two secondaries.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 3
+--source include/gr_wait_for_number_of_members.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/gr_assert_secondary_member.inc
+
+
+--echo
+--echo ############################################################
+--echo #  5. Try to make server2, a higher version, the primary.
+--echo #     It must fail.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $server2_uuid SERVER2_UUID
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_set_as_primary("$server2_uuid")
+
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/gr_assert_secondary_member.inc
+
+
+--echo
+--echo ############################################################
+--echo #  6. After the primary, server1, leaves, server3 is the new
+--echo #     primary.
+# Group status assuming 8.4.0 as the current version
+# +---------+---------+---------+-----------+------------+
+# | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
+# +---------+---------+---------+-----------+------------+
+# | server2 | ONLINE  | 8.4.1   | Secondary | LTS        |
+# | server3 | ONLINE  | 8.4.0   | Primary   | LTS        |
+# +---------+---------+---------+-----------+------------+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/gr_assert_secondary_member.inc
+
+
+--echo
+--echo ############################################################
+--echo #  7. server3 leaves the group.
+--echo #     server2 becomes the primary.
+# Group status assuming 8.4.0 as the current version
+# +---------+---------+---------+-----------+------------+
+# | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
+# +---------+---------+---------+-----------+------------+
+# | server2 | ONLINE  | 8.4.1   | Primary   | LTS        |
+# +---------+---------+---------+-----------+------------+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 1
+--source include/gr_wait_for_number_of_members.inc
+
+--source include/gr_assert_primary_member.inc
+
+
+--echo
+--echo ############################################################
+--echo #  8. server1 joins the group as a higher major version.
+# Group status assuming 8.4.0 as the current version
+# +---------+---------+---------+-----------+------------+
+# | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
+# +---------+---------+---------+-----------+------------+
+# | server1 | ONLINE  | 9.4.0   | Secondary | INNOVATION |
+# | server2 | ONLINE  | 8.4.1   | Primary   | LTS        |
+# +---------+---------+---------+-----------+------------+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_patch_version';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+--source include/gr_assert_secondary_member.inc
+
+
+--echo
+--echo ############################################################
+--echo #  9. Try to add server3 that is from a lower LTS patch version.
+--echo #     It will not be allowed to join because not all group members
+--echo #     are LTS version.
+# Group status assuming 8.4.0 as the current version
+# +---------+---------+---------+-----------+------------+
+# | MEMBER  | STATE   | VERSION | ROLE      | MATURITY   |
+# +---------+---------+---------+-----------+------------+
+# | server1 | ONLINE  | 9.4.0   | Secondary | INNOVATION |
+# | server2 | ONLINE  | 8.4.1   | Primary   | LTS        |
+# | server3 | OFFLINE | 8.4.0   |           | LTS        |
+# +---------+---------+---------+-----------+------------+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Member version is incompatible with the group.");
+SET SESSION sql_log_bin= 1;
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+
+--echo
+--echo ############################################################
+--echo # 10. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_major_version';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_patch_version';
+
+--source include/group_replication_end.inc

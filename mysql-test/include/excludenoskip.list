@@ -330,3 +330,6 @@ require_mgm_tls.test
 sign_keys.test
 test_mgmd.test
 tls_off_certs.test
+
+# 35. These tests require a server with LTS version
+have_mysql_version_maturity_lts.inc

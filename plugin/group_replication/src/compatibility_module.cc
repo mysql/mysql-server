@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/compatibility_module.h"
+#include "plugin/group_replication/include/plugin_constants.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -57,8 +58,10 @@ void Compatibility_module::add_incompatibility(Member_version &from,
 }
 
 Compatibility_type Compatibility_module::check_local_incompatibility(
-    Member_version &to, bool is_lowest_version) {
-  return check_incompatibility(get_local_version(), to, is_lowest_version);
+    Member_version &to, bool is_lowest_version,
+    const std::set<Member_version> &all_members_versions) {
+  return check_incompatibility(get_local_version(), to, is_lowest_version,
+                               all_members_versions);
 }
 
 bool Compatibility_module::check_version_range_incompatibility(
@@ -88,7 +91,8 @@ bool Compatibility_module::check_version_range_incompatibility(
 }
 
 Compatibility_type Compatibility_module::check_incompatibility(
-    Member_version &from, Member_version &to, bool do_version_check) {
+    Member_version &from, Member_version &to, bool do_version_check,
+    const std::set<Member_version> &all_members_versions) {
   if (from == to) return COMPATIBLE;
 
   // Find if the values are present in the statically defined table...
@@ -111,6 +115,14 @@ Compatibility_type Compatibility_module::check_incompatibility(
 
   // It was not deemed incompatible by the table rules
 
+  /*
+    We can only check LTS compatibility rules after checking if the
+    joining member was not explicitly made incompatible.
+  */
+  if (do_all_versions_belong_to_the_same_lts(all_members_versions)) {
+    return COMPATIBLE;
+  }
+
   /**
     We have already confirmed versions are not same.
     If joinee version is higher then group lowest version, its read compatible
@@ -120,6 +132,40 @@ Compatibility_type Compatibility_module::check_incompatibility(
     return check_version_incompatibility(from, to);
   }
   return COMPATIBLE;
+}
+
+bool Compatibility_module::do_all_versions_belong_to_the_same_lts(
+    const std::set<Member_version> &all_members_versions) {
+  if (all_members_versions.empty()) {
+    return false;
+  }
+
+  // 8.4 LTS
+  bool is_8_4_lts = true;
+  for (const Member_version &version : all_members_versions) {
+    is_8_4_lts &= is_version_8_4_lts(version);
+    if (!is_8_4_lts) {
+      break;
+    }
+  }
+  if (is_8_4_lts) {
+    return true;
+  }
+
+  return false;
+}
+
+bool Compatibility_module::is_version_8_4_lts(const Member_version &version) {
+  const Member_version member_8_4_lts_version(MEMBER_8_4_LTS_VERSION);
+
+  if (version.get_major_version() ==
+          member_8_4_lts_version.get_major_version() &&
+      version.get_minor_version() ==
+          member_8_4_lts_version.get_minor_version()) {
+    return true;
+  }
+
+  return false;
 }
 
 /* Compatibility_module is independent, we cannot use local_member_info or

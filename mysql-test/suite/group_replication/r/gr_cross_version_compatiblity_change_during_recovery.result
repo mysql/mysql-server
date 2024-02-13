@@ -8,13 +8,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    Start GR on M2 with higher patch version.
 
 [connection server1]
-SET @debug1_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_lower_patch_version';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_lower_minor_version';
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 [connection server2]
-SET @debug2_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Member version is read compatible with the group.");
 SET SESSION sql_log_bin=1;
@@ -62,10 +60,10 @@ Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated an
 DROP TABLE t1;
 include/rpl_sync.inc
 [connection server2]
-SET @@GLOBAL.DEBUG= @debug2_save;
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_minor_version';
 include/stop_group_replication.inc
 [connection server1]
-SET @@GLOBAL.DEBUG= @debug1_save;
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_lower_minor_version';
 SET DEBUG_SYNC= 'RESET';
 SET SESSION sql_log_bin = 0;
 DROP TABLE t1;

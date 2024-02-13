@@ -14,8 +14,7 @@ INSERT INTO t1 values (1);
 # 2. Start GR on M3 with higher patch version.
 
 [connection server3]
-SET @debug3_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Member version is read compatible with the group.");
 SET SESSION sql_log_bin=1;
@@ -66,7 +65,7 @@ include/assert.inc [The super_read_only mode should be 0 on server3.]
 DROP TABLE t1;
 include/rpl_sync.inc
 [connection server3]
-SET @@GLOBAL.DEBUG= @debug3_save;
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_minor_version';
 include/stop_group_replication.inc
 [connection server1]
 SET @@GLOBAL.DEBUG= @debug1_save;

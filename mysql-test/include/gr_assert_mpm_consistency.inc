@@ -28,6 +28,66 @@
 --let $_saved_connection= $CURRENT_CONNECTION
 --disable_query_log
 
+# Discover if server version maturity is LTS
+--source include/is_mysql_version_maturity_lts.inc
+
+--let $_is_all_members_version_maturity_lts= 0
+if ($is_mysql_version_maturity_lts_out_var)
+{
+  # Discover if all members belong to the same LTS version.
+  # The version is fetch from the column MEMBER_VERSION of the
+  # performance_schema.replication_group_members table.
+  --let $_is_all_members_version_maturity_lts= 1
+
+  # Get first member major and minor version.
+  --let $_first_member_version= `SELECT MEMBER_VERSION FROM performance_schema.replication_group_members WHERE member_state IN ("ONLINE", "RECOVERY") LIMIT 1`
+  --let $_first_member_major_version = `SELECT SUBSTRING_INDEX('$_first_member_version', '.', 1)`
+  --let $_first_member_minor_version = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('$_first_member_version', '.', 2), '.', -1)`
+
+  # Compare first member major and minor versions with all members
+  # that belong to the group.
+  while ($_server_index <= $rpl_server_count)
+  {
+    --let $rpl_connection_name= server_spm_consistency$_server_index
+    --let $rpl_server_number= $_server_index
+    --source include/rpl_connect.inc
+    --let $rpl_connection_name= server_spm_consistency$_server_index
+    --source include/rpl_connection.inc
+
+    --let $_this_member_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+    --let $_is_this_member_part_of_the_group= `SELECT member_state IN ("ONLINE", "RECOVERY") FROM performance_schema.replication_group_members WHERE member_id="$_this_member_uuid"`
+
+    if ($_is_this_member_part_of_the_group)
+    {
+      --let $_this_member_version= query_get_value(SELECT MEMBER_VERSION FROM performance_schema.replication_group_members WHERE member_id='$_this_member_uuid', MEMBER_VERSION, 1)
+      --let $_this_member_major_version = `SELECT SUBSTRING_INDEX('$_this_member_version', '.', 1)`
+      --let $_this_member_minor_version = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('$_this_member_version', '.', 2), '.', -1)`
+    }
+
+    # Disconnect the current connection since we may change
+    # $_server_index before the end of the iteration.
+    --connection default
+    --disconnect server_spm_consistency$_server_index
+
+    if ($_is_this_member_part_of_the_group)
+    {
+      if ($_first_member_major_version != $_this_member_major_version)
+      {
+        --let $_is_all_members_version_maturity_lts= 0
+        --let $_server_index= $rpl_server_count
+      }
+
+      if ($_first_member_minor_version != $_this_member_minor_version)
+      {
+        --let $_is_all_members_version_maturity_lts= 0
+        --let $_server_index= $rpl_server_count
+      }
+    }
+
+    --inc $_server_index
+  }
+}
+
 while ($_server_index <= $rpl_server_count)
 {
   --let $rpl_connection_name= server_spm_consistency$_server_index
@@ -54,6 +114,13 @@ while ($_server_index <= $rpl_server_count)
       --let $lowest_version_of_group = $group_replication_lowest_member_version_out_var
     }
     --let $_am_i_writable= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.replication_group_members WHERE member_version="$lowest_version_of_group" AND member_id="$_this_member_id", COUNT, 1)
+
+    # LTS versions are compatible, thence allowed to do writes.
+    if ($_is_all_members_version_maturity_lts)
+    {
+      --let $_am_i_writable= 1
+    }
+
     if ($_am_i_writable)
     {
       --let $assert_text= The super_read_only mode should be 0 here.
