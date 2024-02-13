@@ -3062,9 +3062,8 @@ longlong Item_func_shift::eval_int_op() {
   return 0;
 }
 
-/// Instantiations of the above
-template longlong Item_func_shift::eval_int_op<true>();
-template longlong Item_func_shift::eval_int_op<false>();
+longlong Item_func_shift_left::int_op() { return eval_int_op<true>(); }
+longlong Item_func_shift_right::int_op() { return eval_int_op<false>(); }
 
 /**
   Template function that evaluates the bitwise shift operation over binary
@@ -3137,9 +3136,13 @@ String *Item_func_shift::eval_str_op(String *) {
   return &tmp_value;
 }
 
-/// Instantiations of the above
-template String *Item_func_shift::eval_str_op<true>(String *);
-template String *Item_func_shift::eval_str_op<false>(String *);
+String *Item_func_shift_left::str_op(String *str) {
+  return eval_str_op<true>(str);
+}
+
+String *Item_func_shift_right::str_op(String *str) {
+  return eval_str_op<false>(str);
+}
 
 // Bit negation ('~')
 

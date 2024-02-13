@@ -2725,6 +2725,8 @@ void dd_add_fts_doc_id_index(dd::Table &new_table, const dd::Table &old_table) {
   return;
 }
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
 /** Find the specified dd::Index or dd::Partition_index in an InnoDB table
 @tparam         Index                   dd::Index or dd::Partition_index
 @param[in]      table                   InnoDB table object
@@ -2764,6 +2766,7 @@ const dict_index_t *dd_find_index(const dict_table_t *table, Index *dd_index) {
 
   return index;
 }
+MY_COMPILER_DIAGNOSTIC_POP()
 
 template const dict_index_t *dd_find_index<dd::Index>(const dict_table_t *,
                                                       dd::Index *);
@@ -5245,6 +5248,8 @@ void dd_open_fk_tables(dict_names_t &fk_list, bool dict_locked, THD *thd) {
   }
 }
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
 /** Open or load a table definition based on a Global DD object.
 @tparam         Table           dd::Table or dd::Partition
 @param[in,out]  client          data dictionary client
@@ -5270,6 +5275,7 @@ dict_table_t *dd_open_table(dd::cache::Dictionary_client *client,
 
   return m_table;
 }
+MY_COMPILER_DIAGNOSTIC_POP()
 
 template dict_table_t *dd_open_table<dd::Table>(dd::cache::Dictionary_client *,
                                                 const TABLE *, const char *,
