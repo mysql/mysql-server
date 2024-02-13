@@ -1,0 +1,213 @@
+# Setup the tables
+Install clone plugin on recipient server
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+CREATE TABLE t_recipient(col1 INT PRIMARY KEY, col2 int);
+INSERT INTO t_recipient VALUES(1, 10);
+CREATE UNDO TABLESPACE undo_005 ADD DATAFILE 'undo_005.ibu';
+CREATE TABLESPACE tbs1_recipient ADD DATAFILE 'tbs1_data1.ibd';
+# Setup the tables
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64), FULLTEXT KEY fts_index(col2));
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+CREATE TABLE t_myisam(col1 INT PRIMARY KEY, col2 char(64)) ENGINE=MyISAM;
+INSERT INTO t_myisam VALUES(10, 'myisam not cloned row 1');
+SELECT * from t_myisam ORDER BY col1;
+col1	col2
+10	myisam not cloned row 1
+CREATE TABLE t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL) ENGINE=CSV;
+INSERT INTO t_csv VALUES(10, 'csv not cloned row 1');
+SELECT * from t_csv ORDER BY col1;
+col1	col2
+10	csv not cloned row 1
+CREATE SCHEMA non_innodb;
+CREATE TABLE non_innodb.t_myisam(col1 INT PRIMARY KEY, col2 char(64)) ENGINE=MyISAM;
+INSERT INTO non_innodb.t_myisam VALUES(10, 'myisam not cloned row 1');
+INSERT INTO non_innodb.t_myisam VALUES(20, 'myisam not cloned row 2');
+INSERT INTO non_innodb.t_myisam VALUES(30, 'myisam not cloned row 3');
+SELECT * from non_innodb.t_myisam ORDER BY col1;
+col1	col2
+10	myisam not cloned row 1
+20	myisam not cloned row 2
+30	myisam not cloned row 3
+CREATE TABLE non_innodb.t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL) ENGINE=CSV;
+INSERT INTO non_innodb.t_csv VALUES(10, 'csv not cloned row 1');
+INSERT INTO non_innodb.t_csv VALUES(20, 'csv not cloned row 2');
+INSERT INTO non_innodb.t_csv VALUES(30, 'csv not cloned row 3');
+SELECT * from non_innodb.t_csv ORDER BY col1;
+col1	col2
+10	csv not cloned row 1
+20	csv not cloned row 2
+30	csv not cloned row 3
+CREATE SCHEMA schema_read_only;
+CREATE TABLE schema_read_only.t_myisam(col1 INT PRIMARY KEY, col2 char(64))
+ENGINE=MyISAM;
+INSERT INTO schema_read_only.t_myisam VALUES(10, 'myisam not cloned row 1');
+INSERT INTO schema_read_only.t_myisam VALUES(20, 'myisam not cloned row 2');
+INSERT INTO schema_read_only.t_myisam VALUES(30, 'myisam not cloned row 3');
+SELECT * from schema_read_only.t_myisam ORDER BY col1;
+col1	col2
+10	myisam not cloned row 1
+20	myisam not cloned row 2
+30	myisam not cloned row 3
+CREATE TABLE schema_read_only.t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL)
+ENGINE=CSV;
+INSERT INTO schema_read_only.t_csv VALUES(10, 'csv not cloned row 1');
+INSERT INTO schema_read_only.t_csv VALUES(20, 'csv not cloned row 2');
+INSERT INTO schema_read_only.t_csv VALUES(30, 'csv not cloned row 3');
+SELECT * from schema_read_only.t_csv ORDER BY col1;
+col1	col2
+10	csv not cloned row 1
+20	csv not cloned row 2
+30	csv not cloned row 3
+CREATE TABLE schema_read_only.t_innodb(col1 INT PRIMARY KEY, col2 char(64))
+ENGINE=InnoDB;
+INSERT INTO schema_read_only.t_innodb VALUES(10, 'innodb cloned row 1');
+INSERT INTO schema_read_only.t_innodb VALUES(20, 'innodb cloned row 2');
+INSERT INTO schema_read_only.t_innodb VALUES(30, 'innodb cloned row 3');
+SELECT * from schema_read_only.t_innodb ORDER BY col1;
+col1	col2
+10	innodb cloned row 1
+20	innodb cloned row 2
+30	innodb cloned row 3
+ALTER SCHEMA schema_read_only READ ONLY=1;
+# Install clone plugin
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+# In connection default - Cloning database
+SET DEBUG="+d,clone_across_lts_compare_versions";
+SET DEBUG="+d,clone_across_lts_8_0_across_backport_patch_mismatch";
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
+ERROR HY000: Clone Donor MySQL version: 8.0.35 is different from Recipient MySQL version 8.0.38.
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Failed	3864
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+SET DEBUG="-d,clone_across_lts_8_0_across_backport_patch_mismatch";
+SET DEBUG="+d,clone_across_lts_8_0_after_backport_patch_mismatch";
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Completed
+1	RECOVERY	Completed
+SET DEBUG="-d,clone_across_lts_8_0_after_backport_patch_mismatch";
+SET DEBUG="-d,clone_across_lts_compare_versions";
+# In connection default - Finished Cloning
+# Validate the tables and cleanup the test
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+INSERT INTO t1 VALUES(40, 'clone row 4');
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+40	clone row 4
+INSERT INTO t_myisam VALUES(40, 'myisam not cloned row 4');
+SELECT * from t_myisam ORDER BY col1;
+col1	col2
+40	myisam not cloned row 4
+INSERT INTO t_csv VALUES(40, 'csv not cloned row 4');
+SELECT * from t_csv ORDER BY col1;
+col1	col2
+40	csv not cloned row 4
+INSERT INTO non_innodb.t_myisam VALUES(40, 'myisam not cloned row 4');
+SELECT * from non_innodb.t_myisam ORDER BY col1;
+col1	col2
+40	myisam not cloned row 4
+INSERT INTO non_innodb.t_csv VALUES(40, 'csv not cloned row 4');
+SELECT * from non_innodb.t_csv ORDER BY col1;
+col1	col2
+40	csv not cloned row 4
+INSERT INTO schema_read_only.t_myisam VALUES(40, 'myisam not cloned row 4');
+ERROR HY000: Schema 'schema_read_only' is in read only mode.
+SELECT * from schema_read_only.t_myisam ORDER BY col1;
+col1	col2
+INSERT INTO schema_read_only.t_csv VALUES(40, 'csv not cloned row 4');
+ERROR HY000: Schema 'schema_read_only' is in read only mode.
+SELECT * from schema_read_only.t_csv ORDER BY col1;
+col1	col2
+INSERT INTO schema_read_only.t_innodb VALUES(40, 'innodb cloned row 4');
+ERROR HY000: Schema 'schema_read_only' is in read only mode.
+SELECT * from schema_read_only.t_innodb ORDER BY col1;
+col1	col2
+10	innodb cloned row 1
+20	innodb cloned row 2
+30	innodb cloned row 3
+SHOW CREATE SCHEMA schema_read_only;
+Database	Create Database
+schema_read_only	CREATE DATABASE `schema_read_only` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+# Cleanup
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+DROP TABLE t1;
+DROP TABLE t_myisam;
+DROP TABLE t_csv;
+DROP TABLE non_innodb.t_myisam;
+DROP TABLE non_innodb.t_csv;
+DROP SCHEMA non_innodb;
+ALTER SCHEMA schema_read_only READ ONLY=0;
+DROP SCHEMA schema_read_only;
+# Clean recipient by cloning the cleaned up donor
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
+ERROR HY000: Schema 'schema_read_only' is in read only mode.
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Failed	3989
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Failed
+1	FILE COPY	Not Started
+1	PAGE COPY	Not Started
+1	REDO COPY	Not Started
+1	FILE SYNC	Not Started
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+ALTER SCHEMA schema_read_only READ ONLY=0;
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Completed
+1	RECOVERY	Completed
+Uninstall clone plugin on recipient server
+UNINSTALL PLUGIN clone;
+UNINSTALL PLUGIN clone;
