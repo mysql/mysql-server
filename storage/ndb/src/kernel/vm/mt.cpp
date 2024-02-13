@@ -620,7 +620,7 @@ class thread_local_pool {
 
   T *seize(Ndbd_mem_manager *mm, Uint32 rg, Uint32 instance_no) {
     T *tmp = m_freelist;
-    if (tmp == 0) {
+    if (tmp == nullptr) {
       T *tail;
       m_free = m_global_pool->seize_list(mm, rg, m_alloc_size, &tmp, &tail,
                                          instance_no, true);
@@ -1095,14 +1095,16 @@ struct thr_tq {
  * a page with send data
  */
 struct thr_send_page {
-  static const Uint32 PGSIZE = 32768;
+  static constexpr Uint32 PGSIZE = 32 * 1024;
 #if SIZEOF_CHARP == 4
-  static const Uint32 HEADER_SIZE = 8;
+  static constexpr Uint32 HEADER_SIZE = 8;
 #else
-  static const Uint32 HEADER_SIZE = 12;
+  static constexpr Uint32 HEADER_SIZE = 12;
 #endif
 
-  static Uint32 max_bytes() { return PGSIZE - offsetof(thr_send_page, m_data); }
+  static constexpr Uint32 max_bytes() {
+    return PGSIZE - offsetof(thr_send_page, m_data);
+  }
 
   /* Next page */
   thr_send_page *m_next;
@@ -1132,12 +1134,11 @@ struct thr_send_queue {
   unsigned m_write_index;
 #if SIZEOF_CHARP == 8
   unsigned m_unused;
-  thr_send_page *m_buffers[7];
-  static const unsigned SIZE = 7;
+  static constexpr unsigned SIZE = 7;
 #else
-  thr_send_page *m_buffers[15];
-  static const unsigned SIZE = 15;
+  static constexpr unsigned SIZE = 15;
 #endif
+  thr_send_page *m_buffers[SIZE];
 };
 
 struct thr_first_signal {
@@ -3658,7 +3659,7 @@ static thr_job_buffer *seize_buffer(struct thr_repository *rep, int thr_no,
     assert(batch + THR_FREE_BUF_MIN < THR_FREE_BUF_MAX);
     do {
       jb = rep->m_jb_pool.seize(rep->m_mm, RG_JOBBUFFER);
-      if (unlikely(jb == 0)) {
+      if (unlikely(jb == nullptr)) {
         if (unlikely(cnt == 0)) {
           out_of_job_buffer(selfptr);
         }
@@ -4467,21 +4468,19 @@ int mt_checkDoJob(Uint32 recv_thread_idx) {
 }
 
 /**
- * Collect all send-buffer-pages to be delivered to trp
+ * Collect all send-buffer-pages to be sent by TrpId
  * from each thread. Link them together and append them to
  * the single send_buffer list 'sb->m_buffer'.
  *
  * The 'sb->m_buffer_lock' has to be held prior to calling
  * this function.
  *
- * Return: Number of bytes in the collected send-buffers.
- *
  * TODO: This is not completely fair,
  *       it would be better to get one entry from each thr_send_queue
  *       per thread instead (until empty)
  */
-static Uint32 link_thread_send_buffers(thr_repository::send_buffer *sb,
-                                       TrpId trp_id) {
+static void link_thread_send_buffers(thr_repository::send_buffer *sb,
+                                     TrpId trp_id) {
   Uint32 ri[MAX_BLOCK_THREADS];
   Uint32 wi[MAX_BLOCK_THREADS];
   thr_send_queue *src = g_thr_repository->m_thread_send_buffers[trp_id];
@@ -4492,13 +4491,13 @@ static Uint32 link_thread_send_buffers(thr_repository::send_buffer *sb,
 
   Uint64 sentinel[thr_send_page::HEADER_SIZE >> 1];
   thr_send_page *sentinel_page = new (&sentinel[0]) thr_send_page;
-  sentinel_page->m_next = 0;
+  sentinel_page->m_next = nullptr;
 
   struct thr_send_buffer tmp;
   tmp.m_first_page = sentinel_page;
   tmp.m_last_page = sentinel_page;
 
-  Uint32 bytes = 0;
+  Uint64 bytes = 0;
 
 #ifdef ERROR_INSERT
 
@@ -4533,10 +4532,10 @@ static Uint32 link_thread_send_buffers(thr_repository::send_buffer *sb,
 
           /* Take page out of read_index slot list */
           thr_send_page *next = p->m_next;
-          p->m_next = NULL;
+          p->m_next = nullptr;
           src->m_buffers[r] = next;
 
-          if (next == NULL) {
+          if (next == nullptr) {
             /**
              * Used up read slot, any more slots available to read
              * from this thread?
@@ -4567,13 +4566,13 @@ static Uint32 link_thread_send_buffers(thr_repository::send_buffer *sb,
           assert(p->m_start == 0);
           bytes += p->m_bytes;
           tmp.m_last_page->m_next = p;
-          while (p->m_next != 0) {
+          while (p->m_next != nullptr) {
             p = p->m_next;
             assert(p->m_start == 0);
             bytes += p->m_bytes;
           }
           tmp.m_last_page = p;
-          assert(tmp.m_last_page != 0); /* Impossible */
+          assert(tmp.m_last_page != nullptr); /* Impossible */
           r = (r + 1) % thr_send_queue::SIZE;
         }
         sb->m_read_index[thr] = r;
@@ -4586,20 +4585,17 @@ static Uint32 link_thread_send_buffers(thr_repository::send_buffer *sb,
      * Append send buffers collected from threads
      * to end of existing m_buffers.
      */
-    if (sb->m_buffer.m_first_page) {
-      assert(sb->m_buffer.m_first_page != NULL);
-      assert(sb->m_buffer.m_last_page != NULL);
+    if (sb->m_buffer.m_first_page != nullptr) {
+      assert(sb->m_buffer.m_last_page != nullptr);
       sb->m_buffer.m_last_page->m_next = tmp.m_first_page->m_next;
       sb->m_buffer.m_last_page = tmp.m_last_page;
     } else {
-      assert(sb->m_buffer.m_first_page == NULL);
-      assert(sb->m_buffer.m_last_page == NULL);
+      assert(sb->m_buffer.m_last_page == nullptr);
       sb->m_buffer.m_first_page = tmp.m_first_page->m_next;
       sb->m_buffer.m_last_page = tmp.m_last_page;
     }
     sb->m_buffered_size = buffered_size + bytes;
   }
-  return bytes;
 }
 
 /**
@@ -4752,15 +4748,15 @@ Uint32 trp_callback::get_bytes_to_send_iovec(TrpId trp_id, struct iovec *dst,
    * Process linked-list and put into iovecs
    */
 fill_iovec:
-  Uint32 tot = 0;
-  Uint32 pos = 0;
+  Uint64 bytes = 0;
+  Uint32 pages = 0;
   thr_send_page *p = sb->m_sending.m_first_page;
 
 #ifdef NDB_LUMPY_SEND
   /* Drip feed transporter a few bytes at a time to send */
   do {
     Uint32 offset = 0;
-    while ((offset < p->m_bytes) && (pos < max)) {
+    while ((offset < p->m_bytes) && (pages < max)) {
       /* 0 -+1-> 1 -+6-> (7)3 -+11-> (18)2 -+10-> 0 */
       Uint32 lumpSz = 1;
       switch (offset % 4) {
@@ -4780,30 +4776,42 @@ fill_iovec:
       const Uint32 remain = p->m_bytes - offset;
       lumpSz = (remain < lumpSz) ? remain : lumpSz;
 
-      dst[pos].iov_base = p->m_data + p->m_start + offset;
-      dst[pos].iov_len = lumpSz;
-      pos++;
+      dst[pages].iov_base = p->m_data + p->m_start + offset;
+      dst[pages].iov_len = lumpSz;
+      pages++;
       offset += lumpSz;
     }
-    if (pos == max) {
-      return pos;
+    if (pages == max) {
+      return pages;
     }
     assert(offset == p->m_bytes);
     p = p->m_next;
-  } while (p != NULL);
+  } while (p != nullptr);
 
-  return pos;
+  return pages;
 #endif
 
   do {
-    dst[pos].iov_len = p->m_bytes;
-    dst[pos].iov_base = p->m_data + p->m_start;
+    dst[pages].iov_len = p->m_bytes;
+    dst[pages].iov_base = p->m_data + p->m_start;
     assert(p->m_start + p->m_bytes <= p->max_bytes());
-    tot += p->m_bytes;
-    pos++;
+    bytes += p->m_bytes;
+    pages++;
     p = p->m_next;
-    if (p == NULL) return pos;
-  } while (pos < max);
+    if (p == nullptr) {
+      /**
+       * Note that we do not account for sb->m_buffered_size which
+       * may have arrived after we released the 'm_buffer_lock' above.
+       * That should be ok as we effectively now update_send_buffer_usage()
+       * with the state we had when we 'linked' the send buffers above.
+       * TODO?: Maintain 'pages' in 'sb->' as well as 'bytes'.
+       */
+      assert(bytes == sb->m_sending_size);
+      globalTransporterRegistry.update_send_buffer_usage(
+          trp_id, Uint64(pages) * thr_send_page::PGSIZE, bytes);
+      return pages;
+    }
+  } while (pages < max);
 
   /**
    * Possibly pack send-buffers to get better utilization:
@@ -4811,8 +4819,8 @@ fill_iovec:
    * we pack the sendbuffers now if they have a low fill degree.
    * This could save us another OS-send for sending the remaining.
    */
-  if (pos == max && max > 1 &&                       // Exhausted iovec[]
-      tot < (pos * thr_send_page::max_bytes()) / 4)  // < 25% filled
+  if (pages == max && max > 1 &&                         // Exhausted iovec[]
+      bytes < (pages * thr_send_page::max_bytes()) / 4)  // < 25% filled
   {
     const Uint32 thr_no = sb->m_send_thread;
     assert(thr_no != NO_SEND_THREAD);
@@ -4831,7 +4839,20 @@ fill_iovec:
      */
     goto fill_iovec;
   }
-  return pos;
+  /**
+   * There are more than 'max' pages, count these as well in order to
+   * update_send_buffer_usage(). We only return the 'max' in iovec[] though.
+   */
+  const Uint32 iovec_pages = pages;
+  while (p != nullptr) {
+    bytes += p->m_bytes;
+    pages++;
+    p = p->m_next;
+  }
+  assert(bytes == sb->m_sending_size);
+  globalTransporterRegistry.update_send_buffer_usage(
+      trp_id, Uint64(pages) * thr_send_page::PGSIZE, bytes);
+  return iovec_pages;
 }
 
 static Uint32 bytes_sent(thread_local_pool<thr_send_page> *pool,
@@ -4843,7 +4864,7 @@ static Uint32 bytes_sent(thread_local_pool<thr_send_page> *pool,
   sb->m_sending_size = sending_size - bytes;
 
   Uint32 remain = bytes;
-  thr_send_page *prev = NULL;
+  thr_send_page *prev = nullptr;
   thr_send_page *curr = sb->m_sending.m_first_page;
 
   /* Some, or all, in 'm_sending' was sent, find endpoint. */
@@ -4869,7 +4890,7 @@ static Uint32 bytes_sent(thread_local_pool<thr_send_page> *pool,
     curr->m_start += remain;
     assert(curr->m_bytes > remain);
     curr->m_bytes -= remain;
-    if (prev) {
+    if (prev != nullptr) {
       release_list(pool, sb->m_sending.m_first_page, prev);
     }
   } else {
@@ -4878,19 +4899,19 @@ static Uint32 bytes_sent(thread_local_pool<thr_send_page> *pool,
      * page boundary, so we only need to release the sent pages
      * and update the new current page.
      */
-    if (prev) {
+    if (prev != nullptr) {
       release_list(pool, sb->m_sending.m_first_page, prev);
 
       if (prev == sb->m_sending.m_last_page) {
         /**
          * Every thing was released, release the pages in the local pool
          */
-        sb->m_sending.m_first_page = NULL;
-        sb->m_sending.m_last_page = NULL;
+        sb->m_sending.m_first_page = nullptr;
+        sb->m_sending.m_last_page = nullptr;
         return 0;
       }
     } else {
-      assert(sb->m_sending.m_first_page != NULL);
+      assert(sb->m_sending.m_first_page != nullptr);
       pool->release_local(sb->m_sending.m_first_page);
     }
   }
@@ -5001,6 +5022,9 @@ static inline void register_pending_send(thr_data *selfptr, TrpId trp_id) {
   We call this from the main loop in the block threads when we fail to
   allocate enough send buffers. In addition we call the thread local
   pack_sb_pages() several places - See header-comment for that function.
+
+  Note that ending up here is a result of send buffers being configured
+  too small relative to what is being used.
 */
 static void try_pack_send_buffers(thr_data *selfptr) {
   thr_repository *rep = g_thr_repository;
@@ -5014,7 +5038,7 @@ static void try_pack_send_buffers(thr_data *selfptr) {
       }
 
       link_thread_send_buffers(sb, trp_id);
-      if (sb->m_buffer.m_first_page != NULL) {
+      if (sb->m_buffer.m_first_page != nullptr) {
         pack_sb_pages(pool, &sb->m_buffer);
       }
       unlock(&sb->m_buffer_lock);
@@ -5033,10 +5057,10 @@ static void flush_send_buffer(thr_data *selfptr, TrpId trp_id) {
   thr_send_buffer *src = selfptr->m_send_buffers + trp_id;
   thr_repository *rep = g_thr_repository;
 
-  if (src->m_first_page == 0) {
+  if (src->m_first_page == nullptr) {
     return;
   }
-  assert(src->m_last_page != 0);
+  assert(src->m_last_page != nullptr);
 
   thr_send_queue *dst = rep->m_thread_send_buffers[trp_id] + thr_no;
   thr_repository::send_buffer *sb = rep->m_send_buffers + trp_id;
@@ -5059,8 +5083,8 @@ static void flush_send_buffer(thr_data *selfptr, TrpId trp_id) {
   wmb();
   dst->m_write_index = next;
 
-  src->m_first_page = 0;
-  src->m_last_page = 0;
+  src->m_first_page = nullptr;
+  src->m_last_page = nullptr;
 }
 
 /**
@@ -5522,7 +5546,7 @@ Uint32 *mt_send_handle::getWritePtr(TrpId trp_id, Uint32 len, Uint32 prio,
 
   struct thr_send_buffer *b = m_selfptr->m_send_buffers + trp_id;
   thr_send_page *p = b->m_last_page;
-  if (likely(p != NULL)) {
+  if (likely(p != nullptr)) {
     assert(p->m_start == 0);  // Nothing sent until flushed
 
     if (likely(p->m_bytes + len <= thr_send_page::max_bytes())) {
@@ -5541,7 +5565,7 @@ Uint32 *mt_send_handle::getWritePtr(TrpId trp_id, Uint32 len, Uint32 prio,
   while (first) {
     if (likely((p = m_selfptr->m_send_buffer_pool.seize(
                     g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS,
-                    m_selfptr->m_send_instance_no)) != 0)) {
+                    m_selfptr->m_send_instance_no)) != nullptr)) {
       p->m_bytes = 0;
       p->m_start = 0;
       p->m_next = 0;

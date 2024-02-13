@@ -439,6 +439,12 @@ class TransporterRegistry {
   Uint32 get_connect_count(TrpId trpId) const;
 
   /**
+   * Update send buffer allocated and used bytes for given transporter
+   */
+  void update_send_buffer_usage(TrpId trpId, Uint64 allocBytes,
+                                Uint64 usedBytes);
+
+  /**
    * Set or clear overloaded bit.
    * Query if any overloaded bit is set.
    */
@@ -461,6 +467,14 @@ class TransporterRegistry {
    * Get transporter's slowdown count since connect
    */
   Uint32 get_slowdown_count(NodeId nodeId) const;
+
+  /**
+   * Get SendBuffer alloc + usage info
+   */
+  Uint64 get_send_buffer_alloc_bytes(TrpId trpId) const;
+  Uint64 get_send_buffer_used_bytes(TrpId trpId) const;
+  Uint64 get_send_buffer_max_alloc_bytes(TrpId trpId) const;
+  Uint64 get_send_buffer_max_used_bytes(TrpId trpId) const;
 
   /**
    * prepareSend

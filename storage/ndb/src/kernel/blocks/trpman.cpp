@@ -502,7 +502,6 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
 
         /* Connect count, overload and slowdown states */
         row.write_uint32(globalTransporterRegistry.get_connect_count(trpId));
-
         /* FIXME: overload & slowdown is still pr NodeId */
         row.write_uint32(
             globalTransporterRegistry.get_status_overloaded().get(nodeId));
@@ -513,6 +512,16 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
 
         /* TLS */
         row.write_uint32(globalTransporterRegistry.is_encrypted_link(trpId));
+
+        /* Send buffer bytes/pages usage */
+        row.write_uint64(
+            globalTransporterRegistry.get_send_buffer_used_bytes(trpId));
+        row.write_uint64(
+            globalTransporterRegistry.get_send_buffer_max_used_bytes(trpId));
+        row.write_uint64(
+            globalTransporterRegistry.get_send_buffer_alloc_bytes(trpId));
+        row.write_uint64(
+            globalTransporterRegistry.get_send_buffer_max_alloc_bytes(trpId));
 
         ndbinfo_send_row(signal, req, row, rl);
         trpId++;
