@@ -1743,6 +1743,9 @@ IF(WITH_SYSTEM_LIBS)
   UNSET(WITH_SYSTEM_LIBS CACHE)
 ENDIF()
 
+# See whether backtrace is supported.
+MYSQL_CHECK_BACKTRACE()
+
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB()
 

@@ -21,22 +21,22 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(VERIFIED_PLATFORMS
+SET(VERIFIED_BACKTRACE_PLATFORMS
   FREEBSD
   LINUX
   SOLARIS
   )
 
-UNSET(VERIFIED_PLATFORM)
-FOREACH(platform ${VERIFIED_PLATFORMS})
+UNSET(VERIFIED_BACKTRACE_PLATFORM)
+FOREACH(platform ${VERIFIED_BACKTRACE_PLATFORMS})
   IF(${platform})
     MESSAGE(STATUS "Found verified platform ${platform} for libbacktrace")
-    SET(VERIFIED_PLATFORM ${platform})
+    SET(VERIFIED_BACKTRACE_PLATFORM ${platform})
     BREAK()
   ENDIF()
 ENDFOREACH()
 
-IF(VERIFIED_PLATFORM AND NOT WITH_VALGRIND)
+IF(VERIFIED_BACKTRACE_PLATFORM AND NOT WITH_VALGRIND)
   SET(DEFAULT_WITH_EXT_BACKTRACE ON)
 ELSE()
   SET(DEFAULT_WITH_EXT_BACKTRACE OFF)
@@ -45,22 +45,22 @@ OPTION(WITH_EXT_BACKTRACE "Use libbacktrace to print stacktraces"
   ${DEFAULT_WITH_EXT_BACKTRACE}
 )
 
-IF(NOT WITH_EXT_BACKTRACE)
-  RETURN()
-ENDIF()
+FUNCTION(MYSQL_CHECK_BACKTRACE)
+  IF(NOT WITH_EXT_BACKTRACE)
+    RETURN()
+  ENDIF()
 
-IF(NOT LINUX AND NOT SOLARIS AND NOT FREEBSD)
-  MESSAGE(FATAL_ERROR
-    "libbacktrace can only be used on linux/solaris/freebsd builds")
-ENDIF()
+  IF(NOT LINUX AND NOT SOLARIS AND NOT FREEBSD)
+    MESSAGE(FATAL_ERROR
+      "libbacktrace can only be used on linux/solaris/freebsd builds")
+  ENDIF()
 
-IF(VERIFIED_PLATFORM)
-  MESSAGE(STATUS "Using libbacktrace on ${VERIFIED_PLATFORM}")
-ELSE()
-  MESSAGE(WARNING "Using libbacktrace on unverified platform")
-ENDIF()
+  IF(VERIFIED_BACKTRACE_PLATFORM)
+    MESSAGE(STATUS "Using libbacktrace on ${VERIFIED_BACKTRACE_PLATFORM}")
+  ELSE()
+    MESSAGE(WARNING "Using libbacktrace on unverified platform")
+  ENDIF()
 
-
-ADD_SUBDIRECTORY(extra/libbacktrace)
-
-ADD_LIBRARY(ext::backtrace ALIAS backtrace)
+  ADD_SUBDIRECTORY(extra/libbacktrace)
+  ADD_LIBRARY(ext::backtrace ALIAS backtrace)
+ENDFUNCTION(MYSQL_CHECK_BACKTRACE)
