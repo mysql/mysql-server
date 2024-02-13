@@ -2044,8 +2044,8 @@ class Item_func_shift_left final : public Item_func_shift {
   const char *func_name() const override { return "<<"; }
 
  private:
-  longlong int_op() override { return eval_int_op<true>(); }
-  String *str_op(String *str) override { return eval_str_op<true>(str); }
+  longlong int_op() override;
+  String *str_op(String *str) override;
 };
 
 class Item_func_shift_right final : public Item_func_shift {
@@ -2055,8 +2055,8 @@ class Item_func_shift_right final : public Item_func_shift {
   const char *func_name() const override { return ">>"; }
 
  private:
-  longlong int_op() override { return eval_int_op<false>(); }
-  String *str_op(String *str) override { return eval_str_op<false>(str); }
+  longlong int_op() override;
+  String *str_op(String *str) override;
 };
 
 class Item_func_bit_neg final : public Item_func_bit {
