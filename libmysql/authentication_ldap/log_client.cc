@@ -73,8 +73,7 @@ void Ldap_logger::log_warning_msg(Message msg) {
 }
 void Ldap_logger::log_error_msg(Message msg) {
   assert(m_logger);
-  m_logger->log<ldap_log_level::LDAP_LOG_LEVEL_ERROR_WARNING, error_prefix>(
-      msg);
+  m_logger->log<ldap_log_level::LDAP_LOG_LEVEL_ERROR, error_prefix>(msg);
 }
 
 void Ldap_log_writer_error::write(const std::string &data) {

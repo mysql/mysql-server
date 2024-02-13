@@ -102,10 +102,13 @@ using krb5_verify_init_creds_type = krb5_error_code (*)(
     krb5_context context, krb5_creds *creds, krb5_principal server,
     krb5_keytab keytab, krb5_ccache *ccache,
     krb5_verify_init_creds_opt *options);
-using profile_get_boolean_type = long (*)(profile_t profile, const char *name,
-                                          const char *subname,
-                                          const char *subsubname, int def_val,
-                                          int *ret_default);
+using krb5_appdefault_boolean_type =
+    void (*)(krb5_context context, const char *appname, const krb5_data *realm,
+             const char *option, int default_value, int *ret_value);
+using krb5_appdefault_string_type =
+    void (*)(krb5_context context, const char *appname, const krb5_data *realm,
+             const char *option, const char *default_value, char **ret_value);
+using krb5_free_string_type = void (*)(krb5_context context, char *val);
 using profile_get_string_type = long (*)(profile_t profile, const char *name,
                                          const char *subname,
                                          const char *subsubname,
@@ -189,7 +192,9 @@ class Krb5_interface {
   KRB5_INTERFACE_DECLARE_FUNCTION(krb5_timeofday)
   KRB5_INTERFACE_DECLARE_FUNCTION(krb5_unparse_name)
   KRB5_INTERFACE_DECLARE_FUNCTION(krb5_verify_init_creds)
-  KRB5_INTERFACE_DECLARE_FUNCTION(profile_get_boolean)
+  KRB5_INTERFACE_DECLARE_FUNCTION(krb5_appdefault_boolean)
+  KRB5_INTERFACE_DECLARE_FUNCTION(krb5_appdefault_string)
+  KRB5_INTERFACE_DECLARE_FUNCTION(krb5_free_string)
   KRB5_INTERFACE_DECLARE_FUNCTION(profile_get_string)
   KRB5_INTERFACE_DECLARE_FUNCTION(profile_release)
   KRB5_INTERFACE_DECLARE_FUNCTION(profile_release_string)
@@ -235,7 +240,9 @@ class Krb5_interface {
   KRB5_INTERFACE_DECLARE_FUNCTION_PTR(krb5_timeofday)
   KRB5_INTERFACE_DECLARE_FUNCTION_PTR(krb5_unparse_name)
   KRB5_INTERFACE_DECLARE_FUNCTION_PTR(krb5_verify_init_creds)
-  KRB5_INTERFACE_DECLARE_FUNCTION_PTR(profile_get_boolean)
+  KRB5_INTERFACE_DECLARE_FUNCTION_PTR(krb5_appdefault_boolean)
+  KRB5_INTERFACE_DECLARE_FUNCTION_PTR(krb5_appdefault_string)
+  KRB5_INTERFACE_DECLARE_FUNCTION_PTR(krb5_free_string)
   KRB5_INTERFACE_DECLARE_FUNCTION_PTR(profile_get_string)
   KRB5_INTERFACE_DECLARE_FUNCTION_PTR(profile_release)
   KRB5_INTERFACE_DECLARE_FUNCTION_PTR(profile_release_string)

@@ -66,17 +66,12 @@ class Kerberos {
   */
   ~Kerberos();
   /**
-   Set user and password member variables.
+   Set user, realm and password member variables.
 
    @param user [in] user name
    @param password [in]  password
   */
-  void set_user_and_password(const char *user, const char *password) {
-    assert(user);
-    assert(password);
-    m_user = user;
-    m_password = password;
-  }
+  void set_user_and_password(const char *user, const char *password);
   /**
     1. This function authenticates with kerberos server.
     2. If TGT destroy is false, this function stores the TGT in Kerberos cache
@@ -113,49 +108,6 @@ class Kerberos {
   */
   void get_ldap_host(std::string &host);
 
- private:
-  /**
-    This function creates kerberos context, initializes credentials cache and
-    user principal.
-    @retval true All the required kerberos objects like context,
-    credentials cache and user principal are initialized correctly.
-    @retval false Required kerberos objects failed to initialized.
-  */
-  bool initialize();
-  /**
-    This function frees kerberos context, credentials, credentials cache and
-    user principal.
-  */
-  void cleanup();
-
-  /** is the object initialized */
-  bool m_initialized;
-  /** user name */
-  std::string m_user;
-  /** user password */
-  std::string m_password;
-  /** LDAP host */
-  std::string m_ldap_server_host;
-  /** shall be the credentials destroyed on cleanup */
-  bool m_destroy_tgt;
-  /** Kerberos context */
-  krb5_context m_context;
-  /** Kerberos cache */
-  krb5_ccache m_krb_credentials_cache;
-  /** Kerberos credentials */
-  krb5_creds m_credentials;
-  /** were the credentials created by the object */
-  bool m_credentials_created;
-  /** interface to kerberos functions */
-  Krb5_interface krb5;
-
-  /**
-   Log a Kerberos error, the message is taken from the Kerberos based on the
-   error code.
-
-   @param error_code [in] Kerberos error code
-  */
-  void log(int error_code);
   /**
   This method gets kerberos profile settings from krb5.conf file.
 
@@ -197,6 +149,56 @@ class Kerberos {
   LDAP SASL API doesn't need port information and port is not used any where.
   */
   bool get_kerberos_config();
+
+ private:
+  /**
+    This function creates kerberos context, initializes credentials cache and
+    user principal.
+    @retval true All the required kerberos objects like context,
+    credentials cache and user principal are initialized correctly.
+    @retval false Required kerberos objects failed to initialized.
+  */
+  bool initialize();
+  /**
+    This function frees kerberos context, credentials, credentials cache and
+    user principal.
+  */
+  void cleanup();
+
+  /** is the object initialized */
+  bool m_initialized;
+  /** user name */
+  std::string m_user;
+  /** user password */
+  std::string m_password;
+  /** user realm */
+  std::string m_realm;
+  /** LDAP host */
+  std::string m_ldap_server_host;
+  /** shall be the credentials destroyed on cleanup */
+  bool m_destroy_tgt;
+  /** Kerberos context */
+  krb5_context m_context;
+  /** Kerberos cache */
+  krb5_ccache m_krb_credentials_cache;
+  /** Kerberos credentials */
+  krb5_creds m_credentials;
+  /** were the credentials created by the object */
+  bool m_credentials_created;
+  /** interface to kerberos functions */
+  Krb5_interface krb5;
+
+  /**
+   Log a Kerberos error, the message is taken from the Kerberos based on the
+   error code.
+
+   @param error_code [in] Kerberos error code
+  */
+  void log(int error_code);
+  /**
+   Gets LDAP server name from krb5.conf file, realms section, kdc option.
+  */
+  void get_ldap_server_from_kdc();
   /**
    Opens default Kerberos cache.
 

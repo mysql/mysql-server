@@ -70,9 +70,6 @@ bool Sasl_mechanism_kerberos::preauthenticate(const char *user,
   assert(password);
 
   m_kerberos.set_user_and_password(user, password);
-  m_kerberos.get_ldap_host(m_ldap_server_host);
-
-  log_info("LDAP host is ", m_ldap_server_host.c_str());
 
   /*
      Password is empty.
@@ -85,7 +82,6 @@ bool Sasl_mechanism_kerberos::preauthenticate(const char *user,
       log_info(
           "Existing Kerberos TGT is valid and will be used for "
           "authentication.");
-      return true;
     } else {
       log_error(
           "Existing Kerberos TGT is not valid. Authentication will be "
@@ -100,13 +96,22 @@ bool Sasl_mechanism_kerberos::preauthenticate(const char *user,
   else {
     if (m_kerberos.obtain_store_credentials()) {
       log_info("TGT from Kerberos obtained successfuly.");
-      return true;
     } else {
       log_error("Obtaining TGT from Kerberos failed.");
       return false;
     }
   }
+
+  if (!m_kerberos.get_kerberos_config()) {
+    log_error("Kerberos configuration incorrect.");
+    return false;
+  }
+
+  m_kerberos.get_ldap_host(m_ldap_server_host);
+  log_info("LDAP host is ", m_ldap_server_host.c_str());
+  return true;
 }
+
 const char *Sasl_mechanism_kerberos::get_ldap_host() {
   return m_ldap_server_host.empty() ? nullptr : m_ldap_server_host.c_str();
 }

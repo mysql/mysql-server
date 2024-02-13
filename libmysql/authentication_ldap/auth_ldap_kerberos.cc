@@ -41,7 +41,8 @@ Kerberos::Kerberos()
 Kerberos::~Kerberos() { cleanup(); }
 
 void Kerberos::get_ldap_host(std::string &host) {
-  if (initialize()) host = m_ldap_server_host;
+  assert(m_initialized);
+  host = m_ldap_server_host;
 }
 
 bool Kerberos::initialize() {
@@ -55,11 +56,6 @@ bool Kerberos::initialize() {
   if ((res_kerberos = krb5.krb5_init_context()(&m_context)) != 0) {
     log_error("Failed to initialize Kerberos context.");
     log(res_kerberos);
-    goto EXIT;
-  }
-  if (!get_kerberos_config()) {
-    log_error(
-        "Failed to get required details from Kerberos configuration file.");
     goto EXIT;
   }
   m_initialized = true;
@@ -87,6 +83,16 @@ void Kerberos::cleanup() {
     m_context = nullptr;
   }
   m_initialized = false;
+}
+
+void Kerberos::set_user_and_password(const char *user, const char *password) {
+  assert(user);
+  assert(password);
+
+  m_user = user;
+  m_password = password;
+  auto pos = m_user.find('@');
+  m_realm = pos == std::string::npos ? "" : std::string(m_user, pos + 1);
 }
 
 bool Kerberos::open_default_cache() {
@@ -250,117 +256,116 @@ EXIT:
   return success;
 }
 
-bool Kerberos::get_kerberos_config() {
-  log_dbg("Getting kerberos configuration.");
-  /*
-    Kerberos profile category/sub-category names.
-  */
+void Kerberos::get_ldap_server_from_kdc() {
+  assert(m_initialized);
+
   static const char realms_heading[] = "realms";
-  static const char host_default[] = "";
-  static const char apps_heading[] = "appdefaults";
-  static const char mysql_apps[] = "mysql";
-  static const char ldap_host_option[] = "ldap_server_host";
-  static const char ldap_destroy_option[] = "ldap_destroy_tgt";
   static const char kdc_option[] = "kdc";
 
   krb5_error_code res_kerberos = 0;
   _profile_t *profile = nullptr;
   char *host_value = nullptr;
-  char *default_realm = nullptr;
-
-  /*
-    Get default realm.
-  */
-  res_kerberos = krb5.krb5_get_default_realm()(m_context, &default_realm);
-  if (res_kerberos) {
-    log_error("Failed to get default realm from Kerberos configuration.");
-    goto EXIT;
-  }
 
   res_kerberos = krb5.krb5_get_profile()(m_context, &profile);
   if (res_kerberos) {
     log_error("Failed to get Kerberos configuration profile.");
-    goto EXIT;
+    return;
   }
 
-  /*
-    1. Getting ldap server host from mysql app section.
-    2. If failed to get from mysql app section, get from realm section.
-    realm section should have kdc server info as without kdc info, kerberos
-    authentication will not work. Authentication process will stop and consider
-    failed if failed to get LDAP server host.
-  */
   res_kerberos =
-      krb5.profile_get_string()(profile, apps_heading, mysql_apps,
-                                ldap_host_option, host_default, &host_value);
-  if (res_kerberos || !strcmp(host_value, "")) {
-    if (host_value) {
-      krb5.profile_release_string()(host_value);
-      host_value = nullptr;
-    }
-    res_kerberos =
-        krb5.profile_get_string()(profile, realms_heading, default_realm,
-                                  kdc_option, host_default, &host_value);
-    if (res_kerberos) {
-      if (host_value) {
-        krb5.profile_release_string()(host_value);
-        host_value = nullptr;
-      }
-      log_error("get_kerberos_config: failed to get ldap server host.");
-      goto EXIT;
-    }
-  }
+      krb5.profile_get_string()(profile, realms_heading, m_realm.c_str(),
+                                kdc_option, nullptr, &host_value);
+  if (res_kerberos || host_value == nullptr)
+    log_warning("Failed to get LDAP server host as KDC from [realms] section.");
+  else
+    m_ldap_server_host = host_value;
+
+  // Cleanup
   if (host_value) {
     m_ldap_server_host = host_value;
-    log_info("Kerberos configuration KDC : ", m_ldap_server_host.c_str());
-    size_t pos = m_ldap_server_host.npos;
-    /* IPV6 */
-    if (m_ldap_server_host[0] == '[') {
-      pos = m_ldap_server_host.find("]");
-      if (pos != m_ldap_server_host.npos &&
-          (m_ldap_server_host.length() > (pos + 1)) &&
-          (m_ldap_server_host[pos + 1] == ':')) {
-        m_ldap_server_host = m_ldap_server_host.substr(1, pos - 1);
-      }
-    }
-    /* IPV4 */
-    else {
-      pos = m_ldap_server_host.find(":");
-      if (pos != m_ldap_server_host.npos) {
-        m_ldap_server_host.erase(pos);
-      }
-    }
-    log_info("Processed Kerberos KDC: ", m_ldap_server_host.c_str());
-  }
-
-  /*
-    Get the LDAP destroy TGT from MySQL app section.
-    If failed to get destroy TGT option, default option value will be false.
-    This value is consistent with kerberos authentication usage as TGT was
-    supposed to be used till it expires.
-  */
-  res_kerberos = krb5.profile_get_boolean()(profile, apps_heading, mysql_apps,
-                                            ldap_destroy_option, m_destroy_tgt,
-                                            (int *)&m_destroy_tgt);
-  if (res_kerberos) {
-    log_info(
-        "get_kerberos_config: failed to get destroy TGT flag, default is set.");
-  }
-
-EXIT:
-  if (host_value) {
     krb5.profile_release_string()(host_value);
     host_value = nullptr;
-  }
-  if (default_realm) {
-    krb5.krb5_free_default_realm()(m_context, default_realm);
-    default_realm = nullptr;
   }
   if (profile) {
     krb5.profile_release()(profile);
     profile = nullptr;
   }
-  return res_kerberos == 0;
+}
+
+bool Kerberos::get_kerberos_config() {
+  assert(m_initialized);
+
+  static const char mysql_apps[] = "mysql";
+  static const char ldap_host_option[] = "ldap_server_host";
+  static const char ldap_destroy_option[] = "ldap_destroy_tgt";
+  krb5_principal principal(nullptr);
+  char *host_value = nullptr;
+  bool result = true;
+
+  log_dbg("Getting kerberos configuration.");
+  m_ldap_server_host = "";
+
+  /*
+    1. Get ldap server host from [appdefaults] section, mysql application,
+       ldap_server_host option.
+    2. If 1. failed, get from [realms] section, current realm, kdc option.
+    3. If 2. failed, return failure.
+  */
+  auto res_kerberos =
+      krb5.krb5_parse_name()(m_context, m_user.c_str(), &principal);
+  if (res_kerberos) {
+    log_error("Failed to parse Kerberos client principal.");
+    result = false;
+    goto EXIT;
+  }
+  krb5.krb5_appdefault_string()(m_context, mysql_apps, &principal->realm,
+                                ldap_host_option, "", &host_value);
+  if (host_value == nullptr || host_value[0] == 0) {
+    log_warning("Failed to get LDAP server host from [appdefaults] section.");
+    get_ldap_server_from_kdc();
+  } else
+    m_ldap_server_host = host_value;
+
+  if (m_ldap_server_host.empty()) {
+    log_error("Failed to get LDAP server host");
+    result = false;
+    goto EXIT;
+  }
+
+  log_dbg("LDAP server host raw value: ", m_ldap_server_host.c_str());
+
+  /* IPV6 */
+  if (m_ldap_server_host[0] == '[') {
+    auto pos = m_ldap_server_host.find("]");
+    if (pos != m_ldap_server_host.npos &&
+        (m_ldap_server_host.length() > (pos + 1)) &&
+        (m_ldap_server_host[pos + 1] == ':')) {
+      m_ldap_server_host = m_ldap_server_host.substr(1, pos - 1);
+    }
+  }
+  /* IPV4 */
+  else {
+    auto pos = m_ldap_server_host.find(":");
+    if (pos != m_ldap_server_host.npos) {
+      m_ldap_server_host.erase(pos);
+    }
+  }
+  log_info("Processed LDAP server host: ", m_ldap_server_host.c_str());
+
+  /*
+  Get the LDAP destroy TGT option from [appdefaults] section, mysql
+  application. If failed to get destroy TGT option, default option value will
+  be false. This value is consistent with kerberos authentication usage as TGT
+  was supposed to be used till it expires.
+  */
+  krb5.krb5_appdefault_boolean()(m_context, mysql_apps, &principal->realm,
+                                 ldap_destroy_option, 0,
+                                 reinterpret_cast<int *>(&m_destroy_tgt));
+
+EXIT:
+  if (principal) krb5.krb5_free_principal()(m_context, principal);
+  if (host_value) krb5.krb5_free_string()(m_context, host_value);
+  return result;
 }
 
 bool Kerberos::credentials_valid() {
@@ -370,7 +375,6 @@ bool Kerberos::credentials_valid() {
   krb5_timestamp krb_current_time = 0;
   bool credentials_retrieve = false;
   krb5_creds matching_credential;
-  char *realm = nullptr;
 
   memset(&matching_credential, 0, sizeof(matching_credential));
   memset(&credentials, 0, sizeof(credentials));
@@ -390,15 +394,9 @@ bool Kerberos::credentials_valid() {
     log_error("Failed to parse Kerberos client principal.");
     goto EXIT;
   }
-  res_kerberos = krb5.krb5_get_default_realm()(m_context, &realm);
-  if (res_kerberos) {
-    log_error("Failed to get default Kerberos realm.");
-    goto EXIT;
-  }
-  log_info("Default Kerberos realm is '", realm, "'.");
-  res_kerberos =
-      krb5.krb5_build_principal()(m_context, &matching_credential.server,
-                                  strlen(realm), realm, "krbtgt", realm, NULL);
+  res_kerberos = krb5.krb5_build_principal()(
+      m_context, &matching_credential.server, m_realm.length(), m_realm.c_str(),
+      "krbtgt", m_realm.c_str(), NULL);
   if (res_kerberos) {
     log_error("Failed to build Kerberos TGT principal.");
     goto EXIT;
@@ -436,10 +434,6 @@ bool Kerberos::credentials_valid() {
 
 EXIT:
   if (res_kerberos) log(res_kerberos);
-  if (realm) {
-    krb5.krb5_free_default_realm()(m_context, realm);
-    realm = nullptr;
-  }
   if (matching_credential.server) {
     krb5.krb5_free_principal()(m_context, matching_credential.server);
   }
