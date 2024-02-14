@@ -10184,7 +10184,7 @@ ER_LH_WARN_TRUNCATED
 ER_LH_CANNOT_CONVERT_STRING
   eng "Column %d of %s : Cannot convert string %s."
 
-ER_LH_RESORCE_PRINCIPAL_ERR
+ER_LH_RESOURCE_PRINCIPAL_ERR
   eng "Resource principal error."
 
 ER_LH_AWS_AUTH_ERR
@@ -10208,7 +10208,7 @@ ER_LH_PARQUET_DECIMAL_CONVERSION_ERR
 ER_LH_STRING_TOO_LONG
   eng "Column %d in %s: String is too long."
 
-ER_LH_RESORCE_PRINCIPAL_BUCKET_ERR
+ER_LH_RESOURCE_PRINCIPAL_BUCKET_ERR
   eng "Resource Principal endpoint is not configured. Cannot access following buckets: %s."
 
 ER_LH_NO_FILES_FOUND
@@ -10390,6 +10390,9 @@ ER_ACCESS_DENIED_NO_PROXY_GRANT
 
 ER_ACCESS_DENIED_NO_PROXY
   eng "Access denied for user '%-.48s'@'%-.64s', proxied user doesn't exist."
+
+ER_LH_USER_DATA_ACCESS_FAILED
+  eng "Unable to access the following data locations: %s"
 
 #
 #  End of 8.1+ error messages (server-to-client).
