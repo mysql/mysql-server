@@ -36,6 +36,9 @@
 #include "jtie_tconv_value.hpp"
 #include "jtie_tconv_value_impl.hpp"
 
+template <class>
+constexpr bool missing_specialization = false;
+
 // ---------------------------------------------------------------------------
 // Utilities for Java array <-> C array type conversions
 // ---------------------------------------------------------------------------
@@ -73,15 +76,11 @@ struct ArrayConv {
    *     - this thread has a pending JNI exception (env->ExceptionCheck())
    *     - corresponding releaseArrayElements() must not be called
    */
-#if 0   // disabled on purpose, only document function
-    static CA
-    getArrayElements(JNIEnv * env, JA j, jboolean * isCopy) {
-        TRACE("CA ArrayConv.getArrayElements(JNIEnv *, JA, jboolean *)");
-        (void)env; (void)j; (void)isCopy;
-        static_assert(false, "missing specialization of array conversion");
-        return 0;
-    }
-#endif  // disabled on purpose, only document function
+  static CA getArrayElements(JNIEnv *env, JA j, jboolean *isCopy) {
+    TRACE("CA ArrayConv.getArrayElements(JNIEnv *, JA, jboolean *)");
+    static_assert(missing_specialization<CA>);
+    return 0;
+  }
 
   /**
    * Informs the VM that the native code no longer needs access to elems.
@@ -110,15 +109,10 @@ struct ArrayConv {
    *     - DeleteWeakGlobalRef
    *     - MonitorExit
    */
-#if 0   // disabled on purpose, only document function
-    static void
-    releaseArrayElements(JNIEnv * env, JA j, const CA c, jint mode) {
-        TRACE("void ArrayConv.releaseArrayElements(JNIEnv *, JA, const CA, jint)");
-        (void)env; (void)j; (void)c; (void)mode;
-        static_assert(false, "missing specialization of array conversion");
-        return 0;
-    }
-#endif  // disabled on purpose, only document function
+  static void releaseArrayElements(JNIEnv *env, JA j, const CA c, jint mode) {
+    TRACE("void ArrayConv.releaseArrayElements(JNIEnv *, JA, const CA, jint)");
+    static_assert(missing_specialization<CA>);
+  }
 
   /**
    * Constructs a new primitive array object with elements from a buffer.
@@ -140,15 +134,11 @@ struct ArrayConv {
    *   In other words, any errors during the result conversion must be
    *   signaled by registering a Java exception with the VM.
    */
-#if 0   // disabled on purpose, only document function
-    static JA
-    newArray(JNIEnv * env, jsize len, const CA c) {
-        TRACE("JA ArrayConv.newArray(JNIEnv *, jsize, const CA)");
-        (void)env; (void)len; (void)c;
-        static_assert(false, "missing specialization of array conversion");
-        return 0;
-    }
-#endif  // disabled on purpose, only document function
+  static JA newArray(JNIEnv *env, jsize len, const CA c) {
+    TRACE("JA ArrayConv.newArray(JNIEnv *, jsize, const CA)");
+    static_assert(missing_specialization<CA>);
+    return 0;
+  }
 };
 
 /**
@@ -467,7 +457,7 @@ inline cstatus ObjectArrayConvImpl<J, C>::copyToCObjectArray(C *c,
     s = 0;
   }
 
-  return c;
+  return s;
 }
 
 template <typename J, typename C>
@@ -514,7 +504,7 @@ inline cstatus ObjectArrayConvImpl<J, C>::copyToJavaObjectArray(jobjectArray j,
     s = 0;
   }
 
-  return c;
+  return s;
 }
 
 // ---------------------------------------------------------------------------

@@ -30,6 +30,7 @@
 #define jtie_tconv_vwidth_hpp
 
 #include <jni.h>
+#include <limits.h>
 
 #include "jtie_tconv.hpp"
 #include "jtie_tconv_value.hpp"
@@ -40,10 +41,7 @@
 
 // No definitions are given here for [[un]signed] char types; instead
 // char is treated as an exact-width type of 8 bits.
-#if 0  // use a static_assert() when made available in upcoming C++0x
-#include <limits.h>  // not using namespaces yet
-static_assert(CHAR_BIT == 8);
-#endif  // use a static_assert() when made available in upcoming C++0x
+static_assert(CHAR_BIT == 8, "8-bit char type required");
 
 /*
  * If defined, provides a default Java type mapping for the variable-width
