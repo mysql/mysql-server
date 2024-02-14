@@ -141,10 +141,10 @@ class MetaManager {
 
   // meta info for redo log
   offset_t redo_log_remote_buf_latch_addr;  // base address for redo log latch
-  size_t redo_log_remote_buf_size =
-      64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;  // size of redo log buffer, initiated
-  offset_t redo_log_base_addr;             // base address for redo log buffer
-  size_t log_size;  // size of each log in redo log buffer
+  // size of redo log buffer, OS_FILE_LOG_BLOCK_SIZE is 512B initially
+  size_t redo_log_remote_buf_size = 64 * 1024 * 512;
+  offset_t redo_log_base_addr;  // base address for redo log buffer
+  size_t log_size;              // size of each log in redo log buffer
   // 防止 redo log buffer 和 txn list 地址冲突，覆盖数据
   offset_t redo_log_curr_addr =
       txn_list_base_addr +
