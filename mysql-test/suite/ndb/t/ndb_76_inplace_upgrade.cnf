@@ -1,9 +1,0 @@
-!include suite/ndb/my.cnf
-
-[mysqld]
-# Turn off auto sync so it doesn't interfere with the test
-ndb_metadata_check = false
-
-# Turn down the logging level to avoid GSL messages
-ndb-extra-logging=10
-

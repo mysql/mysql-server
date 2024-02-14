@@ -110,18 +110,6 @@ ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_backup/BACKUP-1.2.ctl
 131780 bytes in output
 ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_backup/BACKUP-1.2.log
 173 bytes in output
-ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_triggers_backup/BACKUP-1-0.1.Data
-52329 bytes in output
-ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_triggers_backup/BACKUP-1-0.2.Data
-51033 bytes in output
-ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_triggers_backup/BACKUP-1.1.ctl
-38262 bytes in output
-ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_triggers_backup/BACKUP-1.1.log
-173 bytes in output
-ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_triggers_backup/BACKUP-1.2.ctl
-38262 bytes in output
-ndb_print_backup_file suite/ndb/backups/76_inplace_upgrade_triggers_backup/BACKUP-1.2.log
-173 bytes in output
 ndb_print_backup_file suite/ndb/backups/LCP/0/T10F0.Data
 584 bytes in output
 ndb_print_backup_file suite/ndb/backups/LCP/0/T11F0.Data
