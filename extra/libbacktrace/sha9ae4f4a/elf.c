@@ -5689,10 +5689,10 @@ elf_uncompress_lzma_block (const unsigned char *compressed,
   /* Block header CRC.  */
   computed_crc = elf_crc32 (0, compressed + block_header_offset,
 			    block_header_size - 4);
-  stream_crc = (compressed[off]
-		| (compressed[off + 1] << 8)
-		| (compressed[off + 2] << 16)
-		| (compressed[off + 3] << 24));
+  stream_crc = ((uint32_t)compressed[off]
+		| ((uint32_t)compressed[off + 1] << 8)
+		| ((uint32_t)compressed[off + 2] << 16)
+		| ((uint32_t)compressed[off + 3] << 24));
   if (unlikely (computed_crc != stream_crc))
     {
       elf_uncompress_failed ();
@@ -5752,7 +5752,7 @@ elf_uncompress_lzma_block (const unsigned char *compressed,
 	      return 0;
 	    }
 
-	  chunk_size = compressed[off] << 8;
+	  chunk_size = (size_t)compressed[off] << 8;
 	  chunk_size += compressed[off + 1];
 	  ++chunk_size;
 
@@ -5793,11 +5793,11 @@ elf_uncompress_lzma_block (const unsigned char *compressed,
 	  uncompressed_chunk_start = uncompressed_offset;
 
 	  uncompressed_chunk_size = (control & 0x1f) << 16;
-	  uncompressed_chunk_size += compressed[off] << 8;
+	  uncompressed_chunk_size += (size_t)compressed[off] << 8;
 	  uncompressed_chunk_size += compressed[off + 1];
 	  ++uncompressed_chunk_size;
 
-	  compressed_chunk_size = compressed[off + 2] << 8;
+	  compressed_chunk_size = (size_t)compressed[off + 2] << 8;
 	  compressed_chunk_size += compressed[off + 3];
 	  ++compressed_chunk_size;
 
@@ -5873,10 +5873,10 @@ elf_uncompress_lzma_block (const unsigned char *compressed,
 	  /* The byte at compressed[off] is ignored for some
 	     reason.  */
 
-	  code = ((compressed[off + 1] << 24)
-		  + (compressed[off + 2] << 16)
-		  + (compressed[off + 3] << 8)
-		  + compressed[off + 4]);
+	  code = (((uint32_t)compressed[off + 1] << 24)
+		  + ((uint32_t)compressed[off + 2] << 16)
+		  + ((uint32_t)compressed[off + 3] << 8)
+		  + (uint32_t)compressed[off + 4]);
 	  off += 5;
 
 	  /* This is the main LZMA decode loop.  */
@@ -6199,10 +6199,10 @@ elf_uncompress_lzma_block (const unsigned char *compressed,
 	  return 0;
 	}
       computed_crc = elf_crc32 (0, uncompressed, uncompressed_offset);
-      stream_crc = (compressed[off]
-		    | (compressed[off + 1] << 8)
-		    | (compressed[off + 2] << 16)
-		    | (compressed[off + 3] << 24));
+      stream_crc = ((uint32_t)compressed[off]
+		    | ((uint32_t)compressed[off + 1] << 8)
+		    | ((uint32_t)compressed[off + 2] << 16)
+		    | ((uint32_t)compressed[off + 3] << 24));
       if (computed_crc != stream_crc)
 	{
 	  elf_uncompress_failed ();
@@ -6337,19 +6337,19 @@ elf_uncompress_lzma (struct backtrace_state *state,
 
   /* Before that is the size of the index field, which precedes the
      footer.  */
-  index_size = (compressed[offset - 4]
-		| (compressed[offset - 3] << 8)
-		| (compressed[offset - 2] << 16)
-		| (compressed[offset - 1] << 24));
+  index_size = ((uint32_t)compressed[offset - 4]
+		| ((uint32_t)compressed[offset - 3] << 8)
+		| ((uint32_t)compressed[offset - 2] << 16)
+		| ((uint32_t)compressed[offset - 1] << 24));
   index_size = (index_size + 1) * 4;
   offset -= 4;
 
   /* Before that is a footer CRC.  */
   computed_crc = elf_crc32 (0, compressed + offset, 6);
-  stream_crc = (compressed[offset - 4]
-		| (compressed[offset - 3] << 8)
-		| (compressed[offset - 2] << 16)
-		| (compressed[offset - 1] << 24));
+  stream_crc = ((uint32_t)compressed[offset - 4]
+		| ((uint32_t)compressed[offset - 3] << 8)
+		| ((uint32_t)compressed[offset - 2] << 16)
+		| ((uint32_t)compressed[offset - 1] << 24));
   if (unlikely (computed_crc != stream_crc))
     {
       elf_uncompress_failed ();
@@ -6405,10 +6405,10 @@ elf_uncompress_lzma (struct backtrace_state *state,
   /* Next is a CRC of the index.  */
   computed_crc = elf_crc32 (0, compressed + index_offset,
 			    offset - index_offset);
-  stream_crc = (compressed[offset]
-		| (compressed[offset + 1] << 8)
-		| (compressed[offset + 2] << 16)
-		| (compressed[offset + 3] << 24));
+  stream_crc = ((uint32_t)compressed[offset]
+		| ((uint32_t)compressed[offset + 1] << 8)
+		| ((uint32_t)compressed[offset + 2] << 16)
+		| ((uint32_t)compressed[offset + 3] << 24));
   if (unlikely (computed_crc != stream_crc))
     {
       elf_uncompress_failed ();
