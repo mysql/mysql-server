@@ -418,9 +418,9 @@ void collect_group_skip_scans(
       Item *expr = min_max_item->get_arg(0)->real_item();
       if (expr->type() == Item::FIELD_ITEM) /* Is it an attribute? */
       {
-        if (!min_max_arg_item)
-          min_max_arg_item = (Item_field *)expr;
-        else if (!min_max_arg_item->eq(expr, true))
+        if (min_max_arg_item == nullptr)
+          min_max_arg_item = down_cast<Item_field *>(expr);
+        else if (!min_max_arg_item->eq(expr))
           return;
       } else
         return;
@@ -1304,7 +1304,7 @@ static bool check_group_min_max_predicates(Item *cond,
     cur_arg = arguments[arg_idx]->real_item();
     DBUG_PRINT("info", ("cur_arg: %s", cur_arg->full_name()));
     if (cur_arg->type() == Item::FIELD_ITEM) {
-      if (min_max_arg_item->eq(cur_arg, true)) {
+      if (min_max_arg_item->eq(cur_arg)) {
         /*
           If pred references the MIN/MAX argument, check whether pred is a range
           condition that compares the MIN/MAX argument with a constant.
@@ -1381,7 +1381,7 @@ static inline void util_min_max_inspect_item(Item *item_field,
                                              bool *min_max_arg_present,
                                              bool *non_min_max_arg_present) {
   if (item_field->type() == Item::FIELD_ITEM) {
-    if (min_max_arg_item->eq(item_field, true))
+    if (min_max_arg_item->eq(item_field))
       *min_max_arg_present = true;
     else
       *non_min_max_arg_present = true;

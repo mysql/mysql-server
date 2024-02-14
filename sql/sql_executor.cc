@@ -4260,7 +4260,7 @@ static bool replace_embedded_rollup_references_with_tmp_fields(
       return {ReplaceResult::KEEP_TRAVERSING, nullptr};
     }
     for (Item *other_item : *fields) {
-      if (other_item->eq(sub_item, false)) {
+      if (other_item->eq(sub_item)) {
         Field *field = other_item->get_tmp_table_field();
         Item *item_field = new (thd->mem_root) Item_field(field);
         if (item_field == nullptr) return {ReplaceResult::ERROR, nullptr};
@@ -4382,7 +4382,7 @@ static Item_rollup_group_item *find_rollup_item_in_group_list(
     // (E.g. GROUP BY f1,f1,f2), rollup_item is set only for
     // the first field.
     if (rollup_item != nullptr) {
-      if (item->eq(rollup_item, /*binary_cmp=*/false)) {
+      if (item->eq(rollup_item)) {
         return rollup_item;
       }
     }

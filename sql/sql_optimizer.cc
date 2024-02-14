@@ -2266,8 +2266,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
         that ORDER BY MATCH function is the same as the function that
         is used for FT index.
       */
-      if (tab->type() == JT_FT &&
-          ft_func->eq(tab->position()->key->val, true)) {
+      if (tab->type() == JT_FT && ft_func->eq(tab->position()->key->val)) {
         ft_func->set_hints(join, FT_SORTED, select_limit, false);
         return true;
       }
@@ -4890,7 +4889,7 @@ static bool change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
   Item *right_item = args[1];
   Item_func::Functype functype = func->functype();
 
-  if (right_item->eq(field, false) && left_item != value &&
+  if (right_item->eq(field) && left_item != value &&
       right_item->cmp_context == field->cmp_context &&
       (left_item->result_type() != STRING_RESULT ||
        value->result_type() != STRING_RESULT ||
@@ -4912,7 +4911,7 @@ static bool change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
       save_list->push_back(cond_cmp);
     }
     if (func->set_cmp_func()) return true;
-  } else if (left_item->eq(field, false) && right_item != value &&
+  } else if (left_item->eq(field) && right_item != value &&
              left_item->cmp_context == field->cmp_context &&
              (right_item->result_type() != STRING_RESULT ||
               value->result_type() != STRING_RESULT ||
@@ -5180,7 +5179,7 @@ bool JOIN::update_equalities_for_sjm() {
            keyuse++) {
         uint fieldno = 0;
         for (Item *old : sj_nest->nested_join->sj_inner_exprs) {
-          if (old->real_item()->eq(keyuse->val->real_item(), false)) {
+          if (old->real_item()->eq(keyuse->val->real_item())) {
             /*
               Replace the expression selected from the subquery with the
               corresponding column of the materialized temporary table.
@@ -6934,7 +6933,7 @@ static Key_field *merge_key_fields(Key_field *start, Key_field *new_fields,
             If the value matches, we can use the key reference.
             If not, we keep it until we have examined all new values
           */
-          if (old->val->eq(new_fields->val, old_field->binary())) {
+          if (old->val->eq(new_fields->val)) {
             old->level = and_level;
             old->optimize =
                 ((old->optimize & new_fields->optimize & KEY_OPTIMIZE_EXISTS) |
@@ -6945,7 +6944,6 @@ static Key_field *merge_key_fields(Key_field *start, Key_field *new_fields,
           }
         } else if (old->eq_func && new_fields->eq_func &&
                    old->val->eq_by_collation(new_fields->val,
-                                             old_field->binary(),
                                              old_field->charset())) {
           old->level = and_level;
           old->optimize =
@@ -7512,17 +7510,13 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
         uint num_values = 2;
         values = cond_func->arguments();
 
-        const bool binary_cmp =
-            (values[0]->real_item()->type() == Item::FIELD_ITEM)
-                ? ((Item_field *)values[0]->real_item())->field->binary()
-                : true;
-
         /*
           Additional optimization: If 'low = high':
           Handle as if the condition was "t.key = low".
         */
-        if (!((Item_func_between *)cond_func)->negated &&
-            values[1]->eq(values[2], binary_cmp)) {
+        Item_func_between *between = down_cast<Item_func_between *>(cond_func);
+        if (!between->negated && !values[1]->const_item() &&
+            !values[2]->const_item() && values[1]->eq(values[2])) {
           equal_func = true;
           num_values = 1;
         }
@@ -9008,7 +9002,7 @@ static bool test_if_ref(THD *thd, Item_field *left_item, Item *right_item,
       /* "ref_or_null" implements "x=y or x is null", not "x=y" */
       (join_tab->type() != JT_REF_OR_NULL)) {
     Item *ref_item = part_of_refkey(field->table, &join_tab->ref(), field);
-    if (ref_item != nullptr && ref_item->eq(right_item, true)) {
+    if (ref_item != nullptr && ref_item->eq(right_item)) {
       if (ref_lookup_subsumes_comparison(thd, field, right_item,
                                          right_item->const_for_execution(),
                                          redundant)) {
@@ -10085,7 +10079,7 @@ static bool eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab,
     if (!(*ref_item)->const_item()) {  // Not a const ref
       ORDER *order;
       for (order = start_order; order; order = order->next) {
-        if ((*ref_item)->eq(order->item[0], false)) break;
+        if ((*ref_item)->eq(order->item[0])) break;
       }
       if (order) {
         if (!(order->used & map)) {
@@ -10159,7 +10153,7 @@ static bool duplicate_order(const ORDER *first_order,
       const Item *it1 = order->item[0]->real_item();
       const Item *it2 = possible_dup->item[0]->real_item();
 
-      if (it1->eq(it2, false)) return true;
+      if (it1->eq(it2)) return true;
     }
   }
   return false;
@@ -10545,7 +10539,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
     }
     Item *left_item = down_cast<Item_func *>(cond)->arguments()[0];
     Item *right_item = down_cast<Item_func *>(cond)->arguments()[1];
-    if (left_item->eq(right_item, true) && !cond->is_non_deterministic()) {
+    if (left_item->eq(right_item) && !cond->is_non_deterministic()) {
       /*
        Two identical items are being compared:
        1) If the items are not nullable, return result from eq_cmp_result(),
@@ -10726,7 +10720,7 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
       */
       ORDER *ord_iter;
       for (ord_iter = group; ord_iter; ord_iter = ord_iter->next)
-        if ((*ord_iter->item)->eq(item, true)) goto next_item;
+        if ((*ord_iter->item)->eq(item)) goto next_item;
 
       ORDER *ord = (ORDER *)thd->mem_calloc(sizeof(ORDER));
       if (!ord) return nullptr;
@@ -10788,7 +10782,7 @@ static TABLE *get_sort_by_table(ORDER *a, ORDER *b, Table_ref *tables) {
     b = a;
 
   for (; a && b; a = a->next, b = b->next) {
-    if (!(*a->item)->eq(*b->item, true)) return nullptr;
+    if (!(*a->item)->eq(*b->item)) return nullptr;
     map |= a->item[0]->used_tables();
   }
   map &= ~INNER_TABLE_BIT;

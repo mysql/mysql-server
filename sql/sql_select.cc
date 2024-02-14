@@ -3821,7 +3821,7 @@ static bool equal(const Item *i1, const Item *i2, const Field *f2) {
   assert((i2 == nullptr) ^ (f2 == nullptr));
 
   if (i2 != nullptr)
-    return i1->eq(i2, true);
+    return i1->eq(i2);
   else if (i1->type() == Item::FIELD_ITEM)
     return f2->eq(down_cast<const Item_field *>(i1)->field);
   else
@@ -3869,13 +3869,13 @@ bool check_field_is_const(Item *cond, const Item *order_item,
   Item *right = comp->arguments()[1];
   if (equal(left, order_item, order_field)) {
     if (equality_determines_uniqueness(comp, left, right)) {
-      if (*const_item != nullptr) return right->eq(*const_item, true);
+      if (*const_item != nullptr) return right->eq(*const_item);
       *const_item = right;
       return true;
     }
   } else if (equal(right, order_item, order_field)) {
     if (equality_determines_uniqueness(comp, right, left)) {
-      if (*const_item != nullptr) return left->eq(*const_item, true);
+      if (*const_item != nullptr) return left->eq(*const_item);
       *const_item = left;
       return true;
     }
@@ -3968,7 +3968,7 @@ bool test_if_subpart(ORDER *a, ORDER *b) {
   ORDER *first = a;
   ORDER *second = b;
   for (; first && second; first = first->next, second = second->next) {
-    if ((*first->item)->eq(*second->item, true))
+    if ((*first->item)->eq(*second->item))
       continue;
     else
       return false;

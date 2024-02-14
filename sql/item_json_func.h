@@ -594,7 +594,7 @@ class Item_func_json_extract final : public Item_json_func {
 
   bool val_json(Json_wrapper *wr) override;
 
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
 };
 
 /// Base class for all the functions that take a JSON document as the first

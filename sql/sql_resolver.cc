@@ -4289,7 +4289,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
         ((Item_ref *)item)->ref_type() == Item_ref::VIEW_REF) {
       Item_view_ref *item_ref = down_cast<Item_view_ref *>(item);
       if (item_ref->cached_table->is_merged() &&
-          order_item->eq(item_ref->ref_item(), false)) {
+          order_item->eq(item_ref->ref_item())) {
         order->item = &ref_item_array[counter];
         // Order by is now referencing select expression, so increment the
         // reference count for the select expression.
@@ -4394,8 +4394,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, Table_ref *tables,
       // Update with the correct ref item.
       uint counter = fields->size();
       for (uint i = 0; i < fields->size(); i++) {
-        if (order_item->real_item()->eq(ref_item_array[i]->real_item(),
-                                        false)) {
+        if (order_item->real_item()->eq(ref_item_array[i]->real_item())) {
           order->item = &ref_item_array[i];
           // Order by is now referencing select expression, so increment the
           // reference count for the select expression.
@@ -4592,7 +4591,7 @@ ORDER *Query_block::find_in_group_list(Item *item, int *rollup_level) const {
   for (ORDER *group = group_list.first; group; group = group->next, ++idx) {
     Item *group_item = *group->item;
     assert(group_item->real_item()->type() != Item::CACHE_ITEM);
-    if (real_item->eq(group_item->real_item(), /*binary_cmp=*/false)) {
+    if (real_item->eq(group_item->real_item())) {
       if (item->item_name.ptr() != nullptr &&
           group_item->item_name.ptr() != nullptr &&
           item->item_name.eq(group_item->item_name)) {
@@ -6247,7 +6246,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       } else {
         Item_view_ref *vr = down_cast<Item_view_ref *>(lf);
         for (auto curr : unique_view_refs) {
-          if (curr->eq(vr, true)) goto continue_outer;
+          if (curr->eq(vr)) goto continue_outer;
         }
         unique_view_refs.push_back(vr);
       }
@@ -6839,7 +6838,7 @@ bool Query_block::add_inner_exprs_to_group_by(
     for (ORDER *group = group_list.first; group != nullptr;
          group = group->next) {
       Item *gitem = *group->item;
-      if (gitem->eq(expr, /*binary_cmp*/ false)) {
+      if (gitem->eq(expr)) {
         found = true;
         break;
       }
@@ -6848,8 +6847,7 @@ bool Query_block::add_inner_exprs_to_group_by(
     if (!found) {
       Item *in_select = expr;
       if (selected_item != nullptr &&
-          selected_item->real_item()->eq(in_select->real_item(),
-                                         /*binary_cmp*/ false)) {
+          selected_item->real_item()->eq(in_select->real_item())) {
         in_select = selected_item;
         *selected_expr_added_to_group_by = true;
       }
@@ -6958,7 +6956,7 @@ bool Query_block::add_inner_func_calls_to_select_list(
     for (size_t i = 0; i < fields.size(); i++) {
       Item *fi = fields[i];
       if (fi->type() != Item::FUNC_ITEM) continue;
-      if (down_cast<Item_func *>(fi)->eq(func, /*binary_cmp*/ false)) {
+      if (down_cast<Item_func *>(fi)->eq(func)) {
         found = true;
         break;
       }
@@ -7152,7 +7150,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
           Item *curr_item;
           bool found = false;
           while ((curr_item = item_list_it++)) {
-            if (curr_item->eq(this_item, true)) {
+            if (curr_item->eq(this_item)) {
               found = true;
               break;
             }
@@ -7682,7 +7680,7 @@ static bool extract_correlated_condition(THD *thd, Item **cond,
         // If it is not the first argument to the OR condition, we already
         // have a predicate with us that we need to look for in this argument.
         // So, continue to search until we find it.
-        else if (!cor_pred->eq(pred, false))
+        else if (!cor_pred->eq(pred))
           continue;
         found = true;
         if (!is_correlated_predicate_eligible(cor_pred)) return true;
@@ -7702,7 +7700,7 @@ static bool extract_correlated_condition(THD *thd, Item **cond,
     ExtractConditions(item, &cond_parts);  // all elements AND'ed
     Mem_root_array<Item *> final_args(thd->mem_root);
     for (Item *pred : cond_parts) {
-      if (!cor_pred->eq(pred, false)) final_args.push_back(pred);
+      if (!cor_pred->eq(pred)) final_args.push_back(pred);
     }
     if (final_args.size() == 0)
       li.remove();

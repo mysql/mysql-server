@@ -6215,7 +6215,7 @@ type_conversion_status Field_str::store(double nr) {
 
 bool Field::gcol_expr_is_equal(const Create_field *field) const {
   assert(is_gcol() && field->is_gcol());
-  return gcol_info->expr_item->eq(field->gcol_info->expr_item, true);
+  return gcol_info->expr_item->eq(field->gcol_info->expr_item);
 }
 
 uint Field_str::is_equal(const Create_field *new_field) const {

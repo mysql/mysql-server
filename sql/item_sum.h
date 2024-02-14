@@ -597,6 +597,7 @@ class Item_sum : public Item_func {
   }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  bool eq(const Item *item) const override;
   bool eq_specific(const Item *item) const override;
   /**
     Mark an aggregate as having no rows.

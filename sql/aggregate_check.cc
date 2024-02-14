@@ -291,7 +291,7 @@ bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
   expr = unwrap_rollup_group(expr);
 
   for (ORDER *grp = select->group_list.first; grp; grp = grp->next) {
-    if ((*grp->item)->eq(expr, false))
+    if ((*grp->item)->eq(expr))
       return false;  // Expression is in GROUP BY so is ok
   }
 
@@ -360,7 +360,7 @@ bool Group_check::is_fd_on_source(Item *item) {
         It's just an optimization.
       */
       for (ORDER *grp = select->group_list.first; grp; grp = grp->next) {
-        if ((*grp->item)->eq(item, false)) return true;
+        if ((*grp->item)->eq(item)) return true;
       }
       // It didn't suffice. Let's start the search for FDs: build E1.
       for (ORDER *grp = select->group_list.first; grp; grp = grp->next) {
@@ -570,7 +570,7 @@ void Group_check::find_group_in_fd(Item *item) {
         Item *grp_item = *grp->item;
         if ((local_column(grp_item) &&
              (grp_item->used_tables() & ~whole_tables_fd) == 0) ||
-            (item && grp_item->eq(item, false)))
+            (item != nullptr && grp_item->eq(item)))
           group_in_fd |= (1ULL << j);
         else
           missing = true;
@@ -712,7 +712,7 @@ bool Group_check::is_in_fd(Item *item) {
   }
   for (uint j = 0; j < fd.size(); j++) {
     Item *const item2 = fd.at(j);
-    if (item2->eq(item, false)) return true;
+    if (item2->eq(item)) return true;
     /*
       Say that we have view:
       create view v1 as select i, 2*i as z from t1; and we do:
@@ -726,7 +726,7 @@ bool Group_check::is_in_fd(Item *item) {
       reach to real_item() of v1.i.
     */
     Item *const real_it2 = item2->real_item();
-    if (real_it2 != item2 && real_it2->eq(item, false)) return true;
+    if (real_it2 != item2 && real_it2->eq(item)) return true;
   }
   if (!search_in_underlying) return false;
   return is_in_fd_of_underlying(down_cast<Item_ident *>(item));
@@ -877,9 +877,9 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
 Item *Group_check::get_fd_equal(Item *item) {
   for (uint j = 0; j < fd.size(); j++) {
     Item *const item2 = fd.at(j);
-    if (item2->eq(item, false)) return item2;
+    if (item2->eq(item)) return item2;
     Item *const real_it2 = item2->real_item();
-    if (real_it2 != item2 && real_it2->eq(item, false)) return item2;
+    if (real_it2 != item2 && real_it2->eq(item)) return item2;
   }
   return nullptr;
 }

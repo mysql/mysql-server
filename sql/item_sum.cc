@@ -596,6 +596,33 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
   return false;
 }
 
+/**
+  @todo Remove this function when rollup wrappers are removed.
+        Item_func::eq() works for all Item_sum functions.
+*/
+bool Item_sum::eq(const Item *item) const {
+  if (this == item) return true;
+  if (item->type() != type()) return false;
+  const Item_sum *item_sum = down_cast<const Item_sum *>(item);
+  const enum Sumfunctype my_sum_func = sum_func();
+  if (item_sum->sum_func() != my_sum_func || item_sum->m_window != m_window)
+    return false;
+
+  if (is_rollup_sum_wrapper() || item_sum->is_rollup_sum_wrapper()) {
+    // we want to compare underlying Item_sums
+    const Item_sum *this_real_sum = unwrap_sum();
+    const Item_sum *item_real_sum = item_sum->unwrap_sum();
+    return this_real_sum->eq(item_real_sum);
+  }
+
+  if (arg_count != item_sum->arg_count ||
+      my_strcasecmp(system_charset_info, func_name(), item_sum->func_name()) ||
+      !eq_specific(item))
+    return false;
+  if (arg_count == 0) return true;
+  return AllItemsAreEqual(args, item_sum->args, arg_count);
+}
+
 bool Item_sum::eq_specific(const Item *item) const {
   const Item_sum *item_sum = down_cast<const Item_sum *>(item);
   if (item->m_is_window_function != m_is_window_function ||
@@ -2791,7 +2818,7 @@ bool Item_sum_hybrid::check_wf_semantics1(THD *thd, Query_block *select,
     ORDER *o = order->value.first;
     // The logic below (see class's doc) makes sense only for MIN and MAX
     assert(sum_func() == MIN_FUNC || sum_func() == MAX_FUNC);
-    if ((*o->item)->real_item()->eq(args[0]->real_item(), false)) {
+    if ((*o->item)->real_item()->eq(args[0]->real_item())) {
       if (r->row_optimizable || r->range_optimizable) {
         m_optimize = true;
         value->setup(args[0]);  // no comparisons needed
@@ -6016,7 +6043,7 @@ bool Item_sum_json_object::check_wf_semantics1(
   const PT_order_list *order = m_window->effective_order_by();
   if (order != nullptr) {
     ORDER *o = order->value.first;
-    if (o->item[0]->real_item()->eq(args[0]->real_item(), false)) {
+    if (o->item[0]->real_item()->eq(args[0]->real_item())) {
       r->needs_last_peer_in_frame = true;
       m_optimize = true;
     }

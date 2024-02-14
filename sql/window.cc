@@ -633,7 +633,7 @@ bool Window::check_unique_name(const List<Window> &windows) {
   for (const Window &w : windows) {
     if (w.name() == nullptr) continue;
 
-    if (&w != this && m_name->eq(w.name(), false)) {
+    if (&w != this && m_name->eq(w.name())) {
       my_error(ER_WINDOW_DUPLICATE_NAME, MYF(0), printable_name());
       return true;
     }
@@ -742,7 +742,7 @@ bool Window::equal_sort(Window *w1, Window *w2) {
   if (o1 == nullptr || o2 == nullptr) return false;
 
   while (o1 != nullptr && o2 != nullptr) {
-    if (o1->direction != o2->direction || !(*o1->item)->eq(*o2->item, false))
+    if (o1->direction != o2->direction || !(*o1->item)->eq(*o2->item))
       return false;
 
     o1 = o1->next;

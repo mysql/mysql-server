@@ -512,7 +512,7 @@ class Item_func : public Item_result_field {
   table_map not_null_tables() const override { return not_null_tables_cache; }
   void update_used_tables() override;
   void set_used_tables(table_map map) { used_tables_cache = map; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   /**
     Provide a more specific equality check for a function.
     Combine with Item::eq() to implement a complete equality check.

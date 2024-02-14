@@ -416,8 +416,7 @@ static void CollectOrderingsFromSpatialIndex(
             item_func->arg_count == 2) {
           Item *const item_func_arg1 = item_func->arguments()[0];
           Item *const item_func_arg2 = item_func->arguments()[1];
-          if (item->eq(item_func_arg1, /*binary_cmp=*/true) ||
-              item->eq(item_func_arg2, /*binary_cmp=*/true)) {
+          if (item->eq(item_func_arg1) || item->eq(item_func_arg2)) {
             SpatialDistanceScanInfo index_info;
             index_info.table = table;
             index_info.key_idx = key_idx;
@@ -897,8 +896,7 @@ void BuildInterestingOrders(
           sort_ahead_only ||
           std::none_of(join->fields->cbegin(), join->fields->cend(),
                        [real_item](const Item *field) {
-                         return real_item->eq(field->real_item(),
-                                              /*binary_cmp=*/true);
+                         return real_item->eq(field->real_item());
                        });
     }
     NodeMap required_nodes = GetNodeMapFromTableMap(

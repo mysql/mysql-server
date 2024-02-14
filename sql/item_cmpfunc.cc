@@ -3091,14 +3091,22 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref) {
   update_not_null_tables();
 
   // if 'high' and 'low' are same, convert this to a _eq function
-  if (!negated && args[1]->const_item() && args[2]->const_item() &&
-      args[1]->eq(args[2], true)) {
-    Item *item = new (thd->mem_root) Item_func_eq(args[0], args[1]);
-    if (item == nullptr) return true;
-    item->item_name = item_name;
-    if (item->fix_fields(thd, ref)) return true;
-    *ref = item;
+  if (negated || !args[1]->const_item() || !args[2]->const_item()) {
+    return false;
   }
+  // Ensure that string values are compared using BETWEEN's effective collation
+  if (args[1]->result_type() == STRING_RESULT &&
+      args[2]->result_type() == STRING_RESULT) {
+    if (!args[1]->eq_by_collation(args[2], args[0]->collation.collation))
+      return false;
+  } else {
+    if (!args[1]->eq(args[2])) return false;
+  }
+  Item *item = new (thd->mem_root) Item_func_eq(args[0], args[1]);
+  if (item == nullptr) return true;
+  item->item_name = item_name;
+  if (item->fix_fields(thd, ref)) return true;
+  *ref = item;
 
   return false;
 }
@@ -5922,7 +5930,7 @@ void Item_cond::fix_after_pullout(Query_block *parent_query_block,
   }
 }
 
-bool Item_cond::eq(const Item *item, bool binary_cmp) const {
+bool Item_cond::eq(const Item *item) const {
   if (this == item) return true;
   if (item->type() != COND_ITEM) return false;
   const Item_cond *item_cond = down_cast<const Item_cond *>(item);
@@ -5932,10 +5940,9 @@ bool Item_cond::eq(const Item *item, bool binary_cmp) const {
     return false;
   // Item_cond never uses "args". Inspect "list" instead.
   assert(arg_count == 0 && item_cond->arg_count == 0);
-  return std::equal(list.begin(), list.end(), item_cond->list.begin(),
-                    [binary_cmp](const Item &i1, const Item &i2) {
-                      return ItemsAreEqual(&i1, &i2, binary_cmp);
-                    });
+  return std::equal(
+      list.begin(), list.end(), item_cond->list.begin(),
+      [](const Item &i1, const Item &i2) { return ItemsAreEqual(&i1, &i2); });
 }
 
 bool Item_cond::walk(Item_processor processor, enum_walk walk, uchar *arg) {
@@ -7276,7 +7283,7 @@ bool Item_equal::eq_specific(const Item *item) const {
   if ((m_const_arg != nullptr) != (item_eq->m_const_arg != nullptr)) {
     return false;
   }
-  if (m_const_arg != nullptr && !m_const_arg->eq(item_eq->m_const_arg, false)) {
+  if (m_const_arg != nullptr && !m_const_arg->eq(item_eq->m_const_arg)) {
     return false;
   }
 
@@ -7520,7 +7527,7 @@ Item *Item_equal::equality_substitution_transformer(uchar *arg) {
     // Iterate over the fields selected from the subquery
     uint fieldno = 0;
     for (Item *existing : sj_nest->nested_join->sj_inner_exprs) {
-      if (existing->real_item()->eq(item, false))
+      if (existing->real_item()->eq(item))
         added_fields.push_back(sj_nest->nested_join->sjm.mat_fields[fieldno]);
       fieldno++;
     }
@@ -7551,7 +7558,7 @@ Item *Item_func_eq::equality_substitution_transformer(uchar *arg) {
   // Iterate over the fields selected from the subquery
   uint fieldno = 0;
   for (Item *existing : sj_nest->nested_join->sj_inner_exprs) {
-    if (existing->real_item()->eq(args[1], false) &&
+    if (existing->real_item()->eq(args[1]) &&
         (args[0]->used_tables() & ~sj_nest->sj_inner_tables))
       current_thd->change_item_tree(
           args + 1, sj_nest->nested_join->sjm.mat_fields[fieldno]);

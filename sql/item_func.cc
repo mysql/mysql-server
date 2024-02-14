@@ -620,7 +620,7 @@ bool Item_func::param_type_uses_non_param(THD *thd, enum_field_types def) {
 
 Item *Item_func::replace_func_call(uchar *arg) {
   auto *info = pointer_cast<Item::Item_func_call_replacement *>(arg);
-  if (eq(info->m_target, /*binary_cmp*/ false)) {
+  if (eq(info->m_target)) {
     assert(info->m_curr_block == info->m_trans_block);
     return info->m_item;
   }
@@ -773,7 +773,7 @@ void Item_func::print_op(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_func::eq(const Item *item, bool binary_cmp) const {
+bool Item_func::eq(const Item *item) const {
   if (this == item) return true;
   if (item->type() != type()) return false;
   const Item_func::Functype func_type = functype();
@@ -791,7 +791,7 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const {
   if (arg_count == 0) {
     return true;
   }
-  return AllItemsAreEqual(args, func->args, arg_count, binary_cmp);
+  return AllItemsAreEqual(args, func->args, arg_count);
 }
 
 Field *Item_func::tmp_table_field(TABLE *table) {
@@ -1122,8 +1122,7 @@ Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
   }
 
   // JSON implementation always uses binary collation
-  const bool bin_cmp = (expr->data_type() == MYSQL_TYPE_JSON);
-  if (type == fld->result_type() && func->eq(expr, bin_cmp)) {
+  if (type == fld->result_type() && func->eq(expr)) {
     if (found) {
       // Temporary mark the field in order to check correct value conversion
       fld->table->mark_column_used(fld, MARK_COLUMNS_TEMP);
@@ -7835,7 +7834,7 @@ bool Item_func_match::eq_specific(const Item *item) const {
     return false;
   }
   if (key == ifm->key && table_ref == ifm->table_ref &&
-      key_item()->eq(ifm->key_item(), false))
+      key_item()->eq(ifm->key_item()))
     return true;
 
   return false;

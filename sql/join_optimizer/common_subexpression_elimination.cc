@@ -54,7 +54,7 @@ bool IsOr(const Item *item) {
     (item AND x) OR (item AND y) OR (z AND w AND item)
  */
 bool AlwaysPresent(Item *expr, const Item *item) {
-  if (expr->eq(item, /*binary_cmp=*/true)) {
+  if (expr->eq(item)) {
     return true;
   }
 
@@ -86,7 +86,7 @@ bool AlwaysPresent(Item *expr, const Item *item) {
 /// Check if “item” matches any item in “items”.
 bool MatchesAny(Item *item, const List<Item> &items) {
   for (const Item &other_item : items) {
-    if (item->eq(&other_item, /*binary_cmp=*/true)) {
+    if (item->eq(&other_item)) {
       return true;
     }
   }

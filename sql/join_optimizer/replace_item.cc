@@ -63,9 +63,7 @@ static Item *FindReplacementItem(Item *item,
       match = func.func()->hidden == item->hidden &&
               func.func()->real_item() == item->real_item();
     } else {
-      match =
-          func.func()->real_item() == item->real_item() ||
-          func.func()->real_item()->eq(item->real_item(), /*binary_cmp=*/true);
+      match = func.func()->real_item()->eq(item->real_item());
     }
     if (match) {
       Item_field *item_field = func.result_item();

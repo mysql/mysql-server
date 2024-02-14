@@ -71,6 +71,7 @@
 #include "sql/table_function.h"
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
+#include "sql_string.h"  // stringcmp
 #include "string_with_len.h"
 #include "template_utils.h"  // down_cast
 
@@ -1694,7 +1695,7 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
   return false;
 }
 
-bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
+bool Item_func_json_extract::eq(const Item *item) const {
   if (this == item) return true;
   if (item->type() != FUNC_ITEM) return false;
   const auto item_func = down_cast<const Item_func *>(item);
@@ -1702,20 +1703,30 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
       strcmp(func_name(), item_func->func_name()) != 0)
     return false;
 
-  auto cmp = [binary_cmp](const Item *arg1, const Item *arg2) {
-    /*
-      JSON_EXTRACT doesn't care about the collation of its arguments. String
-      literal arguments are considered equal if they have the same character
-      set and binary contents, even if their collations differ.
-    */
-    const bool ignore_collation =
-        binary_cmp ||
-        (arg1->type() == STRING_ITEM &&
-         my_charset_same(arg1->collation.collation, arg2->collation.collation));
-    return ItemsAreEqual(arg1, arg2, ignore_collation);
-  };
+  /*
+    JSON_EXTRACT doesn't care about the collation of its arguments. String
+    literal arguments are considered equal if they have the same character
+    set and binary contents, even if their collations differ.
+  */
   const auto item_json = down_cast<const Item_func_json_extract *>(item);
-  return std::equal(args, args + arg_count, item_json->args, cmp);
+
+  for (uint i = 0; i < arg_count; i++) {
+    const Item *a = args[i]->unwrap_for_eq();
+    const Item *b = item_json->args[i]->unwrap_for_eq();
+    if (a->type() == STRING_ITEM && b->type() == STRING_ITEM &&
+        a->const_item() && b->const_item()) {
+      if (!my_charset_same(a->collation.collation, b->collation.collation))
+        return false;
+      String str1, str2;
+      if (stringcmp(const_cast<Item *>(a)->val_str(&str1),
+                    const_cast<Item *>(b)->val_str(&str2))) {
+        return false;
+      }
+    } else {
+      if (!a->eq(b)) return false;
+    }
+  }
+  return true;
 }
 
 bool Item_func_modify_json_in_path::resolve_type(THD *thd) {

@@ -69,6 +69,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/tztime.h"  // Time_zone
+#include "sql_string.h"  // stringcmp
 #include "string_with_len.h"
 #include "strmake.h"
 #include "template_utils.h"
@@ -2218,13 +2219,17 @@ bool Item_func_date_format::eq_specific(const Item *item) const {
   const Item_func_date_format *item_func =
       down_cast<const Item_func_date_format *>(item);
   /*
-    We must compare format string case sensitive.
-    This needed because format modifiers with different case,
-    for example %m and %M, have different meaning.
+    Arguments have already been compared for equality with regular collation.
+    However, the format string must be compared case sensitive, because
+    format modifiers with different case, for example %m and %M,
+    have different meanings.
   */
-  if (!ItemsAreEqual(args[1], item_func->args[1], /*binary_tmp=*/true))
+  if (!args[1]->const_item() || !item_func->args[1]->const_item()) {
     return false;
-  return true;
+  }
+  String str1, str2;
+  return !stringcmp(args[1]->val_str(&str1),
+                    item_func->args[1]->val_str(&str2));
 }
 
 uint Item_func_date_format::format_length(const String *format) {

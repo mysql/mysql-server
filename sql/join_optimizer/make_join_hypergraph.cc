@@ -941,9 +941,8 @@ bool MultipleEqualityAlreadyExistsOnJoin(Item_equal *equal,
 bool AlreadyExistsOnJoin(Item *cond, const RelationalExpression &expr) {
   assert(expr.equijoin_conditions
              .empty());  // MakeHashJoinConditions() has not run yet.
-  constexpr bool binary_cmp = true;
   for (Item *item : expr.join_conditions) {
-    if (cond->eq(item, binary_cmp)) {
+    if (cond->eq(item)) {
       return true;
     }
   }
@@ -3115,7 +3114,7 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
       // happen with multiple equalities in particular).
       bool dup = false;
       for (Item *other_cond : expr->equijoin_conditions) {
-        if (other_cond->eq(cond, /*binary_cmp=*/true)) {
+        if (other_cond->eq(cond)) {
           dup = true;
           break;
         }
@@ -3124,7 +3123,7 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
         continue;
       }
       for (Item *other_cond : expr->join_conditions) {
-        if (other_cond->eq(cond, /*binary_cmp=*/true)) {
+        if (other_cond->eq(cond)) {
           dup = true;
           break;
         }

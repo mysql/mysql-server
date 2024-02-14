@@ -8359,7 +8359,7 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
              (item_field->db_name != nullptr &&
               !strcmp(item_field->db_name, find_ident->db_name)))) {
           if (found_unaliased) {
-            if ((*found_unaliased)->eq(item, false)) continue;
+            if ((*found_unaliased)->eq(item)) continue;
             /*
               Two matching fields in select list.
               We already can bail out because we are searching through
@@ -8386,7 +8386,7 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
             non-aliased field was found.
           */
           if (*found != nullptr) {
-            if ((**found)->eq(item, false)) continue;  // Same field twice
+            if ((**found)->eq(item)) continue;  // Same field twice
             my_error(ER_NON_UNIQ_ERROR, MYF(0), find->full_name(), thd->where);
             return true;
           }
@@ -8402,8 +8402,7 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
             we should prefer fields from select list.
           */
           if (found_unaliased) {
-            if ((*found_unaliased)->eq(item, false))
-              continue;  // Same field twice
+            if ((*found_unaliased)->eq(item)) continue;  // Same field twice
             found_unaliased_non_uniq = true;
           }
           found_unaliased = &*it;
@@ -8421,7 +8420,7 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
         *counter = i;
         *resolution = RESOLVED_AGAINST_ALIAS;
         break;
-      } else if (find->eq(item, false)) {
+      } else if (find->eq(item)) {
         *found = &*it;
         *counter = i;
         *resolution = RESOLVED_IGNORING_ALIAS;
@@ -10499,7 +10498,7 @@ int setup_ftfuncs(const THD *thd, Query_block *query_block) {
       is used as master for a "late" one, and not the other way around.
     */
     while ((ftf2 = lj++) != ftf) {
-      if (ftf->eq(ftf2, true) && !ftf->master) ftf2->set_master(ftf);
+      if (ftf->eq(ftf2) && !ftf->master) ftf2->set_master(ftf);
     }
   }
 

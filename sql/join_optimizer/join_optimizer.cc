@@ -2512,8 +2512,7 @@ struct KeypartForRef {
 int WasPushedDownToRef(Item *condition, const KeypartForRef *keyparts,
                        unsigned num_keyparts) {
   for (unsigned keypart_idx = 0; keypart_idx < num_keyparts; keypart_idx++) {
-    if (condition->eq(keyparts[keypart_idx].condition,
-                      /*binary_cmp=*/true)) {
+    if (condition->eq(keyparts[keypart_idx].condition)) {
       return keypart_idx;
     }
   }

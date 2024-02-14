@@ -954,7 +954,7 @@ bool Item_field::collect_item_field_processor(uchar *arg) {
   mem_root_deque<Item_field *> *item_list =
       reinterpret_cast<mem_root_deque<Item_field *> *>(arg);
   for (Item_field *curr_item : *item_list) {
-    if (curr_item->eq(this, true)) return false; /* Already in the set. */
+    if (curr_item->eq(this)) return false; /* Already in the set. */
   }
   item_list->push_back(this);
   return false;
@@ -985,7 +985,7 @@ bool Item_field::collect_item_field_or_ref_processor(uchar *arg) {
     if (is_outer_reference()) {
       if (already_collected == this) return false;
     } else {
-      if (already_collected->eq(this, true)) return false;
+      if (already_collected->eq(this)) return false;
     }
   }
   return info->m_items->push_back(this);
@@ -998,7 +998,7 @@ bool Item_field::collect_item_field_or_view_ref_processor(uchar *arg) {
   List_iterator<Item> item_list_it(*info->m_item_fields_or_view_refs);
   Item *curr_item;
   while ((curr_item = item_list_it++)) {
-    if (curr_item->eq(this, true)) {
+    if (curr_item->eq(this)) {
       // We have this field already, so don't insert.  All occurrences must be
       // protected by ANY_VALUE for us to also protect it: one occurrence that
       // is not protected might give ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2 in
@@ -1168,7 +1168,7 @@ bool Item_field::check_column_in_window_functions(uchar *arg) {
     ret = true;
     for (ORDER *o = w->first_partition_by(); o != nullptr; o = o->next) {
       Item *expr = *(o->item);
-      if (expr == item || item->eq(expr, false)) {
+      if (expr == item || item->eq(expr)) {
         ret = false;
         break;
       }
@@ -1198,7 +1198,7 @@ bool Item_field::check_column_in_group_by(uchar *arg) {
   Item *item = query_block->get_derived_expr(field->field_index());
   for (ORDER *group = query_block->group_list.first; group;
        group = group->next) {
-    if (*group->item == item || item->eq(*group->item, false)) return false;
+    if (*group->item == item || item->eq(*group->item)) return false;
   }
   return true;
 }
@@ -1419,7 +1419,7 @@ void Item_name_string::copy(const char *str_arg, size_t length_arg,
   - When matching fields in multiple equality objects (Item_equal)
 */
 
-bool Item::eq(const Item *item, bool) const {
+bool Item::eq(const Item *item) const {
   if (this == item) return true;
   /*
     Note, that this is never true if item is a Item_param:
@@ -1427,6 +1427,30 @@ bool Item::eq(const Item *item, bool) const {
     type() can be only among basic constant types.
   */
   return type() == item->type() && item_name.eq_safe(item->item_name);
+}
+
+/**
+  Unwrap an Item argument so that Item::eq() can see the "real" item, and not
+  just the wrapper. It unwraps Item_ref using real_item(), and also cache items
+  and rollup group wrappers, since these may not have been added consistently to
+  both sides compared by Item::eq().
+*/
+const Item *Item::unwrap_for_eq() const {
+  const Item *item = this;
+  const Item *prev_item;
+  do {
+    prev_item = item;
+    item = item->real_item();
+
+    if (item->type() == Item::CACHE_ITEM) {
+      item = down_cast<const Item_cache *>(item)->get_example();
+    }
+
+    if (is_rollup_group_wrapper(item)) {
+      item = down_cast<const Item_rollup_group_item *>(item)->inner_item();
+    }
+  } while (item != prev_item);  // Keep trying till no wrapper is found.
+  return item;
 }
 
 Item *Item::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
@@ -1586,12 +1610,11 @@ Item *Item_static_string_func::safe_charset_converter(
   return conv;
 }
 
-bool Item_string::eq(const Item *item, bool binary_cmp) const {
+bool Item_string::eq(const Item *item) const {
   if (type() == item->type() && item->basic_const_item()) {
     // Should be OK for a basic constant.
     Item *arg = const_cast<Item *>(item);
     String str;
-    if (binary_cmp) return !stringcmp(&str_value, arg->val_str(&str));
     return (collation.collation == arg->collation.collation &&
             !sortcmp(&str_value, arg->val_str(&str), collation.collation));
   }
@@ -2733,9 +2756,13 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
     // If told so (from comparison code), only add converter for const values.
     if (only_consts && !(*arg)->const_item()) continue;
     if (!String::needs_conversion(1, (*arg)->collation.collation,
-                                  coll.collation, &dummy_offset))
+                                  coll.collation, &dummy_offset)) {
+      if (my_charset_same(coll.collation, (*arg)->collation.collation) &&
+          coll.collation != (*arg)->collation.collation) {
+        (*arg)->collation.set(coll.collation);
+      }
       continue;
-
+    }
     /*
       No needs to add converter if an "arg" is NUMERIC or DATETIME
       value (which is pure ASCII) and at the same time target DTCollation
@@ -3226,7 +3253,7 @@ bool Item_field::get_timeval(my_timeval *tm, int *warnings) {
   return false;
 }
 
-bool Item_field::eq(const Item *item, bool) const {
+bool Item_field::eq(const Item *item) const {
   const Item *real_item = item->real_item();
   if (real_item->type() != FIELD_ITEM) return false;
 
@@ -3521,7 +3548,7 @@ void Item_decimal::print(const THD *, String *str,
   str->append(tmp);
 }
 
-bool Item_decimal::eq(const Item *item, bool) const {
+bool Item_decimal::eq(const Item *item) const {
   if (type() == item->type() && item->basic_const_item()) {
     /*
       We need to cast off const to call val_decimal(). This should
@@ -3713,9 +3740,7 @@ my_decimal *Item_string::val_decimal(my_decimal *decimal_value) {
   return val_decimal_from_string(decimal_value);
 }
 
-bool Item_null::eq(const Item *item, bool) const {
-  return item->type() == type();
-}
+bool Item_null::eq(const Item *item) const { return item->type() == type(); }
 
 double Item_null::val_real() {
   // following assert is redundant, because fixed=1 assigned in constructor
@@ -4883,7 +4908,7 @@ Item *Item_param::clone_item() const {
   return nullptr;
 }
 
-bool Item_param::eq(const Item *arg, bool) const { return this == arg; }
+bool Item_param::eq(const Item *arg) const { return this == arg; }
 
 /* End of Item_param related */
 
@@ -5254,7 +5279,7 @@ static Item **find_field_in_group_list(Item *find_item, ORDER *group_list) {
         found_match_degree = cur_match_degree;
         found_group = cur_group;
       } else if (found_group && (cur_match_degree == found_match_degree) &&
-                 !(*(found_group->item))->eq(cur_field, false)) {
+                 !(*(found_group->item))->eq(cur_field)) {
         /*
           If the current resolve candidate matches equally well as the current
           best match, they must reference the same column, otherwise the field
@@ -5345,7 +5370,7 @@ static bool resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
 
     /* Check if the fields found in SELECT and GROUP BY are the same field. */
     if (group_by_ref != nullptr && select_ref != nullptr &&
-        !((*group_by_ref)->eq(*select_ref, false))) {
+        !((*group_by_ref)->eq(*select_ref))) {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
                           ER_THD(thd, ER_NON_UNIQ_ERROR), ref->full_name(),
                           thd->where);
@@ -6353,7 +6378,7 @@ bool Item_default_value::collect_item_field_or_view_ref_processor(uchar *argp) {
   List_iterator<Item> item_list_it(*info->m_item_fields_or_view_refs);
   Item *curr_item;
   while ((curr_item = item_list_it++)) {
-    if (this->eq(curr_item, true)) return false; /* Already in the set. */
+    if (this->eq(curr_item)) return false; /* Already in the set. */
   }
   info->m_item_fields_or_view_refs->push_back(this);
   return false;
@@ -6528,29 +6553,23 @@ String *Item::check_well_formed_result(String *str, bool send_error,
   return str;
 }
 
-/*
+/**
   Compare two items using a given collation
 
-  SYNOPSIS
-    eq_by_collation()
-    item               item to compare with
-    binary_cmp         true <-> compare as binaries
-    cs                 collation to use when comparing strings
+  @param item               item to compare with
+  @param cs                 collation to use when comparing strings
 
-  DESCRIPTION
-    This method works exactly as Item::eq if the collation cs coincides with
-    the collation of the compared objects. Otherwise, first the collations that
-    differ from cs are replaced for cs and then the items are compared by
-    Item::eq. After the comparison the original collations of items are
-    restored.
+  @returns true if both items are equal according to collation, false otherwise.
 
-  RETURN
-    1    compared items has been detected as equal
-    0    otherwise
+  This function works exactly as Item::eq() if the collation cs coincides with
+  the collation of the compared objects. Otherwise, first the collations that
+  differ from cs are replaced for cs and then the items are compared by
+  Item::eq. After the comparison the original collations of items are restored.
+
+  For items that do not return strings, function behaves exactly like Item::eq.
 */
 
-bool Item::eq_by_collation(Item *item, bool binary_cmp,
-                           const CHARSET_INFO *cs) {
+bool Item::eq_by_collation(Item *item, const CHARSET_INFO *cs) {
   const CHARSET_INFO *save_cs = nullptr;
   const CHARSET_INFO *save_item_cs = nullptr;
   if (collation.collation != cs) {
@@ -6561,7 +6580,7 @@ bool Item::eq_by_collation(Item *item, bool binary_cmp,
     save_item_cs = item->collation.collation;
     item->collation.collation = cs;
   }
-  const bool res = eq(item, binary_cmp);
+  const bool res = eq(item);
   if (save_cs) collation.collation = save_cs;
   if (save_item_cs) item->collation.collation = save_item_cs;
   return res;
@@ -7060,7 +7079,7 @@ type_conversion_status Item_decimal::save_in_field_inner(Field *field, bool) {
   return field->store_decimal(&decimal_value);
 }
 
-bool Item_int::eq(const Item *arg, bool) const {
+bool Item_int::eq(const Item *arg) const {
   // No need to check for null value as integer constant can't be NULL
   if (arg->basic_const_item() && arg->type() == type()) {
     /*
@@ -7211,7 +7230,7 @@ void Item_float::print(const THD *, String *str,
   In number context this is a longlong value.
 */
 
-bool Item_float::eq(const Item *arg, bool) const {
+bool Item_float::eq(const Item *arg) const {
   if (arg->basic_const_item() && arg->type() == type()) {
     /*
       We need to cast off const to call val_int(). This should be OK for
@@ -7399,12 +7418,11 @@ void Item_hex_string::print(const THD *, String *str,
   }
 }
 
-bool Item_hex_string::eq(const Item *item, bool binary_cmp) const {
+bool Item_hex_string::eq(const Item *item) const {
   if (item->basic_const_item() && item->type() == type()) {
     // Should be OK for a basic constant.
     Item *arg = const_cast<Item *>(item);
     String str;
-    if (binary_cmp) return !stringcmp(&str_value, arg->val_str(&str));
     return !sortcmp(&str_value, arg->val_str(&str), collation.collation);
   }
   return false;
@@ -8939,16 +8957,9 @@ void Item_ref::fix_after_pullout(Query_block *parent_query_block,
   reference if the second one is a view column and if both column
   references resolve to the same item. It is assumed that both
   items are of the same type.
-
-  @param item        item to compare with
-
-  @retval
-    true    Referenced item is equal to given item
-  @retval
-    false   otherwise
 */
 
-bool Item_view_ref::eq(const Item *item, bool) const {
+bool Item_view_ref::eq(const Item *item) const {
   if (item->type() == REF_ITEM) {
     const Item_ref *item_ref = down_cast<const Item_ref *>(item);
     if (item_ref->ref_type() == VIEW_REF) {
@@ -9122,9 +9133,9 @@ bool Item_default_value::do_itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool Item_default_value::eq(const Item *item, bool binary_cmp) const {
+bool Item_default_value::eq(const Item *item) const {
   return item->type() == DEFAULT_VALUE_ITEM &&
-         down_cast<const Item_default_value *>(item)->arg->eq(arg, binary_cmp);
+         down_cast<const Item_default_value *>(item)->arg->eq(arg);
 }
 
 bool Item_default_value::fix_fields(THD *thd, Item **) {
@@ -9258,9 +9269,9 @@ Item *Item_default_value::transform(Item_transformer transformer, uchar *args) {
   return (this->*transformer)(args);
 }
 
-bool Item_insert_value::eq(const Item *item, bool binary_cmp) const {
+bool Item_insert_value::eq(const Item *item) const {
   return item->type() == INSERT_VALUE_ITEM &&
-         (down_cast<const Item_insert_value *>(item))->arg->eq(arg, binary_cmp);
+         (down_cast<const Item_insert_value *>(item))->arg->eq(arg);
 }
 
 bool Item_insert_value::fix_fields(THD *thd, Item **reference) {
@@ -9414,7 +9425,7 @@ void Item_trigger_field::setup_field(
   table_grants = table_grant_info;
 }
 
-bool Item_trigger_field::eq(const Item *item, bool) const {
+bool Item_trigger_field::eq(const Item *item) const {
   return item->type() == TRIGGER_FIELD_ITEM &&
          trigger_var_type ==
              down_cast<const Item_trigger_field *>(item)->trigger_var_type &&
@@ -10833,7 +10844,7 @@ Item_values_column::Item_values_column(THD *thd, Item *ref) : super(thd, ref) {
   fixed = true;
 }
 
-bool Item_values_column::eq(const Item *item, bool) const {
+bool Item_values_column::eq(const Item *item) const {
   return item->type() == VALUES_COLUMN_ITEM && item_name.eq(item->item_name);
 }
 
@@ -11167,37 +11178,14 @@ bool Item_asterisk::do_itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-/**
-  Unwrap an Item argument so that Item::eq() can see the "real" item, and not
-  just the wrapper. It unwraps Item_ref using real_item(), and also cache items
-  and rollup group wrappers, since these may not have been added consistently to
-  both sides compared by Item::eq().
- */
-static const Item *UnwrapArgForEq(const Item *item) {
-  const Item *prev_item;
-  do {
-    prev_item = item;
-    item = item->real_item();
-
-    if (item->type() == Item::CACHE_ITEM) {
-      item = down_cast<const Item_cache *>(item)->get_example();
-    }
-
-    if (is_rollup_group_wrapper(item)) {
-      item = down_cast<const Item_rollup_group_item *>(item)->inner_item();
-    }
-  } while (item != prev_item);  // Keep trying till no wrapper is found.
-  return item;
+bool ItemsAreEqual(const Item *a, const Item *b) {
+  return a->unwrap_for_eq()->eq(b->unwrap_for_eq());
 }
 
-bool ItemsAreEqual(const Item *a, const Item *b, bool binary_cmp) {
-  return UnwrapArgForEq(a)->eq(UnwrapArgForEq(b), binary_cmp);
-}
-
-bool AllItemsAreEqual(const Item *const *a, const Item *const *b, int num_items,
-                      bool binary_cmp) {
+bool AllItemsAreEqual(const Item *const *a, const Item *const *b,
+                      int num_items) {
   for (int i = 0; i < num_items; ++i) {
-    if (!ItemsAreEqual(a[i], b[i], binary_cmp)) {
+    if (!ItemsAreEqual(a[i], b[i])) {
       return false;
     }
   }

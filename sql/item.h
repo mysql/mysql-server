@@ -1433,7 +1433,22 @@ class Item : public Parse_tree_node {
 
   virtual bool send(Protocol *protocol, String *str);
   bool evaluate(THD *thd, String *str);
-  virtual bool eq(const Item *, bool binary_cmp) const;
+  /**
+    Compare this item with another item for equality.
+    If both pointers are the same, the items are equal.
+    Both items must be of same type.
+    For literal values, metadata must be the same and the values must be equal.
+    Strings are compared with the embedded collation.
+    For column references, table references and column names must be the same.
+    For functions, the function type, function properties and arguments must
+    be equal. Otherwise, see specific implementations.
+    @todo: Current implementation requires that cache objects, ref objects
+           and rollup wrappers are stripped away. This should be eliminated.
+  */
+  virtual bool eq(const Item *) const;
+
+  const Item *unwrap_for_eq() const;
+
   virtual Item_result result_type() const { return REAL_RESULT; }
   /**
     Result type when an item appear in a numeric context.
@@ -3304,7 +3319,7 @@ class Item : public Parse_tree_node {
     return Field::GEOM_GEOMETRY;
   }
   String *check_well_formed_result(String *str, bool send_error, bool truncate);
-  bool eq_by_collation(Item *item, bool binary_cmp, const CHARSET_INFO *cs);
+  bool eq_by_collation(Item *item, const CHARSET_INFO *cs);
 
   CostOfItem cost() const {
     m_cost.Compute(*this);
@@ -4469,7 +4484,7 @@ class Item_field : public Item_ident {
   bool do_itemize(Parse_context *pc, Item **res) override;
 
   enum Type type() const override { return FIELD_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   double val_real() override;
   longlong val_int() override;
   longlong val_time_temporal() override;
@@ -4735,7 +4750,7 @@ class Item_null : public Item_basic_constant {
   }
 
   enum Type type() const override { return NULL_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   double val_real() override;
   longlong val_int() override;
   longlong val_time_temporal() override { return val_int(); }
@@ -5045,7 +5060,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
     is set and is a basic constant (integer, real or string).
     Otherwise return false.
   */
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   void set_param_type_and_swap_value(Item_param *from);
   bool is_non_const_over_literals(uchar *) override { return true; }
   /**
@@ -5205,7 +5220,7 @@ class Item_int : public Item_num {
   uint decimal_precision() const override {
     return static_cast<uint>(max_length - 1);
   }
-  bool eq(const Item *, bool) const override;
+  bool eq(const Item *item) const override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_function_as_value_generator(uchar *) override { return false; }
 };
@@ -5341,7 +5356,7 @@ class Item_decimal : public Item_num {
     return this;
   }
   uint decimal_precision() const override { return decimal_value.precision(); }
-  bool eq(const Item *, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   void set_decimal_value(const my_decimal *value_par);
   bool check_partition_func_processor(uchar *) override { return false; }
 };
@@ -5426,7 +5441,7 @@ class Item_float : public Item_num {
   }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  bool eq(const Item *, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
 };
 
 class Item_func_pi : public Item_float {
@@ -5579,7 +5594,7 @@ class Item_string : public Item_basic_constant {
     return get_time_from_string(ltime);
   }
   Item_result result_type() const override { return STRING_RESULT; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   Item *clone_item() const override {
     return new Item_string(static_cast<Name_string>(item_name), str_value.ptr(),
                            str_value.length(), collation.collation);
@@ -5769,7 +5784,7 @@ class Item_hex_string : public Item_basic_constant {
   Item_result cast_to_int_type() const override { return INT_RESULT; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   static LEX_CSTRING make_hex_str(const char *str, size_t str_length);
@@ -5940,11 +5955,11 @@ class Item_ref : public Item_ident {
   void link_referenced_item() { ref_item()->increment_ref_count(); }
 
   enum Type type() const override { return REF_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const override {
+  bool eq(const Item *item) const override {
     const Item *it = item->real_item();
     // May search for a referenced item that is not yet resolved:
     if (m_ref_item == nullptr) return false;
-    return ref_item()->eq(it, binary_cmp);
+    return ref_item()->eq(it);
   }
   double val_real() override;
   longlong val_int() override;
@@ -6184,7 +6199,7 @@ class Item_view_ref final : public Item_ref {
                : inner_map;
   }
 
-  bool eq(const Item *item, bool) const override;
+  bool eq(const Item *item) const override;
   Item *get_tmp_table_item(THD *thd) override {
     DBUG_TRACE;
     Item *item = Item_ref::get_tmp_table_item(thd);
@@ -6595,7 +6610,7 @@ class Item_default_value final : public Item_field {
       : super(pos, nullptr, nullptr, nullptr), arg(a) {}
   bool do_itemize(Parse_context *pc, Item **res) override;
   enum Type type() const override { return DEFAULT_VALUE_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   bool fix_fields(THD *, Item **) override;
   void bind_fields() override;
   void cleanup() override { Item::cleanup(); }
@@ -6675,7 +6690,7 @@ class Item_insert_value final : public Item_field {
   }
 
   enum Type type() const override { return INSERT_VALUE_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   bool fix_fields(THD *, Item **) override;
   void bind_fields() override;
   void cleanup() override;
@@ -6762,7 +6777,7 @@ class Item_trigger_field final : public Item_field,
   void setup_field(Table_trigger_field_support *table_triggers,
                    GRANT_INFO *table_grant_info);
   enum Type type() const override { return TRIGGER_FIELD_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   bool fix_fields(THD *, Item **) override;
   void bind_fields() override;
   bool check_column_privileges(uchar *arg) override;
@@ -6892,7 +6907,7 @@ class Item_cache : public Item_basic_constant {
   bool eq_def(const Field *field) {
     return cached_field != nullptr && cached_field->field->eq_def(field);
   }
-  bool eq(const Item *item, bool) const override { return this == item; }
+  bool eq(const Item *item) const override { return this == item; }
   /**
      Check if saved item has a non-NULL value.
      Will cache value of saved item if not already done.
@@ -7309,7 +7324,7 @@ class Item_values_column final : public Item_aggregate_type {
  public:
   Item_values_column(THD *thd, Item *ref);
 
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
   double val_real() override;
   longlong val_int() override;
   my_decimal *val_decimal(my_decimal *) override;
@@ -7383,13 +7398,13 @@ inline Item *GetNthVisibleField(const mem_root_deque<Item *> &fields,
   Returns true iff the two items are equal, as in a->eq(b),
   after unwrapping refs and Item_cache objects.
  */
-bool ItemsAreEqual(const Item *a, const Item *b, bool binary_cmp);
+bool ItemsAreEqual(const Item *a, const Item *b);
 
 /**
   Returns true iff all items in the two arrays (which must be of the same size)
   are equal, as in a->eq(b), after unwrapping refs and Item_cache objects.
  */
-bool AllItemsAreEqual(const Item *const *a, const Item *const *b, int num_items,
-                      bool binary_cmp);
+bool AllItemsAreEqual(const Item *const *a, const Item *const *b,
+                      int num_items);
 
 #endif /* ITEM_INCLUDED */

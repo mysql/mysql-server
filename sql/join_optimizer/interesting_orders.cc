@@ -673,8 +673,7 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
             return true;
           }
           if (sub_item->type() == Item::FIELD_ITEM) {
-            if (base_field != nullptr &&
-                !base_field->eq(sub_item, /*binary_cmp=*/true)) {
+            if (base_field != nullptr && !base_field->eq(sub_item)) {
               // More than one field in use.
               return true;
             }
@@ -1188,8 +1187,7 @@ void LogicalOrderings::SortElements(Ordering::Elements elements) const {
 
 ItemHandle LogicalOrderings::GetHandle(Item *item) {
   for (size_t i = 1; i < m_items.size(); ++i) {
-    if (item == m_items[i].item ||
-        item->eq(m_items[i].item, /*binary_cmp=*/true)) {
+    if (item == m_items[i].item || item->eq(m_items[i].item)) {
       return i;
     }
   }
