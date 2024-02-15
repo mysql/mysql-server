@@ -1176,7 +1176,7 @@ DEFINE_BOOL_METHOD(Event_message_bridge_implementation::notify,
 
     for (size_t i = 0; i < data->key_value_map_length; ++i, ++local_kv, ++kv) {
       local_kv->key = {kv->key.str, kv->key.length};
-      switch (data->key_value_map->value_type) {
+      switch (kv->value_type) {
         case EVENT_TRACKING_MESSAGE_VALUE_TYPE_STR:
           local_kv->value_type = MYSQL_AUDIT_MESSAGE_VALUE_TYPE_STR;
           local_kv->value.str = {kv->value.str.str, kv->value.str.length};

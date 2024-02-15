@@ -47,7 +47,7 @@ DEFINE_BOOL_METHOD(mysql_audit_api_message_imp::emit,
 
   for (size_t i = 0; i < key_value_map_length; ++i, ++local_kv, ++kv) {
     local_kv->key = {kv->key.str, kv->key.length};
-    switch (key_value_map->value_type) {
+    switch (kv->value_type) {
       case MYSQL_AUDIT_MESSAGE_VALUE_TYPE_STR:
         local_kv->value_type = EVENT_TRACKING_MESSAGE_VALUE_TYPE_STR;
         local_kv->value.str = {kv->value.str.str, kv->value.str.length};
