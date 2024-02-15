@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2004, 2024, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -2794,6 +2794,11 @@ sub environment_setup {
       my_find_bin($bindir,
 		  ["storage/ndb/tools", "bin"],
 		  "ndb_desc");
+
+    $ENV{'NDB_REDO_LOG_READER'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/src/kernel/blocks/dblqh", "bin"],
+		  "ndb_redo_log_reader");
 
     $ENV{'NDB_SHOW_TABLES'}=
       my_find_bin($bindir,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,8 +102,8 @@ protected:
   Uint32 m_keyLength;
   Uint32 m_page_no;
   Uint32 m_page_idx;
-  Uint32 *m_keyInfo; // In this order
-  Uint32 *m_attrInfo;// In this order
+  // First m_keyLength key info words, then the attr info words.
+  Uint32 m_key_attr_Info[1];
 };
 
 //----------------------------------------------------------------
