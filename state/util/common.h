@@ -6,7 +6,9 @@
 
 // #define ALWAYS_INLINE inline __attribute__((always_inline))
 
-using mr_id_t = int;  // memory region id type
+// 这里编译失败，error: ‘mr_id_t’ does not name a type;
+// 先暂时手动将所有mr_id_t改为int
+// using mr_id_t = int;  // memory region id type
 using tx_id_t =
     uint64_t;           // transaction id type, is the same as trx_id_t in mysql
 using coro_id_t = int;  // Coroutine id type
@@ -17,11 +19,11 @@ using rwlatch_t = uint64_t;  // latch that has to be modified by RDMA atomic
                              // operation, must be 64bit
 
 // memory region ids for various state
-const mr_id_t STATE_TXN_LIST_ID = 97;
-const mr_id_t STATE_LOG_BUF_ID = 98;
-const mr_id_t STATE_LOCK_BUF_ID = 99;
+const int STATE_TXN_LIST_ID = 97;
+const int STATE_LOG_BUF_ID = 98;
+const int STATE_LOCK_BUF_ID = 99;
 // memory region ids for MasterNode's local_mr
-const mr_id_t MASTER_LOCAL_ID = 101;
+const int MASTER_LOCAL_ID = 101;
 
 #define MAX_REMOTE_NODE_NUM 10  // Max of remote node number
 
