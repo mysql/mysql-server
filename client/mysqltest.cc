@@ -122,7 +122,7 @@
 #define MAX_VAR_NAME_LENGTH 256
 #define MAX_COLUMNS 256
 #define MAX_DELIMITER_LENGTH 16
-#define DEFAULT_MAX_CONN 128
+#define DEFAULT_MAX_CONN 512
 #define REPLACE_ROUND_MAX 16
 
 /* Flags controlling send and reap */
@@ -7803,7 +7803,7 @@ static struct my_option my_long_options[] = {
      REQUIRED_ARG, 500, 1, 10000, nullptr, 0, nullptr},
     {"max-connections", OPT_MAX_CONNECTIONS,
      "Max number of open connections to server", &opt_max_connections,
-     &opt_max_connections, nullptr, GET_INT, REQUIRED_ARG, 128, 8, 5120,
+     &opt_max_connections, nullptr, GET_INT, REQUIRED_ARG, 512, 8, 5120,
      nullptr, 0, nullptr},
     {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.", &no_skip,
      &no_skip, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
