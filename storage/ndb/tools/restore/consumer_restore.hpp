@@ -101,6 +101,8 @@ class BackupRestore : public BackupConsumer {
     m_preserve_trailing_spaces = false;
     m_pk_update_warning_count = 0;
     m_cache.m_old_table = 0;
+    m_with_apply_status = false;
+    m_with_sql_metadata = false;
     m_disable_indexes = false;
     m_rebuild_indexes = false;
     snprintf(m_instance_name, BackupRestore::INSTANCE_ID_LEN, "%s",
@@ -240,6 +242,7 @@ class BackupRestore : public BackupConsumer {
   bool m_delete_epoch_tuple;
 
   bool m_with_apply_status;
+  bool m_with_sql_metadata;
   bool m_no_upgrade;  // for upgrade ArrayType from 5.0 backup file.
   bool m_no_restore_disk;
   Uint32 m_tableChangesMask;

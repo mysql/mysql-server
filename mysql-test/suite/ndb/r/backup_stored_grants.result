@@ -1,0 +1,17 @@
+SELECT 1;
+1
+1
+CREATE USER u@n;
+GRANT ndb_stored_user ON *.* to u@n;
+DROP USER u@n;
+Expect 1 row:
+1 records in table ndb_sql_metadata
+Expect 1 row:
+1 records in table ndb_sql_metadata
+Expect 4 rows:
+4 records in table ndb_sql_metadata
+Expect 0 rows:
+0 records in table ndb_sql_metadata
+Expect 4 rows:
+4 records in table ndb_sql_metadata
+DROP USER u@n;

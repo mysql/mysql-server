@@ -1,0 +1,142 @@
+--source include/have_ndb.inc
+
+##
+# (1) Make a backup. This is the "pre-backup"
+# (2) Create an NDB stored user u@n
+# (3) Make a backup. This is the "post-backup"
+# (4) Stop MySQL server #2
+# (5) Drop the NDB stored user
+# (6) Stop MySQL server #1
+#
+# (Test A): Restore the pre-backup using ndb_restore -r -m --include-stored-grants
+#           ndb_restore succeeds. The stored user is not created.
+#
+# (Test B): Restore the post-backup using ndb_restore -r -m.
+#           ndb_restore succeeds, but the stored user is not created.
+#
+# (Test C): Restore the post-backup using ndb_restore -r -m --include-stored-grants.
+#           ndb_restore succeeds and the stored user is created.
+#
+# (7) Use ndb_delete_all to delete all records from ndb_sql_metadata
+#
+# (Test D): Restore the post-backup in two steps, using:
+#              ndb_restore -r -m --include-store-grants --disable-indexes
+#              ndb_restore -r -m --rebuild-indexes
+#           ndb_restore succeeds and the stored user is created.
+#
+# (8) Restart the MySQL servers
+#
+# (Test E): DROP USER u@n
+#         This succeeds on both MySQL servers, proving that the user exists
+##
+
+
+# (1) Make a backup. This is the "pre-backup"
+SELECT 1;
+exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT;
+let $pre_id = `SELECT id FROM ndbinfo.backup_id`;
+let $TOPBDIR = $NDB_BACKUP_DIR/BACKUP;
+let $PRE_B = $TOPBDIR/BACKUP-$pre_id;
+
+# (2) Create an NDB stored user u@n
+CREATE USER u@n;
+GRANT ndb_stored_user ON *.* to u@n;
+
+# (3) Make a backup. This is the "post-backup"
+exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT;
+let $post_id = `SELECT id FROM ndbinfo.backup_id`;
+let $POST_B = $TOPBDIR/BACKUP-$post_id;
+
+# (4) Stop MySQL server #2
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
+wait
+EOF
+--connect (server2,127.0.0.1,root,,test,$MASTER_MYPORT1,)
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# (5) Drop the NDB stored user
+--connection default
+DROP USER u@n;
+
+# (6) Stop MySQL server #1
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
+wait
+EOF
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Set a file to collect the output from ndb_restore
+--let R_OUT = $MYSQLTEST_VARDIR/tmp/ndb_restore.out
+
+# (Test A): Restore the pre-backup using ndb_restore -r -m --include-stored-grants
+#           ndb_restore succeeds. The stored user is not created.
+--exec echo "Test A" >> $R_OUT
+--exec $NDB_RESTORE -b $pre_id -n 1 -m -r --include-stored-grants $PRE_B >> $R_OUT
+--exec $NDB_RESTORE -b $pre_id -n 2    -r --include-stored-grants $PRE_B >> $R_OUT
+--echo Expect 1 row:
+--exec $NDB_SELECT_COUNT -d mysql ndb_sql_metadata
+
+# (Test B): Restore the post-backup using ndb_restore -r -m.
+#           ndb_restore succeeds, but the stored user is not created.
+--exec echo "Test B" >> $R_OUT
+--exec $NDB_RESTORE -b $post_id -n 1 -m -r $POST_B >> $R_OUT
+--exec $NDB_RESTORE -b $post_id -n 2    -r $POST_B >> $R_OUT
+--echo Expect 1 row:
+--exec $NDB_SELECT_COUNT -d mysql ndb_sql_metadata
+
+# (Test C): Restore the post-backup using ndb_restore -r --include-stored-grants.
+#           ndb_restore succeeds and the stored user is created.
+--exec echo "Test C" >> $R_OUT
+--exec $NDB_RESTORE -b $post_id -n 1 -m -r --include-stored-grants $POST_B >> $R_OUT
+--exec $NDB_RESTORE -b $post_id -n 2    -r --include-stored-grants $POST_B >> $R_OUT
+--echo Expect 4 rows:
+--exec $NDB_SELECT_COUNT -d mysql ndb_sql_metadata
+
+#
+# (7) Use ndb_delete_all to delete all records from ndb_sql_metadata
+--exec $NDB_DELETE_ALL -d mysql ndb_sql_metadata >> $NDB_TOOLS_OUTPUT
+--echo Expect 0 rows:
+--exec $NDB_SELECT_COUNT -d mysql ndb_sql_metadata
+
+# (Test D): Restore the post-backup in two steps, using:
+#              ndb_restore -r -m --include-store-grants --disable-indexes
+#              ndb_restore -r -m --rebuild-indexes
+#           ndb_restore succeeds and the stored user is created.
+--exec echo "Test D (Disable Indexes)" >> $R_OUT
+--exec $NDB_RESTORE -b $post_id -n 1 -m -r --include-stored-grants --disable-indexes $POST_B >> $R_OUT
+--exec $NDB_RESTORE -b $post_id -n 2    -r --include-stored-grants --disable-indexes $POST_B >> $R_OUT
+--exec echo "Test D (Rebuild Indexes)" >> $R_OUT
+--exec $NDB_RESTORE -b $post_id -n 1 --rebuild-indexes $POST_B >> $R_OUT
+--exec $NDB_RESTORE -b $post_id -n 2 --rebuild-indexes $POST_B >> $R_OUT
+--echo Expect 4 rows:
+--exec $NDB_SELECT_COUNT -d mysql ndb_sql_metadata
+
+# (8) Restart the MySQL servers
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
+restart
+EOF
+
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
+restart
+EOF
+
+--connection default
+--let $wait_counter= 10000
+--source include/wait_until_connected_again.inc
+
+--connection server2
+--let $wait_counter= 10000
+--source include/wait_until_connected_again.inc
+
+# (Test E): DROP USER u@n
+#         This succeeds on both MySQL servers, proving that the user exists
+--connection default
+DROP USER u@n;
+
+
+# Cleanup
+--force-rmdir $TOPBDIR
+--remove_file $R_OUT
+--remove_file $NDB_TOOLS_OUTPUT
+
