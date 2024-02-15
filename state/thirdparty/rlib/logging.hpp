@@ -38,10 +38,12 @@ enum rdma_loglevel {
   RDMA_LOG_EVERYTHING = 0
 };
 
-// 这里和 MySQL 本身冲突了，注释掉看看
+// 这里和 MySQL 本身冲突了
 // error: ‘constexpr const bool __builtin_expect’ conflicts with a previous
 // declaration
-// #define unlikely(x) __builtin_expect(!!(x), 0)
+#ifndef unlikely(x)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
 
 #ifndef RDMA_LOG_LEVEL
 #define RDMA_LOG_LEVEL ::rdmaio::RDMA_LOG_DBG
