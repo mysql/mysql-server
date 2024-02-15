@@ -12688,6 +12688,8 @@ ER_INVALID_FILE_FORMAT
 
 ER_LOG_SANITIZATION
   eng "Relay log sanitization: %s"
+ER_LOG_DEPRECATE_NON_COMPOSABLE_MULTIPLE_ENGINE
+  eng "Combining the storage engines %s and %s is deprecated, but the statement or transaction updates both the %s table %s.%s and the %s table %s.%s."
 
 ER_WARN_LOG_DEPRECATED_NON_STANDARD_KEY
   eng "Foreign key '%.64s' on table '%.64s'.'%.64s' refers to non-unique key or partial key. This is deprecated and will be removed in a future release."

@@ -190,6 +190,7 @@ SET SESSION GTID_NEXT='MASTER_UUID:7';
 OPTIMIZE TABLE t1, t_non_existent;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
+test.t_non_existent	optimize	Warning	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table mysql.gtid_executed and the MyISAM table test.t1.
 test.t_non_existent	optimize	Error	Table 'test.t_non_existent' doesn't exist
 test.t_non_existent	optimize	status	Operation failed
 #
@@ -230,6 +231,7 @@ SET SESSION GTID_NEXT='MASTER_UUID:9';
 REPAIR TABLE t1, t_non_existent;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+test.t_non_existent	repair	Warning	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table mysql.gtid_executed and the MyISAM table test.t1.
 test.t_non_existent	repair	Error	Table 'test.t_non_existent' doesn't exist
 test.t_non_existent	repair	status	Operation failed
 #

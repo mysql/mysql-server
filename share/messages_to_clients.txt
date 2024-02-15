@@ -10425,7 +10425,10 @@ ER_TO_VECTOR_CONVERSION
   eng "Data cannot be converted to a valid vector: '%.*s'"
 
 ER_EXTERNAL_UNSUPPORTED_INDEX_ALGORITHM
-  eng "This storage engine ignores the %s index algorithm."
+  eng "This storage engine ignores the %s index algorithm.
+
+ER_DEPRECATE_NON_COMPOSABLE_MULTIPLE_ENGINE
+  eng "Combining the storage engines %.64s and %.64s is deprecated, but the statement or transaction updates both the %.64s table %.64s.%.64s and the %.64s table %.64s.%.64s."
 
 ER_SERVER_OFFLINE_MODE_REASON
   eng "The server is currently in offline mode since %s, reason: %s"

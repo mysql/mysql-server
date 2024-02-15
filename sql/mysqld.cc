@@ -1468,7 +1468,7 @@ const char *relay_ext = "-relay-bin";
 bool log_bin_supplied = false;
 
 time_t server_start_time, flush_status_time;
-
+std::atomic<time_t> last_mixed_non_transactional_engine_warning = 0;
 char server_uuid[UUID_LENGTH + 1];
 const char *server_uuid_ptr;
 #if defined(HAVE_BUILD_ID_SUPPORT)

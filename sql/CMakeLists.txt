@@ -365,6 +365,7 @@ SET(SQL_SHARED_SOURCES
   debug_sync.cc
   default_values.cc
   derror.cc
+  engine_combination_tracker.cc
   error_handler.cc
   field.cc
   field_conv.cc

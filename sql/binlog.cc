@@ -9962,6 +9962,69 @@ const char *get_locked_tables_mode_name(
 }
 #endif
 
+/// Emit a deprecation warning when a transaction or statement writes to tables
+/// of multiple engines, if at least one of those engines is non-transactional
+/// or non-composable (see below for definition of composable).
+///
+/// InnoDB and Blackhole are composable storage engines, and the others are not.
+///
+/// We use the term *composable storage engine*. This refers to engines that are
+/// not just transactional (when used alone), but even transactional when used
+/// together with other composable storage engines. While all of InnoDB,
+/// Blackhole, and NDB are  transactional, only InnoDB and Blackhole are
+/// composable; NDB is non-composable due to the way it writes the binary log.
+/// All non-transactional engines are non-composable.
+void THD ::check_and_emit_warning_for_non_composable_engines(
+    Table_ref *table_ref) {
+  for (Table_ref *table = table_ref; table; table = table->next_global) {
+    // is not a "real" table
+    if (table->is_placeholder()) return;
+    // We have already thrown a warning
+    if (get_transaction()->tracker.get_warning_already_emitted()) return;
+    // Table is not opened for writes
+    if (table->lock_descriptor().type < TL_WRITE_ALLOW_WRITE) return;
+    // the performance schema and temp tables are compatible with all engines
+    if (table->table->file->ht->db_type == DB_TYPE_PERFORMANCE_SCHEMA ||
+        table->table->file->ht->db_type == DB_TYPE_TEMPTABLE)
+      continue;
+    // Skip secondary engines like RAPID
+    if (!table->table->s->is_primary_engine()) continue;
+    handlerton *engine = table->table->file->ht;
+    std::string engine_name(ha_resolve_storage_engine_name(engine));
+    std::string database_name(table->db);
+    std::string table_name(table->table_name);
+    std::string prev_engine_name, prev_database_name, prev_table_name;
+    if (get_transaction()->tracker.check_engine(
+            engine_name, database_name, table_name, prev_engine_name,
+            prev_database_name, prev_table_name)) {
+      if (!slave_thread) {
+        // send a warning to the client
+        push_warning_printf(
+            this, Sql_condition::SL_WARNING,
+            ER_DEPRECATE_NON_COMPOSABLE_MULTIPLE_ENGINE,
+            ER_THD(this, ER_DEPRECATE_NON_COMPOSABLE_MULTIPLE_ENGINE),
+            engine_name.c_str(), prev_engine_name.c_str(), engine_name.c_str(),
+            database_name.c_str(), table_name.c_str(), prev_engine_name.c_str(),
+            prev_database_name.c_str(), prev_table_name.c_str());
+      }
+      // Logging the warning to the error log after a certain period of time
+      // to avoid polluting the error log
+      time_t now_time = time(nullptr);
+      if ((now_time - last_mixed_non_transactional_engine_warning) >=
+          mixed_non_transactional_engine_warning_period) {
+        // log the warning to the error log
+        LogErr(WARNING_LEVEL, ER_LOG_DEPRECATE_NON_COMPOSABLE_MULTIPLE_ENGINE,
+               engine_name.c_str(), prev_engine_name.c_str(),
+               engine_name.c_str(), database_name.c_str(), table_name.c_str(),
+               prev_engine_name.c_str(), prev_database_name.c_str(),
+               prev_table_name.c_str());
+        last_mixed_non_transactional_engine_warning = now_time;
+      }
+      get_transaction()->tracker.set_warning_already_emitted(true);
+    }
+  }
+}
+
 /**
   Decide on logging format to use for the statement and issue errors
   or warnings as needed.  The decision depends on the following
@@ -10076,6 +10139,8 @@ int THD::decide_logging_format(Table_ref *tables) {
 
   reset_binlog_local_stmt_filter();
 
+  // emit warning for non-composable engines if need
+  check_and_emit_warning_for_non_composable_engines(tables);
   /*
     We should not decide logging format if the binlog is closed or
     binlogging is off, or if the statement is filtered out from the
