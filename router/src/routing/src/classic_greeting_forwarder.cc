@@ -957,11 +957,6 @@ ServerGreetor::tls_connect() {
 
     const auto res = dst_channel.tls_connect();
     if (!res) {
-      if (auto &tr = tracer()) {
-        tr.trace(Tracer::Event().stage("tls::connect::failed: " +
-                                       res.error().message()));
-      }
-
       if (res.error() == TlsErrc::kWantRead) {
         {
           const auto flush_res = dst_channel.flush_to_send_buf();
@@ -976,11 +971,6 @@ ServerGreetor::tls_connect() {
         }
 
         if (!dst_channel.send_buffer().empty()) {
-          if (auto &tr = tracer()) {
-            tr.trace(Tracer::Event().stage(
-                "tls::connect::send: " +
-                std::to_string(dst_channel.send_buffer().size())));
-          }
           return Result::SendToServer;
         }
 

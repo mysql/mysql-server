@@ -112,6 +112,13 @@ static const RestApiTestParams rest_api_valid_methods[]{
 
             ASSERT_GE(value->GetInt(), 0);
           }},
+         {"/stashedServerConnections",
+          [](const JsonValue *value) -> void {
+            ASSERT_NE(value, nullptr);
+            ASSERT_TRUE(value->IsInt());
+
+            ASSERT_GE(value->GetInt(), 0);
+          }},
      },
      kSwaggerPaths},
 

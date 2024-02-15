@@ -26,6 +26,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef MYSQL_ROUTER_CHANNEL_INCLUDED
 #define MYSQL_ROUTER_CHANNEL_INCLUDED
 
+#include "mysqlrouter/routing_connections_export.h"
+
 #include <memory>
 #include <system_error>
 #include <type_traits>
@@ -60,7 +62,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  * Once init_ssl() is called, the recv_plain() and write_plain() methods
  * transparently decrypt and encrypt.
  */
-class Channel {
+class ROUTING_CONNECTIONS_EXPORT Channel {
  public:
   Channel() = default;
 
@@ -70,6 +72,21 @@ class Channel {
   using Ssl = mysql_harness::Ssl;
 
   explicit Channel(Ssl ssl) : ssl_{std::move(ssl)} {}
+
+  /**
+   * clears all buffers.
+   */
+  void clear() {
+    recv_buffer_.clear();
+    recv_plain_buffer_.clear();
+    send_buffer_.clear();
+    send_plain_buffer_.clear();
+
+    payload_buffer_.clear();
+
+    view_sync_plain();
+    view_sync_raw();
+  }
 
   /**
    * initialize the SSL session.

@@ -36,15 +36,15 @@
 #include <vector>
 
 #include "basic_protocol_splicer.h"
-#include "channel.h"
-#include "classic_prepared_statement.h"
-#include "classic_protocol_state.h"
 #include "connection.h"  // MySQLRoutingConnectionBase
 #include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/timer.h"
+#include "mysqlrouter/channel.h"
+#include "mysqlrouter/classic_prepared_statement.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/classic_protocol_session_track.h"
+#include "mysqlrouter/classic_protocol_state.h"
 #include "mysqlrouter/connection_pool.h"
 #include "processor.h"
 #include "sql_exec_context.h"
@@ -273,6 +273,8 @@ class MysqlRoutingClassicConnectionBase
   ServerSideConnection &server_conn() { return server_conn_; }
   const ServerSideConnection &server_conn() const { return server_conn_; }
 
+  void stash_server_conn();
+
   std::string get_destination_id() const override {
     return expected_server_mode() == mysqlrouter::ServerMode::ReadOnly
                ? read_only_destination_id()
@@ -411,6 +413,12 @@ class MysqlRoutingClassicConnectionBase
     return trx_characteristics_;
   }
 
+  void trx_characteristics(
+      std::optional<classic_protocol::session_track::TransactionCharacteristics>
+          trx_chars) {
+    trx_characteristics_ = std::move(trx_chars);
+  }
+
   std::optional<classic_protocol::session_track::TransactionState> trx_state()
       const {
     return trx_state_;
@@ -483,6 +491,14 @@ class MysqlRoutingClassicConnectionBase
 
   FromEither recv_from_either() const { return recv_from_either_; }
 
+  void has_transient_error_at_connect(bool val) {
+    has_transient_error_at_connect_ = val;
+  }
+
+  bool has_transient_error_at_connect() const {
+    return has_transient_error_at_connect_;
+  }
+
  private:
   net::steady_timer read_timer_;
   net::steady_timer connect_timer_;
@@ -512,6 +528,8 @@ class MysqlRoutingClassicConnectionBase
 
   // timeout for read your own writes. Setable with query attributes.
   std::chrono::seconds wait_for_my_writes_timeout_;
+
+  bool has_transient_error_at_connect_{false};
 };
 
 #endif

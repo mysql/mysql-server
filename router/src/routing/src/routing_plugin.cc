@@ -45,10 +45,10 @@
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
+#include "mysqlrouter/ssl_mode.h"
 #include "mysqlrouter/supported_routing_options.h"
 #include "plugin_config.h"
 #include "scope_guard.h"
-#include "ssl_mode.h"
 
 using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
@@ -500,21 +500,6 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         log_warning(
             "[%s].connection_sharing=1 has been ignored, as "
             "client_ssl_mode=PREFERRED and server_ssl_mode=AS_CLIENT.",
-            name.c_str());
-      }
-
-      auto &pool_component = ConnectionPoolComponent::get_instance();
-      auto default_pool_name = pool_component.default_pool_name();
-      auto default_pool = pool_component.get(default_pool_name);
-      if (!default_pool) {
-        log_warning(
-            "[%s].connection_sharing=1 has been ignored, as "
-            "there is no [connection_pool]",
-            name.c_str());
-      } else if (default_pool->max_pooled_connections() == 0) {
-        log_warning(
-            "[%s].connection_sharing=1 has been ignored, as "
-            "[connection_pool].max_idle_server_connections=0",
             name.c_str());
       }
 

@@ -99,11 +99,11 @@ ADD_ROUTER_TEST_FILE(
     mysqlxmessages_lite
     connection_pool
     ext::libprotobuf-lite
+    routing_connections
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
   EXTRA_SOURCES
-    ../src/channel.cc
     ../src/context.cc
     ../src/destination_ssl_context.cc
   )

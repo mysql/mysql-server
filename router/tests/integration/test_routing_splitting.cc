@@ -199,6 +199,51 @@ WHERE t.PROCESSLIST_ID = CONNECTION_ID()
 ORDER BY EVENT_NAME)");
 }
 
+static stdx::expected<std::vector<std::tuple<std::string, std::string>>,
+                      MysqlError>
+statement_history(MysqlClient &cli, bool to_read_write) {
+  {
+    auto set_res =
+        cli.query(to_read_write ? "ROUTER SET access_mode='read_write'"
+                                : "ROUTER SET access_mode='read_only'");
+    if (!set_res) return stdx::unexpected(set_res.error());
+  }
+
+  auto hist_res = query_one_result(
+      cli,
+      "SELECT event_name, digest_text "
+      "  FROM performance_schema.events_statements_history AS h"
+      "  JOIN performance_schema.threads AS t "
+      "    ON (h.thread_id = t.thread_id)"
+      " WHERE t.processlist_id = CONNECTION_ID()"
+      " ORDER BY event_id");
+
+  {
+    auto set_res = cli.query("ROUTER SET access_mode='auto'");
+    if (!set_res) return stdx::unexpected(set_res.error());
+  }
+
+  std::vector<std::tuple<std::string, std::string>> res;
+
+  for (auto row : *hist_res) {
+    res.emplace_back(row[0], row[1]);
+  }
+
+  return res;
+}
+
+static stdx::expected<std::vector<std::tuple<std::string, std::string>>,
+                      MysqlError>
+statement_history_from_read_write(MysqlClient &cli) {
+  return statement_history(cli, true);
+}
+
+static stdx::expected<std::vector<std::tuple<std::string, std::string>>,
+                      MysqlError>
+statement_history_from_read_only(MysqlClient &cli) {
+  return statement_history(cli, false);
+}
+
 static testing::AssertionResult json_pointer_eq(
     rapidjson::Document &doc, const rapidjson::Pointer &pointer,
     const rapidjson::Value &expected_value) {
@@ -764,6 +809,11 @@ class SharedRouter {
                         "/idleServerConnections");
   }
 
+  stdx::expected<int, std::error_code> stashed_server_connections() {
+    return rest_get_int(rest_api_basepath + "/connection_pool/main/status",
+                        "/stashedServerConnections");
+  }
+
   stdx::expected<void, std::error_code> wait_for_idle_server_connections(
       int expected_value, std::chrono::seconds timeout) {
     using clock_type = std::chrono::steady_clock;
@@ -771,6 +821,25 @@ class SharedRouter {
     const auto end_time = clock_type::now() + timeout;
     do {
       auto int_res = idle_server_connections();
+      if (!int_res) return stdx::unexpected(int_res.error());
+
+      if (*int_res == expected_value) return {};
+
+      if (clock_type::now() > end_time) {
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
+      }
+
+      std::this_thread::sleep_for(kIdleServerConnectionsSleepTime);
+    } while (true);
+  }
+
+  stdx::expected<void, std::error_code> wait_for_stashed_server_connections(
+      int expected_value, std::chrono::seconds timeout) {
+    using clock_type = std::chrono::steady_clock;
+
+    const auto end_time = clock_type::now() + timeout;
+    do {
+      auto int_res = stashed_server_connections();
       if (!int_res) return stdx::unexpected(int_res.error());
 
       if (*int_res == expected_value) return {};
@@ -892,6 +961,48 @@ class SplittingConnectionTest
       shared_router()->process_manager().dump_logs();
     }
   }
+
+  const std::string stmt_type_sql_select{"statement/sql/select"};
+  const std::string stmt_type_sql_set_option{"statement/sql/set_option"};
+  const std::string stmt_type_sql_insert{"statement/sql/insert"};
+  const std::string stmt_type_sql_truncate{"statement/sql/truncate"};
+  const std::string stmt_type_com_reset_connection{
+      "statement/com/Reset Connection"};
+  const std::string stmt_type_com_set_option{"statement/com/Set option"};
+
+  const std::string stmt_select_session_vars{
+      "SELECT ? , @@SESSION . `collation_connection` UNION "
+      "SELECT ? , @@SESSION . `character_set_client` UNION "
+      "SELECT ? , @@SESSION . `sql_mode`"};
+  const std::string stmt_set_session_tracker{
+      "SET "
+      "@@SESSION . `session_track_system_variables` = ? , "
+      "@@SESSION . `session_track_gtids` = ? , "
+      "@@SESSION . `session_track_schema` = ? , "
+      "@@SESSION . `session_track_state_change` = ? , "
+      "@@SESSION . `session_track_transaction_info` = ?"};
+
+  const std::string stmt_restore_session_vars{
+      "SET "
+      "@@SESSION . `session_track_system_variables` = ? , "
+      "@@SESSION . `character_set_client` = ? , "
+      "@@SESSION . `collation_connection` = ? , "
+      "@@SESSION . `session_track_gtids` = ? , "
+      "@@SESSION . `session_track_schema` = ? , "
+      "@@SESSION . `session_track_state_change` = ? , "
+      "@@SESSION . `session_track_transaction_info` = ? , "
+      "@@SESSION . `sql_mode` = ?"};
+
+  const std::string stmt_select_history{
+      "SELECT `event_name` , `digest_text` "
+      "FROM `performance_schema` . `events_statements_history` AS `h` "
+      "JOIN `performance_schema` . `threads` AS `t` "
+      "ON ( `h` . `thread_id` = `t` . `thread_id` ) "
+      "WHERE `t` . `processlist_id` = `CONNECTION_ID` ( ) "
+      "ORDER BY `event_id`"};
+
+  const std::string stmt_select_wait_gtid{
+      "SELECT NOT `WAIT_FOR_EXECUTED_GTID_SET` (...)"};
 };
 
 /**
@@ -914,7 +1025,7 @@ TEST_P(SplittingConnectionTest, select_and_insert) {
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
   // connection goes out of the pool and back to the pool again.
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(1, 1s));
 
   std::string primary_port;
 
@@ -1007,17 +1118,15 @@ TEST_P(SplittingConnectionTest, select_and_insert) {
              std::pair{"/events/1/events/0/name",
                        rapidjson::Value("mysql/prepare_server_connection")},
              std::pair{"/events/1/events/0/events/0/name",
-                       rapidjson::Value("mysql/from_pool_or_connect")},
-             std::pair{"/events/1/events/0/events/0/events/0/name",
-                       rapidjson::Value("mysql/from_pool")},
-             std::pair{"/events/1/events/0/events/0/events/0/attributes/"
+                       rapidjson::Value("mysql/from_stash")},
+             std::pair{"/events/1/events/0/events/0/attributes/"
                        "mysql.remote.is_connected",
                        rapidjson::Value(true)},
-             std::pair{"/events/1/events/0/events/0/events/0/attributes/"
+             std::pair{"/events/1/events/0/events/0/attributes/"
                        "mysql.remote.endpoint",
                        rapidjson::Value("127.0.0.1:" + primary_port,
                                         doc.GetAllocator())},
-             std::pair{"/events/1/events/0/events/0/events/0/attributes/"
+             std::pair{"/events/1/events/0/events/0/attributes/"
                        "db.name",
                        rapidjson::Value("")},
          }) {
@@ -1065,16 +1174,14 @@ TEST_P(SplittingConnectionTest, select_and_insert) {
              std::pair{"/events/1/events/0/name",
                        rapidjson::Value("mysql/prepare_server_connection")},
              std::pair{"/events/1/events/0/events/0/name",
-                       rapidjson::Value("mysql/from_pool_or_connect")},
-             std::pair{"/events/1/events/0/events/0/events/0/name",
-                       rapidjson::Value("mysql/from_pool")},
-             std::pair{"/events/1/events/0/events/0/events/0/attributes/"
+                       rapidjson::Value("mysql/from_stash")},
+             std::pair{"/events/1/events/0/events/0/attributes/"
                        "mysql.remote.is_connected",
                        rapidjson::Value(true)},
              // std::pair{"/events/1/events/0/events/0/events/0/attributes/"
              //           "mysql.remote.endpoint",
              //           rapidjson::Value("")},
-             std::pair{"/events/1/events/0/events/0/events/0/attributes/"
+             std::pair{"/events/1/events/0/events/0/attributes/"
                        "db.name",
                        rapidjson::Value("testing")},
          }) {
@@ -1449,109 +1556,142 @@ TEST_P(SplittingConnectionTest, reset_connection_resets_last_executed_gtid) {
   cli.username(account.username);
   cli.password(account.password);
 
+  SCOPED_TRACE("// connect");
+
+  // primary or secondary
   ASSERT_NO_ERROR(
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  std::vector<std::tuple<std::string, std::string>> initial_expected_stmts{
+      {stmt_type_sql_set_option, stmt_set_session_tracker},
+      {stmt_type_sql_select, stmt_select_session_vars},
+  };
+
+  std::vector<std::tuple<std::string, std::string>> switched_expected_stmts{
+      {stmt_type_sql_set_option, stmt_restore_session_vars},
+  };
+
+  std::vector<std::tuple<std::string, std::string>> rw_expected_stmts;
+  std::vector<std::tuple<std::string, std::string>> ro_expected_stmts;
+  bool started_on_rw{false};
+
+  {
+    auto stmt_hist_res = statement_history_from_read_write(cli);
+    ASSERT_NO_ERROR(stmt_hist_res);
+
+    // detect if router started on a RW or RO node.
+    started_on_rw = stmt_hist_res->size() == 2;
+
+    if (started_on_rw) {
+      rw_expected_stmts = initial_expected_stmts;
+      ro_expected_stmts = switched_expected_stmts;
+    } else {
+      ro_expected_stmts = initial_expected_stmts;
+      rw_expected_stmts = switched_expected_stmts;
+    }
+
+    EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(rw_expected_stmts));
+    rw_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_history);
+  }
+
+  {
+    auto stmt_hist_res = statement_history_from_read_only(cli);
+    ASSERT_NO_ERROR(stmt_hist_res);
+
+    EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(ro_expected_stmts));
+
+    ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_history);
+  }
+
+  ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(2, 10s));
 
   // primary
   SCOPED_TRACE("// cleanup");
   ASSERT_NO_ERROR(cli.query("TRUNCATE TABLE testing.t1"));
 
+  rw_expected_stmts.emplace_back(stmt_type_sql_truncate,
+                                 "TRUNCATE TABLE `testing` . `t1`");
+
   // primary
   ASSERT_NO_ERROR(cli.query("INSERT INTO testing.t1 VALUES ()"));
 
-  // secondary, waits for executed gtid.
+  rw_expected_stmts.emplace_back(stmt_type_sql_insert,
+                                 "INSERT INTO `testing` . `t1` VALUES ( )");
+
+  {
+    auto stmt_hist_res = statement_history_from_read_write(cli);
+    ASSERT_NO_ERROR(stmt_hist_res);
+
+    EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(rw_expected_stmts));
+
+    rw_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_history);
+  }
+
+  // secondary
   //
-  // executed on the secondary:
-  //
-  // - reset-connection
-  // - SET trackers
-  // - SELECT GTID...
-  // - SELECT * FROM testing...
+  // Router should wait for GTID_EXECUTED.
+  ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_wait_gtid);
+
   {
     auto stmt_res = query_one_result(cli, "SELECT * FROM testing.t1");
     ASSERT_NO_ERROR(stmt_res);
+
+    ro_expected_stmts.emplace_back(stmt_type_sql_select,
+                                   "SELECT * FROM `testing` . `t1`");
   }
 
-  // executed on the secondary:
-  //
-  // - reset-connection (from pool)
-  // - SET trackers
-  // - SELECT GTID...
-  // - SELECT * FROM performance_schema... [not seen by this query]
+  ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_wait_gtid);
+
   {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
+    auto stmt_hist_res = statement_history_from_read_only(cli);
+    ASSERT_NO_ERROR(stmt_hist_res);
 
-    EXPECT_THAT(*events_res,
-                AnyOf(
-                    // started on the read-write
-                    ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 3),
-                                Pair("statement/sql/set_option", 2)),
-                    // started on the read-only
-                    ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 4),
-                                Pair("statement/sql/set_option", 3))));
+    EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(ro_expected_stmts));
+
+    ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_history);
   }
 
-  // executed on the secondary:
-  //
-  // - reset-connection (from pool)
-  // - SET trackers and session-vars
-  // - SELECT GTID...
-  // - reset-connection
-  // - SET trackers
+  // the RO and RW connections should be stashed now.
+  ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(2, 10s));
+
   ASSERT_NO_ERROR(cli.reset_connection());
 
-  // check if server waits for GTID. It will issue a SELECT NOT WAIT_FOR...
-  //
-  // executed on the secondary:
-  //
-  // - reset-connection (from pool)
-  // - SET trackers
-  // - SELECT * FROM performance_schema... [not seen by this query]
-  {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
+  // reset-connection should also reset the last-executed GTID of the current
+  // client-side session. -> no select_wait_gtid query.
+  ro_expected_stmts.emplace_back(stmt_type_com_reset_connection, "<NULL>");
+  ro_expected_stmts.emplace_back(stmt_type_sql_set_option,
+                                 stmt_set_session_tracker);
+  ro_expected_stmts.emplace_back(stmt_type_sql_select,
+                                 stmt_select_session_vars);
 
-    EXPECT_THAT(*events_res,
-                AnyOf(
-                    // started on read-write
-                    ElementsAre(Pair("statement/com/Reset Connection", 4),
-                                Pair("statement/sql/select", 5),
-                                Pair("statement/sql/set_option", 5)),
-                    // started on read-only
-                    ElementsAre(Pair("statement/com/Reset Connection", 5),
-                                Pair("statement/sql/select", 6),
-                                Pair("statement/sql/set_option", 6))));
+  {
+    auto stmt_hist_res = statement_history_from_read_only(cli);
+    ASSERT_NO_ERROR(stmt_hist_res);
+
+    EXPECT_THAT(*stmt_hist_res,
+                ::testing::ElementsAreArray(
+                    std::span(ro_expected_stmts)
+                        .last(std::min(ro_expected_stmts.size(), size_t{10}))));
+
+    ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_history);
   }
+
+  rw_expected_stmts.emplace_back(stmt_type_com_reset_connection, "<NULL>");
+  rw_expected_stmts.emplace_back(stmt_type_sql_set_option,
+                                 stmt_restore_session_vars);
 
   // primary
   ASSERT_NO_ERROR(cli.query("INSERT INTO testing.t1 VALUES ()"));
 
-  // check if server waits for GTID. It will issue a SELECT NOT WAIT_FOR...
-  //
-  // executed on the secondary:
-  //
-  // - reset-connection (from pool)
-  // - SET trackers
-  // - SELECT GTID...
-  // - SELECT * FROM performance_schema... [not seen by this query]
+  rw_expected_stmts.emplace_back(stmt_type_sql_insert,
+                                 "INSERT INTO `testing` . `t1` VALUES ( )");
   {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
+    auto stmt_hist_res = statement_history_from_read_write(cli);
+    ASSERT_NO_ERROR(stmt_hist_res);
 
-    EXPECT_THAT(*events_res,
-                AnyOf(
-                    // started on read-write
-                    ElementsAre(Pair("statement/com/Reset Connection", 5),
-                                Pair("statement/sql/select", 7),
-                                Pair("statement/sql/set_option", 6)),
+    EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(rw_expected_stmts));
 
-                    // started on read-only
-                    ElementsAre(Pair("statement/com/Reset Connection", 6),
-                                Pair("statement/sql/select", 8),
-                                Pair("statement/sql/set_option", 7))));
+    rw_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_history);
   }
 }
 
@@ -1664,18 +1804,16 @@ TEST_P(SplittingConnectionTest,
     EXPECT_THAT(*events_res,
                 AnyOf(
                     // started on read-write
-                    ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 3),
-                                Pair("statement/sql/set_option", 2)),
+                    ElementsAre(Pair("statement/sql/select", 1),
+                                Pair("statement/sql/set_option", 1)),
                     // started on read-write and table didn't exist yet.
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
                                 Pair("statement/sql/select", 3),
                                 Pair("statement/sql/set_option", 2),
                                 Pair("statement/sql/show_warnings", 1)),
                     // started on read-only
-                    ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 2),
-                                Pair("statement/sql/set_option", 3)),
+                    ElementsAre(Pair("statement/sql/select", 2),
+                                Pair("statement/sql/set_option", 1)),
                     // start on read-only and table didn't exist yet.
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
                                 Pair("statement/sql/select", 5),
@@ -1716,18 +1854,18 @@ TEST_P(SplittingConnectionTest,
     EXPECT_THAT(*events_res,
                 AnyOf(
                     // started on read-write
-                    ElementsAre(Pair("statement/com/Reset Connection", 5),
-                                Pair("statement/sql/select", 10),
-                                Pair("statement/sql/set_option", 6)),
+                    ElementsAre(Pair("statement/com/Reset Connection", 1),
+                                Pair("statement/sql/select", 6),
+                                Pair("statement/sql/set_option", 2)),
                     // started on read-write and table didn't exist yet.
                     ElementsAre(Pair("statement/com/Reset Connection", 5),
                                 Pair("statement/sql/select", 10),
                                 Pair("statement/sql/set_option", 6),
                                 Pair("statement/sql/show_warnings", 1)),
                     // start on read-only
-                    ElementsAre(Pair("statement/com/Reset Connection", 6),
-                                Pair("statement/sql/select", 6),
-                                Pair("statement/sql/set_option", 7)),
+                    ElementsAre(Pair("statement/com/Reset Connection", 1),
+                                Pair("statement/sql/select", 7),
+                                Pair("statement/sql/set_option", 2)),
                     // start on read-only and table didn't exist yet
                     ElementsAre(Pair("statement/com/Reset Connection", 6),
                                 Pair("statement/sql/select", 12),
@@ -1773,8 +1911,7 @@ TEST_P(SplittingConnectionTest,
     EXPECT_THAT(*events_res,
                 AnyOf(
                     // started on read-write
-                    ElementsAre(Pair("statement/sql/select", 1),
-                                Pair("statement/sql/set_option", 1)),
+                    ElementsAre(Pair("statement/sql/set_option", 1)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
                                 Pair("statement/sql/select", 1),
@@ -1795,13 +1932,13 @@ TEST_P(SplittingConnectionTest,
     EXPECT_THAT(*events_res,
                 AnyOf(
                     // started on read-write
-                    ElementsAre(Pair("statement/com/Reset Connection", 3),
-                                Pair("statement/sql/select", 4),
-                                Pair("statement/sql/set_option", 4)),
-                    // started on read-only
-                    ElementsAre(Pair("statement/com/Reset Connection", 4),
+                    ElementsAre(Pair("statement/com/Reset Connection", 1),
                                 Pair("statement/sql/select", 2),
-                                Pair("statement/sql/set_option", 5))));
+                                Pair("statement/sql/set_option", 2)),
+                    // started on read-only
+                    ElementsAre(Pair("statement/com/Reset Connection", 2),
+                                Pair("statement/sql/select", 3),
+                                Pair("statement/sql/set_option", 3))));
   }
 }
 
@@ -1870,13 +2007,11 @@ TEST_P(SplittingConnectionTest, change_user_resets_session_wait_for_my_writes) {
     EXPECT_THAT(*events_res,
                 AnyOf(
                     // started on read-write
-                    ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 1),
-                                Pair("statement/sql/set_option", 2)),
+                    ElementsAre(Pair("statement/sql/select", 1),
+                                Pair("statement/sql/set_option", 1)),
                     // started on read-only
-                    ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 5),
-                                Pair("statement/sql/set_option", 3))));
+                    ElementsAre(Pair("statement/sql/select", 2),
+                                Pair("statement/sql/set_option", 1))));
   }
 
   auto change_user_account =
@@ -1916,16 +2051,12 @@ TEST_P(SplittingConnectionTest, change_user_resets_session_wait_for_my_writes) {
                 AnyOf(
                     // started on read-write
                     ElementsAre(Pair("statement/com/Change user", 1),
-                                Pair("statement/com/Reset Connection", 3),
                                 Pair("statement/sql/select", 5),
-                                Pair("statement/sql/set_option", 5)),
+                                Pair("statement/sql/set_option", 2)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Change user", 1),
-                                Pair("statement/com/Reset Connection", 4),
-                                Pair("statement/sql/select", 11),
-                                Pair("statement/sql/set_option", 6))
-
-                        ));
+                                Pair("statement/sql/select", 6),
+                                Pair("statement/sql/set_option", 2))));
   }
 }
 
@@ -1939,8 +2070,7 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
   MysqlClient cli;
 
   auto account = SharedServer::caching_sha2_empty_password_account();
-  auto change_user_account =
-      SharedServer::caching_sha2_empty_password_account();
+  auto change_user_account = SharedServer::native_empty_password_account();
 
   cli.username(account.username);
   cli.password(account.password);
@@ -1972,7 +2102,7 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
                                 Pair("statement/sql/set_option", 1)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 1),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 2))));
   }
 
@@ -1992,14 +2122,37 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
                 AnyOf(
                     // started on read-write
                     ElementsAre(Pair("statement/com/Change user", 1),
-                                Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 3),
-                                Pair("statement/sql/set_option", 3)),
+                                Pair("statement/sql/select", 2),
+                                Pair("statement/sql/set_option", 2)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Change user", 1),
                                 Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 2),
+                                Pair("statement/sql/select", 4),
                                 Pair("statement/sql/set_option", 4))));
+  }
+
+  {
+    ASSERT_NO_ERROR(cli.query("ROUTER SET access_mode='read_write'"));
+
+    {
+      auto user_res = query_one_result(cli, "SELECT CURRENT_USER()");
+      ASSERT_NO_ERROR(user_res);
+      EXPECT_THAT(
+          *user_res,
+          ElementsAre(ElementsAre(change_user_account.username + "@%")));
+    }
+
+    ASSERT_NO_ERROR(cli.query("ROUTER SET access_mode='read_only'"));
+
+    {
+      auto user_res = query_one_result(cli, "SELECT CURRENT_USER()");
+      ASSERT_NO_ERROR(user_res);
+      EXPECT_THAT(
+          *user_res,
+          ElementsAre(ElementsAre(change_user_account.username + "@%")));
+    }
+
+    ASSERT_NO_ERROR(cli.query("ROUTER SET access_mode='auto'"));
   }
 }
 
@@ -2038,12 +2191,11 @@ TEST_P(SplittingConnectionTest, ping_succeeds) {
     EXPECT_THAT(*events_res,
                 AnyOf(
                     // started on read-write
-                    ElementsAre(Pair("statement/sql/select", 2),
+                    ElementsAre(Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 1)),
                     // started on read-only
-                    ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 2),
-                                Pair("statement/sql/set_option", 2))));
+                    ElementsAre(Pair("statement/sql/select", 2),
+                                Pair("statement/sql/set_option", 1))));
   }
 
   SCOPED_TRACE("// ping secondary");
@@ -2061,14 +2213,12 @@ TEST_P(SplittingConnectionTest, ping_succeeds) {
                 AnyOf(
                     // started on read-write
                     ElementsAre(Pair("statement/com/Ping", 1),
-                                Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 7),
-                                Pair("statement/sql/set_option", 3)),
+                                Pair("statement/sql/select", 4),
+                                Pair("statement/sql/set_option", 1)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Ping", 1),
-                                Pair("statement/com/Reset Connection", 3),
                                 Pair("statement/sql/select", 5),
-                                Pair("statement/sql/set_option", 4))));
+                                Pair("statement/sql/set_option", 1))));
   }
 }
 
@@ -2086,59 +2236,104 @@ TEST_P(SplittingConnectionTest, set_option_succeeds) {
   cli.username(account.username);
   cli.password(account.password);
 
-  // may start on the primary or secondary.
+  // may start on the primary or secondary depending on router's round-robin
   ASSERT_NO_ERROR(
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  std::vector<std::tuple<std::string, std::string>> initial_expected_stmts{
+      {stmt_type_sql_set_option, stmt_set_session_tracker},
+      {stmt_type_sql_select, stmt_select_session_vars},
+  };
+
+  std::vector<std::tuple<std::string, std::string>> switched_expected_stmts{
+      {stmt_type_sql_set_option, stmt_restore_session_vars},
+  };
+
+  std::vector<std::tuple<std::string, std::string>> rw_expected_stmts;
+  std::vector<std::tuple<std::string, std::string>> ro_expected_stmts;
+  bool started_on_rw{false};
+
+  {
+    auto stmt_hist_res = statement_history_from_read_write(cli);
+    ASSERT_NO_ERROR(stmt_hist_res);
+
+    // detect if router started on a RW or RO node.
+    started_on_rw = stmt_hist_res->size() == 2;
+
+    if (started_on_rw) {
+      rw_expected_stmts = initial_expected_stmts;
+      ro_expected_stmts = switched_expected_stmts;
+    } else {
+      ro_expected_stmts = initial_expected_stmts;
+      rw_expected_stmts = switched_expected_stmts;
+    }
+
+    EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(rw_expected_stmts));
+    rw_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_history);
+  }
 
   // a noop statement which switches to the primary.
   ASSERT_NO_ERROR(cli.query("TRUNCATE TABLE testing.t1"));
 
+  rw_expected_stmts.emplace_back(stmt_type_sql_truncate,
+                                 "TRUNCATE TABLE `testing` . `t1`");
+
   SCOPED_TRACE("// set-option from primary");
   ASSERT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
 
-  // executed on the secondary:
-  //
-  // - SET trackers
-  // - SELECT * FROM performance_schema... [not seen by this query]
-  {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
+  rw_expected_stmts.emplace_back(stmt_type_com_set_option, "<NULL>");
 
-    EXPECT_THAT(*events_res,
-                AnyOf(
-                    // started on read-write
-                    ElementsAre(Pair("statement/sql/select", 1),
-                                Pair("statement/sql/set_option", 1)),
-                    // started on read-only, set-option replayed
-                    ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/com/Set option", 1),
-                                Pair("statement/sql/select", 4),
-                                Pair("statement/sql/set_option", 2))));
+  {
+    auto stmt_hist_res = statement_history_from_read_write(cli);
+    ASSERT_NO_ERROR(stmt_hist_res);
+
+    EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(rw_expected_stmts));
+    rw_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_history);
+  }
+
+  // secondary
+  //
+  // Router should:
+  // - wait for GTID_EXECUTED.
+  // - set multi-statement option.
+  ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_wait_gtid);
+
+  {
+    auto stmt_res = query_one_result(cli, "SELECT * FROM testing.t1");
+    ASSERT_NO_ERROR(stmt_res);
+
+    ro_expected_stmts.emplace_back(stmt_type_sql_select,
+                                   "SELECT * FROM `testing` . `t1`");
+  }
+
+  // needed?
+  ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_wait_gtid);
+
+  {
+    auto stmt_hist_res = statement_history_from_read_only(cli);
+    ASSERT_NO_ERROR(stmt_hist_res);
+
+    EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(ro_expected_stmts));
+    ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_history);
   }
 
   SCOPED_TRACE("// set-option from secondary");
   ASSERT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
 
-  // executed on the secondary:
-  //
-  // - SET trackers
-  // - SELECT * FROM performance_schema... [not seen by this query]
-  {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
+  // needed?
+  ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_wait_gtid);
 
-    EXPECT_THAT(*events_res,
-                AnyOf(
-                    // started on read-write
-                    ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/com/Set option", 1),
-                                Pair("statement/sql/select", 4),
-                                Pair("statement/sql/set_option", 3)),
-                    // started on read-only, set-option replayed
-                    ElementsAre(Pair("statement/com/Reset Connection", 3),
-                                Pair("statement/com/Set option", 2),
-                                Pair("statement/sql/select", 9),
-                                Pair("statement/sql/set_option", 4))));
+  ro_expected_stmts.emplace_back(stmt_type_com_set_option, "<NULL>");
+
+  // needed?
+  ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_wait_gtid);
+
+  {
+    auto stmt_hist_res = statement_history_from_read_only(cli);
+    ASSERT_NO_ERROR(stmt_hist_res);
+
+    EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(ro_expected_stmts));
+    ro_expected_stmts.emplace_back(stmt_type_sql_select, stmt_select_history);
   }
 }
 

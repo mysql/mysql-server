@@ -560,6 +560,11 @@ class SharedRouter {
                         "/idleServerConnections");
   }
 
+  stdx::expected<int, std::error_code> stashed_server_connections() {
+    return rest_get_int(rest_api_basepath + "/connection_pool/main/status",
+                        "/stashedServerConnections");
+  }
+
   stdx::expected<void, std::error_code> wait_for_idle_server_connections(
       int expected_value, std::chrono::seconds timeout) {
     using clock_type = std::chrono::steady_clock;
@@ -567,6 +572,25 @@ class SharedRouter {
     const auto end_time = clock_type::now() + timeout;
     do {
       auto int_res = idle_server_connections();
+      if (!int_res) return stdx::unexpected(int_res.error());
+
+      if (*int_res == expected_value) return {};
+
+      if (clock_type::now() > end_time) {
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
+      }
+
+      std::this_thread::sleep_for(kIdleServerConnectionsSleepTime);
+    } while (true);
+  }
+
+  stdx::expected<void, std::error_code> wait_for_stashed_server_connections(
+      int expected_value, std::chrono::seconds timeout) {
+    using clock_type = std::chrono::steady_clock;
+
+    const auto end_time = clock_type::now() + timeout;
+    do {
+      auto int_res = stashed_server_connections();
       if (!int_res) return stdx::unexpected(int_res.error());
 
       if (*int_res == expected_value) return {};
@@ -935,7 +959,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
     // wait until connection 0, 1, 2 are in the pool as 3 shall share with 0.
     if (ndx == 3 && can_share) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(3, 10s));
+          shared_router()->wait_for_stashed_server_connections(3, 10s));
     }
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
@@ -944,7 +968,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
     // connection goes out of the pool and back to the pool again.
     if (ndx == 3 && can_share) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(3, 10s));
+          shared_router()->wait_for_stashed_server_connections(3, 10s));
     }
   }
 
@@ -984,9 +1008,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 1),
-                              Pair("statement/sql/select", 1),
-                              Pair("statement/sql/set_option", 2)));
+                  ElementsAre(Pair("statement/sql/select", 1),
+                              Pair("statement/sql/set_option", 1)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
     }
@@ -999,9 +1022,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 1),
-                              Pair("statement/sql/select", 1),
-                              Pair("statement/sql/set_option", 2)));
+                  ElementsAre(Pair("statement/sql/select", 1),
+                              Pair("statement/sql/set_option", 1)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
     }
@@ -1079,7 +1101,7 @@ TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
     // wait until the connection is in the pool.
     if (can_share) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(1, 10s));
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
       TRACE("waited is-idle " + std::to_string(ndx));
     }
 
@@ -1166,7 +1188,7 @@ TEST_P(ShareConnectionTest, classic_protocol_pool_after_connect_same_user) {
     if (can_share) {
       size_t expected_pooled_connections = ndx < 3 ? ndx + 1 : 3;
 
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(
+      ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(
           expected_pooled_connections, 10s));
     }
 
@@ -1263,7 +1285,7 @@ TEST_P(ShareConnectionTest,
     // wait until connection 0, 1, 2 are in the pool as 3 shall share with 0.
     if (ndx == 3 && can_share) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(3, 10s));
+          shared_router()->wait_for_stashed_server_connections(3, 10s));
     }
 
     auto connect_res =
@@ -1280,7 +1302,7 @@ TEST_P(ShareConnectionTest,
     // connection goes out of the pool and back to the pool again.
     if (ndx == 3 && can_share) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(3, 10s));
+          shared_router()->wait_for_stashed_server_connections(3, 10s));
     }
   }
 
@@ -1320,9 +1342,8 @@ TEST_P(ShareConnectionTest,
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 1),
-                              Pair("statement/sql/select", 1),
-                              Pair("statement/sql/set_option", 2)));
+                  ElementsAre(Pair("statement/sql/select", 1),
+                              Pair("statement/sql/set_option", 1)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
     }
@@ -1335,9 +1356,8 @@ TEST_P(ShareConnectionTest,
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 1),
-                              Pair("statement/sql/select", 1),
-                              Pair("statement/sql/set_option", 2)));
+                  ElementsAre(Pair("statement/sql/select", 1),
+                              Pair("statement/sql/set_option", 1)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
     }
@@ -1411,7 +1431,7 @@ TEST_P(ShareConnectionTest, classic_protocol_connection_is_sticky_purged) {
     // wait until the connection is in the pool ... and kill it.
     if (can_share) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(1, 10s));
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
 
       for (auto *admin_cli : admin_clis()) {
         ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
@@ -1459,7 +1479,7 @@ TEST_P(ShareConnectionTest, classic_protocol_connection_is_sticky_pooled) {
     // wait until the connection is in the pool ... and kill it.
     if (can_share) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(1, 10s));
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
     }
   }
 }
@@ -1482,10 +1502,10 @@ TEST_P(ShareConnectionTest, classic_protocol_share_same_user) {
     if (can_share) {
       if (ndx == 0) {
         ASSERT_NO_ERROR(
-            shared_router()->wait_for_idle_server_connections(1, 10s));
+            shared_router()->wait_for_stashed_server_connections(1, 10s));
       } else if (ndx == 3) {
         ASSERT_NO_ERROR(
-            shared_router()->wait_for_idle_server_connections(3, 10s));
+            shared_router()->wait_for_stashed_server_connections(3, 10s));
       }
     }
   }
@@ -1512,9 +1532,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_same_user) {
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 1),
-                              Pair("statement/sql/select", 1),
-                              Pair("statement/sql/set_option", 2)));
+                  ElementsAre(Pair("statement/sql/select", 1),
+                              Pair("statement/sql/set_option", 1)));
     } else {
       EXPECT_THAT(*events_res, IsEmpty());
     }
@@ -1527,9 +1546,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_same_user) {
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 1),
-                              Pair("statement/sql/select", 1),
-                              Pair("statement/sql/set_option", 2)));
+                  ElementsAre(Pair("statement/sql/select", 1),
+                              Pair("statement/sql/set_option", 1)));
     } else {
       EXPECT_THAT(*events_res, IsEmpty());
     }
@@ -1615,7 +1633,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
   // wait a bit until all connections are moved to the pool to ensure that cli4
   // can share with cli1
   if (can_share && can_fetch_password) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(3, 10s));
   }
 
   // shares with cli1
@@ -1632,7 +1651,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
 
   // wait a bit until the connection cli4 is moved to the pool.
   if (can_share && can_fetch_password) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(3, 10s));
   }
 
   // shared between cli1 and cli4
@@ -1669,9 +1689,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
     if (can_share) {
       if (can_fetch_password) {
         EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 1),
-                                Pair("statement/sql/set_option", 2)));
+                    ElementsAre(Pair("statement/sql/select", 1),
+                                Pair("statement/sql/set_option", 1)));
       } else {
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/sql/set_option", 1)));
@@ -1689,9 +1708,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
     if (can_share) {
       if (can_fetch_password) {
         EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 1),
-                                Pair("statement/sql/set_option", 2)));
+                    ElementsAre(Pair("statement/sql/select", 1),
+                                Pair("statement/sql/set_option", 1)));
       } else {
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/sql/set_option", 1)));
@@ -1718,9 +1736,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
                                 Pair("statement/sql/set_option", 4)));
       } else {
         EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 1),
-                                Pair("statement/sql/set_option", 2)));
+                    ElementsAre(Pair("statement/sql/select", 1),
+                                Pair("statement/sql/set_option", 1)));
       }
     } else {
       // cli4: (+ select)
@@ -1742,14 +1759,12 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
         // cli4: reset-connection + set-option (+ select)
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Change user", 3),
-                                Pair("statement/com/Reset Connection", 1),
                                 Pair("statement/sql/select", 4),
-                                Pair("statement/sql/set_option", 5)));
+                                Pair("statement/sql/set_option", 4)));
       } else {
         EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 2),
-                                Pair("statement/sql/set_option", 3)));
+                    ElementsAre(Pair("statement/sql/select", 2),
+                                Pair("statement/sql/set_option", 1)));
       }
     } else {
       // cli4: select
@@ -1773,9 +1788,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
         // cli1: change-user + set-option (+ select)
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Change user", 4),
-                                Pair("statement/com/Reset Connection", 1),
                                 Pair("statement/sql/select", 5),
-                                Pair("statement/sql/set_option", 6)));
+                                Pair("statement/sql/set_option", 5)));
       } else {
         // cli1: set-option
         // cli1: select
@@ -1836,7 +1850,7 @@ TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
       // before the 4th connection, wait until all 3 connections are in the
       // pool.
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(3, 10s));
+          shared_router()->wait_for_stashed_server_connections(3, 10s));
     }
 
     auto connect_res =
@@ -1846,7 +1860,8 @@ TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
 
   // wait a bit until the connection clis[3] is moved to the pool.
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(3, 10s));
   }
 
   // shared between 0 and 3
@@ -1879,9 +1894,8 @@ TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Change user", 2),
                               Pair("statement/com/Debug", 1),
-                              Pair("statement/com/Reset Connection", 2),
                               Pair("statement/sql/select", 3),
-                              Pair("statement/sql/set_option", 5)));
+                              Pair("statement/sql/set_option", 3)));
     } else {
       // no sharing possible, router is not injecting any statements.
       EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Debug", 1),
@@ -2709,9 +2723,8 @@ TEST_P(ShareConnectionTest, classic_protocol_set_vars) {
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 2),
-                              Pair("statement/sql/select", 1),
-                              Pair("statement/sql/set_option", 4)));
+                  ElementsAre(Pair("statement/sql/select", 1),
+                              Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/sql/set_option", 1)));
@@ -2739,9 +2752,8 @@ TEST_P(ShareConnectionTest, classic_protocol_set_vars) {
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 4),
-                              Pair("statement/sql/select", 3),
-                              Pair("statement/sql/set_option", 6)));
+                  ElementsAre(Pair("statement/sql/select", 3),
+                              Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/sql/select", 2),
@@ -2825,11 +2837,10 @@ TEST_P(ShareConnectionTest, classic_protocol_temporary_table_fails_can_share) {
     if (can_share) {
       EXPECT_THAT(
           *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 3),
-                      Pair("statement/sql/do", 1),
+          ElementsAre(Pair("statement/sql/do", 1),
                       Pair("statement/sql/error", 1),         // CREATE TABLE
                       Pair("statement/sql/select", 1),        //
-                      Pair("statement/sql/set_option", 4),    //
+                      Pair("statement/sql/set_option", 1),    //
                       Pair("statement/sql/show_warnings", 1)  // CREATE TABLE
                       ));
     } else {
@@ -3097,11 +3108,10 @@ TEST_P(ShareConnectionTest, classic_protocol_show_warnings_and_change_user) {
     if (can_share) {
       EXPECT_THAT(
           *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 3),  // from-pool
-                      Pair("statement/sql/create_table", 1),
+          ElementsAre(Pair("statement/sql/create_table", 1),
                       Pair("statement/sql/insert_select", 1),
                       Pair("statement/sql/select", 1),
-                      Pair("statement/sql/set_option", 4),    // init-trackers
+                      Pair("statement/sql/set_option", 1),    // init-trackers
                       Pair("statement/sql/show_warnings", 1)  // injected
                       ));
     } else {
@@ -3234,7 +3244,8 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_via_query) {
   ASSERT_NO_ERROR(cli.query("USE testing"));
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
   {
@@ -3622,7 +3633,7 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
 
       if (can_share && can_fetch_password) {
         ASSERT_NO_ERROR(
-            shared_router()->wait_for_idle_server_connections(1, 10s));
+            shared_router()->wait_for_stashed_server_connections(1, 10s));
       }
 
       if (close_connection_before_verify) {
@@ -3780,13 +3791,15 @@ TEST_P(ShareConnectionTest, classic_protocol_set_names) {
   ASSERT_NO_ERROR(
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
-  // set-trackers, reset, set-trackers, set-names
+  // set-trackers,
+  // select,
+  // set-names
   {
     auto cmd_res = cli.query("SET NAMES 'utf8mb4'");
     ASSERT_NO_ERROR(cmd_res);
   }
 
-  // reset, set-trackers, select
+  // select
   {
     auto cmd_res = query_one_result(cli, R"(SELECT
 @@session.character_set_client,
@@ -3799,16 +3812,16 @@ TEST_P(ShareConnectionTest, classic_protocol_set_names) {
                 ElementsAre(ElementsAre("utf8mb4", "utf8mb4", "utf8mb4")));
   }
 
-  // reset, set-trackers
+  // ... after ...
+  // select
   {
     auto events_res = changed_event_counters(cli);
     ASSERT_NO_ERROR(events_res);
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 3),
-                              Pair("statement/sql/select", 3),
-                              Pair("statement/sql/set_option", 5)));
+                  ElementsAre(Pair("statement/sql/select", 3),
+                              Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/sql/select", 1),
@@ -3833,18 +3846,15 @@ TEST_P(ShareConnectionTest, classic_protocol_lock_tables_and_reset) {
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
   // set-trackers
 
-  // reset, set-trackers
   {
     auto query_res = cli.query("CREATE TABLE testing.tbl (ID INT)");
     ASSERT_NO_ERROR(query_res);
-  }
+  }  // stashed
 
-  // reset, set-trackers
   {
-    // LOCK TABLES disables sharing.
     auto cmd_res = cli.query("LOCK TABLES testing.tbl READ");
     ASSERT_NO_ERROR(cmd_res);
-  }
+  }  // LOCK TABLES disables sharing.
 
   {
     auto cmd_res = query_one_result(cli, "SELECT * FROM testing.tbl");
@@ -3863,11 +3873,11 @@ TEST_P(ShareConnectionTest, classic_protocol_lock_tables_and_reset) {
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 4),
+                  ElementsAre(Pair("statement/com/Reset Connection", 1),
                               Pair("statement/sql/create_table", 1),
                               Pair("statement/sql/lock_tables", 1),
-                              Pair("statement/sql/select", 2),
-                              Pair("statement/sql/set_option", 5)));
+                              Pair("statement/sql/select", 3),
+                              Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 1),
@@ -3877,7 +3887,6 @@ TEST_P(ShareConnectionTest, classic_protocol_lock_tables_and_reset) {
     }
   }
 
-  // reset, set-trackers
   {
     auto cmd_res = query_one_result(cli, "SELECT * FROM testing.tbl");
     ASSERT_NO_ERROR(cmd_res);
@@ -3885,18 +3894,17 @@ TEST_P(ShareConnectionTest, classic_protocol_lock_tables_and_reset) {
     EXPECT_THAT(*cmd_res, IsEmpty());
   }
 
-  // reset, set-trackers
   {
     auto events_res = changed_event_counters(cli);
     ASSERT_NO_ERROR(events_res);
 
     if (can_share) {
       EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Reset Connection", 6),
+                  ElementsAre(Pair("statement/com/Reset Connection", 1),
                               Pair("statement/sql/create_table", 1),
                               Pair("statement/sql/lock_tables", 1),
-                              Pair("statement/sql/select", 4),
-                              Pair("statement/sql/set_option", 7)));
+                              Pair("statement/sql/select", 5),
+                              Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 1),
@@ -3935,13 +3943,11 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock) {
     ASSERT_NO_ERROR(events_res);
 
     if (can_share) {
-      EXPECT_THAT(
-          *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
-                      Pair("statement/sql/do", 1),                // DO ...()
-                      Pair("statement/sql/select", 1),
-                      Pair("statement/sql/set_option", 2)  // connect, from-pool
-                      ));
+      EXPECT_THAT(*events_res,
+                  ElementsAre(Pair("statement/sql/do", 1),         // DO ...()
+                              Pair("statement/sql/select", 1),     // at connect
+                              Pair("statement/sql/set_option", 1)  // at connect
+                              ));
     } else {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/sql/do", 1)  // DO ...()
@@ -3957,14 +3963,14 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock) {
 
     if (can_share) {
       EXPECT_THAT(*events_res, ElementsAre(
-                                   // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 3),
+                                   // explicit
+                                   Pair("statement/com/Reset Connection", 1),
                                    // DO GET_LOCK()
                                    Pair("statement/sql/do", 1),
                                    // events
-                                   Pair("statement/sql/select", 2),
-                                   // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 4)));
+                                   Pair("statement/sql/select", 3),
+                                   // connect, explicit
+                                   Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(
                                    // explicit
@@ -4018,12 +4024,11 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock_in_transaction) {
     if (can_share) {
       EXPECT_THAT(
           *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 2),  // from-pool
-                      Pair("statement/sql/begin", 2),      // START TRANSACTION
+          ElementsAre(Pair("statement/sql/begin", 1),      // START TRANSACTION
                       Pair("statement/sql/do", 1),         // DO ...()
                       Pair("statement/sql/rollback", 1),   // ROLLBACK
-                      Pair("statement/sql/select", 1),     //
-                      Pair("statement/sql/set_option", 3)  // connect, from-pool
+                      Pair("statement/sql/select", 1),     // at connect
+                      Pair("statement/sql/set_option", 1)  // at connect
                       ));
     } else {
       EXPECT_THAT(
@@ -4043,18 +4048,18 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock_in_transaction) {
 
     if (can_share) {
       EXPECT_THAT(*events_res, ElementsAre(
-                                   // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 4),
+                                   // explicit
+                                   Pair("statement/com/Reset Connection", 1),
                                    // START TRANSACTION
-                                   Pair("statement/sql/begin", 2),
+                                   Pair("statement/sql/begin", 1),
                                    // DO ...()
                                    Pair("statement/sql/do", 1),
                                    // ROLLBACK
                                    Pair("statement/sql/rollback", 1),
                                    // events
-                                   Pair("statement/sql/select", 2),
-                                   // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 5)));
+                                   Pair("statement/sql/select", 3),
+                                   // connect, explicit
+                                   Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(
                                    // explicit
@@ -4097,13 +4102,11 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_write_locks) {
     ASSERT_NO_ERROR(events_res);
 
     if (can_share) {
-      EXPECT_THAT(
-          *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
-                      Pair("statement/sql/do", 1),                // DO ...()
-                      Pair("statement/sql/select", 1),
-                      Pair("statement/sql/set_option", 2)  // connect, from-pool
-                      ));
+      EXPECT_THAT(*events_res,
+                  ElementsAre(Pair("statement/sql/do", 1),         // DO ...()
+                              Pair("statement/sql/select", 1),     // connect
+                              Pair("statement/sql/set_option", 1)  // connect
+                              ));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(Pair("statement/sql/do", 1)));
     }
@@ -4131,14 +4134,14 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_write_locks) {
 
     if (can_share) {
       EXPECT_THAT(*events_res, ElementsAre(
-                                   // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 3),
+                                   // explicit
+                                   Pair("statement/com/Reset Connection", 1),
                                    // DO ...()
                                    Pair("statement/sql/do", 1),
                                    // events, metadata-locks
-                                   Pair("statement/sql/select", 3),
-                                   // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 4)));
+                                   Pair("statement/sql/select", 4),
+                                   // connect, explicit
+                                   Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(
                                    // explicit
@@ -4206,12 +4209,11 @@ TEST_P(ShareConnectionTest,
     if (can_share) {
       EXPECT_THAT(
           *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 2),  // from-pool
-                      Pair("statement/sql/begin", 2),      // START TRANSACTION
+          ElementsAre(Pair("statement/sql/begin", 1),      // START TRANSACTION
                       Pair("statement/sql/do", 1),         // DO ...()
                       Pair("statement/sql/rollback", 1),   // ROLLBACK
                       Pair("statement/sql/select", 1),     //
-                      Pair("statement/sql/set_option", 3)  // connect, from-pool
+                      Pair("statement/sql/set_option", 1)  // connect
                       ));
     } else {
       EXPECT_THAT(
@@ -4245,18 +4247,18 @@ TEST_P(ShareConnectionTest,
 
     if (can_share) {
       EXPECT_THAT(*events_res, ElementsAre(
-                                   // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 4),
+                                   // explicit
+                                   Pair("statement/com/Reset Connection", 1),
                                    // START TRANSACTION
-                                   Pair("statement/sql/begin", 2),
+                                   Pair("statement/sql/begin", 1),
                                    // DO ...()
                                    Pair("statement/sql/do", 1),
                                    // ROLLBACK
                                    Pair("statement/sql/rollback", 1),
                                    // events, metadata-locks
-                                   Pair("statement/sql/select", 3),
-                                   // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 5)));
+                                   Pair("statement/sql/select", 4),
+                                   // connect, explicit
+                                   Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(
                                    // from-pool
@@ -4299,31 +4301,38 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_read_locks) {
 
   const bool can_share = GetParam().can_share();
 
+  SCOPED_TRACE("// connect");
   ASSERT_NO_ERROR(
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
+  SCOPED_TRACE("// check if connection is available for sharing");
+  {
+    if (can_share) {
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
+    } else {
+      auto stashed_res = shared_router()->stashed_server_connections();
+      ASSERT_NO_ERROR(stashed_res);
+      EXPECT_EQ(*stashed_res, 0);
+    }
+  }
+
+  SCOPED_TRACE("// DO SERVICE_GET_READ_LOCKS()");
   {
     auto cmd_res = cli.query("DO SERVICE_GET_READ_LOCKS('ns', 'lock1', 0)");
     ASSERT_NO_ERROR(cmd_res);
   }
 
+  SCOPED_TRACE("// check if connection is available for sharing");
   {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
-
-    if (can_share) {
-      EXPECT_THAT(
-          *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
-                      Pair("statement/sql/do", 1),                // DO ...()
-                      Pair("statement/sql/select", 1),
-                      Pair("statement/sql/set_option", 2)  // connect, from-pool
-                      ));
-    } else {
-      EXPECT_THAT(*events_res, ElementsAre(Pair("statement/sql/do", 1)));
-    }
+    auto stashed_res = shared_router()->stashed_server_connections();
+    ASSERT_NO_ERROR(stashed_res);
+    // the connection should NOT be stashed as SERVICE_GET_READ_LOCKS blocks
+    // sharing.
+    EXPECT_EQ(*stashed_res, 0);
   }
 
+  SCOPED_TRACE("// check if locks are in place");
   {
     auto query_res =
         query_one_result(cli,
@@ -4338,34 +4347,32 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_read_locks) {
                                         "SHARED", "GRANTED")));
   }
 
-  ASSERT_NO_ERROR(cli.reset_connection());
-
   {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
-
-    if (can_share) {
-      EXPECT_THAT(*events_res, ElementsAre(
-                                   // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 3),
-                                   // DO ...()
-                                   Pair("statement/sql/do", 1),
-                                   // events, metadata-locks
-                                   Pair("statement/sql/select", 3),
-                                   // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 4)));
-    } else {
-      EXPECT_THAT(*events_res, ElementsAre(
-                                   // explicit
-                                   Pair("statement/com/Reset Connection", 1),
-                                   // DO ...()
-                                   Pair("statement/sql/do", 1),
-                                   // events, metadata-locks
-                                   Pair("statement/sql/select", 2)));
-    }
+    auto stashed_res = shared_router()->stashed_server_connections();
+    ASSERT_NO_ERROR(stashed_res);
+    // the connection should NOT be stashed as SERVICE_GET_READ_LOCKS blocks
+    // sharing.
+    EXPECT_EQ(*stashed_res, 0);
   }
 
-  // reset-connection should clear the locks.
+  SCOPED_TRACE("// reset the connection to remove the locks");
+  ASSERT_NO_ERROR(cli.reset_connection());
+
+  SCOPED_TRACE("// check if connection is available for sharing");
+  if (can_share) {
+    // wait a bit for the connection to be stashed.
+    //
+    // after reset_connection finished for the client, the router may still
+    // initialize the session-trackers.
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
+  } else {
+    auto stashed_res = shared_router()->stashed_server_connections();
+    ASSERT_NO_ERROR(stashed_res);
+    EXPECT_EQ(*stashed_res, 0);
+  }
+
+  SCOPED_TRACE("// reset-connection should clear the locks.");
   {
     auto query_res =
         query_one_result(cli,
@@ -4396,48 +4403,67 @@ TEST_P(ShareConnectionTest,
 
   const bool can_share = GetParam().can_share();
 
+  SCOPED_TRACE("// connect");
   ASSERT_NO_ERROR(
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
+  SCOPED_TRACE("// check if connection is available for sharing");
+  {
+    if (can_share) {
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
+    } else {
+      auto stashed_res = shared_router()->stashed_server_connections();
+      ASSERT_NO_ERROR(stashed_res);
+      EXPECT_EQ(*stashed_res, 0);
+    }
+  }
+
+  SCOPED_TRACE("// start transaction.");
   {
     auto cmd_res = cli.query("START TRANSACTION");
     ASSERT_NO_ERROR(cmd_res);
   }
 
+  SCOPED_TRACE("// check if connection is available for sharing");
+  {
+    if (can_share) {
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
+    } else {
+      auto stashed_res = shared_router()->stashed_server_connections();
+      ASSERT_NO_ERROR(stashed_res);
+      EXPECT_EQ(*stashed_res, 0);
+    }
+  }
+
+  SCOPED_TRACE("// get a read-lock");
   {
     auto cmd_res = cli.query("DO SERVICE_GET_READ_LOCKS('ns', 'lock1', 0)");
     ASSERT_NO_ERROR(cmd_res);
   }
 
+  SCOPED_TRACE("// check if connection is not available for sharing");
+  {
+    auto stashed_res = shared_router()->stashed_server_connections();
+    ASSERT_NO_ERROR(stashed_res);
+    EXPECT_EQ(*stashed_res, 0);
+  }
+
+  SCOPED_TRACE("// ROLLBACK to clear transaction state.");
   {
     auto cmd_res = cli.query("ROLLBACK");
     ASSERT_NO_ERROR(cmd_res);
   }
 
+  SCOPED_TRACE("// check if connection is still not available for sharing");
   {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
-
-    if (can_share) {
-      EXPECT_THAT(
-          *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 2),  // from-pool
-                      Pair("statement/sql/begin", 2),      // START TRANSACTION
-                      Pair("statement/sql/do", 1),         // DO ...()
-                      Pair("statement/sql/rollback", 1),   // ROLLBACK
-                      Pair("statement/sql/select", 1),     //
-                      Pair("statement/sql/set_option", 3)  // connect, from-pool
-                      ));
-    } else {
-      EXPECT_THAT(
-          *events_res,
-          ElementsAre(Pair("statement/sql/begin", 1),    // START TRANSACTION
-                      Pair("statement/sql/do", 1),       // DO ...()
-                      Pair("statement/sql/rollback", 1)  // ROLLBACK
-                      ));
-    }
+    auto stashed_res = shared_router()->stashed_server_connections();
+    ASSERT_NO_ERROR(stashed_res);
+    EXPECT_EQ(*stashed_res, 0);
   }
 
+  SCOPED_TRACE("// check if locks are in place");
   {
     auto query_res =
         query_one_result(cli,
@@ -4452,42 +4478,24 @@ TEST_P(ShareConnectionTest,
                                         "SHARED", "GRANTED")));
   }
 
+  SCOPED_TRACE("// reset the connection to remove the locks");
   ASSERT_NO_ERROR(cli.reset_connection());
 
-  {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
-
-    if (can_share) {
-      EXPECT_THAT(*events_res, ElementsAre(
-                                   // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 4),
-                                   // START TRANSACTION
-                                   Pair("statement/sql/begin", 2),
-                                   // DO ...()
-                                   Pair("statement/sql/do", 1),
-                                   // ROLLBACK
-                                   Pair("statement/sql/rollback", 1),
-                                   // events, metadata-locks
-                                   Pair("statement/sql/select", 3),
-                                   // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 5)));
-    } else {
-      EXPECT_THAT(*events_res, ElementsAre(
-                                   // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 1),
-                                   // START TRANSACTION
-                                   Pair("statement/sql/begin", 1),
-                                   // DO ...()
-                                   Pair("statement/sql/do", 1),
-                                   // ROLLBACK
-                                   Pair("statement/sql/rollback", 1),
-                                   // events, metadata-locks
-                                   Pair("statement/sql/select", 2)));
-    }
+  SCOPED_TRACE("// check if connection is available for sharing");
+  if (can_share) {
+    // wait a bit for the connection to be stashed.
+    //
+    // after reset_connection finished for the client, the router may still
+    // initialize the session-trackers.
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
+  } else {
+    auto stashed_res = shared_router()->stashed_server_connections();
+    ASSERT_NO_ERROR(stashed_res);
+    EXPECT_EQ(*stashed_res, 0);
   }
 
-  // reset-connection should clear the locks.
+  SCOPED_TRACE("// reset-connection should clear the locks.");
   {
     auto query_res =
         query_one_result(cli,
@@ -4512,35 +4520,38 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_shared) {
   cli.password("");
   cli.use_schema("testing");
 
+  SCOPED_TRACE("// connect");
   const bool can_share = GetParam().can_share();
 
   ASSERT_NO_ERROR(
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
+  SCOPED_TRACE("// check if connection is available for sharing");
+  {
+    if (can_share) {
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
+    } else {
+      auto stashed_res = shared_router()->stashed_server_connections();
+      ASSERT_NO_ERROR(stashed_res);
+      EXPECT_EQ(*stashed_res, 0);
+    }
+  }
+
+  SCOPED_TRACE("// get a version-token");
   {
     auto cmd_res = cli.query("DO VERSION_TOKENS_LOCK_SHARED('token1', 0)");
     ASSERT_NO_ERROR(cmd_res);
   }
 
+  SCOPED_TRACE("// check if connection is not available for sharing");
   {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
-
-    if (can_share) {
-      EXPECT_THAT(
-          *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
-                      Pair("statement/sql/do", 1),                // DO ...()
-                      Pair("statement/sql/select", 1),            //
-                      Pair("statement/sql/set_option", 2)  // connect, from-pool
-                      ));
-    } else {
-      EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/sql/do", 1)  // DO ...()
-                              ));
-    }
+    auto stashed_res = shared_router()->stashed_server_connections();
+    ASSERT_NO_ERROR(stashed_res);
+    EXPECT_EQ(*stashed_res, 0);
   }
 
+  SCOPED_TRACE("// check if locks are in place");
   {
     auto query_res =
         query_one_result(cli,
@@ -4555,34 +4566,23 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_shared) {
                                 "token1", "SHARED", "GRANTED")));
   }
 
+  SCOPED_TRACE("// reset the connection to remove the locks");
   ASSERT_NO_ERROR(cli.reset_connection());
 
-  {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
-
-    if (can_share) {
-      EXPECT_THAT(*events_res, ElementsAre(
-                                   // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 3),
-                                   // DO ...()
-                                   Pair("statement/sql/do", 1),
-                                   // events, metadata-locks
-                                   Pair("statement/sql/select", 3),
-                                   // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 4)));
-    } else {
-      EXPECT_THAT(*events_res, ElementsAre(
-                                   // from-pool
-                                   Pair("statement/com/Reset Connection", 1),
-                                   // DO ...()
-                                   Pair("statement/sql/do", 1),
-                                   // events, metadata-locks
-                                   Pair("statement/sql/select", 2)));
-    }
+  if (can_share) {
+    // wait a bit for the connection to be stashed.
+    //
+    // after reset_connection finished for the client, the router may still
+    // initialize the session-trackers.
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
+  } else {
+    auto stashed_res = shared_router()->stashed_server_connections();
+    ASSERT_NO_ERROR(stashed_res);
+    EXPECT_EQ(*stashed_res, 0);
   }
 
-  // reset-connection should clear the locks.
+  SCOPED_TRACE("// reset-connection should clear the locks.");
   {
     auto query_res =
         query_one_result(cli,
@@ -4609,33 +4609,36 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_exclusive) {
 
   const bool can_share = GetParam().can_share();
 
+  SCOPED_TRACE("// connect");
   ASSERT_NO_ERROR(
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
+  SCOPED_TRACE("// check if connection is available for sharing");
+  {
+    if (can_share) {
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
+    } else {
+      auto stashed_res = shared_router()->stashed_server_connections();
+      ASSERT_NO_ERROR(stashed_res);
+      EXPECT_EQ(*stashed_res, 0);
+    }
+  }
+
+  SCOPED_TRACE("// get a lock");
   {
     auto cmd_res = cli.query("DO VERSION_TOKENS_LOCK_EXCLUSIVE('token1', 0)");
     ASSERT_NO_ERROR(cmd_res);
   }
 
+  SCOPED_TRACE("// check if connection is not available for sharing");
   {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
-
-    if (can_share) {
-      EXPECT_THAT(
-          *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
-                      Pair("statement/sql/do", 1),                // DO ...()
-                      Pair("statement/sql/select", 1),            //
-                      Pair("statement/sql/set_option", 2)  // connect, from-pool
-                      ));
-    } else {
-      EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/sql/do", 1)  // DO ...()
-                              ));
-    }
+    auto stashed_res = shared_router()->stashed_server_connections();
+    ASSERT_NO_ERROR(stashed_res);
+    EXPECT_EQ(*stashed_res, 0);
   }
 
+  SCOPED_TRACE("// check if locks are in place");
   {
     auto query_res =
         query_one_result(cli,
@@ -4650,34 +4653,24 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_exclusive) {
                                 "token1", "EXCLUSIVE", "GRANTED")));
   }
 
+  SCOPED_TRACE("// reset the connection to remove the locks");
   ASSERT_NO_ERROR(cli.reset_connection());
 
-  {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
-
-    if (can_share) {
-      EXPECT_THAT(*events_res, ElementsAre(
-                                   // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 3),
-                                   // DO ...()
-                                   Pair("statement/sql/do", 1),
-                                   // events, metadata-locks
-                                   Pair("statement/sql/select", 3),
-                                   // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 4)));
-    } else {
-      EXPECT_THAT(*events_res, ElementsAre(
-                                   // explicit
-                                   Pair("statement/com/Reset Connection", 1),
-                                   // DO ...()
-                                   Pair("statement/sql/do", 1),
-                                   // events, metadata-locks
-                                   Pair("statement/sql/select", 2)));
-    }
+  SCOPED_TRACE("// check if connection is available for sharing");
+  if (can_share) {
+    // wait a bit for the connection to be stashed.
+    //
+    // after reset_connection finished for the client, the router may still
+    // initialize the session-trackers.
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
+  } else {
+    auto stashed_res = shared_router()->stashed_server_connections();
+    ASSERT_NO_ERROR(stashed_res);
+    EXPECT_EQ(*stashed_res, 0);
   }
 
-  // reset-connection should clear the locks.
+  SCOPED_TRACE("// reset-connection should clear the locks.");
   {
     auto query_res =
         query_one_result(cli,
@@ -4700,27 +4693,42 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_fail) {
 
   const bool can_share = GetParam().can_share();
 
+  SCOPED_TRACE("// connect");
   ASSERT_NO_ERROR(
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
-  auto res = cli.prepare("SEL ?");
-  ASSERT_ERROR(res);
-  EXPECT_EQ(res.error().value(), 1064) << res.error();  // Syntax Error
-
+  SCOPED_TRACE("// check if connection is available for sharing");
   {
-    auto events_res = changed_event_counters(cli);
-    ASSERT_NO_ERROR(events_res);
-
     if (can_share) {
-      EXPECT_THAT(*events_res,
-                  ElementsAre(Pair("statement/com/Prepare", 1),
-                              Pair("statement/com/Reset Connection", 2),
-                              Pair("statement/sql/select", 1),        //
-                              Pair("statement/sql/set_option", 3),    //
-                              Pair("statement/sql/show_warnings", 1)  //
-                              ));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
     } else {
-      EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Prepare", 1)));
+      auto stashed_res = shared_router()->stashed_server_connections();
+      ASSERT_NO_ERROR(stashed_res);
+      EXPECT_EQ(*stashed_res, 0);
+    }
+  }
+
+  SCOPED_TRACE("// prepare a broken SQL statement.");
+  {
+    auto res = cli.prepare("SEL ?");
+    ASSERT_ERROR(res);
+    EXPECT_EQ(res.error().value(), 1064) << res.error();  // Syntax Error
+  }
+
+  SCOPED_TRACE("// check if connection is available for sharing");
+  {
+    if (can_share) {
+      // wait for the connection to be stashed.
+      //
+      // The connection may not be stashed after prepare() returns as the router
+      // injects a SHOW WARNINGS before stashing.
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
+    } else {
+      auto stashed_res = shared_router()->stashed_server_connections();
+      ASSERT_NO_ERROR(stashed_res);
+      EXPECT_EQ(*stashed_res, 0);
     }
   }
 }
@@ -4767,11 +4775,9 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Execute", 1),
                               Pair("statement/com/Prepare", 1),
-                              // from-pool
-                              Pair("statement/com/Reset Connection", 1),
-                              // connect, from-pool
+                              // connect
                               Pair("statement/sql/select", 1),     //
-                              Pair("statement/sql/set_option", 2)  //
+                              Pair("statement/sql/set_option", 1)  //
                               ));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Execute", 1),
@@ -4790,11 +4796,11 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Execute", 1),
                               Pair("statement/com/Prepare", 1),
-                              // from-pool, events, from-pool
-                              Pair("statement/com/Reset Connection", 3),
                               // events
-                              Pair("statement/sql/select", 2),
-                              Pair("statement/sql/set_option", 4)));
+                              Pair("statement/com/Reset Connection", 1),
+                              // events
+                              Pair("statement/sql/select", 3),
+                              Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Execute", 1),
@@ -4868,9 +4874,8 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_fetch) {
                   ElementsAre(Pair("statement/com/Execute", 1),
                               Pair("statement/com/Fetch", 2),
                               Pair("statement/com/Prepare", 1),
-                              Pair("statement/com/Reset Connection", 1),
                               Pair("statement/sql/select", 1),
-                              Pair("statement/sql/set_option", 2)));
+                              Pair("statement/sql/set_option", 1)));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Execute", 1),
                                            Pair("statement/com/Fetch", 2),
@@ -5108,11 +5113,9 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_no_result) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Execute", 1),
                               Pair("statement/com/Prepare", 1),
-                              // from-pool
-                              Pair("statement/com/Reset Connection", 1),
                               Pair("statement/sql/select", 1),
-                              // connect, from-pool
-                              Pair("statement/sql/set_option", 2)  //
+                              // connect
+                              Pair("statement/sql/set_option", 1)  //
                               ));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Execute", 1),
@@ -5132,11 +5135,11 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_no_result) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Execute", 1),
                               Pair("statement/com/Prepare", 1),
-                              // from-pool, events, from-pool
-                              Pair("statement/com/Reset Connection", 3),
                               // events
-                              Pair("statement/sql/select", 2),
-                              Pair("statement/sql/set_option", 4)));
+                              Pair("statement/com/Reset Connection", 1),
+                              // events
+                              Pair("statement/sql/select", 3),
+                              Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Execute", 1),
@@ -5192,12 +5195,10 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_call) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Execute", 1),
                               Pair("statement/com/Prepare", 1),
-                              // from-pool
-                              Pair("statement/com/Reset Connection", 1),
                               Pair("statement/sp/stmt", 2),
                               Pair("statement/sql/select", 1),
-                              // connect, from-pool
-                              Pair("statement/sql/set_option", 2)  //
+                              // connect
+                              Pair("statement/sql/set_option", 1)  //
                               ));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Execute", 1),
@@ -5218,12 +5219,12 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_call) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Execute", 1),
                               Pair("statement/com/Prepare", 1),
-                              // from-pool, events, from-pool
-                              Pair("statement/com/Reset Connection", 3),
+                              // from-pool, events
+                              Pair("statement/com/Reset Connection", 1),
                               Pair("statement/sp/stmt", 2),
                               // events
-                              Pair("statement/sql/select", 2),
-                              Pair("statement/sql/set_option", 4)));
+                              Pair("statement/sql/select", 3),
+                              Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Execute", 1),
@@ -5567,7 +5568,8 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
   {
@@ -5576,7 +5578,8 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
   }
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
   ASSERT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
@@ -5603,13 +5606,15 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
   }
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
   EXPECT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_OFF));
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
   {
@@ -5639,7 +5644,8 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
   {
@@ -5658,7 +5664,8 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
   }
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
   ASSERT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
@@ -5685,13 +5692,15 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
   }
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
   EXPECT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_OFF));
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
   {
@@ -7229,12 +7238,12 @@ TEST_P(ChangeUserTest, classic_protocol) {
 
     if (can_share && expect_success) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(1, 10s));
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
     }
 
     if (can_share && can_fetch_password) {
-      expected_reset_connection_ += 1;
-      expected_set_option_ += 1;
+      // expected_reset_connection_ += 1;
+      // expected_set_option_ += 1;
     }
 
     {
@@ -7254,8 +7263,8 @@ TEST_P(ChangeUserTest, classic_protocol) {
     ASSERT_NO_ERROR(events_res);
 
     if (can_share && can_fetch_password) {
-      expected_reset_connection_ += 1;
-      expected_set_option_ += 1;
+      // expected_reset_connection_ += 1;
+      // expected_set_option_ += 1;
     }
 
     if (expected_reset_connection_ > 0) {
@@ -7297,7 +7306,7 @@ TEST_P(ChangeUserTest, classic_protocol) {
 
     if (can_share && expect_success) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(1, 10s));
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
     }
   }
 
@@ -7306,8 +7315,8 @@ TEST_P(ChangeUserTest, classic_protocol) {
     ASSERT_NO_ERROR(events_res);
 
     if (can_share && can_fetch_password) {
-      expected_reset_connection_ += 1;
-      expected_set_option_ += 1;
+      // expected_reset_connection_ += 1;
+      // expected_set_option_ += 1;
     }
 
     if (expected_reset_connection_ > 0) {
@@ -7347,6 +7356,1636 @@ INSTANTIATE_TEST_SUITE_P(
              "_ssl__via_" + std::get<1>(info.param).testname + "_" +
              std::get<2>(info.param).scenario +
              (schema.empty() ? "_without_schema"s : ("_with_schema_" + schema));
+    });
+
+// sharable statements.
+
+struct Event {
+  Event(std::string_view type, std::string_view stmt)
+      : type_(type), stmt_(stmt) {}
+
+  static Event sql_select(std::string_view stmt) {
+    return {"statement/sql/select", stmt};
+  }
+
+  static Event sql_set_option(std::string_view stmt) {
+    return {"statement/sql/set_option", stmt};
+  }
+
+  static Event sql_lock_tables(std::string_view stmt) {
+    return {"statement/sql/lock_tables", stmt};
+  }
+
+  static Event sql_unlock_tables(std::string_view stmt) {
+    return {"statement/sql/unlock_tables", stmt};
+  }
+
+  static Event sql_flush(std::string_view stmt) {
+    return {"statement/sql/flush", stmt};
+  }
+
+  static Event sql_lock_instance(std::string_view stmt) {
+    return {"statement/sql/lock_instance", stmt};
+  }
+
+  static Event com_reset_connection() {
+    return {"statement/com/Reset Connection", "<NULL>"};
+  }
+
+  static Event sql_begin(std::string_view stmt) {
+    return {"statement/sql/begin", stmt};
+  }
+
+  static Event sql_rollback(std::string_view stmt) {
+    return {"statement/sql/rollback", stmt};
+  }
+
+  static Event sql_do(std::string_view stmt) {
+    return {"statement/sql/do", stmt};
+  }
+
+  static Event sql_commit(std::string_view stmt) {
+    return {"statement/sql/commit", stmt};
+  }
+
+  static Event sql_drop_table(std::string_view stmt) {
+    return {"statement/sql/drop_table", stmt};
+  }
+
+  static Event sql_create_table(std::string_view stmt) {
+    return {"statement/sql/create_table", stmt};
+  }
+
+  static Event sql_prepare_sql(std::string_view stmt) {
+    return {"statement/sql/prepare_sql", stmt};
+  }
+
+  static Event sql_show_warnings(std::string_view stmt) {
+    return {"statement/sql/show_warnings", stmt};
+  }
+
+  friend bool operator==(const Event &lhs, const Event &rhs) {
+    return lhs.type_ == rhs.type_ && lhs.stmt_ == rhs.stmt_;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const Event &ev) {
+    os << testing::PrintToString(std::pair(ev.type_, ev.stmt_));
+
+    return os;
+  }
+
+ private:
+  std::string type_;
+  std::string stmt_;
+};
+
+static stdx::expected<std::vector<Event>, MysqlError> statement_history(
+    MysqlClient &cli) {
+  auto hist_res = query_one_result(
+      cli,
+      "SELECT event_name, digest_text "
+      "  FROM performance_schema.events_statements_history AS h"
+      "  JOIN performance_schema.threads AS t "
+      "    ON (h.thread_id = t.thread_id)"
+      " WHERE t.processlist_id = CONNECTION_ID()"
+      " ORDER BY event_id");
+
+  std::vector<Event> res;
+
+  for (auto row : *hist_res) {
+    res.emplace_back(row[0], row[1]);
+  }
+
+  return res;
+}
+
+struct Stmt {
+  static Event select_session_vars() {
+    return Event::sql_select(
+        "SELECT ? , @@SESSION . `collation_connection` UNION "
+        "SELECT ? , @@SESSION . `character_set_client` UNION "
+        "SELECT ? , @@SESSION . `sql_mode`");
+  }
+
+  static Event set_session_tracker() {
+    return Event::sql_set_option(
+        "SET "
+        "@@SESSION . `session_track_system_variables` = ? , "
+        "@@SESSION . `session_track_gtids` = ? , "
+        "@@SESSION . `session_track_schema` = ? , "
+        "@@SESSION . `session_track_state_change` = ? , "
+        "@@SESSION . `session_track_transaction_info` = ?");
+  }
+
+  static Event restore_session_vars() {
+    return Event::sql_set_option(
+        "SET "
+        "@@SESSION . `session_track_system_variables` = ? , "
+        "@@SESSION . `character_set_client` = ? , "
+        "@@SESSION . `collation_connection` = ? , "
+        "@@SESSION . `session_track_gtids` = ? , "
+        "@@SESSION . `session_track_schema` = ? , "
+        "@@SESSION . `session_track_state_change` = ? , "
+        "@@SESSION . `session_track_transaction_info` = ? , "
+        "@@SESSION . `sql_mode` = ?");
+  }
+
+  static Event select_history() {
+    return Event::sql_select(
+        "SELECT `event_name` , `digest_text` "
+        "FROM `performance_schema` . `events_statements_history` AS `h` "
+        "JOIN `performance_schema` . `threads` AS `t` "
+        "ON ( `h` . `thread_id` = `t` . `thread_id` ) "
+        "WHERE `t` . `processlist_id` = `CONNECTION_ID` ( ) "
+        "ORDER BY `event_id`");
+  }
+
+  static Event select_wait_gtid() {
+    return Event::sql_select("SELECT NOT `WAIT_FOR_EXECUTED_GTID_SET` (...)");
+  }
+};
+
+struct StatementSharableParam {
+  std::string test_name;
+
+  std::string requirement_id;
+
+  struct Ctx {
+    const ShareConnectionParam &connect_param;
+
+    MysqlClient &cli;
+    SharedRouter *shared_router;
+  };
+
+  std::function<void(Ctx &ctx)> result;
+};
+
+class StatementSharableTest
+    : public ShareConnectionTestBase,
+      public ::testing::WithParamInterface<
+          std::tuple<StatementSharableParam, ShareConnectionParam>> {
+ public:
+  static void SetUpTestSuite() {
+    ShareConnectionTestBase::SetUpTestSuite();
+
+    for (auto &srv : shared_servers()) {
+      if (srv->mysqld_failed_to_start()) {
+        GTEST_SKIP() << "mysql-server failed to start.";
+      }
+
+      auto admin_cli_res = srv->admin_cli();
+      ASSERT_NO_ERROR(admin_cli_res);
+      auto admin_cli = std::move(*admin_cli_res);
+
+      ASSERT_NO_ERROR(admin_cli.query("DROP TABLE IF EXISTS testing.t1"));
+      ASSERT_NO_ERROR(admin_cli.query("CREATE TABLE testing.t1 (id INT)"));
+    }
+  }
+
+  void SetUp() override {
+    for (auto &srv : shared_servers()) {
+      if (srv->mysqld_failed_to_start()) {
+        GTEST_SKIP() << "mysql-server failed to start.";
+      }
+
+      srv->close_all_connections();  // reset the router's connection-pool
+    }
+  }
+
+  static void TearDownTestSuite() {
+    for (auto &srv : shared_servers()) {
+      if (srv->mysqld_failed_to_start()) {
+        GTEST_SKIP() << "mysql-server failed to start.";
+      }
+
+      auto admin_cli_res = srv->admin_cli();
+      ASSERT_NO_ERROR(admin_cli_res);
+      auto admin_cli = std::move(*admin_cli_res);
+
+      ASSERT_NO_ERROR(admin_cli.query("DROP TABLE IF EXISTS testing.t1"));
+    }
+
+    ShareConnectionTestBase::TearDownTestSuite();
+  }
+
+ protected:
+};
+
+TEST_P(StatementSharableTest, check) {
+  auto [test_param, connect_param] = GetParam();
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  MysqlClient cli;
+
+  cli.set_option(MysqlClient::GetServerPublicKey(true));
+  cli.username(account.username);
+  cli.password(account.password);
+
+  auto connect_res = cli.connect(shared_router()->host(),
+                                 shared_router()->port(connect_param));
+  ASSERT_NO_ERROR(connect_res);
+
+  if (connect_param.can_share()) {
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
+  }
+
+  StatementSharableParam::Ctx ctx{connect_param, cli, shared_router()};
+  test_param.result(ctx);
+}
+
+static const StatementSharableParam statement_sharable_params[] = {
+    {"get_diagnostics",  //
+     "FR7.1",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::string stmt = "GET DIAGNOSTICS @p1 = NUMBER";
+
+       if (connect_param.can_share()) {
+         auto query_res = cli.query(stmt);
+         ASSERT_ERROR(query_res);
+         EXPECT_EQ(query_res.error().value(), 3566) << query_res.error();
+       } else {
+         auto query_res = query_one_result(cli, stmt);
+         ASSERT_NO_ERROR(query_res);
+       }
+
+       {
+         auto query_res =
+             cli.query("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+         ASSERT_NO_ERROR(query_res);
+       }
+
+       {
+         auto query_res = query_one_result(cli, stmt);
+         ASSERT_NO_ERROR(query_res);
+       }
+
+       {
+         auto query_res = cli.query("COMMIT");
+         ASSERT_NO_ERROR(query_res);
+       }
+
+       if (connect_param.can_share()) {
+         ASSERT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 10s));
+       }
+     }},
+    {"select_last_insert_id",  //
+     "FR7.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::string stmt = "SELECT LAST_INSERT_ID()";
+
+       if (connect_param.can_share()) {
+         auto query_res = cli.query(stmt);
+         ASSERT_ERROR(query_res);
+         EXPECT_EQ(query_res.error().value(), 3566) << query_res.error();
+       } else {
+         auto query_res = query_one_result(cli, stmt);
+         ASSERT_NO_ERROR(query_res);
+       }
+
+       {
+         auto query_res =
+             cli.query("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+         ASSERT_NO_ERROR(query_res);
+       }
+
+       {
+         auto query_res = query_one_result(cli, stmt);
+         ASSERT_NO_ERROR(query_res);
+       }
+
+       {
+         auto query_res = cli.query("COMMIT");
+         ASSERT_NO_ERROR(query_res);
+       }
+
+       if (connect_param.can_share()) {
+         ASSERT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 10s));
+       }
+     }},
+    {"start_trx_consistent_snapshot_commit",  //
+     "FR5.1",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res =
+             cli.query("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_begin("START TRANSACTION WITH CONSISTENT SNAPSHOT"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.query("DO 1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_do("DO ?"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.query("COMMIT");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_commit("COMMIT"));
+       }
+
+       if (connect_param.can_share()) {
+         // after COMMIT, sharing is possible again.
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+    {"start_trx_consistent_snapshot_rollback",  //
+     "FR5.1",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res =
+             cli.query("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_begin("START TRANSACTION WITH CONSISTENT SNAPSHOT"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.query("DO 1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_do("DO ?"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.query("rollback");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_rollback("ROLLBACK"));
+       }
+
+       if (connect_param.can_share()) {
+         // after ROLLBACK, sharing is possible again.
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+    {"start_trx_commit",  //
+     "FR5.1",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res = cli.query("START TRANSACTION");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_begin("START TRANSACTION"));
+       }
+
+       if (connect_param.can_share()) {
+         // after START TRANSACTION the trx-state is captured, but the
+         // connection is still sharable.
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.query("COMMIT");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_commit("COMMIT"));
+       }
+
+       if (connect_param.can_share()) {
+         // after COMMIT, sharing is possible again.
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+    {"lock_tables",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res = cli.query("LOCK TABLES testing.t1 READ");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_lock_tables("LOCK TABLES `testing` . `t1` READ"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.query("UNLOCK TABLES");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_unlock_tables("UNLOCK TABLES"));
+       }
+
+       if (connect_param.can_share()) {
+         // after UNLOCK TABLES, sharing is possible again.
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"flush_all_tables_with_read_lock",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res = cli.query("FLUSH TABLES WITH READ LOCK");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_flush("FLUSH TABLES WITH READ LOCK"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+    {"flush_all_tables_with_read_lock_and_unlock",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res = cli.query("FLUSH TABLES WITH READ LOCK");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_flush("FLUSH TABLES WITH READ LOCK"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.query("UNLOCK TABLES");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_unlock_tables("UNLOCK TABLES"));
+       }
+
+       // does not unlock sharing.
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection does.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"flush_some_tables_with_read_lock",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res = cli.query("FLUSH TABLES testing.t1 WITH READ LOCK");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_flush("FLUSH TABLES `testing` . `t1` WITH READ LOCK"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.query("UNLOCK TABLES");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_unlock_tables("UNLOCK TABLES"));
+       }
+
+       if (connect_param.can_share()) {
+         ASSERT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 10s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       // ... but reset-connection does.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"flush_some_tables_for_export",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res = cli.query("FLUSH TABLES testing.t1 FOR export");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_flush("FLUSH TABLES `testing` . `t1` FOR EXPORT"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.query("UNLOCK TABLES");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_unlock_tables("UNLOCK TABLES"));
+       }
+
+       // ... unblocks sharing.
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       // ... reset-connection does too.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"lock_instance_for_backup",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res = cli.query("LOCK instance for Backup");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_lock_instance("LOCK INSTANCE FOR BACKUP"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection does.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"set_user_var_rollback",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res = cli.query("SET @user := 1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_set_option("SET @? := ?"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = cli.query("ROLLBACK");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_rollback("ROLLBACK"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection does.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"set_user_var_eq_reset",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res = cli.query("SET @user = 1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_set_option("SET @? = ?"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection does.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"set_user_var_assign_reset",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       {
+         auto query_res = cli.query("SET @user := 1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_set_option("SET @? := ?"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection does.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"select_user_var_reset",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       // SELECT user-var blocks sharing.
+       {
+         auto query_res = query_one_result(cli, "SELECT @user := 1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_select("SELECT @? := ?"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection unblocks it.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"select_into_user_var_and_reset",  //
+     "FR5.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       // SELECT INTO user-var ...
+       {
+         auto query_res = query_one_result(cli, "SELECT 1 INTO @user");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_select("SELECT ? INTO @?"));
+       }
+
+       // ... blocks sharing
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection unblocks it.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"get_lock",  //
+     "FR6.1",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       // DO GET_LOCK(...) ...
+       {
+         auto query_res = query_one_result(cli, "DO get_lock('abc', 0)");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_do("DO `get_lock` (...)"));
+       }
+
+       // ... blocks sharing
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection unblocks it.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"service_get_write_lock",  //
+     "FR6.1",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       // DO SERVICE_GET_WRITE_LOCKS(...) ...
+       {
+         auto query_res = query_one_result(
+             cli, "DO service_get_WRITE_locks('ns', 'abc', 0)");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_do("DO `service_get_WRITE_locks` (...)"));
+       }
+
+       // ... blocks sharing
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection unblocks it.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"service_get_read_lock",  //
+     "FR6.1",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       // ... SERVICE_GET_WRITE_LOCKS(...) ...
+       {
+         auto query_res = query_one_result(
+             cli, "SELECT service_get_READ_locks('ns', 'abc', 0)");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT `service_get_READ_locks` (...)"));
+       }
+
+       // ... blocks sharing
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection unblocks it.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"create_temp_table",  //
+     "FR6.2",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       // ... SERVICE_GET_WRITE_LOCKS(...) ...
+       {
+         auto query_res = query_one_result(
+             cli, "create temporary table testing.temp ( id int )");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_create_table(
+             "CREATE TEMPORARY TABLE `testing` . `temp` ( `id` INTEGER )"));
+       }
+
+       // ... blocks sharing
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.temp");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `temp`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection unblocks it.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"prepare_stmt_reset",  //
+     "FR6.3",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       //
+       {
+         auto query_res = query_one_result(cli, "prepare stmt from 'select 1'");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_prepare_sql("PREPARE `stmt` FROM ?"));
+       }
+
+       // ... blocks sharing
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection unblocks it.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+    {"sql_calc_found_rows",  //
+     "FR6.4",
+     [](StatementSharableParam::Ctx &ctx) {
+       auto &cli = ctx.cli;
+       const auto &connect_param = ctx.connect_param;
+       SharedRouter *shared_router = ctx.shared_router;
+
+       std::vector<Event> expected_stmts;
+
+       if (connect_param.can_share()) {
+         expected_stmts.emplace_back(Stmt::set_session_tracker());
+
+         expected_stmts.emplace_back(Stmt::select_session_vars());
+       }
+
+       // SQL_CALC_FOUND_ROWS
+       {
+         auto query_res = query_one_result(
+             cli, "SELECT SQL_CALC_FOUND_ROWS * FROM testing.t1 LIMIT 0");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::sql_select(
+             "SELECT SQL_CALC_FOUND_ROWS * FROM `testing` . `t1` LIMIT ?"));
+       }
+
+       // ... blocks sharing
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       {
+         auto query_res = query_one_result(cli, "SELECT * FROM testing.t1");
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(
+             Event::sql_select("SELECT * FROM `testing` . `t1`"));
+       }
+
+       EXPECT_EQ(0, shared_router->stashed_server_connections());
+
+       // ... but reset-connection unblocks it.
+       {
+         auto query_res = cli.reset_connection();
+         ASSERT_NO_ERROR(query_res);
+
+         expected_stmts.emplace_back(Event::com_reset_connection());
+
+         if (connect_param.can_share()) {
+           expected_stmts.emplace_back(Stmt::set_session_tracker());
+           expected_stmts.emplace_back(Stmt::select_session_vars());
+         }
+       }
+
+       if (connect_param.can_share()) {
+         EXPECT_NO_ERROR(
+             shared_router->wait_for_stashed_server_connections(1, 2s));
+       } else {
+         EXPECT_EQ(0, shared_router->stashed_server_connections());
+       }
+
+       auto stmt_hist_res = statement_history(cli);
+       ASSERT_NO_ERROR(stmt_hist_res);
+
+       EXPECT_THAT(*stmt_hist_res, ::testing::ElementsAreArray(expected_stmts));
+
+       expected_stmts.emplace_back(Stmt::select_history());
+     }},
+
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, StatementSharableTest,
+    ::testing::Combine(::testing::ValuesIn(statement_sharable_params),
+                       ::testing::ValuesIn(share_connection_params)),
+    [](auto &info) {
+      return std::get<0>(info.param).test_name + "_via_" +
+             std::get<1>(info.param).testname;
     });
 
 int main(int argc, char *argv[]) {

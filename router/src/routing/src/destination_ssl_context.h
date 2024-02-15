@@ -34,7 +34,7 @@
 #include <string>
 
 #include "mysql/harness/tls_client_context.h"
-#include "ssl_mode.h"  // SslVerify
+#include "mysqlrouter/ssl_mode.h"  // SslVerify
 
 /**
  * TlsClientContext per destination.

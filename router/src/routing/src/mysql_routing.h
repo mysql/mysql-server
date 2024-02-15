@@ -79,12 +79,11 @@
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
 #include "socket_container.h"
-#include "ssl_mode.h"
 #include "tcp_address.h"
 
 namespace mysql_harness {
 class PluginFuncEnv;
-}
+}  // namespace mysql_harness
 
 struct Nothing {};
 class MySQLRouting;

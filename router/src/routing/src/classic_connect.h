@@ -86,6 +86,9 @@ class ConnectProcessor : public Processor {
   stdx::expected<Processor::Result, std::error_code> connected();
   stdx::expected<Processor::Result, std::error_code> error();
 
+  void assign_server_side_connection_after_pool(
+      ConnectionPool::ServerSideConnection server_conn);
+
   Stage stage_{Stage::InitDestination};
 
   net::io_context &io_ctx_;

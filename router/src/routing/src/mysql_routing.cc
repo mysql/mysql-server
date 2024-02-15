@@ -73,12 +73,12 @@
 #include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/routing.h"
+#include "mysqlrouter/ssl_mode.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "plugin_config.h"
 #include "protocol/protocol.h"
 #include "scope_guard.h"
-#include "ssl_mode.h"
 #include "tcp_address.h"
 #include "x_connection.h"
 

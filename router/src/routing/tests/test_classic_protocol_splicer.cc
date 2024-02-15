@@ -38,7 +38,6 @@
 
 #include <openssl/ssl.h>  // SSL_CTX
 
-#include "channel.h"
 #include "connection.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket.h"
@@ -51,8 +50,9 @@
 #include "mysql/harness/tls_error.h"
 #include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/base_protocol.h"
+#include "mysqlrouter/channel.h"
+#include "mysqlrouter/ssl_mode.h"
 #include "openssl_version.h"
-#include "ssl_mode.h"
 #include "test/helpers.h"  // init_test_logger
 
 #define ASSERT_NO_ERROR(x) \

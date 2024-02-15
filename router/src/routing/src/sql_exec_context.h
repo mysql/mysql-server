@@ -125,6 +125,11 @@ class ExecutionContext {
      */
     bool empty() const { return vars_.empty(); }
 
+    /**
+     * clear the system-vars.
+     */
+    void clear() { vars_.clear(); }
+
    private:
     std::map<key_type, value_type, std::less<>> vars_;
   };

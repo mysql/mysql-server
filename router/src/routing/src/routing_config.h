@@ -30,8 +30,8 @@
 
 #include "mysql/harness/filesystem.h"  // Path
 #include "mysqlrouter/routing.h"       // RoutingStrategy, Mode
-#include "protocol/protocol.h"         // Protocol::Type
-#include "ssl_mode.h"
+#include "mysqlrouter/ssl_mode.h"
+#include "protocol/protocol.h"  // Protocol::Type
 #include "tcp_address.h"
 
 /**
