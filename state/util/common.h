@@ -9,6 +9,7 @@
 // 这里编译失败，error: ‘mr_id_t’ does not name a type;
 // 先暂时手动将所有mr_id_t改为int
 // using mr_id_t = int;  // memory region id type
+
 using tx_id_t =
     uint64_t;           // transaction id type, is the same as trx_id_t in mysql
 using coro_id_t = int;  // Coroutine id type
