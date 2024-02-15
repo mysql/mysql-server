@@ -1,0 +1,57 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Create table t1 and setup group of M1(primary), M2(secondary).
+[connection server1]
+SET @@GLOBAL.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @@GLOBAL.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+include/start_group_replication.inc
+
+# 2. Lock table t1 on M2.
+[connection server2]
+SET GLOBAL super_read_only= FALSE;
+LOCK TABLE t1 WRITE;
+SET GLOBAL super_read_only= TRUE;
+
+# 3. INSERT row in M1. Stop GR on M1. M2 will be become primary.
+#    M2 will wait for pending transaction due to LOCK.
+[connection server1]
+INSERT INTO t1 VALUES (1);
+include/stop_group_replication.inc
+
+# 4. UNLOCK table on M2.
+#    UNLOCK statement will be blocked due to consistency
+#    BEFORE_ON_PRIMARY_FAILOVER
+[connection server2]
+UNLOCK TABLES;;
+
+# 5. Check UNLOCK statement executed on other client session does no
+#    release the LOCK table.
+#    KILL QUERY to release the UNLOCK.
+[connection server_2]
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
+UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
+KILL QUERY CONNECTION_ID;
+[connection server2]
+ERROR HY000: Held statement aborted because Group Replication plugin got shut down or thread was killed while new primary member was applying backlog.
+
+# 6. Execute the UNLOCK statement with consistency set to EVENTUAL.
+SET @group_replication_consistency_save= @@SESSION.group_replication_consistency;
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
+UNLOCK TABLES;
+SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
+
+# 7. Cleanup
+[connection server1]
+include/start_group_replication.inc
+[connection server2]
+DROP TABLE t1;
+include/group_replication_end.inc

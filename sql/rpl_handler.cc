@@ -1405,9 +1405,10 @@ int launch_hook_trans_begin(THD *thd, Table_ref *all_tables) {
   bool is_shutdown = (sql_command == SQLCOM_SHUTDOWN);
   bool is_reset_persist =
       (sql_command == SQLCOM_RESET && lex->option_type == OPT_PERSIST);
+  bool is_kill = (sql_command == SQLCOM_KILL);
 
   if ((is_set || is_show || is_empty || is_use || is_stop_gr || is_shutdown ||
-       is_reset_persist) &&
+       is_reset_persist || is_kill) &&
       !lex->uses_stored_routines()) {
     return 0;
   }
