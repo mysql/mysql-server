@@ -39,9 +39,7 @@ SET @group_replication_consistency_save= @@SESSION.group_replication_consistency
 SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 UNLOCK TABLES;
 SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
-SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 KILL CONNECTION CONNECTION_ID;
-SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 [connection server2]
 ERROR HY000: Lost connection to MySQL server during query
 include/rpl_reconnect.inc

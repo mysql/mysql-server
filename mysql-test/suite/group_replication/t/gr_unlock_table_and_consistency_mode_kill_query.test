@@ -92,10 +92,8 @@ SET @@SESSION.group_replication_consistency= @group_replication_consistency_save
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Primary Election: applying buffered transactions"
 --source include/wait_condition.inc
 
-SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 --replace_result $connection_id CONNECTION_ID
 --eval KILL QUERY $connection_id
-SET @@SESSION.group_replication_consistency= @group_replication_consistency_save;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
