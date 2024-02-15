@@ -2026,6 +2026,25 @@ IF(WITH_TIRPC STREQUAL "bundled")
   ADD_SUBDIRECTORY(extra/tirpc)
 ENDIF()
 
+IF(HAVE_ASAN AND MY_COMPILER_IS_CLANG AND WITH_PROTOBUF STREQUAL "bundled")
+  # This works for some clang versions, see:
+  # https://github.com/google/sanitizers/issues/1017
+  #
+  # cmake -DWITH_SYSTEM_LIBS=1 is recommended for sanitizing.
+  # Alas, that is not possible on older Linux systems, so we try to
+  # make "bundled" builds work as well.
+  #
+  # The underlying problem is that we link with libprotobuf-lite.so everywhere,
+  # except for one plugin which links with libprotobuf.so.
+  # Many symbols will be exported by both libraries, which may give ODR
+  # violations when built with ASAN.
+  #
+  # Appending to FLAGS gives warnings when linking shared libs and executables.
+  # STRING_APPEND(CMAKE_C_FLAGS   " -mllvm -asan-use-private-alias=1")
+  # STRING_APPEND(CMAKE_CXX_FLAGS " -mllvm -asan-use-private-alias=1")
+  ADD_COMPILE_OPTIONS(-mllvm -asan-use-private-alias=1)
+ENDIF()
+
 IF(WITH_PROTOBUF STREQUAL "bundled" OR WITH_FIDO STREQUAL "bundled")
   # Protobuf library is a target, installed to <root>/${INSTALL_PRIV_LIBDIR}
   # INSTALL_RPATH must be set for all binaries linking with libprotobuf.
