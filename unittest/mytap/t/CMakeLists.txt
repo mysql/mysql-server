@@ -21,6 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_EXECUTABLE(basic-t basic-t.cc ADD_TEST basic)
 TARGET_LINK_LIBRARIES(basic-t mytap)

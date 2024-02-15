@@ -50,6 +50,7 @@ SET(tests
 )
 FOREACH(testname ${tests})
   PFS_ADD_TEST(${testname})
+  DOWNGRADE_STRINGOP_WARNINGS(${testname}-t)
 ENDFOREACH()
 
 # Add sql_builtin.cc, to force linkage of plugins below.

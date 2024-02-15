@@ -1048,7 +1048,8 @@ install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysco
 %if 0%{?runselftest} || 0%{?with_unittests}
 pushd release
 export CTEST_OUTPUT_ON_FAILURE=1
-make test || true
+export CTEST_PARALLEL_LEVEL=$(expr $(nproc) / 2)
+ctest%{?el7:3} --test-timeout 120 || true
 %endif
 %if 0%{?runselftest}
 export MTR_BUILD_THREAD=auto

@@ -65,11 +65,13 @@ override_dh_auto_build:
 	$(MAKE) $(JOBS) VERBOSE=1
 	touch $@
 
+# timeout in seconds
 override_dh_auto_test:
 	@echo "RULES.$@"
 	export CTEST_OUTPUT_ON_FAILURE=1
+	export CTEST_PARALLEL_LEVEL=$(expr $(nproc) / 2)
 	cd release && \
-	make test || true
+	ctest --test-timeout 120 || true
 	touch $@
 
 @DEB_RULES_STRIP@

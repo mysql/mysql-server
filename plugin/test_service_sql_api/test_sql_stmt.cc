@@ -453,7 +453,7 @@ static const char *test_decimal_as_string(char *buff, const decimal_t *val,
 }
 
 static int handle_store_decimal(void *pctx, const decimal_t *value) {
-  char buffer[LARGE_STRING_BUFFER_SIZE];
+  char buffer[LARGE_STRING_BUFFER_SIZE]{};
   Server_context *ctx = (Server_context *)pctx;
   DBUG_TRACE;
   const uint col = ctx->current_col;
