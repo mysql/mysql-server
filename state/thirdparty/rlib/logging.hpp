@@ -41,7 +41,7 @@ enum rdma_loglevel {
 // 这里和 MySQL 本身冲突了
 // error: ‘constexpr const bool __builtin_expect’ conflicts with a previous
 // declaration
-#ifndef unlikely(x)
+#ifndef unlikely  //(x)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #endif
 
