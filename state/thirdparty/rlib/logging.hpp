@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <sstream>
+#include "include/my_compiler.h"  // unlikely
 
 namespace rdmaio {
 
@@ -41,9 +42,9 @@ enum rdma_loglevel {
 // 这里和 MySQL 本身冲突了
 // error: ‘constexpr const bool __builtin_expect’ conflicts with a previous
 // declaration
-#ifndef unlikely  //(x)
-#define unlikely(x) __builtin_expect(!!(x), 0)
-#endif
+// #ifndef unlikely  //(x)
+// #define unlikely(x) __builtin_expect(!!(x), 0)
+// #endif
 
 #ifndef RDMA_LOG_LEVEL
 #define RDMA_LOG_LEVEL ::rdmaio::RDMA_LOG_DBG
