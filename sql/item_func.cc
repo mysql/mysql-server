@@ -4980,9 +4980,10 @@ void udf_handler::get_string(uint index) {
 bool udf_handler::get_and_convert_string(uint index) {
   String *res = args[index]->val_str(&buffers[index]);
 
-  /* m_args_extension.charset_info[index] is a legitimate charset */
-  if (res != nullptr && m_args_extension.charset_info[index] != nullptr) {
-    if (res->charset() != m_args_extension.charset_info[index]) {
+  if (!args[index]->null_value) {
+    auto check_charset = m_args_extension.charset_info[index];
+    if (check_charset != nullptr && res->charset() != check_charset) {
+      /* m_args_extension.charset_info[index] is a legitimate charset */
       String temp;
       uint dummy;
       if (temp.copy(res->ptr(), res->length(), res->charset(),
@@ -4990,9 +4991,17 @@ bool udf_handler::get_and_convert_string(uint index) {
         return true;
       }
       *res = std::move(temp);
+    } else if (res != &buffers[index]) {
+      /* The res returned above is &Item::str_value
+       * We may call c_ptr_safe() below, reallocating the buffer of
+       * Item::str_value If we set the str_value m_ptr directly somewhere, the
+       * allocated buffer at c_ptr_safe() will be freed, before the UDF is able
+       * to use it. So, instead of changing Item::str_value, copy its contents
+       * to udf_handler::buffers and use that instead.
+       */
+      buffers[index] = *res;
+      res = &buffers[index];
     }
-  }
-  if (!args[index]->null_value) {
     f_args.args[index] = res->c_ptr_safe();
     f_args.lengths[index] = res->length();
   } else {
