@@ -64,6 +64,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0types.h"
 #include "ut0counter.h"
 
+#include <cstdint>
 #include <future>
 
 /* Global counters used inside InnoDB. */
@@ -629,8 +630,8 @@ extern ulong srv_io_capacity;
 
 /* We use this dummy default value at startup for max_io_capacity.
 The real value is set based on the value of io_capacity. */
-constexpr uint32_t SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT = ~0U;
-constexpr uint32_t SRV_MAX_IO_CAPACITY_LIMIT = ~0U;
+constexpr uint32_t SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT = UINT32_MAX;
+constexpr uint32_t SRV_MAX_IO_CAPACITY_LIMIT = UINT32_MAX;
 extern ulong srv_max_io_capacity;
 /* Returns the number of IO operations that is X percent of the
 capacity. PCT_IO(5) -> returns the number of IO operations that
