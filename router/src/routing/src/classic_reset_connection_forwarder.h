@@ -34,10 +34,17 @@ class ResetConnectionForwarder : public ForwardingProcessor {
 
   enum class Stage {
     Command,
+    StartLoop,
     Connect,
     Connected,
     Response,
     Ok,
+    SetVars,
+    SetVarsDone,
+    FetchSysVars,
+    FetchSysVarsDone,
+    EndLoop,
+    SendOk,
     Done,
   };
 
@@ -46,14 +53,34 @@ class ResetConnectionForwarder : public ForwardingProcessor {
   void stage(Stage stage) { stage_ = stage; }
   Stage stage() const { return stage_; }
 
+  void failed(
+      const std::optional<classic_protocol::message::server::Error> &err) {
+    failed_ = err;
+  }
+
+  std::optional<classic_protocol::message::server::Error> failed() const {
+    return failed_;
+  }
+
  private:
   stdx::expected<Result, std::error_code> command();
+  stdx::expected<Result, std::error_code> start_loop();
   stdx::expected<Result, std::error_code> connect();
   stdx::expected<Result, std::error_code> connected();
   stdx::expected<Result, std::error_code> response();
   stdx::expected<Result, std::error_code> ok();
+  stdx::expected<Result, std::error_code> set_vars();
+  stdx::expected<Result, std::error_code> set_vars_done();
+  stdx::expected<Result, std::error_code> fetch_sys_vars();
+  stdx::expected<Result, std::error_code> fetch_sys_vars_done();
+  stdx::expected<Result, std::error_code> end_loop();
+  stdx::expected<Result, std::error_code> send_ok();
 
   Stage stage_{Stage::Command};
+
+  std::optional<classic_protocol::message::server::Error> failed_;
+
+  int round_{0};
 };
 
 #endif

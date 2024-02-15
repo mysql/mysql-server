@@ -36,6 +36,7 @@ class CommandProcessor : public ForwardingProcessor {
 
   enum class Stage {
     IsAuthed,
+    FetchDiagnosticArea,
     WaitBoth,
     Command,
     Done,
@@ -48,6 +49,7 @@ class CommandProcessor : public ForwardingProcessor {
 
  private:
   stdx::expected<Result, std::error_code> is_authed();
+  stdx::expected<Result, std::error_code> fetch_diagnostic_area();
   stdx::expected<Result, std::error_code> wait_both();
   stdx::expected<Result, std::error_code> command();
 

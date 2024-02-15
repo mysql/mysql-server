@@ -55,31 +55,6 @@ ForwardingProcessor::forward_client_to_server(bool noflush) {
   return Result::Again;
 }
 
-static PooledClassicConnection make_pooled_connection(
-    MysqlRoutingClassicConnectionBase::ServerSideConnection &&other) {
-  auto classic_protocol_state = other.protocol();
-  return {std::move(other.connection()),
-          other.channel().release_ssl(),
-          classic_protocol_state.server_capabilities(),
-          classic_protocol_state.client_capabilities(),
-          classic_protocol_state.server_greeting(),
-          other.ssl_mode(),
-          classic_protocol_state.username(),
-          classic_protocol_state.schema(),
-          classic_protocol_state.sent_attributes()};
-}
-
-static MysqlRoutingClassicConnectionBase::ServerSideConnection
-make_connection_from_pooled(PooledClassicConnection &&other) {
-  return {std::move(other.connection()), other.ssl_mode(),
-          Channel(std::move(other.ssl())),
-          MysqlRoutingClassicConnectionBase::ServerSideConnection::
-              protocol_state_type(other.server_capabilities(),
-                                  other.client_capabilities(),
-                                  other.server_greeting(), other.username(),
-                                  other.schema(), other.attributes())};
-}
-
 stdx::expected<bool, std::error_code>
 ForwardingProcessor::pool_server_connection() {
   auto &server_conn = connection()->server_conn();
@@ -97,17 +72,17 @@ ForwardingProcessor::pool_server_connection() {
         SSL_set_msg_callback_arg(server_ssl, nullptr);
       }
 
-      auto is_full_res = pool->add_if_not_full(make_pooled_connection(
+      auto is_full_res = pool->add_if_not_full(
           std::exchange(connection()->server_conn(),
                         TlsSwitchableConnection{
                             nullptr,   // connection
                             ssl_mode,  //
                             MysqlRoutingClassicConnectionBase::
-                                ServerSideConnection::protocol_state_type()})));
+                                ServerSideConnection::protocol_state_type()}));
 
       if (is_full_res) {
         // pool is full, restore the connection.
-        server_conn = make_connection_from_pooled(std::move(*is_full_res));
+        server_conn = std::move(*is_full_res);
 
         if (auto *server_ssl = server_conn.channel().ssl()) {
           SSL_set_msg_callback_arg(server_ssl, connection());

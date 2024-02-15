@@ -45,7 +45,7 @@
 #include "mysqlrouter/classic_protocol_wire.h"
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/routing_component.h"
-#include "router/src/routing/src/ssl_mode.h"
+#include "mysqlrouter/ssl_mode.h"
 #include "tls_content_type.h"
 
 IMPORT_LOG_FUNCTIONS()

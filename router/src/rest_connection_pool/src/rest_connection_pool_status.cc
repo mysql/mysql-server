@@ -57,8 +57,11 @@ bool RestConnectionPoolStatus::on_handle_request(
   {
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
-    json_doc.SetObject().AddMember<uint64_t>(
-        "idleServerConnections", inst->current_pooled_connections(), allocator);
+    json_doc.SetObject()
+        .AddMember<uint64_t>("idleServerConnections",
+                             inst->current_pooled_connections(), allocator)
+        .AddMember<uint64_t>("stashedServerConnections",
+                             inst->current_stashed_connections(), allocator);
   }
   send_json_document(req, HttpStatusCode::Ok, json_doc);
 

@@ -1296,7 +1296,7 @@ TEST_F(RoutingSplittingTest,
     EXPECT_THAT(
         *query_res,
         ElementsAre(ElementsAre("Wait_for_executed_gtid_set", "1"),
-                    ElementsAre("Wait_for_executed_gtid_set_no_timeout", "2")));
+                    ElementsAre("Wait_for_executed_gtid_set_no_timeout", "1")));
   }
 }
 
@@ -1718,7 +1718,6 @@ TEST_F(RoutingSplittingTest, insert_is_sticky) {
                          rapidjson::Value("mysql/prepare_server_connection")},
                std::pair{"/events/1/events/0/events/0/name",
                          rapidjson::Value("mysql/from_pool_or_connect")},
-               // authentication was against the first node, so this is pooled.
                std::pair{"/events/1/events/0/events/0/events/0/name",
                          rapidjson::Value("mysql/from_pool")},
                std::pair{
@@ -1761,11 +1760,9 @@ TEST_F(RoutingSplittingTest, insert_is_sticky) {
                std::pair{"/events/1/events/0/name",
                          rapidjson::Value("mysql/prepare_server_connection")},
                std::pair{"/events/1/events/0/events/0/name",
-                         rapidjson::Value("mysql/from_pool_or_connect")},
-               std::pair{"/events/1/events/0/events/0/events/0/name",
-                         rapidjson::Value("mysql/from_pool")},
+                         rapidjson::Value("mysql/from_stash")},
                std::pair{
-                   "/events/1/events/0/events/0/events/0/attributes/"
+                   "/events/1/events/0/events/0/attributes/"
                    "mysql.remote.endpoint",
                    rapidjson::Value(
                        "127.0.0.1:" + std::to_string(nodes_[0].classic_port),
@@ -1876,12 +1873,9 @@ TEST_F(RoutingSplittingTest, select_is_sticky) {
              std::pair{"/events/1/events/0/name",
                        rapidjson::Value("mysql/prepare_server_connection")},
              std::pair{"/events/1/events/0/events/0/name",
-                       rapidjson::Value("mysql/from_pool_or_connect")},
-             // pool is empty.
-             std::pair{"/events/1/events/0/events/0/events/0/name",
-                       rapidjson::Value("mysql/from_pool")},
+                       rapidjson::Value("mysql/from_stash")},
              std::pair{
-                 "/events/1/events/0/events/0/events/0/attributes/"
+                 "/events/1/events/0/events/0/attributes/"
                  "mysql.remote.endpoint",
                  rapidjson::Value(
                      "127.0.0.1:" + std::to_string(nodes_[1].classic_port),

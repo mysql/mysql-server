@@ -47,7 +47,6 @@ class QueryForwarder : public ForwardingProcessor {
 
     ClassifyQuery,
 
-    PoolBackend,
     SwitchBackend,
     PrepareBackend,
 
@@ -100,7 +99,6 @@ class QueryForwarder : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> explicit_commit();
   stdx::expected<Result, std::error_code> explicit_commit_done();
   stdx::expected<Result, std::error_code> classify_query();
-  stdx::expected<Result, std::error_code> pool_backend();
   stdx::expected<Result, std::error_code> switch_backend();
   stdx::expected<Result, std::error_code> prepare_backend();
   stdx::expected<Result, std::error_code> connect();

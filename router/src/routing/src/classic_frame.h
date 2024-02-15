@@ -29,9 +29,9 @@
 #include <system_error>
 
 #include "basic_protocol_splicer.h"
-#include "channel.h"
 #include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/channel.h"
 
 class ClassicFrame {
  public:

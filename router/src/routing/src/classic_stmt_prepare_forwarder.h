@@ -28,7 +28,7 @@
 
 #include "forwarding_processor.h"
 
-#include "classic_prepared_statement.h"
+#include "mysqlrouter/classic_prepared_statement.h"
 
 class StmtPrepareForwarder : public ForwardingProcessor {
  public:

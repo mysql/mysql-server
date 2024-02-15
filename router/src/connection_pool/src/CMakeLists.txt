@@ -34,6 +34,7 @@ TARGET_LINK_LIBRARIES(connection_pool
   harness_stdx
   harness_net_ts
   mysql_protocol
+  routing_connections
   PRIVATE
   OpenSSL::SSL OpenSSL::Crypto
   )
