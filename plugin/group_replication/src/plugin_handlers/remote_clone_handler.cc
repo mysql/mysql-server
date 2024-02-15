@@ -183,34 +183,28 @@ int Remote_clone_handler::extract_donor_info(
 
   for (Group_member_info *member : *all_members_info) {
     std::string m_uuid = member->get_uuid();
-    bool is_online =
+    const bool not_self = m_uuid.compare(local_member_info->get_uuid());
+    const bool is_online =
         member->get_recovery_status() == Group_member_info::MEMBER_ONLINE;
-    bool not_self = m_uuid.compare(local_member_info->get_uuid());
-    // We can only clone from our own version.
-    bool supports_clone =
-        member->get_member_version().get_version() >=
-            CLONE_GR_SUPPORT_VERSION &&
-        member->get_member_version().get_version() ==
-            local_member_info->get_member_version().get_version();
+    const bool valid_donor_version =
+        (member->get_member_version().get_version() >=
+         CLONE_GR_SUPPORT_VERSION);
 
     std::string member_exec_set_str = member->get_gtid_executed();
     std::string applier_ret_set_str = member->get_gtid_retrieved();
 
-    if (is_online) {
-      if (not_self) {
-        // Check if it support cloning looking at the server version
-        if (supports_clone) valid_clone_donors++;
+    if (is_online && not_self && valid_donor_version) {
+      valid_clone_donors++;
 
-        if (group_set.add_gtid_text(member_exec_set_str.c_str()) !=
-                RETURN_STATUS_OK ||
-            group_set.add_gtid_text(applier_ret_set_str.c_str()) !=
-                RETURN_STATUS_OK) {
-          /* purecov: begin inspected */
-          LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_LOCAL_GTID_SETS_PROCESS_ERROR);
-          error = 1;
-          goto cleaning;
-          /* purecov: end */
-        }
+      if (group_set.add_gtid_text(member_exec_set_str.c_str()) !=
+              RETURN_STATUS_OK ||
+          group_set.add_gtid_text(applier_ret_set_str.c_str()) !=
+              RETURN_STATUS_OK) {
+        /* purecov: begin inspected */
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_LOCAL_GTID_SETS_PROCESS_ERROR);
+        error = 1;
+        goto cleaning;
+        /* purecov: end */
       }
     }
   }
@@ -354,16 +348,14 @@ void Remote_clone_handler::get_clone_donors(
 
   for (Group_member_info *member : *all_members_info) {
     std::string m_uuid = member->get_uuid();
-    bool is_online =
+    const bool not_self = m_uuid.compare(local_member_info->get_uuid());
+    const bool is_online =
         member->get_recovery_status() == Group_member_info::MEMBER_ONLINE;
-    bool not_self = m_uuid.compare(local_member_info->get_uuid());
-    bool supports_clone =
-        member->get_member_version().get_version() >=
-            CLONE_GR_SUPPORT_VERSION &&
-        member->get_member_version().get_version() ==
-            local_member_info->get_member_version().get_version();
+    const bool valid_donor_version =
+        (member->get_member_version().get_version() >=
+         CLONE_GR_SUPPORT_VERSION);
 
-    if (is_online && not_self && supports_clone) {
+    if (is_online && not_self && valid_donor_version) {
       suitable_donors.push_back(member);
     } else {
       delete member;

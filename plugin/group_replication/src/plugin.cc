@@ -996,6 +996,10 @@ int configure_group_member_manager() {
     local_member_plugin_version = Member_version(MEMBER_VERSION_REMOVING_VCLE);
     local_member_plugin_version.decrement_minor_version();
   };);
+  DBUG_EXECUTE_IF("group_replication_version_clone_not_supported", {
+    local_member_plugin_version = Member_version(CLONE_GR_SUPPORT_VERSION);
+    local_member_plugin_version.decrement_minor_version();
+  };);
   DBUG_EXECUTE_IF("group_replication_force_member_uuid", {
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");
   };);
