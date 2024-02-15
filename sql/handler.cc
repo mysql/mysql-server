@@ -1886,21 +1886,21 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
 
   DBUG_TRACE;
 
-  const bool need_restore_backup_ha_data =
-      all && thd->is_engine_ha_data_detached();
-  /*
-    At execution of XA COMMIT ONE PHASE binlog or slave applier
-    reattaches the engine ha_data to THD, previously saved at XA START.
-  */
-  if (need_restore_backup_ha_data) {
-    DBUG_PRINT("info", ("query='%s'", thd->query().str));
-    assert(thd->lex->sql_command == SQLCOM_XA_COMMIT);
-    assert(
-        static_cast<Sql_cmd_xa_commit *>(thd->lex->m_sql_cmd)->get_xa_opt() ==
-        XA_ONE_PHASE);
-  }
-
   if (ha_list) {
+    bool restore_backup_ha_data = false;
+    /*
+      At execution of XA COMMIT ONE PHASE binlog or slave applier
+      reattaches the engine ha_data to THD, previously saved at XA START.
+    */
+    if (all && thd->is_engine_ha_data_detached()) {
+      DBUG_PRINT("info", ("query='%s'", thd->query().str));
+      assert(thd->lex->sql_command == SQLCOM_XA_COMMIT);
+      assert(
+          static_cast<Sql_cmd_xa_commit *>(thd->lex->m_sql_cmd)->get_xa_opt() ==
+          XA_ONE_PHASE);
+      restore_backup_ha_data = true;
+    }
+
     bool is_applier_wait_enabled = false;
 
     if (is_ha_commit_low_invoking_commit_order(thd, all) ||
@@ -1930,7 +1930,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       thd->status_var.ha_commit_count++;
       ha_info.reset(); /* keep it conveniently zero-filled */
     }
-    if (need_restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
+    if (restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
     trn_ctx->reset_scope(trx_scope);
 
     /*
@@ -1949,8 +1949,6 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
         Commit_order_manager::wait_and_finish(thd, error);
       }
     }
-  } else if (need_restore_backup_ha_data) {
-    thd->rpl_reattach_engine_ha_data();
   }
 
 err:
@@ -1985,30 +1983,35 @@ int ha_rollback_low(THD *thd, bool all) {
 
   (void)RUN_HOOK(transaction, before_rollback, (thd, all));
 
-  const bool need_restore_backup_ha_data =
-      all && thd->is_engine_ha_data_detached();
+  if (ha_list) {
+    bool restore_backup_ha_data = false;
+    /*
+      Similarly to the commit case, the binlog or slave applier
+      reattaches the engine ha_data to THD.
+    */
+    if (all && thd->is_engine_ha_data_detached()) {
+      assert(trn_ctx->xid_state()->get_state() != XID_STATE::XA_NOTR ||
+             thd->killed == THD::KILL_CONNECTION);
 
-  if (need_restore_backup_ha_data) {
-    assert(trn_ctx->xid_state()->get_state() != XID_STATE::XA_NOTR ||
-           thd->killed == THD::KILL_CONNECTION);
-  }
-
-  for (auto &ha_info : ha_list) {
-    int err;
-    auto ht = ha_info.ht();
-    if ((err = ht->rollback(ht, thd, all))) {  // cannot happen
-      char errbuf[MYSQL_ERRMSG_SIZE];
-      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err,
-               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
-      error = 1;
+      restore_backup_ha_data = true;
     }
-    assert(!thd->status_var_aggregated);
-    thd->status_var.ha_rollback_count++;
-    ha_info.reset(); /* keep it conveniently zero-filled */
-  }
 
-  if (need_restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
-  if (ha_list) trn_ctx->reset_scope(trx_scope);
+    for (auto &ha_info : ha_list) {
+      int err;
+      auto ht = ha_info.ht();
+      if ((err = ht->rollback(ht, thd, all))) {  // cannot happen
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err,
+                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
+        error = 1;
+      }
+      assert(!thd->status_var_aggregated);
+      thd->status_var.ha_rollback_count++;
+      ha_info.reset(); /* keep it conveniently zero-filled */
+    }
+    if (restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
+    trn_ctx->reset_scope(trx_scope);
+  }
 
   /*
     Thanks to possibility of MDL deadlock rollback request can come even if
