@@ -1,12 +1,26 @@
 source include/have_ndb.inc;
 
-exec $NDB_CONFIG --nodes --type=DB --query=NodeId,InitFragmentLogFiles;
+# Check there is no --filesystem-password* option for node 2, will happen when
+# running for example ./mtr --defaults-extra-file=suite/ndb/secure.cnf
+let $find_defaults_option=filesystem-password.*;
+let $find_defaults_value=.*;
+let $find_defaults_groups=mysql_cluster ndbd;
+let $find_defaults_group_suffix=.2;
+source include/find_defaults.inc;
+if ($find_defaults_status == 0) {
+  skip TDE is on for node 2;
+}
+
+exec $NDB_CONFIG --nodes --type=DB --query=NodeId,EncryptedFileSystem,InitFragmentLogFiles;
 
 let $NDB_REDO_LOG_FILE1=$MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.1/ndb_1_fs/D8/DBLQH/S0.FragLog;
 let $NDB_REDO_LOG_FILE2=$MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.2/ndb_2_fs/D8/DBLQH/S0.FragLog;
+let $NDB_REDO_LOG_FILE3=$MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.3/ndb_3_fs/D8/DBLQH/S0.FragLog;
+let $NDB_REDO_LOG_FILE4=$MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.4/ndb_4_fs/D8/DBLQH/S0.FragLog;
 
 error 1;
 exec $NDB_REDO_LOG_READER > $NDB_TOOLS_OUTPUT;
+exec $NDB_REDO_LOG_READER --help >> $NDB_TOOLS_OUTPUT;
 
 # ndb_redo_log_reader should not be used on active fragment log files.
 # Stop data node before reading the fragment log files.
@@ -29,4 +43,56 @@ exec $NDB_REDO_LOG_READER --mbyte=2 $NDB_REDO_LOG_FILE2 >> $NDB_TOOLS_OUTPUT;
 exec $NDB_MGM -e "2 START";
 exec $NDB_WAITER;
 
+echo # Node 3 uses InitFragmentLogFiles=full and EncryptedFileSystem=1;
+let $secret_key3=$MYSQL_TMP_DIR/secret3.key;
+exec $NDB_SECRETSFILE_READER
+    $MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.3/ndb_3_fs/D1/NDBCNTR/S0.sysfile
+    > $secret_key3;
+let $DECRYPTED_FILE3=$MYSQL_TMP_DIR/S0.FragLog-decrypted3;
+
+exec $NDB_MGM -e "3 RESTART -n";
+replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR;
+echo # NDBXFRM --decrypt-key-from-stdin $NDB_REDO_LOG_FILE3 $DECRYPTED_FILE3;
+exec $NDBXFRM --decrypt-key-from-stdin < $secret_key3 $NDB_REDO_LOG_FILE3 $DECRYPTED_FILE3;
+replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR;
+echo # NDB_REDO_LOG_READER --file-key-from-stdin $NDB_REDO_LOG_FILE3 -lap;
+exec $NDB_REDO_LOG_READER --file-key-from-stdin < $secret_key3
+    $NDB_REDO_LOG_FILE3 -lap 2>&1 >> $NDB_TOOLS_OUTPUT;
+replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR;
+echo # NDB_REDO_LOG_READER --file-key-from-stdin $NDB_REDO_LOG_FILE3 -mbyte 2;
+exec $NDB_REDO_LOG_READER --file-key-from-stdin < $secret_key3
+    $NDB_REDO_LOG_FILE3 -mbyte 2 2>&1 >> $NDB_TOOLS_OUTPUT;
+exec $NDB_REDO_LOG_READER --file-key-from-stdin < $secret_key3
+    $NDB_REDO_LOG_FILE3 >> $NDB_TOOLS_OUTPUT;
+exec $NDB_MGM -e "3 START";
+exec $NDB_WAITER;
+
+echo # Node 4 uses InitFragmentLogFiles=sparse and EncryptedFileSystem=1;
+let $secret_key4=$MYSQL_TMP_DIR/secret4.key;
+exec $NDB_SECRETSFILE_READER
+    $MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.4/ndb_4_fs/D1/NDBCNTR/S0.sysfile
+    > $secret_key4;
+let $DECRYPTED_FILE4=$MYSQL_TMP_DIR/S0.FragLog-decrypted4;
+
+replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR;
+echo # NDBXFRM --decrypt-key-from-stdin $NDB_REDO_LOG_FILE4 $DECRYPTED_FILE4;
+exec $NDB_MGM -e "4 RESTART -n";
+exec $NDBXFRM --decrypt-key-from-stdin < $secret_key4 $NDB_REDO_LOG_FILE4 $DECRYPTED_FILE4;
+replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR;
+echo # NDB_REDO_LOG_READER --file-key-from-stdin --lap $NDB_REDO_LOG_FILE4;
+exec $NDB_REDO_LOG_READER --lap --file-key-from-stdin < $secret_key4
+    $NDB_REDO_LOG_FILE4 >> $NDB_TOOLS_OUTPUT;
+replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR;
+echo # NDB_REDO_LOG_READER --file-key-from-stdin --mbyte=2 $NDB_REDO_LOG_FILE4;
+exec $NDB_REDO_LOG_READER --mbyte=2 --file-key-from-stdin < $secret_key4
+    $NDB_REDO_LOG_FILE4 >> $NDB_TOOLS_OUTPUT;
+exec $NDB_REDO_LOG_READER --file-key-from-stdin < $secret_key4
+    $NDB_REDO_LOG_FILE4 >> $NDB_TOOLS_OUTPUT;
+exec $NDB_MGM -e "4 START";
+exec $NDB_WAITER;
+
+remove_file $DECRYPTED_FILE3;
+remove_file $DECRYPTED_FILE4;
+remove_file $secret_key3;
+remove_file $secret_key4;
 remove_file $NDB_TOOLS_OUTPUT;

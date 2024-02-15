@@ -546,11 +546,95 @@ static Uint32 twiddle_32(Uint32 in) {
 //
 //----------------------------------------------------------------
 
+static int read_pages(ndbxfrm_file *xfrm, ndb_off_t data_pos,
+                      ndbxfrm_output_iterator *out) {
+  /*
+   * Adapted from AsyncFile::readReq using special case when xfrm is encrypted,
+   * using random read, zero filled disk pages will be zero filled in memory
+   * pages, reads are single threaded (thread_bound), into one single big page,
+   * and partial reads are allowed.
+   */
+  require(xfrm->get_random_access_block_size() > 0);
+  constexpr ndb_openssl_evp::operation *openssl_evp_op = nullptr;
+  /*
+   * current_data_offset is the offset relative plain data.
+   * current_file_offset is the offset relative the corresponding transformed
+   * data on file.
+   * Note, current_file_offset will not include NDBXFRM1 or AZ31 header, that
+   * is, current_data_offset zero always corresponds to
+   * current_file_offset zero.
+   */
+  ndb_off_t current_data_offset = data_pos;
+  /*
+   * Assumes size-preserving transform is used, currently either raw or
+   * encrypted.
+   */
+  ndb_off_t current_file_offset = current_data_offset;
+  byte *buf = out->begin();
+
+  if (xfrm->read_transformed_pages(current_file_offset, out) == -1) {
+    // TODO: err msg: NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+    return -1;
+  }
+  size_t bytes_read = out->begin() - buf;
+  current_file_offset += bytes_read;
+
+  /*
+   * If transformed content, read transformed data from return buffer and
+   * untransform into local buffer, then copy back to return buffer.
+   * This way adds data copies that could be avoided but is an easy way
+   * to be able to always read all at once instead of issuing several
+   * system calls to read smaller chunks at a time.
+   */
+  ndbxfrm_input_iterator in = {buf, buf + bytes_read, false};
+  while (!in.empty()) {
+    if (!xfrm->is_compressed())  // sparse_file)
+    {
+      // Only REDO log files can be sparse and they uses 32KB pages
+      require(bytes_read % GLOBAL_PAGE_SIZE == 0);
+      const byte *p = in.cbegin();
+      const byte *end = in.cend();
+      require((end - p) % GLOBAL_PAGE_SIZE == 0);
+      while (p != end && *p == 0) p++;
+      // Only skip whole pages with zeros
+      size_t sz = ((p - in.cbegin()) / GLOBAL_PAGE_SIZE) * GLOBAL_PAGE_SIZE;
+      if (sz > 0) {
+        // Keep zeros as is without untransform.
+        in.advance(sz);
+        current_data_offset += sz;
+        if (in.empty()) break;
+      }
+    }
+    byte buffer[GLOBAL_PAGE_SIZE];
+    ndbxfrm_output_iterator out1 = {buffer, buffer + GLOBAL_PAGE_SIZE, false};
+    const byte *in_cbegin = in.cbegin();
+    if (xfrm->untransform_pages(openssl_evp_op, current_data_offset, &out1,
+                                &in) == -1) {
+      // TODO: err msg: Transformation of reads from file buffer failed.
+      return -1;
+    }
+    size_t bytes = in.cbegin() - in_cbegin;
+    current_data_offset += bytes;
+    byte *dst = buf + (in_cbegin - buf);
+    memcpy(dst, buffer, bytes);
+  }
+  return 0;
+}
+
 ndb_off_t readFromFile(ndbxfrm_file *xfrm, ndb_off_t data_pos, Uint32 *toPtr,
                        Uint32 sizeInWords) {
   ndbxfrm_output_iterator it = {
       (byte *)toPtr, (byte *)toPtr + sizeof(Uint32) * sizeInWords, false};
-  int r = xfrm->read_transformed_pages(data_pos, &it);
+  int r;
+  if (xfrm->is_transformed())
+    r = read_pages(xfrm, data_pos, &it);
+  else {
+    /*
+     * Read and return transformed pages, they are not transformed and no need
+     * to untransform them.
+     */
+    r = xfrm->read_transformed_pages(data_pos, &it);
+  }
   if (r == -1) {
     ndbout << "Error reading file" << endl;
     doExit();
