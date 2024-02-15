@@ -129,6 +129,8 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   routertestplugin_logger
   signal_me
   )
+  ROUTERTEST_GET_TARGET(ttt ${test_file} "component")
+  DOWNGRADE_STRINGOP_WARNINGS(${ttt})
 ENDFOREACH()
 
 FOREACH(test_file

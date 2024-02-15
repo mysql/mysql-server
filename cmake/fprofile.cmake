@@ -182,3 +182,12 @@ IF(FPROFILE_USE AND NOT MSVC)
   # LTO combined with PGO boosts performance even more.
   SET(WITH_LTO_DEFAULT ON CACHE INTERNAL "")
 ENDIF()
+
+MACRO(DOWNGRADE_STRINGOP_WARNINGS target)
+  IF(MY_COMPILER_IS_GNU AND WITH_LTO AND FPROFILE_USE)
+    TARGET_LINK_OPTIONS(${target} PRIVATE
+      -Wno-error=stringop-overflow
+      -Wno-error=stringop-overread
+      )
+  ENDIF()
+ENDMACRO()

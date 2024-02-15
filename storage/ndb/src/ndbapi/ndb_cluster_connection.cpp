@@ -1328,7 +1328,7 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
     }
 
     // the allocNodeId function will connect if not connected
-    int alloc_error;
+    int alloc_error = 0;
     Uint32 nodeId = m_config_retriever->allocNodeId(
         no_retries, retry_delay_in_seconds, verbose, alloc_error);
     if (!nodeId) {

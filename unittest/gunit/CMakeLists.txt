@@ -354,6 +354,7 @@ MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ENABLE_EXPORTS
   LINK_LIBRARIES sqlgunitlib gunit_small extra::rapidjson extra::boost
   )
+DOWNGRADE_STRINGOP_WARNINGS(merge_small_tests-t)
 
 LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 
@@ -362,6 +363,9 @@ MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
   ENABLE_EXPORTS
   LINK_LIBRARIES gunit_large server_unittest_library
   )
+IF(MY_COMPILER_IS_GNU)
+  MY_TARGET_LINK_OPTIONS(merge_large_tests-t "-Wno-alloc-size-larger-than")
+ENDIF()
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc

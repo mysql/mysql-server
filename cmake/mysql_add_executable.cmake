@@ -81,7 +81,7 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
                        # command, which is probably not what you want
                        # (except for mysqld.lib which is used by plugins).
     EXCLUDE_FROM_ALL   # add target, but do not build it by default
-    EXCLUDE_FROM_PGO   # add target, but do not build for PGO
+    EXCLUDE_FROM_PGO   # add target, but do not build for FPROFILE_GENERATE
     SKIP_INSTALL       # do not install it
     )
   SET(EXECUTABLE_ONE_VALUE_KW
@@ -107,7 +107,7 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     )
 
   IF(ARG_EXCLUDE_FROM_PGO)
-    IF(FPROFILE_GENERATE OR FPROFILE_USE)
+    IF(FPROFILE_GENERATE)
       RETURN()
     ENDIF()
   ENDIF()
@@ -154,10 +154,11 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
   ENDIF()
 
   IF(ARG_EXCLUDE_FROM_PGO)
-    IF(FPROFILE_GENERATE OR FPROFILE_USE)
-      SET(ARG_EXCLUDE_FROM_ALL TRUE)
-      SET(ARG_SKIP_INSTALL TRUE)
-      UNSET(ARG_ADD_TEST)
+    IF(FPROFILE_USE)
+      MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
+      IF(HAS_MISSING_PROFILE)
+        TARGET_COMPILE_OPTIONS(${target} PRIVATE ${HAS_MISSING_PROFILE})
+      ENDIF()
     ENDIF()
   ENDIF()
 

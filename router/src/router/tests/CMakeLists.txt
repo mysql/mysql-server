@@ -203,6 +203,7 @@ ADD_HARNESS_TEST_FILE(test_keyring_frontend.cc
     ../src/
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
   )
+DOWNGRADE_STRINGOP_WARNINGS(routertest_router_keyring_frontend)
 
 FOREACH(test_file
     issues/test_bug22084430.cc
@@ -220,6 +221,7 @@ FOREACH(test_file
     SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
   )
 ENDFOREACH()
+DOWNGRADE_STRINGOP_WARNINGS(routertest_issues_bug24909259)
 
 ADD_HARNESS_TEST_FILE(test_default_paths.cc
   MODULE ${TEST_MODULE}

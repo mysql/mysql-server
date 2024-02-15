@@ -1387,6 +1387,7 @@ MYSQL_ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc SKIP_INSTALL)
 IF(HAS_MISSING_PROFILE)
   ADD_COMPILE_FLAGS(
     gen_lex_hash.cc
+    binlog/log_sanitizer.cc
     COMPILE_FLAGS ${HAS_MISSING_PROFILE})
 ENDIF()
 

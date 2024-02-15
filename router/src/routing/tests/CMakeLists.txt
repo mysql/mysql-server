@@ -63,6 +63,7 @@ FOREACH(test_file ${test_files})
       ${CMAKE_CURRENT_SOURCE_DIR}/../../harness/tests  # mock_io_service.h
   )
 ENDFOREACH()
+DOWNGRADE_STRINGOP_WARNINGS(routertest_routing_setup_tcp_service)
 
 ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin.cc
   MODULE "routing"

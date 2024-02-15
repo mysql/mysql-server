@@ -1,5 +1,7 @@
 # See src/Makefile.am for original build dependencies.
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR} )
 INCLUDE(CheckIncludeFile)
 include(CheckFunctionExists)

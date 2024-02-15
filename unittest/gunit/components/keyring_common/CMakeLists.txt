@@ -63,7 +63,8 @@ MYSQL_ADD_EXECUTABLE(merge_component_keyring_common_tests-t
   ADD_TEST merge_component_keyring_common_tests
   LINK_LIBRARIES
   ${KEYRING_COMPONENT_LIBS} ${GTEST_LIBRARIES} gtest_main
- )
+  )
+DOWNGRADE_STRINGOP_WARNINGS(merge_component_keyring_common_tests-t)
 
 FOREACH(test ${KEYRING_COMPONENT_COMMON_TESTS})
   MYSQL_ADD_EXECUTABLE(keyring_common_${test}-t ${test}-t.cc
