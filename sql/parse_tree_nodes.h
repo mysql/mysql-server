@@ -3732,7 +3732,7 @@ class PT_show_keys final : public PT_show_table_base {
 class PT_show_binary_log_status final : public PT_show_base {
  public:
   PT_show_binary_log_status(const POS &pos)
-      : PT_show_base(pos, SQLCOM_SHOW_MASTER_STAT) {}
+      : PT_show_base(pos, SQLCOM_SHOW_BINLOG_STATUS) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
@@ -3877,8 +3877,7 @@ class PT_show_relaylog_events final : public PT_show_base {
 
 class PT_show_replicas final : public PT_show_base {
  public:
-  PT_show_replicas(const POS &pos)
-      : PT_show_base(pos, SQLCOM_SHOW_SLAVE_HOSTS) {}
+  PT_show_replicas(const POS &pos) : PT_show_base(pos, SQLCOM_SHOW_REPLICAS) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
@@ -3891,7 +3890,7 @@ class PT_show_replicas final : public PT_show_base {
 class PT_show_replica_status final : public PT_show_base {
  public:
   PT_show_replica_status(const POS &pos, LEX_CSTRING opt_channel_name = {})
-      : PT_show_base(pos, SQLCOM_SHOW_SLAVE_STAT),
+      : PT_show_base(pos, SQLCOM_SHOW_REPLICA_STATUS),
         m_opt_channel_name(opt_channel_name) {}
 
   Sql_cmd *make_cmd(THD *thd) override;

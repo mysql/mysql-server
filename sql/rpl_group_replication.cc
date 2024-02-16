@@ -182,11 +182,11 @@ int group_replication_start(char **error_message, THD *thd) {
       goto err;
     }
     if (lex != nullptr &&
-        (lex->slave_connection.user || lex->slave_connection.plugin_auth)) {
+        (lex->replica_connection.user || lex->replica_connection.plugin_auth)) {
       if (Rpl_channel_credentials::get_instance().store_credentials(
-              "group_replication_recovery", lex->slave_connection.user,
-              lex->slave_connection.password,
-              lex->slave_connection.plugin_auth)) {
+              "group_replication_recovery", lex->replica_connection.user,
+              lex->replica_connection.password,
+              lex->replica_connection.plugin_auth)) {
         // Parallel START/STOP GR is blocked.
         // So by now START GR command should fail if running or stop should have
         // cleared credentials. Post UNINSTALL we should not reach here.

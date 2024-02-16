@@ -10,31 +10,31 @@ INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
 SELECT test_component_metric_log('TEST - Check registration with slot holes:');
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-424
+421
 SELECT test_register_metric_a();
 test_register_metric_a()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-425
+422
 SELECT test_register_metric_b();
 test_register_metric_b()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-426
+423
 SELECT test_unregister_metric_a();
 test_unregister_metric_a()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-425
+422
 SELECT test_unregister_metric_b();
 test_unregister_metric_b()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-424
+421
 SELECT test_component_metric_log('TEST - All metrics exported except ones in mysql.x group:');
 UPDATE performance_schema.setup_meters SET enabled = 'YES';
 UPDATE performance_schema.setup_meters SET enabled = 'NO' WHERE NAME='mysql.x';
@@ -387,7 +387,6 @@ test_report_metrics > report start:
  > metric 'binlog': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'call_procedure': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'change_db': unit='', desc='Number of times corresponding command statement has been executed.'
- > metric 'change_master': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'change_repl_filter': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'change_replication_source': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'check': unit='', desc='Number of times corresponding command statement has been executed.'
@@ -474,6 +473,7 @@ test_report_metrics > report start:
  > metric 'set_password': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'set_resource_group': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'set_role': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_binary_log_status': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_binlog_events': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_binlogs': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_charsets': unit='', desc='Number of times corresponding command statement has been executed.'
@@ -496,7 +496,6 @@ test_report_metrics > report start:
  > metric 'show_function_status': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_grants': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_keys': unit='', desc='Number of times corresponding command statement has been executed.'
- > metric 'show_master_status': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_open_tables': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_plugins': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_privileges': unit='', desc='Number of times corresponding command statement has been executed.'
@@ -517,8 +516,6 @@ test_report_metrics > report start:
  > metric 'show_warnings': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'shutdown': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'signal': unit='', desc='Number of times corresponding command statement has been executed.'
- > metric 'slave_start': unit='', desc='Number of times corresponding command statement has been executed.'
- > metric 'slave_stop': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'stmt_close': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'stmt_execute': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'stmt_fetch': unit='', desc='Number of times corresponding command statement has been executed.'
@@ -539,7 +536,7 @@ test_report_metrics > report start:
  > metric 'xa_recover': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'xa_rollback': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'xa_start': unit='', desc='Number of times corresponding command statement has been executed.'
-< meter 'mysql.stats.com' end (170 metrics)
+< meter 'mysql.stats.com' end (167 metrics)
 > meter 'mysql.stats.connection' (desc='MySql connection stats', frequency=10) start:
  > metric 'errors_accept': unit='', desc='The number of errors that occurred during calls to accept() on the listening port (Connection_errors_accept)'
  > metric 'errors_internal': unit='', desc='The number of connections refused due to internal errors in the server, such as failure to start a new thread or an out-of-memory condition (Connection_errors_internal)'
@@ -603,7 +600,7 @@ test_report_metrics > report start:
  > metric 'modify_collection_options': unit='', desc='The number of modify collection options statements received (Mysqlx_stmt_modify_collection_options)'
  > metric 'ping': unit='', desc='The number of ping statements received (Mysqlx_stmt_ping)'
 < meter 'mysql.x.stmt' end (16 metrics)
-test_report_metrics < done reporting (total meters=12, metrics=378)
+test_report_metrics < done reporting (total meters=12, metrics=375)
 TEST - All metrics exported:
 *** Meter change notification: mysql.x updated
 *** Meter change - silently enumerate metrics for mysql.x
@@ -793,7 +790,6 @@ test_report_metrics > report start:
  > metric 'binlog': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'call_procedure': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'change_db': unit='', desc='Number of times corresponding command statement has been executed.'
- > metric 'change_master': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'change_repl_filter': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'change_replication_source': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'check': unit='', desc='Number of times corresponding command statement has been executed.'
@@ -880,6 +876,7 @@ test_report_metrics > report start:
  > metric 'set_password': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'set_resource_group': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'set_role': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_binary_log_status': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_binlog_events': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_binlogs': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_charsets': unit='', desc='Number of times corresponding command statement has been executed.'
@@ -902,7 +899,6 @@ test_report_metrics > report start:
  > metric 'show_function_status': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_grants': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_keys': unit='', desc='Number of times corresponding command statement has been executed.'
- > metric 'show_master_status': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_open_tables': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_plugins': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'show_privileges': unit='', desc='Number of times corresponding command statement has been executed.'
@@ -923,8 +919,6 @@ test_report_metrics > report start:
  > metric 'show_warnings': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'shutdown': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'signal': unit='', desc='Number of times corresponding command statement has been executed.'
- > metric 'slave_start': unit='', desc='Number of times corresponding command statement has been executed.'
- > metric 'slave_stop': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'stmt_close': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'stmt_execute': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'stmt_fetch': unit='', desc='Number of times corresponding command statement has been executed.'
@@ -945,7 +939,7 @@ test_report_metrics > report start:
  > metric 'xa_recover': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'xa_rollback': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'xa_start': unit='', desc='Number of times corresponding command statement has been executed.'
-< meter 'mysql.stats.com' end (170 metrics)
+< meter 'mysql.stats.com' end (167 metrics)
 > meter 'mysql.stats.connection' (desc='MySql connection stats', frequency=10) start:
  > metric 'errors_accept': unit='', desc='The number of errors that occurred during calls to accept() on the listening port (Connection_errors_accept)'
  > metric 'errors_internal': unit='', desc='The number of connections refused due to internal errors in the server, such as failure to start a new thread or an out-of-memory condition (Connection_errors_internal)'
@@ -1056,7 +1050,7 @@ test_report_metrics > report start:
  > metric 'modify_collection_options': unit='', desc='The number of modify collection options statements received (Mysqlx_stmt_modify_collection_options)'
  > metric 'ping': unit='', desc='The number of ping statements received (Mysqlx_stmt_ping)'
 < meter 'mysql.x.stmt' end (16 metrics)
-test_report_metrics < done reporting (total meters=12, metrics=424)
+test_report_metrics < done reporting (total meters=12, metrics=421)
 TEST - Register duplicate meters/metrics:
 test_duplicate_metrics > called
 *** Meter change notification: mysql.test4 added

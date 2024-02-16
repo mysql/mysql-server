@@ -43,7 +43,7 @@
 class Master_info;
 class Relay_log_info;
 class THD;
-struct LEX_MASTER_INFO;
+struct LEX_SOURCE_INFO;
 struct mysql_cond_t;
 struct mysql_mutex_t;
 class Rpl_channel_filters;
@@ -55,7 +55,7 @@ class Rpl_channel_filters;
 const long mts_online_stat_period = 60 * 2;
 const long mts_online_stat_count = 1024;
 
-typedef struct struct_slave_connection LEX_SLAVE_CONNECTION;
+typedef struct struct_replica_connection LEX_REPLICA_CONNECTION;
 
 typedef enum {
   SLAVE_THD_IO,
@@ -67,7 +67,7 @@ typedef enum {
 /**
   SOURCE_DELAY can be at most (1 << 31) - 1.
 */
-#define MASTER_DELAY_MAX (0x7FFFFFFF)
+#define SOURCE_DELAY_MAX (0x7FFFFFFF)
 #if INT_MAX < 0x7FFFFFFF
 #error "don't support platforms where INT_MAX < 0x7FFFFFFF"
 #endif
@@ -87,7 +87,7 @@ typedef enum {
 /**
    The maximum is defined as (ULONG_MAX/1000) with 4 bytes ulong
 */
-#define SLAVE_MAX_HEARTBEAT_PERIOD 4294967
+#define REPLICA_MAX_HEARTBEAT_PERIOD 4294967
 
 #define REPLICA_NET_TIMEOUT 60
 
@@ -437,7 +437,7 @@ class ReplicaInitializer {
 bool start_slave_cmd(THD *thd);
 bool stop_slave_cmd(THD *thd);
 bool change_master_cmd(THD *thd);
-int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
+int change_master(THD *thd, Master_info *mi, LEX_SOURCE_INFO *lex_mi,
                   bool preserve_logs = false);
 bool reset_slave_cmd(THD *thd);
 bool show_slave_status_cmd(THD *thd);
@@ -467,8 +467,8 @@ int init_recovery(Master_info *mi);
   does not exist, nothing is done.
 
   @param thread_mask Indicate which repositories will be initialized:
-  if (thread_mask&SLAVE_IO)!=0, then mi->init_info is called; if
-  (thread_mask&SLAVE_SQL)!=0, then mi->rli->init_info is called.
+  if (thread_mask&REPLICA_IO)!=0, then mi->init_info is called; if
+  (thread_mask&REPLICA_SQL)!=0, then mi->rli->init_info is called.
 
   @param force_load repositories will only read information if they
   are not yet initialized. When true this flag forces the repositories
@@ -565,8 +565,8 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
                          Master_info *mi, int thread_mask);
 bool start_slave(THD *thd);
 int stop_slave(THD *thd);
-bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
-                 LEX_MASTER_INFO *master_param, int thread_mask_input,
+bool start_slave(THD *thd, LEX_REPLICA_CONNECTION *connection_param,
+                 LEX_SOURCE_INFO *master_param, int thread_mask_input,
                  Master_info *mi, bool set_mts_settings);
 int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
                bool *push_temp_table_warning);

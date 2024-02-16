@@ -84,7 +84,7 @@ typedef int64 query_id_t;
   Maximum allowed unique log filename extension for
   RESET BINARY LOGS AND GTIDS command - 2 Billion
  */
-#define MAX_ALLOWED_FN_EXT_RESET_MASTER 2000000000
+#define MAX_ALLOWED_FN_EXT_RESET_BIN_LOGS 2000000000
 
 struct Binlog_user_var_event {
   user_var_entry *user_var_event;

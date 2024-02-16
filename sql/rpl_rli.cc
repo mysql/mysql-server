@@ -1079,7 +1079,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
     the next START REPLICA (as RESET REPLICA or CHANGE REPLICATION SOURCE, the
     callers of purge_relay_logs, will delete bogus *.info files or replace them
     with correct files), however if the user does SHOW REPLICA STATUS before
-    START SLAVE, he will see old, confusing master_log_*. In other words, we
+    START REPLICA, he will see old, confusing master_log_*. In other words, we
     reinit master_log_* for SHOW REPLICA STATUS to display fine in any case.
   */
   group_master_log_name[0] = 0;
@@ -2739,7 +2739,7 @@ my_off_t Relay_log_info::get_until_log_pos() {
 }
 
 int Relay_log_info::init_until_option(THD *thd,
-                                      const LEX_MASTER_INFO *master_param) {
+                                      const LEX_SOURCE_INFO *master_param) {
   DBUG_TRACE;
   int ret = 0;
   Until_option *option = nullptr;
@@ -2768,12 +2768,12 @@ int Relay_log_info::init_until_option(THD *thd,
     } else if (master_param->gtid) {
       Until_gtids *until_g = nullptr;
 
-      if (LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS ==
+      if (LEX_SOURCE_INFO::UNTIL_SQL_BEFORE_GTIDS ==
           master_param->gtid_until_condition) {
         option = until_g = new Until_before_gtids(this);
         until_condition = UNTIL_SQL_BEFORE_GTIDS;
       } else {
-        assert(LEX_MASTER_INFO::UNTIL_SQL_AFTER_GTIDS ==
+        assert(LEX_SOURCE_INFO::UNTIL_SQL_AFTER_GTIDS ==
                master_param->gtid_until_condition);
 
         option = until_g = new Until_after_gtids(this);

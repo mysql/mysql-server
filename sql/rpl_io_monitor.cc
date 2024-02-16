@@ -1126,7 +1126,7 @@ static bool restart_io_thread(THD *thd, const std::string &channel_name,
   }
 
   int thread_mask = 0;
-  thread_mask |= SLAVE_IO;
+  thread_mask |= REPLICA_IO;
   thd->set_skip_readonly_check();
 
   if (terminate_slave_threads(mi, thread_mask, rpl_stop_replica_timeout,
