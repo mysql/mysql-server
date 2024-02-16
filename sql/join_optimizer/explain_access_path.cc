@@ -1049,6 +1049,31 @@ static bool AddPathCosts(const AccessPath *path,
   return error;
 }
 
+namespace {
+/**
+ * Functor that can be passed to WalkItem() to collect the names of all the
+ * columns referenced by an Item.
+ */
+class ColumnNameCollector {
+ public:
+  bool operator()(const Item *item) {
+    if (item->type() != Item::Type::FIELD_ITEM) return false;
+    const Item_field *field_item = down_cast<const Item_field *>(item);
+    String column_name;
+    const ulonglong save_bits = current_thd->variables.option_bits;
+    current_thd->variables.option_bits &= ~OPTION_QUOTE_SHOW_CREATE;
+    field_item->print(current_thd, &column_name, QT_ORDINARY);
+    current_thd->variables.option_bits = save_bits;
+    m_column_names.insert(to_string(column_name));
+    return false;
+  }
+  const std::set<std::string> &column_names() const { return m_column_names; }
+
+ private:
+  std::set<std::string> m_column_names;
+};
+}  // namespace
+
 /**
    Given a json object, update it's appropriate json fields according to the
    input path. Also update the 'children' with a flat list of direct children
@@ -1464,12 +1489,21 @@ static unique_ptr<Json_object> SetObjectMembers(
 
       const RelationalExpression *join_predicate =
           path->hash_join().join_predicate->expr;
+      ColumnNameCollector cnc;
       for (Item_eq_base *cond : join_predicate->equijoin_conditions) {
         AddSubqueryPaths(cond, "condition", children);
+        WalkItem(cond, enum_walk::PREFIX, cnc);
       }
       for (Item *cond : join_predicate->join_conditions) {
         AddSubqueryPaths(cond, "extra conditions", children);
+        WalkItem(cond, enum_walk::PREFIX, cnc);
       }
+      unique_ptr<Json_array> join_columns(new (std::nothrow) Json_array());
+      if (join_columns == nullptr) return nullptr;
+      for (const std::string &column_name : cnc.column_names()) {
+        error |= AddElementToArray<Json_string>(join_columns, column_name);
+      }
+      error |= obj->add_alias("join_columns", std::move(join_columns));
 
       break;
     }
@@ -1480,6 +1514,15 @@ static unique_ptr<Json_object> SetObjectMembers(
       description = "Filter: " + filter;
       children->push_back({path->filter().child});
       AddSubqueryPaths(path->filter().condition, "condition", children);
+      ColumnNameCollector cnc;
+      WalkItem(path->filter().condition, enum_walk::PREFIX, cnc);
+      unique_ptr<Json_array> filter_columns(new (std::nothrow) Json_array());
+      if (filter_columns == nullptr) return nullptr;
+      for (const std::string &column_name : cnc.column_names()) {
+        error |= AddElementToArray<Json_string>(filter_columns, column_name);
+      }
+      error |= obj->add_alias("filter_columns", std::move(filter_columns));
+
       break;
     }
     case AccessPath::SORT: {

@@ -8936,6 +8936,9 @@ EXPLAIN
       "operation": "Filter: (t.i in (2,3))",
       "access_type": "filter",
       "estimated_rows": 1.5,
+      "filter_columns": [
+        "test.t.i"
+      ],
       "estimated_total_cost": 0.8012817382812502
     }
   ],

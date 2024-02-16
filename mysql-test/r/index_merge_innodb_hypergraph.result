@@ -1065,6 +1065,12 @@ EXPLAIN
   "query_type": "select",
   "access_type": "filter",
   "estimated_rows": "#",
+  "filter_columns": [
+    "test.t1.key1",
+    "test.t1.key1",
+    "test.t1.key3",
+    "test.t1.key3"
+  ],
   "estimated_total_cost": "#",
   "estimated_first_row_cost": "#"
 }

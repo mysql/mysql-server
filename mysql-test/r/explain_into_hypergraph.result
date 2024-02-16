@@ -56,6 +56,9 @@ SELECT @v1, JSON_VALID(@v1);
       "operation": "Filter: (t1.i2 = 2)",
       "access_type": "filter",
       "estimated_rows": 0.30000000447034836,
+      "filter_columns": [
+        "test.t1.i2"
+      ],
       "estimated_total_cost": 0.55,
       "estimated_first_row_cost": 0.55
     },
@@ -79,6 +82,10 @@ SELECT @v1, JSON_VALID(@v1);
       "operation": "Filter: (t1.i1 = t2.i3)",
       "access_type": "filter",
       "estimated_rows": 1.0,
+      "filter_columns": [
+        "test.t1.i1",
+        "test.t2.i3"
+      ],
       "estimated_total_cost": 0.55,
       "estimated_first_row_cost": 0.55
     }

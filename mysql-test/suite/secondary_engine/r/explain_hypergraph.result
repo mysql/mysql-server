@@ -71,6 +71,10 @@ EXPLAIN
   "operation": "Inner hash join (t1.a = t2.a)",
   "query_type": "select",
   "access_type": "join",
+  "join_columns": [
+    "t2.a",
+    "test.t1.a"
+  ],
   "estimated_rows": 0.10000000149011612,
   "hash_condition": [
     "(t1.a = t2.a)"

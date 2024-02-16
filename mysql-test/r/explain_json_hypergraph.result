@@ -57,6 +57,10 @@ EXPLAIN
           "operation": "Filter: (i.f1 > t1.f1)",
           "access_type": "filter",
           "estimated_rows": 0.9998999834060669,
+          "filter_columns": [
+            "i.f1",
+            "test.t1.f1"
+          ],
           "estimated_total_cost": 0.55,
           "estimated_first_row_cost": 0.55
         }
@@ -80,6 +84,9 @@ EXPLAIN
   "query_type": "select",
   "access_type": "filter",
   "estimated_rows": 1.0,
+  "filter_columns": [
+    "test.t1.f1"
+  ],
   "estimated_total_cost": 2.4999699950218206,
   "estimated_first_row_cost": 2.4999699950218206
 }
@@ -143,6 +150,9 @@ EXPLAIN
   "query_type": "select",
   "access_type": "filter",
   "estimated_rows": 0.9998999834060669,
+  "filter_columns": [
+    "test.t1.f1"
+  ],
   "estimated_total_cost": 0.6333333333333333,
   "estimated_first_row_cost": 0.6333333333333333
 }
@@ -328,6 +338,10 @@ EXPLAIN
       "operation": "Filter: (t2.pk < t1.pk)",
       "access_type": "filter",
       "estimated_rows": 0.33329999446868896,
+      "filter_columns": [
+        "test.t1.pk",
+        "test.t2.pk"
+      ],
       "estimated_total_cost": 0.35,
       "estimated_first_row_cost": 0.35
     }
@@ -417,6 +431,10 @@ EXPLAIN
               "join_type": "antijoin",
               "operation": "Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)",
               "access_type": "join",
+              "join_columns": [
+                "alias2.col_varchar_key",
+                "test.t1.col_varchar"
+              ],
               "estimated_rows": 1.2681224262534148,
               "hash_condition": [],
               "join_algorithm": "hash",
@@ -520,6 +538,9 @@ EXPLAIN
   "query_type": "select",
   "access_type": "filter",
   "estimated_rows": 100.00000149011612,
+  "filter_columns": [
+    "e.`ENGINE`"
+  ],
   "estimated_total_cost": 115.0,
   "estimated_first_row_cost": 15.999999985098839
 }
@@ -629,6 +650,9 @@ EXPLAIN
   "query_type": "select",
   "access_type": "filter",
   "estimated_rows": 0.8164149177207436,
+  "filter_columns": [
+    "dt.f1"
+  ],
   "estimated_total_cost": 4.559846922834953,
   "estimated_first_row_cost": 4.559846922834953
 }
@@ -677,6 +701,9 @@ EXPLAIN
       "operation": "Filter: (t1.f2 < 50)",
       "access_type": "filter",
       "estimated_rows": 0.6665999889373779,
+      "filter_columns": [
+        "test.t1.f2"
+      ],
       "estimated_total_cost": 1.16,
       "estimated_first_row_cost": 1.16
     },
@@ -699,6 +726,9 @@ EXPLAIN
       "operation": "Filter: (t0.i0 > 3)",
       "access_type": "filter",
       "estimated_rows": 1.6664999723434448,
+      "filter_columns": [
+        "test.t0.i0"
+      ],
       "estimated_total_cost": 0.75,
       "estimated_first_row_cost": 0.45004501196921376
     }
@@ -967,6 +997,10 @@ EXPLAIN
           "operation": "Filter: (x1.a = x3.a)",
           "access_type": "filter",
           "estimated_rows": 0.10000000149011612,
+          "filter_columns": [
+            "x1.a",
+            "x3.a"
+          ],
           "estimated_total_cost": 0.35,
           "estimated_first_row_cost": 0.35
         }
@@ -989,6 +1023,9 @@ EXPLAIN
   "operation": "Inner hash join (x2.a = (select #2))",
   "query_type": "select",
   "access_type": "join",
+  "join_columns": [
+    "x2.a"
+  ],
   "estimated_rows": 1.0,
   "hash_condition": [
     "(x2.a = (select #2))"
@@ -1070,6 +1107,10 @@ EXPLAIN
           "operation": "Filter: (x1.a = x3.a)",
           "access_type": "filter",
           "estimated_rows": 0.10000000149011612,
+          "filter_columns": [
+            "x1.a",
+            "x3.a"
+          ],
           "estimated_total_cost": 0.35,
           "estimated_first_row_cost": 0.35
         }
@@ -1092,6 +1133,9 @@ EXPLAIN
   "operation": "Inner hash join (no condition), extra conditions: (x2.a < (select #2))",
   "query_type": "select",
   "access_type": "join",
+  "join_columns": [
+    "x2.a"
+  ],
   "estimated_rows": 1.0,
   "hash_condition": [],
   "join_algorithm": "hash",
