@@ -1120,11 +1120,6 @@ class ha_innopart : public ha_innobase,
 
   int records(ha_rows *num_rows) override;
 
-  int records_from_index(ha_rows *num_rows, uint) override {
-    /* Force use of cluster index until we implement sec index parallel scan. */
-    return ha_innopart::records(num_rows);
-  }
-
   int index_next(uchar *record) override {
     return (Partition_helper::ph_index_next(record));
   }

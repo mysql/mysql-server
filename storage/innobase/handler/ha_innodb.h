@@ -253,11 +253,6 @@ class ha_innobase : public handler {
 
   int records(ha_rows *num_rows) override;
 
-  int records_from_index(ha_rows *num_rows, uint) override {
-    /* Force use of cluster index until we implement sec index parallel scan. */
-    return ha_innobase::records(num_rows);
-  }
-
   ha_rows records_in_range(uint inx, key_range *min_key,
                            key_range *max_key) override;
 
