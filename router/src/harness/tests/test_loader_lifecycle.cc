@@ -179,6 +179,7 @@ class TestLoader : public Loader {
   std::exception_ptr init_all() { return Loader::init_all(); }
   void start_all() { return Loader::start_all(); }
   std::exception_ptr run() { return Loader::run(); }
+  void setup_info() { Loader::setup_info(); }
   std::exception_ptr deinit_all() { return Loader::deinit_all(); }
 
   std::list<std::string> order() const { return this->order_; }
@@ -1736,12 +1737,14 @@ TEST_F(LifecycleTest, NoInstances) {
       "\n"
       "runtime_folder = {prefix}                      \n"
       "config_folder  = {prefix}                      \n"
+      "data_folder    = {prefix}                      \n"
       "                                               \n"
       "[logger]                                       \n"
       "level = DEBUG                                  \n"
       "                                               \n");
   init_test_without_lifecycle_plugin(config_text_);
 
+  loader_.setup_info();
   loader_.run();
 
   refresh_log();
