@@ -109,8 +109,7 @@ TEST_F(LogFilterTest, IsPasswordHiddenWhenPatternSameAsReplacement) {
 
 TEST_F(LogFilterTest, IsMoreThenOneGroupHidden) {
   const std::string statement =
-      "ALTER USER \'jeffrey\'@\'localhost\' IDENTIFIED WITH "
-      "mysql_native_password BY "
+      "ALTER USER \'jeffrey\'@\'localhost\' IDENTIFIED WITH sha256_password BY "
       "\'new_password\' PASSWORD EXPIRE INTERVAL 180 DAY";
   const std::string expected_result =
       "ALTER USER \'jeffrey\'@\'localhost\' IDENTIFIED WITH *** BY *** "

@@ -38,6 +38,7 @@
 #include "classic_auth_cleartext.h"
 #include "classic_auth_forwarder.h"
 #include "classic_auth_native.h"
+#include "classic_auth_sha256_password.h"
 #include "classic_connection_base.h"
 #include "classic_frame.h"
 #include "classic_greeting_forwarder.h"
@@ -70,6 +71,7 @@ static constexpr const std::array supported_authentication_methods{
     AuthCachingSha2Password::kName,
     AuthNativePassword::kName,
     AuthCleartextPassword::kName,
+    AuthSha256Password::kName,
 };
 
 static constexpr const bool kCapturePlaintextPassword{true};

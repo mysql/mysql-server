@@ -255,65 +255,6 @@ void MySQLServerMockSessionClassic::client_greeting() {
     protocol_.auth_method_name(MySQLNativePassword::name);
   }
 
-  auto handshake_data_res =
-      json_reader_->handshake(false /* not is_greeting */);
-  if (!handshake_data_res) {
-    protocol_.encode_error(handshake_data_res.error());
-
-    send_response_then_disconnect();
-
-    return;
-  }
-
-  handshake_data_ = *handshake_data_res;
-
-  if (handshake_data_->username.has_value()) {
-    if (handshake_data_->username.value() != protocol_.username()) {
-      protocol_.encode_error(
-          {ER_ACCESS_DENIED_ERROR,  // 1045
-           "Access Denied for user '" + protocol_.username() + "'@'localhost'",
-           "28000"});
-
-      send_response_then_disconnect();
-
-      return;
-    }
-  }
-
-  if (handshake_data_->auth_method_name.has_value()) {
-    if (protocol_.auth_method_name() != *handshake_data_->auth_method_name) {
-      protocol_.auth_method_name(*handshake_data_->auth_method_name);
-
-      // auth_response() should be empty
-      //
-      // ask for the real full authentication
-      protocol_.auth_method_data(std::string(20, 'a'));
-
-      protocol_.encode_auth_switch_message(
-          {protocol_.auth_method_name(),
-           protocol_.auth_method_data() + std::string(1, '\0')});
-
-      protocol_.async_send([this, to_send = protocol_.send_buffer().size()](
-                               std::error_code ec, size_t transferred) {
-        if (ec) {
-          if (ec != std::errc::operation_canceled) {
-            log_warning("send auto result failed: %s", ec.message().c_str());
-          }
-
-          disconnect();
-          return;
-        }
-
-        if (to_send < transferred) {
-          std::terminate();
-        } else {
-          auth_switched();
-        }
-      });
-      return;
-    }
-  }
-
   if (protocol_.auth_method_name() == CachingSha2Password::name) {
     // auth_response() should be empty
     //
@@ -751,17 +692,25 @@ stdx::expected<std::string, std::error_code> cert_get_issuer_name(X509 *cert) {
 
 stdx::expected<void, ErrorResponse> MySQLServerMockSessionClassic::authenticate(
     const std::vector<uint8_t> &client_auth_method_data) {
-  if (!handshake_data_) {
-    return stdx::unexpected(ErrorResponse{
-        ER_ACCESS_DENIED_ERROR,  // 1045
-        "Access Denied for user '" + protocol_.username() + "'@'localhost'",
-        "28000"});
+  auto handshake_data_res =
+      json_reader_->handshake(false /* not is_greeting */);
+  if (!handshake_data_res) {
+    return stdx::unexpected(handshake_data_res.error());
   }
 
-  const auto &handshake = *handshake_data_;
+  auto handshake = handshake_data_res.value();
+
+  if (handshake.username.has_value()) {
+    if (handshake.username.value() != protocol_.username()) {
+      return stdx::unexpected(ErrorResponse{
+          ER_ACCESS_DENIED_ERROR,  // 1045
+          "Access Denied for user '" + protocol_.username() + "'@'localhost'",
+          "28000"});
+    }
+  }
 
   if (handshake.password.has_value()) {
-    if (!ProtocolBase::authenticate(
+    if (!protocol_.authenticate(
             protocol_.auth_method_name(), protocol_.auth_method_data(),
             handshake.password.value(), client_auth_method_data)) {
       return stdx::unexpected(ErrorResponse{
@@ -772,7 +721,7 @@ stdx::expected<void, ErrorResponse> MySQLServerMockSessionClassic::authenticate(
   }
 
   if (handshake.cert_required) {
-    const auto *ssl = protocol_.ssl();
+    auto *ssl = protocol_.ssl();
 
     std::unique_ptr<X509, decltype(&X509_free)> client_cert{
         SSL_get_peer_certificate(ssl), &X509_free};

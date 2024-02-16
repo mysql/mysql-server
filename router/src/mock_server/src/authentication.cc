@@ -40,7 +40,7 @@ namespace impl {
  * - mysql_native_password
  *   - message-digest: SHA1
  *   - inner message-digest-order: nonce + double_hashed_password
- * - caching_sha2_password
+ * - caching_sha256_password
  *   - message-digest: SHA256
  *   - inner message-digest-order: double_hashed_password + nonce
  *

@@ -125,8 +125,6 @@ class MySQLServerMockSessionClassic : public MySQLServerMockSession {
   MySQLClassicProtocol protocol_;
 
   bool with_tls_{false};
-
-  std::optional<StatementReaderBase::handshake_data> handshake_data_;
 };
 
 }  // namespace server_mock

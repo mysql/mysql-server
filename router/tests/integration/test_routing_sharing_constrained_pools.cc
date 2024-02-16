@@ -2365,6 +2365,8 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
     accounts.push_back(SharedServer::native_empty_password_account());
     accounts.push_back(SharedServer::caching_sha2_password_account());
     accounts.push_back(SharedServer::caching_sha2_empty_password_account());
+    accounts.push_back(SharedServer::sha256_password_account());
+    accounts.push_back(SharedServer::sha256_empty_password_account());
 
     scenarios.emplace_back("different accounts", std::move(accounts));
   }

@@ -1101,6 +1101,88 @@ TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_with_schema) {
   }
 }
 
+TEST_P(ConnectionTest, classic_protocol_change_user_sha256_password_empty) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  cli.username("root");
+  cli.password("");
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  auto account = SharedServer::sha256_empty_password_account();
+
+  ASSERT_NO_ERROR(cli.change_user(account.username, account.password, ""));
+
+  {
+    auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre(
+                                account.username + "@localhost", "<NULL>")));
+  }
+}
+
+TEST_P(ConnectionTest, classic_protocol_change_user_sha256_password) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  cli.username("root");
+  cli.password("");
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  SCOPED_TRACE("// check the server side matches the SSL requirements");
+  {
+    auto cipher_res = query_one_result(cli, R"(
+SELECT VARIABLE_VALUE
+  FROM performance_schema.session_status
+ WHERE VARIABLE_NAME = 'ssl_cipher')");
+    ASSERT_NO_ERROR(cipher_res);
+
+    if (GetParam().server_ssl_mode == kDisabled ||
+        (GetParam().server_ssl_mode == kAsClient &&
+         GetParam().client_ssl_mode == kDisabled)) {
+      EXPECT_THAT(*cipher_res, ElementsAre(ElementsAre("")));
+    } else {
+      EXPECT_THAT(*cipher_res, ElementsAre(ElementsAre(::testing::Ne(""))));
+    }
+  }
+
+  {
+    auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+
+    EXPECT_THAT(*query_res,
+                ElementsAre(ElementsAre("root@localhost", "<NULL>")));
+  }
+
+  auto expect_success = !(GetParam().client_ssl_mode == kDisabled &&
+                          (GetParam().server_ssl_mode == kRequired ||
+                           GetParam().server_ssl_mode == kPreferred));
+
+  auto account = SharedServer::sha256_password_account();
+  {
+    auto change_user_res =
+        cli.change_user(account.username, account.password, "" /* = schema */);
+    if (expect_success) {
+      ASSERT_NO_ERROR(change_user_res);
+    } else {
+      ASSERT_ERROR(change_user_res);
+    }
+  }
+
+  if (expect_success) {
+    auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre(
+                                account.username + "@localhost", "<NULL>")));
+  }
+}
+
 TEST_P(ConnectionTest, classic_protocol_statistics) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -2871,6 +2953,125 @@ TEST_P(ConnectionTest, classic_protocol_caching_sha2_over_plaintext_with_pass) {
   }
 }
 
+//
+// sha256_password
+//
+
+/**
+ * Check, sha256-password over plaintext works with get-server-key.
+ */
+TEST_P(ConnectionTest,
+       classic_protocol_sha256_password_over_plaintext_with_get_server_key) {
+  if (GetParam().client_ssl_mode == kRequired) {
+    GTEST_SKIP() << "test requires plaintext connection.";
+  }
+
+  bool expect_success =
+#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 0, 2)
+      (GetParam().client_ssl_mode == kDisabled &&
+       (GetParam().server_ssl_mode == kDisabled ||
+        GetParam().server_ssl_mode == kAsClient)) ||
+      (GetParam().client_ssl_mode == kPassthrough) ||
+      (GetParam().client_ssl_mode == kPreferred &&
+       (GetParam().server_ssl_mode == kDisabled ||
+        GetParam().server_ssl_mode == kAsClient));
+#else
+      !(GetParam().client_ssl_mode == kDisabled &&
+        (GetParam().server_ssl_mode == kRequired ||
+         GetParam().server_ssl_mode == kPreferred));
+#endif
+
+  auto account = SharedServer::sha256_password_account();
+
+  std::string username(account.username);
+  std::string password(account.password);
+
+  SCOPED_TRACE("// first connection");
+  {
+    MysqlClient cli;
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
+    cli.set_option(MysqlClient::GetServerPublicKey(true));
+
+    cli.username(username);
+    cli.password(password);
+
+    auto connect_res =
+        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    if (!expect_success) {
+      // server will treat the public-key-request as wrong password.
+      ASSERT_ERROR(connect_res);
+    } else {
+      ASSERT_NO_ERROR(connect_res);
+
+      ASSERT_NO_ERROR(cli.ping());
+    }
+  }
+
+  SCOPED_TRACE("// second connection");
+  if (expect_success) {
+    MysqlClient cli;
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
+    cli.set_option(MysqlClient::GetServerPublicKey(true));
+
+    cli.username(username);
+    cli.password(password);
+
+    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(cli.ping());
+  }
+}
+
+/**
+ * Check, sha256-empty-password over plaintext works with get-server-key.
+ *
+ * as empty passwords are not encrypted, it also works of the router works
+ * with client_ssl_mode=DISABLED
+ */
+TEST_P(
+    ConnectionTest,
+    classic_protocol_sha256_password_empty_over_plaintext_with_get_server_key) {
+  if (GetParam().client_ssl_mode == kRequired) {
+    GTEST_SKIP() << "test requires plaintext connection.";
+  }
+
+  auto account = SharedServer::sha256_empty_password_account();
+
+  std::string username(account.username);
+  std::string password(account.password);
+
+  SCOPED_TRACE("// first connection");
+  {
+    MysqlClient cli;
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
+    cli.set_option(MysqlClient::GetServerPublicKey(true));
+
+    cli.username(username);
+    cli.password(password);
+
+    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(cli.ping());
+  }
+
+  SCOPED_TRACE("// second connection");
+  {
+    MysqlClient cli;
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
+    cli.set_option(MysqlClient::GetServerPublicKey(true));
+
+    cli.username(username);
+    cli.password(password);
+
+    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(cli.ping());
+  }
+}
+
 /**
  * Check, caching-sha2-password over plaintext works with get-server-key.
  */
@@ -3706,6 +3907,7 @@ static constexpr const char *default_auth_params[] = {
     "default",
     "mysql_native_password",
     "caching_sha2_password",
+    "sha256_password",
 };
 
 struct ConnectTestParam {
@@ -3771,6 +3973,34 @@ static ConnectTestParam connect_test_params[] = {
          SharedServer::caching_sha2_password_account().auth_method},
      [](auto) { return 1045; }},  // "Access denied for user ..."
 
+    // sha256_password
+    //
+    {"sha256_password_account_with_empty_password",
+     SharedServer::sha256_empty_password_account(), [](auto) { return 0; }},
+    {"sha256_password_account_with_empty_password_auth_with_wrong_password",
+     SharedServer::Account{
+         SharedServer::sha256_empty_password_account().username,
+         "wrong-password",
+         SharedServer::sha256_empty_password_account().auth_method},
+     [](auto) { return 1045; }},  // "Access denied for user ..."
+    {"sha256_password_account_with_password",
+     SharedServer::sha256_password_account(),
+     [](auto connect_param) {
+       return (connect_param.client_ssl_mode == kDisabled &&
+               (connect_param.server_ssl_mode == kPreferred ||
+                connect_param.server_ssl_mode == kRequired))
+                  ? 1045
+                  : 0;
+     }},
+    {"sha256_password_account_with_password_auth_with_wrong_password",
+     SharedServer::Account{SharedServer::sha256_password_account().username,
+                           "wrong-password",
+                           SharedServer::sha256_password_account().auth_method},
+     [](auto) { return 1045; }},  // "Access denied for user ..."
+    {"sha256_password_account_with_password_auth_with_empty_password",
+     SharedServer::Account{SharedServer::sha256_password_account().username, "",
+                           SharedServer::sha256_password_account().auth_method},
+     [](auto) { return 1045; }},  // "Access denied for user ..."
 };
 
 class ConnectionConnectTest
