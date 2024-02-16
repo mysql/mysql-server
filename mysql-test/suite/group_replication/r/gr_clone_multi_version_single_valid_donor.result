@@ -1,0 +1,91 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install clone plugin on server1.
+[connection server1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+############################################################
+# 2. Bootstrap server1 with version 8.0.36 and add some data.
+#    8.0.36 is not a valid clone donor.
+SET @@GLOBAL.DEBUG='+d,group_replication_version_clone_not_supported';
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+############################################################
+# 3. Install the clone plugin and start group replication on server3
+#    with higher patch version.
+[connection server3]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET @@GLOBAL.DEBUG='+d,group_replication_compatibility_higher_patch_version';
+include/start_group_replication.inc
+
+########################################################################
+# 4.  Restart server 2 with a monitoring process (mysqld_safe) if needed
+[connection server2]
+include/spawn_monitoring_process.inc
+############################################################
+# 5. Install the clone plugin on server 2
+#    Setup the server so group replication starts on boot
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+############################################################
+# 6. Start group replication on server 2.
+#    Set a debug point so it blocks during clone.
+SET GLOBAL group_replication_clone_threshold= 1;
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 1;
+SET @@GLOBAL.DEBUG='+d,gr_clone_wait';
+START GROUP_REPLICATION;
+SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
+
+############################################################
+# 7. Recovery will finish via clone.
+#    Assert M3 with higher patch version was clone donor.
+#    Check clone finished and server2 is online.
+include/assert.inc [Clone donor is server3-higher patch version.]
+SET DEBUG_SYNC = 'now SIGNAL gr_clone_continue';
+SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+include/assert.inc [Clone must be completed]
+SET DEBUG_SYNC = 'RESET';
+
+############################################################
+# 8. Cleanup
+[connection server1]
+DROP TABLE t1;
+include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG='-d,group_replication_version_clone_not_supported';
+[connection server3]
+include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG='-d,group_replication_compatibility_higher_patch_version';
+set session sql_log_bin=0;
+SET GLOBAL super_read_only= FALSE;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET GLOBAL super_read_only= TRUE;
+set session sql_log_bin=1;
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_clone_threshold= GROUP_REPLICATION_THRESHOLD;
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST group_replication_communication_stack;
+set session sql_log_bin=0;
+SET GLOBAL super_read_only= FALSE;
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
+call mtr.add_suppression("Member version is read compatible with the group.");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+SET GLOBAL super_read_only= TRUE;
+set session sql_log_bin=1;
+include/clean_monitoring_process.inc
+include/group_replication_end.inc

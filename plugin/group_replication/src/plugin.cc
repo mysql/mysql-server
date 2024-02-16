@@ -951,6 +951,8 @@ int configure_group_member_manager() {
                   { local_version = 0x080028; };);
   DBUG_EXECUTE_IF("group_replication_version_8_0_35",
                   { local_version = 0x080035; };);
+  DBUG_EXECUTE_IF("group_replication_version_clone_not_supported",
+                  { local_version = 0x080036; };);
   Member_version local_member_plugin_version(local_version);
   DBUG_EXECUTE_IF("group_replication_force_member_uuid", {
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");

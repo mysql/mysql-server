@@ -80,7 +80,7 @@
 /*
   Version from which group replication and the server support cloning
 */
-#define CLONE_GR_SUPPORT_VERSION 0x080017
+#define CLONE_GR_SUPPORT_VERSION 0x080037
 
 /*
   Version from which group replication support timeout argument in UDF
