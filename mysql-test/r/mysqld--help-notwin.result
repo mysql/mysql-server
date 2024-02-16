@@ -27,17 +27,23 @@ The following options may be given as the first argument:
  socket creation.
  --admin-port=#      Port number to use for service connection, built-in
  default (33062)
- --admin-ssl         Enable SSL for admin interface (automatically enabled
- with other flags).
- (Defaults to on; use --skip-admin-ssl to disable.)
+ --admin-ssl-ca=name CA file in PEM format (check OpenSSL docs) for
+ --admin-port
  --admin-ssl-capath=name 
+ CA directory (check OpenSSL docs) for --admin-port
  --admin-ssl-cert=name 
+ X509 cert in PEM format for --admin-port
  --admin-ssl-cipher=name 
+ SSL cipher to use for --admin-port
  --admin-ssl-crl=name 
- CRL file in PEM format (check OpenSSL docs, implies
+ CRL file in PEM format (check OpenSSL docs) for
+ --admin-port
  --admin-ssl-crlpath=name 
+ CRL directory (check OpenSSL docs) for --admin-port
  --admin-ssl-key=name 
+ X509 key in PEM format for --admin-port
  --admin-tls-ciphersuites=name 
+ TLS v1.3 ciphersuite to use for --admin-port
  --allow-suspicious-udfs 
  Allows use of UDFs consisting of only one symbol xxx()
  without corresponding xxx_init() or xxx_deinit(). That
@@ -1267,6 +1273,7 @@ The following options may be given as the first argument:
  When this option is enabled, connections attempted using
  insecure transport will be rejected.  Secure transports
  are SSL/TLS, Unix socket or Shared Memory (on Windows).
+ (Defaults to on; use --skip-require-secure-transport to disable.)
  --rpl-read-size=#   The size for reads done from the binlog and relay log. It
  must be a multiple of 4kb. Making it larger might help
  with IO stalls while reading these files when they are
@@ -1534,6 +1541,7 @@ The following options may be given as the first argument:
  TLS executed, new certficates will not be used if
  validation fails. 
  --tls-ciphersuites=name 
+ TLS v1.3 ciphersuite to use
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY or
  TempTable storage engine exceeds this size, MySQL will
  automatically convert it to an on-disk table 
@@ -1595,7 +1603,6 @@ Variables (--variable-name=value)
 activate-all-roles-on-login FALSE
 admin-address (No default value)
 admin-port 33062
-admin-ssl TRUE
 admin-ssl-ca (No default value)
 admin-ssl-capath (No default value)
 admin-ssl-cert (No default value)
@@ -1916,7 +1923,7 @@ report-host (No default value)
 report-password (No default value)
 report-port 0
 report-user (No default value)
-require-secure-transport FALSE
+require-secure-transport TRUE
 rpl-read-size 8192
 rpl-stop-replica-timeout 31536000
 rpl-stop-slave-timeout 31536000

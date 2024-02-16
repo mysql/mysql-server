@@ -3686,7 +3686,7 @@ static Sys_var_bool Sys_require_secure_transport(
     "When this option is enabled, connections attempted using insecure "
     "transport will be rejected.  Secure transports are SSL/TLS, "
     "Unix socket or Shared Memory (on Windows).",
-    GLOBAL_VAR(opt_require_secure_transport), CMD_LINE(OPT_ARG), DEFAULT(false),
+    GLOBAL_VAR(opt_require_secure_transport), CMD_LINE(OPT_ARG), DEFAULT(true),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_require_secure_transport),
     ON_UPDATE(nullptr));
 
@@ -4808,15 +4808,15 @@ static Sys_var_enum Sys_ssl_fips_mode(
     "ssl_fips_mode",
     "SSL FIPS mode (applies only for OpenSSL); "
     "permitted values are: OFF, ON, STRICT",
-    READ_ONLY GLOBAL_VAR(opt_ssl_fips_mode),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_FIPS_MODE), ssl_fips_mode_names, DEFAULT(0),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
-    DEPRECATED_VAR(""), sys_var::PARSE_EARLY);
+    READ_ONLY GLOBAL_VAR(opt_ssl_fips_mode), CMD_LINE(REQUIRED_ARG),
+    ssl_fips_mode_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr), DEPRECATED_VAR(""),
+    sys_var::PARSE_EARLY);
 
 static Sys_var_bool Sys_auto_generate_certs(
     "auto_generate_certs",
-    "Auto generate SSL certificates at server startup if --ssl is set to "
-    "ON and none of the other SSL system variables are specified and "
+    "Auto generate SSL certificates at server startup if "
+    "none of the other SSL system variables are specified and "
     "certificate/key files are not present in data directory.",
     READ_ONLY NON_PERSIST GLOBAL_VAR(opt_auto_generate_certs),
     CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
@@ -5769,14 +5769,7 @@ static Sys_var_have Sys_have_geometry(
     "have_geometry", "have_geometry",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_geometry), NO_CMD_LINE);
 
-static SHOW_COMP_OPTION have_ssl_func(THD *thd [[maybe_unused]]) {
-  return have_ssl() ? SHOW_OPTION_YES : SHOW_OPTION_DISABLED;
-}
-
 enum SHOW_COMP_OPTION Sys_var_have_func::dummy_;
-
-static Sys_var_have_func Sys_have_openssl("have_openssl", "have_openssl",
-                                          have_ssl_func, DEPRECATED_VAR(""));
 
 static Sys_var_have Sys_have_profiling(
     "have_profiling", "have_profiling",
@@ -5795,10 +5788,6 @@ static Sys_var_have Sys_have_query_cache(
 static Sys_var_have Sys_have_rtree_keys(
     "have_rtree_keys", "have_rtree_keys",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_rtree_keys), NO_CMD_LINE);
-
-static Sys_var_have_func Sys_have_ssl(
-    "have_ssl", "have_ssl", have_ssl_func,
-    DEPRECATED_VAR("performance_schema.tls_channel_status table"));
 
 static Sys_var_have Sys_have_symlink(
     "have_symlink", "have_symlink",

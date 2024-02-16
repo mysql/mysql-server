@@ -28,7 +28,7 @@
 
 --let $MYSQLD_LOG=$MYSQLTEST_VARDIR/tmp/netns.err
 
---let $DEFARGS= --no-defaults --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --secure-file-priv="" --socket=$MYSQLD_SOCKET --skip-ssl --skip-mysqlx
+--let $DEFARGS= --no-defaults --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --secure-file-priv="" --socket=$MYSQLD_SOCKET --tls-version= --skip-mysqlx
 
 --echo # Using an unknown network namespace with bind-address
 --error 1

@@ -14,7 +14,7 @@
 
 --let $MYSQLD_LOG= $MYSQL_TMP_DIR/server.log
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
---let DEFARGS= --no-defaults --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --secure-file-priv="" --socket=$MYSQLD_SOCKET --skip-ssl --skip-mysqlx
+--let DEFARGS= --no-defaults --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --secure-file-priv="" --socket=$MYSQLD_SOCKET --tls-version= --skip-mysqlx
 
 --echo #
 --echo # Server is started with --bind-address=127.0.0.1,::1

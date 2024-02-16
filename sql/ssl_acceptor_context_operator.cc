@@ -49,7 +49,7 @@ void Ssl_acceptor_context_container::switch_data(
 }
 
 bool TLS_channel::singleton_init(Ssl_acceptor_context_container **out,
-                                 std::string channel, bool use_ssl_arg,
+                                 std::string channel,
                                  Ssl_init_callback *callbacks, bool db_init) {
   if (out == nullptr || callbacks == nullptr) return true;
   *out = nullptr;
@@ -57,20 +57,11 @@ bool TLS_channel::singleton_init(Ssl_acceptor_context_container **out,
     No need to take the ssl_ctx_lock lock here since it's being called
     from singleton_init().
   */
-  if (use_ssl_arg && callbacks->provision_certs()) return true;
+  if (callbacks->provision_certs()) return true;
 
-  /*
-    No real need for opt_use_ssl to be enabled in bootstrap mode,
-    but we want the SSL material generation and/or validation
-    (if supplied). So, we keep it on.
-
-    We don't hush the option since it would indicate a failure
-    in auto-generation, bad key material explicitly specified or
-    auto-generation disabled explcitly while SSL is still on.
-  */
   enum enum_ssl_init_error error = SSL_INITERR_NOERROR;
-  Ssl_acceptor_context_data *news = new Ssl_acceptor_context_data(
-      channel, use_ssl_arg, callbacks, true, &error);
+  Ssl_acceptor_context_data *news =
+      new Ssl_acceptor_context_data(channel, callbacks, true, &error);
   Ssl_acceptor_context_container *new_container =
       new Ssl_acceptor_context_container(news);
   if (news == nullptr || new_container == nullptr) {
@@ -111,7 +102,7 @@ void TLS_channel::singleton_flush(Ssl_acceptor_context_container *container,
                                   enum enum_ssl_init_error *error, bool force) {
   if (container == nullptr) return;
   Ssl_acceptor_context_data *news =
-      new Ssl_acceptor_context_data(channel, true, callbacks, false, error);
+      new Ssl_acceptor_context_data(channel, callbacks, false, error);
   if (*error != SSL_INITERR_NOERROR && !force) {
     delete news;
     return;

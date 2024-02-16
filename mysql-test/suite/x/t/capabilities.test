@@ -3,6 +3,7 @@ call mtr.add_suppression("Capability expired password failed with error: Invalid
 --source include/xplugin_preamble.inc
 --source include/xplugin_ssl_warnings_suppression.inc
 --source include/xplugin_create_user.inc
+--source include/suppress_tls_off.inc
 
 --write_file $MYSQL_TMP_DIR/mysqlx-capabilities-get.xpl
 -->import connection.macro
@@ -640,7 +641,7 @@ EOF
 --exec $MYSQLXTEST -u invalid --password='invalid' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get-success.xpl 2>&1
 
 --echo Restart server and verify if ssl callback works
-let $restart_parameters = restart: --ssl=1;
+let $restart_parameters = restart: ;
 --source include/restart_mysqld.inc
 
 --echo capabilities.result checks the presence of tls cap

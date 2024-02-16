@@ -14,7 +14,7 @@
 --echo # Server is down
 
 --echo # Must not crash
---let DEFARGS= --no-defaults --console --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --skip-ssl --datadir=$DDIR
+--let DEFARGS= --no-defaults --console --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --tls-version= --datadir=$DDIR
 --exec $MYSQLD $DEFARGS --initialize $PFS_EXAMPLE_PLUGIN_EMPLOYEE_OPT $PFS_EXAMPLE_PLUGIN_EMPLOYEE_LOAD_ADD > $MYSQLD_LOG 2>&1
 
 --echo # Restarting the server

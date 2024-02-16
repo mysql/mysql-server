@@ -52,7 +52,7 @@
 #include "utilities.h"
 
 /* TLS variables */
-#include "sslopt-vars.h"
+#include "client/include/sslopt-vars.h"
 
 namespace options {
 
@@ -101,7 +101,7 @@ char *Options::s_socket = nullptr;
 bool Options::s_tty_password = false;
 
 /* Caching sha2 password variables */
-#include "caching_sha2_passwordopt-vars.h"
+#include "client/include/caching_sha2_passwordopt-vars.h"
 
 /** Options group */
 static const char *load_default_groups[] = {"mysql_migrate_keyring", nullptr};
@@ -164,9 +164,9 @@ static struct my_option my_long_options[] = {
      nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
 /* TLS options */
-#include "sslopt-longopts.h"
+#include "client/include/sslopt-longopts.h"
 /* Caching sha2 password options */
-#include "caching_sha2_passwordopt-longopts.h"
+#include "client/include/caching_sha2_passwordopt-longopts.h"
     {"verbose", 'v', "Write more.", nullptr, nullptr, nullptr, GET_NO_ARG,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     /* Must be the last one */
@@ -219,7 +219,7 @@ bool get_one_option(int optid, const struct my_option *opt, char *argument) {
         Options::s_tty_password = true;
       break;
 /* Handle TLS options */
-#include "sslopt-case.h"
+#include "client/include/sslopt-case.h"
   }
   return false;
 }

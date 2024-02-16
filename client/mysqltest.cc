@@ -75,8 +75,8 @@
 #include <windows.h>
 #endif
 
-#include "caching_sha2_passwordopt-vars.h"
-#include "client/client_priv.h"
+#include "client/include/caching_sha2_passwordopt-vars.h"
+#include "client/include/client_priv.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_compare
@@ -388,7 +388,7 @@ struct st_command;
 typedef Prealloced_array<st_command *, 1024> Q_lines;
 Q_lines *q_lines;
 
-#include "sslopt-vars.h"
+#include "client/include/sslopt-vars.h"
 
 struct Parser {
   int read_lines, current_line;
@@ -7721,8 +7721,8 @@ static int read_command(struct st_command **command_ptr) {
 }
 
 static struct my_option my_long_options[] = {
-#include "caching_sha2_passwordopt-longopts.h"
-#include "sslopt-longopts.h"
+#include "client/include/caching_sha2_passwordopt-longopts.h"
+#include "client/include/sslopt-longopts.h"
     {"basedir", 'b', "Basedir for tests.", &opt_basedir, &opt_basedir, nullptr,
      GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"character-sets-dir", OPT_CHARSETS_DIR,
@@ -7986,7 +7986,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       } else
         tty_password = true;
       break;
-#include "sslopt-case.h"
+#include "client/include/sslopt-case.h"
 
     case 't':
       my_stpnmov(TMPDIR, argument, sizeof(TMPDIR));

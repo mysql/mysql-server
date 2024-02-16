@@ -8,6 +8,6 @@ let $table = performance_schema.session_variables;
 
 let $column_count = 1;
 let $col1 = VARIABLE_NAME;
-let $col1_act = "have_ssl";
+let $col1_act = "have_statement_timeout";
 
 --source ../include/idx_explain_test.inc

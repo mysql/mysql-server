@@ -46,8 +46,9 @@
 #include <sstream>
 #include <utility>
 
-#include "caching_sha2_passwordopt-vars.h"
-#include "client/client_priv.h"
+#include "client/include/caching_sha2_passwordopt-vars.h"
+#include "client/include/client_priv.h"
+#include "client/include/sslopt-vars.h"
 #include "compression.h"
 #include "m_string.h"
 #include "my_byteorder.h"
@@ -74,7 +75,6 @@
 #include "sql/rpl_gtid.h"
 #include "sql_common.h"
 #include "sql_string.h"
-#include "sslopt-vars.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
@@ -1958,8 +1958,8 @@ static struct my_option my_long_options[] = {
      nullptr},
     {"socket", 'S', "The socket file to use for connection.", &sock, &sock,
      nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#include "caching_sha2_passwordopt-longopts.h"
-#include "sslopt-longopts.h"
+#include "client/include/caching_sha2_passwordopt-longopts.h"
+#include "client/include/sslopt-longopts.h"
 
     {"start-datetime", OPT_START_DATETIME,
      "Start reading the binlog at first event having a datetime equal or "
@@ -2204,7 +2204,7 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       DBUG_PUSH(argument ? argument : default_dbug_option);
       break;
 #endif
-#include "sslopt-case.h"
+#include "client/include/sslopt-case.h"
 
     case 'd':
       one_database = true;

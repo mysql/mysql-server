@@ -25,7 +25,7 @@
   @file include/multi_factor_passwordopt-vars.h
 */
 
-#include "multi_factor_passwordopt-vars.h"
+#include "client/include/multi_factor_passwordopt-vars.h"
 #include "my_getopt.h"
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"  // my_free, my_strdup

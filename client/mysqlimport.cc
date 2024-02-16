@@ -33,7 +33,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "client/client_priv.h"
+#include "client/include/client_priv.h"
 #include "compression.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -86,9 +86,9 @@ static longlong opt_ignore_lines = -1;
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
 
-#include "caching_sha2_passwordopt-vars.h"
-#include "multi_factor_passwordopt-vars.h"
-#include "sslopt-vars.h"
+#include "client/include/caching_sha2_passwordopt-vars.h"
+#include "client/include/multi_factor_passwordopt-vars.h"
+#include "client/include/sslopt-vars.h"
 #if defined(_WIN32)
 static char *shared_memory_base_name = nullptr;
 #endif
@@ -181,7 +181,7 @@ static struct my_option my_long_options[] = {
      "Use LOW_PRIORITY when updating the table.", &opt_low_priority,
      &opt_low_priority, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-#include "multi_factor_passwordopt-longopts.h"
+#include "client/include/multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", nullptr, nullptr,
      nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -215,8 +215,8 @@ static struct my_option my_long_options[] = {
     {"socket", 'S', "The socket file to use for connection.",
      &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
-#include "caching_sha2_passwordopt-longopts.h"
-#include "sslopt-longopts.h"
+#include "client/include/caching_sha2_passwordopt-longopts.h"
+#include "client/include/sslopt-longopts.h"
 
     {"use-threads", OPT_USE_THREADS,
      "Load files in parallel. The argument is the number "
@@ -285,7 +285,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       DBUG_PUSH(argument ? argument : "d:t:o");
       debug_check_flag = true;
       break;
-#include "sslopt-case.h"
+#include "client/include/sslopt-case.h"
 
     case 'V':
       print_version();

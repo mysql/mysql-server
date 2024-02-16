@@ -101,6 +101,7 @@ bool init_mysql_main_iterator(property_iterator *it) {
 }
 
 bool init_mysql_admin_iterator(property_iterator *it) {
+  if (mysql_admin == nullptr) return false;
   Ssl_acceptor_context_iterator *container =
       new Ssl_acceptor_context_iterator(mysql_admin);
   if (container == nullptr) return false;

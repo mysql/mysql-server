@@ -1,4 +1,3 @@
---ssl=1
 --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem
 --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem
 --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem

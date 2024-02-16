@@ -1775,22 +1775,12 @@ Mysqlx.Error {
 
 ok
 Restart server and verify if ssl callback works
-# restart: --ssl=1
+# restart: 
 capabilities.result checks the presence of tls cap
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
 Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
   capabilities {
     name: "authentication.mechanisms"
     value {

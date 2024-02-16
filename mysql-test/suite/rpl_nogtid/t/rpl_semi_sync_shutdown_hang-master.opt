@@ -1,4 +1,4 @@
-$SEMISYNC_PLUGIN_OPT --skip-ssl
+$SEMISYNC_PLUGIN_OPT --tls-version=
 --loose-mysqlx-ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem
 --loose-mysqlx-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem
 --loose-mysqlx-ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem

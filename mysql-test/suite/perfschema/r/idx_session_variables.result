@@ -23,14 +23,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select VARIABLE_VALUE
 from performance_schema.session_variables
-where VARIABLE_NAME = "have_ssl";
+where VARIABLE_NAME = "have_statement_timeout";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	session_variables	NULL	const	PRIMARY	PRIMARY	258	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select VARIABLE_VALUE
 from performance_schema.session_variables
-where VARIABLE_NAME = "have_ssl";
+where VARIABLE_NAME = "have_statement_timeout";
 VARIABLE_VALUE
 #
 OK: handler_read_key incremented

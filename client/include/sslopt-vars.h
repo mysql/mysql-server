@@ -24,10 +24,6 @@
 #ifndef SSLOPT_VARS_INCLUDED
 #define SSLOPT_VARS_INCLUDED
 
-/**
-  @file include/sslopt-vars.h
-*/
-
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/types.h>

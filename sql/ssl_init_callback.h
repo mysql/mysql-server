@@ -29,7 +29,18 @@
 
 #include <sql/auth/auth_common.h> /* ssl_artifacts_status */
 
+/** The runtime value of whether admin TLS used different config or not */
 extern std::atomic_bool g_admin_ssl_configured;
+/**
+ The configure time value of whether admin TLS used different config or not.
+ The value for this is determined during system variable update.
+ True means that the ADMIN channel is using its own TLS configuration.
+ False means that the ADMIN channel is reusing the main channel's
+ TLS configuration.
+ To put this value into effect (and update @ref g_admin_ssl_configured)
+ one needs to execute the "ALTER INSTANCE RELOAD TLS" SQL command.
+*/
+extern bool opt_admin_ssl_configured;
 
 extern std::string mysql_main_channel;
 extern std::string mysql_admin_channel;

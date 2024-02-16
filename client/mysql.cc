@@ -38,8 +38,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <sys/types.h>
 #include <time.h>
 
-#include "client/client_priv.h"
 #include "client/client_query_attributes.h"
+#include "client/include/client_priv.h"
+#include "client/include/user_registration.h"
 #include "client/multi_option.h"
 #include "client/my_readline.h"
 #include "client/pattern_matcher.h"
@@ -65,7 +66,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "strxmov.h"
 #include "strxnmov.h"
 #include "typelib.h"
-#include "user_registration.h"
 #include "violite.h"
 
 #ifdef HAVE_SYS_IOCTL_H
@@ -259,11 +259,11 @@ static struct my_option my_empty_options[] = {
 
 static void usage(int version);
 
-#include "authentication_kerberos_clientopt-vars.h"
-#include "authentication_webauthn_clientopt-vars.h"
-#include "caching_sha2_passwordopt-vars.h"
-#include "multi_factor_passwordopt-vars.h"
-#include "sslopt-vars.h"
+#include "client/include/authentication_kerberos_clientopt-vars.h"
+#include "client/include/authentication_webauthn_clientopt-vars.h"
+#include "client/include/caching_sha2_passwordopt-vars.h"
+#include "client/include/multi_factor_passwordopt-vars.h"
+#include "client/include/sslopt-vars.h"
 
 const char *default_dbug_option = "d:t:o,/tmp/mysql.trace";
 static void *ssl_session_data = nullptr;
@@ -1910,7 +1910,7 @@ static struct my_option my_long_options[] = {
      "This option is disabled by default.",
      nullptr, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
-#include "multi_factor_passwordopt-longopts.h"
+#include "client/include/multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", nullptr, nullptr,
      nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -1956,8 +1956,8 @@ static struct my_option my_long_options[] = {
     {"socket", 'S', "The socket file to use for connection.",
      &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR_ALLOC,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#include "caching_sha2_passwordopt-longopts.h"
-#include "sslopt-longopts.h"
+#include "client/include/caching_sha2_passwordopt-longopts.h"
+#include "client/include/sslopt-longopts.h"
 
     {"table", 't', "Output in table format.", &output_tables, &output_tables,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -2077,8 +2077,8 @@ static struct my_option my_long_options[] = {
     {"telemetry-client", 0, "Load the telemetry_client plugin.",
      &opt_tel_plugin, &opt_tel_plugin, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
-#include "authentication_kerberos_clientopt-longopts.h"
-#include "authentication_webauthn_clientopt-longopts.h"
+#include "client/include/authentication_kerberos_clientopt-longopts.h"
+#include "client/include/authentication_webauthn_clientopt-longopts.h"
     {"register-factor", 0,
      "Specifies factor for which registration needs to be done for.",
      &opt_register_factor, &opt_register_factor, nullptr, GET_STR, REQUIRED_ARG,
@@ -2206,10 +2206,10 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
       opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
       break;
-#include "sslopt-case.h"
+#include "client/include/sslopt-case.h"
 
-#include "authentication_kerberos_clientopt-case.h"
-#include "authentication_webauthn_clientopt-case.h"
+#include "client/include/authentication_kerberos_clientopt-case.h"
+#include "client/include/authentication_webauthn_clientopt-case.h"
 
     case 'V':
       usage(1);

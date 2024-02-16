@@ -15,9 +15,9 @@ Pattern "CA certificate .* is self signed." found
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
-SHOW VARIABLES LIKE 'have_ssl';
-Variable_name	Value
-have_ssl	YES
+SELECT VALUE FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Enabled';
+VALUE
+Yes
 # Check values of ssl_ca, ssl_cert and ssl_key.
 # They should refer to certificate/key files in data directory.
 SHOW VARIABLES LIKE 'ssl_ca';
@@ -36,10 +36,10 @@ Ssl_cipher	SSL_CIPHER
 #          without SSL capability
 # Remove one of the certificates/keys.
 # Restart completed.
-# Check value of have_ssl. It must be DISABLED.
-SHOW VARIABLES LIKE 'have_ssl';
-Variable_name	Value
-have_ssl	DISABLED
+# Check if SSL is enabled. It must be DISABLED.
+SELECT VALUE FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Enabled';
+VALUE
+No
 # Try creating SSL connection using mysql connection. It should fail.
 #
 # Bug#21108296 : --SSL-CIPHER OPTION CAUSES SSL INITIALIZATION FAILURE

@@ -107,10 +107,6 @@ class Ssl_acceptor_context_data final {
    Ctor
 
    @param [in]  channel          Name of the channel
-   @param [in]  use_ssl_arg      Don't bother at all to try and construct
-                                 an SSL_CTX and just make an empty
-                                 SslAcceptorContext. Used to pass the
-                                 --ssl/--admin-ssl options at startup.
    @param [in]  callbacks        TLS context initialization callbacks
                                  to get values of various options and
                                  perform validation
@@ -119,8 +115,7 @@ class Ssl_acceptor_context_data final {
    @param [out] out_error        An optional slot to return SSL_CTX
                                  initialization error information
   */
-  Ssl_acceptor_context_data(std::string channel, bool use_ssl_arg,
-                            Ssl_init_callback *callbacks,
+  Ssl_acceptor_context_data(std::string channel, Ssl_init_callback *callbacks,
                             bool report_ssl_error = true,
                             enum enum_ssl_init_error *out_error = nullptr);
 

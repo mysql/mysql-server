@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "client/client_priv.h"
+#include "client/include/client_priv.h"
 #include "m_string.h"
 #ifdef _WIN32
 #include "mysql/strings/m_ctype.h"
@@ -64,7 +64,7 @@ static bool opt_use_default = false;
 static const char *shared_memory_base_name = default_shared_memory_base_name;
 #endif
 
-#include "sslopt-vars.h"
+#include "client/include/sslopt-vars.h"
 
 static const char *load_default_groups[] = {"mysql_secure_installation",
                                             "mysql", "client", nullptr};
@@ -105,7 +105,7 @@ static struct my_option my_connection_options[] = {
     {"socket", 'S', "Socket file to be used for connection.", &opt_socket,
      &opt_socket, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-#include "sslopt-longopts.h"
+#include "client/include/sslopt-longopts.h"
 
     {"user", 'u', "User for login if not root.", &opt_user, &opt_user, nullptr,
      GET_STR_ALLOC, REQUIRED_ARG, (longlong) "root", 0, 0, nullptr, 0, nullptr},
@@ -157,7 +157,7 @@ static bool my_arguments_get_one_option(int optid,
       password_provided = true;
       break;
 
-#include "sslopt-case.h"
+#include "client/include/sslopt-case.h"
 
     case OPT_MYSQL_PROTOCOL:
       opt_protocol =

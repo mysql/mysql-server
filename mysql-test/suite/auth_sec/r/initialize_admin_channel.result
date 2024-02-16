@@ -105,7 +105,7 @@ MYSQL --host=127.0.0.1 --port=MASTER_ADMINPORT --user=root --ssl-mode=REQUIRED -
 # delete mysqld log
 # -----------------------------------------------------------------------
 #
-# Restart server with --datadir=DDIR --admin-address=127.0.0.1 --skip-ssl
+# Restart server with --datadir=DDIR --admin-address=127.0.0.1 --tls-version=
 #
 # connect as root
 # check for Failed to initialize TSL for channel: mysql_admin - pattern should be present.

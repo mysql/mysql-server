@@ -14,7 +14,7 @@ call mtr.add_suppression("Tablespace size stored in header is [0-9]* pages, but 
 let BASEDIR= `select @@basedir`;
 let DATADIR= $MYSQLTEST_VARDIR/tmp/mydatadir;
 let BOOTSTRAP_SQL=$MYSQLTEST_VARDIR/tmp/create_test_db;
---let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR
+--let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --tls-version= --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR
 write_file $BOOTSTRAP_SQL;
   CREATE SCHEMA test;
 EOF

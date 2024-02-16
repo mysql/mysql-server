@@ -48,7 +48,7 @@ ALTER USER caching_sha2@localhost ACCOUNT UNLOCK;
 SELECT "connect succeeded after account is unlocked";
 connect succeeded after account is unlocked
 connect succeeded after account is unlocked
-# restart: --ssl=off --loose-caching_sha2_password_private_key_path=MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-caching_sha2_password_public_key_path=MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+# restart: --tls-version= --loose-caching_sha2_password_private_key_path=MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-caching_sha2_password_public_key_path=MYSQL_TEST_DIR/std_data/rsa_public_key.pem
 # connect as caching_sha2 with SSL disabled
 SELECT USER();
 USER()
@@ -72,7 +72,7 @@ ALTER USER sha256@localhost IDENTIFIED BY '';
 SELECT USER();
 USER()
 sha256@localhost
-# restart: --default-authentication-plugin=sha256_password --ssl=off --loose-sha256_password_private_key_path=MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-sha256_password_public_key_path=MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+# restart: --default-authentication-plugin=sha256_password --tls-version= --loose-sha256_password_private_key_path=MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-sha256_password_public_key_path=MYSQL_TEST_DIR/std_data/rsa_public_key.pem
 # connect with wrong password and SSL disabled
 connect(localhost,sha256,auth_string,test,SOURCE_PORT,SOURCE_SOCKET);
 Got one of the listed errors
@@ -142,7 +142,7 @@ ALTER USER caching_sha2@localhost ACCOUNT UNLOCK;
 SELECT "connect succeeded after account is unlocked";
 connect succeeded after account is unlocked
 connect succeeded after account is unlocked
-# restart: --ssl=off --loose-caching_sha2_password_private_key_path=MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-caching_sha2_password_public_key_path=MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+# restart: --tls-version= --loose-caching_sha2_password_private_key_path=MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-caching_sha2_password_public_key_path=MYSQL_TEST_DIR/std_data/rsa_public_key.pem
 # connect as caching_sha2 with SSL disabled
 SELECT USER();
 USER()
@@ -166,7 +166,7 @@ ALTER USER sha256@localhost IDENTIFIED BY '';
 SELECT USER();
 USER()
 sha256@localhost
-# restart: --default-authentication-plugin=sha256_password --ssl=off --loose-sha256_password_private_key_path=MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-sha256_password_public_key_path=MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+# restart: --default-authentication-plugin=sha256_password --tls-version= --loose-sha256_password_private_key_path=MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-sha256_password_public_key_path=MYSQL_TEST_DIR/std_data/rsa_public_key.pem
 # connect with wrong password and SSL disabled
 connect(localhost,sha256,auth_string,test,SOURCE_PORT,SOURCE_SOCKET);
 Got one of the listed errors

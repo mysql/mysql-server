@@ -30,7 +30,7 @@
 #include <vector>
 
 #include "client/check/mysqlcheck.h"
-#include "client/client_priv.h"
+#include "client/include/client_priv.h"
 #include "m_string.h"
 #include "my_default.h"
 #include "my_inttypes.h"

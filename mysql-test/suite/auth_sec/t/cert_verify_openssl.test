@@ -3,7 +3,7 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-let $ssl_verify_fail_path = --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-fail.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-fail.pem;
+let $ssl_verify_fail_path = --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-fail.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-fail.pem;
 
 let $tls_default= TLSv1.2;
 

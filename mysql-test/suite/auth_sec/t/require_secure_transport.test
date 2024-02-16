@@ -1,5 +1,8 @@
 --source include/not_windows.inc
 
+# some tests run with TLS disabled
+--source include/suppress_tls_off.inc
+
 
 CREATE USER 'user_tcp'@'127.0.0.1';
 GRANT ALL PRIVILEGES ON *.* TO 'user_tcp'@'127.0.0.1';
@@ -66,7 +69,7 @@ disconnect sock_con4;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---exec echo "restart:--skip-ssl --require-secure-transport=on" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--tls-version= --require-secure-transport=on" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
 --echo # Insecure connection is not possible with TCP

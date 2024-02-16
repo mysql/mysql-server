@@ -25,7 +25,6 @@
   @file include/sslopt-longopts.h
 */
 
-#ifndef MYSQL_SERVER
 {"ssl-mode",
  OPT_SSL_MODE,
  "SSL connection mode.",
@@ -40,24 +39,6 @@
  nullptr,
  0,
  nullptr},
-#else
-{"ssl",
- OPT_SSL_SSL,
- "If set to ON, this option enforces that SSL is established before client "
- "attempts to authenticate to the server. To disable client SSL capabilities "
- "use --ssl=OFF.",
- &opt_use_ssl,
- &opt_use_ssl,
- 0,
- GET_BOOL,
- OPT_ARG,
- 1,
- 0,
- 0,
- 0,
- 0,
- 0},
-#endif
     {"ssl-ca",
      OPT_SSL_CA,
      "CA file in PEM format.",

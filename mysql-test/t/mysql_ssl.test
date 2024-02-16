@@ -4,16 +4,7 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
---echo #
---echo # WL#6791 Redefine client --ssl option to imply enforced encryption
---echo #
-
---echo # verify that --ssl makes SSL required against a no-ssl server
---error 1
---exec $MYSQL --ssl-mode=REQUIRED -e "SHOW STATUS like 'Ssl_cipher'"
-
-
---echo End of 5.7 tests
+--source include/suppress_tls_off.inc
 
 --echo #
 --echo # WL#9091: Remove --ssl, --ssl-verify-server-cert client-side options

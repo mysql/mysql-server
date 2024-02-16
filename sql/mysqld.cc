@@ -741,8 +741,6 @@ MySQL clients support the protocol:
 #include "mysql/psi/psi_idle.h"
 #include "mysql/psi/psi_mdl.h"
 #include "mysql/psi/psi_memory.h"
-#include "sql/mysqld_cs.h"
-#include "sql/signal_handler.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/psi/psi_socket.h"
@@ -848,6 +846,7 @@ MySQL clients support the protocol:
 #include "sql/sd_notify.h"  // sd_notify_connect
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"
+#include "sql/signal_handler.h"
 #include "sql/sp_head.h"    // init_sp_psi_keys
 #include "sql/sql_audit.h"  // mysql_audit_general
 #include "sql/sql_base.h"
@@ -1949,8 +1948,6 @@ bool dynamic_plugins_are_initialized = false;
 static const char *default_dbug_option;
 #endif
 
-bool opt_use_ssl = true;
-bool opt_use_admin_ssl = true;
 ulong opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
 
 /* Function declarations */
@@ -7230,34 +7227,26 @@ static int init_ssl() {
 }
 
 static int init_ssl_communication() {
-  if (TLS_channel::singleton_init(&mysql_main, mysql_main_channel, opt_use_ssl,
+  if (TLS_channel::singleton_init(&mysql_main, mysql_main_channel,
                                   &server_main_callback, opt_initialize))
     return 1;
 
-  /*
-    The default value of --admin-ssl is ON. If it is set
-    to off, we should treat it as an explicit attempt to
-    set TLS off for admin channel and thereby not use
-    main channel's TLS configuration.
-  */
-  if (!opt_use_admin_ssl) g_admin_ssl_configured = true;
-
   const bool initialize_admin_tls =
-      (!opt_initialize && (my_admin_bind_addr_str != nullptr))
-          ? opt_use_admin_ssl
-          : false;
+      !opt_initialize && (my_admin_bind_addr_str != nullptr);
 
-  Ssl_init_callback_server_admin server_admin_callback;
-  if (TLS_channel::singleton_init(&mysql_admin, mysql_admin_channel,
-                                  initialize_admin_tls, &server_admin_callback,
-                                  opt_initialize))
-    return 1;
+  mysql_admin = nullptr;
+  if (initialize_admin_tls) {
+    Ssl_init_callback_server_admin server_admin_callback;
+    if (TLS_channel::singleton_init(&mysql_admin, mysql_admin_channel,
+                                    &server_admin_callback, opt_initialize))
+      return 1;
 
-  if (initialize_admin_tls && !g_admin_ssl_configured) {
-    Lock_and_access_ssl_acceptor_context context(mysql_main);
-    if (context.have_ssl())
-      LogErr(SYSTEM_LEVEL, ER_TLS_CONFIGURATION_REUSED,
-             mysql_admin_channel.c_str(), mysql_main_channel.c_str());
+    if (!g_admin_ssl_configured) {
+      Lock_and_access_ssl_acceptor_context context(mysql_main);
+      if (context.have_ssl())
+        LogErr(SYSTEM_LEVEL, ER_TLS_CONFIGURATION_REUSED,
+               mysql_admin_channel.c_str(), mysql_main_channel.c_str());
+    }
   }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -10962,14 +10951,6 @@ struct my_option my_long_options[] = {
      "Option used by mysql-test for debugging and testing of replication.",
      &opt_sporadic_binlog_dump_fail, &opt_sporadic_binlog_dump_fail, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"ssl", OPT_USE_SSL,
-     "Enable SSL for connection (automatically enabled with other flags).",
-     &opt_use_ssl, &opt_use_ssl, nullptr, GET_BOOL, OPT_ARG, 1, 0, 0, nullptr,
-     0, nullptr},
-    {"admin-ssl", OPT_USE_ADMIN_SSL,
-     "Enable SSL for admin interface (automatically enabled with other flags).",
-     &opt_use_admin_ssl, &opt_use_admin_ssl, nullptr, GET_BOOL, OPT_ARG, 1, 0,
-     0, nullptr, 0, nullptr},
 #ifdef _WIN32
     {"standalone", 0, "Dummy option to start as a standalone program (NT).",
      nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
@@ -12220,47 +12201,19 @@ bool mysqld_get_one_option(int optid,
     case OPT_BINLOG_EXPIRE_LOGS_SECONDS:
       binlog_expire_logs_seconds_supplied = true;
       break;
-    case OPT_SSL_KEY:
-    case OPT_SSL_CERT:
-    case OPT_SSL_CA:
-    case OPT_SSL_CAPATH:
-    case OPT_SSL_CRL:
-    case OPT_SSL_CRLPATH:
-      /*
-        Enable use of SSL if we are using any ssl option.
-        One can disable SSL later by using --skip-ssl or --ssl=0.
-      */
-      opt_use_ssl = true;
-      break;
     case OPT_TLS_CIPHERSUITES:
-      opt_use_ssl = true;
       if (validate_ciphers(opt->name, argument, TLS_version::TLSv13))
         return true;
       break;
     case OPT_SSL_CIPHER:
-      opt_use_ssl = true;
       if (validate_ciphers(opt->name, argument, TLS_version::TLSv12))
         return true;
       break;
     case OPT_TLS_VERSION:
-      opt_use_ssl = true;
       if (validate_tls_version(argument)) {
         LogErr(ERROR_LEVEL, ER_INVALID_TLS_VERSION, argument);
         return true;
       }
-      break;
-    case OPT_USE_ADMIN_SSL:
-      if (opt_use_admin_ssl)
-        push_deprecated_warn_no_replacement(nullptr, "--admin-ssl=on");
-      else
-        push_deprecated_warn(nullptr, "--admin-ssl=off",
-                             "--admin-tls-version=''");
-      break;
-    case OPT_USE_SSL:
-      if (opt_use_ssl)
-        push_deprecated_warn_no_replacement(nullptr, "--ssl=on");
-      else
-        push_deprecated_warn(nullptr, "--ssl=off", "--tls-version=''");
       break;
     case OPT_ADMIN_SSL_KEY:
     case OPT_ADMIN_SSL_CERT:
@@ -12268,32 +12221,24 @@ bool mysqld_get_one_option(int optid,
     case OPT_ADMIN_SSL_CAPATH:
     case OPT_ADMIN_SSL_CRL:
     case OPT_ADMIN_SSL_CRLPATH:
-      /*
-        Enable use of SSL if we are using any ssl option.
-        One can disable SSL later by using --skip-admin-ssl or --admin-ssl=0.
-      */
-      g_admin_ssl_configured = true;
-      opt_use_admin_ssl = true;
+      opt_admin_ssl_configured = true;
       break;
     case OPT_ADMIN_SSL_CIPHER:
-      g_admin_ssl_configured = true;
-      opt_use_admin_ssl = true;
       if (validate_ciphers(opt->name, argument, TLS_version::TLSv12))
         return true;
+      opt_admin_ssl_configured = true;
       break;
     case OPT_ADMIN_TLS_CIPHERSUITES:
-      g_admin_ssl_configured = true;
-      opt_use_admin_ssl = true;
       if (validate_ciphers(opt->name, argument, TLS_version::TLSv13))
         return true;
+      opt_admin_ssl_configured = true;
       break;
     case OPT_ADMIN_TLS_VERSION:
-      g_admin_ssl_configured = true;
-      opt_use_admin_ssl = true;
       if (validate_tls_version(argument)) {
         LogErr(ERROR_LEVEL, ER_INVALID_TLS_VERSION, argument);
         return true;
       }
+      opt_admin_ssl_configured = true;
       break;
     case 'V':
       print_server_version();

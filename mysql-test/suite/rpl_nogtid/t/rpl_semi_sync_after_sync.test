@@ -13,6 +13,7 @@
 --source include/master-slave.inc
 --source include/have_semisync_plugin.inc
 --source include/install_semisync.inc
+--source include/suppress_tls_off.inc
 
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 

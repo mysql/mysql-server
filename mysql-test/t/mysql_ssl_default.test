@@ -16,11 +16,11 @@
 --replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
 
---echo # verify that mysql --ssl=0 connect with unencrypted channel
+--echo # verify that mysql --ssl-mode=DISABLED connect with unencrypted channel
 --replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --ssl-mode=DISABLED
 
---echo # verify that mysql --ssl=1 connect with ssl channel
+--echo # verify that mysql --ssl-mode=REQUIRED connect with ssl channel
 --replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --ssl-mode=REQUIRED
 

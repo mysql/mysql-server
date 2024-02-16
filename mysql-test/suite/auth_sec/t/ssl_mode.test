@@ -53,16 +53,6 @@ grant all on *.* to 'user1'@'%' ;
 # Verification of mysqlimport
 --exec $MYSQL_IMPORT --host=localhost -P $MASTER_MYPORT --user=user1 --ssl-mode=VERIFY_IDENTITY --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --local mysql $MYSQL_TMP_DIR/test.txt
 
---echo # Tests related to deprecation of ssl options
---error 2
---exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=user1 --ssl-mode=VERIFY_IDENTITY --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --tls_version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 -e "SHOW STATUS LIKE 'ssl_cipher'"
-
---error 2
---exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=user1 --ssl-mode=VERIFY_IDENTITY --skip-ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --tls_version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 -e "SHOW STATUS LIKE 'ssl_cipher'"
-
---error 2
---exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=user1 --ssl-mode=VERIFY_IDENTITY --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --tls_version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 -e "SHOW STATUS LIKE 'ssl_cipher'"
-
 --echo # Tests related to invalid option of --ssl-mode
 --error 1
 --exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=user1 --ssl-mode=HelloWorld --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --tls_version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 -e "SHOW STATUS LIKE 'ssl_cipher'"
@@ -91,12 +81,6 @@ grant all on *.* to 'user1'@'%' ;
 --exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=root --ssl-mode=REQUIRED --ssl-mode=DISABLEd --ssl-mode=REQUireD --tls_version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 -e "SHOW STATUS LIKE 'ssl_cipher'"
 
 --echo # Check the legacy options
---error 7
-exec $MYSQL --user=root --tls_version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 --ssl-mode=REQUIRED --ssl=0 -e "SHOW STATUS LIKE 'ssl_cipher'";
---error 7
-exec $MYSQL --user=user1 --tls_version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 --ssl-mode=DISABLED --ssl=1 -e "SHOW STATUS LIKE 'ssl_cipher'";
---error 7
-exec $MYSQL --user=user1 --tls_version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert1.pem  --ssl=1 -e "SHOW STATUS LIKE 'ssl_cipher'";
 --error 7
 exec $MYSQL --user=user1 --tls_version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 --ssl-mode=REQUIRED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert1.pem --ssl-verify_server_cert=0 -e "SHOW STATUS LIKE 'ssl_cipher'";
 --error 7

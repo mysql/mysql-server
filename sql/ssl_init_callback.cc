@@ -67,6 +67,7 @@ static const char *opt_admin_tls_ciphersuites = nullptr;
 static const char *opt_admin_ssl_crl = nullptr;
 static const char *opt_admin_ssl_crlpath = nullptr;
 static const char *opt_admin_tls_version = nullptr;
+bool opt_admin_ssl_configured = false;
 
 static PolyLock_mutex lock_admin_ssl_ctx(&LOCK_admin_tls_ctx_options);
 
@@ -89,6 +90,11 @@ static bool check_tls_version(sys_var *, THD *, set_var *var) {
 
 static bool check_admin_tls_version(sys_var *, THD *, set_var *var) {
   return check_tls_version(nullptr, nullptr, var);
+}
+
+bool admin_tls_configured(sys_var *, THD *, enum_var_type) {
+  opt_admin_ssl_configured = true;
+  return false;
 }
 
 bool validate_ciphers(const char *option, const char *val,
@@ -146,17 +152,16 @@ static bool check_tls13_ciphers(sys_var *var, THD *, set_var *value) {
 */
 
 /* Related to client server connection port */
-static Sys_var_charptr Sys_ssl_ca(
-    "ssl_ca", "CA file in PEM format (check OpenSSL docs, implies --ssl)",
-    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_ca),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CA), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_ssl_ctx);
+static Sys_var_charptr Sys_ssl_ca("ssl_ca",
+                                  "CA file in PEM format (check OpenSSL docs)",
+                                  PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_ca),
+                                  CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET,
+                                  DEFAULT(nullptr), &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_capath(
-    "ssl_capath", "CA directory (check OpenSSL docs, implies --ssl)",
-    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_capath),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CAPATH), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_ssl_ctx);
+    "ssl_capath", "CA directory (check OpenSSL docs)",
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_capath), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr), &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_tls_version(
     "tls_version",
@@ -175,42 +180,37 @@ static Sys_var_charptr Sys_tls_version(
     &lock_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_tls_version));
 
 static Sys_var_charptr Sys_ssl_cert(
-    "ssl_cert", "X509 cert in PEM format (implies --ssl)",
-    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_cert),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CERT), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_ssl_ctx);
+    "ssl_cert", "X509 cert in PEM format",
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_cert), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr), &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_cipher(
-    "ssl_cipher", "SSL cipher to use (implies --ssl)",
+    "ssl_cipher", "SSL cipher to use",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_cipher),
     CMD_LINE(REQUIRED_ARG, OPT_SSL_CIPHER), IN_FS_CHARSET, DEFAULT(nullptr),
     &lock_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_tls12_ciphers));
 
 static Sys_var_charptr Sys_tls_ciphersuites(
-    "tls_ciphersuites", "TLS v1.3 ciphersuite to use (implies --ssl)",
+    "tls_ciphersuites", "TLS v1.3 ciphersuite to use",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_tls_ciphersuites),
     CMD_LINE(REQUIRED_ARG, OPT_TLS_CIPHERSUITES), IN_FS_CHARSET,
     DEFAULT(nullptr), &lock_ssl_ctx, NOT_IN_BINLOG,
     ON_CHECK(check_tls13_ciphers));
 
-static Sys_var_charptr Sys_ssl_key("ssl_key",
-                                   "X509 key in PEM format (implies --ssl)",
+static Sys_var_charptr Sys_ssl_key("ssl_key", "X509 key in PEM format",
                                    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_key),
-                                   CMD_LINE(REQUIRED_ARG, OPT_SSL_KEY),
-                                   IN_FS_CHARSET, DEFAULT(nullptr),
-                                   &lock_ssl_ctx);
+                                   CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET,
+                                   DEFAULT(nullptr), &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_crl(
-    "ssl_crl", "CRL file in PEM format (check OpenSSL docs, implies --ssl)",
-    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_crl),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CRL), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_ssl_ctx);
+    "ssl_crl", "CRL file in PEM format (check OpenSSL docs)",
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_crl), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr), &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_crlpath(
-    "ssl_crlpath", "CRL directory (check OpenSSL docs, implies --ssl)",
-    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_crlpath),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CRLPATH), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_ssl_ctx);
+    "ssl_crlpath", "CRL directory (check OpenSSL docs)",
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_crlpath), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr), &lock_ssl_ctx);
 
 #define PFS_TRAILING_PROPERTIES                                         \
   NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr), \
@@ -226,25 +226,25 @@ static Sys_var_long Sys_var_opt_ssl_session_cache_timeout(
     "ssl_session_cache_timeout",
     "The timeout to expire sessions in the TLS session cache",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_session_cache_timeout),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_SESSION_CACHE_TIMEOUT),
-    VALID_RANGE(0, 84600), DEFAULT(300), BLOCK_SIZE(1),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 84600), DEFAULT(300), BLOCK_SIZE(1),
     PFS_TRAILING_PROPERTIES);
 
 /* Related to admin connection port */
 static Sys_var_charptr Sys_admin_ssl_ca(
     "admin_ssl_ca",
-    "CA file in PEM format (check OpenSSL docs, implies --ssl) for "
+    "CA file in PEM format (check OpenSSL docs) for "
     "--admin-port",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_ssl_ca),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CA), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_admin_ssl_ctx);
+    CMD_LINE(REQUIRED_ARG, OPT_ADMIN_SSL_CA), IN_FS_CHARSET, DEFAULT(nullptr),
+    &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(admin_tls_configured));
 
 static Sys_var_charptr Sys_admin_ssl_capath(
-    "admin_ssl_capath",
-    "CA directory (check OpenSSL docs, implies --ssl) for --admin-port",
+    "admin_ssl_capath", "CA directory (check OpenSSL docs) for --admin-port",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_ssl_capath),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CAPATH), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_admin_ssl_ctx);
+    CMD_LINE(REQUIRED_ARG, OPT_ADMIN_SSL_CAPATH), IN_FS_CHARSET,
+    DEFAULT(nullptr), &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(admin_tls_configured));
 
 static Sys_var_charptr Sys_admin_tls_version(
     "admin_tls_version",
@@ -254,55 +254,58 @@ static Sys_var_charptr Sys_admin_tls_version(
     "TLS version for --admin-port, permitted values are TLSv1.2",
 #endif
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_tls_version),
-    CMD_LINE(REQUIRED_ARG, OPT_TLS_VERSION), IN_FS_CHARSET,
+    CMD_LINE(REQUIRED_ARG, OPT_ADMIN_TLS_VERSION), IN_FS_CHARSET,
 #ifdef HAVE_TLSv13
     "TLSv1.2,TLSv1.3",
 #else
     "TLSv1.2",
 #endif /* HAVE_TLSv13 */
-    &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_admin_tls_version));
+    &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_admin_tls_version),
+    ON_UPDATE(admin_tls_configured));
 
 static Sys_var_charptr Sys_admin_ssl_cert(
-    "admin_ssl_cert",
-    "X509 cert in PEM format (implies --ssl) for --admin-port",
+    "admin_ssl_cert", "X509 cert in PEM format for --admin-port",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_ssl_cert),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CERT), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_admin_ssl_ctx);
+    CMD_LINE(REQUIRED_ARG, OPT_ADMIN_SSL_CERT), IN_FS_CHARSET, DEFAULT(nullptr),
+    &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(admin_tls_configured));
 
 static Sys_var_charptr Sys_admin_ssl_cipher(
-    "admin_ssl_cipher", "SSL cipher to use (implies --ssl) for --admin-port",
+    "admin_ssl_cipher", "SSL cipher to use for --admin-port",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_ssl_cipher),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CIPHER), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_tls12_ciphers));
+    CMD_LINE(REQUIRED_ARG, OPT_ADMIN_SSL_CIPHER), IN_FS_CHARSET,
+    DEFAULT(nullptr), &lock_admin_ssl_ctx, NOT_IN_BINLOG,
+    ON_CHECK(check_tls12_ciphers), ON_UPDATE(admin_tls_configured));
 
 static Sys_var_charptr Sys_admin_tls_ciphersuites(
-    "admin_tls_ciphersuites",
-    "TLS v1.3 ciphersuite to use (implies --ssl) for --admin-port",
+    "admin_tls_ciphersuites", "TLS v1.3 ciphersuite to use for --admin-port",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_tls_ciphersuites),
-    CMD_LINE(REQUIRED_ARG, OPT_TLS_CIPHERSUITES), IN_FS_CHARSET,
+    CMD_LINE(REQUIRED_ARG, OPT_ADMIN_TLS_CIPHERSUITES), IN_FS_CHARSET,
     DEFAULT(nullptr), &lock_admin_ssl_ctx, NOT_IN_BINLOG,
-    ON_CHECK(check_tls13_ciphers));
+    ON_CHECK(check_tls13_ciphers), ON_UPDATE(admin_tls_configured));
 
 static Sys_var_charptr Sys_admin_ssl_key(
-    "admin_ssl_key", "X509 key in PEM format (implies --ssl) for --admin-port",
+    "admin_ssl_key", "X509 key in PEM format for --admin-port",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_ssl_key),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_KEY), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_admin_ssl_ctx);
+    CMD_LINE(REQUIRED_ARG, OPT_ADMIN_SSL_KEY), IN_FS_CHARSET, DEFAULT(nullptr),
+    &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(admin_tls_configured));
 
 static Sys_var_charptr Sys_admin_ssl_crl(
     "admin_ssl_crl",
-    "CRL file in PEM format (check OpenSSL docs, implies --ssl) for "
+    "CRL file in PEM format (check OpenSSL docs) for "
     "--admin-port",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_ssl_crl),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CRL), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_admin_ssl_ctx);
+    CMD_LINE(REQUIRED_ARG, OPT_ADMIN_SSL_CRL), IN_FS_CHARSET, DEFAULT(nullptr),
+    &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(admin_tls_configured));
 
 static Sys_var_charptr Sys_admin_ssl_crlpath(
-    "admin_ssl_crlpath",
-    "CRL directory (check OpenSSL docs, implies --ssl) for --admin-port",
+    "admin_ssl_crlpath", "CRL directory (check OpenSSL docs) for --admin-port",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_ssl_crlpath),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CRLPATH), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_admin_ssl_ctx);
+    CMD_LINE(REQUIRED_ARG, OPT_ADMIN_SSL_CRLPATH), IN_FS_CHARSET,
+    DEFAULT(nullptr), &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(admin_tls_configured));
 
 /* Helper functions */
 static bool warn_self_signed_ca_certs(const char *ssl_ca,
@@ -491,10 +494,7 @@ void Ssl_init_callback_server_admin::read_parameters(
   if (session_cache_timeout)
     *session_cache_timeout = opt_ssl_session_cache_timeout;
 
-  if (opt_admin_ssl_ca || opt_admin_ssl_capath || opt_admin_ssl_cert ||
-      opt_admin_ssl_cipher || opt_admin_tls_ciphersuites || opt_admin_ssl_key ||
-      opt_admin_ssl_crl || opt_admin_ssl_crlpath)
-    g_admin_ssl_configured = true;
+  g_admin_ssl_configured = opt_admin_ssl_configured;
 }
 
 bool Ssl_init_callback_server_admin::warn_self_signed_ca() {

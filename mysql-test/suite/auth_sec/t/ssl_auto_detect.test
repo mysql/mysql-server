@@ -47,7 +47,7 @@ let SEARCH_PATTERN= CA certificate .* is self signed.;
 connect (ssl_root_1,localhost,root,,,,,SSL);
 --replace_regex $ALLOWED_CIPHERS_REGEX
 SHOW STATUS LIKE 'Ssl_cipher';
-SHOW VARIABLES LIKE 'have_ssl';
+SELECT VALUE FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Enabled';
 
 --echo # Check values of ssl_ca, ssl_cert and ssl_key.
 --echo # They should refer to certificate/key files in data directory.
@@ -83,9 +83,10 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/wait_until_connected_again.inc
 --echo # Restart completed.
 
---echo # Check value of have_ssl. It must be DISABLED.
+--echo # Check if SSL is enabled. It must be DISABLED.
 connect (root_2,localhost,root,,,,,);
-SHOW VARIABLES LIKE 'have_ssl';
+SELECT VALUE FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Enabled';
+
 
 connection default;
 disconnect root_2;

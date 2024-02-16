@@ -1,4 +1,4 @@
---skip-ssl
+--tls-version=
 --loose-mysqlx-ssl-key=
 --loose-mysqlx-ssl-ca=
 --loose-mysqlx-ssl-cert=

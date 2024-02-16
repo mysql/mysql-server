@@ -5,10 +5,10 @@
 # connection
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
-# verify that mysql --ssl=0 connect with unencrypted channel
+# verify that mysql --ssl-mode=DISABLED connect with unencrypted channel
 Variable_name	Value
 Ssl_cipher	
-# verify that mysql --ssl=1 connect with ssl channel
+# verify that mysql --ssl-mode=REQUIRED connect with ssl channel
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
 CREATE USER u1@localhost IDENTIFIED BY 'secret' REQUIRE SSL;

@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <sstream>
 #include <vector>
 
-#include "user_registration.h"
+#include "client/include/user_registration.h"
 
 #include "my_hostname.h"
 #include "my_inttypes.h"

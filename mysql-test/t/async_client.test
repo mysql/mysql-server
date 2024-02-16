@@ -2,6 +2,8 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+--source include/suppress_tls_off.inc
+
 --echo #
 --echo # WL#11381: Add asynchronous support into the mysql protocol
 --echo #
@@ -75,7 +77,7 @@ disconnect caching_con3;
 
 --disable_async_client
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---let $restart_parameters=restart: --ssl=off --loose-caching_sha2_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-caching_sha2_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+--let $restart_parameters=restart: --tls-version= --loose-caching_sha2_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-caching_sha2_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem
 --source include/restart_mysqld.inc
 --enable_async_client
 
@@ -128,7 +130,7 @@ disconnect sha256_con2;
 
 --disable_async_client
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---let $restart_parameters=restart: --default-authentication-plugin=sha256_password --ssl=off --loose-sha256_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-sha256_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+--let $restart_parameters=restart: --default-authentication-plugin=sha256_password --tls-version= --loose-sha256_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-sha256_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem
 --source include/restart_mysqld.inc
 --enable_async_client
 

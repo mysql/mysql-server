@@ -43,9 +43,23 @@
 #     case they appear as global suppressions.  This is useful if a
 #     test needs to use assert_error_log.inc to check for a warning
 #     that is suppressed globally.
+#
+#   $suppress_silent
+#     If $suppress_silent is set to 1 then the suppressions themselves
+#     and the includes are not printed to the mtr output during the
+#     execution of this script.
 
 --let $include_filename = suppress_messages.inc
+if ($suppress_silent)
+{
+  --let $saved_include_silent = $include_silent
+  --let $include_silent= 1
+}
 --source include/begin_include_file.inc
+if ($suppress_silent)
+{
+  --let $include_silent= $saved_include_silent
+}
 
 if (!$rpl_debug) {
   --disable_query_log

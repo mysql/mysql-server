@@ -263,10 +263,10 @@ remove_file $MYSQLD_LOG;
 
 --echo # -----------------------------------------------------------------------
 --echo #
---echo # Restart server with --datadir=DDIR --admin-address=127.0.0.1 --skip-ssl
+--echo # Restart server with --datadir=DDIR --admin-address=127.0.0.1 --tls-version=
 --echo #
 
---exec echo "restart:--log-error=$MYSQLD_LOG --datadir=$DDIR --admin-address=127.0.0.1 --skip-ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--log-error=$MYSQLD_LOG --datadir=$DDIR --admin-address=127.0.0.1 --tls-version=" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root

@@ -39,7 +39,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "client/client_priv.h"
+#include "client/include/client_priv.h"
 #include "my_aes.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"

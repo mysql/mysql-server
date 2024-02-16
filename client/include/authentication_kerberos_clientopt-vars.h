@@ -21,10 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/**
-  @file include/authentication_kerberos_clientopt-vars.h
-*/
-
 #ifndef AUTHETICATION_KERBEROS_CLIENTOPT_VARS_H
 #define AUTHETICATION_KERBEROS_CLIENTOPT_VARS_H
 

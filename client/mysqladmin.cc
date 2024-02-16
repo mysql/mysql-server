@@ -35,7 +35,7 @@
 #include <time.h>
 #include <string>
 
-#include "client/client_priv.h"
+#include "client/include/client_priv.h"
 #include "compression.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -99,10 +99,10 @@ static uint ex_val_max_len[MAX_MYSQL_VAR];
 static bool ex_status_printed = false; /* First output is not relative. */
 static uint ex_var_count, max_var_length, max_val_length;
 
-#include "sslopt-vars.h"
+#include "client/include/sslopt-vars.h"
 
-#include "caching_sha2_passwordopt-vars.h"
-#include "multi_factor_passwordopt-vars.h"
+#include "client/include/caching_sha2_passwordopt-vars.h"
+#include "client/include/multi_factor_passwordopt-vars.h"
 
 static void usage(void);
 extern "C" bool get_one_option(int optid, const struct my_option *opt,
@@ -233,7 +233,7 @@ static struct my_option my_long_options[] = {
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-beep", 'b', "Turn off beep on error.", &opt_nobeep, &opt_nobeep,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#include "multi_factor_passwordopt-longopts.h"
+#include "client/include/multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", nullptr, nullptr,
      nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -268,9 +268,9 @@ static struct my_option my_long_options[] = {
     {"sleep", 'i', "Execute commands repeatedly with a sleep between.",
      &interval, &interval, nullptr, GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-#include "sslopt-longopts.h"
+#include "client/include/sslopt-longopts.h"
 
-#include "caching_sha2_passwordopt-longopts.h"
+#include "client/include/caching_sha2_passwordopt-longopts.h"
 
     {"user", 'u', "User for login if not current user.", &user, &user, nullptr,
      GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -342,7 +342,7 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
     case '#':
       DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysqladmin.trace");
       break;
-#include "sslopt-case.h"
+#include "client/include/sslopt-case.h"
 
     case 'V':
       print_version();

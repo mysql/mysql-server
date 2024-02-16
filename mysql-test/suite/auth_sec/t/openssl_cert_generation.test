@@ -1,5 +1,6 @@
 --source include/no_valgrind_without_big.inc
 --source include/allowed_ciphers.inc
+--source include/suppress_tls_off.inc
 
 #-----------------------------------------------------------------------------
 
@@ -170,7 +171,7 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 
 --remove_file $server_log 10
 
---exec echo "restart: --log-error=$server_log  --skip-ssl --skip-auto_generate_certs --sha256_password_auto_generate_rsa_keys --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --log-error=$server_log  --tls-version= --skip-auto_generate_certs --sha256_password_auto_generate_rsa_keys --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --echo # Restart completed.
 
@@ -330,7 +331,7 @@ disconnect test_root_6;
 
 
 --echo # 7.1 : Restarting mysqld with :
---echo #       --skip-ssl
+--echo #       --tls-version=
 --echo #       --auto_generate_certs=ON
 --echo #       --sha256_password_auto_generate_rsa_keys=ON
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -348,7 +349,7 @@ disconnect test_root_6;
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
---exec echo "restart:--log-error=$server_log  --skip-ssl --auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--log-error=$server_log  --tls-version= --auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --echo # Restart completed.
 
@@ -357,17 +358,11 @@ let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_
 --source include/search_pattern.inc
 --echo # Search completed.
 
---error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
---error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
---error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
---error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
---error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
---error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
 
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
@@ -375,7 +370,7 @@ let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_
 
 --echo # 7.2 : System variables
 connect (test_root_7,localhost,root,,,,,);
---echo # No ssl variables should be set
+--echo # Ssl variables should be set
 SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME IN ('auto_generate_certs', 'ssl_ca', 'ssl_cert', 'ssl_key') ORDER BY 1;
 --echo # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
@@ -422,6 +417,12 @@ disconnect test_root_7;
 --source include/wait_until_disconnected.inc
 
 --remove_file $server_log 10
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
 
 --exec echo "restart:--log-error=$server_log --auto_generate_certs=ON --skip-sha256_password_auto_generate_rsa_keys --tls-version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc

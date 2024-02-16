@@ -30,7 +30,7 @@ let SEARCH_PATTERN= No such file or directory;
 
 --source include/wait_until_disconnected.inc
 # Dummy argument for restart
---exec echo "restart: --ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --echo # Restart completed.
 

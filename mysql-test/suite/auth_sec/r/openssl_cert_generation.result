@@ -134,7 +134,7 @@ wl7699_sha256@%
 drop user wl7699_sha256;
 # Test 7 : SSL Certificates/Key File Generation and tests
 # 7.1 : Restarting mysqld with :
-#       --skip-ssl
+#       --tls-version=
 #       --auto_generate_certs=ON
 #       --sha256_password_auto_generate_rsa_keys=ON
 # Restart completed.
@@ -142,14 +142,14 @@ drop user wl7699_sha256;
 Pattern "Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory." found
 # Search completed.
 # 7.2 : System variables
-# No ssl variables should be set
+# Ssl variables should be set
 SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME IN ('auto_generate_certs', 'ssl_ca', 'ssl_cert', 'ssl_key') ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 auto_generate_certs	ON
-ssl_ca	
-ssl_cert	
-ssl_key	
+ssl_ca	ca.pem
+ssl_cert	server-cert.pem
+ssl_key	server-key.pem
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
 SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables

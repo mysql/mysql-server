@@ -33,8 +33,9 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "caching_sha2_passwordopt-vars.h"
-#include "client/client_priv.h"
+#include "client/include/caching_sha2_passwordopt-vars.h"
+#include "client/include/client_priv.h"
+#include "client/include/sslopt-vars.h"
 #include "compression.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -47,7 +48,6 @@
 #include "mysql/strings/m_ctype.h"
 #include "nulls.h"
 #include "print_version.h"
-#include "sslopt-vars.h"
 #include "strxnmov.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -67,7 +67,7 @@ static bool using_opt_enable_cleartext_plugin = false;
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
 
-#include "multi_factor_passwordopt-vars.h"
+#include "client/include/multi_factor_passwordopt-vars.h"
 
 #if defined(_WIN32)
 static char *shared_memory_base_name = nullptr;
@@ -264,7 +264,7 @@ static struct my_option my_long_options[] = {
      nullptr},
     {"keys", 'k', "Show keys for table.", &opt_show_keys, &opt_show_keys,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#include "multi_factor_passwordopt-longopts.h"
+#include "client/include/multi_factor_passwordopt-longopts.h"
     {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
      &opt_plugin_dir, &opt_plugin_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
@@ -295,8 +295,8 @@ static struct my_option my_long_options[] = {
     {"socket", 'S', "The socket file to use for connection.",
      &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
-#include "caching_sha2_passwordopt-longopts.h"
-#include "sslopt-longopts.h"
+#include "client/include/caching_sha2_passwordopt-longopts.h"
+#include "client/include/sslopt-longopts.h"
 
     {"user", 'u', "User for login if not current user.", &user, &user, nullptr,
      GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -365,7 +365,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       DBUG_PUSH(argument ? argument : "d:t:o");
       debug_check_flag = true;
       break;
-#include "sslopt-case.h"
+#include "client/include/sslopt-case.h"
 
     case 'V':
       print_version();

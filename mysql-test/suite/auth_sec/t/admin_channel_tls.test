@@ -2,6 +2,8 @@
 --source include/count_sessions.inc
 # Allowed cipher regex
 --source include/allowed_ciphers.inc
+# TLS might be off with this one
+--source include/suppress_tls_off.inc
 
 --echo # Setup
 
@@ -43,7 +45,7 @@ GRANT SERVICE_CONNECTION_ADMIN ON *.* TO admin_user;
 
 --echo # Restarting server with admin interface without TLS support
 --replace_result $MASTER_ADMINPORT MASTER_ADMINPORT
---let $restart_parameters="restart: --admin-address=127.0.0.1 --admin-port=$MASTER_ADMINPORT --admin-ssl=OFF"
+--let $restart_parameters="restart: --admin-address=127.0.0.1 --admin-port=$MASTER_ADMINPORT --admin-tls-version="
 --source include/restart_mysqld_no_echo.inc
 
 --echo # Verify that TLS is not configured for admin channel
@@ -55,7 +57,7 @@ GRANT SERVICE_CONNECTION_ADMIN ON *.* TO admin_user;
 
 --echo # Restarting server with admin interface with TLS support
 --replace_result $MASTER_ADMINPORT MASTER_ADMINPORT
---let $restart_parameters="restart: --admin-address=127.0.0.1 --ssl=OFF --admin-port=$MASTER_ADMINPORT --admin-ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem --admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem"
+--let $restart_parameters="restart: --admin-address=127.0.0.1 --tls-version= --admin-port=$MASTER_ADMINPORT --admin-ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem --admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem"
 --source include/restart_mysqld_no_echo.inc
 
 --echo # Verify that TLS is configured for admin channel

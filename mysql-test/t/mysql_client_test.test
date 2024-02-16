@@ -52,7 +52,7 @@ TRUNCATE TABLE mysql.slow_log;
 let BASEDIR=    `select @@basedir`;
 let DDIR=       $MYSQL_TMP_DIR/lctn_test;
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
-let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --lower_case_table_names=1 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --tls-version= --lower_case_table_names=1 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
 
 --echo # Shut server down.

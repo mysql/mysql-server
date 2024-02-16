@@ -1,1 +1,1 @@
-$SEMISYNC_PLUGIN_OPT --skip-ssl
+$SEMISYNC_PLUGIN_OPT --tls-version=

@@ -1,6 +1,7 @@
 ## Preamle
 --source include/xplugin_preamble.inc
 --source include/xplugin_ssl_warnings_suppression.inc
+--source include/suppress_tls_off.inc
 
 ## Test case
 

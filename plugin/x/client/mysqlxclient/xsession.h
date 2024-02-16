@@ -194,9 +194,7 @@ class XSession {
       * "PREFERRED": Establish a secure (encrypted) connection if the server
         supports secure connections. Fall back to an unencrypted connection
         otherwise. This is the default value.
-      * "DISABLED": Establish an unencrypted connection. This is like the
-        "mysql" clients legacy --ssl=0 option or its synonyms (--skip-ssl,
-        --disable-ssl).
+      * "DISABLED": Establish an unencrypted connection.
       * "REQUIRED": Establish a secure connection if the server supports
         secure connections. The connection attempt fails if a secure
         connection cannot be established.

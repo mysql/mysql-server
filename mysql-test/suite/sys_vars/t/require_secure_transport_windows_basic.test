@@ -1,4 +1,5 @@
 --source include/windows.inc
+--source include/suppress_tls_off.inc
 SET @start_value = @@global.require_secure_transport;
 
 --Error ER_NO_SECURE_TRANSPORTS_CONFIGURED

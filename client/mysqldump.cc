@@ -38,7 +38,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "client/client_priv.h"
+#include "client/include/client_priv.h"
 #include "client/multi_option.h"
 #include "compression.h"
 #include "m_string.h"
@@ -179,10 +179,10 @@ static uint my_end_arg;
 static char *opt_mysql_unix_port = nullptr;
 static char *opt_bind_addr = nullptr;
 static int first_error = 0;
-#include "authentication_kerberos_clientopt-vars.h"
-#include "caching_sha2_passwordopt-vars.h"
-#include "multi_factor_passwordopt-vars.h"
-#include "sslopt-vars.h"
+#include "client/include/authentication_kerberos_clientopt-vars.h"
+#include "client/include/caching_sha2_passwordopt-vars.h"
+#include "client/include/multi_factor_passwordopt-vars.h"
+#include "client/include/sslopt-vars.h"
 
 FILE *md_result_file = nullptr;
 FILE *stderror_file = nullptr;
@@ -546,7 +546,7 @@ static struct my_option my_long_options[] = {
      "InnoDB table, but will make the dump itself take considerably longer.",
      &opt_order_by_primary, &opt_order_by_primary, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
-#include "multi_factor_passwordopt-longopts.h"
+#include "client/include/multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", nullptr, nullptr,
      nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -624,8 +624,8 @@ static struct my_option my_long_options[] = {
     {"socket", 'S', "The socket file to use for connection.",
      &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
-#include "caching_sha2_passwordopt-longopts.h"
-#include "sslopt-longopts.h"
+#include "client/include/caching_sha2_passwordopt-longopts.h"
+#include "client/include/sslopt-longopts.h"
 
     {"tab", 'T',
      "Create tab-separated textfile for each table to given path. (Create .sql "
@@ -726,7 +726,7 @@ static struct my_option my_long_options[] = {
     {"ignore-views", 0, "Skip dumping table views.", &opt_ignore_views,
      &opt_ignore_views, nullptr, GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-#include "authentication_kerberos_clientopt-longopts.h"
+#include "client/include/authentication_kerberos_clientopt-longopts.h"
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -997,9 +997,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
       DBUG_PUSH(argument ? argument : default_dbug_option);
       debug_check_flag = true;
       break;
-#include "sslopt-case.h"
+#include "client/include/sslopt-case.h"
 
-#include "authentication_kerberos_clientopt-case.h"
+#include "client/include/authentication_kerberos_clientopt-case.h"
 
     case 'V':
       print_version();

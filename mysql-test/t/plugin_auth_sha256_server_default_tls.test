@@ -28,12 +28,12 @@ SELECT USER(),CURRENT_USER();
 connection default;
 disconnect con2;
 --echo **** Client default_auth=sha_256_password and server default auth=sha256_password
-# Why using sha256_password requires --ssl=1 ?
+# Why using sha256_password requires SSL?
 # The current client library can't know if SSL was attempted or not
 # when the default client auth is switched and hence it will only report
 # that the connection is unencrypted forcing the client to ask for RSA keys.
-# However, it is possible to inform the client library to enforce SSL using
-# MYSQL_OPT_ENFORCE_SSL (or --ssl=1) and this will be enough for the
+# However, it is possible to inform the client library to enforce SSL
+# and this will be enough for the
 # sha256_password plugin to safely assume a secure connection despite it hasn't
 # really been established yet.
 --exec $MYSQL -ukristofer -psecret2 --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl-mode=VERIFY_CA -e "select user(), current_user()"

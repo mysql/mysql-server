@@ -21,13 +21,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/**
-  @file include/authentication_kerberos_clientopt-case.h
-*/
-
 #if defined(_WIN32)
-case OPT_AUTHENTICATION_KERBEROS_CLIENT_MODE:
-  opt_authentication_kerberos_client_mode =
-      find_type_or_exit(argument, &client_mode_typelib, opt->name) - 1;
-  break;
-#endif
+{"plugin_authentication_kerberos_client_mode",
+ OPT_AUTHENTICATION_KERBEROS_CLIENT_MODE,
+ "Kerberos authentication mode. Valid values: SSPI, GSSAPI. If not specified, "
+ "default is SSPI",
+ nullptr,
+ nullptr,
+ nullptr,
+ GET_STR,
+ REQUIRED_ARG,
+ 0,
+ 0,
+ 0,
+ nullptr,
+ 0,
+ nullptr},
+#endif /* _WIN32 */
