@@ -655,14 +655,6 @@ static void log_sys_create() {
   rw_lock_create_func(log.sn_lock_inst, LATCH_ID_LOG_SN, UT_LOCATION_HERE);
 #endif /* UNIV_DEBUG */
 
-  /**
-    * @StateReplicate: 这里是原有的分配log buffer的地方，我们也在这里分配空间
-   */
-
-
-
-  // 以下为原有逻辑
-
   /* Allocate buffers. */
   log_allocate_buffer(log);
   log_allocate_write_ahead_buffer(log);

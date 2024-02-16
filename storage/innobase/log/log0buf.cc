@@ -39,8 +39,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
  *******************************************************/
 
-#include <cstdio>
-#include <iostream>
 #ifndef UNIV_HOTBACKUP
 
 /* std::atomic_thread_fence */
@@ -84,12 +82,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /* ut_uint64_align_down */
 #include "ut0byte.h"
-
-#include "sql/sql_class.h"
-
-#include "state/util/redo_log_util.h"
-
-#include "state/state_store/redo_log.h"
 
 // clang-format off
 /**************************************************/ /**
@@ -916,95 +908,6 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   return handle;
 }
 
-/**
- * [Deprecated] Reserve space in the redo log buffer for remote State Node
- * @StateReplicate 在状态层给 redo log 分配空间，以供接下来的写操作
- * 不要逐个log/mtr分配空间，而是直接分配一大块空间供使用
- * 把方法写到mtr0mtr.cc中，而不是log0buf
-
- * @param log
- * @param len
- * @return Log_handle
- *
- */
-Log_handle log_remote_buf_reserve(log_t &log, size_t len) {
-  Log_handle handle;
-  // 这里需要有 log_buffer_s_lock_enter_reserve -> log_buffer_s_lock_wait
-  // 中的逻辑 即需要加锁，准备先实现功能后，再考虑多事务并发的问题
-
-  const sn_t start_sn = log.sn.fetch_add(len);
-
-  const sn_t end_sn = start_sn + len;
-  /* Translate sn to lsn (which includes also headers in redo blocks): */
-  handle.start_lsn = log_translate_sn_to_lsn(start_sn);
-  handle.end_lsn = log_translate_sn_to_lsn(end_sn);
-
-  /* 不判断，直接进入 log_wait_for_space_in_log_buf 的逻辑
-  if (unlikely(end_sn > log.buf_limit_sn.load())) {
-    log_wait_for_space_after_reserving(log, handle);
-  }
-  */
-
-  // 状态层buffer暂不需扩容，每条log分配一定空间即可
-
-  // 分配空间
-  // Allocate memory for these redo logs in the remote State Node
-  // if(trx->mysql_thd != nullptr) {
-  //   THD* thd = trx->mysql_thd;
-  //   node_id_t primary_node_id =
-  //   MetaManager::get_instance()->GetPrimaryNodeID(); RCQP* qp =
-  //   thd->qp_manager->GetRemoteTxnListQPWithNodeID(primary_node_id);
-  //   MetaManager* meta_mgr = MetaManager::get_instance();
-
-  //   // TODO: 怎么判断需要给 redo log 分配多少空间？分配空间能不能集成在写log
-  //   buffer操作的函数中？
-  //   // log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
-
-  //   char* redo_log_remote_buf =
-  //   thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
-
-  //   }
-
-  return handle;
-}
-
-/**
- * [Deprecated] Reserve space in the redo log buffer for remote State Node
- * @param[in,out]  log             redo log
- * @param[in]      handle          handle for the reservation
- *
- */
-// 参考 log_wait_for_space_in_log_buf 的辅助函数
-static void log_wait_for_space_in_remote_log_buf(log_t &log, sn_t end_sn) {
-  lsn_t lsn;
-  Wait_stats wait_stats;
-
-  const sn_t write_sn = log_translate_lsn_to_sn(log.write_lsn.load());
-
-  // log_sync_point("log_wait_for_space_in_buf_middle");
-
-  const sn_t buf_size_sn = log.buf_size_sn.load();
-
-  if (end_sn + OS_FILE_LOG_BLOCK_SIZE <= write_sn + buf_size_sn) {
-    return;
-  }
-
-  /* We preserve this counter for backward compatibility with 5.7. */
-  // srv_stats.log_waits.inc();
-
-  lsn = log_translate_sn_to_lsn(end_sn + OS_FILE_LOG_BLOCK_SIZE - buf_size_sn);
-
-  // TODO: log_write_up_to 的逻辑还需要修改，不能直接使用
-  // Location: storage/innobase/log/log0write.cc
-  // Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk);
-  wait_stats = log_write_up_to(log, lsn, false);
-
-  // MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_BUFFER_SPACE_, wait_stats);
-
-  // ut_a(end_sn + OS_FILE_LOG_BLOCK_SIZE <=
-  // log_translate_lsn_to_sn(log.write_lsn.load()) + buf_size_sn);
-}
-
 /** @} */
 
 /**************************************************/ /**
@@ -1012,11 +915,6 @@ static void log_wait_for_space_in_remote_log_buf(log_t &log, sn_t end_sn) {
  @name Writing to the redo log buffer
 
  *******************************************************/
-
-/**
- * @StateReplicate: Separate redo log, send them to StateNode by RDMA
- *
- */
 
 /** @{ */
 
@@ -1103,164 +1001,6 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     /* This is the critical memcpy operation, which copies data
     from internal mtr's buffer to the shared log buffer. */
     std::memcpy(ptr, str, len);
-
-    /**
-     *  @StateReplicate:
-     *  当一个事务需要写 log
-     * 时，首先需要获取remote_addr，即需要向状态层的哪个位置写log，然后通过
-     * RDMA 操作将数据写入到该地址中。
-     *
-     *  在此过程中，需要考虑数据结构共享访问的正确性，
-     *  即，当多个事务都要读/写数据时，如何处理冲突，如何保证正确性
-     *
-     *  log 数量极大，占用空间多，需要及时清理。远端数据管理是一个挑战
-     *  redo log 一般设置多大？
-     *  redo log 太小的话，会导致很快就被写满，然后不得不强行刷 redo log，这样
-     * WAL 机制的能力就发挥不出来了。 如果是几个 TB 的磁盘的话，直接将 redo log
-     * 设置为 4 个文件，每个文件 1GB。
-     *
-     *  以后将下面新写的逻辑抽象出一个函数，准备等全部写完跑通后再进行
-     *
-     *  TODO: 目前最大的问题是，不知道怎么让所有 log 共享同一个写 remote buffer
-     * 的线程，共享一整个 redo_log_remote_buf 等
-     * 每个log都分配对应资源，会造成极大的浪费与低效
-     */
-
-    // 正常情况下还需要使用完后调用destroy_internal_thd销毁线程，暂时先不管了
-    if (log.m_remote_buf_thd == nullptr) {
-      log.m_remote_buf_thd = create_internal_thd();
-    }
-
-    THD *thd = log.m_remote_buf_thd;
-
-    node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
-    RCQP *qp = thd->qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
-    MetaManager *meta_mgr = MetaManager::get_instance();
-
-    // 加锁，并发控制
-    // TODO: 真的需要加锁吗？原有的写log逻辑都是无锁的，加锁会显著降低速度
-    char *redo_log_remote_buf_latch =
-        thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
-    *(rwlatch_t *)redo_log_remote_buf_latch = REDOLOG_LOCKED;
-
-    while (*(rwlatch_t *)redo_log_remote_buf_latch != REDOLOG_UNLOCKED) {
-      if (!thd->coro_sched->RDMACASSync(
-              0, qp, redo_log_remote_buf_latch,
-              meta_mgr->GetRedoLogRemoteBufLatchAddr(),
-              static_cast<uint64_t>(REDOLOG_UNLOCKED),
-              static_cast<uint64_t>(REDOLOG_LOCKED))) {
-        // return;
-      }
-    }
-
-    // 不分配额外的buf了，直接把原有的buf传到状态层
-    // 如果没有分配的话就先分配空间，先分个32MB看看
-
-    // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE=512B)
-    // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)，需要换算LSN和SN
-    // size_t redo_log_remote_buf_size = 64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
-
-    // unsigned char *redo_log_remote_buf = nullptr;
-
-    // 在状态节点分配空间
-    // 这里怎么做到多个log共享一个redo_log_remote_buf？这样写的话肯定会每次产生新的buffer，不正确
-    //    if (!thd->redo_log_remote_buf_reserved) {
-    //      thd->redo_log_remote_buf_reserved = true;
-    //
-    //      redo_log_remote_buf = (unsigned char
-    //      *)thd->rdma_buffer_allocator->Alloc(
-    //          meta_mgr->GetRedoLogRemoteBufSize());
-    //    }
-
-    // 把log先转发到本地
-    // 这里写log的位置显然不对，全写到buffer头部了，需要修正
-    //    byte *remote_ptr = redo_log_remote_buf;
-
-    // 将 log 复制一份到本地的新 buffer（与原有逻辑的buffer不同）
-    // 只用于和状态层的 remote buffer 同步，来回传
-    // std::memcpy(remote_ptr, str, len);
-
-    // Write redo logs into State Node and release latch
-    //  这样每次都需要把整个buffer从本地和状态层之间来回传，有点浪费资源
-    // 可能需要改写为ATT_sep中类似TxnItem复制的逻辑？
-    //    offset_t curr_addr = meta_mgr->GetRedoLogCurrAddr();
-    //    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char
-    //    *)redo_log_remote_buf,
-    //                                        curr_addr,
-    //                                        meta_mgr->GetRedoLogRemoteBufSize()))
-    //                                        {
-    //      // return;
-    //    }
-
-    // 这里最好把整个 log_t &log 传过去，包含了一些 redo log buffer 的元信息？
-    // 实际数据存储在log.buf
-    // 但是log_t没法转成char*直接传过去，就先传实际数据了
-    //    log_t *redo_log_remote_buf =
-    //        (log_t *)thd->rdma_buffer_allocator->Alloc(sizeof(log));
-
-    //    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)((byte *)log.buf),
-    //                                        meta_mgr->GetRedoLogCurrAddr(),
-    //                                        sizeof(log.buf))) {
-    //      //  return;
-    //    }
-
-    // log_t没法转成char*直接传过去，模仿TxnItem包装成RedoLogItem
-    RedoLogItem *redo_log_remote_buf =
-        (RedoLogItem *)thd->rdma_buffer_allocator->Alloc(
-            sizeof(*redo_log_remote_buf));
-    meta_mgr->SetRedoLogSize(sizeof(RedoLogItem));
-    // warning: definition of implicit copy assignment operator for
-    // 'aligned_array_pointer<unsigned char, 512>' is deprecated because it
-    // has a user-provided destructor
-    redo_log_remote_buf->sn_lock_event = log.sn_lock_event;
-    redo_log_remote_buf->sn_lock_inst = log.sn_lock_inst;
-    redo_log_remote_buf->sn = log.sn.load();
-    redo_log_remote_buf->sn_locked = log.sn_locked.load();
-    //    redo_log_remote_buf->sn_x_lock_mutex = log.sn_x_lock_mutex;
-    redo_log_remote_buf->buf = log.buf;
-    redo_log_remote_buf->buf_size_sn = log.buf_size_sn.load();
-    redo_log_remote_buf->buf_size = log.buf_size;
-    redo_log_remote_buf->pfs_psi = log.pfs_psi;
-    //    redo_log_remote_buf->recent_written = log.recent_written;
-    redo_log_remote_buf->writer_threads_paused =
-        log.writer_threads_paused.load();
-    redo_log_remote_buf->current_ready_waiting_lsn =
-        log.current_ready_waiting_lsn;
-    redo_log_remote_buf->current_ready_waiting_sig_count =
-        log.current_ready_waiting_sig_count;
-    //    redo_log_remote_buf->recent_closed = log.recent_closed;
-
-    // char *test = (char *)redo_log_remote_buf;
-    // char *test2 = (char *)log;
-
-    // meta information of redo log buffer
-    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
-                                        meta_mgr->GetRedoLogCurrAddr(),
-                                        sizeof(*redo_log_remote_buf))) {
-      //  return;
-    }
-    // 但是 log.buf 只是一个指针，还需要转发其指向的完整数据
-    if (!thd->coro_sched->RDMAWriteSync(
-            0, qp, log.buf,
-            meta_mgr->GetRedoLogCurrAddr() + sizeof(*redo_log_remote_buf),
-            log.buf_size)) {
-      //  return;
-    }
-
-    // [Deprecated] 设置状态层新的 redo log 存放地址
-    // meta_mgr->SetRedoLogCurrAddr(curr_addr + len);
-
-    // 放锁
-    if (!thd->coro_sched->RDMACASSync(0, qp, redo_log_remote_buf_latch,
-                                      meta_mgr->GetRedoLogRemoteBufLatchAddr(),
-                                      REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
-      // return;
-    }
-
-    // this CAS must succeed, because only one thread can obtain the authority
-    assert(*(rwlatch_t *)redo_log_remote_buf_latch == REDOLOG_LOCKED);
-
-    // 状态分离部分截止，下面为原有逻辑
 
     ut_a(len <= str_len);
 

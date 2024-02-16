@@ -17,15 +17,13 @@ set(STATE_SOURCE state_node/state_server.cc thirdparty/cjson/cJSON.cc)
 add_executable(state_node ${STATE_SOURCE})
 target_link_libraries(state_node rlib)
 
-set(RDMA_SRC
-        rdma_connection/meta_manager.cc
-        rdma_connection/qp_manager.cc
-        allocator/region_allocator.cc
-        coroutine_scheduler/coroutine_scheduler.cc
-        thirdparty/cjson/cJSON.cc
-        #        state_store/redo_log.h
-        #        util/redo_log_util.h
-)
+set(RDMA_SRC 
+    rdma_connection/meta_manager.cc
+    rdma_connection/qp_manager.cc
+    allocator/region_allocator.cc
+    coroutine_scheduler/coroutine_scheduler.cc
+    thirdparty/cjson/cJSON.cc
+    )
 
 add_library(state_core STATIC ${RDMA_SRC})
 

@@ -57,7 +57,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0buf.h"
 #include "log0chkp.h"
 #include "sync0rw.h"
-#include "sys/syscall.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
 
