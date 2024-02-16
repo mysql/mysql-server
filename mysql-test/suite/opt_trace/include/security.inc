@@ -54,7 +54,8 @@ select user();
 set optimizer_trace="enabled=on";
 # SHOW GRANTS scans a hash, which gives a random order
 --sorted_result
-show grants;
+--let $user = 0
+--source include/show_grants.inc
 
 --echo
 --echo # ==========================================================
@@ -97,7 +98,8 @@ connection con_user1;
 select user();
 set optimizer_trace="enabled=on";
 --sorted_result
-show grants;
+--let $user = 0
+--source include/show_grants.inc
 
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p1();

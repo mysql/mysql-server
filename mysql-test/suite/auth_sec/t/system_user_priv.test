@@ -28,7 +28,8 @@ REVOKE SYSTEM_USER ON *.* FROM non_sys_usr;
 # We shall partially revoke the update access from mysql.* once the former
 # feature will be available.
 REVOKE UPDATE ON *.* FROM non_sys_usr;
-SHOW GRANTS FOR non_sys_usr;
+--let $user = non_sys_usr
+--source include/show_grants.inc
 
 --echo
 --echo # 1.3 Role is granted SYSTEM_USER priv only if it is granted explictly
@@ -42,7 +43,8 @@ SHOW GRANTS FOR sys_role;
 CREATE USER non_sys_role;
 GRANT ALL ON *.* TO non_sys_role;
 REVOKE SYSTEM_USER ON *.* FROM non_sys_role;
-SHOW GRANTS FOR non_sys_role;
+--let $user = non_sys_role
+--source include/show_grants.inc
 
 --echo #------------------------------------------------------------------------
 --echo # 2. sys_usr cannot modify the other users properties unless the former

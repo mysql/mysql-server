@@ -423,7 +423,8 @@ DROP ROLE r1;
 SHOW GRANTS FOR u1 using r1;
 SHOW GRANTS FOR u1;
 GRANT ALL ON *.* to u1;
-SHOW GRANTS FOR u1;
+--let $user = u1
+--source include/show_grants.inc
 --echo # Boundary value test for privilege_id
 INSERT INTO mysql.global_grants VALUES('u1', '%',
 'length_32_abcdefghijklmnopqrstux', 'Y');
@@ -559,7 +560,8 @@ CREATE USER u1@localhost IDENTIFIED BY 'foo';
 GRANT ALL ON *.* TO u1@localhost;
 connect (con2,localhost,u1,foo,,);
 connection con2;
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 REVOKE ALL ON *.* FROM CURRENT_USER();
 SHOW GRANTS;
 connection default;

@@ -132,7 +132,8 @@ connection default;
 SET GLOBAL activate_all_roles_on_login = 'OFF';
 --echo # Don't show the same role twice.
 SET GLOBAL mandatory_roles="r1, r1";
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 disconnect con1;
 disconnect con2;
 
@@ -159,7 +160,8 @@ CREATE USER ''@'localhost';
 GRANT ALL ON sys.* TO ''@'localhost';
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL mandatory_roles='``@`localhost`';
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 CREATE USER u1@localhost identified by 'foo';
 GRANT SELECT ON *.* To u1@localhost;
 connect(con2,localhost,u1,foo,test,,,);

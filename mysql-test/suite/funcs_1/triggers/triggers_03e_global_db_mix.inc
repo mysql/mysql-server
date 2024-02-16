@@ -30,7 +30,8 @@ let $message= #### Testcase for mix of user(global) and db level: ####;
 	set password for test_yesprivs@localhost = 'PWD';
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 	grant ALL  on *.* to test_yesprivs@localhost;
-	show grants for test_yesprivs@localhost;
+	--let $user = test_yesprivs@localhost
+	--source include/show_grants.inc
 
         create User test_noprivs@localhost;
         set password for test_noprivs@localhost = 'PWD';
@@ -74,7 +75,8 @@ let $message= trigger privilege on user level for create:;
         select f1 from t1 order by f1;
 
         revoke TRIGGER on *.* from test_yesprivs@localhost;
-        show grants for test_yesprivs@localhost;
+	--let $user = test_yesprivs@localhost
+	--source include/show_grants.inc
 
 # change of privilege only active after reconnecting the session
 
@@ -93,7 +95,8 @@ let $message= trigger privilege on user level for create:;
 
         connection default;
 	select current_user;
-	show grants;
+	--let $user = 0
+	--source include/show_grants.inc
         drop trigger trg1_1;
 	use priv_db;
 
@@ -118,7 +121,8 @@ let $message= no trigger privilege on db level for create:;
 	connection default;
         select current_user;
         grant TRIGGER on priv_db.* to test_yesprivs@localhost;
-        show grants for test_yesprivs@localhost;
+	--let $user = test_yesprivs@localhost
+	--source include/show_grants.inc
 
 let $message= trigger privilege on db level for create:;
 --source include/show_msg.inc
@@ -162,7 +166,8 @@ let $message= trigger privilege on db level for create:;
 	insert into t1 (f1) values ('insert-yes');
 	select f1 from t1 order by f1;
         grant TRIGGER on *.* to test_yesprivs@localhost;
-        show grants for test_yesprivs@localhost;
+	--let $user = test_yesprivs@localhost
+	--source include/show_grants.inc
 
 	connection yes_privs;
         select current_user;

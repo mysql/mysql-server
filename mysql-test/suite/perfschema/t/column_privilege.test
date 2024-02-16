@@ -2,7 +2,7 @@
 # Test how columns privileges can be used on performance schema tables,
 # for very fine control.
 
-show grants;
+--source include/show_grants.inc
 
 create user 'pfs_user_5'@localhost;
 grant usage on *.* to 'pfs_user_5'@localhost with GRANT OPTION;

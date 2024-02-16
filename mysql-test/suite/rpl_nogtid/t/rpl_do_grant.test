@@ -291,7 +291,8 @@ GRANT EXECUTE ON PROCEDURE p1 TO 'user49119'@'localhost';
 -- echo ##############################################################
 -- echo ### Showing grants for both users: root and user49119 (master)
 SHOW GRANTS FOR 'user49119'@'localhost';
-SHOW GRANTS FOR CURRENT_USER;
+--let $user = CURRENT_USER
+--source include/show_grants.inc
 -- echo ##############################################################
 
 -- sync_slave_with_master
@@ -299,7 +300,8 @@ SHOW GRANTS FOR CURRENT_USER;
 -- echo ##############################################################
 -- echo ### Showing grants for both users: root and user49119 (master)
 SHOW GRANTS FOR 'user49119'@'localhost';
-SHOW GRANTS FOR CURRENT_USER;
+--let $user = CURRENT_USER
+--source include/show_grants.inc
 -- echo ##############################################################
 
 -- connection master
@@ -314,7 +316,8 @@ REVOKE EXECUTE ON PROCEDURE p1 FROM 'user49119'@'localhost', 'root'@'localhost';
 -- echo ### Showing grants for both users: root and user49119 (master)
 -- echo ### after revoke statement failure
 SHOW GRANTS FOR 'user49119'@'localhost';
-SHOW GRANTS FOR CURRENT_USER;
+--let $user = CURRENT_USER
+--source include/show_grants.inc
 -- echo ##############################################################
 
 -- connection master
@@ -324,7 +327,8 @@ SHOW GRANTS FOR CURRENT_USER;
 -- echo ### Showing grants for both users: root and user49119 (slave)
 -- echo ### after revoke statement failure (should match 
 SHOW GRANTS FOR 'user49119'@'localhost';
-SHOW GRANTS FOR CURRENT_USER;
+--let $user = CURRENT_USER
+--source include/show_grants.inc
 -- echo ##############################################################
 
 -- connection master

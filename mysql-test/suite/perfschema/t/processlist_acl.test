@@ -33,7 +33,8 @@ grant USAGE on *.* to user_none@localhost;
 flush privileges;
 
 --echo
-show grants for user_all@localhost;
+--let $user = user_all@localhost
+--source include/show_grants.inc
 --echo
 show grants for user_none@localhost;
 

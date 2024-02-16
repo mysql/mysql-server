@@ -31,7 +31,8 @@ revoke CREATE TEMPORARY TABLES on mysqltest.* from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 grant ALL PRIVILEGES on mysqltest.* to mysqltest_1@localhost with GRANT OPTION;
 flush privileges;
-show grants for mysqltest_1@localhost;
+--let $user = mysqltest_1@localhost
+--source include/show_grants.inc
 revoke LOCK TABLES, ALTER on mysqltest.* from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
@@ -133,29 +134,31 @@ flush privileges;
 create user drop_user@localhost, drop_user2@localhost;
 create table t1 (a int);
 grant ALL PRIVILEGES on *.* to drop_user2@localhost with GRANT OPTION;
-show grants for drop_user2@localhost;
+--let $user = drop_user2@localhost
+--source include/show_grants.inc
 revoke all privileges, grant option from drop_user2@localhost;
 
 grant ALL PRIVILEGES on *.* to drop_user@localhost with GRANT OPTION;
 grant ALL PRIVILEGES on test.* to drop_user@localhost with GRANT OPTION;
 grant select(a) on test.t1 to drop_user@localhost;
-show grants for drop_user@localhost;
+--let $user = drop_user@localhost
+--source include/show_grants.inc
 
 #
 # Bug#3086 SHOW GRANTS doesn't follow ANSI_QUOTES
 #
 set sql_mode=ansi_quotes;
-show grants for drop_user@localhost;
+--source include/show_grants.inc
 set sql_mode=default;
 
 set sql_quote_show_create=0;
-show grants for drop_user@localhost;
+--source include/show_grants.inc
 set sql_mode="ansi_quotes";
-show grants for drop_user@localhost;
+--source include/show_grants.inc
 set sql_quote_show_create=1;
-show grants for drop_user@localhost;
+--source include/show_grants.inc
 set sql_mode="";
-show grants for drop_user@localhost;
+--source include/show_grants.inc
 
 revoke all privileges, grant option from drop_user@localhost;
 show grants for drop_user@localhost;
@@ -505,12 +508,13 @@ set names koi8r;
 create database ÂÄ;
 grant select on ÂÄ.* to root@localhost;
 select hex(Db) from mysql.db where Db='ÂÄ';
-show grants for root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 flush privileges;
-show grants for root@localhost;
+--source include/show_grants.inc
 drop database ÂÄ;
 revoke select on ÂÄ.* from root@localhost;
-show grants for root@localhost;
+--source include/show_grants.inc
 set names latin1;
 
 #
@@ -676,8 +680,10 @@ grant select on mysqltest.* to mysqltest_8@'';
 grant update on t1 to mysqltest_8@'';
 grant update (a) on t1 to mysqltest_8@'';
 grant all privileges on mysqltest.* to mysqltest_8;
-show grants for mysqltest_8@'';
-show grants for mysqltest_8;
+--let $user = mysqltest_8@''
+--source include/show_grants.inc
+--let $user = mysqltest_8
+--source include/show_grants.inc
 --sorted_result
 select * from  information_schema.user_privileges
 where grantee like "'mysqltest_8'%";
@@ -686,8 +692,10 @@ select * from t1;
 disconnect conn5;
 connection master;
 flush privileges;
-show grants for mysqltest_8@'';
-show grants for mysqltest_8;
+--let $user = mysqltest_8@''
+--source include/show_grants.inc
+--let $user = mysqltest_8
+--source include/show_grants.inc
 drop user mysqltest_8@'';
 --error ER_NONEXISTING_GRANT
 show grants for mysqltest_8@'';
@@ -1804,19 +1812,20 @@ GRANT ALL ON * TO mysqltest_1;
 
 CREATE USER mysqltest_1;
 GRANT ALL ON *.* TO mysqltest_1;
-SHOW GRANTS FOR mysqltest_1;
+--let $user = mysqltest_1
+--source include/show_grants.inc
 DROP USER mysqltest_1;
 
 USE test;
 
 CREATE USER mysqltest_1;
 GRANT ALL ON * TO mysqltest_1;
-SHOW GRANTS FOR mysqltest_1;
+--source include/show_grants.inc
 DROP USER mysqltest_1;
 
 CREATE USER mysqltest_1;
 GRANT ALL ON *.* TO mysqltest_1;
-SHOW GRANTS FOR mysqltest_1;
+--source include/show_grants.inc
 DROP USER mysqltest_1;
 
 connection default;

@@ -1616,3 +1616,10 @@ SET @hadTransactionGtidTagPriv = (SELECT COUNT(*) FROM global_grants WHERE priv 
 INSERT INTO global_grants SELECT user, host, 'TRANSACTION_GTID_TAG',
 IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N') FROM global_grants WHERE priv = 'BINLOG_ADMIN' AND @hadTransactionGtidTagPriv = 0;
 COMMIT;
+
+-- Add the privilege FLUSH_PRIVILEGES for every user who has the
+-- privilege RELOAD, provided that there is not a user who already has
+-- privilege FLUSH_PRIVILEGES
+SET @hadFlushPrivilegesPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_PRIVILEGES');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_PRIVILEGES', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushPrivilegesPriv = 0;

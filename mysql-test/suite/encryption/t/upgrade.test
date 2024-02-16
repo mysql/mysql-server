@@ -69,7 +69,8 @@ SELECT id, name, options FROM mysql.tablespaces
 SET DEBUG='-d,skip_dd_table_access_check';
 
 --echo Check if upgrade root gets TABLE_ENCRYPTION_ADMIN privilege.
-SHOW GRANTS FOR 'root'@'localhost';
+--let $user = 'root'@'localhost'
+--source include/show_grants.inc
 
 --echo ########################################################################
 --echo # Remove copied files and stop the server.
@@ -111,7 +112,8 @@ SELECT id, name, options FROM mysql.tablespaces
 SET DEBUG='-d,skip_dd_table_access_check';
 
 --echo Check if upgrade root gets TABLE_ENCRYPTION_ADMIN privilege.
-SHOW GRANTS FOR 'root'@'localhost';
+--let $user = 'root'@'localhost'
+--source include/show_grants.inc
 
 --echo ########################################################################
 --echo # Remove copied files and stop the server.

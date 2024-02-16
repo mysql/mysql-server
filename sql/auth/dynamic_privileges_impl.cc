@@ -306,6 +306,7 @@ bool dynamic_privilege_init(void) {
   ret += service->register_privilege(STRING_WITH_LEN("FLUSH_STATUS"));
   ret += service->register_privilege(STRING_WITH_LEN("FLUSH_USER_RESOURCES"));
   ret += service->register_privilege(STRING_WITH_LEN("FLUSH_TABLES"));
+  ret += service->register_privilege(STRING_WITH_LEN("FLUSH_PRIVILEGES"));
   ret +=
       service->register_privilege(STRING_WITH_LEN("GROUP_REPLICATION_STREAM"));
   ret += service->register_privilege(

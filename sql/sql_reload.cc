@@ -80,6 +80,12 @@ bool is_reload_request_denied(THD *thd, unsigned long op_type) {
   if (sctx->check_access(RELOAD_ACL, thd->db().str ? thd->db().str : "", true))
     return false;
 
+  if ((op_type & REFRESH_GRANT) &&
+      !sctx->has_global_grant(STRING_WITH_LEN("FLUSH_PRIVILEGES")).first) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "RELOAD or FLUSH_PRIVILEGES");
+    return true;
+  }
   if ((op_type & REFRESH_OPTIMIZER_COSTS) &&
       !sctx->has_global_grant(STRING_WITH_LEN("FLUSH_OPTIMIZER_COSTS")).first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
@@ -103,9 +109,9 @@ bool is_reload_request_denied(THD *thd, unsigned long op_type) {
     return true;
   }
 
-  op_type &=
-      ~(REFRESH_OPTIMIZER_COSTS | REFRESH_STATUS | REFRESH_USER_RESOURCES |
-        REFRESH_TABLES | REFRESH_FOR_EXPORT | REFRESH_READ_LOCK);
+  op_type &= ~(REFRESH_GRANT | REFRESH_OPTIMIZER_COSTS | REFRESH_STATUS |
+               REFRESH_USER_RESOURCES | REFRESH_TABLES | REFRESH_FOR_EXPORT |
+               REFRESH_READ_LOCK);
 
   /* if it was just the above we're good */
   if (!op_type) return false;

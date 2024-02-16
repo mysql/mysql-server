@@ -209,9 +209,10 @@ connection default;
 --echo in default connection
 disconnect proxy_admin_con;
 
-SHOW GRANTS FOR grant_plug;
+--let $user = grant_plug
+--source include/show_grants.inc
 REVOKE PROXY ON future_user FROM grant_plug;
-SHOW GRANTS FOR grant_plug;
+--source include/show_grants.inc
 
 --echo ## testing drop user
 CREATE USER test_drop@localhost;

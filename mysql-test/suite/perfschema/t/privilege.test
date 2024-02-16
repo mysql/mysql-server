@@ -1,6 +1,6 @@
 # Tests for PERFORMANCE_SCHEMA
 
-show grants;
+--source include/show_grants.inc
 
 create user 'pfs_user_1'@localhost;
 create user 'pfs_user_2'@localhost;

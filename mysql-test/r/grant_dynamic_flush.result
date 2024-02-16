@@ -7,6 +7,7 @@ SELECT GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE FROM INFORMATION_SCHEMA.USER_PRIVIL
 WHERE PRIVILEGE_TYPE LIKE 'FLUSH_%' ORDER BY 1,2,3;
 GRANTEE	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'localhost'	FLUSH_OPTIMIZER_COSTS	YES
+'root'@'localhost'	FLUSH_PRIVILEGES	YES
 'root'@'localhost'	FLUSH_STATUS	YES
 'root'@'localhost'	FLUSH_TABLES	YES
 'root'@'localhost'	FLUSH_USER_RESOURCES	YES
@@ -90,7 +91,7 @@ FLUSH OPTIMIZER_COSTS,STATUS;
 ERROR 42000: Access denied; you need (at least one of) the RELOAD or FLUSH_OPTIMIZER_COSTS privilege(s) for this operation
 # old and a new one: should fail
 FLUSH STATUS,PRIVILEGES;
-ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RELOAD or FLUSH_PRIVILEGES privilege(s) for this operation
 # two new ones: should work
 FLUSH STATUS,USER_RESOURCES;
 connection default;

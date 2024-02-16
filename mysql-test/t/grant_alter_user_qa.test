@@ -1241,7 +1241,8 @@ GRANT ALL ON *.* TO user1@localhost;
 REVOKE SELECT ON *.* FROM user1@localhost;
 REVOKE CREATE USER ON *.* FROM user1@localhost;
 REVOKE SELECT ON mysql.* FROM user1@localhost;
-SHOW GRANTS FOR user1@localhost;
+--let $user = user1@localhost
+--source include/show_grants.inc
 --connect(con1, localhost, user1,)
 SELECT USER(), CURRENT_USER();
 SHOW CREATE USER user1@localhost;

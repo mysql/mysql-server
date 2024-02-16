@@ -49,24 +49,28 @@ CREATE USER u1@localhost IDENTIFIED BY 'foo';
 GRANT all on *.* to u1@localhost;
 GRANT r1,r2 TO u1@localhost;
 GRANT ALL ON *.* TO r1;
-SHOW GRANTS FOR u1@localhost USING r1;
+--let $user = u1@localhost USING r1
+--source include/show_grants.inc
 ALTER USER u1@localhost DEFAULT ROLE r1;
 SET @@global.debug="+d,induce_acl_load_failure";
 GRANT r1 TO r2;
 --error ER_UNKNOWN_ERROR
 FLUSH PRIVILEGES;
 connect (con1,localhost,u1,foo,);
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 connection default;
 REVOKE r1 FROM r2;
 SET @@global.debug="+d,induce_acl_load_failure";
 --error ER_UNKNOWN_ERROR
 FLUSH PRIVILEGES;
 --echo # Grant should not have changed
-SHOW GRANTS FOR u1@localhost USING r1;
+--let $user = u1@localhost USING r1
+--source include/show_grants.inc
 connection con1;
 --echo # Grant should not have changed
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 connection default;
 disconnect con1;
 SET @@global.debug="-d,induce_acl_load_failure";

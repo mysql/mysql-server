@@ -85,7 +85,8 @@ connection default;
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 GRANT ALL ON *.* TO testuser1@localhost;
-SHOW GRANTS FOR testuser1@localhost;
+--let $user = testuser1@localhost
+--source include/show_grants.inc
 --echo # Establish connection testuser1 (user=testuser1)
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser1, localhost, testuser1, , test);

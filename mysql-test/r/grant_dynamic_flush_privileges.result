@@ -1,0 +1,83 @@
+#
+# WL#16044 : Provide Separate Privilege For FLUSH PRIVILEGES
+#
+# Show grants for root user, it must have FLUSH_PRIVILEGES.
+SHOW GRANTS FOR 'root'@'localhost';
+Grants for root@localhost
+GRANT <ALL_STATIC_PRIVILEGES> ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT <ALL_DYNAMIC_PRIVILEGES> ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ``@`` TO `root`@`localhost` WITH GRANT OPTION
+# Create the test user.
+CREATE USER test@localhost;
+# Switch to test user, make sure FLUSH PRIVILEGES throws access denied.
+# The error mentions about both RELOAD and FLUSH_PRIVILEGES privileges.
+FLUSH PRIVILEGES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD or FLUSH_PRIVILEGES privilege(s) for this operation
+# Back to root user.
+# Make sure privilege is not specific to a particular database.
+GRANT FLUSH_PRIVILEGES ON mysql.* TO test@localhost;
+ERROR HY000: Illegal privilege level specified for FLUSH_PRIVILEGES
+# Grant FLUSH_PRIVILEGES and SYSTEM_VARIABLES_ADMIN to the test user.
+GRANT FLUSH_PRIVILEGES, SYSTEM_VARIABLES_ADMIN ON *.* TO test@localhost;
+# Back to test user.
+# Try to change system variables to test the SYSTEM_VARIABLES_ADMIN privilege.
+SET @@GLOBAL.general_log=OFF;
+SHOW VARIABLES LIKE 'general_log';
+Variable_name	Value
+general_log	OFF
+SET @@GLOBAL.general_log=ON;
+SHOW VARIABLES LIKE 'general_log';
+Variable_name	Value
+general_log	ON
+# Back to root user.
+# Revoke the SYSTEM_VARIABLES_ADMIN privilege directly from global_grants table.
+DELETE FROM mysql.global_grants WHERE user='test' AND priv='SYSTEM_VARIABLES_ADMIN';
+# Back to test user.
+# Can still change the system variables.
+SET @@GLOBAL.general_log=OFF;
+SHOW VARIABLES LIKE 'general_log';
+Variable_name	Value
+general_log	OFF
+SET @@GLOBAL.general_log=ON;
+SHOW VARIABLES LIKE 'general_log';
+Variable_name	Value
+general_log	ON
+# Flush the privileges.
+FLUSH PRIVILEGES;
+# Privileges shall be gone now.
+SHOW GRANTS FOR CURRENT_USER;
+Grants for test@localhost
+GRANT USAGE ON *.* TO `test`@`localhost`
+GRANT FLUSH_PRIVILEGES ON *.* TO `test`@`localhost`
+# Can no longer change system variables.
+SET @@GLOBAL.general_log=OFF;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SHOW VARIABLES LIKE 'general_log';
+Variable_name	Value
+general_log	ON
+# Back to root user.
+# Create another test user.
+CREATE USER test_2@localhost;
+# Create a role, and then assign the privilege to the role.
+CREATE ROLE flusher;
+GRANT FLUSH_PRIVILEGES ON *.* TO flusher;
+# Assign the role to the test_2 user.
+GRANT flusher TO test_2@localhost;
+# Switch to test_2 user.
+SHOW GRANTS FOR CURRENT_USER;
+Grants for test_2@localhost
+GRANT USAGE ON *.* TO `test_2`@`localhost`
+GRANT `flusher`@`%` TO `test_2`@`localhost`
+SHOW GRANTS FOR CURRENT_USER USING flusher;
+Grants for test_2@localhost
+GRANT USAGE ON *.* TO `test_2`@`localhost`
+GRANT FLUSH_PRIVILEGES ON *.* TO `test_2`@`localhost`
+GRANT `flusher`@`%` TO `test_2`@`localhost`
+# Set the role.
+SET ROLE flusher;
+# test_2 shall be able to execute the FLUSH PRIVILEGES now.
+FLUSH PRIVILEGES;
+# Clean up
+DROP ROLE flusher;
+DROP USER test@localhost;
+DROP USER test_2@localhost;

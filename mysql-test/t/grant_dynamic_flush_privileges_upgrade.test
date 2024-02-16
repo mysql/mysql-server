@@ -1,0 +1,49 @@
+--echo #
+--echo # WL#16044 : Provide Separate Privilege For FLUSH PRIVILEGES
+--echo #
+
+--source include/big_test.inc
+--source include/have_innodb_min_8k.inc
+--source include/mysql_upgrade_preparation.inc
+
+--echo # Before revoking privileges.
+SELECT GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE FROM INFORMATION_SCHEMA.USER_PRIVILEGES
+WHERE PRIVILEGE_TYPE LIKE 'FLUSH_PRIVILEGES' ORDER BY 1,2,3;
+
+REVOKE FLUSH_PRIVILEGES ON *.* FROM root@localhost;
+
+--echo # After revoking privileges.
+SELECT GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE FROM INFORMATION_SCHEMA.USER_PRIVILEGES
+WHERE PRIVILEGE_TYPE LIKE 'FLUSH_PRIVILEGES' ORDER BY 1,2,3;
+
+--echo # Create two test users. With and without reload privilege.
+CREATE USER test@localhost, test_no_reload@localhost;
+GRANT RELOAD ON *.* TO test@localhost;
+
+--echo # Should contain root@localhost and test@localhost
+SELECT GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE FROM INFORMATION_SCHEMA.USER_PRIVILEGES
+WHERE PRIVILEGE_TYPE = 'RELOAD' ORDER BY 1,2,3;
+
+--let $restart_parameters = restart:--upgrade=FORCE
+
+--let $wait_counter= 10000
+
+--source include/restart_mysqld.inc
+
+--echo # Restart server with defaults
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+--echo # After upgrade, root and test user shall have FLUSH_PRIVILEGES privilege.
+SELECT GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE FROM INFORMATION_SCHEMA.USER_PRIVILEGES
+WHERE PRIVILEGE_TYPE LIKE 'FLUSH_PRIVILEGES' ORDER BY 1,2,3;
+
+--echo # Cleanup
+DROP USER test@localhost, test_no_reload@localhost;
+# Clean up specific for CHTEST
+let $datadir = `SELECT @@datadir`;
+--error 0,1
+--move_file $datadir/mysql/general_log_390.sdi $datadir/mysql/general_log_215.sdi
+--error 0,1
+--move_File $datadir/mysql/slow_log_392.sdi $datadir/mysql/slow_log_216.sdi
+--source include/mysql_upgrade_cleanup.inc

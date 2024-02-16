@@ -54,7 +54,8 @@ let $message= Testcase 3.5.3.2/6:;
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 	grant ALL  on *.* to test_noprivs@localhost;
 	revoke TRIGGER on *.* from test_noprivs@localhost;
-	show grants for test_noprivs@localhost;
+	--let $user = test_noprivs@localhost
+	--source include/show_grants.inc
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 	grant TRIGGER on *.* to test_yesprivs@localhost;
@@ -147,8 +148,8 @@ let $message=Testcase 3.5.3.7a:;
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 	grant ALL  on *.* to test_noprivs@localhost;
 	revoke UPDATE  on *.* from test_noprivs@localhost;
-	show grants for test_noprivs@localhost;
-
+	--let $user = test_noprivs@localhost
+	--source include/show_grants.inc
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 	grant TRIGGER, UPDATE on *.* to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
@@ -159,7 +160,8 @@ let $message=Testcase 3.5.3.7a:;
 	connection no_privs_424a;
 	select current_user;
 	use priv_db;
-	show grants;
+	--let $user = 0
+	--source include/show_grants.inc
 	select f1 from t1 order by f1;
 
 	create trigger trg4a_1 before INSERT on t1 for each row
@@ -353,7 +355,8 @@ let $message= Testcase 3.5.3.8a:;
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 	grant ALL  on *.* to test_noprivs@localhost;
 	revoke SELECT  on *.* from test_noprivs@localhost;
-	show grants for test_noprivs@localhost;
+	--let $user = test_noprivs@localhost
+	--source include/show_grants.inc
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 	grant TRIGGER, SELECT on *.* to test_yesprivs@localhost;
@@ -366,7 +369,8 @@ let $message= Testcase 3.5.3.8a:;
 	connection no_privs_425a;
 	select current_user;
 	use priv_db;
-	show grants;
+	--let $user = 0
+	--source include/show_grants.inc
 
 	create trigger trg5a_1 before INSERT on t1 for each row
 		set @test_var = new.f1;

@@ -353,7 +353,8 @@ DROP USER B20614545@localhost;
 --echo #
 
 --echo # Show privilege for root@localhost before the privilege XA_RECOVER_ADMIN will be revoked
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 
 CREATE USER u1;
 GRANT SUPER ON *.* TO u1;
@@ -366,7 +367,8 @@ REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 --echo # We show here that the users root@localhost and u1 have the privilege
 --echo # SUPER and don't have the privilege XA_RECOVER_ADMIN
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR u1;
 
 --echo # Start upgrade
@@ -382,7 +384,8 @@ SHOW GRANTS FOR u1;
 --echo # privilege XA_RECOVER_ADMIN granted since they had the privilge SUPER
 --echo # before upgrade and there wasn't any user with explicitly granted
 --echo # privilege XA_RECOVER_ADMIN.
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR u1;
 
 --echo # Now run upgrade against database where there is a user with granted
@@ -406,7 +409,8 @@ REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 --echo # XA_RECOVER_ADMIN won't be granted to the user u1 since
 --echo # there was another user (root@localhost) who had the privilege
 --echo # XA_RECOVER_ADMIN at the time when upgrade was started
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR u1;
 
 --echo # Cleaning up
@@ -468,7 +472,8 @@ REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
 CREATE USER user1;
 GRANT SUPER ON *.* TO user1;
 --echo # Users root@localhost and user1 have privilege SUPER but not RESOURCE_GROUP_ADMIN 
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR user1;
 
 --echo # Start upgrade
@@ -479,8 +484,10 @@ SHOW GRANTS FOR user1;
 --source include/restart_mysqld.inc
 
 --echo # After upgrade users root@localhost and user1 has privilege RESOURCE_GROUP_ADMIN.
-SHOW GRANTS FOR root@localhost;
-SHOW GRANTS FOR user1;
+--let $user = root@localhost
+--source include/show_grants.inc
+--let $user = user1
+--source include/show_grants.inc
 DROP USER user1;
 
 # Revoke privilege RESOURCE_GROUP_ADMIN from the user mysql.session@localhost in order to
@@ -495,7 +502,8 @@ REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
 --echo #
 
 --echo # Show privilege for root@localhost before the privilege SERVICE_CONNECTION_ADMIN be revoked
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 
 CREATE USER u1;
 GRANT SUPER ON *.* TO u1;
@@ -508,7 +516,8 @@ REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 --echo # We show here that the users root@localhost and u1 have the privilege
 --echo # SUPER and don't have the privilege SERVICE_CONNECTION_ADMIN
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR u1;
 
 --let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
@@ -522,7 +531,8 @@ SHOW GRANTS FOR u1;
 --echo # privilege SERVICE_CONNECTION_ADMIN granted since they had the privilege SUPER
 --echo # before upgrade and there wasn't any user with explicitly granted
 --echo # privilege SERVICE_CONNECTION_ADMIN.
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR u1;
 
 --echo # Now run upgrade against database where there is a user with granted
@@ -546,7 +556,8 @@ REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM `mysql.session`@localhost;
 --echo # SERVICE_CONNECTION_ADMIN won't be granted to the user u1 since
 --echo # there was another user (root@localhost) who had the privilege
 --echo # SERVICE_CONNECTION_ADMIN at the time when upgrade was started
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR u1;
 
 --echo # Cleaning up
@@ -564,7 +575,8 @@ DROP USER u1;
 --echo set @privileges = $privileges
 
 --echo # Show privileges for root@localhost before the @privileges be revoked
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 
 CREATE USER u1;
 GRANT SUPER ON *.* TO u1;
@@ -577,7 +589,8 @@ GRANT SUPER ON *.* TO u1;
 
 --echo # Show here that the users root@localhost and u1 have the privilege
 --echo # SUPER and don't have the @privileges
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR u1;
 
 --let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
@@ -590,7 +603,8 @@ SHOW GRANTS FOR u1;
 --echo # root@localhost and u1 have the @privileges granted
 --echo # since they had the privilege SUPER before upgrade
 --echo # and there wasn't any user with explicitly granted @privileges
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR u1;
 
 --echo # Upgrade against database where there is a user with granted @privileges
@@ -609,7 +623,8 @@ SHOW GRANTS FOR u1;
 --echo # It is expected that after upgrade be finished the @privileges won't be
 --echo # granted to the user u1 since there was another user (root@localhost)
 --echo # who had the @privileges at the time when upgrade was started
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR u1;
 
 --echo # Cleaning up
@@ -634,7 +649,8 @@ CREATE USER sheldon;
 GRANT SELECT ON *.* TO sheldon;
 
 --echo # Show grants before upgrade
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR sheldon;
 
 --echo # Start upgrade
@@ -646,7 +662,8 @@ SHOW GRANTS FOR sheldon;
 
 --echo # Show grants after upgrade
 --echo # Should contain SHOW_ROUTINE privilege in both cases
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 SHOW GRANTS FOR sheldon;
 
 --echo # Cleanup

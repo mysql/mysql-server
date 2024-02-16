@@ -320,17 +320,20 @@ REVOKE ALL ON mysql.* FROM baz;
 REVOKE ALL ON mysql.* FROM bar;
 SHOW GRANTS FOR foo;
 SHOW GRANTS FOR bar;
-SHOW GRANTS FOR baz;
+--let $user = baz
+--source include/show_grants.inc
 DROP USER baz;
 --echo # Create partial_revokes for foo
 GRANT ALL ON *.* TO foo WITH GRANT OPTION;
 REVOKE SELECT ON mysql.* FROM foo;
 --echo # GRANT ALL should remove the partial revokes created above
 GRANT ALL ON *.* TO foo WITH GRANT OPTION;
-SHOW GRANTS FOR foo;
+--let $user = foo
+--source include/show_grants.inc
 --echo # create partial revokes again
 REVOKE SELECT ON mysql.* FROM foo;
-SHOW GRANTS FOR foo;
+--let $user = foo
+--source include/show_grants.inc
 GRANT ALL ON mysql.* TO bar;
 --connect($conn_name, localhost, foo,,,$MASTER_MYPORT)
 --echo [connection $conn_name]
@@ -341,8 +344,10 @@ REVOKE ALL ON mysql.* FROM bar;
 GRANT ALL ON *.* TO bar;
 REVOKE SELECT ON mysql.* FROM bar;
 --echo # grantor and grantee both have exact same privileges and partial revokes
-SHOW GRANTS FOR foo;
-SHOW GRANTS FOR bar;
+--let $user = foo
+--source include/show_grants.inc
+--let $user = bar
+--source include/show_grants.inc
 --connection $conn_name
 --echo # grantor should be able to remove the privileges & partial revokes both
 REVOKE ALL ON *.* FROM bar;
@@ -358,12 +363,14 @@ REVOKE ALL ON *.* FROM foo,bar;
 GRANT ALL ON *.* TO foo WITH GRANT OPTION;
 --echo # Following should create restrictions for mysql db
 REVOKE ALL ON mysql.* FROM foo;
-SHOW GRANTS FOR foo;
+--let $user = foo
+--source include/show_grants.inc
 --connect($conn_name, localhost, foo,,,$MASTER_MYPORT)
 --echo # restrictions must pass to bar as well
 GRANT ALL ON *.* TO bar;
 --connection default
-SHOW GRANTS FOR bar;
+--let $user = bar
+--source include/show_grants.inc
 --source ./partial_revokes_rpl_helper.inc
 --connection default
 --disconnect $conn_name
@@ -876,16 +883,20 @@ GRANT r1 TO bar;
 --echo [connection $conn_name]
 --echo # User should not have restriction for now
 SET ROLE ALL;
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 --echo # Grantee should not carry the actual restrictions of grantor
 GRANT INSERT ON *.* TO foo;
-SHOW GRANTS FOR foo;
+--let $user = foo
+--source include/show_grants.inc
 --echo # Grantor should be able to remove the global privileges from grantee now
 REVOKE INSERT ON *.* FROM foo;
-SHOW GRANTS FOR foo;
+--let $user = foo
+--source include/show_grants.inc
 --echo # Grantor should be able to grant global privilege to self
 GRANT INSERT ON *.* TO bar;
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 --connection default
 --echo [connection default]
 --echo # Since, user granted himself global privilege therefore it's
@@ -913,7 +924,8 @@ GRANT r1 TO bar;
 --echo [connection $conn_name]
 --echo # User should not have restriction for now
 SET ROLE ALL;
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 --echo # Grantor should be able to grant DB level privilege to grantee
 GRANT INSERT ON mysql.* TO foo;
 SHOW GRANTS FOR foo;
@@ -950,7 +962,8 @@ GRANT r1 TO bar;
 --echo [connection $conn_name]
 --echo # User should not have restriction for now
 SET ROLE ALL;
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 --echo # Grantor should be able to grant ALL DB level privilege to grantee
 GRANT ALL ON mysql.* TO foo;
 SHOW GRANTS FOR foo;
@@ -985,22 +998,26 @@ GRANT r1 TO bar;
 --echo [connection $conn_name]
 --echo # User should not have restriction for now
 SET ROLE ALL;
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 --echo # Grantor should be able to grant ALL global level privilege to grantee
 GRANT ALL ON *.* TO foo;
-SHOW GRANTS FOR foo;
+--let $user = foo
+--source include/show_grants.inc
 --echo # Grantor should be able to revoke ALL global level privilege from
 --echo # grantee
 REVOKE ALL ON *.* FROM foo;
 SHOW GRANTS FOR foo;
 --echo # Should be able to grant ALL DB level privileges to self
 GRANT ALL ON *.* TO bar;
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 --connection default
 --echo [connection default]
 --echo # Since, user granted himself all DB level privileges therefore it's
 --echo # restrictions has gone permanently now.
-SHOW GRANTS FOR bar;
+--let $user = bar
+--source include/show_grants.inc
 --source ./partial_revokes_rpl_helper.inc
 --connection default
 --disconnect $conn_name

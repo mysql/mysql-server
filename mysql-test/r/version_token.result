@@ -281,6 +281,7 @@ Event	Server Admin	To create, alter, drop and execute events
 Execute	Functions,Procedures	To execute stored routines
 FIREWALL_EXEMPT	Server Admin	
 FLUSH_OPTIMIZER_COSTS	Server Admin	
+FLUSH_PRIVILEGES	Server Admin	
 FLUSH_STATUS	Server Admin	
 FLUSH_TABLES	Server Admin	
 FLUSH_USER_RESOURCES	Server Admin	

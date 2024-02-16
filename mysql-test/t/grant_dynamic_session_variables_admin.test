@@ -8,7 +8,8 @@
 --echo # Testing FR2
 
 --echo Must have SESSION_VARIABLES_ADMIN with grant option
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 
 --echo # Testing FR1
 

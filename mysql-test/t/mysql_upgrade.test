@@ -94,7 +94,8 @@ SHOW GRANTS FOR u1;
 --echo # Must have AUTHENTICATION_POLICY_ADMIN privilege
 SHOW GRANTS FOR u2;
 --echo # Must have AUTHENTICATION_POLICY_ADMIN, PASSWORDLESS_USER_ADMIN privilegea
-SHOW GRANTS FOR root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 # Cleanup
 DROP USER u1,u2;
 
@@ -116,7 +117,8 @@ REVOKE SENSITIVE_VARIABLES_OBSERVER ON *.* FROM root@localhost;
 
 --echo # Must have SENSITIVE_VARIABLES_OBSERVER privilege
 SHOW GRANTS for u34068378;
-SHOW GRANTS for root@localhost;
+--let $user = root@localhost
+--source include/show_grants.inc
 
 # cleanup
 DROP USER u34068378;

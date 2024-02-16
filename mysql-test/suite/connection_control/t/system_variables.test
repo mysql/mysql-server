@@ -14,7 +14,8 @@ connection default;
 --echo #-----------------------------------------------------------------------
 
 --echo # Case 1 : connection_control_failed_connections_threshold
-SHOW GRANTS;
+--let $user = 0
+--source include/show_grants.inc
 SET @saved_value = @@global.connection_control_failed_connections_threshold;
 SELECT @saved_value;
 SET @@global.connection_control_failed_connections_threshold = @saved_value;

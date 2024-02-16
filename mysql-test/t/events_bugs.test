@@ -901,7 +901,8 @@ CREATE EVENT new_event ON SCHEDULE AT NOW() STARTS NOW() ENDS NOW() DO SELECT 1;
 #                   then server cores
 #
 USE test;
-SHOW GRANTS FOR CURRENT_USER;
+--let $user = CURRENT_USER
+--source include/show_grants.inc
 SET GLOBAL event_scheduler = ON;
 --source include/running_event_scheduler.inc
 eval

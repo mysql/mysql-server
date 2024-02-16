@@ -9186,7 +9186,9 @@ SHOW REPLICAS|
 SHOW REPLICA STATUS|
 --enable_testcase
 
+--source include/show_all_privileges.inc
 call bug4902()|
+--source include/show_all_privileges.inc
 call bug4902()|
 
 drop procedure bug4902|
@@ -9381,7 +9383,9 @@ create procedure 15298_1 () sql security definer show grants for current_user;
 create procedure 15298_2 () sql security definer show grants;
 
 connect (con1,localhost,mysqltest_1,,test);
+--source include/show_all_privileges.inc
 call 15298_1();
+--source include/show_all_privileges.inc
 call 15298_2();
 
 connection default;
