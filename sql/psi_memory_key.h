@@ -102,6 +102,7 @@ extern PSI_memory_key key_memory_rpl_thd_context;
 extern PSI_memory_key key_memory_applier;
 extern PSI_memory_key key_memory_recovery;
 extern PSI_memory_key key_memory_show_binlog_events;
+extern PSI_memory_key key_memory_relaylog_recovery;
 extern PSI_memory_key key_memory_REPLICA_INFO;
 extern PSI_memory_key key_memory_ST_SCHEMA_TABLE;
 extern PSI_memory_key key_memory_Slave_applier_json_diff_vector;

@@ -91,8 +91,10 @@ INSERT INTO t1 VALUES (3);
 --source include/rpl_connection_master.inc
 --source include/sync_slave_io_with_master.inc
 
-# Assert that only three GTIDs were added to the Retrieved_Gtid_Set
---let $gtid_step_count= 3
+# Assert that four GTIDs were added to the Retrieved_Gtid_Set
+# One additional transaction comes from the fact that position of the
+# receiver thread was restored during the relay log sanitization
+--let $gtid_step_count= 4
 --let $gtid_step_only_count= 1
 --source include/gtid_step_assert_on_retrieved.inc
 

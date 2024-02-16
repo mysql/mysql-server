@@ -25,6 +25,7 @@
 #define BINLOG_RECOVERY_H_INCLUDED
 
 #include "sql/binlog/global.h"
+#include "sql/binlog/log_sanitizer.h"
 #include "sql/binlog_ostream.h"  // binlog::tools::Iterator
 #include "sql/binlog_reader.h"   // Binlog_file_reader
 #include "sql/log_event.h"       // Log_event
@@ -61,7 +62,7 @@ namespace binlog {
   the state that is provided in the list; the internal storage engine state
   for the transaction.
 */
-class Binlog_recovery {
+class Binlog_recovery : public Log_sanitizer {
  public:
   /**
     Class constructor.
@@ -71,16 +72,8 @@ class Binlog_recovery {
                               file.
    */
   Binlog_recovery(Binlog_file_reader &binlog_file_reader);
-  virtual ~Binlog_recovery() = default;
+  ~Binlog_recovery() override = default;
 
-  /**
-    Retrieves the position of the last binlog event that ended a
-    transaction.
-
-    @return The position of the last binlog event that ended a
-            transaction.
-   */
-  my_off_t get_valid_pos() const;
   /**
     Retrieves whether or not the recovery process ended successfully.
 
@@ -147,175 +140,18 @@ class Binlog_recovery {
    */
   Binlog_recovery &recover();
 
+ protected:
+  /// @brief Function used to obtain memory key for derived classes
+  /// @returns Reference to a memory key
+  PSI_memory_key &get_memory_key() const override {
+    return key_memory_recovery;
+  }
+
  private:
   /** File reader for the last available binary log file */
   Binlog_file_reader &m_reader;
-  /** Position of the last binlog event that ended a transaction */
-  my_off_t m_valid_pos{0};
-  /** Whether or not the event being processed is within a transaction */
-  bool m_in_transaction{false};
-  /** Whether or not the binary log is malformed/corrupted */
-  bool m_is_malformed{false};
   /** Whether or not the recovery in the storage engines failed */
   bool m_no_engine_recovery{false};
-  /** Textual representation of the encountered failure */
-  std::string m_failure_message{""};
-  /** Memory pool to use for the XID lists */
-  MEM_ROOT m_mem_root;
-  /** Memory pool allocator to use with the normal transaction list */
-  Mem_root_allocator<my_xid> m_set_alloc;
-  /** Memory pool allocator to use with the XA transaction list */
-  Mem_root_allocator<std::pair<const XID, XID_STATE::xa_states>> m_map_alloc;
-  /** List of normal transactions fully written to the binary log */
-  Xid_commit_list m_internal_xids;
-  /** List of XA transactions and states that appear in the binary log */
-  Xa_state_list::list m_external_xids;
-
-  /**
-    Invoked when a `Query_log_event` is read from the binary log file
-    reader. The underlying query string is inspected to determine if the
-    SQL command starts or ends a transaction. The following commands are
-    searched for:
-    - BEGIN
-    - COMMIT
-    - ROLLBACK
-    - DDL
-    - XA START
-    - XA COMMIT
-    - XA ROLLBACK
-
-    Check below for the description of the action that is taken for each.
-
-    @param ev The `Query_log_event` to process
-   */
-  void process_query_event(Query_log_event const &ev);
-  /**
-    Invoked when a `Xid_log_event` is read from the binary log file
-    reader.
-
-    Actions taken to process the event:
-    - If `m_in_transaction` flag is set to false, `m_is_malformed` is set
-      to true, indicating that the binary log is malformed.
-    - The `m_in_transaction` flag is set to false, indicating that the
-      event ends a transaction.
-    - The XID of the transaction is extracted and added to the list of
-      internally coordinated transactions `m_internal_xids`.
-    - If the XID already exists in the list, `m_is_malformed` is set to
-      true, indicating that the binary log is malformed.
-
-    @param ev The `Xid_log_event` to process
-   */
-  void process_xid_event(Xid_log_event const &ev);
-  /**
-    Invoked when a `XA_prepare_log_event` is read from the binary log file
-    reader.
-
-    Actions taken to process the event:
-    - If `m_in_transaction` flag is set to false, `m_is_malformed` is set
-      to true, indicating that the binary log is malformed.
-    - The `m_in_transaction` flag is set to false, indicating that the
-      event ends a transaction.
-    - The XID of the transaction is extracted and added to the list of
-      externally coordinated transactions `m_external_xids`, along side the
-      state COMMITTED if the event represents an `XA COMMIT ONE_PHASE` or
-      PREPARED if not.
-    - If the XID already exists in the list associated with a state other
-      than `COMMITTED` or `ROLLEDBACK`, `m_is_malformed` is set to true,
-      indicating that the binary log is malformed.
-
-    @param ev The `XA_prepare_log_event` to process
-   */
-  void process_xa_prepare_event(XA_prepare_log_event const &ev);
-  /**
-    Invoked when a `BEGIN` or an `XA START' is found in a
-    `Query_log_event`.
-
-    Actions taken to process the statement:
-    - If `m_in_transaction` flag is set to true, `m_is_malformed` is set
-      to true, indicating that the binary log is malformed.
-    - The `m_in_transaction` flag is set to true, indicating that the
-      event starts a transaction.
-   */
-  void process_start();
-  /**
-    Invoked when a `COMMIT` is found in a `Query_log_event`.
-
-    Actions taken to process the statement:
-    - If `m_in_transaction` flag is set to false, `m_is_malformed` is set
-      to true, indicating that the binary log is malformed.
-    - The `m_in_transaction` flag is set to false, indicating that the
-      event starts a transaction.
-   */
-  void process_commit();
-  /**
-    Invoked when a `ROLLBACK` is found in a `Query_log_event`.
-
-    Actions taken to process the statement:
-    - If `m_in_transaction` flag is set to false, `m_is_malformed` is set
-      to true, indicating that the binary log is malformed.
-    - The `m_in_transaction` flag is set to false, indicating that the
-      event starts a transaction.
-   */
-  void process_rollback();
-  /**
-    Invoked when a DDL is found in a `Query_log_event`.
-
-    Actions taken to process the statement:
-    - If `m_in_transaction` flag is set to true, `m_is_malformed` is set
-      to true, indicating that the binary log is malformed.
-    - The XID of the transaction is extracted and added to the list of
-      internally coordinated transactions `m_internal_xids`.
-    - If the XID already exists in the list, `m_is_malformed` is set to
-      true, indicating that the binary log is malformed.
-
-    @param ev The `Query_log_event` to process
-   */
-  void process_atomic_ddl(Query_log_event const &ev);
-  /**
-    Invoked when an `XA COMMIT` is found in a `Query_log_event`.
-
-    Actions taken to process the statement:
-    - If `m_in_transaction` flag is set to true, `m_is_malformed` is set
-      to true, indicating that the binary log is malformed.
-    - The `m_in_transaction` flag is set to false, indicating that the
-      event ends a transaction.
-    - The XID of the transaction is extracted and added to the list of
-      externally coordinated transactions `m_external_xids`, alongside the
-      state COMMITTED.
-    - If the XID already exists in the list associated with a state other
-      than `PREPARED`, `m_is_malformed` is set to true, indicating that the
-      binary log is malformed.
-
-    @param query The query string to process
-   */
-  void process_xa_commit(std::string const &query);
-  /**
-    Invoked when an `XA ROLLBACK` is found in a `Query_log_event`.
-
-    Actions taken to process the statement:
-    - If `m_in_transaction` flag is set to true, `m_is_malformed` is set
-      to true, indicating that the binary log is malformed.
-    - The `m_in_transaction` flag is set to false, indicating that the
-      event ends a transaction.
-    - The XID of the transaction is extracted and added to the list of
-      externally coordinated transactions `m_external_xids`, along side the
-      state ROLLEDBACK.
-    - If the XID already exists in the list associated with a state other
-      than `PREPARED`, `m_is_malformed` is set to true, indicating that the
-      binary log is malformed.
-
-    @param query The query string to process
-   */
-  void process_xa_rollback(std::string const &query);
-  /**
-    Parses the provided string for an XID and adds it to the externally
-    coordinated transactions map, along side the provided state.
-
-    @param query The query to search and retrieve the XID from
-    @param state The state to add to the map, along side the XID
-   */
-  void add_external_xid(std::string const &query,
-                        enum_ha_recover_xa_state state);
 };
 }  // namespace binlog
 

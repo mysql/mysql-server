@@ -764,6 +764,9 @@ class Relay_log_info : public Rpl_info {
   /* Flag that ensures the retrieved GTID set is initialized only once. */
   bool gtid_retrieved_initialized;
 
+  /// Flag that ensures the relay log is sanitized only once.
+  bool relay_log_sanitized = false;
+
   /**
     Stores information on the last processed transaction or the transaction
     that is currently being processed.
@@ -1555,13 +1558,13 @@ class Relay_log_info : public Rpl_info {
     replication log files was ON and the keyring plugin is not available
     anymore.
 
-    @param skip_received_gtid_set_recovery When true, skips the received GTID
-                                           set recovery.
+    @param skip_received_gtid_set_and_relaylog_recovery When true, skips the
+    received GTID set and relay log recovery.
 
     @retval 0 Success.
     @retval 1 Error.
   */
-  int rli_init_info(bool skip_received_gtid_set_recovery = false);
+  int rli_init_info(bool skip_received_gtid_set_and_relaylog_recovery = false);
   void end_info();
 
   /** No flush options given to relay log flush */

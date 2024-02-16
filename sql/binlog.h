@@ -319,6 +319,10 @@ class MYSQL_BIN_LOG : public TC_LOG {
                             char *buff);
   bool is_open() const { return atomic_log_state != LOG_CLOSED; }
 
+  /// @brief Obtains the list of logs from the index file
+  /// @return List of log filenames
+  std::pair<std::list<std::string>, mysql::utils::Error> get_filename_list();
+
   /* This is relay log */
   bool is_relay_log;
 
@@ -841,6 +845,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  private:
   bool after_write_to_relay_log(Master_info *mi);
+
+ public:
   /**
    * Truncte log file and clear LOG_EVENT_BINLOG_IN_USE_F when update is set.
    * @param[in] log_name name of the log file to be trunacted
@@ -854,10 +860,38 @@ class MYSQL_BIN_LOG : public TC_LOG {
   bool truncate_update_log_file(const char *log_name, my_off_t valid_pos,
                                 my_off_t binlog_size, bool update);
 
- public:
   void make_log_name(char *buf, const char *log_ident);
   bool is_active(const char *log_file_name) const;
-  int remove_logs_from_index(LOG_INFO *linfo, bool need_update_threads);
+
+  /// @brief Remove logs from index file, except files between 'start' and
+  /// 'last'
+  /// @details To make it crash safe, we copy the content of the index file
+  /// from index_file_start_offset recorded in log_info to a
+  /// crash safe index file first and then move the crash
+  /// safe index file to the index file.
+  /// @param start_log_info         Metadata of the first log to be kept
+  ///                               in the index file
+  /// @param need_update_threads    If we want to update the log coordinates
+  ///                               of all threads. False for relay logs,
+  ///                               true otherwise.
+  /// @param last_log_info Metadata of the last log to be kept in the index
+  /// file; nullptr means that all logs after start_log_info will be kept
+  /// @retval
+  ///   0    ok
+  /// @retval
+  ///   LOG_INFO_IO    Got IO error while reading/writing file
+  int remove_logs_outside_range_from_index(LOG_INFO *start_log_info,
+                                           bool need_update_threads,
+                                           LOG_INFO *last_log_info = nullptr);
+  /// @brief Remove logs from index file except logs between first and last
+  /// @param first Filename of the first relay log to be kept in index file
+  /// @param last Filename of the last relay log to be kept in index file
+
+  /// @retval 0 OK
+  /// @retval LOG_INFO_IO    Got IO error while reading/writing file
+  /// @retval LOG_INFO_EOF   Could not find requested log file (first or last)
+  int remove_logs_outside_range_from_index(const std::string &first,
+                                           const std::string &last);
   int rotate(bool force_rotate, bool *check_purge);
 
   /**

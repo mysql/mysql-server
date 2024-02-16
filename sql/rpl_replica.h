@@ -474,15 +474,16 @@ int init_recovery(Master_info *mi);
   are not yet initialized. When true this flag forces the repositories
   to load information from table or file.
 
-  @param skip_received_gtid_set_recovery When true, skips the received GTID
-                                         set recovery.
+  @param skip_received_gtid_set_and_relaylog_recovery When true, skips the
+  received GTID set and relay log recovery.
 
   @retval 0 Success
   @retval nonzero Error
 */
 int load_mi_and_rli_from_repositories(
     Master_info *mi, bool ignore_if_no_info, int thread_mask,
-    bool skip_received_gtid_set_recovery = false, bool force_load = false);
+    bool skip_received_gtid_set_and_relaylog_recovery = false,
+    bool force_load = false);
 void end_info(Master_info *mi);
 /**
   Clear the information regarding the `Master_info` and `Relay_log_info` objects

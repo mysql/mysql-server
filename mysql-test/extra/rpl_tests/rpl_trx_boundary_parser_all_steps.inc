@@ -29,6 +29,13 @@ if ( `SELECT '$_storage_engine' <> 'INNODB' AND '$_storage_engine' <> 'MYISAM'` 
   --die ERROR IN TEST: invalid value for mysqltest variable 'storage_engine': $storage_engine
 }
 
+# To test all execution paths in the Transaction Boundary Parser, we need
+# to disable relay log sanitization. Relay log sanitization process runs
+# during applier metadata initialization and removes unfinished transactions
+# from the relay log.
+--let $debug_point = dbug_disable_relay_log_truncation
+--source include/add_debug_point.inc
+
 # Check if SQL thread is running
 --source include/rpl_connection_slave.inc
 --let $_is_sql_thread_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
@@ -229,6 +236,9 @@ if ( $_storage_engine == 'INNODB' )
   --let $gtids_after_sync= 1
   --source extra/rpl_tests/rpl_trx_boundary_parser_one_step.inc
 }
+
+--let $debug_point = dbug_disable_relay_log_truncation
+--source include/remove_debug_point.inc
 
 # Check if SQL thread was running before to sync it
 if ( $_is_sql_thread_running == Yes )

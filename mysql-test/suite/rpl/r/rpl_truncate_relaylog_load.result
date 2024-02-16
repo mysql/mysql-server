@@ -1,0 +1,42 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# T1.1. On the replica: set up test configuration
+
+[connection slave]
+
+# T1.2. On the replica: set mysqlslap to periodically flush relay logs
+#       in background
+
+
+# T1.3. On the source: execute several large transactions in background
+#       using mysqlslap
+
+[connection master]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+[connection master]
+
+# T1.4. On the replica: Wait for the replica to replicate at least
+#        1 transaction
+
+[connection slave]
+
+# T1.5. On the replica: Kill the server, restart replication
+
+# Kill and restart
+include/rpl_reconnect.inc
+include/start_slave.inc
+
+# T1.6. On the replica: Wait for the replica to replicate all of the
+#       transactions
+
+#
+# Clean-up
+#
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

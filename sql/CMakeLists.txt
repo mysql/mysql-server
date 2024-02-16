@@ -1020,6 +1020,7 @@ SET(BINLOG_SOURCE
   basic_istream.cc
   basic_ostream.cc
   binlog/global.cc
+  binlog/log_sanitizer.cc
   binlog/recovery.cc
   binlog/group_commit/bgc_ticket_manager.cc
   binlog/group_commit/bgc_ticket.cc
@@ -1078,6 +1079,7 @@ TARGET_LINK_LIBRARIES(rpl_source binlog sql_main)
 
 SET (RPL_REPLICA_SRCS
   dynamic_ids.cc
+  binlog/log_sanitizer.cc
   changestreams/apply/commit_order_queue.cc
   changestreams/apply/replication_thread_status.cc
   rpl_applier_reader.cc
@@ -1106,6 +1108,7 @@ SET (RPL_REPLICA_SRCS
   rpl_reporting.cc
   rpl_rli.cc
   rpl_rli_pdb.cc
+  rpl_relay_log_sanitizer.cc
   rpl_replica.cc
   rpl_replica_commit_order_manager.cc
   rpl_replica_until_options.cc

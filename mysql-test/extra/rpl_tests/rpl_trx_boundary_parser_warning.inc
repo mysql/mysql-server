@@ -120,7 +120,11 @@ while ($event_counter <= $_stop_after)
 --let $rpl_server_number= 2
 --let $rpl_force_stop= 0
 --source include/rpl_stop_server.inc
-# Start the replica again
+# Start the replica again, with relay log sanitization disabled. Relay log
+# sanitization process removes partially written transactions from
+# relay log. Here, we want to disable it to prove a correct behavior of the
+# Transaction Boundary Parser.
+--let $rpl_server_parameters= --debug=d,dbug_disable_relay_log_truncation
 --source include/rpl_start_server.inc
 --let $start_after = $restart_at - 1
 --let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)

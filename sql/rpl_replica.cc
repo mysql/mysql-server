@@ -1259,10 +1259,9 @@ err:
   return recovery_error;
 }
 
-int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
-                                      int thread_mask,
-                                      bool skip_received_gtid_set_recovery,
-                                      bool force_load) {
+int load_mi_and_rli_from_repositories(
+    Master_info *mi, bool ignore_if_no_info, int thread_mask,
+    bool skip_received_gtid_set_and_relaylog_recovery, bool force_load) {
   DBUG_TRACE;
   assert(mi != nullptr && mi->rli != nullptr);
   int init_error = 0;
@@ -1319,7 +1318,8 @@ int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
   if (!ignore_if_no_info || check_return != REPOSITORY_DOES_NOT_EXIST) {
     if ((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited)) {
       if (!mi->rli->inited || force_load) {
-        if (mi->rli->rli_init_info(skip_received_gtid_set_recovery)) {
+        if (mi->rli->rli_init_info(
+                skip_received_gtid_set_and_relaylog_recovery)) {
           init_error = 1;
         } else {
           /*
@@ -8149,6 +8149,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
          (ulong)mi->get_master_log_pos(), uint4korr(buf + SERVER_ID_OFFSET)));
   } else {
     bool is_error = false;
+    DBUG_EXECUTE_IF("simulate_truncated_relay_log_event", { event_len -= 5; });
     /* write the event to the relay log */
     if (likely(rli->relay_log.write_buffer(buf, event_len, mi) == 0)) {
       DBUG_SIGNAL_WAIT_FOR(current_thd,

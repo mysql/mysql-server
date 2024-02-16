@@ -64,6 +64,7 @@
 #include "sql/rpl_info_handler.h"
 #include "sql/rpl_mi.h"   // Master_info
 #include "sql/rpl_msr.h"  // channel_map
+#include "sql/rpl_relay_log_sanitizer.h"
 #include "sql/rpl_replica.h"
 #include "sql/rpl_reporting.h"
 #include "sql/rpl_rli_pdb.h"  // Slave_worker
@@ -1501,13 +1502,23 @@ err:
   return res;
 }
 
-int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
+int Relay_log_info::rli_init_info(
+    bool skip_received_gtid_set_and_relaylog_recovery) {
   int error = 0;
   enum_return_check check_return = ERROR_CHECKING_REPOSITORY;
   const char *msg = nullptr;
   DBUG_TRACE;
 
   mysql_mutex_assert_owner(&data_lock);
+
+  // Prepare for relay log sanitization
+  rpl::Relay_log_sanitizer relay_log_sanitizer;
+  bool execute_relay_log_sanitization =
+      !is_relay_log_recovery && !relay_log_sanitized &&
+      !skip_received_gtid_set_and_relaylog_recovery;
+
+  DBUG_EXECUTE_IF("dbug_disable_relay_log_truncation",
+                  { execute_relay_log_sanitization = false; };);
 
   /*
     If Relay_log_info is issued again after a failed init_info(), for
@@ -1647,6 +1658,14 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       return 1;
     }
 
+    if (execute_relay_log_sanitization) {
+      relay_log_sanitizer.analyze_logs(relay_log,
+                                       opt_replica_sql_verify_checksum);
+      // sanitize relay_log if applicable, ignore errors, they will be reported
+      // later on
+      relay_log_sanitizer.sanitize_log(relay_log);
+    }
+
     if (!gtid_retrieved_initialized) {
       /* Store the GTID of a transaction spanned in multiple relay log files */
       Gtid_monitoring_info *partial_trx = mi->get_gtid_monitoring_info();
@@ -1656,6 +1675,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       gtid_set->dbug_print("set of GTIDs in relay log before initialization");
       get_tsid_lock()->unlock();
 #endif
+
       /*
         In the init_gtid_set below we pass the mi->transaction_parser.
         This will be useful to ensure that we only add a GTID to
@@ -1669,7 +1689,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
         init_recovery.
       */
       if (!is_relay_log_recovery && !gtid_retrieved_initialized &&
-          !skip_received_gtid_set_recovery &&
+          !skip_received_gtid_set_and_relaylog_recovery &&
           relay_log.init_gtid_sets(
               gtid_set, nullptr, opt_replica_sql_verify_checksum,
               true /*true=need lock*/, &mi->transaction_parser, partial_trx)) {
@@ -1689,14 +1709,13 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       correctly compute the set of previous gtids.
     */
     relay_log.set_previous_gtid_set_relaylog(gtid_set);
+
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
-
     mysql_mutex_t *log_lock = relay_log.get_log_lock();
     mysql_mutex_lock(log_lock);
-
     if (relay_log.open_binlog(
             ln, nullptr,
             (max_relay_log_size ? max_relay_log_size : max_binlog_size), true,
@@ -1706,7 +1725,6 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       LogErr(ERROR_LEVEL, ER_RPL_CANT_OPEN_LOG_IN_AM_INIT_INFO);
       return 1;
     }
-
     mysql_mutex_unlock(log_lock);
   }
 
@@ -1828,6 +1846,12 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     msg = "Error counting relay log space";
     error = 1;
     goto err;
+  }
+
+  // applier metadata was read from disk, update receiver positions
+  if (execute_relay_log_sanitization) {
+    relay_log_sanitizer.update_source_position(mi);
+    relay_log_sanitized = true;
   }
 
   /*

@@ -303,7 +303,8 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
         m_data_istream(&m_error, &m_ifile, max_event_size),
         m_object_istream(&m_error, &m_data_istream),
         m_fde(BINLOG_VERSION, ::server_version),
-        m_verify_checksum(verify_checksum) {}
+        m_verify_checksum(verify_checksum),
+        m_file_name("") {}
 
   Basic_binlog_file_reader(const Basic_binlog_file_reader &) = delete;
   Basic_binlog_file_reader(const Basic_binlog_file_reader &&) = delete;
@@ -341,6 +342,7 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
       *fdle = fd;
     else
       delete fd;
+    m_file_name = file_name;
     return false;
   }
   /**
@@ -410,6 +412,7 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
     @brief Resets the error. Sets it to Binlog_read_error::SUCCESS.
    */
   void reset_error() { m_error.set_type(Binlog_read_error::SUCCESS); }
+  const char *get_file_name() const { return m_file_name; }
 
  private:
   Binlog_read_error m_error;
@@ -421,6 +424,7 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
 
   mysql::binlog::event::Format_description_event m_fde;
   bool m_verify_checksum = false;
+  const char *m_file_name{""};
   my_off_t m_event_start_pos = 0;
 
   /**

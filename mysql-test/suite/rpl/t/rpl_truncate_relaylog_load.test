@@ -1,0 +1,140 @@
+# ==== PURPOSE ====
+#
+# This is a load test which simulates crash of the replica while receiver thread
+# is writing to the relay log. In this test, we want the crash to happen
+# in the middle of writing a transaction to the relay log. When a partially
+# written transaction is detected, we expect the replica to truncate this
+# transaction, which will allow applier to proceed after the crash without
+# issuing the ER_REPLICA_RELAY_LOG_READ_FAILURE.
+#
+# ==== REQUIREMENTS ====
+#
+# FR1. During the replica start, when relay log recovery option is turned off,
+#   the server shall run the relay log sanitization procedure.
+# FR2. When performing relay-log sanitization,
+#   when a partially-written transaction is detected at the end of the relay
+#   log, the transaction shall be removed.
+# FR3. When performing relay-log sanitization, when the relay log file contains
+#   only a part of unfinished transaction, relay log file shall be removed.
+# FR4. When performing relay-log sanitization, when relay log file is removed,
+#   it shall be also removed from the relay log index file.
+# FR5: When performing relay-log sanitization, when a valid source position and
+#   source filename is obtained from the relay log, the position of the receiver
+#   thread shall be updated to match the recovered relay log position.
+# FR6: When performing relay-log sanitization, when no valid source position and
+#   source filename was read from the relay log, the position of the receiver
+#   thread shall be updated to match the applier position.
+#
+# ==== IMPLEMENTATION ====
+#
+#
+# T1.
+#     Test steps:
+#
+#     1. On the replica: set up test configuration
+#     2. On the replica: set mysqlslap to periodically flush relay logs
+#        in background.
+#     3. On the source: execute several large transactions in background
+#        using mysqlslap
+#     4. On the replica: Wait for the replica to replicate at least
+#        1 transaction
+#     5. On the replica: Kill the server, restart replication
+#     6. On the replica: Wait for the replica to replicate all of the
+#        transactions
+#
+#     Test pass conditions:
+#
+#     - No errors in execution
+#
+#
+# ==== REFERENCES ====
+#
+# WL#7353 Recover relay log by truncating half written transactions
+#
+
+# This test does not depend on binlog format
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+
+--echo
+--echo # T1.1. On the replica: set up test configuration
+--echo
+
+--source include/rpl_connection_slave.inc
+
+--echo
+--echo # T1.2. On the replica: set mysqlslap to periodically flush relay logs
+--echo #       in background
+--echo
+
+--let $num_rotates=3
+--exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=$num_rotates --query="DO SLEEP(0.5); FLUSH RELAY LOGS" --concurrency=1 --silent 2>&1
+
+--echo
+--echo # T1.3. On the source: execute several large transactions in background
+--echo #       using mysqlslap
+--echo
+
+--source include/rpl_connection_master.inc
+
+--let $trx_iterations=3
+--let $string_length=5000000
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE=InnoDB;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+
+--exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=$num_rotates --query="DO SLEEP(2); FLUSH LOGS" --concurrency=1 --silent 2>&1
+--exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=$trx_iterations --query="BEGIN; INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); COMMIT" --concurrency=1 --silent 2>&1
+
+--echo
+--echo # T1.4. On the replica: Wait for the replica to replicate at least
+--echo #        1 transaction
+--echo
+
+--source include/rpl_connection_slave.inc
+
+--let $wait_timeout = 120
+--let $wait_condition=SELECT COUNT(*)>=1 FROM t1
+--source include/wait_condition.inc
+
+--echo
+--echo # T1.5. On the replica: Kill the server, restart replication
+--echo
+
+--source include/kill_and_restart_mysqld.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+# Before the WL#7353, Replica would sporadically fail after some time with the:
+#   Could not parse relay log event entry. The possible reasons are: the
+#   source's binary log is corrupted (you can check this by running
+#   'mysqlbinlog' on the binary log), the replica's relay log is corrupted
+#   (you can check this by running 'mysqlbinlog' on the relay log) ...
+#
+# After this WL, in case partially written transactions appear in the relay log,
+# replica will truncate those transactions and will catch up with the source
+# without an error.
+
+--source include/start_slave.inc
+
+--echo
+--echo # T1.6. On the replica: Wait for the replica to replicate all of the
+--echo #       transactions
+--echo
+
+--let $wait_timeout = 120
+--let $wait_condition=SELECT COUNT(*)=$trx_iterations*10 FROM t1
+--source include/wait_condition.inc
+
+--echo #
+--echo # Clean-up
+--echo #
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc

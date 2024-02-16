@@ -7,8 +7,10 @@
 #
 # Setup "fake replication" where the slave only starts the SQL thread,
 # not the IO thread, and reads from an existing relay log that has
-# been prepared so that it contains the error.  This requires some
-# extra server options: see the -master.opt file.
+# been prepared so that it contains the error. In order to simulate
+# a corruption that can occur at any point in time, we disable relay log
+# sanitization (dbug_disable_relay_log_truncation).
+# This requires some extra server options: see the -master.opt file.
 #
 # ==== Related bugs ====
 #
@@ -34,6 +36,9 @@ call mtr.add_suppression('Replica SQL.*Relay log read failure: Could not parse r
 
 --echo ==== Initialize ====
 --source include/stop_slave.inc
+
+--let $debug_point = dbug_disable_relay_log_truncation
+--source include/add_debug_point.inc
 RESET REPLICA;
 
 let $fake_relay_log= $MYSQL_TEST_DIR/std_data/bug40482-bin.000001;
@@ -46,6 +51,8 @@ let $show_slave_sql_error= 1;
 source include/wait_for_slave_sql_error.inc;
 
 --echo ==== Clean up ====
+--let $debug_point = dbug_disable_relay_log_truncation
+--source include/remove_debug_point.inc
 source include/cleanup_fake_relay_log.inc;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc
