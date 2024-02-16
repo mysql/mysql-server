@@ -2540,6 +2540,14 @@ longlong Item_in_optimizer::val_int() {
 void Item_in_optimizer::cleanup() {
   Item_bool_func::cleanup();
   result_for_null_param = UNKNOWN;
+  // Restore the changes done to the cached object during execution.
+  // E.g. constant expressions in "left_expr" might have been
+  // replaced with cached items (cache_const_expr_transformer())
+  // which live only for one execution and these cached items
+  // replace the original items in "cache" during execution.
+  if (cache != nullptr) {
+    cache->store(down_cast<Item_in_subselect *>(args[0])->left_expr);
+  }
 }
 
 bool Item_in_optimizer::is_null() {
