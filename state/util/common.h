@@ -36,3 +36,7 @@ const mr_id_t MASTER_LOCAL_ID = 101;
 #define STATE_TXN_ACTIVE 0x0        // the transaction is in processing (cannot release locks)
 #define STATE_TXN_COMMITING 0x1     // the transaction is commtting (cannot request new lock)
 #define STATE_TXN_ABORTING 0x2      // the transaction is aborting (cannot request new lock)
+
+// used for redo log latch
+#define REDOLOG_LOCKED 0x1
+#define REDOLOG_UNLOCKED 0x0

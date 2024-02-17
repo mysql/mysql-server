@@ -155,6 +155,11 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   Protected by: locking sn not to add. */
   alignas(ut::INNODB_CACHE_LINE_SIZE) Link_buf<lsn_t> recent_closed;
 
+  /**
+   * @StateReplicate: A THD of log_t for managing remote redo log buffer
+   */
+  THD *m_remote_buf_thd;
+
   /** @} */
 
   /**************************************************/ /**

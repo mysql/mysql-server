@@ -83,6 +83,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* ut_uint64_align_down */
 #include "ut0byte.h"
 
+#include "sql/sql_class.h"
+
+#include "state/state_store/redo_log.h"
+
 // clang-format off
 /**************************************************/ /**
  @page PAGE_INNODB_REDO_LOG_BUF Redo log buffer
@@ -916,6 +920,11 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
 
  *******************************************************/
 
+/**
+ * @StateReplicate: Separate redo log, send redo log buf to StateNode by RDMA
+ *
+ */
+
 /** @{ */
 
 lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
@@ -1001,6 +1010,124 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     /* This is the critical memcpy operation, which copies data
     from internal mtr's buffer to the shared log buffer. */
     std::memcpy(ptr, str, len);
+    
+     /**
+     *  @StateReplicate:
+     *  当一个事务需要写 log
+     * 时，首先需要获取remote_addr，即需要向状态层的哪个位置写log，然后通过
+     * RDMA 操作将数据写入到该地址中。
+     *
+     *  在此过程中，需要考虑数据结构共享访问的正确性，
+     *  即，当多个事务都要读/写数据时，如何处理冲突，如何保证正确性
+     *
+     *
+     *  以后将下面新写的逻辑抽象出一个函数，准备等全部写完跑通后再进行
+     *
+     *  TODO: 不知道怎么让所有 log 共享同一个写 remote buffer 的线程
+     */
+
+    // TODO: 正常还需要使用完后调用destroy_internal_thd销毁线程，暂时先不管了
+    if (log.m_remote_buf_thd == nullptr) {
+      log.m_remote_buf_thd = create_internal_thd();
+    }
+
+    THD *thd = log.m_remote_buf_thd;
+
+    node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
+    RCQP *qp = thd->qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
+    MetaManager *meta_mgr = MetaManager::get_instance();
+
+    // 加锁，并发控制
+    // TODO: 真的需要加锁吗？原有的写log逻辑都是无锁的，加锁会显著降低速度
+    char *redo_log_remote_buf_latch =
+        thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
+    *(rwlatch_t *)redo_log_remote_buf_latch = REDOLOG_LOCKED;
+
+    while (*(rwlatch_t *)redo_log_remote_buf_latch != REDOLOG_UNLOCKED) {
+      if (!thd->coro_sched->RDMACASSync(
+              0, qp, redo_log_remote_buf_latch,
+              meta_mgr->GetRedoLogRemoteBufLatchAddr(),
+              static_cast<uint64_t>(REDOLOG_UNLOCKED),
+              static_cast<uint64_t>(REDOLOG_LOCKED))) {
+        // return;
+      }
+    }
+
+    // 不分配额外的buf了，直接把原有的buf传到状态层
+    // 在InnoDB中，最小的写入单位是512字节，也就是一个block(OS_FILE_LOG_BLOCK_SIZE=512B)
+    // 每一个block都会包含一个12字节的header(LOG_BLOCK_HDR_SIZE),以及4字节的footer(LOG_BLOCK_TRL_SIZE)，需要换算LSN和SN
+    // size_t redo_log_remote_buf_size = 64 * 1024 * OS_FILE_LOG_BLOCK_SIZE;
+
+    // unsigned char *redo_log_remote_buf = nullptr;
+
+    // 在状态节点分配空间
+    // 实际数据存储在log.buf
+    // log_t没法转成char*直接传过去，模仿TxnItem包装成RedoLogItem
+    RedoLogItem *redo_log_remote_buf =
+        (RedoLogItem *)thd->rdma_buffer_allocator->Alloc(
+            sizeof(*redo_log_remote_buf));
+    meta_mgr->SetRedoLogSize(sizeof(RedoLogItem));
+    // warning: definition of implicit copy assignment operator for
+    // 'aligned_array_pointer<unsigned char, 512>' is deprecated because it
+    // has a user-provided destructor
+    redo_log_remote_buf->sn_lock_event = log.sn_lock_event;
+    redo_log_remote_buf->sn_lock_inst = log.sn_lock_inst;
+    redo_log_remote_buf->sn = log.sn.load();
+    redo_log_remote_buf->sn_locked = log.sn_locked.load();
+    //    redo_log_remote_buf->sn_x_lock_mutex = log.sn_x_lock_mutex;
+    redo_log_remote_buf->buf = log.buf;
+    redo_log_remote_buf->buf_size_sn = log.buf_size_sn.load();
+    redo_log_remote_buf->buf_size = log.buf_size;
+    redo_log_remote_buf->pfs_psi = log.pfs_psi;
+    //    redo_log_remote_buf->recent_written = log.recent_written;
+    redo_log_remote_buf->writer_threads_paused =
+        log.writer_threads_paused.load();
+    redo_log_remote_buf->current_ready_waiting_lsn =
+        log.current_ready_waiting_lsn;
+    redo_log_remote_buf->current_ready_waiting_sig_count =
+        log.current_ready_waiting_sig_count;
+    //    redo_log_remote_buf->recent_closed = log.recent_closed;
+
+    // char *test = (char *)redo_log_remote_buf;
+    // char *test2 = (char *)log;
+
+    // meta information of redo log buffer
+    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
+                                        meta_mgr->GetRedoLogCurrAddr(),
+                                        sizeof(*redo_log_remote_buf))) {
+      //  return;
+    }
+
+    // 但是 log.buf 只是一个指针，还需要转发其指向的完整数据
+    //  error: invalid cast from type ‘ut::aligned_array_pointer<unsigned char, 512>’ to type ‘char*’
+    //       0, qp, (char *)log.buf,
+    unsigned char *log_buf = log.buf;
+    if (!thd->coro_sched->RDMAWriteSync(
+            0, qp, (char *)log_buf,
+            meta_mgr->GetRedoLogCurrAddr() + sizeof(*redo_log_remote_buf),
+            log.buf_size)) {
+      //  return;
+    }
+
+    // [Deprecated] 设置状态层新的 redo log 存放地址
+    // meta_mgr->SetRedoLogCurrAddr(curr_addr + len);
+
+    // 放锁
+    if (!thd->coro_sched->RDMACASSync(0, qp, redo_log_remote_buf_latch,
+                                      meta_mgr->GetRedoLogRemoteBufLatchAddr(),
+                                      REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
+      // return;
+    }
+
+    // this CAS must succeed, because only one thread can obtain the authority
+    assert(*(rwlatch_t *)redo_log_remote_buf_latch == REDOLOG_LOCKED);
+
+    // 出现bad_alloc内存泄漏，先销毁线程
+    if (log.m_remote_buf_thd != nullptr) {
+      destroy_internal_thd(log.m_remote_buf_thd);
+    }
+    
+    // 状态分离部分截止，下面为原有逻辑
 
     ut_a(len <= str_len);
 

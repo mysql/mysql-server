@@ -95,6 +95,28 @@ public:
         return txn_bitmap_size;
     }
 
+    ALWAYS_INLINE
+    size_t GetRedoLogRemoteBufSize() { return redo_log_remote_buf_size; }
+
+    ALWAYS_INLINE
+    offset_t GetRedoLogRemoteBufLatchAddr() {
+        return redo_log_remote_buf_latch_addr;
+    }
+
+    ALWAYS_INLINE
+    offset_t GetRedoLogCurrAddr() { return redo_log_curr_addr; }
+
+    ALWAYS_INLINE
+    void SetRedoLogCurrAddr(offset_t redo_log_curr_addr_) {
+        redo_log_curr_addr = redo_log_curr_addr_;
+    }
+
+    ALWAYS_INLINE
+    void SetRedoLogSize(size_t sz) { this->redo_log_remote_buf_size = sz; }
+
+    ALWAYS_INLINE
+    size_t GetRedoLogSize(size_t sz) { return redo_log_remote_buf_size; }
+
 private:
     MetaManager();
     ~MetaManager() {}
@@ -112,6 +134,17 @@ private:
     offset_t txn_list_base_addr;    // base address for txn_list
     size_t txn_size;                // size for each txn_item in txn_list
     size_t txn_bitmap_size;             // size for txn_list bitmap, initiated 
+
+    // meta info for redo log
+    offset_t redo_log_remote_buf_latch_addr;  // base address for redo log latch
+    // size of redo log buffer, OS_FILE_LOG_BLOCK_SIZE is 512B initially
+    size_t redo_log_remote_buf_size = 64 * 1024 * 512;
+    offset_t redo_log_base_addr;  // base address for redo log buffer
+    size_t log_size;              // size of each log in redo log buffer
+    // 防止 redo log buffer 和 txn list 地址冲突，覆盖数据
+    offset_t redo_log_curr_addr =
+        txn_list_base_addr +
+        256 * txn_size;  // current address of redo log buffer
 
 public:
     RNicHandler* opened_rnic;
