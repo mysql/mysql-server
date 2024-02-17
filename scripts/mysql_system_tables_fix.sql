@@ -1623,3 +1623,6 @@ COMMIT;
 SET @hadFlushPrivilegesPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_PRIVILEGES');
 INSERT INTO global_grants SELECT user, host, 'FLUSH_PRIVILEGES', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushPrivilegesPriv = 0;
+
+-- SET_USER_ID is removed dynamic privilege, revoke all grants of it.
+DELETE FROM global_grants WHERE PRIV = 'SET_USER_ID';

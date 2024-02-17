@@ -1079,12 +1079,11 @@ eval $select_parameters;
 
 --echo #
 --echo # Wl8131 DYNAMIC PRIVILEGS
---echo # SET_USER_ID is a replacement for SUPER which enable a user to 
+--echo # WL15875 remove deprecated privilege
 --echo # create a definer routine executing as some other user.
---echo # This privielge can be used for privilege escalation.
 connection default;
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
-GRANT SYSTEM_USER,SET_USER_ID, EXECUTE ON *.* TO u1@localhost;
+GRANT SYSTEM_USER, SET_ANY_DEFINER, EXECUTE ON *.* TO u1@localhost;
 --connect (con1,localhost,u1,foo,)
 CREATE DEFINER=root@localhost PROCEDURE p1() SELECT current_user();
 CALL p1();

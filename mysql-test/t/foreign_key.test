@@ -4049,7 +4049,7 @@ GRANT INSERT (fld1, fld2) ON t2 TO user1@localhost;
 GRANT INSERT ON v1 TO user2@localhost;
 GRANT INSERT ON v2 TO user2@localhost;
 GRANT SYSTEM_USER ON *.* TO user2@localhost;
-GRANT SET_USER_ID ON *.* TO user2@localhost;
+GRANT SET_ANY_DEFINER ON *.* TO user2@localhost;
 GRANT EXECUTE ON PROCEDURE p1 TO user2@localhost;
 GRANT EXECUTE ON PROCEDURE p2 TO user2@localhost;
 GRANT EXECUTE ON FUNCTION f1 TO user2@localhost;
@@ -4152,9 +4152,9 @@ connect (con2, localhost, user2,,wl8910db);
 --error ER_NO_REFERENCED_ROW_2
 INSERT INTO v2 VALUES (1, 2);
 
---echo # Tests with SET_USER_ID
+--echo # Tests with SET_ANY_DEFINER
 
---echo # Set up stored routines and views by user with SET_USER_ID
+--echo # Set up stored routines and views by user with SET_ANY_DEFINER
 --echo # privilege.
 
 CREATE DEFINER=root@localhost PROCEDURE p3() SQL SECURITY DEFINER

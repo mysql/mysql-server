@@ -710,70 +710,6 @@ ERROR 42000: There is no such grant defined for user 'u1' on host 'localhost'
 DELETE FROM mysql.global_grants;
 FLUSH PRIVILEGES;
 #
-# Additional tests for SET_USER_ID privilege
-#
-SET GLOBAL event_scheduler = 1;
-CREATE DATABASE restricted;
-CREATE TABLE restricted.t1 (c1 int, restricted int);
-INSERT INTO restricted.t1 VALUES (1,2);
-CREATE USER u1@localhost IDENTIFIED BY 'foo';
-GRANT SET_USER_ID, CREATE VIEW, CREATE ROUTINE, EXECUTE, EVENT ON *.* TO u1@localhost;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
-SELECT * from restricted.t1;
-ERROR 42000: SELECT command denied to user 'u1'@'localhost' for table 't1'
-USE test;
-CREATE DEFINER=root@localhost PROCEDURE p1() SELECT * FROM restricted.t1;
-# With the SET_USER_ID privilege we can escalate the authorization
-CALL p1();
-c1	restricted
-1	2
-CREATE TABLE test.t1 (c1 INT);
-CREATE DEFINER=root@localhost TRIGGER test.tr1 BEFORE INSERT ON test.t1
-FOR EACH ROW INSERT INTO restricted.t1 VALUES (1,1);
-# Use trigger to escalate privileges
-INSERT INTO test.t1 VALUES (1);
-SELECT * FROM restricted.t1;
-c1	restricted
-1	2
-1	1
-DROP TRIGGER test.tr1;
-CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS
-SELECT a.restricted FROM restricted.t1 as a;
-ERROR 42000: ANY command denied to user 'u1'@'localhost' for table 't1'
-# We need some privilege on the column for CREATE VIEW to work
-GRANT INSERT(restricted) ON restricted.t1 TO u1@localhost;
-SHOW GRANTS FOR CURRENT_USER();
-Grants for u1@localhost
-GRANT EXECUTE, CREATE VIEW, CREATE ROUTINE, EVENT ON *.* TO `u1`@`localhost`
-GRANT SET_USER_ID ON *.* TO `u1`@`localhost`
-GRANT INSERT (`restricted`) ON `restricted`.`t1` TO `u1`@`localhost`
-GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `test`.`p1` TO `u1`@`localhost`
-CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS
-SELECT a.restricted FROM restricted.t1 as a;
-# Use escalated privileges to read restricted column.
-SELECT * FROM v1;
-restricted
-2
-1
-# Creating events with SET_USER_ID should work too.
-CREATE DEFINER=root@localhost EVENT test.eve1 ON SCHEDULE AT
-CURRENT_TIMESTAMP + INTERVAL 2 SECOND
-DO BEGIN
-INSERT INTO restricted.t1 VALUES (5,5);
-END;//
-SELECT * FROM v1;
-restricted
-2
-1
-5
-DROP PROCEDURE p1;
-DROP DATABASE restricted;
-DROP USER u1@localhost;
-DROP VIEW test.v1;
-DROP TABLE test.t1;
-SET GLOBAL event_scheduler = 0;
-#
 # Bug25555019 DYNAMIC PRIVILEGES CAN BE GRANTED AT TABLE LEVEL
 #
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
@@ -982,9 +918,7 @@ Warnings:
 Note	3162	Authorization ID 'r1'@'%' does not exist.
 Note	3162	Authorization ID 'r2'@'%' does not exist.
 CREATE USER u1, r1, r2;
-GRANT ROLE_ADMIN, BINLOG_ADMIN, SET_USER_ID, CREATE on *.* to r1;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
+GRANT ROLE_ADMIN, BINLOG_ADMIN, CREATE on *.* to r1;
 GRANT ROLE_ADMIN, GROUP_REPLICATION_ADMIN, ENCRYPTION_KEY_ADMIN, ALTER,
 RELOAD on *.* to r2;
 GRANT SYSTEM_VARIABLES_ADMIN, REPLICATION_SLAVE_ADMIN, SELECT ON *.* to u1;
@@ -992,7 +926,7 @@ GRANT r1, r2 TO u1;
 SHOW GRANTS FOR u1 using r1;
 Grants for u1@%
 GRANT SELECT, CREATE ON *.* TO `u1`@`%`
-GRANT BINLOG_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`%`
+GRANT BINLOG_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`%`
 GRANT `r1`@`%`,`r2`@`%` TO `u1`@`%`
 SHOW GRANTS FOR u1 using r2;
 Grants for u1@%
@@ -1085,7 +1019,6 @@ SENSITIVE_VARIABLES_OBSERVER	Server Admin
 SERVICE_CONNECTION_ADMIN	Server Admin	
 SESSION_VARIABLES_ADMIN	Server Admin	
 SET_ANY_DEFINER	Server Admin	
-SET_USER_ID	Server Admin	
 SHOW_ROUTINE	Server Admin	
 SYSTEM_USER	Server Admin	
 SYSTEM_VARIABLES_ADMIN	Server Admin	

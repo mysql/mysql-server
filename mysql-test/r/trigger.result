@@ -2694,7 +2694,7 @@ CREATE DEFINER='mysqltest_inv'@'localhost'
   TRIGGER trg1 BEFORE INSERT ON t1
 FOR EACH ROW
 SET @new_sum = 0;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 
 ---> connection: default
 use mysqltest_db1;

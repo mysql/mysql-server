@@ -20,7 +20,7 @@ create user mysqltest_1@localhost;
 grant select on mysqltest.t1 to mysqltest_1@localhost;
 grant create view,select on test.* to mysqltest_1@localhost;
 create definer=root@localhost view v1 as select * from mysqltest.t1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 create view v1 as select * from mysqltest.t1;
 alter view v1 as select * from mysqltest.t1;
 ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 'v1'
@@ -809,7 +809,7 @@ ERROR 42000: CREATE VIEW command denied to user 'u26813'@'localhost' for table '
 ALTER VIEW v2 AS SELECT f2 FROM t1;
 ERROR 42000: DROP command denied to user 'u26813'@'localhost' for table 'v2'
 ALTER VIEW v3 AS SELECT f2 FROM t1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 SHOW CREATE VIEW v3;
 View	Create View	character_set_client	collation_connection
 v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`f1` AS `f1` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
@@ -833,9 +833,9 @@ GRANT SELECT, DROP, CREATE VIEW ON mysqltest_29908.v1 TO u29908_2@localhost;
 GRANT SELECT, DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v2 TO u29908_2@localhost;
 GRANT SELECT ON mysqltest_29908.t1 TO u29908_2@localhost;
 ALTER VIEW v1 AS SELECT f2 FROM t1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 ALTER VIEW v2 AS SELECT f2 FROM t1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u29908_1`@`localhost` SQL SECURITY INVOKER VIEW `v2` AS select `t1`.`f1` AS `f1` from `t1`	utf8mb4	utf8mb4_0900_ai_ci

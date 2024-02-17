@@ -11,10 +11,10 @@
 CREATE DATABASE wl14073;
 USE wl14073;
 CREATE table t1(i int);
-# create user without SET_USER_ID privilege
+# create user without ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges
 CREATE USER normal_user;
 GRANT ALL ON *.* TO normal_user;
-REVOKE SET_USER_ID,ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER
+REVOKE ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER
   ON *.* FROM normal_user;
 # create user with all privileges.
 CREATE USER power_user;
@@ -40,7 +40,7 @@ DROP USER new_u1;
 CREATE USER u1;
 USE wl14073;
 CREATE DEFINER = u1 VIEW v1 as SELECT * FROM t1;
---echo # user is referenced in view v1 so rename/drop user should pass as user has SET_USER_ID.
+--echo # user is referenced in view v1 so rename/drop user should pass as user has ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER.
 RENAME USER u1 to new_u1;
 DROP USER new_u1;
 DROP VIEW v1;
@@ -153,7 +153,7 @@ CREATE USER dummy;
 CREATE DEFINER = u1 VIEW v1 as SELECT * FROM t1;
 --error ER_NO_SUCH_USER
 SELECT * FROM v1;
---echo # try creating missing definer account, should report error as SET_USER_ID privilege is not there
+--echo # try creating missing definer account, should report error as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are not there
 --error ER_CANNOT_USER_REFERENCED_AS_DEFINER
 CREATE USER u1;
 --echo # try renaming existing user to a matching definer account, it should fail.
@@ -163,7 +163,7 @@ RENAME USER dummy to u1;
 USE wl14073;
 --error ER_NO_SUCH_USER
 SELECT * FROM v1;
---echo # try creating missing definer account, should pass as SET_USER_ID privilege is there
+--echo # try creating missing definer account, should pass as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are there
 CREATE USER u1;
 DROP USER u1;
 --echo # try renaming existing user to a matching definer account, it should pass
@@ -177,7 +177,7 @@ USE wl14073;
 CREATE USER dummy;
 # create orphaned event
 CREATE DEFINER = u1 EVENT ev1 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
---echo # try creating missing definer account, should report error as SET_USER_ID privilege is not there
+--echo # try creating missing definer account, should report error as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are not there
 --error ER_CANNOT_USER_REFERENCED_AS_DEFINER
 CREATE USER u1;
 --echo # try renaming existing user to a matching definer account, it should fail.
@@ -185,7 +185,7 @@ CREATE USER u1;
 RENAME USER dummy to u1;
 --connection power_conn
 USE wl14073;
---echo # try creating missing definer account, should pass as SET_USER_ID privilege is there
+--echo # try creating missing definer account, should pass as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are there
 CREATE USER u1;
 DROP USER u1;
 --echo # try renaming existing user to a matching definer account, it should pass
@@ -201,7 +201,7 @@ CREATE USER dummy;
 CREATE DEFINER = u1 PROCEDURE p1() DELETE FROM t1;
 --error ER_NO_SUCH_USER
 CALL p1();
---echo # try creating missing definer account, should report error as SET_USER_ID privilege is not there
+--echo # try creating missing definer account, should report error as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privilegs are not there
 --error ER_CANNOT_USER_REFERENCED_AS_DEFINER
 CREATE USER u1;
 --echo # try renaming existing user to a matching definer account, it should fail.
@@ -211,7 +211,7 @@ RENAME USER dummy to u1;
 USE wl14073;
 --error ER_NO_SUCH_USER
 CALL p1();
---echo # try creating missing definer account, should pass as SET_USER_ID privilege is there
+--echo # try creating missing definer account, should pass as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are there
 CREATE USER u1;
 DROP USER u1;
 --echo # try renaming existing user to a matching definer account, it should pass
@@ -227,7 +227,7 @@ CREATE USER dummy;
 CREATE DEFINER = u1 FUNCTION f1() RETURNS INT RETURN 1;
 --error ER_NO_SUCH_USER
 SELECT f1();
---echo # try creating missing definer account, should report error as SET_USER_ID privilege is not there
+--echo # try creating missing definer account, should report error as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are not there
 --error ER_CANNOT_USER_REFERENCED_AS_DEFINER
 CREATE USER u1;
 --echo # try renaming existing user to a matching definer account, it should fail.
@@ -237,7 +237,7 @@ RENAME USER dummy to u1;
 USE wl14073;
 --error ER_NO_SUCH_USER
 SELECT f1();
---echo # try creating missing definer account, should pass as SET_USER_ID privilege is there
+--echo # try creating missing definer account, should pass as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are there
 CREATE USER u1;
 DROP USER u1;
 --echo # try renaming existing user to a matching definer account, it should pass
@@ -253,7 +253,7 @@ CREATE USER dummy;
 CREATE DEFINER = u1 TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW DELETE FROM t1;
 --error ER_NO_SUCH_USER
 INSERT INTO t1 VALUES (10);
---echo # try creating missing definer account, should report error as SET_USER_ID privilege is not there
+--echo # try creating missing definer account, should report error as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are not there
 --error ER_CANNOT_USER_REFERENCED_AS_DEFINER
 CREATE USER u1;
 --echo # try renaming existing user to a matching definer account, it should fail.
@@ -263,7 +263,7 @@ RENAME USER dummy to u1;
 USE wl14073;
 --error ER_NO_SUCH_USER
 INSERT INTO t1 VALUES (10);
---echo # try creating missing definer account, should pass as SET_USER_ID privilege is there
+--echo # try creating missing definer account, should pass as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are there
 CREATE USER u1;
 DROP USER u1;
 --echo # try renaming existing user to a matching definer account, it should pass

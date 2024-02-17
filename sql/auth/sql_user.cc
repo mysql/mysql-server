@@ -2629,8 +2629,8 @@ end:
 
 /**
   This function checks if a user which is referenced as a definer account
-  in objects like view, trigger, event, procedure or function has SET_USER_ID
-  privilege (or the replacement ALLOW_NONEXISTENT_DEFINER) or not and
+  in objects like view, trigger, event, procedure or function has
+  ALLOW_NONEXISTENT_DEFINER privilege or not and
   report error or warning based on that.
 
   @param thd               The current thread
@@ -2644,12 +2644,9 @@ static bool stop_if_orphaned_definer(THD *thd, const LEX_USER *user_name,
                                      const std::string &object_type) {
   String wrong_user;
   log_user(thd, &wrong_user, const_cast<LEX_USER *>(user_name), false);
-  if (!(thd->security_context()
-            ->has_global_grant(STRING_WITH_LEN("SET_USER_ID"))
-            .first ||
-        thd->security_context()
-            ->has_global_grant(STRING_WITH_LEN("ALLOW_NONEXISTENT_DEFINER"))
-            .first)) {
+  if (!thd->security_context()
+           ->has_global_grant(STRING_WITH_LEN("ALLOW_NONEXISTENT_DEFINER"))
+           .first) {
     std::string operation;
     switch (thd->lex->sql_command) {
       case SQLCOM_CREATE_USER:
@@ -2687,15 +2684,8 @@ static bool stop_if_orphaned_definer(THD *thd, const LEX_USER *user_name,
   if the user is referenced as definer in stored programs like procedures,
   functions, triggers, events and views or not.
 
-  If the executing user does not have the SET_USER_ID privilege, and the user
-  in the argument list is referenced as the definer of some entity, we will
-  report an error and return.
-
-  If the executing user has the SET_USER_ID privilege, and the user in the
-  argument list is referenced as the definer of some entity, we will report
-  a warning and continue execution. In this case we will not return, because
-  there may be additional users in the argument list, and if we ignore them,
-  it may mean that a relevant warning would not be reported.
+  If the the user in the argument list is referenced as the definer
+  of some entity, we will report an error and return.
 
   @param thd               The current thread.
   @param list              The users to check for.

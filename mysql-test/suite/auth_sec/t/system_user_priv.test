@@ -274,7 +274,7 @@ CREATE TABLE test.t1 (c1 INT);
 CREATE DATABASE restricted;
 CREATE TABLE restricted.t1 (c1 int, restricted int);
 INSERT INTO restricted.t1 VALUES (1,2);
-GRANT SET_USER_ID ON *.* TO sys_usr;
+GRANT SET_ANY_DEFINER ON *.* TO sys_usr;
 --echo
 --echo # 6.1 Stored procedure and functions
 connection sys_usr_con;
@@ -283,11 +283,11 @@ SELECT CURRENT_USER();
 SELECT * FROM restricted.t1;
 USE test;
 CREATE DEFINER=root@localhost PROCEDURE p1() SELECT * FROM restricted.t1;
---echo # With the SET_USER_ID privilege we can escalate the authorization
+--echo # With the SET_ANY_DEFINER privilege we can escalate the authorization
 CALL p1();
 CREATE DEFINER=root@localhost FUNCTION f1(i INT) RETURNS INT(10) DETERMINISTIC
 RETURN i*10;
---echo # With the SET_USER_ID privilege we can escalate the authorization
+--echo # With the SET_ANY_DEFINER privilege we can escalate the authorization
 SELECT f1(2);
 connection non_sys_usr_con;
 --echo

@@ -58,14 +58,14 @@ extern mysql_mutex_t LOCK_mandatory_roles;
 
   if the definer is different to the current session account, make sure
   it's OK to use it:
-   - check for the right privs: SUPER, SET_USER_ID or SET_ANY_DEFINER
+   - check for the right privs: SUPER or SET_ANY_DEFINER
    - whether it doesn't violate system user
 
   if it's not OK, generate an error.
 
   Also checks if the user\@host is a non-existent user account
   and if it is throws an error and returns true, given that
-  SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER are not granted.
+  SUPER or ALLOW_NONEXISTENT_DEFINER are not granted.
   If the privs arent granted a warning is produced instead of an error.
 
 

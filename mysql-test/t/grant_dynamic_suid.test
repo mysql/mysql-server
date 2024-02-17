@@ -213,33 +213,6 @@ ALTER DEFINER=wl15874_na@localhost EVENT wl15874_ev1
 
 DROP EVENT wl15874_ev1;
 
-connection default;
---echo # test FR9: warning with granting SET_USER_ID
-GRANT SET_USER_ID ON *.* TO wl15874_2@localhost;
---echo # test FR9.1: no warning with revoking SET_USER_ID
-REVOKE SET_USER_ID ON *.* FROM wl15874_2@localhost;
---echo # Test FR8: should not produce a SET_USER_ID deprecated warning
-GRANT ALL PRIVILEGES ON *.* TO wl15874_2@localhost;
-
---echo # Test FR8: There should be no SET_USER_ID granted to wl15874_2@localhost
-SELECT GRANTEE FROM INFORMATION_SCHEMA.USER_PRIVILEGES
-WHERE PRIVILEGE_TYPE = 'SET_USER_ID' AND GRANTEE LIKE '%wl15874_2%' ORDER BY 1;
-REVOKE ALL PRIVILEGES ON *.* FROM wl15874_2@localhost;
-connection wl15874_con;
-
---echo # Test FR4: SET_USER_ID produces a warning in error log
---echo #  at FLUSH PRIVILEGES time
-connection default;
-GRANT SET_USER_ID ON *.* TO wl15874_2@localhost;
---source include/save_error_log_position.inc
-FLUSH PRIVILEGES;
---let $ignore_global_suppressions=1
---let $error_pattern = .*SET_USER_ID. .granted to .wl15874_2@localhost.. is deprecated.*
---source include/assert_error_log.inc
-REVOKE SET_USER_ID ON *.* FROM wl15874_2@localhost;
-connection wl15874_con;
-
-
 --echo # global cleanup
 connection default;
 disconnect wl15874_con;

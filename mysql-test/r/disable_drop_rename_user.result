@@ -7,7 +7,7 @@ USE wl14073;
 CREATE table t1(i int);
 CREATE USER normal_user;
 GRANT ALL ON *.* TO normal_user;
-REVOKE SET_USER_ID,ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER
+REVOKE ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER
 ON *.* FROM normal_user;
 CREATE USER power_user;
 GRANT ALL ON *.* TO power_user;
@@ -30,7 +30,7 @@ connect power_conn, localhost, power_user;
 CREATE USER u1;
 USE wl14073;
 CREATE DEFINER = u1 VIEW v1 as SELECT * FROM t1;
-# user is referenced in view v1 so rename/drop user should pass as user has SET_USER_ID.
+# user is referenced in view v1 so rename/drop user should pass as user has ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER.
 RENAME USER u1 to new_u1;
 Warnings:
 Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
@@ -147,7 +147,7 @@ Warnings:
 Note	1449	The user specified as a definer ('u1'@'%') does not exist
 SELECT * FROM v1;
 ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
-# try creating missing definer account, should report error as SET_USER_ID privilege is not there
+# try creating missing definer account, should report error as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are not there
 CREATE USER u1;
 ERROR HY000: Operation CREATE USER failed for 'u1'@'%' as it is referenced as a definer account in a view.
 # try renaming existing user to a matching definer account, it should fail.
@@ -157,7 +157,7 @@ connection power_conn;
 USE wl14073;
 SELECT * FROM v1;
 ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
-# try creating missing definer account, should pass as SET_USER_ID privilege is there
+# try creating missing definer account, should pass as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are there
 CREATE USER u1;
 Warnings:
 Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
@@ -177,7 +177,7 @@ CREATE USER dummy;
 CREATE DEFINER = u1 EVENT ev1 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
 Warnings:
 Note	1449	The user specified as a definer ('u1'@'%') does not exist
-# try creating missing definer account, should report error as SET_USER_ID privilege is not there
+# try creating missing definer account, should report error as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are not there
 CREATE USER u1;
 ERROR HY000: Operation CREATE USER failed for 'u1'@'%' as it is referenced as a definer account in an event.
 # try renaming existing user to a matching definer account, it should fail.
@@ -185,7 +185,7 @@ RENAME USER dummy to u1;
 ERROR HY000: Operation RENAME USER failed for 'u1'@'%' as it is referenced as a definer account in an event.
 connection power_conn;
 USE wl14073;
-# try creating missing definer account, should pass as SET_USER_ID privilege is there
+# try creating missing definer account, should pass as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are there
 CREATE USER u1;
 Warnings:
 Warning	4005	User 'u1'@'%' is referenced as a definer account in an event.
@@ -207,7 +207,7 @@ Warnings:
 Note	1449	The user specified as a definer ('u1'@'%') does not exist
 CALL p1();
 ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
-# try creating missing definer account, should report error as SET_USER_ID privilege is not there
+# try creating missing definer account, should report error as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privilegs are not there
 CREATE USER u1;
 ERROR HY000: Operation CREATE USER failed for 'u1'@'%' as it is referenced as a definer account in a stored routine.
 # try renaming existing user to a matching definer account, it should fail.
@@ -217,7 +217,7 @@ connection power_conn;
 USE wl14073;
 CALL p1();
 ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
-# try creating missing definer account, should pass as SET_USER_ID privilege is there
+# try creating missing definer account, should pass as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are there
 CREATE USER u1;
 Warnings:
 Warning	4005	User 'u1'@'%' is referenced as a definer account in a stored routine.
@@ -239,7 +239,7 @@ Warnings:
 Note	1449	The user specified as a definer ('u1'@'%') does not exist
 SELECT f1();
 ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
-# try creating missing definer account, should report error as SET_USER_ID privilege is not there
+# try creating missing definer account, should report error as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are not there
 CREATE USER u1;
 ERROR HY000: Operation CREATE USER failed for 'u1'@'%' as it is referenced as a definer account in a stored routine.
 # try renaming existing user to a matching definer account, it should fail.
@@ -249,7 +249,7 @@ connection power_conn;
 USE wl14073;
 SELECT f1();
 ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
-# try creating missing definer account, should pass as SET_USER_ID privilege is there
+# try creating missing definer account, should pass as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are there
 CREATE USER u1;
 Warnings:
 Warning	4005	User 'u1'@'%' is referenced as a definer account in a stored routine.
@@ -271,7 +271,7 @@ Warnings:
 Note	1449	The user specified as a definer ('u1'@'%') does not exist
 INSERT INTO t1 VALUES (10);
 ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
-# try creating missing definer account, should report error as SET_USER_ID privilege is not there
+# try creating missing definer account, should report error as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are not there
 CREATE USER u1;
 ERROR HY000: Operation CREATE USER failed for 'u1'@'%' as it is referenced as a definer account in a trigger.
 # try renaming existing user to a matching definer account, it should fail.
@@ -281,7 +281,7 @@ connection power_conn;
 USE wl14073;
 INSERT INTO t1 VALUES (10);
 ERROR HY000: The user specified as a definer ('u1'@'%') does not exist
-# try creating missing definer account, should pass as SET_USER_ID privilege is there
+# try creating missing definer account, should pass as ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER privileges are there
 CREATE USER u1;
 Warnings:
 Warning	4005	User 'u1'@'%' is referenced as a definer account in a trigger.

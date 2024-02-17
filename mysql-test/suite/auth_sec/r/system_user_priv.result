@@ -176,9 +176,7 @@ CREATE TABLE test.t1 (c1 INT);
 CREATE DATABASE restricted;
 CREATE TABLE restricted.t1 (c1 int, restricted int);
 INSERT INTO restricted.t1 VALUES (1,2);
-GRANT SET_USER_ID ON *.* TO sys_usr;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
+GRANT SET_ANY_DEFINER ON *.* TO sys_usr;
 
 # 6.1 Stored procedure and functions
 SELECT CURRENT_USER();
@@ -188,13 +186,13 @@ SELECT * FROM restricted.t1;
 ERROR 42000: SELECT command denied to user 'sys_usr'@'localhost' for table 't1'
 USE test;
 CREATE DEFINER=root@localhost PROCEDURE p1() SELECT * FROM restricted.t1;
-# With the SET_USER_ID privilege we can escalate the authorization
+# With the SET_ANY_DEFINER privilege we can escalate the authorization
 CALL p1();
 c1	restricted
 1	2
 CREATE DEFINER=root@localhost FUNCTION f1(i INT) RETURNS INT(10) DETERMINISTIC
 RETURN i*10;
-# With the SET_USER_ID privilege we can escalate the authorization
+# With the SET_ANY_DEFINER privilege we can escalate the authorization
 SELECT f1(2);
 f1(2)
 20
@@ -243,7 +241,7 @@ GRANT INSERT(restricted) ON restricted.t1 TO sys_usr;
 SHOW GRANTS FOR CURRENT_USER();
 Grants for sys_usr@%
 GRANT USAGE ON *.* TO `sys_usr`@`%`
-GRANT SET_USER_ID ON *.* TO `sys_usr`@`%`
+GRANT SET_ANY_DEFINER ON *.* TO `sys_usr`@`%`
 GRANT SYSTEM_USER ON *.* TO `sys_usr`@`%` WITH GRANT OPTION
 GRANT INSERT (`restricted`) ON `restricted`.`t1` TO `sys_usr`@`%`
 GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `test`.`p1` TO `sys_usr`@`%`

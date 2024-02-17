@@ -279,7 +279,6 @@ bool dynamic_privilege_init(void) {
       service->register_privilege(STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"));
   ret += service->register_privilege(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN"));
   ret += service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
-  ret += service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
   ret += service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
   ret += service->register_privilege(
       STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"));
@@ -320,12 +319,6 @@ bool dynamic_privilege_init(void) {
       service->register_privilege(STRING_WITH_LEN("ALLOW_NONEXISTENT_DEFINER"));
   ret += service->register_privilege(STRING_WITH_LEN("TRANSACTION_GTID_TAG"));
   ret += service->register_privilege(STRING_WITH_LEN("OPTIMIZE_LOCAL_TABLE"));
-
-  // Set up default dynamic privileges deprecations
-  my_service<SERVICE_TYPE(dynamic_privilege_deprecation)> deprecation_service(
-      "dynamic_privilege_deprecation.mysql_server", srv_registry);
-  assert(deprecation_service.is_valid());
-  ret += deprecation_service->add(STRING_WITH_LEN("SET_USER_ID"));
 
   return ret != 0;
 }

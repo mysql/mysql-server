@@ -141,65 +141,6 @@ DELETE FROM mysql.global_grants;
 FLUSH PRIVILEGES;
 
 --echo #
---echo # Additional tests for SET_USER_ID privilege
---echo #
-SET GLOBAL event_scheduler = 1;
-CREATE DATABASE restricted;
-CREATE TABLE restricted.t1 (c1 int, restricted int);
-INSERT INTO restricted.t1 VALUES (1,2);
-CREATE USER u1@localhost IDENTIFIED BY 'foo';
-GRANT SET_USER_ID, CREATE VIEW, CREATE ROUTINE, EXECUTE, EVENT ON *.* TO u1@localhost;
-connect(con1,localhost,u1,foo,,,,);
---error ER_TABLEACCESS_DENIED_ERROR
-SELECT * from restricted.t1;
-USE test;
-CREATE DEFINER=root@localhost PROCEDURE p1() SELECT * FROM restricted.t1;
---echo # With the SET_USER_ID privilege we can escalate the authorization
-CALL p1();
-CREATE TABLE test.t1 (c1 INT);
-CREATE DEFINER=root@localhost TRIGGER test.tr1 BEFORE INSERT ON test.t1
-FOR EACH ROW INSERT INTO restricted.t1 VALUES (1,1);
---echo # Use trigger to escalate privileges
-INSERT INTO test.t1 VALUES (1);
-connection default;
-SELECT * FROM restricted.t1;
-DROP TRIGGER test.tr1;
-connection con1;
---error ER_TABLEACCESS_DENIED_ERROR
-CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS
-SELECT a.restricted FROM restricted.t1 as a;
-connection default;
---echo # We need some privilege on the column for CREATE VIEW to work
-GRANT INSERT(restricted) ON restricted.t1 TO u1@localhost;
-connection con1;
-SHOW GRANTS FOR CURRENT_USER();
-CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS
-SELECT a.restricted FROM restricted.t1 as a;
---echo # Use escalated privileges to read restricted column.
-SELECT * FROM v1;
-connection con1;
---echo # Creating events with SET_USER_ID should work too.
-delimiter //;
-CREATE DEFINER=root@localhost EVENT test.eve1 ON SCHEDULE AT
-CURRENT_TIMESTAMP + INTERVAL 2 SECOND
-DO BEGIN
-  INSERT INTO restricted.t1 VALUES (5,5);
-END;//
-delimiter ;//
---let $wait_timeout= 120
---let $wait_condition= SELECT count(*) > 2 FROM v1
---source include/wait_condition_or_abort.inc
-SELECT * FROM v1;
-connection default;
-disconnect con1;
-DROP PROCEDURE p1;
-DROP DATABASE restricted;
-DROP USER u1@localhost;
-DROP VIEW test.v1;
-DROP TABLE test.t1;
-SET GLOBAL event_scheduler = 0;
-
---echo #
 --echo # Bug25555019 DYNAMIC PRIVILEGES CAN BE GRANTED AT TABLE LEVEL
 --echo #
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
@@ -411,7 +352,7 @@ TRUNCATE TABLE mysql.general_log;
 --echo # Tests for mixed grant of static and dynamc privileges through auth ids
 DROP USER IF EXISTS u1, r1, r2;
 CREATE USER u1, r1, r2;
-GRANT ROLE_ADMIN, BINLOG_ADMIN, SET_USER_ID, CREATE on *.* to r1;
+GRANT ROLE_ADMIN, BINLOG_ADMIN, CREATE on *.* to r1;
 GRANT ROLE_ADMIN, GROUP_REPLICATION_ADMIN, ENCRYPTION_KEY_ADMIN, ALTER,
 RELOAD on *.* to r2;
 GRANT SYSTEM_VARIABLES_ADMIN, REPLICATION_SLAVE_ADMIN, SELECT ON *.* to u1;

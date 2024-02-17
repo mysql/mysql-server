@@ -13,27 +13,27 @@ GRANT CREATE USER ON *.* TO wl15874@localhost;
 USE wl15874;
 # Test FR1: Must fail: create procedure sans SET_ANY_DEFINER
 CREATE DEFINER=wl15874_2@localhost PROCEDURE p1() SELECT 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 # Test FR1: Must fail: create function sans SET_ANY_DEFINER
 CREATE DEFINER=wl15874_2@localhost FUNCTION f1() RETURNS INT RETURN 12;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 # Test FR1: Must fail: create view sans SET_ANY_DEFINER
 CREATE DEFINER=wl15874_2@localhost VIEW v1 AS SELECT 1 as 'a';
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 CREATE VIEW v1 AS SELECT 1 as 'a';
 # Test FR1: Must fail: alter view sans SET_ANY_DEFINER
 ALTER DEFINER=wl15874_2@localhost VIEW v1 AS SELECT 1 as 'a';
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 DROP VIEW v1;
 CREATE TABLE t1(a INT);
 # Test FR1: Must fail: create trigger sans SET_ANY_DEFINER
 CREATE DEFINER=wl15874_2@localhost TRIGGER t1_trg1 AFTER INSERT ON t1 FOR EACH ROW SET @sum = @sum + 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 # Test FR1: Must fail: create event sans SET_ANY_DEFINER
 CREATE DEFINER=wl15874_2@localhost EVENT wl15874_ev1
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
 DO SET @sum = @sum + 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 CREATE EVENT wl15874_ev1
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
 DO SET @sum = @sum + 1;
@@ -41,7 +41,7 @@ DO SET @sum = @sum + 1;
 ALTER DEFINER=wl15874_2@localhost EVENT wl15874_ev1
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
 DO SET @sum = @sum + 2;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 DROP EVENT wl15874_ev1;
 NF1.1: must pass: current_user should work.
 CREATE DEFINER=CURRENT_USER PROCEDURE p1() SELECT 1;
@@ -95,7 +95,7 @@ REVOKE SET_ANY_DEFINER ON *.* FROM wl15874@localhost;
 GRANT ALLOW_NONEXISTENT_DEFINER ON *.* TO wl15874@localhost;
 # FR2: must fail: ALLOW_NONEXISTENT_DEFINER is not enough by itself
 CREATE DEFINER=wl15874_na@localhost PROCEDURE p1() SELECT 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 GRANT SET_ANY_DEFINER ON *.* TO wl15874@localhost;
 # Test FR1: Must pass: create procedure non-existent
 CREATE DEFINER=wl15874_na@localhost PROCEDURE p1() SELECT 1;
@@ -192,28 +192,28 @@ DROP EVENT wl15874_ev1;
 REVOKE ALLOW_NONEXISTENT_DEFINER ON *.* FROM wl15874@localhost;
 # Test FR2.2: Must fail: create procedure non-existent sans ALLOW_NONEXISTENT_DEFINER
 CREATE DEFINER=wl15874_na@localhost PROCEDURE p1() SELECT 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
 # Test FR2.2: Must fail: create function non-existent sans ALLOW_NONEXISTENT_DEFINER
 CREATE DEFINER=wl15874_na@localhost FUNCTION f1() RETURNS INT RETURN 12;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
 # Test FR2.2: Must fail: create view non-existent sans ALLOW_NONEXISTENT_DEFINER
 CREATE DEFINER=wl15874_na@localhost VIEW v1 AS SELECT 1 as 'a';
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
 CREATE TABLE t1(a INT);
 # Test FR2.2: Must fail: create trigger non-existent sans ALLOW_NONEXISTENT_DEFINER
 CREATE DEFINER=wl15874_na@localhost TRIGGER t1_trg1 AFTER INSERT ON t1 FOR EACH ROW SET @sum = @sum + 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
 DROP TABLE t1;
 CREATE VIEW v1 as SELECT 3 as 'a';
 # Test FR2.2: Must fail: alter view non-existent sans ALLOW_NONEXISTENT_DEFINER
 ALTER DEFINER=wl15874_na@localhost VIEW v1 AS SELECT 2 as 'a';
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
 DROP VIEW v1;
 # Test FR2.2: Must fail: create event non-existent sans ALLOW_NONEXISTENT_DEFINER
 CREATE DEFINER=wl15874_na@localhost EVENT wl15874_ev1
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
 DO SET @sum = @sum + 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
 CREATE EVENT wl15874_ev1
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
 DO SET @sum = @sum + 1;
@@ -221,30 +221,8 @@ DO SET @sum = @sum + 1;
 ALTER DEFINER=wl15874_na@localhost EVENT wl15874_ev1
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
 DO SET @sum = @sum + 2;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or ALLOW_NONEXISTENT_DEFINER privilege(s) for this operation
 DROP EVENT wl15874_ev1;
-# test FR9: warning with granting SET_USER_ID
-GRANT SET_USER_ID ON *.* TO wl15874_2@localhost;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
-# test FR9.1: no warning with revoking SET_USER_ID
-REVOKE SET_USER_ID ON *.* FROM wl15874_2@localhost;
-# Test FR8: should not produce a SET_USER_ID deprecated warning
-GRANT ALL PRIVILEGES ON *.* TO wl15874_2@localhost;
-# Test FR8: There should be no SET_USER_ID granted to wl15874_2@localhost
-SELECT GRANTEE FROM INFORMATION_SCHEMA.USER_PRIVILEGES
-WHERE PRIVILEGE_TYPE = 'SET_USER_ID' AND GRANTEE LIKE '%wl15874_2%' ORDER BY 1;
-GRANTEE
-REVOKE ALL PRIVILEGES ON *.* FROM wl15874_2@localhost;
-# Test FR4: SET_USER_ID produces a warning in error log
-#  at FLUSH PRIVILEGES time
-GRANT SET_USER_ID ON *.* TO wl15874_2@localhost;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
-include/save_error_log_position.inc
-FLUSH PRIVILEGES;
-include/assert_error_log.inc [server: 1, pattern: .*SET_USER_ID. .granted to .wl15874_2@localhost.. is deprecated.*]
-REVOKE SET_USER_ID ON *.* FROM wl15874_2@localhost;
 # global cleanup
 REVOKE TRIGGER,CREATE ROUTINE,CREATE VIEW,EVENT,DROP,CREATE ON wl15874.* FROM wl15874@localhost;
 REVOKE CREATE USER ON *.* FROM wl15874@localhost;

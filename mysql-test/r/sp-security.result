@@ -369,9 +369,9 @@ CREATE FUNCTION wl2897_f1() RETURNS INT RETURN 1;
 ---> connection: mysqltest_1_con
 USE mysqltest;
 CREATE DEFINER=root@localhost PROCEDURE wl2897_p2() SELECT 2;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 CREATE DEFINER=root@localhost FUNCTION wl2897_f2() RETURNS INT RETURN 2;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 
 ---> connection: mysqltest_2_con
 use mysqltest;
@@ -707,14 +707,11 @@ SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
 mysqltest_db	p1	f1
 #
 # Wl8131 DYNAMIC PRIVILEGS
-# SET_USER_ID is a replacement for SUPER which enable a user to 
+# WL15875 remove deprecated privilege
 # create a definer routine executing as some other user.
-# This privielge can be used for privilege escalation.
 connection default;
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
-GRANT SYSTEM_USER,SET_USER_ID, EXECUTE ON *.* TO u1@localhost;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
+GRANT SYSTEM_USER, SET_ANY_DEFINER, EXECUTE ON *.* TO u1@localhost;
 connect  con1,localhost,u1,foo,;
 CREATE DEFINER=root@localhost PROCEDURE p1() SELECT current_user();
 CALL p1();

@@ -4123,9 +4123,7 @@ GRANT INSERT (fld1, fld2) ON t2 TO user1@localhost;
 GRANT INSERT ON v1 TO user2@localhost;
 GRANT INSERT ON v2 TO user2@localhost;
 GRANT SYSTEM_USER ON *.* TO user2@localhost;
-GRANT SET_USER_ID ON *.* TO user2@localhost;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
+GRANT SET_ANY_DEFINER ON *.* TO user2@localhost;
 GRANT EXECUTE ON PROCEDURE p1 TO user2@localhost;
 GRANT EXECUTE ON PROCEDURE p2 TO user2@localhost;
 GRANT EXECUTE ON FUNCTION f1 TO user2@localhost;
@@ -4212,8 +4210,8 @@ connect  con2, localhost, user2,,wl8910db;
 # is displayed.
 INSERT INTO v2 VALUES (1, 2);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`wl8910db`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
-# Tests with SET_USER_ID
-# Set up stored routines and views by user with SET_USER_ID
+# Tests with SET_ANY_DEFINER
+# Set up stored routines and views by user with SET_ANY_DEFINER
 # privilege.
 CREATE DEFINER=root@localhost PROCEDURE p3() SQL SECURITY DEFINER
 INSERT INTO t2 (fld1, fld2) VALUES (1, 2);

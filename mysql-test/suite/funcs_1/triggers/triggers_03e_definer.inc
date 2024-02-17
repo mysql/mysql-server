@@ -73,7 +73,7 @@ let $message= #########      Testcase for definer:   ########;
                 set new.f1 = 'trig 1_0-yes';
   connection default;
     create user definer_user@localhost identified by 'boo';
-    grant set_user_id,system_user, trigger on *.* to definer_user@localhost;
+    grant SET_ANY_DEFINER, system_user, trigger on *.* to definer_user@localhost;
   connect (con1,localhost,definer_user,boo,test,$MASTER_MYPORT,$MASTER_MYSOCK);
     create table test.t1 (f1 varchar(20));
     create definer=root@localhost trigger test.trg1_0

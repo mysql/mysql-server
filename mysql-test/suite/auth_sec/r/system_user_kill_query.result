@@ -1,10 +1,8 @@
 # Setup
 CREATE USER sys_user, non_sys_user;
 GRANT CONNECTION_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO non_sys_user;
-GRANT SYSTEM_USER, CREATE, SELECT, INSERT, EXECUTE,SET_USER_ID,
+GRANT SYSTEM_USER, CREATE, SELECT, INSERT, EXECUTE,
 SYSTEM_VARIABLES_ADMIN ON *.* TO sys_user;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
 #------------------------------------------------------------------------
 # 1. User without SYSTEM_USER privilege cannot the kill query running
 #    in the power session

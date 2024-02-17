@@ -82,24 +82,24 @@ CREATE TABLE t35471453(c1 INT);
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 CREATE OR REPLACE DEFINER = 'role_35471453' VIEW v35471453
   AS TABLE t35471453;
---echo # Now grant SET_USER_ID and retry
+--echo # Now grant SET_ANY_DEFINER and ALLOW_NONEXISTENT_DEFINER and retry
 connection default;
-GRANT SET_USER_ID ON *.* TO b35471453@localhost;
+GRANT SET_ANY_DEFINER, ALLOW_NONEXISTENT_DEFINER ON *.* TO b35471453@localhost;
 connection b35471453_con;
 --echo # test2: should complete with a warning
 CREATE OR REPLACE DEFINER = 'role_35471453' VIEW v35471453
   AS TABLE t35471453;
---echo # Now revoke SET_USER_ID and try dropping the role
+--echo # Now revoke SET_ANY_DEFINER and ALLOW_NONEXISTENT_DEFINER and try dropping the role
 connection default;
-REVOKE SET_USER_ID ON *.* FROM b35471453@localhost;
+REVOKE SET_ANY_DEFINER, ALLOW_NONEXISTENT_DEFINER ON *.* FROM b35471453@localhost;
 connection b35471453_con;
 
 --echo # test3: should fail
 --error ER_CANNOT_USER_REFERENCED_AS_DEFINER
 DROP ROLE IF EXISTS role_35471453;
---echo # Now grant SET_USER_ID and retry
+--echo # Now grant SET_ANY_DEFINER and ALLOW_NONEXISTENT_DEFINER and retry
 connection default;
-GRANT SET_USER_ID ON *.* TO b35471453@localhost;
+GRANT SET_ANY_DEFINER, ALLOW_NONEXISTENT_DEFINER ON *.* TO b35471453@localhost;
 connection b35471453_con;
 --echo # test4: should pass with a warning
 DROP ROLE IF EXISTS role_35471453;
@@ -109,7 +109,7 @@ DROP TABLE t35471453;
 connection default;
 disconnect b35471453_con;
 
-REVOKE CREATE ROLE, DROP ROLE, SET_USER_ID ON *.* FROM b35471453@localhost;
+REVOKE CREATE ROLE, DROP ROLE, SET_ANY_DEFINER, ALLOW_NONEXISTENT_DEFINER ON *.* FROM b35471453@localhost;
 DROP USER b35471453@localhost;
 
 

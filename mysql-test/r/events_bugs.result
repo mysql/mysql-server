@@ -382,7 +382,7 @@ SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
 EVENT_NAME	DEFINER
 e1	mysqltest_u1@localhost
 ALTER DEFINER=root@localhost EVENT e1 ON SCHEDULE EVERY 1 HOUR;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 SELECT event_name, definer FROM INFORMATION_SCHEMA.EVENTS;
 EVENT_NAME	DEFINER
 e1	mysqltest_u1@localhost
@@ -393,7 +393,7 @@ EVENT_NAME	DEFINER
 e1	mysqltest_u1@localhost
 DROP EVENT e1;
 CREATE DEFINER=root@localhost EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFINER privilege(s) for this operation
 DROP EVENT e1;
 ERROR HY000: Unknown event 'e1'
 DROP USER mysqltest_u1@localhost;

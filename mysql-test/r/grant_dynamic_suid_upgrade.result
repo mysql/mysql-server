@@ -3,6 +3,8 @@
 #   and orphan object protection from SET_USER_ID and
 #   deprecate SET_USER_ID
 #
+# Also test WL#15875: Remove the deprecated SET_USER_ID privilege
+#
 # Test FR3
 # Test: FR8: Should have no result rows
 SELECT GRANTEE FROM INFORMATION_SCHEMA.USER_PRIVILEGES
@@ -20,27 +22,29 @@ GRANTEE
 'root'@'localhost'
 # set grants as it used to be pre-worklog
 CREATE USER wl15874@localhost;
+# should fail: no such grant.
+GRANT SET_USER_ID ON *.* TO wl15874@localhost;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
 REVOKE SET_ANY_DEFINER,ALLOW_NONEXISTENT_DEFINER ON *.* FROM root@localhost;
-GRANT SET_USER_ID ON *.* TO wl15874@localhost WITH GRANT OPTION;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
-GRANT SET_USER_ID ON *.* TO root@localhost WITH GRANT OPTION;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
+INSERT INTO mysql.global_grants(USER,HOST,PRIV, WITH_GRANT_OPTION)
+VALUES ('wl15874', 'localhost', 'SET_USER_ID', 'Y');
+INSERT INTO mysql.global_grants(USER,HOST,PRIV, WITH_GRANT_OPTION)
+VALUES ('root', 'localhost', 'SET_USER_ID', 'Y');
 # restart:--upgrade=FORCE
 # Restart server with defaults
 # restart:
-# Test FR4: SET_USER_ID deprecated at startup: must be 2: root and wl15784
+# should fail after a restart and set_user_id present: no such grant.
+GRANT SET_USER_ID ON *.* TO wl15874@localhost;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+# Test FR4: SET_USER_ID deprecated at startup. Must be 0: deprecation gone
 select COUNT(*) FROM performance_schema.error_log
 WHERE PRIO='Warning' AND DATA REGEXP 'SET_USER_ID.*deprecated';
 COUNT(*)
-2
-# FR3: should return 2 rows: wl15874 and root
+0
+# WL#15875 FR4: should return 0 rows: SET_USER_ID gone
 SELECT GRANTEE FROM INFORMATION_SCHEMA.USER_PRIVILEGES
 WHERE PRIVILEGE_TYPE = 'SET_USER_ID' ORDER BY 1;
 GRANTEE
-'root'@'localhost'
-'wl15874'@'localhost'
 # FR3: should return 2 rows: root and wl15874
 SELECT GRANTEE FROM INFORMATION_SCHEMA.USER_PRIVILEGES
 WHERE PRIVILEGE_TYPE = 'SET_ANY_DEFINER' ORDER BY 1;
@@ -54,8 +58,8 @@ GRANTEE
 'root'@'localhost'
 'wl15874'@'localhost'
 # set grants to test FR3.1
-REVOKE SET_USER_ID,ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER ON *.* FROM wl15874@localhost;
-REVOKE SET_USER_ID,ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER ON *.* FROM root@localhost;
+REVOKE ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER ON *.* FROM wl15874@localhost;
+REVOKE ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER ON *.* FROM root@localhost;
 GRANT SUPER ON *.* TO wl15874@localhost WITH GRANT OPTION;
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated

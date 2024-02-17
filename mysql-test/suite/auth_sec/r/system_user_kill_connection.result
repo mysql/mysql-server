@@ -131,9 +131,7 @@ REVOKE SYSTEM_USER ON *.* FROM sys_user;
 # 7.1 Verify through SET_ROLE statement
 CREATE USER baz@localhost;
 GRANT EXECUTE ON *.* TO non_sys_user;
-GRANT SET_USER_ID, EXECUTE ON *.* TO baz@localhost;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
+GRANT EXECUTE ON *.* TO baz@localhost;
 GRANT system_user_role TO baz@localhost;
 CREATE DEFINER=baz@localhost PROCEDURE test.role_proc()SET ROLE system_user_role;
 CALL role_proc();
@@ -166,9 +164,7 @@ REVOKE EXECUTE,SYSTEM_USER ON *.* FROM non_sys_user;
 # 8.1 Verify through SET_ROLE statement
 CREATE USER baz@localhost;
 GRANT EXECUTE ON *.* TO non_sys_user;
-GRANT SET_USER_ID, EXECUTE ON *.* TO baz@localhost;
-Warnings:
-Warning	6016	The privilege 'SET_USER_ID' is deprecated.
+GRANT EXECUTE ON *.* TO baz@localhost;
 GRANT system_user_role TO baz@localhost, non_sys_user;
 CREATE DEFINER=baz@localhost PROCEDURE test.role_proc() SQL SECURITY INVOKER
 SET ROLE system_user_role;
