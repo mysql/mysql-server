@@ -1,13 +1,13 @@
 {
     "state_node": {
         "node_id": 0,
-        "local_port": 12346,
+        "local_port": 12307,
         "txn_list_size_GB": 1,
         "log_buf_size_GB": 8,
         "lock_buf_size_GB": 8
     },
     "master_node": {
         "master_node_ip": "127.0.0.1",
-        "master_node_port": 12345
+        "master_node_port": 12306
     }
 }
