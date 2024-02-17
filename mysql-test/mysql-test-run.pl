@@ -3175,6 +3175,7 @@ sub environment_setup {
       ndb_move_data
       ndb_perror
       ndb_print_backup_file
+      ndb_redo_log_reader
       ndb_restore
       ndb_select_all
       ndb_select_count

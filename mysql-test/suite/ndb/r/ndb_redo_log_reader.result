@@ -1,0 +1,21 @@
+1,full 2,sparse
+# Node 1 uses InitFragmentLogFiles=full
+Node 1 is being restarted
+
+# NDB_REDO_LOG_READER ndb_1_fs/D8/DBLQH/S0.FragLog -lap
+Warning: Option '-lap' is deprecated, use '--lap' instead.
+# NDB_REDO_LOG_READER ndb_1_fs/D8/DBLQH/S0.FragLog -mbyte 2
+Warning: Option '-mbyte' is deprecated, use '--mbyte' instead.
+Database node 1 is being started.
+
+Node 1: STARTED
+Node 2: STARTED
+# Node 2 uses InitFragmentLogFiles=sparse
+Node 2 is being restarted
+
+# NDB_REDO_LOG_READER --lap ndb_2_fs/D8/DBLQH/S0.FragLog
+# NDB_REDO_LOG_READER --mbyte=2 ndb_2_fs/D8/DBLQH/S0.FragLog
+Database node 2 is being started.
+
+Node 1: STARTED
+Node 2: STARTED

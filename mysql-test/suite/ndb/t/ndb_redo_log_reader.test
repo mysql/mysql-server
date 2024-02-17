@@ -1,0 +1,34 @@
+source include/have_ndb.inc;
+
+exec $NDB_CONFIG --nodes --type=DB --query=NodeId,InitFragmentLogFiles;
+
+let $NDB_REDO_LOG_FILE1=$MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.1/ndb_1_fs/D8/DBLQH/S0.FragLog;
+let $NDB_REDO_LOG_FILE2=$MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.2/ndb_2_fs/D8/DBLQH/S0.FragLog;
+
+error 1;
+exec $NDB_REDO_LOG_READER > $NDB_TOOLS_OUTPUT;
+
+# ndb_redo_log_reader should not be used on active fragment log files.
+# Stop data node before reading the fragment log files.
+
+echo # Node 1 uses InitFragmentLogFiles=full;
+exec $NDB_MGM -e "1 RESTART -n";
+echo # NDB_REDO_LOG_READER ndb_1_fs/D8/DBLQH/S0.FragLog -lap;
+exec $NDB_REDO_LOG_READER $NDB_REDO_LOG_FILE1 -lap 2>&1 >> $NDB_TOOLS_OUTPUT;
+echo # NDB_REDO_LOG_READER ndb_1_fs/D8/DBLQH/S0.FragLog -mbyte 2;
+error 1; # Bug#36313259
+exec $NDB_REDO_LOG_READER $NDB_REDO_LOG_FILE1 -mbyte 2 2>&1 >> $NDB_TOOLS_OUTPUT;
+exec $NDB_MGM -e "1 START";
+exec $NDB_WAITER;
+
+echo # Node 2 uses InitFragmentLogFiles=sparse;
+exec $NDB_MGM -e "2 RESTART -n";
+echo # NDB_REDO_LOG_READER --lap ndb_2_fs/D8/DBLQH/S0.FragLog;
+exec $NDB_REDO_LOG_READER --lap $NDB_REDO_LOG_FILE2 >> $NDB_TOOLS_OUTPUT;
+echo # NDB_REDO_LOG_READER --mbyte=2 ndb_2_fs/D8/DBLQH/S0.FragLog;
+error 1; # Bug#36313259
+exec $NDB_REDO_LOG_READER --mbyte=2 $NDB_REDO_LOG_FILE2 >> $NDB_TOOLS_OUTPUT;
+exec $NDB_MGM -e "2 START";
+exec $NDB_WAITER;
+
+remove_file $NDB_TOOLS_OUTPUT;

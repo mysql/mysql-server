@@ -53,7 +53,7 @@
 
 using byte = unsigned char;
 
-static ndb_off_t readFromFile(ndbxfrm_file *xfrm, ndb_off_t word_pos,
+static ndb_off_t readFromFile(ndbxfrm_file *xfrm, ndb_off_t data_pos,
                               Uint32 *toPtr, Uint32 sizeInWords);
 [[noreturn]] static void doExit();
 
@@ -102,7 +102,7 @@ static struct my_option my_long_options[] = {
      "Provide lap info, with max GCI started and completed", &onlyLap, nullptr,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"mbyte", NDB_OPT_NOSHORT, "Starting megabyte", &startAtMbyte, nullptr,
-     nullptr, GET_INT, NO_ARG, 0, 0, 15, nullptr, 0, nullptr},
+     nullptr, GET_UINT32, REQUIRED_ARG, 0, 0, 1023, nullptr, 0, nullptr},
     {"mbyteheaders", NDB_OPT_NOSHORT,
      "Show only first page header of each megabyte in file", &onlyMbyteHeaders,
      nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -111,12 +111,12 @@ static struct my_option my_long_options[] = {
     {"noprint", 'P', "Do not print records", nullptr, nullptr, nullptr,
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"page", NDB_OPT_NOSHORT, "Start with this page", &startAtPage, nullptr,
-     nullptr, GET_INT, NO_ARG, 0, 0, 31, nullptr, 0, nullptr},
+     nullptr, GET_UINT32, REQUIRED_ARG, 0, 0, 31, nullptr, 0, nullptr},
     {"pageheaders", NDB_OPT_NOSHORT, "Show page headers only", &onlyPageHeaders,
      nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"pageindex", NDB_OPT_NOSHORT, "Start with this page index",
-     &startAtPageIndex, nullptr, nullptr, GET_INT, NO_ARG, 12, 12, 8191,
-     nullptr, 0, nullptr},
+     &startAtPageIndex, nullptr, nullptr, GET_UINT32, REQUIRED_ARG, 12, 12,
+     8191, nullptr, 0, nullptr},
     {"print", NDB_OPT_NOSHORT, "Print records", &thePrintFlag, nullptr, nullptr,
      GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr},
     {"twiddle", NDB_OPT_NOSHORT, "Bit-shifted dump", &theTwiddle, nullptr,
@@ -494,11 +494,11 @@ static Uint32 twiddle_32(Uint32 in) {
 //
 //----------------------------------------------------------------
 
-ndb_off_t readFromFile(ndbxfrm_file *xfrm, ndb_off_t word_pos, Uint32 *toPtr,
+ndb_off_t readFromFile(ndbxfrm_file *xfrm, ndb_off_t data_pos, Uint32 *toPtr,
                        Uint32 sizeInWords) {
   ndbxfrm_output_iterator it = {
       (byte *)toPtr, (byte *)toPtr + sizeof(Uint32) * sizeInWords, false};
-  int r = xfrm->read_transformed_pages(word_pos * sizeof(Uint32), &it);
+  int r = xfrm->read_transformed_pages(data_pos, &it);
   if (r == -1) {
     ndbout << "Error reading file" << endl;
     doExit();
@@ -513,7 +513,7 @@ ndb_off_t readFromFile(ndbxfrm_file *xfrm, ndb_off_t word_pos, Uint32 *toPtr,
     for (Uint32 i = 0; i < noOfReadWords; i++) toPtr[i] = twiddle_32(toPtr[i]);
   }
 
-  return noOfReadWords;
+  return noOfReadWords * sizeof(Uint32);
 }
 
 //----------------------------------------------------------------
@@ -535,6 +535,7 @@ std::vector<char *> convert_legacy_options(size_t argc, char **argv) {
       {"-twiddle", "--twiddle"}};
   std::vector<char *> new_argv(argc + 1);
   new_argv[0] = argv[0];
+  size_t first_legacy = 0;
   for (size_t i = 1; i < argc; i++) {
     new_argv[i] = argv[i];
     for (size_t j = 0; j < std::size(legacy_options); j++)
@@ -542,11 +543,24 @@ std::vector<char *> convert_legacy_options(size_t argc, char **argv) {
         fprintf(stderr,
                 "Warning: Option '%s' is deprecated, use '%s' instead.\n",
                 new_argv[i], legacy_options[j][1]);
-        new_argv[i] = (char *)legacy_options[j][1];
+        /*
+         * There is some special case in my_getopt.cc that modifies an option,
+         * but that should not apply for these.
+         */
+        new_argv[i] = const_cast<char *>(legacy_options[j][1]);
+        if (first_legacy == 0) first_legacy = i;
         break;
       }
   }
   new_argv[argc] = nullptr;
+  // If legacy options are preceded by file argument, move them before it
+  if (first_legacy > 1 && new_argv[first_legacy - 1][0] != '-') {
+    char *arg = new_argv[first_legacy - 1];
+    for (size_t k = first_legacy; k < argc; k++) {
+      new_argv[k - 1] = new_argv[k];
+    }
+    new_argv[argc - 1] = arg;
+  }
   return new_argv;
 }
 
