@@ -1,0 +1,19 @@
+RESET BINARY LOGS AND GTIDS;
+
+# T1.1 - T1.2
+
+SET SESSION original_commit_timestamp = 1;
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:tag:1";
+CREATE TABLE t1 (a INT);
+
+# T1.3
+
+include/rpl/save_binlog_file_position.inc
+include/assert_grep.inc [Check that original commit timestamp value equals 1]
+include/assert_grep.inc [Check that immediate commit timestamp differs from original commit timestamp]
+
+# Clean up
+
+SET SESSION original_commit_timestamp = DEFAULT;
+SET GTID_NEXT='AUTOMATIC';
+DROP TABLE t1;
