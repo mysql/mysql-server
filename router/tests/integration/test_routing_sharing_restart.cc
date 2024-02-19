@@ -424,6 +424,11 @@ class SharedRouter {
                         "/idleServerConnections");
   }
 
+  stdx::expected<int, std::error_code> stashed_server_connections() {
+    return rest_get_int(rest_api_basepath + "/connection_pool/main/status",
+                        "/stashedServerConnections");
+  }
+
   stdx::expected<void, std::error_code> wait_for_idle_server_connections(
       int expected_value, std::chrono::seconds timeout) {
     using clock_type = std::chrono::steady_clock;
@@ -431,6 +436,25 @@ class SharedRouter {
     const auto end_time = clock_type::now() + timeout;
     do {
       auto int_res = idle_server_connections();
+      if (!int_res) return stdx::unexpected(int_res.error());
+
+      if (*int_res == expected_value) return {};
+
+      if (clock_type::now() > end_time) {
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
+      }
+
+      std::this_thread::sleep_for(kIdleServerConnectionsSleepTime);
+    } while (true);
+  }
+
+  stdx::expected<void, std::error_code> wait_for_stashed_server_connections(
+      int expected_value, std::chrono::seconds timeout) {
+    using clock_type = std::chrono::steady_clock;
+
+    const auto end_time = clock_type::now() + timeout;
+    do {
+      auto int_res = stashed_server_connections();
       if (!int_res) return stdx::unexpected(int_res.error());
 
       if (*int_res == expected_value) return {};
@@ -902,7 +926,7 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
     // wait until connection is in the pool.
     if (can_share) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(
+      ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(
           std::min(ndx + 1, kNumServers), 10s));
     }
   }
@@ -1082,7 +1106,7 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
     // wait until connection is in the pool.
     if (can_share) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(
+      ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(
           std::min(ndx + 1, kNumServers), 10s));
     }
   }
@@ -1331,7 +1355,7 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
     if (can_share) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(1, 10s));
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
 
       this->wait_for_connections_to_server_expired(my_port);
     }
@@ -1619,7 +1643,7 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
     if (can_share) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(1, 10s));
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
 
       ASSERT_NO_FATAL_FAILURE(
           this->wait_for_connections_to_server_expired(my_port));
@@ -1750,7 +1774,7 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
     if (can_share) {
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(1, 10s));
+          shared_router()->wait_for_stashed_server_connections(1, 10s));
     }
 
     // reconnects
@@ -1870,7 +1894,7 @@ TEST_P(ShareConnectionTestWithRestartedServer,
     if (can_share && ndx == 3) {
       // wait for all connections to be pooled.
       ASSERT_NO_ERROR(
-          shared_router()->wait_for_idle_server_connections(3, 10s));
+          shared_router()->wait_for_stashed_server_connections(3, 10s));
     }
 
     cli.username("root");
@@ -1883,7 +1907,8 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
   if (can_share) {
     // wait for ndx=3 to be back in the pool.
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(3, 10s));
   }
 
   SCOPED_TRACE("// querying port of first server");
@@ -1898,7 +1923,8 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
   if (can_share) {
     // wait for clis[0] to be back in the pool again.
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(3, 10s));
   }
 
   // shut down the server connection while the connection is pooled.

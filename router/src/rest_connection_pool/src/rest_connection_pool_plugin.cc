@@ -260,6 +260,10 @@ static void spec_adder(RestApiComponent::JsonDocument &spec_doc) {
                   .AddMember("idleServerConnections",
                              JsonValue(rapidjson::kObjectType)
                                  .AddMember("type", "integer", allocator),
+                             allocator)
+                  .AddMember("stashedServerConnections",
+                             JsonValue(rapidjson::kObjectType)
+                                 .AddMember("type", "integer", allocator),
                              allocator),
               allocator),
       allocator);

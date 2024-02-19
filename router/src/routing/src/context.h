@@ -45,9 +45,9 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/routing.h"
+#include "mysqlrouter/ssl_mode.h"
 #include "routing_config.h"
 #include "shared_quarantine_handler.h"
-#include "ssl_mode.h"
 #include "tcp_address.h"
 
 /**

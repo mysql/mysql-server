@@ -464,6 +464,11 @@ class SharedRouter {
                         "/idleServerConnections");
   }
 
+  stdx::expected<int, std::error_code> stashed_server_connections() {
+    return rest_get_int(rest_api_basepath + "/connection_pool/main/status",
+                        "/stashedServerConnections");
+  }
+
   stdx::expected<void, std::error_code> wait_for_idle_server_connections(
       int expected_value, std::chrono::seconds timeout) {
     using clock_type = std::chrono::steady_clock;
@@ -471,6 +476,25 @@ class SharedRouter {
     const auto end_time = clock_type::now() + timeout;
     do {
       auto int_res = idle_server_connections();
+      if (!int_res) return stdx::unexpected(int_res.error());
+
+      if (*int_res == expected_value) return {};
+
+      if (clock_type::now() > end_time) {
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
+      }
+
+      std::this_thread::sleep_for(kIdleServerConnectionsSleepTime);
+    } while (true);
+  }
+
+  stdx::expected<void, std::error_code> wait_for_stashed_server_connections(
+      int expected_value, std::chrono::seconds timeout) {
+    using clock_type = std::chrono::steady_clock;
+
+    const auto end_time = clock_type::now() + timeout;
+    do {
+      auto int_res = stashed_server_connections();
       if (!int_res) return stdx::unexpected(int_res.error());
 
       if (*int_res == expected_value) return {};
@@ -1810,7 +1834,8 @@ TEST_P(TracingCommandTest,
   }
 
   if (can_trace && !expected_sharing_is_blocked) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
   SCOPED_TRACE("// cmds with tracing");
@@ -1892,7 +1917,8 @@ TEST_P(TracingCommandTest,
 
   SCOPED_TRACE("// force a reconnect");
   if (can_trace && !expected_sharing_is_blocked) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
 
     for (auto *srv : shared_servers()) {
       srv->close_all_connections();

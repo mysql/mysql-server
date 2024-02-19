@@ -54,10 +54,10 @@
 #include "mysql_router_thread.h"  // kDefaultStackSizeInKiloByte
 #include "mysqlrouter/routing.h"  // Mode
 #include "mysqlrouter/routing_component.h"
+#include "mysqlrouter/ssl_mode.h"
 #include "mysqlrouter/supported_routing_options.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // is_valid_socket_name
-#include "ssl_mode.h"
 #include "tcp_address.h"
 
 using namespace std::string_view_literals;

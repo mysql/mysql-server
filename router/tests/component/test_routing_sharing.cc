@@ -25,6 +25,8 @@
 
 #include <chrono>
 #include <fstream>
+#include <thread>
+#include "gmock/gmock.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -35,12 +37,9 @@
 #include "rest_api_testutils.h"
 #include "router/src/routing/tests/mysql_client.h"
 #include "router_component_test.h"
+#include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
 #include "test/temp_directory.h"
-
-#define EXPECT_NO_ERROR(x) EXPECT_TRUE((x)) << (x).error()
-
-#define ASSERT_NO_ERROR(x) ASSERT_TRUE((x)) << (x).error()
 
 using ::testing::ElementsAre;
 using clock_type = std::chrono::steady_clock;
@@ -110,6 +109,27 @@ class RoutingSharingConfig : public RouterComponentTest {
     }
   }
 
+  stdx::expected<void, std::error_code> wait_for_stashed_server_connections(
+      int expected_value, std::chrono::seconds timeout) {
+    using clock_type = std::chrono::steady_clock;
+
+    const auto end_time = clock_type::now() + timeout;
+    do {
+      auto int_res =
+          rest_get_int(rest_api_basepath + "/connection_pool/main/status",
+                       "/stashedServerConnections");
+      if (!int_res) return stdx::unexpected(int_res.error());
+
+      if (*int_res == expected_value) return {};
+
+      if (clock_type::now() > end_time) {
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
+      }
+
+      std::this_thread::sleep_for(5ms);
+    } while (true);
+  }
+
   stdx::expected<void, std::error_code> wait_for_idle_server_connections(
       int expected_value, std::chrono::seconds timeout) {
     using clock_type = std::chrono::steady_clock;
@@ -124,6 +144,7 @@ class RoutingSharingConfig : public RouterComponentTest {
       if (*int_res == expected_value) return {};
 
       if (clock_type::now() > end_time) {
+        std::cerr << *int_res << "\n";
         return stdx::unexpected(make_error_code(std::errc::timed_out));
       }
 
@@ -171,12 +192,12 @@ TEST_F(RoutingSharingConfig, connection_sharing_not_set) {
     cli.password("bar");
 
     auto connect_res = cli.connect("127.0.0.1", router_port_);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
     // run it once
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -190,7 +211,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_not_set) {
     // if there is multiplexing, there will be some SET statements.
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -242,12 +263,12 @@ TEST_F(RoutingSharingConfig, connection_sharing_no_session_tracker_support) {
     cli.password("");
 
     auto connect_res = cli.connect("127.0.0.1", router_port_);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
     // run it once
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -261,7 +282,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_no_session_tracker_support) {
     // if there is multiplexing, there will be some SET statements.
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -301,12 +322,12 @@ TEST_F(RoutingSharingConfig, connection_sharing_is_zero) {
     cli.password("bar");
 
     auto connect_res = cli.connect("127.0.0.1", router_port_);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
     // run it once
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -320,7 +341,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_is_zero) {
     // if there is multiplexing, there will be some SET statements.
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -360,12 +381,12 @@ TEST_F(RoutingSharingConfig, warn_connection_sharing_needs_connection_pool) {
     cli.password("bar");
 
     auto connect_res = cli.connect("127.0.0.1", router_port_);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
     // run it once
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -379,7 +400,7 @@ TEST_F(RoutingSharingConfig, warn_connection_sharing_needs_connection_pool) {
     // if there is multiplexing, there will be some SET statements.
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -422,12 +443,12 @@ TEST_F(RoutingSharingConfig, warn_connection_sharing_passthrough) {
     cli.password("bar");
 
     auto connect_res = cli.connect("127.0.0.1", router_port_);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
     // run it once
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -441,7 +462,7 @@ TEST_F(RoutingSharingConfig, warn_connection_sharing_passthrough) {
     // if there is multiplexing, there will be some SET statements.
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -498,7 +519,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_default) {
   writer
       .section("connection_pool",
                {
-                   {"max_idle_server_connections", "1"},
+                   {"max_idle_server_connections", "0"},
                })
       .section("rest_connection_pool",
                {
@@ -531,7 +552,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_default) {
 
   auto &proc = router_spawner().spawn({"-c", writer.write()});
 
-  const auto kDefaultDelay = 1000ms;
+  const auto kDefaultDelay = 0ms;
   const auto kDelay = kDefaultDelay;
   const auto kJitter = 500ms;
 
@@ -543,11 +564,11 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_default) {
     cli.password("");
 
     const auto connect_res = cli.connect("127.0.0.1", router_port_);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
     {
       const auto start = clock_type::now();
-      EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 10s));
+      EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 10s));
 
       const auto wait_time = clock_type::now() - start;
       EXPECT_GT(wait_time, kDelay - kJitter);
@@ -557,7 +578,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_default) {
     // run it once
     {
       const auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       const auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -565,12 +586,12 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_default) {
       const auto result = results.front();
       EXPECT_THAT(result,
                   ElementsAre(ElementsAre("statement/sql/select", "1"),
-                              ElementsAre("statement/sql/set_option", "2")));
+                              ElementsAre("statement/sql/set_option", "1")));
     }
 
     {
       const auto start = clock_type::now();
-      EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 10s));
+      EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 10s));
 
       const auto wait_time = clock_type::now() - start;
 
@@ -583,7 +604,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_default) {
     // if there is multiplexing, there will be some SET statements.
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -591,7 +612,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_default) {
       auto result = results.front();
       EXPECT_THAT(result,
                   ElementsAre(ElementsAre("statement/sql/select", "2"),
-                              ElementsAre("statement/sql/set_option", "3")));
+                              ElementsAre("statement/sql/set_option", "1")));
     }
   }
 
@@ -612,7 +633,12 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_zero) {
 
   auto writer = config_writer(conf_dir_.name());
 
-  writer.section("connection_pool", {{"max_idle_server_connections", "1"}})
+  writer
+      .section("connection_pool",
+               {
+                   // no pool needed.
+                   {"max_idle_server_connections", "0"},
+               })
       .section("rest_connection_pool",
                {
                    {"require_realm", "somerealm"},
@@ -645,64 +671,130 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_zero) {
 
   auto &proc = router_spawner().spawn({"-c", writer.write()});
 
-  const auto kDelay = 0ms;
   const auto kJitter = 500ms;
 
-  SCOPED_TRACE("// connect");
   {
+    SCOPED_TRACE("// [0] new connection");
     MysqlClient cli;
 
     cli.username("foo");
     cli.password("");
 
     auto connect_res = cli.connect("127.0.0.1", router_port_);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
+    SCOPED_TRACE("// [0] expect it to be stashed.");
     {
       const auto start = clock_type::now();
-      EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 10s));
+      EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 10s));
 
+      // the connection should be stashed away right away.
       const auto wait_time = clock_type::now() - start;
-      EXPECT_GT(wait_time, kDelay);
-      EXPECT_LT(wait_time, kDelay + kJitter);
+      EXPECT_LT(wait_time, kJitter);
     }
 
-    // run it once
+    SCOPED_TRACE("// [0] query, old connection.");
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
 
+      // ... old ...
+      // SET @@SESSION.session_track...
+      // SELECT collation_connection, ...
+      // ... after ...
+      // SELECT ... // the 'events_stmt'
       auto result = results.front();
       EXPECT_THAT(result,
                   ElementsAre(ElementsAre("statement/sql/select", "1"),
-                              ElementsAre("statement/sql/set_option", "2")));
+                              ElementsAre("statement/sql/set_option", "1")));
     }
 
+    SCOPED_TRACE("// [0] expect it to be stashed again, immediately");
     {
       const auto start = clock_type::now();
-      EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 10s));
+      EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 10s));
 
       const auto wait_time = clock_type::now() - start;
-      EXPECT_GT(wait_time, kDelay);
-      EXPECT_LT(wait_time, kDelay + kJitter);
+      EXPECT_LT(wait_time, kJitter);
     }
 
-    // run it again.
-    //
-    // if there is multiplexing, there will be some SET statements.
+    SCOPED_TRACE("// [0] query again, old connection.");
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
 
+      // ... old ...
+      // SET @@SESSION.session_track...
+      // SELECT collation_connection, ...
+      // ... new ...
+      // SELECT ... // the 'events_stmt'
+      // ... after ...
+      // SELECT ... // the 'events_stmt'
       auto result = results.front();
       EXPECT_THAT(result,
                   ElementsAre(ElementsAre("statement/sql/select", "2"),
+                              ElementsAre("statement/sql/set_option", "1")));
+    }
+
+    SCOPED_TRACE("// [1] new connection, no sharing as sharing-delay is large");
+    MysqlClient cli2;
+
+    cli2.username("foo");
+    cli2.password("");
+
+    ASSERT_NO_ERROR(cli2.connect("127.0.0.1", router_port_));
+
+    {
+      auto query_res = cli2.query(events_stmt);
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      // ... old ...
+      // SET @@SESSION.session_track...
+      // SELECT collation_connection, ...
+      // SELECT ... // the 'events_stmt'
+      // ... new ...
+      // SELECT ... // the 'events_stmt'
+      // SET @@SESSION.session_track...
+      // SELECT collation_connection, ...
+      // ... after ...
+      // SELECT ... // the 'events_stmt'
+      auto result = results.front();
+      EXPECT_THAT(result,
+                  ElementsAre(ElementsAre("statement/sql/select", "4"),
+                              ElementsAre("statement/sql/set_option", "2")));
+    }
+
+    SCOPED_TRACE("// [0] got back our old connection.");
+    {
+      auto query_res = cli.query(events_stmt);
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      // ... old ...
+      // SET @@SESSION.session_track...
+      // SELECT collation_connection, ...
+      // SELECT ... // the 'events_stmt'
+      // ... new ...
+      // SELECT ... // the 'events_stmt'
+      // SET @@SESSION.session_track...
+      // SELECT collation_connection, ...
+      // SELECT ... // the 'events_stmt'
+      // ... after ...
+      // SELECT ... // the 'events_stmt'
+      auto result = results.front();
+      EXPECT_THAT(result,
+                  ElementsAre(ElementsAre("statement/sql/select", "5"),
                               ElementsAre("statement/sql/set_option", "3")));
     }
   }
@@ -727,7 +819,8 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_small) {
   writer
       .section("connection_pool",
                {
-                   {"max_idle_server_connections", "1"},
+                   // no pool needed.
+                   {"max_idle_server_connections", "0"},
                })
       .section("rest_connection_pool",
                {
@@ -756,7 +849,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_small) {
               {"client_ssl_mode", "DISABLED"},
               {"server_ssl_mode", "DISABLED"},
               {"connection_sharing", "1"},
-              {"connection_sharing_delay", "0.1"},
+              {"connection_sharing_delay", "0.1"},  // kDelay
           });
 
   auto &proc = router_spawner().spawn({"-c", writer.write()});
@@ -766,17 +859,20 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_small) {
 
   SCOPED_TRACE("// connect");
   {
+    SCOPED_TRACE("// [0] new connection");
     MysqlClient cli;
 
     cli.username("foo");
     cli.password("");
 
     auto connect_res = cli.connect("127.0.0.1", router_port_);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
+    SCOPED_TRACE(
+        "// [0] after connect, the connection should be stashed right away.");
     {
       const auto start = clock_type::now();
-      EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 10s));
+      EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 10s));
 
       const auto wait_time = clock_type::now() - start;
 
@@ -784,10 +880,12 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_small) {
       EXPECT_LT(wait_time, kDelay + kJitter);
     }
 
-    // run it once
+    SCOPED_TRACE(
+        "// [0] at query the server-side connection should be taken from the "
+        "stash, right away.");
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -795,50 +893,80 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_small) {
       auto result = results.front();
       EXPECT_THAT(result,
                   ElementsAre(ElementsAre("statement/sql/select", "1"),
-                              ElementsAre("statement/sql/set_option", "2")));
+                              ElementsAre("statement/sql/set_option", "1")));
     }
 
-    // run it again.
-    //
-    // no new set_option.
+    SCOPED_TRACE(
+        "// [0] at query the server-side connection should be taken from the "
+        "stash, right away, again.");
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
 
+      // if set_option stays at "1" -> same connection.
       auto result = results.front();
       EXPECT_THAT(result,
                   ElementsAre(ElementsAre("statement/sql/select", "2"),
-                              ElementsAre("statement/sql/set_option", "2")));
+                              ElementsAre("statement/sql/set_option", "1")));
     }
 
-    // wait until the connection enters the pool.
+    // wait until the connection enters the stash.
     {
       const auto start = clock_type::now();
-      EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 10s));
+      EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 10s));
 
       const auto wait_time = clock_type::now() - start;
 
-      EXPECT_GT(wait_time, kDelay - kJitter);
-      EXPECT_LT(wait_time, kDelay + kJitter);
+      // check the wait is immediate.
+      EXPECT_LT(wait_time, kJitter);
     }
 
-    // run it again.
+    // wait a bit for the sharing-delay to run out.
     //
-    // if there is multiplexing, there will be some SET statements.
+    // there is no way to check that the time ran out, but it is known
+    // when it got stashed from the step before.
+    std::this_thread::sleep_for(kDelay + kJitter);
+
+    SCOPED_TRACE("// [1] new connection. sharing as sharing-delay is ran out.");
+    MysqlClient cli2;
+
+    cli2.username("foo");
+    cli2.password("");
+
+    ASSERT_NO_ERROR(cli2.connect("127.0.0.1", router_port_));
+
+    // run it again without waiting to be pooled.
     {
-      auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      auto query_res = cli2.query(events_stmt);
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
 
+      // set_option increments as the connection comes from the stash and is
+      // reset.
       auto result = results.front();
       EXPECT_THAT(result,
-                  ElementsAre(ElementsAre("statement/sql/select", "3"),
-                              ElementsAre("statement/sql/set_option", "3")));
+                  ElementsAre(ElementsAre("statement/sql/select", "4"),
+                              ElementsAre("statement/sql/set_option", "2")));
+    }
+
+    SCOPED_TRACE(
+        "// [0] finds no connection on the stash and opens a new connection.");
+    {
+      auto query_res = cli.query(events_stmt);
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      // set_option is "1" as it is a new connect. No SELECT was run on it yet.
+      auto result = results.front();
+      EXPECT_THAT(result,
+                  ElementsAre(ElementsAre("statement/sql/set_option", "1")));
     }
   }
 
@@ -851,7 +979,13 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_large) {
 
   auto writer = config_writer(conf_dir_.name());
 
-  writer.section("connection_pool", {{"max_idle_server_connections", "1"}})
+  writer
+      .section(
+          "connection_pool",
+          {
+              // connection pool isn't needed as the connections are stashed.
+              {"max_idle_server_connections", "0"},
+          })
       .section(
           "routing:under_test",
           {
@@ -867,20 +1001,20 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_large) {
 
   auto &proc = router_spawner().spawn({"-c", writer.write()});
 
-  SCOPED_TRACE("// connect");
   {
+    SCOPED_TRACE("// [0] new connection");
     MysqlClient cli;
 
     cli.username("foo");
     cli.password("");
 
     auto connect_res = cli.connect("127.0.0.1", router_port_);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
-    // run it once
+    SCOPED_TRACE("// [0] query, old connection.");
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -891,12 +1025,10 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_large) {
                               ElementsAre("statement/sql/set_option", "1")));
     }
 
-    // run it again without waiting to be pooled.
-    //
-    // as the delay is large, the query will be sent before it is pooled.
+    SCOPED_TRACE("// [0] query, still old connection.");
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -904,6 +1036,42 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_large) {
       auto result = results.front();
       EXPECT_THAT(result,
                   ElementsAre(ElementsAre("statement/sql/select", "2"),
+                              ElementsAre("statement/sql/set_option", "1")));
+    }
+
+    SCOPED_TRACE("// [1] new connection, no sharing as sharing-delay is large");
+    MysqlClient cli2;
+
+    cli2.username("foo");
+    cli2.password("");
+
+    ASSERT_NO_ERROR(cli2.connect("127.0.0.1", router_port_));
+
+    // run it again without waiting to be pooled.
+    {
+      auto query_res = cli2.query(events_stmt);
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      auto result = results.front();
+      EXPECT_THAT(result,
+                  ElementsAre(ElementsAre("statement/sql/select", "1"),
+                              ElementsAre("statement/sql/set_option", "1")));
+    }
+
+    SCOPED_TRACE("// [0] got back our old connection.");
+    {
+      auto query_res = cli.query(events_stmt);
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      auto result = results.front();
+      EXPECT_THAT(result,
+                  ElementsAre(ElementsAre("statement/sql/select", "3"),
                               ElementsAre("statement/sql/set_option", "1")));
     }
   }
@@ -980,14 +1148,14 @@ TEST_F(RoutingSharingConfig, connection_sharing_per_route) {
     cli.password("");
 
     auto connect_res = cli.connect("127.0.0.1", router_port_);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
-    EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 10s));
+    EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 10s));
 
     // run it once
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -995,17 +1163,17 @@ TEST_F(RoutingSharingConfig, connection_sharing_per_route) {
       auto result = results.front();
       EXPECT_THAT(result,
                   ElementsAre(ElementsAre("statement/sql/select", "1"),
-                              ElementsAre("statement/sql/set_option", "2")));
+                              ElementsAre("statement/sql/set_option", "1")));
     }
 
-    EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 10s));
+    EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 10s));
 
     // run it again.
     //
     // if there is multiplexing, there will be some SET statements.
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -1013,7 +1181,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_per_route) {
       auto result = results.front();
       EXPECT_THAT(result,
                   ElementsAre(ElementsAre("statement/sql/select", "2"),
-                              ElementsAre("statement/sql/set_option", "3")));
+                              ElementsAre("statement/sql/set_option", "1")));
     }
   }
 
@@ -1025,12 +1193,12 @@ TEST_F(RoutingSharingConfig, connection_sharing_per_route) {
     cli.password("");
 
     auto connect_res = cli.connect("127.0.0.1", router_without_sharing_port);
-    ASSERT_TRUE(connect_res) << connect_res.error();
+    ASSERT_NO_ERROR(connect_res);
 
     // run it once
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -1044,7 +1212,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_per_route) {
     // if there is multiplexing, there will be some SET statements.
     {
       auto query_res = cli.query(events_stmt);
-      ASSERT_TRUE(query_res) << query_res.error();
+      ASSERT_NO_ERROR(query_res);
 
       auto results = result_as_vector(*query_res);
       ASSERT_THAT(results, ::testing::SizeIs(1));
@@ -1054,6 +1222,590 @@ TEST_F(RoutingSharingConfig, connection_sharing_per_route) {
                   ElementsAre(ElementsAre("statement/sql/select", "1")));
     }
   }
+
+  proc.send_clean_shutdown_event();
+}
+
+TEST_F(RoutingSharingConfig, connection_sharing_pool_before_stash) {
+  RecordProperty("Description",
+                 "Check that connections are first taken from the pool of "
+                 "server-side connections without a client-side connection and "
+                 "only if it is empty, taken from the stash of server-side "
+                 "connections _with_ a client-side connection.");
+  launch_mysql_server_mock(get_data_dir().join("sharing.js").str(),
+                           server_port_, EXIT_SUCCESS);
+
+  auto userfile = conf_dir_.file("userfile");
+  {
+    std::ofstream ofs(userfile);
+    // user:pass
+    ofs << "user:$5$Vh2PFa7xfiEyPgFW$gGRTa6Hr9mRGBpxm4ATyfrfIY5ghAnqa."
+           "YJgciRvb69";
+  }
+
+  auto writer = config_writer(conf_dir_.name());
+
+  writer
+      .section("connection_pool",
+               {
+                   // test needs a pool of 2
+                   {"max_idle_server_connections", "2"},
+               })
+      .section("rest_connection_pool",
+               {
+                   {"require_realm", "somerealm"},
+               })
+      .section("http_auth_realm:somerealm",
+               {
+                   {"backend", "somebackend"},
+                   {"method", "basic"},
+                   {"name", "some realm"},
+               })
+      .section("http_auth_backend:somebackend",
+               {
+                   {"backend", "file"},
+                   {"filename", userfile},
+               })
+      .section("http_server", {{"bind_address", "127.0.0.1"},
+                               {"port", std::to_string(rest_port_)}})
+      .section(
+          "routing:under_test",
+          {
+              {"bind_port", std::to_string(router_port_)},
+              {"protocol", "classic"},
+              {"destinations", "127.0.0.1:" + std::to_string(server_port_)},
+              {"routing_strategy", "round-robin"},
+              {"client_ssl_mode", "DISABLED"},
+              {"server_ssl_mode", "DISABLED"},
+              {"connection_sharing", "1"},
+              {"connection_sharing_delay", "0"},
+          });
+
+  auto &proc = router_spawner().spawn({"-c", writer.write()});
+
+  {
+    SCOPED_TRACE("// [0] new connection");
+    MysqlClient cli;
+
+    cli.username("foo");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_port_));
+    ASSERT_NO_ERROR(cli.query("SET @block_me = 1"));  // disable sharing.
+
+    SCOPED_TRACE("// [1] new connection");
+    MysqlClient cli2;
+
+    cli2.username("foo");
+    cli2.password("");
+
+    ASSERT_NO_ERROR(cli2.connect("127.0.0.1", router_port_));
+    ASSERT_NO_ERROR(cli2.query("SET @block_me = 1"));  // disable sharing.
+  }
+
+  SCOPED_TRACE("// wait until the connections are moved to the pool.");
+  EXPECT_NO_ERROR(wait_for_idle_server_connections(2, 1s));
+
+  {
+    SCOPED_TRACE("// [1] new connection");
+    MysqlClient cli;
+
+    cli.username("foo");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_port_));
+
+    // connection was taken from the pool
+    EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 1s));
+    // and stashed again.
+    EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 1s));
+
+    // when a new connection is needed, it should be taken
+    //
+    // * first from the pool
+    // * and then from the stash.
+    {
+      SCOPED_TRACE("// [2] new connection");
+      MysqlClient cli2;
+
+      cli.username("foo");
+      cli.password("");
+
+      ASSERT_NO_ERROR(cli2.connect("127.0.0.1", router_port_));
+
+      // connection was taken from the pool.
+      EXPECT_NO_ERROR(wait_for_idle_server_connections(0, 1s));
+
+      // and stashed again.
+      EXPECT_NO_ERROR(wait_for_stashed_server_connections(2, 1s));
+    }
+  }
+
+  proc.send_clean_shutdown_event();
+}
+
+TEST_F(RoutingSharingConfig, stashed_connection_is_moved_to_pool) {
+  RecordProperty("Description",
+                 "Check that stashed connections get moved to the pool when "
+                 "the client disconnections.");
+  launch_mysql_server_mock(get_data_dir().join("sharing.js").str(),
+                           server_port_, EXIT_SUCCESS);
+
+  auto userfile = conf_dir_.file("userfile");
+  {
+    std::ofstream ofs(userfile);
+    // user:pass
+    ofs << "user:$5$Vh2PFa7xfiEyPgFW$gGRTa6Hr9mRGBpxm4ATyfrfIY5ghAnqa."
+           "YJgciRvb69";
+  }
+
+  auto writer = config_writer(conf_dir_.name());
+
+  writer
+      .section("connection_pool",
+               {
+                   // test needs a pool of 1
+                   {"max_idle_server_connections", "1"},
+               })
+      .section("rest_connection_pool",
+               {
+                   {"require_realm", "somerealm"},
+               })
+      .section("http_auth_realm:somerealm",
+               {
+                   {"backend", "somebackend"},
+                   {"method", "basic"},
+                   {"name", "some realm"},
+               })
+      .section("http_auth_backend:somebackend",
+               {
+                   {"backend", "file"},
+                   {"filename", userfile},
+               })
+      .section("http_server", {{"bind_address", "127.0.0.1"},
+                               {"port", std::to_string(rest_port_)}})
+      .section(
+          "routing:under_test",
+          {
+              {"bind_port", std::to_string(router_port_)},
+              {"protocol", "classic"},
+              {"destinations", "127.0.0.1:" + std::to_string(server_port_)},
+              {"routing_strategy", "round-robin"},
+              {"client_ssl_mode", "DISABLED"},
+              {"server_ssl_mode", "DISABLED"},
+              {"connection_sharing", "1"},
+              {"connection_sharing_delay", "0"},
+          });
+
+  auto &proc = router_spawner().spawn({"-c", writer.write()});
+
+  {
+    SCOPED_TRACE("// [0] new connection");
+    MysqlClient cli;
+
+    cli.username("foo");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_port_));
+
+    EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 1s));
+    EXPECT_NO_ERROR(wait_for_idle_server_connections(0, 1s));
+  }
+
+  SCOPED_TRACE("// wait until the connections are moved to the pool.");
+  EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 1s));
+  EXPECT_NO_ERROR(wait_for_stashed_server_connections(0, 1s));
+
+  proc.send_clean_shutdown_event();
+}
+
+TEST_F(RoutingSharingConfig, pooled_ssl_and_non_ssl_dont_mix) {
+  RecordProperty(
+      "Description",
+      "Check that pooled connections SSL and non-SSL don't get shared.");
+  launch_mysql_server_mock(get_data_dir().join("sharing.js").str(),
+                           server_port_, EXIT_SUCCESS, false, 0, 0, "",
+                           "127.0.0.1", 30s, true  // ssl
+  );
+
+  auto userfile = conf_dir_.file("userfile");
+  {
+    std::ofstream ofs(userfile);
+    // user:pass
+    ofs << "user:$5$Vh2PFa7xfiEyPgFW$gGRTa6Hr9mRGBpxm4ATyfrfIY5ghAnqa."
+           "YJgciRvb69";
+  }
+
+  auto router_without_ssl_port = router_port_;
+  auto router_with_ssl_port = port_pool_.get_next_available();
+
+  auto writer = config_writer(conf_dir_.name());
+
+  writer
+      .section("connection_pool",
+               {
+                   // test needs a pool of 2
+                   {"max_idle_server_connections", "2"},
+               })
+      .section("rest_connection_pool",
+               {
+                   {"require_realm", "somerealm"},
+               })
+      .section("http_auth_realm:somerealm",
+               {
+                   {"backend", "somebackend"},
+                   {"method", "basic"},
+                   {"name", "some realm"},
+               })
+      .section("http_auth_backend:somebackend",
+               {
+                   {"backend", "file"},
+                   {"filename", userfile},
+               })
+      .section("http_server", {{"bind_address", "127.0.0.1"},
+                               {"port", std::to_string(rest_port_)}})
+      .section(
+          "routing:non_ssl",
+          {
+              {"bind_port", std::to_string(router_without_ssl_port)},
+              {"protocol", "classic"},
+              {"destinations", "127.0.0.1:" + std::to_string(server_port_)},
+              {"routing_strategy", "round-robin"},
+              {"client_ssl_mode", "DISABLED"},
+              {"server_ssl_mode", "DISABLED"},
+              {"connection_sharing", "1"},
+              {"connection_sharing_delay", "0"},
+          })
+      .section(
+          "routing:ssl",
+          {
+              {"bind_port", std::to_string(router_with_ssl_port)},
+              {"protocol", "classic"},
+              {"destinations", "127.0.0.1:" + std::to_string(server_port_)},
+              {"routing_strategy", "round-robin"},
+              {"client_ssl_mode", "DISABLED"},
+              {"server_ssl_mode", "REQUIRED"},
+              {"connection_sharing", "1"},
+              {"connection_sharing_delay", "0"},
+          })
+
+      ;
+
+  auto &proc = router_spawner().spawn({"-c", writer.write()});
+
+  {
+    SCOPED_TRACE("// [0] new connection (without-ssl)");
+    MysqlClient cli;
+
+    cli.username("foo");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_without_ssl_port));
+
+    // run it once
+    {
+      auto query_res = cli.query("show status like 'ssl_cipher'");
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      auto result = results.front();
+      EXPECT_THAT(result, ::testing::ElementsAre(
+                              ::testing::ElementsAre("Ssl_cipher", "")));
+    }
+
+    EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 1s));
+    EXPECT_NO_ERROR(wait_for_idle_server_connections(0, 1s));
+  }
+
+  SCOPED_TRACE("// wait until the connections are moved to the pool.");
+  EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 1s));
+  EXPECT_NO_ERROR(wait_for_stashed_server_connections(0, 1s));
+
+  {
+    SCOPED_TRACE("// [1] new connection (with-ssl)");
+    MysqlClient cli;
+
+    cli.username("foo");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_with_ssl_port));
+
+    // run it once
+    {
+      auto query_res = cli.query("show status like 'ssl_cipher'");
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      auto result = results.front();
+      EXPECT_THAT(result,
+                  ::testing::ElementsAre(::testing::ElementsAre(
+                      "Ssl_cipher", ::testing::Not(::testing::IsEmpty()))));
+    }
+
+    EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 1s));
+    EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 1s));  // not used.
+  }
+
+  EXPECT_NO_ERROR(wait_for_idle_server_connections(2, 1s));
+  EXPECT_NO_ERROR(wait_for_stashed_server_connections(0, 1s));
+
+  proc.send_clean_shutdown_event();
+}
+
+TEST_F(RoutingSharingConfig, stashed_ssl_and_non_ssl_dont_mix) {
+  RecordProperty(
+      "Description",
+      "Check that stashed connections SSL and non-SSL don't get shared.");
+  launch_mysql_server_mock(get_data_dir().join("sharing.js").str(),
+                           server_port_, EXIT_SUCCESS, false, 0, 0, "",
+                           "127.0.0.1", 30s, true  // ssl
+  );
+
+  auto userfile = conf_dir_.file("userfile");
+  {
+    std::ofstream ofs(userfile);
+    // user:pass
+    ofs << "user:$5$Vh2PFa7xfiEyPgFW$gGRTa6Hr9mRGBpxm4ATyfrfIY5ghAnqa."
+           "YJgciRvb69";
+  }
+
+  auto router_without_ssl_port = router_port_;
+  auto router_with_ssl_port = port_pool_.get_next_available();
+
+  auto writer = config_writer(conf_dir_.name());
+
+  writer
+      .section("connection_pool",
+               {
+                   // test needs a pool of 2
+                   {"max_idle_server_connections", "2"},
+               })
+      .section("rest_connection_pool",
+               {
+                   {"require_realm", "somerealm"},
+               })
+      .section("http_auth_realm:somerealm",
+               {
+                   {"backend", "somebackend"},
+                   {"method", "basic"},
+                   {"name", "some realm"},
+               })
+      .section("http_auth_backend:somebackend",
+               {
+                   {"backend", "file"},
+                   {"filename", userfile},
+               })
+      .section("http_server", {{"bind_address", "127.0.0.1"},
+                               {"port", std::to_string(rest_port_)}})
+      .section(
+          "routing:non_ssl",
+          {
+              {"bind_port", std::to_string(router_without_ssl_port)},
+              {"protocol", "classic"},
+              {"destinations", "127.0.0.1:" + std::to_string(server_port_)},
+              {"routing_strategy", "round-robin"},
+              {"client_ssl_mode", "DISABLED"},
+              {"server_ssl_mode", "DISABLED"},
+              {"connection_sharing", "1"},
+              {"connection_sharing_delay", "0"},
+          })
+      .section(
+          "routing:ssl",
+          {
+              {"bind_port", std::to_string(router_with_ssl_port)},
+              {"protocol", "classic"},
+              {"destinations", "127.0.0.1:" + std::to_string(server_port_)},
+              {"routing_strategy", "round-robin"},
+              {"client_ssl_mode", "DISABLED"},
+              {"server_ssl_mode", "REQUIRED"},
+              {"connection_sharing", "1"},
+              {"connection_sharing_delay", "0"},
+          })
+
+      ;
+
+  auto &proc = router_spawner().spawn({"-c", writer.write()});
+
+  {
+    SCOPED_TRACE("// [0] new connection (without-ssl)");
+    MysqlClient cli;
+
+    cli.username("foo");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_without_ssl_port));
+
+    // run it once
+    {
+      auto query_res = cli.query("show status like 'ssl_cipher'");
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      auto result = results.front();
+      EXPECT_THAT(result, ::testing::ElementsAre(
+                              ::testing::ElementsAre("Ssl_cipher", "")));
+    }
+
+    SCOPED_TRACE("// [0] check state before opening connection [1]");
+    EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 1s));
+    EXPECT_NO_ERROR(wait_for_idle_server_connections(0, 1s));
+
+    SCOPED_TRACE("// [1] new connection (with-ssl)");
+    MysqlClient cli2;
+
+    cli2.username("foo");
+    cli2.password("");
+
+    ASSERT_NO_ERROR(cli2.connect("127.0.0.1", router_with_ssl_port));
+
+    // run it once
+    {
+      auto query_res = cli2.query("show status like 'ssl_cipher'");
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      auto result = results.front();
+      EXPECT_THAT(result,
+                  ::testing::ElementsAre(::testing::ElementsAre(
+                      "Ssl_cipher", ::testing::Not(::testing::IsEmpty()))));
+    }
+
+    SCOPED_TRACE("// [1] check state before closing both connections");
+    EXPECT_NO_ERROR(
+        wait_for_stashed_server_connections(2, 1s));           // both stashed
+    EXPECT_NO_ERROR(wait_for_idle_server_connections(0, 1s));  // not used.
+  }
+
+  EXPECT_NO_ERROR(wait_for_idle_server_connections(2, 1s));
+  EXPECT_NO_ERROR(wait_for_stashed_server_connections(0, 1s));
+
+  proc.send_clean_shutdown_event();
+}
+
+TEST_F(RoutingSharingConfig, stashed_ssl_and_ssl) {
+  RecordProperty("Description",
+                 "Check that stashed connections SSL and SSL can share.");
+  launch_mysql_server_mock(get_data_dir().join("sharing.js").str(),
+                           server_port_, EXIT_SUCCESS, false, 0, 0, "",
+                           "127.0.0.1", 30s, true  // ssl
+  );
+
+  auto userfile = conf_dir_.file("userfile");
+  {
+    std::ofstream ofs(userfile);
+    // user:pass
+    ofs << "user:$5$Vh2PFa7xfiEyPgFW$gGRTa6Hr9mRGBpxm4ATyfrfIY5ghAnqa."
+           "YJgciRvb69";
+  }
+
+  auto router_with_ssl_port = router_port_;
+
+  auto writer = config_writer(conf_dir_.name());
+
+  writer
+      .section("connection_pool",
+               {
+                   // test needs a pool of 2
+                   {"max_idle_server_connections", "2"},
+               })
+      .section("rest_connection_pool",
+               {
+                   {"require_realm", "somerealm"},
+               })
+      .section("http_auth_realm:somerealm",
+               {
+                   {"backend", "somebackend"},
+                   {"method", "basic"},
+                   {"name", "some realm"},
+               })
+      .section("http_auth_backend:somebackend",
+               {
+                   {"backend", "file"},
+                   {"filename", userfile},
+               })
+      .section("http_server", {{"bind_address", "127.0.0.1"},
+                               {"port", std::to_string(rest_port_)}})
+      .section(
+          "routing:ssl",
+          {
+              {"bind_port", std::to_string(router_with_ssl_port)},
+              {"protocol", "classic"},
+              {"destinations", "127.0.0.1:" + std::to_string(server_port_)},
+              {"routing_strategy", "round-robin"},
+              {"client_ssl_mode", "DISABLED"},
+              {"server_ssl_mode", "REQUIRED"},
+              {"connection_sharing", "1"},
+              {"connection_sharing_delay", "0"},
+          })
+
+      ;
+
+  auto &proc = router_spawner().spawn({"-c", writer.write()});
+
+  {
+    SCOPED_TRACE("// [0] new connection (with-ssl)");
+    MysqlClient cli;
+
+    cli.username("foo");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_with_ssl_port));
+
+    // run it once
+    {
+      auto query_res = cli.query("show status like 'ssl_cipher'");
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      auto result = results.front();
+      EXPECT_THAT(result,
+                  ::testing::ElementsAre(::testing::ElementsAre(
+                      "Ssl_cipher", ::testing::Not(::testing::IsEmpty()))));
+    }
+
+    SCOPED_TRACE("// [0] check state before opening connection [1]");
+    EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 1s));
+    EXPECT_NO_ERROR(wait_for_idle_server_connections(0, 1s));
+
+    SCOPED_TRACE("// [1] new connection (with-ssl)");
+    MysqlClient cli2;
+
+    cli2.username("foo");
+    cli2.password("");
+
+    ASSERT_NO_ERROR(cli2.connect("127.0.0.1", router_with_ssl_port));
+
+    // run it once
+    {
+      auto query_res = cli2.query("show status like 'ssl_cipher'");
+      ASSERT_NO_ERROR(query_res);
+
+      auto results = result_as_vector(*query_res);
+      ASSERT_THAT(results, ::testing::SizeIs(1));
+
+      auto result = results.front();
+      EXPECT_THAT(result,
+                  ::testing::ElementsAre(::testing::ElementsAre(
+                      "Ssl_cipher", ::testing::Not(::testing::IsEmpty()))));
+    }
+
+    SCOPED_TRACE("// [1] check state before closing both connections");
+    EXPECT_NO_ERROR(wait_for_stashed_server_connections(1, 1s));  // stashed
+    EXPECT_NO_ERROR(wait_for_idle_server_connections(0, 1s));     // not used.
+  }
+
+  EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 1s));
+  EXPECT_NO_ERROR(wait_for_stashed_server_connections(0, 1s));
 
   proc.send_clean_shutdown_event();
 }

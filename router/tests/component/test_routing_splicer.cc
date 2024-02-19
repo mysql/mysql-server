@@ -41,11 +41,12 @@
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/string_utils.h"  // split_string
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/ssl_mode.h"
 #include "mysqlxclient.h"
 #include "mysqlxclient/xerror.h"
 #include "mysqlxclient/xsession.h"
 #include "plugin/x/client/mysqlxclient/xerror.h"
-#include "router/src/routing/src/ssl_mode.h"
+#include "router/src/routing/tests/mysql_client.h"
 #include "router_component_test.h"  // ProcessManager
 #include "router_component_testutils.h"
 

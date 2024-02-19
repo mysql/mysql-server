@@ -1,6 +1,7 @@
 var common_stmts = require("common_statements");
 
 var select_port = common_stmts.get("select_port");
+var router_show_cipher_status = common_stmts.get("router_show_cipher_status");
 
 var events = {};
 
@@ -17,7 +18,17 @@ function increment_event(event_name) {
 
 ({
   stmts: function(stmt) {
-    if (stmt === select_port.stmt) {
+    if (stmt == router_show_cipher_status.stmt) {
+      return {
+        "result": {
+          "columns": [
+            {"type": "STRING", "name": "Variable_name"},
+            {"type": "STRING", "name": "Value"}
+          ],
+          "rows": [["Ssl_cipher", mysqld.session.ssl_cipher]]
+        }
+      };
+    } else if (stmt === select_port.stmt) {
       increment_event(statement_sql_select);
 
       return select_port;
@@ -124,6 +135,10 @@ function increment_event(event_name) {
           ]
         }
       };
+    } else if (stmt === "SET @block_me = 1") {
+      increment_event(statement_sql_set_option);
+
+      return {ok: {}};
     } else {
       increment_event(statement_unknown_command);
 

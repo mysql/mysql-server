@@ -55,6 +55,40 @@ PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}/../../router/include/
 )
 
+## routing_connections is used by "routing" and "connection_pool"
+ADD_LIBRARY(routing_connections SHARED
+  channel.cc
+  )
+TARGET_LINK_LIBRARIES(routing_connections
+  PUBLIC
+  harness_stdx
+  harness_tls
+  mysql_protocol
+  )
+TARGET_INCLUDE_DIRECTORIES(routing_connections
+  PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
+  )
+SET_TARGET_PROPERTIES(routing_connections PROPERTIES
+  OUTPUT_NAME "mysqlrouter_routing_connections"
+  SOVERSION 1
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+INSTALL(TARGETS routing_connections
+  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
+  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  NAMELINK_SKIP
+  )
+ADD_INSTALL_RPATH_FOR_OPENSSL(routing_connections)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(routing_connections)
+
+GENERATE_EXPORT_HEADER(routing_connections
+  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/routing_connections_export.h)
+
 ADD_LIBRARY(routing SHARED
   mysql_routing.cc
   destination.cc
@@ -67,7 +101,6 @@ ADD_LIBRARY(routing SHARED
   mysql_routing_common.cc
   connection_container.cc
   routing_component.cc
-  channel.cc
   destination_ssl_context.cc
   classic_connection_base.cc
   classic_connection.cc
@@ -152,6 +185,7 @@ TARGET_LINK_LIBRARIES(routing
   harness_tls
   mysql_protocol
   router_lib
+  routing_connections
   router_mysqlxmessages
   routing_frontend_lib
   ext::libprotobuf-lite

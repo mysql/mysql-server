@@ -29,9 +29,9 @@
 #include <optional>
 #include <string>
 
-#include "channel.h"
 #include "classic_query_sender.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/channel.h"
 #include "mysqlrouter/classic_protocol_message.h"
 
 class RouterRequire {

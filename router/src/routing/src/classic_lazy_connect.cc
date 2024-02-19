@@ -223,6 +223,8 @@ class SelectSessionVariablesHandler : public QuerySender::Handler {
 
 stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
   switch (stage()) {
+    case Stage::FromStash:
+      return from_stash();
     case Stage::Connect:
       return connect();
     case Stage::Connected:
@@ -285,13 +287,67 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
   harness_assert_this_should_not_execute();
 }
 
+stdx::expected<Processor::Result, std::error_code> LazyConnector::from_stash() {
+  connection()->has_transient_error_at_connect(false);
+
+  trace_event_connect_ =
+      trace_span(parent_event_, "mysql/prepare_server_connection");
+
+  if (!connection()->server_conn().is_open() &&
+      !connection()->get_destination_id().empty()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::from_stash"));
+    }
+
+    auto &pool_comp = ConnectionPoolComponent::get_instance();
+
+    if (auto pool =
+            pool_comp.get(ConnectionPoolComponent::default_pool_name())) {
+      TraceEvent *trace_event_from_stash = nullptr;
+
+      if (auto *ev = trace_event_connect_) {
+        trace_event_from_stash = trace_span(ev, "mysql/from_stash");
+      }
+
+      if (auto pop_res = pool->unstash_mine(connection()->get_destination_id(),
+                                            connection())) {
+        connection()->server_conn() = std::move(*pop_res);
+
+        // reset the seq-id of the server side as this is a new command.
+        connection()->server_protocol().seq_id(0xff);
+
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage(
+              "connect::from_stash::unstashed::mine: fd=" +
+              std::to_string(connection()->server_conn().native_handle()) +
+              ", " + connection()->server_conn().endpoint()));
+        }
+
+        if (auto *ev = trace_event_from_stash) {
+          trace_set_connection_attributes(ev);
+          trace_span_end(ev);
+        }
+
+        stage(Stage::WaitGtidExecuted);
+        return Result::Again;
+      }
+
+      if (auto *ev = trace_event_from_stash) {
+        ev->attrs.emplace_back("mysql.error_message", "no match");
+        trace_span_end(ev, TraceEvent::StatusCode::kError);
+      }
+    }
+  }
+
+  stage(Stage::Connect);
+
+  return Result::Again;
+}
+
 stdx::expected<Processor::Result, std::error_code> LazyConnector::connect() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("connect::connect"));
   }
-
-  trace_event_connect_ =
-      trace_span(parent_event_, "mysql/prepare_server_connection");
 
   auto &server_conn = connection()->server_conn();
 
@@ -432,6 +488,8 @@ LazyConnector::authenticated() {
     if (retry_connect_) {
       retry_connect_ = false;
 
+      connection()->has_transient_error_at_connect(true);
+
       stage(Stage::Connect);
       connection()->connect_timer().expires_after(kConnectRetryInterval);
       connection()->connect_timer().async_wait([this](std::error_code ec) {
@@ -524,10 +582,12 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
   if (need_session_trackers) {
     set_session_var_if_not_set(stmt, sysvars, "session_track_gtids",
                                Value("OWN_GTID"));
-    set_session_var_if_not_set(stmt, sysvars, "session_track_transaction_info",
-                               Value("CHARACTERISTICS"));
+    set_session_var_if_not_set(stmt, sysvars, "session_track_schema",
+                               Value("ON"));
     set_session_var_if_not_set(stmt, sysvars, "session_track_state_change",
                                Value("ON"));
+    set_session_var_if_not_set(stmt, sysvars, "session_track_transaction_info",
+                               Value("CHARACTERISTICS"));
   }
 
   if (!stmt.empty()) {
@@ -794,6 +854,9 @@ stdx::expected<Processor::Result, std::error_code>
 LazyConnector::pool_or_close() {
   stage(Stage::FallbackToWrite);
 
+#if 1
+  connection()->stash_server_conn();
+#else
   const auto pool_res = pool_server_connection();
   if (!pool_res) return stdx::unexpected(pool_res.error());
 
@@ -811,6 +874,7 @@ LazyConnector::pool_or_close() {
 
     connection()->push_processor(std::make_unique<QuitSender>(connection()));
   }
+#endif
 
   return Result::Again;
 }
@@ -842,7 +906,7 @@ LazyConnector::fallback_to_write() {
   // the fallback will create a new trace-event
   trace_span_end(trace_event_connect_);
 
-  stage(Stage::Connect);
+  stage(Stage::FromStash);
   return Result::Again;
 }
 

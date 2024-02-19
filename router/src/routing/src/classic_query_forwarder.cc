@@ -27,6 +27,7 @@
 
 #include <charconv>
 #include <chrono>
+#include <exception>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -1590,8 +1591,6 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
       return explicit_commit_done();
     case Stage::ClassifyQuery:
       return classify_query();
-    case Stage::PoolBackend:
-      return pool_backend();
     case Stage::SwitchBackend:
       return switch_backend();
     case Stage::PrepareBackend:
@@ -2499,37 +2498,11 @@ QueryForwarder::classify_query() {
           want_read_only_connection ? mysqlrouter::ServerMode::ReadOnly
                                     : mysqlrouter::ServerMode::ReadWrite);
 
-      if (connection()->server_conn().is_open()) {
-        // as the connection will be switched, get rid of this connection.
-        stage(Stage::PoolBackend);
-      }
+      // as the connection will be switched, get rid of this connection.
+      connection()->stash_server_conn();
+
+      stage(Stage::SwitchBackend);
     }
-  }
-
-  return Result::Again;
-}
-
-// pool the current server connection.
-stdx::expected<Processor::Result, std::error_code>
-QueryForwarder::pool_backend() {
-  stage(Stage::SwitchBackend);
-
-  auto pooled_res = pool_server_connection();
-  if (!pooled_res) return send_server_failed(pooled_res.error());
-
-  const auto pooled = *pooled_res;
-
-  if (pooled) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("query::switch_backend::pooled"));
-    }
-  } else {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("query::switch_backend::full"));
-    }
-
-    // as the pool is full, close the server connection nicely.
-    connection()->push_processor(std::make_unique<QuitSender>(connection()));
   }
 
   return Result::Again;
@@ -2538,24 +2511,14 @@ QueryForwarder::pool_backend() {
 // switch to the new backend.
 stdx::expected<Processor::Result, std::error_code>
 QueryForwarder::switch_backend() {
-  // toggle the read-only state.
-  // and connect to the backend again.
   stage(Stage::PrepareBackend);
 
-  // server socket is closed, reset its state.
-  auto ssl_mode = connection()->server_conn().ssl_mode();
-  connection()->server_conn() =
-      TlsSwitchableConnection{nullptr,  // connection
-                              ssl_mode,
-                              MysqlRoutingClassicConnectionBase::
-                                  ServerSideConnection::protocol_state_type()};
   return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>
 QueryForwarder::prepare_backend() {
-  auto &server_conn = connection()->server_conn();
-  if (!server_conn.is_open()) {
+  if (!connection()->server_conn().is_open()) {
     stage(Stage::Connect);
   } else {
     trace_event_forward_command_ =
@@ -2568,7 +2531,12 @@ QueryForwarder::prepare_backend() {
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::connect() {
   if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("query::connect"));
+    tr.trace(Tracer::Event().stage(
+        "query::connect: " +
+        std::string(connection()->expected_server_mode() ==
+                            mysqlrouter::ServerMode::ReadOnly
+                        ? "ro"
+                        : "rw-or-nothing")));
   }
 
   stage(Stage::Connected);

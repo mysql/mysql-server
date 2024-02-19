@@ -139,7 +139,10 @@ add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
                       ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
-  INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/plugin/x/client/
+  INCLUDE_DIRS
+  ${CMAKE_SOURCE_DIR}/plugin/x/client/
+  $<TARGET_PROPERTY:routing_connections,INCLUDE_DIRECTORIES>
+
   LIB_DEPENDS
   mysqlxclient_lite
   mysqlxmessages_lite

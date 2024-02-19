@@ -35,12 +35,13 @@
 #include <utility>
 
 #include "basic_protocol_splicer.h"
-#include "channel.h"  // Channel, ClassicProtocolState
-#include "classic_protocol_state.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
+#include "mysqlrouter/channel.h"  // Channel, ClassicProtocolState
 #include "mysqlrouter/classic_protocol_session_track.h"
+#include "mysqlrouter/classic_protocol_state.h"
+#include "mysqlrouter/connection_pool_component.h"
 #include "processor.h"
 #include "tracer.h"
 
@@ -474,7 +475,18 @@ void MysqlRoutingClassicConnectionBase::finish() {
 // final state.
 //
 // removes the connection from the connection-container.
-void MysqlRoutingClassicConnectionBase::done() { this->disassociate(); }
+void MysqlRoutingClassicConnectionBase::done() {
+  auto &pool_comp = ConnectionPoolComponent::get_instance();
+  auto pool = pool_comp.get(ConnectionPoolComponent::default_pool_name());
+
+  if (pool) {
+    // if the connection is in the pool, remove it from the pool.
+
+    pool->discard_all_stashed(this);
+  }
+
+  this->disassociate();
+}
 
 stdx::expected<void, std::error_code>
 MysqlRoutingClassicConnectionBase::track_session_changes(
@@ -999,6 +1011,9 @@ void MysqlRoutingClassicConnectionBase::reset_to_initial() {
   // clear the warnings
   execution_context().diagnostics_area().warnings().clear();
 
+  // clear the tracked-system-vars like sql_mode, ...
+  execution_context().system_variables().clear();
+
   // clear the prepared statements.
   src_protocol.prepared_statements().clear();
 
@@ -1009,13 +1024,33 @@ void MysqlRoutingClassicConnectionBase::reset_to_initial() {
   src_protocol.trace_commands(false);
   events().active(false);
 
-  // reset the sticky read-only backend.
-  read_only_destination_id({});
-
   // reset to initial values.
   src_protocol.gtid_executed({});
 
   src_protocol.wait_for_my_writes(context().wait_for_my_writes());
   src_protocol.wait_for_my_writes_timeout(
       context().wait_for_my_writes_timeout());
+
+  diagnostic_area_changed(false);
+}
+
+void MysqlRoutingClassicConnectionBase::stash_server_conn() {
+  auto &pool_comp = ConnectionPoolComponent::get_instance();
+  auto pool = pool_comp.get(ConnectionPoolComponent::default_pool_name());
+
+  if (pool && server_conn().is_open()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage(
+          "pool::stashed: fd=" + std::to_string(server_conn().native_handle()) +
+          ", " + server_conn().endpoint()));
+    }
+
+    auto ssl_mode = server_conn().ssl_mode();
+
+    pool->stash(std::exchange(server_conn(),
+                              TlsSwitchableConnection{
+                                  nullptr, ssl_mode,
+                                  ServerSideConnection::protocol_state_type{}}),
+                this, context().connection_sharing_delay());
+  }
 }
