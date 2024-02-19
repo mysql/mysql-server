@@ -4,6 +4,22 @@
 # SET GTID_NEXT=AUTOMATIC:<tag> command on the source and correct replication
 # of executed transactions
 #
+# ==== REQUIREMENTS ====
+#
+# User shall be able to provide a tag of transaction GTID for the current
+#   session by execution of the SET GTID_NEXT command.
+#
+# Server shall accept transaction tag in one of the following formats:
+#   a) <UUID>:<TAG>:<NUMBER>
+#   b) AUTOMATIC:<TAG>
+#
+# System shall accept TAGS in the format in line with the following
+#   regular expression: ^[a-zA-Z_][a-zA-Z0-9_]{0,31}$ (case insensitive)
+#
+# Text representation of the GTID shall be one of the following:
+#  * UUID:GNO (empty tag)
+#  * UUID:Tag:GNO (with a tag assigned by the user)
+#
 # ==== IMPLEMENTATION ====
 #
 # This test is to validate correct execution of the
@@ -27,22 +43,48 @@
 #        with specified tag
 #     8. Pass condition 4: No errors in execution (checked automatically)
 #
+# Below test is to validate correct parsing and printing of the GTID_NEXT
+# session variable when it is set to AUTOMATIC:<tag>.
+#
+# T2.
+#     Test steps:
+#
+#     1. Execute several SET GTID_NEXT commands with an AUTOMATIC,
+#        incorrectly tagged GTID
+#     2. Check Pass condition 2:
+#          commands return the ER_MALFORMED_GTID_SPECIFICATION error
+#     3. Execute SET GTID_NEXT command with an AUTOMATIC,
+#        correctly tagged GTID
+#     4. SELECT GTID_NEXT value
+#     5. Check that the value printed is correct
+#
+#     Test pass conditions:
+#
+#    - step 2
+#    - step 5
+#
 # ==== REFERENCES ====
 #
 # WL#15294 Extending GTID with tags to identify group of transactions
 #          Steps 2 and 3
 #
+# Bug#36308318 GTID_NEXT accepts Invalid value and also select shows wrong value
+#
 
 --source include/rpl/init_source_replica.inc
 --let $server_uuid = `SELECT @@server_uuid`
 
+--echo
+--echo # --------------------------TEST CASE 1----------------------------------
+--echo
+
 --source common/rpl/gtid_tag.inc
 
---echo #
+--echo
 --echo # 5. On the replica: Check pass condition 1:
 --echo #    There should be 1 transaction with a specified UUID and
 --echo #    specified tag in the gtid_executed global variable
---echo #
+--echo
 
 --source include/rpl/connection_replica.inc
 
@@ -50,21 +92,21 @@
 --let $assert_text= Ensure that executed transactions with specified tag and uuid are present in gtid_executed global variable
 --source include/assert.inc
 
---echo #
+--echo
 --echo # 6. On the replica: Check pass condition 2:
 --echo #    There should be 1 transaction with the server UUID and
 --echo #    specified tag in the gtid_executed global variable
---echo #
+--echo
 
 --let $assert_cond= [SELECT GTID_SUBSET("$server_uuid:aa:1", @@GLOBAL.GTID_EXECUTED)] = 1
 --let $assert_text= Ensure that executed transactions with specified tag and automatic uuid are present in gtid_executed global variable
 --source include/assert.inc
 
---echo #
+--echo
 --echo # 7. On the replica: Check pass condition 3:
 --echo #    There should be exactly 2 transactions in
 --echo #    binlog file with specified tag
---echo #
+--echo
 
 --let $binlog_file=query_get_value("SHOW BINARY LOG STATUS",File,1)
 --let $mysqld_datadir= `select @@datadir`
@@ -80,9 +122,45 @@
 --let $assert_count = 2
 --source include/assert_grep.inc
 
---echo #
---echo # Clean-up
---echo #
+--echo
+--echo # --------------------------TEST CASE 2----------------------------------
+--echo
 
+--echo
+--echo # 1. Execute several SET GTID_NEXT commands with an AUTOMATIC,
+--echo #    incorrectly tagged GTID
+--echo # 2. Check Pass condition 2:
+--echo #    commands return the ER_MALFORMED_GTID_SPECIFICATION error
+--echo
+
+--source include/rpl/connection_source.inc
+
+--error ER_MALFORMED_GTID_SPECIFICATION
+SET GTID_NEXT= "AUTOMATIC:Taggy_tag:3";
+
+--error ER_MALFORMED_GTID_SPECIFICATION
+SET GTID_NEXT= "AUTOMATIC:Taggy_tag,";
+
+--error ER_MALFORMED_GTID_SPECIFICATION
+SET GTID_NEXT= "AUTOMATIC:Taggy_tag:";
+
+--error ER_MALFORMED_GTID_SPECIFICATION
+SET GTID_NEXT= "AUTOMATIC:Tag_tag_tag_tag_tag_tag_tag_tag_a";
+
+--echo
+--echo # 3. Execute SET GTID_NEXT command with an AUTOMATIC,
+--echo #    correctly tagged GTID
+--echo # 4. SELECT GTID_NEXT value
+--echo # 5. Check that values printed are correct
+--echo
+
+SET GTID_NEXT= "AUTOMATIC:Tag_tag_tag_tag_tag_tag_tag_tag_";
+SELECT @@SESSION.GTID_NEXT;
+
+--echo
+--echo # Clean-up
+--echo
+
+SET GTID_NEXT= "AUTOMATIC";
 --remove_file $output_file
 --source include/rpl/deinit.inc
