@@ -41,7 +41,7 @@
 #include <mysql.h>
 #include <signal.h>
 #include <unistd.h>
-#include "../../../client/client_priv.h"
+#include "client/include/client_priv.h"
 #include "map_helpers.h"
 #include "my_default.h"
 #include "my_getopt.h"
