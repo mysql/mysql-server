@@ -208,6 +208,7 @@ void SharedServer::spawn_server_with_datadir(
       "--gtid_mode=ON",                   // group-replication
       "--enforce_gtid_consistency=ON",    //
       "--relay-log=relay-log",
+      "--require-secure-transport=OFF",  // for testing server_ssl_mode=DISABLED
   };
 
   for (const auto &arg : extra_args) {
