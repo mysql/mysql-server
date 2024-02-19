@@ -47,6 +47,7 @@ class PreConnector {  // helper class used to exchange QP information using TCP/
     serv_addr.sin_port = htons(port);
     int on = 1;
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+    // [pre_connector.hpp:51] Assertion! ERROR on binding: Address already in use
     RDMA_ASSERT(bind(sockfd, (struct sockaddr*) &serv_addr,
                      sizeof(serv_addr)) == 0)
       << "ERROR on binding: " << strerror(errno);

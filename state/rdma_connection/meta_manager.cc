@@ -8,7 +8,8 @@ MetaManager* MetaManager::global_meta_mgr = nullptr;
  * In MetaManager(), we need to init the remote node meta_info
 */
 MetaManager::MetaManager() {
-  std::string config_path = "../config/compute_node_config.json";
+  // std::string config_path = "../config/compute_node_config.json";
+  std::string config_path = "/mysql8/config/compute_node_config.json";
   cJSON* cjson = parse_json_file(config_path);
   cJSON* local_node = cJSON_GetObjectItem(cjson, "local_compute_node");
   local_machine_id = (node_id_t)cJSON_GetObjectItem(local_node, "machine_id")->valueint;

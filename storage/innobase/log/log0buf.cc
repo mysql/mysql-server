@@ -1025,7 +1025,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
      *
      *  TODO: 不知道怎么让所有 log 共享同一个写 remote buffer 的线程
      */
-
+/*
     // TODO: 正常还需要使用完后调用destroy_internal_thd销毁线程，暂时先不管了
     if (log.m_remote_buf_thd == nullptr) {
       log.m_remote_buf_thd = create_internal_thd();
@@ -1127,6 +1127,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       destroy_internal_thd(log.m_remote_buf_thd);
     }
     
+  */
+
     // 状态分离部分截止，下面为原有逻辑
 
     ut_a(len <= str_len);
