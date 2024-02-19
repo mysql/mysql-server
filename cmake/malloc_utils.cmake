@@ -40,6 +40,10 @@ FUNCTION(WARN_MISSING_SYSTEM_JEMALLOC)
 ENDFUNCTION()
 
 FUNCTION(FIND_MALLOC_LIBRARY library_name)
+  # Skip system tcmalloc, and build the bundled version instead.
+  IF(WITH_TCMALLOC STREQUAL "bundled")
+    RETURN()
+  ENDIF()
   FIND_LIBRARY(MALLOC_LIBRARY ${library_name})
   IF(NOT MALLOC_LIBRARY)
     IF(library_name MATCHES "tcmalloc")
