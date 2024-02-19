@@ -83,6 +83,7 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     EXCLUDE_FROM_ALL   # add target, but do not build it by default
     EXCLUDE_FROM_PGO   # add target, but do not build for FPROFILE_GENERATE
     SKIP_INSTALL       # do not install it
+    SKIP_TCMALLOC      # do not link with tcmalloc
     )
   SET(EXECUTABLE_ONE_VALUE_KW
     ADD_TEST           # add unit test, sets SKIP_INSTALL
@@ -131,6 +132,19 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
 
   ADD_EXECUTABLE(${target} ${sources})
   TARGET_COMPILE_FEATURES(${target} PUBLIC cxx_std_20)
+
+  IF(TARGET my_tcmalloc)
+    IF(ARG_SKIP_TCMALLOC OR target MATCHES "^rpd")
+      # nothing, use glibc malloc/free
+    ELSE()
+      IF(WITH_VALGRIND)
+        TARGET_LINK_LIBRARIES(${target} my_tcmalloc_debug)
+      ELSE()
+        TARGET_LINK_LIBRARIES(${target} my_tcmalloc)
+      ENDIF()
+      ADD_INSTALL_RPATH(${target} "\$ORIGIN/../${INSTALL_PRIV_LIBDIR}")
+    ENDIF()
+  ENDIF()
 
   SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
 
