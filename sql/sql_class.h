@@ -111,9 +111,9 @@
 #include "thr_lock.h"
 #include "violite.h"
 
-#include "state/coroutine_scheduler/coroutine_scheduler.h"
-#include "state/allocator/log_offset_allocator.h"
 #include "state/allocator/buffer_allocator.h"
+#include "state/allocator/log_offset_allocator.h"
+#include "state/coroutine_scheduler/coroutine_scheduler.h"
 #include "state/rdma_connection/qp_manager.h"
 
 enum enum_check_fields : int;
@@ -950,12 +950,12 @@ class THD : public MDL_context_owner,
   MDL_context mdl_context;
 
   /* @StateReplicate: add a coroutine scheduler to manage the RDMA operation
-  */
-  CoroutineScheduler* coro_sched;
-  RDMABufferAllocator* rdma_buffer_allocator;
-  LogOffsetAllocator* log_offset_allocator;
-  QPManager* qp_manager;
-  
+   */
+  CoroutineScheduler *coro_sched;
+  RDMABufferAllocator *rdma_buffer_allocator;
+  LogOffsetAllocator *log_offset_allocator;
+  QPManager *qp_manager;
+  bool rdma_allocated_ = false;
 
   /**
     MARK_COLUMNS_NONE:  Means mark_used_columns is not set and no indicator to
@@ -1377,8 +1377,7 @@ class THD : public MDL_context_owner,
     /// Asserts that current_thd has locked this plan, if it does not own it.
     void assert_plan_is_locked_if_other() const
 #ifdef NDEBUG
-    {
-    }
+        {}
 #else
         ;
 #endif
@@ -1388,7 +1387,8 @@ class THD : public MDL_context_owner,
           sql_command(SQLCOM_END),
           lex(nullptr),
           modification_plan(nullptr),
-          is_ps(false) {}
+          is_ps(false) {
+    }
 
     /**
       Set query plan.
