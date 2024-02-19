@@ -1160,7 +1160,7 @@ class Gtid_event : public Binary_log_event,
         mysql::serialization::define_field(immediate_commit_timestamp),
         mysql::serialization::define_field(
             original_commit_timestamp, Field_encode_predicate([this]() -> bool {
-              return this->original_commit_timestamp ==
+              return this->original_commit_timestamp !=
                      this->immediate_commit_timestamp;
             })),
         mysql::serialization::define_field(transaction_length),
