@@ -3,6 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+
+# --------------------------TEST CASE 1----------------------------------
+
 [connection master]
 
 # 1. Execute one transaction with specified UUID and
@@ -27,26 +30,55 @@ INSERT INTO t1 VALUES (2);
 SET GTID_NEXT= "AUTOMATIC:aa";
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-#
+
 # 5. On the replica: Check pass condition 1:
 #    There should be 1 transaction with a specified UUID and
 #    specified tag in the gtid_executed global variable
-#
+
 [connection slave]
 include/assert.inc [Ensure that executed transactions with specified tag and uuid are present in gtid_executed global variable]
-#
+
 # 6. On the replica: Check pass condition 2:
 #    There should be 1 transaction with the server UUID and
 #    specified tag in the gtid_executed global variable
-#
+
 include/assert.inc [Ensure that executed transactions with specified tag and automatic uuid are present in gtid_executed global variable]
-#
+
 # 7. On the replica: Check pass condition 3:
 #    There should be exactly 2 transactions in
 #    binlog file with specified tag
-#
+
 include/assert_grep.inc [Check that the number of generated GTIDs with a tag matches the number of executed transactions]
-#
+
+# --------------------------TEST CASE 2----------------------------------
+
+
+# 1. Execute several SET GTID_NEXT commands with an AUTOMATIC,
+#    incorrectly tagged GTID
+# 2. Check Pass condition 2:
+#    commands return the ER_MALFORMED_GTID_SPECIFICATION error
+
+[connection master]
+SET GTID_NEXT= "AUTOMATIC:Taggy_tag:3";
+ERROR HY000: Malformed GTID specification 'AUTOMATIC:Taggy_tag:3'.
+SET GTID_NEXT= "AUTOMATIC:Taggy_tag,";
+ERROR HY000: Malformed GTID specification 'AUTOMATIC:Taggy_tag,'.
+SET GTID_NEXT= "AUTOMATIC:Taggy_tag:";
+ERROR HY000: Malformed GTID specification 'AUTOMATIC:Taggy_tag:'.
+SET GTID_NEXT= "AUTOMATIC:Tag_tag_tag_tag_tag_tag_tag_tag_a";
+ERROR HY000: Malformed GTID specification 'AUTOMATIC:Tag_tag_tag_tag_tag_tag_tag_tag_a'.
+
+# 3. Execute SET GTID_NEXT command with an AUTOMATIC,
+#    correctly tagged GTID
+# 4. SELECT GTID_NEXT value
+# 5. Check that values printed are correct
+
+SET GTID_NEXT= "AUTOMATIC:Tag_tag_tag_tag_tag_tag_tag_tag_";
+SELECT @@SESSION.GTID_NEXT;
+@@SESSION.GTID_NEXT
+AUTOMATIC:tag_tag_tag_tag_tag_tag_tag_tag_
+
 # Clean-up
-#
+
+SET GTID_NEXT= "AUTOMATIC";
 include/rpl_end.inc
