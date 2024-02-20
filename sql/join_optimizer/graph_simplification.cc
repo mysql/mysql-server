@@ -673,10 +673,15 @@ bool GraphSimplifier::EdgesAreNeighboring(
 
   const JoinPredicate &j1 = m_graph->edges[edge1_idx];
   const JoinPredicate &j2 = m_graph->edges[edge2_idx];
-  const double e1l = m_edge_cardinalities[edge1_idx].left;
-  const double e1r = m_edge_cardinalities[edge1_idx].right;
-  const double e2l = m_edge_cardinalities[edge2_idx].left;
-  const double e2r = m_edge_cardinalities[edge2_idx].right;
+
+  // Get the cardinality of the left and right side of each edge. Make sure all
+  // the cardinalities are at least 0.1 rows just to avoid problems with
+  // division by zero when calculating the ratio between the cost estimates at
+  // the end of the function.
+  const double e1l = max(0.1, m_edge_cardinalities[edge1_idx].left);
+  const double e1r = max(0.1, m_edge_cardinalities[edge1_idx].right);
+  const double e2l = max(0.1, m_edge_cardinalities[edge2_idx].left);
+  const double e2r = max(0.1, m_edge_cardinalities[edge2_idx].right);
 
   double cost_e1_before_e2;
   double cost_e2_before_e1;

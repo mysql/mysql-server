@@ -1364,3 +1364,15 @@ FROM t AS t1 LEFT JOIN t AS t2 ON 1,
 WHERE t3.i < 10 AND t1.a = t3.i;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36098954: Assertion GraphSimplifier::EdgesAreNeighboring
+--echo #               failed with hypergraph_optimizer
+--echo #
+
+CREATE TABLE t(x INT);
+SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ 1
+FROM t WHERE x IN (
+  SELECT NULL FROM t AS t1, t AS t2 STRAIGHT_JOIN t AS t3 ON t2.x = t3.x
+) OR x = 1;
+DROP TABLE t;
