@@ -623,7 +623,9 @@ void BuildInterestingOrders(
     for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {
       // NOTE: visible_index claims to contain “visible and enabled” indexes,
       // but we still need to check keys_in_use to ignore disabled indexes.
-      if (!table->keys_in_use_for_query.is_set(key_idx)) {
+      if (!table->keys_in_use_for_query.is_set(key_idx) &&
+          !table->keys_in_use_for_order_by.is_set(key_idx) &&
+          !table->keys_in_use_for_group_by.is_set(key_idx)) {
         continue;
       }
       if (Overlaps(table->key_info[key_idx].flags, HA_SPATIAL)) {

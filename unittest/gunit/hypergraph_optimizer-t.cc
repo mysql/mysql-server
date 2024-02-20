@@ -215,6 +215,8 @@ int CreateOrderedIndex(std::initializer_list<Field *> columns,
   assert(!empty(columns));
   Fake_TABLE *table = pointer_cast<Fake_TABLE *>((*columns.begin())->table);
   const int index = table->create_index(columns, key_flags);
+  table->keys_in_use_for_order_by.set_bit(index);
+  table->keys_in_use_for_group_by.set_bit(index);
   ON_CALL(*down_cast<Mock_HANDLER *>(table->file), index_flags(index, _, _))
       .WillByDefault(
           Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));

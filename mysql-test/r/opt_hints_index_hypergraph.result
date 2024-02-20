@@ -57,19 +57,19 @@ Warnings:
 Warning	3126	Hint ORDER_INDEX(`t1` ) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+  ORDER_INDEX(t1 i_a, i_b) ORDER_INDEX(t1 i_b) INDEX(t1 i_c)*/ a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint ORDER_INDEX(`t1`  `i_b`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+  ORDER_INDEX(t1 i_a, i_b) GROUP_INDEX(t1 i_b) INDEX(t1)*/ a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint INDEX(`t1` ) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+  ORDER_INDEX(t1) GROUP_INDEX(t1) INDEX(t1)*/ a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 Warnings:
 Warning	3126	Hint INDEX(`t1` ) is ignored as conflicting/duplicated
@@ -104,9 +104,8 @@ EXPLAIN
 
 EXPLAIN SELECT /*+ GROUP_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>  (rows=8)
-    -> Aggregate using temporary table  (rows=8)
-        -> Table scan on t1  (rows=256)
+-> Group aggregate: max(t1.b)  (rows=8)
+    -> Covering index scan on t1 using i_ab  (rows=256)
 
 EXPLAIN SELECT /*+ JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 EXPLAIN
@@ -120,25 +119,23 @@ EXPLAIN
 EXPLAIN SELECT /*+ NO_ORDER_INDEX(t1 i_a) */ a FROM t1
 ORDER BY a;
 EXPLAIN
--> Covering index scan on t1 using i_a  (rows=256)
+-> Sort: t1.a  (rows=256)
+    -> Table scan on t1  (rows=256)
 
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_ab) */ a FROM t1
 ORDER BY a;
 EXPLAIN
--> Sort: t1.a  (rows=256)
-    -> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_ab  (rows=256)
 
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ a FROM t1
 ORDER BY a;
 EXPLAIN
--> Sort: t1.a  (rows=256)
-    -> Table scan on t1  (rows=256)
+-> Covering index scan on t1 using i_a  (rows=256)
 
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ * FROM t1
 ORDER BY a;
 EXPLAIN
--> Sort: t1.a  (rows=256)
-    -> Table scan on t1  (rows=256)
+-> Index scan on t1 using i_a  (rows=256)
 
 EXPLAIN SELECT /*+ NO_INDEX(t1) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
@@ -227,3 +224,26 @@ CREATE VIEW v3 AS SELECT /*+ INDEX_MERGE(t1) */a FROM t1
 WHERE a = 1 AND b = 2 AND c = 3;
 DROP VIEW v1, v2, v3;
 DROP TABLE t1;
+CREATE TABLE t(
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+x VARCHAR(20), FULLTEXT (x)
+);
+INSERT INTO t(x) VALUES ('abc'), ('def'), ('abc def'), ('abc abc');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT /*+ NO_ORDER_INDEX(t x) */
+FTS_DOC_ID, MATCH (x) AGAINST ('abc') AS m FROM t
+WHERE MATCH (x) AGAINST ('abc')
+ORDER BY MATCH (x) AGAINST ('abc') DESC;
+EXPLAIN
+-> Full-text covering index search on t using x (x='abc')  (rows=0.444)
+
+EXPLAIN SELECT /*+ ORDER_INDEX(t x) */
+FTS_DOC_ID, MATCH (x) AGAINST ('abc') AS m FROM t
+WHERE MATCH (x) AGAINST ('abc')
+ORDER BY MATCH (x) AGAINST ('abc') DESC;
+EXPLAIN
+-> Full-text covering index search on t using x (x='abc')  (rows=0.444)
+
+DROP TABLE t;

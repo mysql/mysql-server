@@ -1064,7 +1064,9 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       return true;
     }
   }
-  if (!table->force_index || !found_index_scan) {
+  if (!(table->force_index || table->force_index_order ||
+        table->force_index_group) ||
+      !found_index_scan) {
     if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate)) {
       return true;
     }
@@ -3634,7 +3636,7 @@ bool CostingReceiver::ProposeFullTextIndexScan(
   const LogicalOrderings::StateIndex ordering_state =
       m_orderings->SetOrder(ordering_idx);
 
-  const bool use_order = ordering_state != 0;
+  const bool use_order = (ordering_state != 0);
 
   AccessPath *path = NewFullTextSearchAccessPath(
       m_thd, table, ref, match, use_order,
@@ -7006,6 +7008,33 @@ AccessPathArray ApplyDistinctParameters::ApplyDistinct() const {
   return new_root_candidates;
 }
 
+// Checks if the ORDER_INDEX/GROUP_INDEX hints are honoured.
+bool ObeysIndexOrderHints(AccessPath *root_path, JOIN *join, bool grouping) {
+  bool use_candidate = true;
+  WalkAccessPaths(
+      root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [&use_candidate, grouping](AccessPath *path, JOIN *) {
+        uint key_idx = 0;
+        TABLE *table = nullptr;
+        if (path->type == AccessPath::INDEX_SCAN) {
+          key_idx = path->index_scan().idx;
+          table = path->index_scan().table;
+        } else if (path->type == AccessPath::INDEX_DISTANCE_SCAN) {
+          key_idx = path->index_distance_scan().idx;
+          table = path->index_distance_scan().table;
+        }
+        if (table != nullptr &&
+            ((grouping && !table->keys_in_use_for_group_by.is_set(key_idx)) ||
+             (!grouping && !table->keys_in_use_for_order_by.is_set(key_idx)))) {
+          use_candidate = false;
+          return true;
+        }
+        return false;
+      },
+      /*post_order_traversal=*/true);
+  return use_candidate;
+}
+
 /**
    Apply the ORDER BY clause. For each of 'root_candidates' add a
    parent sort path if the candidate does not have the right order
@@ -7046,8 +7075,10 @@ AccessPathArray ApplyOrderBy(THD *thd, const CostingReceiver &receiver,
   for (AccessPath *root_path : root_candidates) {
     // No sort is needed if the candidate already follows the
     // required ordering.
-    const bool sort_needed{!orderings.DoesFollowOrder(root_path->ordering_state,
-                                                      order_by_ordering_idx)};
+    const bool sort_needed =
+        !(orderings.DoesFollowOrder(root_path->ordering_state,
+                                    order_by_ordering_idx) &&
+          ObeysIndexOrderHints(root_path, join, /*grouping=*/false));
 
     const bool push_limit_to_filesort{
         sort_needed && limit_rows != HA_POS_ERROR && !join->calc_found_rows};
@@ -7802,11 +7833,12 @@ bool ApplyAggregation(
       (query_block->active_options() & SELECT_SMALL_RESULT);
 
   for (AccessPath *root_path : root_candidates) {
-    const bool group_needs_sort =
+    bool group_needs_sort =
         !join->group_list.empty() && !aggregation_is_unordered &&
         group_by_ordering_idx != -1 &&
-        !orderings.DoesFollowOrder(root_path->ordering_state,
-                                   group_by_ordering_idx);
+        !(orderings.DoesFollowOrder(root_path->ordering_state,
+                                    group_by_ordering_idx) &&
+          ObeysIndexOrderHints(root_path, join, /*grouping=*/true));
 
     // If temp table aggregation is forced, avoid streaming aggregation even if
     // it does not need sorting, so that we get *only* temp table aggregation

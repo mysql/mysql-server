@@ -234,3 +234,29 @@ CREATE VIEW v3 AS SELECT /*+ INDEX_MERGE(t1) */a FROM t1
 WHERE a = 1 AND b = 2 AND c = 3;
 DROP VIEW v1, v2, v3;
 DROP TABLE t1;
+CREATE TABLE t(
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+x VARCHAR(20), FULLTEXT (x)
+);
+INSERT INTO t(x) VALUES ('abc'), ('def'), ('abc def'), ('abc abc');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT /*+ NO_ORDER_INDEX(t x) */
+FTS_DOC_ID, MATCH (x) AGAINST ('abc') AS m FROM t
+WHERE MATCH (x) AGAINST ('abc')
+ORDER BY MATCH (x) AGAINST ('abc') DESC;
+EXPLAIN
+-> Filter: (match t.x against ('abc'))  (rows=1)
+    -> Full-text covering index search on t using x (x='abc')  (rows=1)
+
+EXPLAIN SELECT /*+ ORDER_INDEX(t x) */
+FTS_DOC_ID, MATCH (x) AGAINST ('abc') AS m FROM t
+WHERE MATCH (x) AGAINST ('abc')
+ORDER BY MATCH (x) AGAINST ('abc') DESC;
+EXPLAIN
+-> Sort row IDs: (match t.x against ('abc')) DESC  (rows=4)
+    -> Filter: (match t.x against ('abc'))  (rows=4)
+        -> Table scan on t  (rows=4)
+
+DROP TABLE t;

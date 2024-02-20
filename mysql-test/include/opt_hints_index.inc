@@ -161,3 +161,26 @@ WHERE a = 1 AND b = 2 AND c = 3;
 
 DROP VIEW v1, v2, v3;
 DROP TABLE t1;
+
+# Check hint support for full text indexes
+CREATE TABLE t(
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+x VARCHAR(20), FULLTEXT (x)
+);
+INSERT INTO t(x) VALUES ('abc'), ('def'), ('abc def'), ('abc abc');
+ANALYZE TABLE t;
+
+# ORDER_INDEX/NO_ORDER_INDEX are ignored for full text indexes.
+--replace_regex $elide_costs
+EXPLAIN SELECT /*+ NO_ORDER_INDEX(t x) */
+ FTS_DOC_ID, MATCH (x) AGAINST ('abc') AS m FROM t
+ WHERE MATCH (x) AGAINST ('abc')
+ ORDER BY MATCH (x) AGAINST ('abc') DESC;
+
+--replace_regex $elide_costs
+EXPLAIN SELECT /*+ ORDER_INDEX(t x) */
+ FTS_DOC_ID, MATCH (x) AGAINST ('abc') AS m FROM t
+ WHERE MATCH (x) AGAINST ('abc')
+ ORDER BY MATCH (x) AGAINST ('abc') DESC;
+
+DROP TABLE t;
