@@ -135,6 +135,7 @@ ADD_CONVENIENCE_LIBRARY(json_client_library
   ${CMAKE_SOURCE_DIR}/sql-common/json_binary.cc
   ${CMAKE_SOURCE_DIR}/sql-common/json_dom.cc
   ${CMAKE_SOURCE_DIR}/sql-common/json_path.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_schema.cc
   ${CMAKE_SOURCE_DIR}/sql-common/json_syntax_check.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
 

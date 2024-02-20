@@ -42,7 +42,8 @@
 #include "mysql_time.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql-common/json_error_handler.h"
-#include "sql-common/json_path.h"  // Json_path
+#include "sql-common/json_path.h"    // Json_path
+#include "sql-common/json_schema.h"  //Json_schema_validator_holder
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/item.h"
@@ -54,12 +55,12 @@
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql_string.h"
 
-class Json_schema_validator;
 class Json_array;
 class Json_diff_vector;
 class Json_dom;
 class Json_object;
 class Json_scalar_holder;
+class Json_schema_validator;
 class Json_wrapper;
 class PT_item_list;
 class THD;
@@ -354,10 +355,7 @@ class Item_func_json_schema_valid final : public Item_bool_func {
   void cleanup() override;
 
  private:
-  // Wrap the object in a unique_ptr so that the relevant rapidjson destructors
-  // are called.
-  unique_ptr_destroy_only<const Json_schema_validator>
-      m_cached_schema_validator;
+  Json_schema_validator m_cached_schema_validator;
 };
 
 /**
@@ -388,10 +386,7 @@ class Item_func_json_schema_validation_report final : public Item_json_func {
   void cleanup() override;
 
  private:
-  // Wrap the object in a unique_ptr so that the relevant rapidjson destructors
-  // are called.
-  unique_ptr_destroy_only<const Json_schema_validator>
-      m_cached_schema_validator;
+  Json_schema_validator m_cached_schema_validator;
 };
 
 /**

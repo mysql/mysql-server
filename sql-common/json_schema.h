@@ -55,14 +55,13 @@
      versions available (as of writing, draft-v7 is the latest version).
  */
 
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
-
-#include <rapidjson/schema.h>
 #include <cstddef>
 #include <string>
 
 #include "my_alloc.h"
+#include "sql-common/json_error_handler.h"
 
+class Json_schema_validator_impl;
 struct MEM_ROOT;
 
 /**
@@ -120,69 +119,6 @@ class Json_schema_validation_report {
 };
 
 /**
-  Json_schema_validator is an object that contains a JSON Schema that can
-  be re-used multiple times. This is useful in the cases where we have a JSON
-  Schema that doesn't change (which should be quite often).
-*/
-class Json_schema_validator {
- public:
-  /**
-    Construct the cached JSON Schema with the provided JSON document
-
-    @param schema_document A JSON document that contains the JSON Schema
-                           definition
-  */
-  Json_schema_validator(const rapidjson::Document &schema_document);
-
-  /**
-    Validate a JSON input against the cached JSON Schema
-
-    @param document_str A pointer to the JSON input
-    @param document_length The length of the JSON input
-    @param function_name The function name of the caller (to be used in error
-                         reporting)
-    @param[out] is_valid The result of the validation
-    @param[out] report A structure containing a detailed report from the
-                       validation. Is only populated if is_valid is set to
-                       "false" Can be nullptr if a detailed report isn't needed.
-
-    @retval true on error (my_error has been called)
-    @retval false on success (validation result can be found in the output
-            parameter is_valid)
-  */
-  bool is_valid_json_schema(const char *document_str, size_t document_length,
-                            const char *function_name, bool *is_valid,
-                            Json_schema_validation_report *report) const;
-
- private:
-  /**
-   This object acts as a handler/callback for the JSON schema validator and is
-   called whenever a schema reference is encountered in the JSON document. Since
-   MySQL doesn't support schema references, this class is only used to detect
-   whether or not we actually found one in the JSON document.
- */
-  class My_remote_schema_document_provider
-      : public rapidjson::IRemoteSchemaDocumentProvider {
-   public:
-    using rapidjson::IRemoteSchemaDocumentProvider::GetRemoteDocument;
-
-    const rapidjson::SchemaDocument *GetRemoteDocument(
-        const char *, rapidjson::SizeType) override {
-      m_used = true;
-      return nullptr;
-    }
-
-    bool used() const { return m_used; }
-
-   private:
-    bool m_used{false};
-  };
-
-  My_remote_schema_document_provider m_remote_document_provider;
-  rapidjson::SchemaDocument m_cached_schema;
-};
-
-/**
   This function will validate a JSON document against a JSON Schema using the
   validation provided by rapidjson.
 
@@ -190,8 +126,9 @@ class Json_schema_validator {
   @param document_length The length of the JSON document to be validated.
   @param json_schema_str A pointer to the JSON Schema.
   @param json_schema_length The length of the JSON Schema.
-  @param function_name The name of the SQL function calling this function. Used
-                       in error reporting.
+  @param error_handler Error handlers to be called when parsing errors occur.
+  @param depth_handler Pointer to a function that should handle error
+                       occurred when depth is exceeded.
   @param[out] is_valid A variable containing the result of the validation. If
                        true, the JSON document is valid according to the given
                        JSON Schema.
@@ -206,24 +143,43 @@ class Json_schema_validator {
 */
 bool is_valid_json_schema(const char *document_str, size_t document_length,
                           const char *json_schema_str,
-                          size_t json_schema_length, const char *function_name,
-                          bool *is_valid,
+                          size_t json_schema_length,
+                          const JsonSchemaErrorHandler &error_handler,
+                          const JsonErrorHandler &depth_handler, bool *is_valid,
                           Json_schema_validation_report *report);
 
 /**
-  Create a Json_schema_validator, allocated on a given MEM_ROOT
-
-  @param mem_root The MEM_ROOT to allocate the validator on
-  @param json_schema_str A pointer to the JSON Schema
-  @param json_schema_length The length of the JSON Schema input
-  @param function_name The function name of the caller (to be used in error
-                        reporting)
-
-  @retval nullptr on error (my_error has been called)
+  This is just a facade to the Json_schema_validator and it is used to
+  hide the dependency on the rapidjson lib.
 */
-unique_ptr_destroy_only<const Json_schema_validator>
-create_json_schema_validator(MEM_ROOT *mem_root, const char *json_schema_str,
-                             size_t json_schema_length,
-                             const char *function_name);
+class Json_schema_validator {
+ private:
+  Json_schema_validator_impl *m_json_schema_validator{nullptr};
+
+ public:
+  /**
+    Initialize a Json_schema_validator_impl, allocated on a given MEM_ROOT
+
+    @param mem_root The MEM_ROOT to allocate the validator on
+    @param json_schema_str A pointer to the JSON Schema
+    @param json_schema_length The length of the JSON Schema input
+    @param error_handler Error handlers to be called when parsing errors occur.
+    @param depth_handler Pointer to a function that should handle error
+        occurred when depth is exceeded.
+
+    @retval true on error (my_error has been called)
+  */
+  bool initialize(MEM_ROOT *mem_root, const char *json_schema_str,
+                  size_t json_schema_length,
+                  const JsonSchemaErrorHandler &error_handler,
+                  const JsonErrorHandler &depth_handler);
+
+  bool is_valid(const char *document_str, size_t document_length,
+                const JsonSchemaErrorHandler &error_handler,
+                const JsonErrorHandler &depth_handler, bool *is_valid,
+                Json_schema_validation_report *report) const;
+  bool is_initialized() const { return m_json_schema_validator != nullptr; }
+  ~Json_schema_validator();
+};
 
 #endif

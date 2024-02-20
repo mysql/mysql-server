@@ -49,6 +49,7 @@
 #include "sql-common/json_diff.h"
 #include "sql-common/json_dom.h"
 #include "sql-common/json_path.h"
+#include "sql-common/json_schema.h"
 #include "sql-common/json_syntax_check.h"
 #include "sql-common/my_decimal.h"
 #include "sql/current_thd.h"  // current_thd
@@ -58,7 +59,6 @@
 #include "sql/field_common_properties.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/item_create.h"
-#include "sql/json_schema.h"
 #include "sql/parser_yystype.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_class.h"       // THD
@@ -643,9 +643,7 @@ longlong Item_func_json_valid::val_int() {
 }
 
 static bool evaluate_constant_json_schema(
-    THD *thd, Item *json_schema,
-    unique_ptr_destroy_only<const Json_schema_validator>
-        *cached_schema_validator,
+    THD *thd, Item *json_schema, Json_schema_validator *cached_schema_validator,
     Item **ref) {
   assert(is_convertible_to_json(json_schema));
   const char *func_name = down_cast<const Item_func *>(*ref)->func_name();
@@ -657,11 +655,10 @@ static bool evaluate_constant_json_schema(
       *ref = new (thd->mem_root) Item_null((*ref)->item_name);
       if (*ref == nullptr) return true;
     } else {
-      *cached_schema_validator =
-          create_json_schema_validator(thd->mem_root, schema_string->ptr(),
-                                       schema_string->length(), func_name);
-
-      if (*cached_schema_validator == nullptr) {
+      const JsonSchemaDefaultErrorHandler error_handler(func_name);
+      if (cached_schema_validator->initialize(
+              thd->mem_root, schema_string->ptr(), schema_string->length(),
+              error_handler, JsonDepthErrorHandler)) {
         return true;
       }
     }
@@ -690,7 +687,7 @@ Item_func_json_schema_valid::~Item_func_json_schema_valid() = default;
 
 static bool do_json_schema_validation(
     const THD *thd, Item *json_schema, Item *json_document,
-    const char *func_name, const Json_schema_validator *cached_schema_validator,
+    const char *func_name, const Json_schema_validator &cached_schema_validator,
     bool *null_value, bool *validation_result,
     Json_schema_validation_report *validation_report) {
   assert(is_convertible_to_json(json_document));
@@ -703,11 +700,12 @@ static bool do_json_schema_validation(
     return false;
   }
 
-  if (cached_schema_validator != nullptr) {
+  if (cached_schema_validator.is_initialized()) {
     assert(json_schema->const_item());
-    if (cached_schema_validator->is_valid_json_schema(
-            document_string->ptr(), document_string->length(), func_name,
-            validation_result, validation_report)) {
+    const JsonSchemaDefaultErrorHandler error_handler(func_name);
+    if (cached_schema_validator.is_valid(
+            document_string->ptr(), document_string->length(), error_handler,
+            JsonDepthErrorHandler, validation_result, validation_report)) {
       return true;
     }
   } else {
@@ -731,9 +729,11 @@ static bool do_json_schema_validation(
       return false;
     }
 
+    const JsonSchemaDefaultErrorHandler error_handler(func_name);
     if (is_valid_json_schema(document_string->ptr(), document_string->length(),
                              schema_string->ptr(), schema_string->length(),
-                             func_name, validation_result, validation_report)) {
+                             error_handler, JsonDepthErrorHandler,
+                             validation_result, validation_report)) {
       return true;
     }
   }
@@ -749,7 +749,7 @@ bool Item_func_json_schema_valid::val_bool() {
   if (m_in_check_constraint_exec_ctx) {
     Json_schema_validation_report validation_report;
     if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
-                                  m_cached_schema_validator.get(), &null_value,
+                                  m_cached_schema_validator, &null_value,
                                   &validation_result, &validation_report)) {
       return error_bool();
     }
@@ -760,7 +760,7 @@ bool Item_func_json_schema_valid::val_bool() {
     }
   } else {
     if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
-                                  m_cached_schema_validator.get(), &null_value,
+                                  m_cached_schema_validator, &null_value,
                                   &validation_result, nullptr)) {
       return error_bool();
     }
@@ -798,7 +798,7 @@ bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
   bool validation_result = false;
   Json_schema_validation_report validation_report;
   if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
-                                m_cached_schema_validator.get(), &null_value,
+                                m_cached_schema_validator, &null_value,
                                 &validation_result, &validation_report)) {
     return error_json();
   }

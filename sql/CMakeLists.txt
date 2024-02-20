@@ -426,7 +426,6 @@ SET(SQL_SHARED_SOURCES
   join_optimizer/print_utils.cc
   join_optimizer/relational_expression.cc
   join_optimizer/replace_item.cc
-  json_schema.cc
   key.cc
   key_spec.cc
   keycaches.cc
@@ -781,6 +780,7 @@ SET(SQL_SOURCE
   ../sql-common/json_dom.cc
   ../sql-common/json_error_handler.cc
   ../sql-common/json_path.cc
+  ../sql-common/json_schema.cc
   ../sql-common/json_syntax_check.cc
   command_service.cc
   conn_handler/channel_info.cc

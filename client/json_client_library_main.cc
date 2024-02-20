@@ -43,6 +43,7 @@
 #include "sql-common/json_dom.h"
 #include "sql-common/json_error_handler.h"
 #include "sql-common/json_path.h"
+#include "sql-common/json_schema.h"
 #include "sql-common/my_decimal.h"
 #include "sql_string.h"
 #include "template_utils.h"
@@ -63,6 +64,16 @@ class CoutSerializationErrorHandler : public JsonSerializationErrorHandler {
     std::cout << "Checking stack\n";
     return false;
   }
+};
+
+class CoutJsonSchemaDefaultErrorHandler final : public JsonSchemaErrorHandler {
+ public:
+  void InvalidJsonText(size_t, const char *, size_t) const override {
+    std::cout << "Invalid JSON text";
+  }
+  void InvalidJsonType() const override { std::cout << "Invalid JSON type"; }
+  void HandleStdExceptions() const override { std::cout << "Std exception"; }
+  void NotSupported() const override { std::cout << "Not supported "; }
 };
 
 }  // namespace
@@ -315,6 +326,47 @@ int main() {
           [](MYSQL_TIME_STATUS &) { std::cout << "9.6. checking \n"; }, &ltime);
       std::cout << "9.6. 2023-12-11 09:23:00.360900 is" << (res ? " NOT " : " ")
                 << "a valid TIME \n";
+    }
+    {
+      const std::string json_schema{
+          "{"
+          "\"type\": \"object\","
+          "         \"properties\": {"
+          " \"a_string\": {"
+          "   \"type\": \"string\","
+          "            \"pattern\": \"^[5-9]$\""
+          "  }"
+          " }"
+          "}"};
+      const std::string valid_doc{"{ \"a_string\": \"8\" }"};
+      const std::string invalid_doc{"{ \"a_string\": \"a8\" }"};
+
+      bool is_valid{false};
+      Json_schema_validation_report report;
+      const CoutJsonSchemaDefaultErrorHandler error_handler;
+
+      if (is_valid_json_schema(valid_doc.c_str(), valid_doc.length(),
+                               json_schema.c_str(), json_schema.length(),
+                               error_handler, CoutDefaultDepthHandler,
+                               &is_valid, &report)) {
+        std::cout << "ERROR";
+        assert(false);
+      }
+      if (!is_valid) {
+        std::cout << "ERROR";
+        assert(false);
+      }
+
+      if (is_valid_json_schema(invalid_doc.c_str(), invalid_doc.length(),
+                               json_schema.c_str(), json_schema.length(),
+                               error_handler, CoutDefaultDepthHandler,
+                               &is_valid, &report)) {
+        std::cout << "ERROR";
+        assert(false);
+      }
+      if (!is_valid) {
+        std::cout << "10.1 " << report.human_readable_reason() << "\n";
+      }
     }
   }
 

@@ -72,6 +72,25 @@ class JsonSerializationErrorHandler {
   virtual bool CheckStack() const = 0;
 };
 
+/**
+  Error handler to be used when parsing JSON schemas and validating JSON
+  objects using a JSON schema.
+*/
+class JsonSchemaErrorHandler {
+ public:
+  virtual ~JsonSchemaErrorHandler() = default;
+  /// Called when an invalid JSON value is encountered.
+  virtual void InvalidJsonText(size_t arg_no, const char *wrong_string,
+                               size_t offset) const = 0;
+  /// Called if the provided JSON is not a JSON object.
+  virtual void InvalidJsonType() const = 0;
+  /// Called if a std exception is thrown
+  virtual void HandleStdExceptions() const = 0;
+  /// Called if a schema reference is encountered in the JSON document as
+  /// MySQL does not support such constructs.
+  virtual void NotSupported() const = 0;
+};
+
 #ifdef MYSQL_SERVER
 
 class JsonParseDefaultErrorHandler {
@@ -105,6 +124,25 @@ class JsonSerializationDefaultErrorHandler final
 
  private:
   const THD *m_thd;
+};
+
+/**
+  The default error handler to be used when parsing JSON schemas and
+  validating JSON objects using a JSON schema inside the MySQL server.
+*/
+class JsonSchemaDefaultErrorHandler final : public JsonSchemaErrorHandler {
+ public:
+  explicit JsonSchemaDefaultErrorHandler(const char *function_name)
+      : m_calling_function_name(function_name) {}
+  void InvalidJsonText(size_t arg_no, const char *wrong_string,
+                       size_t offset) const override;
+  void InvalidJsonType() const override;
+  virtual void HandleStdExceptions() const override;
+  virtual void NotSupported() const override;
+
+ private:
+  /// Used for error reporting and holds the name of the function.
+  const char *m_calling_function_name;
 };
 
 /// Callback function called when a coercion error occurs. It reports the

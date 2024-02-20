@@ -31,6 +31,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h"
 
 void JsonParseDefaultErrorHandler::operator()(const char *parse_err,
                                               size_t err_offset) const {
@@ -87,4 +88,22 @@ void JsonCoercionDeprecatedDefaultHandler::operator()(
     MYSQL_TIME_STATUS &status) const {
   check_deprecated_datetime_format(current_thd, &my_charset_utf8mb4_bin,
                                    status);
+}
+void JsonSchemaDefaultErrorHandler::InvalidJsonText(size_t arg_no,
+                                                    const char *wrong_string,
+                                                    size_t offset) const {
+  my_error(ER_INVALID_JSON_TEXT_IN_PARAM, MYF(0), arg_no,
+           m_calling_function_name, wrong_string, offset, "");
+}
+
+void JsonSchemaDefaultErrorHandler::NotSupported() const {
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "references in JSON Schema");
+}
+
+void JsonSchemaDefaultErrorHandler::HandleStdExceptions() const {
+  handle_std_exception(m_calling_function_name);
+}
+
+void JsonSchemaDefaultErrorHandler::InvalidJsonType() const {
+  my_error(ER_INVALID_JSON_TYPE, MYF(0), 1, m_calling_function_name, "object");
 }
