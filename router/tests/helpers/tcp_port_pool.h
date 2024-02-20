@@ -26,6 +26,7 @@
 #ifndef _TCP_PORT_POOL_H_
 #define _TCP_PORT_POOL_H_
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <optional>
