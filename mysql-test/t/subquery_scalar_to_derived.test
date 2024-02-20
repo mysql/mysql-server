@@ -2492,4 +2492,56 @@ FROM t;
 SET SQL_MODE=default;
 DROP TABLE t;
 
+--echo #
+--echo # Bug#36314993 CUBE caused crash in Query_block::supported_correlated_scalar_subquery
+--echo #
+
+CREATE VIEW v2df AS
+SELECT 'a'
+GROUP BY CUBE (TO_DAYS('6087-05-12'));
+
+CREATE TABLE t24c (
+  c0 DATETIME,
+  c7 BINARY(172)
+) ENGINE=innodb;
+
+# avoid only_full_group_by error
+SET SQL_MODE='';
+
+--error ER_BAD_FIELD_ERROR
+WITH cte1 AS
+( SELECT MIN(c0) AS c7,
+         ( SELECT c7
+           FROM v2df
+           GROUP BY c0
+           FOR UPDATE /*!80001 skip locked*/ ) AS c
+  FROM t24c
+  WHERE c0 )
+SELECT c7 FROM cte1 WHERE t24c.c7<= 1 LIMIT 241;
+
+DROP VIEW v2df;
+DROP TABLE t24c;
+
+# simplified repro w/CUBE
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+--error ER_SECONDARY_ENGINE
+SELECT ( SELECT f2
+         FROM (SELECT 1
+               GROUP BY CUBE(1)) AS dt1
+         GROUP BY f1) AS a,
+       MIN(f1)
+FROM t1;
+
+# simplified repro without CUBE
+SELECT ( SELECT f2
+         FROM (SELECT 1
+               GROUP BY ROLLUP(1)) AS dt1
+         GROUP BY f1) AS a,
+       MIN(f1)
+FROM t1;
+
+DROP TABLE t1;
+
+SET SQL_MODE=default;
+
 SET optimizer_switch='subquery_to_derived=default';

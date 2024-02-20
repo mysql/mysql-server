@@ -6265,13 +6265,18 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     for (auto field_class : field_classes) {
       for (auto pair : *field_class) {
         Item_field *f = pair.second;
-        Item *sl_item = f;
-        if (f->type() == Item::FIELD_ITEM && f->protected_by_any_value()) {
-          // The field was mentioned only ever inside arguments to ANY_VALUE, so
+        Item_field *der_field = f->type() != Item::DEFAULT_VALUE_ITEM
+                                    ? new (thd->mem_root) Item_field(f->field)
+                                    : f;
+        if (der_field == nullptr) return true;
+
+        Item *sl_item = der_field;
+        if (f->protected_by_any_value()) {  // The field was mentioned only ever
+                                            // inside arguments to ANY_VALUE, so
           // protect it likewise in new_derived, lest we get a
           // ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2. If not, we let the check
           // proceed, i.e. we do not add ANY_VALUE for the column.
-          sl_item = new (thd->mem_root) Item_func_any_value(f);
+          sl_item = new (thd->mem_root) Item_func_any_value(der_field);
           if (sl_item == nullptr) return true;
           if (sl_item->fix_fields(thd, &sl_item)) return true;
         }

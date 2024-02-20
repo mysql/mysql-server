@@ -3203,6 +3203,8 @@ class Item : public Parse_tree_node {
   struct Item_field_replacement : Item_replacement {
     Field *m_target;     ///< The field to be replaced
     Item_field *m_item;  ///< The replacement field
+                         ///< replacement field iff outer ref
+    Item_field *m_outer_field{nullptr};
     enum class Mode {
       CONFLATE,      // include both Item_field and Item_default_value
       FIELD,         // ignore Item_default_value
