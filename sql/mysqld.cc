@@ -11175,7 +11175,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   // There is global MetaManager to manager meta_info for states in remote
   // StateNode we assume that the thread count is the same as the
   // max_connections/max_threads in MySQL
-  Connection_handler_manager::get_instance()->max_threads = 32;
   if (RDMARegionAllocator::create_instance(
           MetaManager::get_instance(),
           Connection_handler_manager::get_instance()->max_threads)) {
