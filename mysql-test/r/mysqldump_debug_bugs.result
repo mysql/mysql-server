@@ -1,0 +1,14 @@
+#
+# Bug#36248967: Security issue in mysqldump (mysql dump utility)
+#
+CREATE DATABASE test_bug36248967;
+-- Run mysqldump with payload injected to server version.
+A warning must be issued.
+-- Warning: version string returned by server is incorrect.
+The test version must be found:
+Pattern found.
+The test injected string must not be found:
+Pattern not found.
+-- Run mysqldump with correct server version.
+A warning must not be issued.
+DROP DATABASE test_bug36248967;
