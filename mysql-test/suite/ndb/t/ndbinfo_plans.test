@@ -177,14 +177,27 @@ explain format=tree select * from memory_per_fragment;
 
 ## WL#11968 tables and views
 ##
+# Get event_id's by table name, this is to be independent
+# on which id has been assigned
+let $event_ids = `SELECT GROUP_CONCAT(event_id)
+                    FROM events e JOIN dictionary_tables t using(table_id)
+                    WHERE table_name IN ('ndb_schema',
+                                         'ndb_schema_result',
+                                         'ndb_index_stat_head',
+                                         'ndb_apply_status')
+                    GROUP BY 'all'`;
+#echo event_ids: $event_ids;
+--replace_result $event_ids <event_ids>
 --horizontal_results
-SELECT event_id, e.name, table_name
+eval SELECT e.name, table_name
   FROM events e JOIN dictionary_tables t using(table_id)
-  WHERE event_id < 6 ORDER BY event_id;
+  WHERE event_id IN ($event_ids) ORDER BY table_name;
 
 ## Query uses primary keys on both tables:
-EXPLAIN SELECT event_id, e.name, table_name FROM events e
-  JOIN dictionary_tables t using(table_id) WHERE event_id < 6 ORDER BY event_id;
+--replace_result $event_ids <event_ids>
+eval EXPLAIN SELECT event_id, e.name, table_name FROM events e
+  JOIN dictionary_tables t using(table_id)
+  WHERE event_id IN ($event_ids)  ORDER BY event_id;
 
 SELECT * from events where event_id = -1;
 SELECT table_event from events where event_id = 1;
