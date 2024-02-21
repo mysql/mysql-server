@@ -543,6 +543,7 @@ int GroupIndexSkipScanIterator::get_next_prefix(uint prefix_length,
     if (last_prefix_range != nullptr) {
       /* Read the next record in the same range with prefix after cur_prefix. */
       assert(cur_prefix != nullptr);
+      table()->file->set_end_range(nullptr, handler::RANGE_SCAN_ASC);
       int result = table()->file->ha_index_read_map(
           table()->record[0], cur_prefix, keypart_map, HA_READ_AFTER_KEY);
       if (result || last_prefix_range->max_keypart_map == 0) return result;
