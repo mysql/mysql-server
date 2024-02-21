@@ -63,6 +63,8 @@ class MysqlRoutingClassicConnection : public MysqlRoutingClassicConnectionBase {
   }
 
   void async_run() override;
+
+  void stash_server_conn() override;
 };
 
 #endif
