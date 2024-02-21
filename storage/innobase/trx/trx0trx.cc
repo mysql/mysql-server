@@ -1459,6 +1459,7 @@ static void trx_start_low(
   /* @StateReplicate: When start a transaction, add this transaction into the
    * ATT in StateNode
    */
+   /*
   if (trx->mysql_thd != nullptr && trx->mysql_thd->rdma_allocated_) {
     THD *thd = trx->mysql_thd;
     node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
@@ -1523,6 +1524,7 @@ static void trx_start_low(
       return;
     }
   }
+  */
 }
 
 /** Assigns the trx->no and add the transaction to the serialisation_list.

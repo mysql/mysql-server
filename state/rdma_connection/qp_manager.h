@@ -2,6 +2,9 @@
 
 #include "meta_manager.h"
 
+// 应该放到 config 里面
+#define MAX_THREAD_NUM 32
+
 /** This QPManager builds qp connections (compute node <-> memory node) 
  * for each txn thread in MasterNode
 */
