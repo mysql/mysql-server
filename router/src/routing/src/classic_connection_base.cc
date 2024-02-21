@@ -475,18 +475,7 @@ void MysqlRoutingClassicConnectionBase::finish() {
 // final state.
 //
 // removes the connection from the connection-container.
-void MysqlRoutingClassicConnectionBase::done() {
-  auto &pool_comp = ConnectionPoolComponent::get_instance();
-  auto pool = pool_comp.get(ConnectionPoolComponent::default_pool_name());
-
-  if (pool) {
-    // if the connection is in the pool, remove it from the pool.
-
-    pool->discard_all_stashed(this);
-  }
-
-  this->disassociate();
-}
+void MysqlRoutingClassicConnectionBase::done() { this->disassociate(); }
 
 stdx::expected<void, std::error_code>
 MysqlRoutingClassicConnectionBase::track_session_changes(
@@ -1035,22 +1024,5 @@ void MysqlRoutingClassicConnectionBase::reset_to_initial() {
 }
 
 void MysqlRoutingClassicConnectionBase::stash_server_conn() {
-  auto &pool_comp = ConnectionPoolComponent::get_instance();
-  auto pool = pool_comp.get(ConnectionPoolComponent::default_pool_name());
-
-  if (pool && server_conn().is_open()) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage(
-          "pool::stashed: fd=" + std::to_string(server_conn().native_handle()) +
-          ", " + server_conn().endpoint()));
-    }
-
-    auto ssl_mode = server_conn().ssl_mode();
-
-    pool->stash(std::exchange(server_conn(),
-                              TlsSwitchableConnection{
-                                  nullptr, ssl_mode,
-                                  ServerSideConnection::protocol_state_type{}}),
-                this, context().connection_sharing_delay());
-  }
+  // no-op
 }

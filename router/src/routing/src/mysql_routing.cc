@@ -69,6 +69,7 @@
 #include "mysql/harness/tls_server_context.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/base_protocol.h"
+#include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/metadata_cache.h"
@@ -964,6 +965,15 @@ void MySQLRouting::create_connection(
     const typename ClientProtocol::endpoint &client_endpoint) {
   auto remove_callback = [this](MySQLRoutingConnectionBase *connection) {
     connection->context().decrease_info_active_routes();
+
+    auto &pool_comp = ConnectionPoolComponent::get_instance();
+    auto pool = pool_comp.get(ConnectionPoolComponent::default_pool_name());
+
+    if (pool) {
+      // if the connection is in the pool, remove it from the pool.
+
+      pool->discard_all_stashed(connection);
+    }
 
     connection_container_.remove_connection(connection);
   };

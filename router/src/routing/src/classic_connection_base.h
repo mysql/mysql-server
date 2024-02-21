@@ -273,7 +273,7 @@ class MysqlRoutingClassicConnectionBase
   ServerSideConnection &server_conn() { return server_conn_; }
   const ServerSideConnection &server_conn() const { return server_conn_; }
 
-  void stash_server_conn();
+  virtual void stash_server_conn();
 
   std::string get_destination_id() const override {
     return expected_server_mode() == mysqlrouter::ServerMode::ReadOnly
