@@ -5,6 +5,8 @@
 
 #include "util/common.h"
 #include "rlib/rdma_ctrl.hpp"
+#include "state_store/redo_log.h"
+#include "state_store/txn_list.h"
 
 using namespace rdmaio;
 
@@ -129,18 +131,21 @@ private:
     std::unordered_map<node_id_t, MemoryAttr> remote_log_buf_mrs;           // MemoryAttr for log_buffer in remote StateNodes
 
     // meta info for txn_list
-    offset_t txn_list_latch_addr;   // base address for txn_list_latch
-    offset_t txn_list_bitmap_addr;  // base address for txn_list bitmap
-    offset_t txn_list_base_addr;    // base address for txn_list
-    size_t txn_size;                // size for each txn_item in txn_list
-    size_t txn_bitmap_size;             // size for txn_list bitmap, initiated 
+    offset_t txn_list_latch_addr = 0;   // base address for txn_list_latch
+    offset_t txn_list_bitmap_addr = 0;  // base address for txn_list bitmap
+    offset_t txn_list_base_addr = 0;    // base address for txn_list
+    size_t txn_size = sizeof(TxnItem);  // size for each txn_item in txn_list
+    size_t txn_bitmap_size =
+        sizeof(TxnListBitmap);  // size for txn_list bitmap, initiated
 
     // meta info for redo log
-    offset_t redo_log_remote_buf_latch_addr;  // base address for redo log latch
+    offset_t redo_log_remote_buf_latch_addr =
+        0;  // base address for redo log latch
     // size of redo log buffer, OS_FILE_LOG_BLOCK_SIZE is 512B initially
-    size_t redo_log_remote_buf_size = 64 * 1024 * 512;
-    offset_t redo_log_base_addr;  // base address for redo log buffer
-    size_t log_size;              // size of each log in redo log buffer
+    size_t redo_log_remote_buf_size = sizeof(RedoLogItem);
+    offset_t redo_log_base_addr = 0;  // base address for redo log buffer
+    size_t log_buf_data_size;         // size of each log in redo log buffer
+
     // 防止 redo log buffer 和 txn list 地址冲突，覆盖数据
     offset_t redo_log_curr_addr =
         txn_list_base_addr +
