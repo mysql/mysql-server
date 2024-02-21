@@ -36,6 +36,9 @@ set foreign_key_checks = 1;
 SET @foreign_key_checks_saved = @@foreign_key_checks;
 SET foreign_key_checks=0;
 DROP TABLE IF EXISTS s,t;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE s (a INT, b INT GENERATED ALWAYS AS (0) STORED,  c INT,
 d INT GENERATED ALWAYS AS (0) VIRTUAL, e INT) ENGINE=innodb;
 CREATE TABLE t (a INT) ENGINE=innodb;
@@ -63,4 +66,7 @@ ERROR HY000: Failed to add the foreign key constraint. Missing index for constra
 ALTER  TABLE t ADD PRIMARY KEY(a);
 ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES t(a) ON UPDATE SET null;
 DROP TABLE s,t;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 SET @@foreign_key_checks = @foreign_key_checks_saved;

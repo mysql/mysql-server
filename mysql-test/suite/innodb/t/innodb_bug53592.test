@@ -61,6 +61,8 @@ check table bug53592;
 drop table bug53592;
 
 # Test a dup key reported by foreign key constriant.
+SET restrict_fk_on_non_standard_key=OFF;
+
 CREATE TABLE bug53592_1(
   col1 int, col2 int,
   PRIMARY KEY  (col1, col2)
@@ -71,6 +73,7 @@ CREATE TABLE bug53592_2 (
   FOREIGN KEY (col) REFERENCES bug53592_1 (col1)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+SET restrict_fk_on_non_standard_key=ON;
 
 INSERT INTO bug53592_1 VALUES (1, 2);
 INSERT INTO bug53592_1 VALUES (3, 4);

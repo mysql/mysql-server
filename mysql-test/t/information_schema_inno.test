@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS t1,t2,t3;
 # Test for KEY_COLUMN_USAGE & TABLE_CONSTRAINTS tables
 #
 
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id, id),
 FOREIGN KEY (t1_id) REFERENCES t1(id)  ON DELETE CASCADE,
@@ -25,6 +26,7 @@ drop table t3, t2, t1;
 #
 # Test for REFERENTIAL_CONSTRAINTS table
 #
+
 CREATE TABLE t1(a1 INT NOT NULL, a2 INT NOT NULL,
                 PRIMARY KEY(a1, a2)) ENGINE=INNODB;
 CREATE TABLE t2(b1 INT, b2 INT, INDEX (b1, b2),
@@ -56,6 +58,7 @@ where a.CONSTRAINT_SCHEMA COLLATE utf8mb3_GENERAL_CI = 'test' and
 --enable_warnings
 
 drop tables t5, t4, t3, t2, t1;
+SET restrict_fk_on_non_standard_key=ON;
 
 #
 # Bug#25026  `information_schema.KEY_COLUMN_USAGE`.`REFERENCED_TABLE_NAME` returns garbage

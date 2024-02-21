@@ -507,5 +507,14 @@ bool prefix_key_partition_exists(const char *schema_name,
 */
 bool get_implicit_tablespace_options(THD *thd, const Table *table,
                                      ulonglong *autoextend_size);
+
+/**
+  Validate if table uses foreign keys referring to proper index.
+  FK cannot refer to non unique index and partial elements in index.
+
+  @param  thd             Thread handle.
+  @param  table           dd::Table instance of referenced table
+*/
+bool check_non_standard_key_exists_in_fk(THD *thd, const Table *table);
 }  // namespace dd
 #endif  // DD_TABLE_INCLUDED

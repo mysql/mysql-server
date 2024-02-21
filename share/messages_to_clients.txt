@@ -10379,6 +10379,12 @@ ER_ENGINE_CANNOT_BE_DEFAULT
 ER_PARTITION_PREFIX_KEY_NOT_SUPPORTED
   eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' in the PARTITION BY KEY() clause is not supported."
 
+ER_WARN_DEPRECATED_NON_STANDARD_KEY
+  eng "Foreign key '%.64s' refers to non-unique key or partial key. This is deprecated and will be removed in a future release."
+
+ER_FK_NO_UNIQUE_INDEX_PARENT
+  eng "Failed to add the foreign key constraint. Missing unique key for constraint '%s' in the referenced table '%s'"
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

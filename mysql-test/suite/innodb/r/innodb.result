@@ -1415,6 +1415,9 @@ ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fail
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 ERROR 42S22: Unknown column 't1.id' in 'where clause'
 drop table t3,t2,t1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (
 c1 VARCHAR(8), c2 VARCHAR(8),
 PRIMARY KEY (c1, c2)
@@ -1424,11 +1427,16 @@ c0 INT PRIMARY KEY,
 c1 VARCHAR(8) UNIQUE,
 FOREIGN KEY (c1) REFERENCES t1 (c1) ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('old', 'somevalu'), ('other', 'anyvalue');
 INSERT INTO t2 VALUES (10, 'old'), (20, 'other');
 UPDATE t1 SET c1 = 'other' WHERE c1 = 'old';
 ERROR 23000: Foreign key constraint for table 't1', record 'other-somevalu' would lead to a duplicate entry in table 't2', key 'c1'
 DROP TABLE t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 create table t1(
 id int primary key,
 pid int,
@@ -1544,13 +1552,17 @@ drop table t1;
 create table t1 (a int) engine=innodb;
 create table t2 like t1;
 drop table t1,t2;
-create table t1 (id int(11) not null, id2 int(11) not null, unique (id,id2)) engine=innodb;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
+create table t1 (id int(11) not null, id2 int(11) not null, unique(id,id2)) engine=innodb;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (id int(11) not null, constraint t1_id_fk foreign key ( id ) references t1 (id)) engine = innodb;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1_id_fk' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1635,6 +1647,7 @@ create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2), con
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1_id_fk' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1662,6 +1675,7 @@ create table t2 (id int(11) not null auto_increment, id2 int(11) not null, const
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1_id_fk' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1676,6 +1690,7 @@ create table t2 (id int(11) not null auto_increment, id2 int(11) not null, const
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1_id_fk' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1698,6 +1713,8 @@ drop table t2;
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
 ERROR 42000: Incorrect foreign key definition for 't1_id_fk': Key reference and table reference don't match
 create table t2 (a int auto_increment primary key, b int, index(b), foreign key (b) references t1(id), unique(b)) engine=innodb;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1710,6 +1727,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 (a int auto_increment primary key, b int, foreign key (b) references t1(id), foreign key (b) references t1(id), unique(b)) engine=innodb;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't2_ibfk_2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1721,6 +1741,9 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`b`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2, t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 create table t1 (c char(10), index (c,c)) engine=innodb;
 ERROR 42S21: Duplicate column name 'c'
 create table t1 (c1 char(10), c2 char(10), index (c1,c2,c1)) engine=innodb;
@@ -2870,6 +2893,9 @@ t2	CREATE TABLE `t2` (
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2,t1;
 SET sql_mode = default;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (
 field1 varchar(8) NOT NULL DEFAULT '',
 field2 varchar(8) NOT NULL DEFAULT '',
@@ -2880,6 +2906,8 @@ field1 varchar(8) NOT NULL DEFAULT '' PRIMARY KEY,
 FOREIGN KEY (field1) REFERENCES t1 (field1)
 ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('old', 'somevalu');
 INSERT INTO t1 VALUES ('other', 'anyvalue');
 INSERT INTO t2 VALUES ('old');
@@ -2888,6 +2916,9 @@ UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
 ERROR 23000: Foreign key constraint for table 't1', record 'other-somevalu' would lead to a duplicate entry in table 't2', key 'PRIMARY'
 DROP TABLE t2;
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 create table t1 (
 c1 bigint not null,
 c2 bigint not null,
@@ -3148,12 +3179,17 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (id int PRIMARY KEY, f int NOT NULL, INDEX(f)) ENGINE=InnoDB;
 CREATE TABLE t2 (id int PRIMARY KEY, f INT NOT NULL,
 CONSTRAINT t2_t1 FOREIGN KEY (id) REFERENCES t1 (id)
 ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB;
 ALTER TABLE t2 ADD FOREIGN KEY (f) REFERENCES t1 (f) ON
 DELETE CASCADE ON UPDATE CASCADE;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -3170,10 +3206,15 @@ CREATE TABLE t2 (a INT, INDEX(a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 ERROR HY000: Column 'a' cannot be NOT NULL: needed in a foreign key constraint 't2_ibfk_1' SET NULL
 DELETE FROM t1;
 DROP TABLE t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8mb3_unicode_ci PRIMARY KEY)
 ENGINE=InnoDB;
 Warnings:

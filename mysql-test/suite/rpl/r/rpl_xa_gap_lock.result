@@ -7,6 +7,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 SET @saved_innodb_limit_optimistic_insert_debug = @@GLOBAL.innodb_limit_optimistic_insert_debug;
 SET @@GLOBAL.innodb_limit_optimistic_insert_debug = 2;
 [connection master]
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (
 c1 INT NOT NULL,
 KEY(c1)
@@ -15,6 +18,11 @@ CREATE TABLE t2 (
 c1 INT NOT NULL,
 FOREIGN KEY(c1) REFERENCES t1(c1)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1), (3), (4);
 [connection master1]
 XA START 'XA1';

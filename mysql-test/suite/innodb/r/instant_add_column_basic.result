@@ -1083,6 +1083,9 @@ DROP TABLE t1;
 # Scenario 8:
 # Check FK constraints on instantly added columns
 #
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 CREATE TABLE t2(a INT NOT NULL PRIMARY KEY, b INT, c INT, KEY(c));
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
@@ -1098,6 +1101,8 @@ UPDATE t1 SET c = 4 WHERE a = 2;
 UPDATE t1 SET c = 5 WHERE a = 3;
 ALTER TABLE t1 ADD KEY(c);
 ALTER TABLE t2 ADD FOREIGN KEY (c) REFERENCES t1(c) ON UPDATE CASCADE, ALGORITHM = COPY;
+Warnings:
+Warning	6124	Foreign Key 't2_ibfk_1' referring to non unique key or partial columns in key are deprecated and will be removed in a future release.
 UPDATE t1 SET c = 10 WHERE a = 1;
 SELECT c FROM t2;
 c
@@ -1124,6 +1129,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 DROP TABLE t2;
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 #
 # Scenario 9:
 # Instant ADD COLUMN on partitioned table, only simple test here
@@ -3108,6 +3116,9 @@ DROP TABLE t1;
 # Scenario 8:
 # Check FK constraints on instantly added columns
 #
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 CREATE TABLE t2(a INT NOT NULL PRIMARY KEY, b INT, c INT, KEY(c));
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
@@ -3123,6 +3134,8 @@ UPDATE t1 SET c = 4 WHERE a = 2;
 UPDATE t1 SET c = 5 WHERE a = 3;
 ALTER TABLE t1 ADD KEY(c);
 ALTER TABLE t2 ADD FOREIGN KEY (c) REFERENCES t1(c) ON UPDATE CASCADE, ALGORITHM = COPY;
+Warnings:
+Warning	6124	Foreign Key 't2_ibfk_1' referring to non unique key or partial columns in key are deprecated and will be removed in a future release.
 UPDATE t1 SET c = 10 WHERE a = 1;
 SELECT c FROM t2;
 c
@@ -3149,6 +3162,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 DROP TABLE t2;
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 #
 # Scenario 9:
 # Instant ADD COLUMN on partitioned table, only simple test here
@@ -5133,6 +5149,9 @@ DROP TABLE t1;
 # Scenario 8:
 # Check FK constraints on instantly added columns
 #
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 CREATE TABLE t2(a INT NOT NULL PRIMARY KEY, b INT, c INT, KEY(c));
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
@@ -5148,6 +5167,8 @@ UPDATE t1 SET c = 4 WHERE a = 2;
 UPDATE t1 SET c = 5 WHERE a = 3;
 ALTER TABLE t1 ADD KEY(c);
 ALTER TABLE t2 ADD FOREIGN KEY (c) REFERENCES t1(c) ON UPDATE CASCADE, ALGORITHM = COPY;
+Warnings:
+Warning	6124	Foreign Key 't2_ibfk_1' referring to non unique key or partial columns in key are deprecated and will be removed in a future release.
 UPDATE t1 SET c = 10 WHERE a = 1;
 SELECT c FROM t2;
 c
@@ -5174,6 +5195,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 DROP TABLE t2;
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 #
 # Scenario 9:
 # Instant ADD COLUMN on partitioned table, only simple test here

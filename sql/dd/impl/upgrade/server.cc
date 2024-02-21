@@ -76,6 +76,7 @@
 #include "sql/sp.h"         // Stored_routine_creation_ctx
 #include "sql/sp_head.h"    // sp_head
 #include "sql/sql_base.h"
+#include "sql/sql_table.h"
 #include "sql/statement/ed_connection.h"
 #include "sql/strfunc.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
@@ -729,6 +730,8 @@ static bool check_tables(THD *thd, std::unique_ptr<Schema> &schema,
             schema->name().c_str(), table->name().c_str(), table.get(), true))
       return true;
 
+    dd::check_non_standard_key_exists_in_fk(thd, table.get());
+
     // Check for partitioned innodb tables using shared spaces.
     if (!shared_spaces->empty() &&
         table->partition_type() != dd::Table::PT_NONE &&
@@ -1011,7 +1014,12 @@ bool do_server_upgrade_checks(THD *thd) {
     thd->pop_internal_handler();
     return dd::end_transaction(thd, true);
   }
-
+  ulong non_std_key_cnt = deprecated_use_fk_on_non_standard_key_count;
+  if (non_std_key_cnt != 0) {
+    LogErr(WARNING_LEVEL, ER_USAGE_DEPRECATION_COUNTER,
+           "foreign key referring to a non-unique or partial key",
+           std::to_string(non_std_key_cnt).c_str(), "during upgrade");
+  }
   thd->pop_internal_handler();
   return false;
 }

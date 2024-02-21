@@ -1,12 +1,17 @@
 SET NAMES utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE ① (
 c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2))
 ENGINE = InnoDB;
 CREATE TABLE t1ć (c1 INT PRIMARY KEY, c2 INT, INDEX(c2),
 CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES ①(c2))
 ENGINE=InnoDB;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 INSERT INTO ① SET c1 = 1;
 SET DEBUG = '+d,ib_drop_foreign_error';
 ALTER TABLE t1ć DROP FOREIGN KEY t1c2, RENAME TO ②;
@@ -25,6 +30,9 @@ t1ć	CREATE TABLE `t1ć` (
   KEY `c2` (`c2`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `①` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 DROP TABLE t1ć, ①;
 #
 # Bug #21364096	THE BOGUS DUPLICATE KEY ERROR IN ONLINE DDL

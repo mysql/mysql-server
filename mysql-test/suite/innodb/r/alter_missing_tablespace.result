@@ -510,24 +510,48 @@ ALTER TABLE t4 DISCARD TABLESPACE;
 #
 # Add some foreign key constraints
 #
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
 CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES t1(c2),
 CONSTRAINT t1c3 FOREIGN KEY (c3) REFERENCES t1p(c2));
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 CREATE TABLE t2c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
 CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t2(c2),
 CONSTRAINT t2c3 FOREIGN KEY (c3) REFERENCES t2p(c2));
+Warnings:
+Warning	6124	Foreign key 't2c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't2c3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 CREATE TABLE t3c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
 CONSTRAINT t3c2 FOREIGN KEY (c2) REFERENCES t3(c2),
 CONSTRAINT t3c3 FOREIGN KEY (c3) REFERENCES t3p(c2));
+Warnings:
+Warning	6124	Foreign key 't3c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't3c3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 CREATE TABLE t4c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
 CONSTRAINT t4c2 FOREIGN KEY (c2) REFERENCES t4(c2),
 CONSTRAINT t4c3 FOREIGN KEY (c3) REFERENCES t4p(c2));
+Warnings:
+Warning	6124	Foreign key 't4c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't4c3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 CREATE TABLE t5c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
 CONSTRAINT t5c2 FOREIGN KEY (c2) REFERENCES t5(c2),
 CONSTRAINT t5c3 FOREIGN KEY (c3) REFERENCES t5p(c2));
+Warnings:
+Warning	6124	Foreign key 't5c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't5c3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 CREATE TABLE t6c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
 CONSTRAINT t6c2 FOREIGN KEY (c2) REFERENCES t6(c2),
 CONSTRAINT t6c3 FOREIGN KEY (c3) REFERENCES t6p(c2));
+Warnings:
+Warning	6124	Foreign key 't6c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't6c3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 #
 # Remove t2, try to discard t3 & t4 already discarded
 #
@@ -560,6 +584,9 @@ ALTER TABLE t3c DROP FOREIGN KEY t3c2, ALGORITHM=INPLACE;
 ALTER TABLE t4c DROP FOREIGN KEY t4c2, ALGORITHM=COPY;
 ALTER TABLE t5c DROP FOREIGN KEY t5c2, ALGORITHM=INPLACE;
 ALTER TABLE t6c DROP FOREIGN KEY t6c2, ALGORITHM=COPY;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 #
 # Cleanup
 #

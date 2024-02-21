@@ -7,6 +7,9 @@ SET GLOBAL innodb_file_per_table=ON;
 SET NAMES utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (
 c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT,
 INDEX(c2))
@@ -21,6 +24,9 @@ CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
 CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES t1(c2),
 CONSTRAINT t1c3 FOREIGN KEY (c3) REFERENCES t1p(c2))
 ENGINE=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 CREATE TABLE sys_foreign SELECT i.*
 FROM INFORMATION_SCHEMA.INNODB_FOREIGN i
 WHERE FOR_NAME LIKE 'test/t%';
@@ -56,6 +62,9 @@ t1	CREATE TABLE `t1` (
   KEY `c2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ALTER TABLE t1 ALTER c2 DROP DEFAULT;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -91,7 +100,13 @@ FOR_COL_NAME	REF_COL_NAME	POS
 c2	c2	1
 c3	c2	1
 ALTER TABLE t1 CHANGE c2 c2 INT AFTER c1;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE t1 CHANGE c1 c1 INT FIRST;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -118,6 +133,9 @@ FOR_COL_NAME	REF_COL_NAME	POS
 c2	c2	1
 c3	c2	1
 ALTER TABLE t1 CHANGE C2 c3 INT;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -144,6 +162,9 @@ FOR_COL_NAME	REF_COL_NAME	POS
 c2	c3	1
 c3	c2	1
 ALTER TABLE t1 CHANGE c3 C INT;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -170,6 +191,9 @@ FOR_COL_NAME	REF_COL_NAME	POS
 c2	C	1
 c3	c2	1
 ALTER TABLE t1 CHANGE C Cöŀumň_TWO INT;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -203,6 +227,10 @@ c3	c2	1
 ALTER TABLE t1 CHANGE cöĿǖmň_two c3 INT;
 ERROR 42S22: Unknown column 'cöĿǖmň_two' in 't1'
 ALTER TABLE t1 CHANGE cÖĿUMŇ_two c3 INT, RENAME TO t3;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -242,6 +270,9 @@ ALTER TABLE t3 CHANGE c3
 ERROR 42000: Identifier name '12345678901234567890123456789012345678901234567890123456789012345' is too long
 ALTER TABLE t3 CHANGE c3
 `1234567890123456789012345678901234567890123456789012345678901234` INT;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -270,6 +301,9 @@ ERROR 42000: Identifier name '倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏�
 ALTER TABLE t3 CHANGE
 `1234567890123456789012345678901234567890123456789012345678901234`
 `倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾ä` INT;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -281,6 +315,9 @@ t3.ibd
 ALTER TABLE t3 CHANGE
 `倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾Ä`
 c3 INT;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -294,6 +331,8 @@ ERROR HY000: Invalid utf8mb3 character string: '\xF0\x90\x8C\x80\xF0\x90\x8C\x81
 ALTER TABLE t3 CHANGE c3 😲 INT;
 ERROR HY000: Invalid utf8mb3 character string: '\xF0\x9F\x98\xB2'
 ALTER TABLE t3 RENAME TO t2;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -317,6 +356,8 @@ t2	CREATE TABLE `t2` (
   KEY `c2` (`c3`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 RENAME TABLE t2 TO t1;
+Warnings:
+Warning	6124	Foreign key 't1c2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT st.NAME, i.NAME
 FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_TABLES i
 ON i.TABLE_ID=st.TABLE_ID;
@@ -414,6 +455,8 @@ c2	c3	1
 c3	c2	1
 CREATE TABLE t1p (c1 INT PRIMARY KEY, c2 INT, INDEX(c2))
 ENGINE=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+Warnings:
+Warning	6124	Foreign key 't1c3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE t1c DROP INDEX C2, DROP INDEX C3;
 ERROR HY000: Cannot drop index 'c2': needed in a foreign key constraint
 ALTER TABLE t1c DROP INDEX C3;
@@ -1136,6 +1179,9 @@ PRIMARY	0	FTS_DOC_ID
 SELECT i.FOR_COL_NAME, i.REF_COL_NAME, i.POS FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS i
 INNER JOIN sys_foreign sf ON i.ID = sf.ID;
 FOR_COL_NAME	REF_COL_NAME	POS
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 #
 # Cleanup
 #

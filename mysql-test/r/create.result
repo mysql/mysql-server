@@ -336,6 +336,9 @@ create database `db1 `;
 ERROR 42000: Incorrect database name 'db1 '
 create table t1(`a ` int);
 ERROR 42000: Incorrect column name 'a '
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 create table t1 (a int,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 create table t1 (a int,,b int);
@@ -344,7 +347,12 @@ create table t1 (,b int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',b int)' at line 1
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 drop table if exists t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 create table t1(id int not null, name char(20));
 insert into t1 values(10,'mysql'),(20,'monty- the creator');
 create table t2(id int not null);

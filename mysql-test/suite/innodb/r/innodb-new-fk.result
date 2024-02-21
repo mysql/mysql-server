@@ -10,6 +10,9 @@ SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR 
 CREATE UNIQUE INDEX idx ON parent(b);;
 connect  con1,localhost,root,,;
 connection con1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 SET DEBUG_SYNC = 'now WAIT_FOR start_create';
 INSERT INTO parent VALUES(4, 2);
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
@@ -20,6 +23,9 @@ connection con1;
 SET DEBUG_SYNC = 'now WAIT_FOR conn_add_fk';
 ALTER TABLE child ADD CONSTRAINT cfx FOREIGN KEY (b) REFERENCES parent(b);
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'cfx' in the referenced table 'parent'
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 SET DEBUG_SYNC = 'RESET';
 connection default;
 DROP TABLE child;

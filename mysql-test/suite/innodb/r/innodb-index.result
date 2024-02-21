@@ -467,6 +467,9 @@ t1	CREATE TABLE `t1` (
   KEY `b_2` (`b`,`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 create table t1(a int not null, b int not null, c int, primary key (a), key (b)) engine = innodb;
 create table t3(a int not null, c int not null, d int, primary key (a), key (c)) engine = innodb;
 create table t4(a int not null, d int not null, e int, primary key (a), key (d)) engine = innodb;
@@ -474,6 +477,10 @@ create table t2(a int not null, b int, c int, d int, e int,
 foreign key (b) references t1(b) on delete set null,
 foreign key (c) references t3(c), foreign key (d) references t4(d) on update set null)
 engine = innodb;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't2_ibfk_2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't2_ibfk_3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 alter table t1 drop index b;
 ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
 alter table t3 drop index c;
@@ -503,7 +510,10 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 create index dc on t1 (b,c);
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 2
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 alter table t2 add primary key (alpha), change a alpha int,
 change b beta int not null, change c charlie int not null;
 ERROR HY000: Column 'beta' cannot be NOT NULL: needed in a foreign key constraint 't2_ibfk_1' SET NULL
@@ -521,7 +531,10 @@ insert into t2 values (1,1,1,1,1);
 commit;
 alter table t4 add constraint dc foreign key (a) references t1(a);
 affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+info: Records: 1  Duplicates: 0  Warnings: 2
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't2_ibfk_3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
@@ -574,7 +587,10 @@ alter table t3 drop foreign key dc;
 ERROR 42000: Can't DROP 'dc'; check that column/key exists
 alter table t4 drop foreign key dc;
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 2
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't2_ibfk_3' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 select * from t2;
 alpha	beta	c	d	e
 1	1	1	1	1
@@ -583,6 +599,9 @@ select * from t2;
 alpha	beta	c	d	e
 1	NULL	1	1	1
 drop table t2,t4,t3,t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb default charset=utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -1000,6 +1019,9 @@ ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fail
 DELETE FROM t2;
 DROP TABLE t2;
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1(
 c1	BIGINT(12) NOT NULL,
 c2	INT(4) NOT NULL,
@@ -1054,6 +1076,10 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 affected rows: 0
+SET restrict_fk_on_non_standard_key=ON;
+affected rows: 0
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -267,7 +267,7 @@ create table t1(`a ` int);
 # Test for Bug #3481 
 #   "Parser permits multiple commas without syntax error"
 #
-
+SET restrict_fk_on_non_standard_key=OFF;
 --error 1064
 create table t1 (a int,);
 --error 1064
@@ -282,6 +282,7 @@ create table t1 (,b int);
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t2,t1;
+SET restrict_fk_on_non_standard_key=ON;
 
 #
 # Test for CREATE TABLE .. LIKE ..

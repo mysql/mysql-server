@@ -25,6 +25,7 @@ drop table t2, t1;
 --echo # NULL/NOT NULL MISMATCH
 --echo #
 
+SET restrict_fk_on_non_standard_key=OFF;
 set foreign_key_checks = 1;
 show variables like 'foreign_key_checks';
 
@@ -84,6 +85,7 @@ INSERT INTO t2 VALUES (56, 6);
 #SELECT a, b FROM t2 ORDER BY a;
 
 DROP TABLE t2, t1;
+SET restrict_fk_on_non_standard_key=ON;
 
 --echo #
 --echo # Bug#20752436: INNODB: FAILING ASSERTION: 0 IN FILE HANDLER0ALTER.CC
@@ -174,6 +176,7 @@ DROP TABLE parent_table;
 --echo #
 
 SELECT @@foreign_key_checks;
+SET restrict_fk_on_non_standard_key=OFF;
 
 CREATE TABLE t1 (
   pk int(11) NOT NULL AUTO_INCREMENT,
@@ -219,6 +222,7 @@ CREATE TABLE t2_fk (
   PRIMARY KEY (pk),
   CONSTRAINT fk6 FOREIGN KEY (sixty) REFERENCES t1(sixty)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+SET restrict_fk_on_non_standard_key=ON;
 
 DROP TABLE t1;
 
@@ -275,6 +279,7 @@ KEY (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
 DROP TABLE parent;
 
 --echo # Test delete/update rules combination.
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1
 (a INT NOT NULL,
  b INT NOT NULL,
@@ -535,6 +540,7 @@ CHECK TABLE t1;
 CHECK TABLE t2;
 
 DROP TABLE t1, t2;
+SET restrict_fk_on_non_standard_key=ON;
 
 --echo #
 --echo # Bug #27020089 "I_S.INNODB_SYS_FOREIGN LOST FOREIGN KEY INFORMATION."

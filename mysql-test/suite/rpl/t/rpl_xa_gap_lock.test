@@ -47,6 +47,7 @@ SET @@GLOBAL.innodb_limit_optimistic_insert_debug = 2;
 
 # Let's generate the workload on the master
 --source include/rpl_connection_master.inc
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1 (
   c1 INT NOT NULL,
   KEY(c1)
@@ -57,6 +58,7 @@ CREATE TABLE t2 (
   FOREIGN KEY(c1) REFERENCES t1(c1)
 ) ENGINE=InnoDB;
 
+SET restrict_fk_on_non_standard_key=ON;
 INSERT INTO t1 VALUES (1), (3), (4);
 
 --source include/rpl_connection_master1.inc
@@ -100,7 +102,7 @@ RESET BINARY LOGS AND GTIDS;
 --source include/rpl_connection_master.inc
 --let $master_data_dir= `SELECT @@datadir`
 --let $source_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $mysql_server= $MYSQL --defaults-group-suffix=.2
+--let $mysql_server= $MYSQL --defaults-group-suffix=.2 --init-command="SET restrict_fk_on_non_standard_key=OFF"
 --echo Restore binary log from the master into the slave
 --exec $MYSQL_BINLOG --force-if-open $master_data_dir/$source_log_file | $mysql_server
 

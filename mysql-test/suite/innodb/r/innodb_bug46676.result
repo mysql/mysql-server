@@ -1,6 +1,15 @@
 SET foreign_key_checks=0;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (id int, foreign key (id) references t2(id)) ENGINE=INNODB;
 CREATE TABLE t2 (id int, foreign key (id) references t1(id)) ENGINE=INNODB;
+Warnings:
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't1_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 SET foreign_key_checks=1;
 SELECT COUNT(*) FROM information_schema.key_column_usage WHERE REFERENCED_TABLE_NAME in ('t1', 't2')
 AND table_schema != 'PERFORMANCE_SCHEMA';

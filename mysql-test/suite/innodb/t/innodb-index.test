@@ -148,6 +148,7 @@ explain select * from t1 force index(c) order by c;
 show create table t1;
 drop table t1;
 
+SET restrict_fk_on_non_standard_key=OFF;
 create table t1(a int not null, b int not null, c int, primary key (a), key (b)) engine = innodb;
 create table t3(a int not null, c int not null, d int, primary key (a), key (c)) engine = innodb;
 create table t4(a int not null, d int not null, e int, primary key (a), key (d)) engine = innodb;
@@ -235,6 +236,7 @@ delete from t1;
 select * from t2;
 
 drop table t2,t4,t3,t1;
+SET restrict_fk_on_non_standard_key=ON;
 
 -- let charset = utf8mb3
 -- source include/innodb-index.inc
@@ -387,6 +389,7 @@ DELETE FROM t2;
 DROP TABLE t2;
 DROP TABLE t1;
 
+SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t1(
   c1	BIGINT(12) NOT NULL,
   c2	INT(4) NOT NULL,
@@ -436,6 +439,7 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
 
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET restrict_fk_on_non_standard_key=ON;
 
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
