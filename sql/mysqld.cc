@@ -11177,6 +11177,11 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
     return 1;
   }
 
+  if(QPManager::create_instance()) {
+    return 1;
+  }
+  QPManager::get_instance()->BuildQPConnection(MetaManager::get_instance());
+  
   /* If --super-read-only was specified, set read_only to 1 */
   read_only = super_read_only ? super_read_only : read_only;
   opt_readonly = read_only;

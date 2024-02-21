@@ -245,7 +245,8 @@ static THD *init_new_thd(Channel_info *channel_info) {
   thd->log_offset_allocator = new LogOffsetAllocator(
       thd->thread_id(),
       Connection_handler_manager::get_instance()->max_threads);
-  thd->qp_manager = new QPManager(thd->thread_id());
+  // thd->qp_manager = new QPManager(thd->thread_id());
+  thd->qp_manager = QPManager::get_instance();
   thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
 
   thd->rdma_allocated_ = true;
