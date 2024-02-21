@@ -7,12 +7,16 @@
 */
 class QPManager {
  public:
-  static bool create_instance();
+  static bool create_instance(int qp_mgr_num);
   static void destroy_instance();
   static QPManager* get_instance() {
-    assert(global_qp_mgr_ != nullptr);
-    return global_qp_mgr_;
+    // assert(global_qp_mgr_ != nullptr);
+    // return global_qp_mgr_;
+    assert(next_qp_mgr_idx_ < qp_mgr_num_);
+    assert(global_qp_mgr_[next_qp_mgr_idx_] != nullptr);
+    return global_qp_mgr_[next_qp_mgr_idx_ ++];
   }
+  static void BuildALLQPConnection(MetaManager* meta_man);
   void BuildQPConnection(MetaManager* meta_man);
 
   ALWAYS_INLINE
@@ -61,7 +65,7 @@ class QPManager {
   }
 
  private:
-  QPManager(t_id_t global_tid) : global_tid(global_tid) {}
+  QPManager(int tid) : global_tid(tid) {}
   RCQP* txn_list_qps[MAX_REMOTE_NODE_NUM]{nullptr};
 
   RCQP* lock_buf_qps[MAX_REMOTE_NODE_NUM]{nullptr};
@@ -69,5 +73,8 @@ class QPManager {
   RCQP* log_buf_qps[MAX_REMOTE_NODE_NUM]{nullptr};
   
   t_id_t global_tid;
-  static QPManager* global_qp_mgr_;
+
+  static int qp_mgr_num_;
+  static int next_qp_mgr_idx_;
+  static QPManager* global_qp_mgr_[MAX_THREAD_NUM];
 };

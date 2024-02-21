@@ -4,11 +4,17 @@
  * 
 */
 
-QPManager* QPManager::global_qp_mgr_ = nullptr;
+QPManager* QPManager::global_qp_mgr_[MAX_THREAD_NUM] = {nullptr};
+int QPManager::qp_mgr_num_ = 32;
+int QPManager::next_qp_mgr_idx_ = 0;
+
+void QPManager::BuildALLQPConnection(MetaManager* meta_man) {
+  for(int i = 0; i < qp_mgr_num_; ++i ) {
+    global_qp_mgr_[i]->BuildQPConnection(meta_man);
+  }
+}
 
 void QPManager::BuildQPConnection(MetaManager* meta_man) {
-  RdmaCtrl::DevIdx idx{.dev_id = 0, .port_id = 1}; 
-  RNicHandler* opened_rnic = meta_man->global_rdma_ctrl->open_device(idx);
   for (const auto& remote_node : meta_man->remote_nodes) {
     // Note that each remote machine has one MemStore mr and one Log mr
     // MemoryAttr remote_hash_mr = meta_man->GetRemoteHashMR(remote_node.node_id);
@@ -26,15 +32,15 @@ void QPManager::BuildQPConnection(MetaManager* meta_man) {
     //                                                          &local_mr);
     assert(meta_man->opened_rnic != nullptr);
     RCQP* txn_list_qp = meta_man->global_rdma_ctrl->create_rc_qp(create_rc_idx(remote_node.node_id, (int)global_tid * 3),
-                                                             opened_rnic,
+                                                             meta_man->opened_rnic,
                                                              &local_mr);
     assert(txn_list_qp != nullptr);
     RCQP* lock_buf_qp = meta_man->global_rdma_ctrl->create_rc_qp(create_rc_idx(remote_node.node_id, (int)global_tid * 3 + 1),
-                                                            opened_rnic,
+                                                            meta_man->opened_rnic,
                                                             &local_mr);
     assert(lock_buf_qp != nullptr);
     RCQP* log_buf_qp = meta_man->global_rdma_ctrl->create_rc_qp(create_rc_idx(remote_node.node_id, (int)global_tid*3 + 2),
-                                                            opened_rnic,
+                                                            meta_man->opened_rnic,
                                                             &local_mr);
     assert(log_buf_qp != nullptr);
     std::fstream f;
@@ -75,14 +81,26 @@ void QPManager::BuildQPConnection(MetaManager* meta_man) {
   }
 }
 
-bool QPManager::create_instance() {
-  if(global_qp_mgr_ == nullptr) {
-    global_qp_mgr_ = new (std::nothrow) QPManager(0);
+bool QPManager::create_instance(int qp_mgr_num) {
+  qp_mgr_num_ = qp_mgr_num;
+  bool res = false;
+  for(int i = 0; i < qp_mgr_num; ++i) {
+    if(global_qp_mgr_[i] == nullptr) 
+      global_qp_mgr_[i] = new (std::nothrow) QPManager(i);
+    if(global_qp_mgr_[i] == nullptr) res = true;
   }
-  return (global_qp_mgr_ == nullptr);
+  return res;
+  // if(global_qp_mgr_ == nullptr) {
+  //   global_qp_mgr_ = new (std::nothrow) QPManager(0);
+  // }
+  // return (global_qp_mgr_ == nullptr);
 }
 
 void QPManager::destroy_instance() {
-  delete global_qp_mgr_;
-  global_qp_mgr_ = nullptr;
+  // delete global_qp_mgr_;
+  // global_qp_mgr_ = nullptr;
+  for(int i = 0; i < qp_mgr_num_; ++i) {
+    delete global_qp_mgr_[i];
+    global_qp_mgr_[i] = nullptr;
+  }
 }
