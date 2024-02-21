@@ -6,6 +6,9 @@
 #include "util/common.h"
 #include "rlib/rdma_ctrl.hpp"
 
+#include "state_store/redo_log.h"
+#include "state_store/txn_list.h"
+
 using namespace rdmaio;
 
 /**
