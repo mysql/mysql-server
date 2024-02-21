@@ -8325,12 +8325,17 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
           // Add the view reference to the select expression list as hidden
           // item.
           m_ref_item = qb->add_hidden_item(*reference);
+          // Increment the reference count as the expression is now part
+          // of the select list. The call to link_referenced_item()
+          // later will account for the reference from this Item_ref object.
+          (*reference)->increment_ref_count();
           *reference = this;
         } else {
           Item_field *fld = new Item_field(
               thd, context, from_field->table->pos_in_table_list, from_field);
           if (fld == nullptr) return true;
           m_ref_item = qb->add_hidden_item(fld);
+          fld->increment_ref_count();
         }
       }
     }
