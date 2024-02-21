@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
     cJSON *state_node = cJSON_GetObjectItem(cjson, "state_node");
     int node_id = cJSON_GetObjectItem(state_node, "node_id")->valueint;
     int local_port = cJSON_GetObjectItem(state_node, "local_port")->valueint;
-    size_t txn_list_size = (size_t) cJSON_GetObjectItem(state_node,"txn_list_size_GB")->valuedouble;
+    size_t txn_list_size = ((size_t) cJSON_GetObjectItem(state_node,"txn_list_size_GB")->valuedouble) * 1024 * 1024 * 1024;
     size_t log_buf_size = ((size_t) cJSON_GetObjectItem(state_node,"log_buf_size_GB")->valuedouble) * 1024 * 1024 * 1024;
     size_t lock_buf_size = ((size_t) cJSON_GetObjectItem(state_node,"lock_buf_size_GB")->valuedouble) * 1024 * 1024 * 1024;
 
