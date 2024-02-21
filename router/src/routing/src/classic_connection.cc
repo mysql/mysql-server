@@ -28,6 +28,8 @@
 #include <memory>
 
 #include "classic_flow.h"
+#include "mysqlrouter/connection_pool.h"
+#include "mysqlrouter/connection_pool_component.h"
 
 void MysqlRoutingClassicConnection::async_run() {
   this->accepted();
@@ -37,4 +39,25 @@ void MysqlRoutingClassicConnection::async_run() {
   push_processor(std::make_unique<FlowProcessor>(this));
 
   call_next_function(Function::kLoop);
+}
+
+void MysqlRoutingClassicConnection::stash_server_conn() {
+  auto &pool_comp = ConnectionPoolComponent::get_instance();
+  auto pool = pool_comp.get(ConnectionPoolComponent::default_pool_name());
+
+  if (pool && server_conn().is_open()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage(
+          "pool::stashed: fd=" + std::to_string(server_conn().native_handle()) +
+          ", " + server_conn().endpoint()));
+    }
+
+    auto ssl_mode = server_conn().ssl_mode();
+
+    pool->stash(std::exchange(server_conn(),
+                              TlsSwitchableConnection{
+                                  nullptr, ssl_mode,
+                                  ServerSideConnection::protocol_state_type{}}),
+                this, context().connection_sharing_delay());
+  }
 }
