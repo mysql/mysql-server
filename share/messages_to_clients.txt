@@ -6289,7 +6289,7 @@ ER_TOO_LONG_TABLE_COMMENT
   por "Comentário para a tabela '%-.64s' é longo demais (max = %lu)"
   ger "Kommentar für Tabelle '%-.64s' ist zu lang (max = %lu)"
 ER_TOO_LONG_FIELD_COMMENT
-  eng "Comment for field '%-.64s' is too long (max = %lu)"
+  eng "The maximum supported character limit for the field, '%-.64s', has been exceeded (max = %lu)"
   por "Comentário para o campo '%-.64s' é longo demais (max = %lu)"
   ger "Kommentar für Feld '%-.64s' ist zu lang (max = %lu)"
 ER_FUNC_INEXISTENT_NAME_COLLISION 42000
@@ -6884,7 +6884,7 @@ ER_TABLESPACE_EXISTS
   eng "Tablespace '%-.192s' exists."
 
 ER_TABLESPACE_DISCARDED
-  eng "Tablespace has been discarded for table '%-.192s'"
+  eng "Tablespace is discarded for table, '%-.192s'"
 
 ER_INTERNAL_ERROR
   eng "Internal error: %s"
@@ -9126,7 +9126,7 @@ ER_SECONDARY_ENGINE
   eng "Secondary engine operation failed. %s."
 
 ER_SECONDARY_ENGINE_DDL
-  eng "DDLs on a table with a secondary engine defined are not allowed."
+  eng "You cannot perform DDLs on a table that has a secondary engine defined."
 
 ER_INCORRECT_CURRENT_PASSWORD
   eng "Incorrect current password. Specify the correct password which has to be replaced."

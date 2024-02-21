@@ -284,16 +284,19 @@ bool reads_not_secondary_columns(const LEX *lex) {
   return false;
 }
 
-static bool has_secondary_engine_defined(const LEX *lex) {
+namespace {
+bool has_secondary_engine_defined(const LEX *lex, const Table_ref **tref) {
   for (const Table_ref *tl = lex->query_tables; tl != nullptr;
        tl = tl->next_global) {
     if (tl == nullptr || tl->table == nullptr || tl->table->s == nullptr ||
         !tl->table->s->has_secondary_engine()) {
+      *tref = tl;
       return false;
     }
   }
   return (lex->table_count > 0);
 }
+}  // namespace
 
 // Compare two engine names using the system collation.
 static bool equal_engines(const LEX_CSTRING &engine1,
@@ -426,25 +429,45 @@ void set_fail_reason_and_raise_error(const LEX *lex, std::string_view reason) {
 void find_and_set_offload_fail_reason(const LEX *lex) {
   // If we are unable to gather secondary-engine-specific error message,
   // check known unsupported features and raise a specific offload error.
-  std::string_view err_msg{};
+  std::string err_msg{};
+  const Table_ref *tref = nullptr;
   if (lex->uses_stored_routines() ||
       (lex->m_sql_cmd != nullptr && lex->m_sql_cmd->is_part_of_sp()) ||
       lex->thd->sp_runtime_ctx != nullptr) {
     // We don't support secondary storage engine execution,
     // if the query has statements that call stored routines.
     err_msg =
-        "Queries part of stored functions or calling stored functions are not "
-        "supported in secondary engines";
-  } else if (!has_secondary_engine_defined(lex)) {
+        "Statements that reference stored functions are not supported in "
+        "secondary engines.";
+  } else if ((lex->thd->get_transaction() != nullptr &&
+              lex->thd->get_transaction()->is_active(
+                  Transaction_ctx::SESSION)) ||
+             lex->thd->in_active_multi_stmt_transaction()) {
+    // We don't support secondary storage engine execution,
+    // if the query is part of a multi-statement transaction
+    err_msg =
+        "Query is part of a multi-statement transaction, which is not "
+        "supported in secondary engines.";
+  } else if (!has_secondary_engine_defined(lex, &tref)) {
     // We don't support secondary storage engine execution,
     // if at least one of the query tables have no secondary engine defined.
     err_msg =
-        "No secondary engine defined for at least one of the query tables";
+        "You have not defined the secondary engine for at least one of the "
+        "query tables";
+    if (tref != nullptr && strlen(tref->get_db_name()) > 0 &&
+        strlen(tref->get_table_name()) > 0) {
+      err_msg.append(" [");
+      err_msg.append(tref->get_db_name());
+      err_msg.append(".");
+      err_msg.append(tref->get_table_name());
+      err_msg.append("]");
+    }
+    err_msg.append(".");
   } else {
     err_msg = find_secondary_engine_fail_reason(lex);
   }
   assert(!err_msg.empty());
-  set_fail_reason_and_raise_error(lex, err_msg);
+  set_fail_reason_and_raise_error(lex, std::string_view{err_msg});
 }
 
 bool validate_use_secondary_engine(const LEX *lex) {
@@ -811,6 +834,18 @@ bool Sql_cmd_dml::execute(THD *thd) {
 err:
   assert(thd->is_error() || thd->killed);
   DBUG_PRINT("info", ("report_error: %d", thd->is_error()));
+
+  if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED &&
+      thd->secondary_engine_optimization() ==
+          Secondary_engine_optimization::SECONDARY &&
+      thd->is_secondary_engine_forced()) {
+    std::string_view offloadfail_reason = get_secondary_engine_fail_reason(lex);
+    if (!offloadfail_reason.empty()) {
+      thd->clear_error();
+      my_error(ER_SECONDARY_ENGINE, MYF(0), std::data(offloadfail_reason));
+    }
+  }
+
   THD_STAGE_INFO(thd, stage_end);
 
   lex->cleanup(false);

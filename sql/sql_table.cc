@@ -2809,9 +2809,14 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   }
   handlerton *hton = plugin_data<handlerton *>(plugin);
   if (hton == nullptr) {
-    if (error_if_not_loaded)
-      my_error(ER_SECONDARY_ENGINE, MYF(0),
-               "Table is not loaded on a secondary engine");
+    if (error_if_not_loaded) {
+      std::string err_msg{"Table "};
+      err_msg.append(db_name);
+      err_msg.append(".");
+      err_msg.append(table_name);
+      err_msg.append(" is not loaded in secondary engine.");
+      my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), err_msg.c_str());
+    }
     return error_if_not_loaded;
   }
 

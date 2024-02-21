@@ -3916,7 +3916,7 @@ int ha_innopart::repair(THD *thd, HA_CHECK_OPT *repair_opt) {
   push_warning_printf(thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA,
                       "Only moving rows from wrong partition to correct"
                       " partition is supported,"
-                      " repairing InnoDB indexes is not yet supported!");
+                      " repairing InnoDB indexes is not supported!");
 #endif
 
   /* Only repair partitions for MEDIUM or EXTENDED options. */
