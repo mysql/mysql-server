@@ -2083,7 +2083,7 @@ runBug28443(NDBT_Context* ctx, NDBT_Step* step)
   }
   
 done:
-  restarter.insertErrorInAllNodes(9003);
+  restarter.insertErrorInAllNodes(0);
 
   return result;
 }
