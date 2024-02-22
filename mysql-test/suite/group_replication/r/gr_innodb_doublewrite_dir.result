@@ -74,10 +74,10 @@ SELECT @@innodb_doublewrite_dir;
 NULL
 SELECT @@innodb_doublewrite_files;
 @@innodb_doublewrite_files
-0
+2
 SELECT @@innodb_doublewrite_pages;
 @@innodb_doublewrite_pages
-0
+128
 SELECT @@innodb_doublewrite_batch_size;
 @@innodb_doublewrite_batch_size
 0

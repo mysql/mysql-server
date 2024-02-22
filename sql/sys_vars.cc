@@ -5103,13 +5103,16 @@ static Sys_var_enum Sys_internal_tmp_mem_storage_engine(
     DEFAULT(TMP_TABLE_TEMPTABLE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_session_admin_no_super));
 
+/* Default is updated to min(3% of physical memory, 4 GB) */
 static Sys_var_ulonglong Sys_temptable_max_ram(
     "temptable_max_ram",
     "Maximum amount of memory (in bytes) the TempTable storage engine is "
     "allowed to allocate from the main memory (RAM) before starting to "
     "store data on disk.",
     GLOBAL_VAR(temptable_max_ram), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(2 << 20 /* 2 MiB */, ULLONG_MAX), DEFAULT(1 << 30 /* 1 GiB */),
+    VALID_RANGE(2 << 20 /* 2 MiB */, ULLONG_MAX),
+    DEFAULT(std::clamp(ulonglong{3 * (my_physical_memory() / 100)},
+                       1ULL << 30 /* 1 GiB */, 1ULL << 32 /* 4 GiB */)),
     BLOCK_SIZE(1));
 
 static Sys_var_ulonglong Sys_temptable_max_mmap(
@@ -5118,13 +5121,13 @@ static Sys_var_ulonglong Sys_temptable_max_mmap(
     "allowed to allocate from MMAP-backed files before starting to "
     "store data on disk.",
     GLOBAL_VAR(temptable_max_mmap), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, ULLONG_MAX), DEFAULT(1 << 30 /* 1 GiB */), BLOCK_SIZE(1));
+    VALID_RANGE(0, ULLONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_temptable_use_mmap(
     "temptable_use_mmap",
     "Use mmap files for temptables. "
     "This variable is deprecated and will be removed in a future release.",
-    GLOBAL_VAR(temptable_use_mmap), CMD_LINE(OPT_ARG), DEFAULT(true),
+    GLOBAL_VAR(temptable_use_mmap), CMD_LINE(OPT_ARG), DEFAULT(false),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(update_deprecated_with_removal_message), nullptr,
     sys_var::PARSE_NORMAL);

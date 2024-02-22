@@ -54,7 +54,7 @@ set global innodb_io_capacity_max=" ";
 #
 
 SET @@global.innodb_io_capacity_max = DEFAULT;
-select @@global.innodb_io_capacity_max IN (18446744073709551615,4294967295);
+select @@global.innodb_io_capacity_max;
 
 #
 # can't set it below innodb_io_capacity

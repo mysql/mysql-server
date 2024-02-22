@@ -1,0 +1,38 @@
+# Test to record default values of InnoDB configurations and their behavior with
+# set value = default
+
+--let $variable = innodb_io_capacity
+--let $err =
+--let $is_global = true
+--source suite/innodb/include/innodb_defaults.inc
+
+--let $variable = innodb_log_buffer_size
+--let $err =
+--let $is_global = true
+--source suite/innodb/include/innodb_defaults.inc
+
+--let $variable = innodb_doublewrite_files
+--let $err = ER_INCORRECT_GLOBAL_LOCAL_VAR
+--let $is_global = true
+--source suite/innodb/include/innodb_defaults.inc
+
+--let $variable = innodb_doublewrite_pages
+--let $err = ER_INCORRECT_GLOBAL_LOCAL_VAR
+--let $is_global = true
+--source suite/innodb/include/innodb_defaults.inc
+
+--let $variable = innodb_change_buffering
+--let $err =
+--let $is_global = true
+--source suite/innodb/include/innodb_defaults.inc
+
+--let $variable = innodb_adaptive_hash_index
+--let $err =
+--let $is_global = true
+--source suite/innodb/include/innodb_defaults.inc
+
+--let $variable = innodb_use_fdatasync
+--let $err =
+--let $is_global = true
+--source suite/innodb/include/innodb_defaults.inc
+

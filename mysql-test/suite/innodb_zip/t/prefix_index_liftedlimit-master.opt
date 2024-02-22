@@ -1,1 +1,2 @@
 --initialize --innodb_page_size=16k
+--innodb-parallel-read-threads=4

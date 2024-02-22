@@ -1,0 +1,51 @@
+SELECT @@innodb_io_capacity;
+@@innodb_io_capacity
+10000
+SET GLOBAL innodb_io_capacity = DEFAULT;
+SELECT @@innodb_io_capacity;
+@@innodb_io_capacity
+10000
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+67108864
+SET GLOBAL innodb_log_buffer_size = DEFAULT;
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+67108864
+SELECT @@innodb_doublewrite_files;
+@@innodb_doublewrite_files
+2
+SET GLOBAL innodb_doublewrite_files = DEFAULT;
+ERROR HY000: Variable 'innodb_doublewrite_files' is a read only variable
+SELECT @@innodb_doublewrite_files;
+@@innodb_doublewrite_files
+2
+SELECT @@innodb_doublewrite_pages;
+@@innodb_doublewrite_pages
+128
+SET GLOBAL innodb_doublewrite_pages = DEFAULT;
+ERROR HY000: Variable 'innodb_doublewrite_pages' is a read only variable
+SELECT @@innodb_doublewrite_pages;
+@@innodb_doublewrite_pages
+128
+SELECT @@innodb_change_buffering;
+@@innodb_change_buffering
+none
+SET GLOBAL innodb_change_buffering = DEFAULT;
+SELECT @@innodb_change_buffering;
+@@innodb_change_buffering
+none
+SELECT @@innodb_adaptive_hash_index;
+@@innodb_adaptive_hash_index
+0
+SET GLOBAL innodb_adaptive_hash_index = DEFAULT;
+SELECT @@innodb_adaptive_hash_index;
+@@innodb_adaptive_hash_index
+0
+SELECT @@innodb_use_fdatasync;
+@@innodb_use_fdatasync
+1
+SET GLOBAL innodb_use_fdatasync = DEFAULT;
+SELECT @@innodb_use_fdatasync;
+@@innodb_use_fdatasync
+1

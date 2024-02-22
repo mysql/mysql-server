@@ -1,1 +1,1 @@
---innodb_buffer_pool_size=1073741824
+--innodb_buffer_pool_size=1073741824 --innodb_buffer_pool_instances=8

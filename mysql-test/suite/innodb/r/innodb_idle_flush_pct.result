@@ -9,7 +9,7 @@ SET GLOBAL innodb_io_capacity = 200;
 SHOW VARIABLES LIKE "%innodb_io_capacity%";
 Variable_name	Value
 innodb_io_capacity	200
-innodb_io_capacity_max	2000
+innodb_io_capacity_max	20000
 SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
 set global innodb_idle_flush_pct=0;
 SET GLOBAL innodb_monitor_enable = all;

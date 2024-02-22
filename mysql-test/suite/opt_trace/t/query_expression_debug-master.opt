@@ -1,4 +1,2 @@
---nowarnings --global-connection-memory-tracking
 --temptable-use-mmap=1 --temptable-max-mmap=1073741824
 --temptable-max-ram=1073741824
-

@@ -976,6 +976,9 @@ extern MYSQL_PLUGIN_IMPORT PSI_tls_channel_bootstrap *psi_tls_channel_hook;
 extern void set_psi_tls_channel_service(void *psi);
 #endif /* HAVE_PSI_INTERFACE */
 
+/* Total physical memory available */
+[[nodiscard]] extern unsigned long long my_physical_memory();
+
 /**
   @} (end of group MYSYS)
 */
