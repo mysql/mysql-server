@@ -17501,22 +17501,35 @@ view_suid:
         ;
 
 view_tail:
-          view_suid VIEW_SYM table_ident opt_derived_column_list
+          view_suid VIEW_SYM opt_if_not_exists table_ident
+          opt_derived_column_list
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_CREATE_VIEW;
+            if ($3)
+            {
+              if ((lex->create_view_mode ==
+                   enum_view_create_mode::VIEW_ALTER) ||
+                  (lex->create_view_mode ==
+                   enum_view_create_mode::VIEW_CREATE_OR_REPLACE))
+              {
+                YYTHD->syntax_error_at(@3);
+                MYSQL_YYABORT;
+              }
+              lex->create_info->options= HA_LEX_CREATE_IF_NOT_EXISTS;
+            }
             /* first table in list is target VIEW name */
-            if (!lex->query_block->add_table_to_list(thd, $3, nullptr,
+            if (!lex->query_block->add_table_to_list(thd, $4, nullptr,
                                                     TL_OPTION_UPDATING,
                                                     TL_IGNORE,
                                                     MDL_EXCLUSIVE))
               MYSQL_YYABORT;
             lex->query_tables->open_strategy= Table_ref::OPEN_STUB;
             thd->parsing_system_view= lex->query_tables->is_system_view;
-            if ($4.size())
+            if ($5.size())
             {
-              for (auto column_alias : $4)
+              for (auto column_alias : $5)
               {
                 // Report error if the column name/length is incorrect.
                 if (check_column_name(column_alias.str))
@@ -17526,11 +17539,11 @@ view_tail:
                 }
               }
               /*
-                The $4 object is short-lived (its 'm_array' is not);
+                The $5 object is short-lived (its 'm_array' is not);
                 so we have to duplicate it, and then we can store a
                 pointer.
               */
-              void *rawmem= thd->memdup(&($4), sizeof($4));
+              void *rawmem= thd->memdup(&($5), sizeof($5));
               if (!rawmem)
                 MYSQL_YYABORT; /* purecov: inspected */
               lex->query_tables->

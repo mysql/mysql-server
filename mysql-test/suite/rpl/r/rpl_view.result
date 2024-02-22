@@ -128,5 +128,18 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 DROP VIEW v1;
 DROP TABLE t1;
 include/rpl/sync_to_replica.inc
+# Verify that CREATE VIEW IF NOT EXISTS on master behaves correctly
+# when the view already exists on the replica
+CREATE TABLE t1 (a INT);
+include/rpl/sync_to_replica.inc
+# Create view v1 only on the replica:
+CREATE VIEW v1 AS SELECT a FROM t1;
+# Now conditionally create v1 on the master. There should be no errors
+# on the replica where v1 already exists.
+CREATE VIEW IF NOT EXISTS v1 AS SELECT a FROM t1;
+include/rpl/sync_to_replica.inc
+DROP VIEW v1;
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
 End of 5.0 tests
 include/rpl/deinit.inc

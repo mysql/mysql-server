@@ -80,3 +80,51 @@ DROP TABLE t2;
 CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 ERROR HY000: Trigger already exists
 DROP TABLE t1;
+
+#
+# WL#14774 Support IF NOT EXISTS clause
+# in CREATE VIEW
+#
+
+# 5. Views
+
+# 5.1. Must execute successfully since the view does not exist
+CREATE TABLE t1 (a INT);
+CREATE VIEW IF NOT EXISTS v1 (v1_a) AS SELECT a FROM t1;
+# 5.2. Must report a warning that the view already exists
+CREATE VIEW IF NOT EXISTS v1 (v1_a) AS SELECT a FROM t1;
+Warnings:
+Note	1050	Table 'v1' already exists
+# 5.3. Must fail with error that the view already exists
+CREATE VIEW v1 (v1_a) AS SELECT a FROM t1;
+ERROR 42S01: Table 'v1' already exists
+# 5.4. Must report a warning that the table already exists
+CREATE TABLE t2 (b INT);
+CREATE VIEW IF NOT EXISTS t1 (t2_b) AS SELECT b FROM t2;
+Warnings:
+Note	1050	Table 't1' already exists
+# 5.5. Must fail with an error if both OR REPLACE and IF NOT EXISTS
+# clauses are present.
+CREATE OR REPLACE VIEW IF NOT EXISTS v1 (t2_b) AS SELECT b FROM t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS v1 (t2_b) AS SELECT b FROM t2' at line 1
+# 5.6. Must fail with an error when an IF NOT EXISTS clause is
+# present in an ALTER VIEW statement
+ALTER VIEW IF NOT EXISTS v1 (t2_b) AS SELECT b FROM t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS v1 (t2_b) AS SELECT b FROM t2' at line 1
+# 5.7. Must fail with an error to create a view when a table of
+# the same name already exists.
+CREATE VIEW t1 AS SELECT b from t2;
+ERROR 42S01: Table 't1' already exists
+# 5.8. Must fail with an error to create a table when a view of 
+# the same name already exists.
+CREATE TABLE v1 (c INT);
+ERROR 42S01: Table 'v1' already exists
+# 5.9. Must fail with an error when creating a view with the same
+# name as an existing view and an incorrect view definition.
+CREATE VIEW v1 AS SELECT * FROM invalid_table_name;
+ERROR 42S02: Table 'test.invalid_table_name' doesn't exist
+CREATE VIEW v1 AS SELECT invalid_column_name FROM t1;
+ERROR 42S22: Unknown column 'invalid_column_name' in 'field list'
+DROP VIEW v1;
+DROP TABLE t1;
+DROP TABLE t2;

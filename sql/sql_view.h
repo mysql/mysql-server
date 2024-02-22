@@ -45,7 +45,8 @@ bool create_view_precheck(THD *thd, Table_ref *tables, Table_ref *view,
 
 bool mysql_create_view(THD *thd, Table_ref *view, enum_view_create_mode mode);
 
-bool mysql_register_view(THD *thd, Table_ref *view, enum_view_create_mode mode);
+bool mysql_register_view(THD *thd, Table_ref *view, enum_view_create_mode mode,
+                         bool *use_existing_view);
 
 bool mysql_drop_view(THD *thd, Table_ref *view);
 

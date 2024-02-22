@@ -177,5 +177,22 @@ DROP VIEW v1;
 DROP TABLE t1;
 --source include/rpl/sync_to_replica.inc
 
+--echo # Verify that CREATE VIEW IF NOT EXISTS on master behaves correctly
+--echo # when the view already exists on the replica
+connection master;
+CREATE TABLE t1 (a INT);
+--source include/rpl/sync_to_replica.inc
+--echo # Create view v1 only on the replica:
+CREATE VIEW v1 AS SELECT a FROM t1;
+connection master;
+--echo # Now conditionally create v1 on the master. There should be no errors
+--echo # on the replica where v1 already exists.
+CREATE VIEW IF NOT EXISTS v1 AS SELECT a FROM t1;
+--source include/rpl/sync_to_replica.inc
+connection master;
+DROP VIEW v1;
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
 --echo End of 5.0 tests
 --source include/rpl/deinit.inc

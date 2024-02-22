@@ -1,6 +1,8 @@
 #
 # WL#14722 Support IF NOT EXISTS clause
 # in CREATE PROCEDURE/FUNCTION/TRIGGER
+# WL#15774 Support IF NOT EXISTS clause
+# in CREATE VIEW
 #
 include/rpl/init_source_replica.inc
 Warnings:
@@ -15,6 +17,7 @@ CREATE PROCEDURE IF NOT EXISTS sp1() BEGIN END;
 CREATE FUNCTION IF NOT EXISTS sf1() RETURNS INT DETERMINISTIC return 0;
 CREATE FUNCTION IF NOT EXISTS metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE VIEW IF NOT EXISTS v1 (v1_a) AS SELECT a FROM t1;
 
 # Check if objects are created on replica
 [On Replica]
@@ -29,12 +32,16 @@ metaphon
 SELECT trigger_name FROM information_schema.triggers WHERE trigger_schema = "test";
 TRIGGER_NAME
 trg1
+SELECT table_name FROM information_schema.views WHERE table_schema = "test";
+TABLE_NAME
+v1
 
 # Drop objects on replica
 DROP PROCEDURE sp1;
 DROP FUNCTION sf1;
 DROP FUNCTION metaphon;
 DROP TRIGGER trg1;
+DROP VIEW v1;
 
 # Create objects with IF NOT EXISTS claus when objects already exist on source.
 # These statements should re-create objects on replica
@@ -51,6 +58,9 @@ Note	1125	Function 'metaphon' already exists
 CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 Warnings:
 Note	4099	Trigger 'trg1' already exists on the table 'test'.'t1'.
+CREATE VIEW IF NOT EXISTS v1 (v1_a) AS SELECT a FROM t1;
+Warnings:
+Note	1050	Table 'v1' already exists
 
 # Check if objects are re-created on replica
 [On Replica]
@@ -65,6 +75,9 @@ metaphon
 SELECT trigger_name FROM information_schema.triggers WHERE trigger_schema = "test";
 TRIGGER_NAME
 trg1
+SELECT table_name FROM information_schema.views WHERE table_schema = "test";
+TABLE_NAME
+v1
 
 # Cleanup
 [On Source]
@@ -72,6 +85,7 @@ DROP PROCEDURE sp1;
 DROP FUNCTION sf1;
 DROP FUNCTION metaphon;
 DROP TRIGGER trg1;
+DROP VIEW v1;
 DROP TABLE t1;
 include/rpl/sync_to_replica.inc
 include/rpl/deinit.inc

@@ -1,6 +1,8 @@
 --echo #
 --echo # WL#14722 Support IF NOT EXISTS clause
 --echo # in CREATE PROCEDURE/FUNCTION/TRIGGER
+--echo # WL#15774 Support IF NOT EXISTS clause
+--echo # in CREATE VIEW
 --echo #
 
 --source include/rpl/init_source_replica.inc
@@ -17,6 +19,7 @@ CREATE FUNCTION IF NOT EXISTS sf1() RETURNS INT DETERMINISTIC return 0;
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 --eval CREATE FUNCTION IF NOT EXISTS metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB"
 CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE VIEW IF NOT EXISTS v1 (v1_a) AS SELECT a FROM t1;
 
 --echo
 --echo # Check if objects are created on replica
@@ -28,6 +31,7 @@ CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 SELECT routine_name FROM information_schema.routines WHERE routine_schema = "test";
 SELECT name FROM mysql.func WHERE name = 'metaphon';
 SELECT trigger_name FROM information_schema.triggers WHERE trigger_schema = "test";
+SELECT table_name FROM information_schema.views WHERE table_schema = "test";
 
 --echo
 --echo # Drop objects on replica
@@ -35,6 +39,7 @@ DROP PROCEDURE sp1;
 DROP FUNCTION sf1;
 DROP FUNCTION metaphon;
 DROP TRIGGER trg1;
+DROP VIEW v1;
 
 --echo
 --echo # Create objects with IF NOT EXISTS claus when objects already exist on source.
@@ -47,6 +52,7 @@ CREATE FUNCTION IF NOT EXISTS sf1() RETURNS INT DETERMINISTIC return 0;
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 --eval CREATE FUNCTION IF NOT EXISTS metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB"
 CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE VIEW IF NOT EXISTS v1 (v1_a) AS SELECT a FROM t1;
 
 --echo
 --echo # Check if objects are re-created on replica
@@ -58,6 +64,7 @@ CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 SELECT routine_name FROM information_schema.routines WHERE routine_schema = "test";
 SELECT name FROM mysql.func WHERE name = 'metaphon';
 SELECT trigger_name FROM information_schema.triggers WHERE trigger_schema = "test";
+SELECT table_name FROM information_schema.views WHERE table_schema = "test";
 
 --echo
 --echo # Cleanup
@@ -68,6 +75,7 @@ DROP PROCEDURE sp1;
 DROP FUNCTION sf1;
 DROP FUNCTION metaphon;
 DROP TRIGGER trg1;
+DROP VIEW v1;
 
 DROP TABLE t1;
 

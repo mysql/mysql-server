@@ -3757,7 +3757,6 @@ bool is_atomic_ddl(THD *thd, bool using_trans_arg) {
     case SQLCOM_ALTER_PROCEDURE:
     case SQLCOM_ALTER_EVENT:
     case SQLCOM_DROP_EVENT:
-    case SQLCOM_CREATE_VIEW:
     case SQLCOM_DROP_VIEW:
 
       assert(using_trans_arg || thd->slave_thread || lex->drop_if_exists);
@@ -3769,6 +3768,7 @@ bool is_atomic_ddl(THD *thd, bool using_trans_arg) {
     case SQLCOM_CREATE_SPFUNCTION:
     case SQLCOM_CREATE_FUNCTION:
     case SQLCOM_CREATE_TRIGGER:
+    case SQLCOM_CREATE_VIEW:
       /*
         trx cache is *not* used if object already exists and IF NOT EXISTS
         clause is used in the statement or if call is from the slave applier.
