@@ -1074,46 +1074,48 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
    *
    */
 
-  // TODO: 本来应该用trx->mysql_thd的，但是没办法用，暂时先新启一个线程
-  if (log.m_remote_buf_thd == nullptr) {
-    log.m_remote_buf_thd = create_internal_thd();
-    // sql/conn_handler/connection_handler_per_thread.cc
-    /* @StateReplicate: Init the recourses need for RDMA operation when init
-     new_thd: CoroutineScheduler, used for RDMA operations (coro_num = 1) thread
-     local RDMA region (allocated from global RDMA region) address_cache, used
-     to address info in remote StateNode () qp_manager, used to build
-     QPConnection
-     */
-    THD *thd = log.m_remote_buf_thd;
-    thd->coro_sched = new CoroutineScheduler(0, CORO_NUM);
-    auto local_rdma_region_range =
-      RDMARegionAllocator::get_instance()->GetThreadLocalRegion(
-          0);
-    // rdma_buffer_allocator is used to manage the local buffer used for RDMA
-    // operations
-    thd->rdma_buffer_allocator = new RDMABufferAllocator(
-        local_rdma_region_range.first, local_rdma_region_range.second);
-    // log_offset allocator is used to calculte the remote log_buffer_offset
-    // 初始化 LogOffsetAllocator 需要用到 Connection_handler_manager
-    // thd->log_offset_allocator = new LogOffsetAllocator(
-    //     thd->thread_id(),
-    //     Connection_handler_manager::get_instance()->max_threads);
-    // thd->qp_manager = new QPManager(thd->thread_id());
-    std::cout << "QPMgr::get_instance in log0buf \n";
-    thd->qp_manager = QPManager::get_instance();
-    // thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
+  // TODO: 本来应该用trx->mysql_thd的，但是没办法用，
+  // 把该线程内部的 RDMABufferAllocator 等直接移到log_t中
+  // storage/innobase/include/log0sys.h
 
-    thd->rdma_allocated_ = true;
-  }
+  //  if (log.m_remote_buf_thd == nullptr) {
+  //    log.m_remote_buf_thd = create_internal_thd();
+  //    // sql/conn_handler/connection_handler_per_thread.cc
+  //    /* @StateReplicate: Init the recourses need for RDMA operation when init
+  //     new_thd: CoroutineScheduler, used for RDMA operations (coro_num = 1)
+  //     thread local RDMA region (allocated from global RDMA region)
+  //     address_cache, used to address info in remote StateNode () qp_manager,
+  //     used to build QPConnection
+  //     */
+  //    THD *thd = log.m_remote_buf_thd;
+  //    thd->coro_sched = new CoroutineScheduler(0, CORO_NUM);
+  //    auto local_rdma_region_range =
+  //      RDMARegionAllocator::get_instance()->GetThreadLocalRegion(
+  //          0);
+  //    // rdma_buffer_allocator is used to manage the local buffer used for
+  //    RDMA
+  //    // operations
+  //    thd->rdma_buffer_allocator = new RDMABufferAllocator(
+  //        local_rdma_region_range.first, local_rdma_region_range.second);
+  //    // log_offset allocator is used to calculte the remote log_buffer_offset
+  //    // 初始化 LogOffsetAllocator 需要用到 Connection_handler_manager
+  //    // thd->log_offset_allocator = new LogOffsetAllocator(
+  //    //     thd->thread_id(),
+  //    //     Connection_handler_manager::get_instance()->max_threads);
+  //    // thd->qp_manager = new QPManager(thd->thread_id());
+  //    std::cout << "QPMgr::get_instance in log0buf \n";
+  //    thd->qp_manager = QPManager::get_instance();
+  //    // thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
+  //
+  //    thd->rdma_allocated_ = true;
+  //  }
+
   // 这里是新启的线程，不是trx->mysql_thd，读不到rdma_allocated_
   //  if (log.m_remote_buf_thd != nullptr &&
   //      log.m_remote_buf_thd->rdma_allocated_) {
-  if (log.m_remote_buf_thd != nullptr) {
-    THD *thd = log.m_remote_buf_thd;
-
+  if (log.qp_manager != nullptr) {
     node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
-    RCQP *qp = thd->qp_manager->GetRemoteLogBufQPWithNodeID(
-        primary_node_id);
+    RCQP *qp = log.qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
     MetaManager *meta_mgr = MetaManager::get_instance();
 
     // TODO: 真的需要加锁吗？原有的写log逻辑都是无锁的，加锁会显著降低速度
@@ -1138,7 +1140,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // 实际数据存储在log.buf
     // log_t没法转成char*直接传过去，模仿TxnItem包装成RedoLogItem
     RedoLogItem *redo_log_remote_buf =
-        (RedoLogItem *)thd->rdma_buffer_allocator->Alloc(sizeof(RedoLogItem));
+        (RedoLogItem *)log.rdma_buffer_allocator->Alloc(sizeof(RedoLogItem));
     meta_mgr->SetRedoLogSize(sizeof(RedoLogItem));
     // warning: definition of implicit copy assignment operator for
     // 'aligned_array_pointer<unsigned char, 512>' is deprecated because it
@@ -1162,8 +1164,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     //    redo_log_remote_buf->recent_closed = log.recent_closed;
 
     // meta information of redo log buffer
-    if (!thd->coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
-                                        meta_mgr->GetRedoLogCurrAddr(),
+    if (!log.coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
+                                       meta_mgr->GetRedoLogCurrAddr(),
                                         sizeof(RedoLogItem))) {
       // Fail
       std::cout << "failed to write redo_log_remote_buf\n";
@@ -1178,11 +1180,12 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     //       0, qp, (char *)log.buf,
 
     // TODO: 不太确定log.buf的大小，log.buf_size? buf_size_sn?
-    size_t log_buf_data_size = ut::INNODB_CACHE_LINE_SIZE; 
-    byte *log_buf_data =  (byte *)thd->rdma_buffer_allocator->Alloc(log_buf_data_size);
+    size_t log_buf_data_size = ut::INNODB_CACHE_LINE_SIZE;
+    byte *log_buf_data =
+        (byte *)log.rdma_buffer_allocator->Alloc(log_buf_data_size);
     // log_buf_data = static_cast<byte *>(log.buf);
     std::memcpy(log_buf_data, log.buf, log_buf_data_size);
-    if (!thd->coro_sched->RDMAWriteSync(
+    if (!log.coro_sched->RDMAWriteSync(
             0, qp, (char *)log_buf_data,
             meta_mgr->GetRedoLogCurrAddr() + sizeof(RedoLogItem),  // 实际数据传到RedoLogItem后面
             log_buf_data_size)) {  

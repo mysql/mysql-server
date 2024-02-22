@@ -69,6 +69,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* aligned_array_pointer, ut::vector */
 #include "ut0new.h"
 
+#include "state/allocator/buffer_allocator.h"
+#include "state/allocator/log_offset_allocator.h"
+#include "state/coroutine_scheduler/coroutine_scheduler.h"
+#include "state/rdma_connection/qp_manager.h"
+
 class THD;
 
 /** Redo log - single data structure with state of the redo log system.
@@ -159,8 +164,30 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /**
    * @StateReplicate: A THD of log_t for managing remote redo log buffer
    */
-  THD *m_remote_buf_thd;
+  // THD *m_remote_buf_thd;
+  /**
+   * @StateReplicate: 把该线程内部的RDMABufferAllocator等直接移到log_t中
+   * Init the recourses need for RDMA operation when init
+   * new_thd: CoroutineScheduler, used for RDMA operations (coro_num = 1) thread
+   * local RDMA region (allocated from global RDMA region) address_cache, used
+   * to address info in remote StateNode () qp_manager, used to build
+   * QPConnection
+   */
 
+  CoroutineScheduler *coro_sched = new CoroutineScheduler(0, CORO_NUM);
+  std::pair<char *, char *> local_rdma_region_range =
+      RDMARegionAllocator::get_instance()->GetThreadLocalRegion(0);
+  RDMABufferAllocator *rdma_buffer_allocator = new RDMABufferAllocator(
+      local_rdma_region_range.first, local_rdma_region_range.second);
+  // 初始化 LogOffsetAllocator 需要用到 Connection_handler_manager
+  // LogOffsetAllocator *log_offset_allocator;
+  
+  // std::cout << "QPMgr::get_instance in log0sys.h \n";
+  QPManager *qp_manager = QPManager::get_instance();
+
+  // bool rdma_allocated_ = false;
+
+  // 以下为原代码
   /** @} */
 
   /**************************************************/ /**
