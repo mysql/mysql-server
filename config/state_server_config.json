@@ -8,6 +8,6 @@
     },
     "master_node": {
         "master_node_ip": "127.0.0.1",
-        "master_node_port": 12306
+        "master_node_port": 12308
     }
 }

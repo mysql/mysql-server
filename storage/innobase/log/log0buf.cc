@@ -87,6 +87,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include "state/state_store/redo_log.h"
 
+#include <fstream>
+
 // clang-format off
 /**************************************************/ /**
  @page PAGE_INNODB_REDO_LOG_BUF Redo log buffer
@@ -1118,6 +1120,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     RCQP *qp = log.qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
     MetaManager *meta_mgr = MetaManager::get_instance();
 
+    std::fstream f;
+    f.open("/usr/local/mysql/mylog.log", std::ios::out|std::ios::app);
     // TODO: 真的需要加锁吗？原有的写log逻辑都是无锁的，加锁会显著降低速度
 
     // 加锁，并发控制
@@ -1173,6 +1177,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       return lsn;
     }
     // std::cout << "success to write redo_log_remote_buf\n";
+    f << "success to write redo_log_remote_buf\n";
 
     // 但是 log.buf 只是一个指针，还需要转发其指向的完整数据
     //  error: invalid cast from type ‘ut::aligned_array_pointer<unsigned char,
@@ -1194,6 +1199,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
       return lsn;
     }
     // std::cout << "success to write log_buf_data\n";
+    f << "success to write log_buf_data\n";
+    f.close();
 
     // 放锁
     //    if (!thd->coro_sched->RDMACASSync(0, qp, redo_log_remote_buf_latch,

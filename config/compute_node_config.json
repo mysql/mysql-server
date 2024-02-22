@@ -1,7 +1,7 @@
 {
     "local_compute_node": {
         "machine_id": 0,
-        "local_port": 12306
+        "local_port": 12308
     },
     "remote_state_nodes": {
         "remote_ips": [
