@@ -1077,6 +1077,32 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
   // TODO: 本来应该用trx->mysql_thd的，但是没办法用，暂时先新启一个线程
   if (log.m_remote_buf_thd == nullptr) {
     log.m_remote_buf_thd = create_internal_thd();
+    // sql/conn_handler/connection_handler_per_thread.cc
+    /* @StateReplicate: Init the recourses need for RDMA operation when init
+     new_thd: CoroutineScheduler, used for RDMA operations (coro_num = 1) thread
+     local RDMA region (allocated from global RDMA region) address_cache, used
+     to address info in remote StateNode () qp_manager, used to build
+     QPConnection
+     */
+    THD *thd = log.m_remote_buf_thd;
+    thd->coro_sched = new CoroutineScheduler(thd->thread_id(), CORO_NUM);
+    auto local_rdma_region_range =
+      RDMARegionAllocator::get_instance()->GetThreadLocalRegion(
+          thd->thread_id());
+    // rdma_buffer_allocator is used to manage the local buffer used for RDMA
+    // operations
+    thd->rdma_buffer_allocator = new RDMABufferAllocator(
+        local_rdma_region_range.first, local_rdma_region_range.second);
+    // log_offset allocator is used to calculte the remote log_buffer_offset
+    // 初始化 LogOffsetAllocator 需要用到 Connection_handler_manager
+    // thd->log_offset_allocator = new LogOffsetAllocator(
+    //     thd->thread_id(),
+    //     Connection_handler_manager::get_instance()->max_threads);
+    // thd->qp_manager = new QPManager(thd->thread_id());
+    thd->qp_manager = QPManager::get_instance();
+    thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
+
+    thd->rdma_allocated_ = true;
   }
   // 这里是新启的线程，不是trx->mysql_thd，读不到rdma_allocated_
   //  if (log.m_remote_buf_thd != nullptr &&
@@ -1086,40 +1112,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
 
     node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
     RCQP *qp = thd->qp_manager->GetRemoteLogBufQPWithNodeID(
-        primary_node_id);  // core dump
-
-    /* core dump 报错信息
-      #0  0x00007f4a2cd639d5 in pthread_kill () from /lib64/libpthread.so.0
-
-      #1  0x0000000004b5d8b2 in my_write_core (sig=11) at
-    /mysql8/mysys/stacktrace.cc:295
-
-      #2  0x0000000003729fc4 in handle_fatal_signal (sig=11) at
-    /mysql8/sql/signal_handler.cc:230
-
-      #3  <signal handler called>
-
-      #4  0x0000000004cffeb2 in QPManager::GetRemoteLogBufQPWithNodeID
-    (node_id=0, this=0x0) at /mysql8/state/rdma_connection/qp_manager.h:30
-
-      #5  log_buffer_write (log=..., str=0x7f3a867d3cb0
-    ";\373\357\001\033\373\357\001\037C}\206", str_len=9, start_lsn=8204) at
-    /mysql8/storage/innobase/log/log0buf.cc:1037
-
-      #6  0x0000000004d895a9 in mtr_write_log_t::operator()
-    (this=0x7f3a867d3950, block=0x7f3a867d3ca0) at
-    /mysql8/storage/innobase/mtr/mtr0mtr.cc:517
-
-      #7  0x0000000004d89ff2 in
-    dyn_buf_t<512ul>::for_each_block<mtr_write_log_t> (this=0x7f3a867d3c70,
-          functor=...) at /mysql8/storage/innobase/include/dyn0buf.h:298
-
-      #8  0x0000000004d86b90 in mtr_t::Command::execute (this=0x7f3a867d39b0)
-    at /mysql8/storage/innobase/mtr/mtr0mtr.cc:857
-
-     ...
-            */
-
+        primary_node_id);
     MetaManager *meta_mgr = MetaManager::get_instance();
 
     // TODO: 真的需要加锁吗？原有的写log逻辑都是无锁的，加锁会显著降低速度
@@ -1149,18 +1142,18 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // warning: definition of implicit copy assignment operator for
     // 'aligned_array_pointer<unsigned char, 512>' is deprecated because it
     // has a user-provided destructor
-    redo_log_remote_buf->sn_lock_event = log.sn_lock_event;
-    redo_log_remote_buf->sn_lock_inst = log.sn_lock_inst;
-    redo_log_remote_buf->sn = log.sn.load();
-    redo_log_remote_buf->sn_locked = log.sn_locked.load();
+    // redo_log_remote_buf->sn_lock_event = log.sn_lock_event;
+    // redo_log_remote_buf->sn_lock_inst = log.sn_lock_inst;
+    // redo_log_remote_buf->sn = log.sn.load();
+    // redo_log_remote_buf->sn_locked = log.sn_locked.load();
     //    redo_log_remote_buf->sn_x_lock_mutex = log.sn_x_lock_mutex;
     redo_log_remote_buf->buf = log.buf;
-    redo_log_remote_buf->buf_size_sn = log.buf_size_sn.load();
+    // redo_log_remote_buf->buf_size_sn = log.buf_size_sn.load();
     redo_log_remote_buf->buf_size = log.buf_size;
-    redo_log_remote_buf->pfs_psi = log.pfs_psi;
+    // redo_log_remote_buf->pfs_psi = log.pfs_psi;
     //    redo_log_remote_buf->recent_written = log.recent_written;
-    redo_log_remote_buf->writer_threads_paused =
-        log.writer_threads_paused.load();
+    // redo_log_remote_buf->writer_threads_paused =
+    //     log.writer_threads_paused.load();
     redo_log_remote_buf->current_ready_waiting_lsn =
         log.current_ready_waiting_lsn;
     redo_log_remote_buf->current_ready_waiting_sig_count =
@@ -1172,22 +1165,31 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
                                         meta_mgr->GetRedoLogCurrAddr(),
                                         sizeof(RedoLogItem))) {
       // Fail
+      std::cout << "failed to write redo_log_remote_buf\n";
+      assert(0);
       return lsn;
     }
+    // std::cout << "success to write redo_log_remote_buf\n";
 
     // 但是 log.buf 只是一个指针，还需要转发其指向的完整数据
     //  error: invalid cast from type ‘ut::aligned_array_pointer<unsigned char,
     //  512>’ to type ‘char*’
     //       0, qp, (char *)log.buf,
-    unsigned char *log_buf_data = static_cast<byte *>(log.buf);
+
+    // TODO: 不太确定log.buf的大小，log.buf_size? buf_size_sn?
+    size_t log_buf_data_size = ut::INNODB_CACHE_LINE_SIZE; 
+    byte *log_buf_data =  (byte *)thd->rdma_buffer_allocator->Alloc(log_buf_data_size);
+    // log_buf_data = static_cast<byte *>(log.buf);
+    std::memcpy(log_buf_data, log.buf, log_buf_data_size);
     if (!thd->coro_sched->RDMAWriteSync(
             0, qp, (char *)log_buf_data,
             meta_mgr->GetRedoLogCurrAddr() + sizeof(RedoLogItem),  // 实际数据传到RedoLogItem后面
-            ut::INNODB_CACHE_LINE_SIZE)) {  // TODO: 不太确定log.buf的大小
-                                            // log.buf_size? buf_size_sn?
+            log_buf_data_size)) {  
       // Fail
+      std::cout << "failed to write log_buf_data\n";
       return lsn;
     }
+    // std::cout << "success to write log_buf_data\n";
 
     // 放锁
     //    if (!thd->coro_sched->RDMACASSync(0, qp, redo_log_remote_buf_latch,

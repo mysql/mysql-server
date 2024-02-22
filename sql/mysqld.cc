@@ -11189,7 +11189,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   //  QPManager::get_instance()->BuildQPConnection(MetaManager::get_instance());
 
   if (QPManager::create_instance(
-          Connection_handler_manager::get_instance()->max_threads)) {
+          Connection_handler_manager::get_instance()->max_threads + 1)) {
     return 1;
   }
   QPManager::BuildALLQPConnection(MetaManager::get_instance());

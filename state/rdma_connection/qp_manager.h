@@ -15,6 +15,7 @@ class QPManager {
   static QPManager* get_instance() {
     // assert(global_qp_mgr_ != nullptr);
     // return global_qp_mgr_;
+    std::cout << "next_qp_mgr_idx_: " << next_qp_mgr_idx_ << "  qp_mgr_num_: " << qp_mgr_num_ << "\n";
     assert(next_qp_mgr_idx_ < qp_mgr_num_);
     assert(global_qp_mgr_[next_qp_mgr_idx_] != nullptr);
     return global_qp_mgr_[next_qp_mgr_idx_ ++];
