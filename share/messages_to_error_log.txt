@@ -12692,6 +12692,12 @@ ER_LOG_SANITIZATION
 ER_WARN_LOG_DEPRECATED_NON_STANDARD_KEY
   eng "Foreign key '%.64s' on table '%.64s'.'%.64s' refers to non-unique key or partial key. This is deprecated and will be removed in a future release."
 
+ER_THREAD_POOL_MTL_DISABLE
+  eng "Disabling MTL in thread group %u since it has %u (=MTL per group) long running transactions."
+
+ER_THREAD_POOL_MTL_REENABLE
+  eng "Re-enabling MTL in thread group %u since it is down to %u long running transactions."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
