@@ -571,10 +571,10 @@ const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf,
                                       int buf_sz);
 
 /**
- * Sets the number of seconds for timeout of network operations
- * Default is 3 seconds.
+ * DEPRECATED: use ndb_mgm_set_timeout instead.
+ *
  * @param handle  NdbMgmHandle
- * @param seconds Timeout in number of seconds
+ * @param seconds number of seconds
  * @return non-zero on success
  */
 int ndb_mgm_set_connect_timeout(NdbMgmHandle handle, unsigned int seconds);
@@ -595,8 +595,10 @@ int ndb_mgm_set_timeout(NdbMgmHandle handle, unsigned int timeout_ms);
  * Connects to a management server. Connectstring is set by
  * ndb_mgm_set_connectstring().
  *
- * Uses the value specified by ndb_mgm_set_connect_timeout() as timeout,
- * default is 3 seconds.
+ * The timeout value is for connect to each management server.
+ * Use ndb_mgm_number_of_mgmd_in_connect_string to work out
+ * the approximate maximum amount of time that could be spent in this
+ * function.
  *
  * @param   handle        Management handle.
  * @param   no_retries    Number of retries to connect
