@@ -1099,6 +1099,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     //     thd->thread_id(),
     //     Connection_handler_manager::get_instance()->max_threads);
     // thd->qp_manager = new QPManager(thd->thread_id());
+    std::cout << "QPMgr::get_instance in log0buf \n";
     thd->qp_manager = QPManager::get_instance();
     thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
 
