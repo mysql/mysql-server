@@ -668,6 +668,16 @@ static void log_sys_create() {
   log_calc_buf_size(log);
 
   log_consumer_register(log, &(log.m_checkpoint_consumer));
+
+  /**
+   * @StateReplicate: 初始化RDMABufferAllocator等
+   */
+  log.coro_sched = new CoroutineScheduler(0, CORO_NUM);
+  auto local_rdma_region_range =
+      RDMARegionAllocator::get_instance()->GetThreadLocalRegion(0);
+  log.rdma_buffer_allocator = new RDMABufferAllocator(
+      local_rdma_region_range.first, local_rdma_region_range.second);
+  log.qp_manager = QPManager::get_instance();
 }
 
 static void log_fix_first_rec_group(lsn_t block_lsn,
