@@ -38,7 +38,7 @@ t AS t5,
 t AS t6
 ORDER BY 1
 LIMIT 2;
-SET GLOBAL temptable_max_ram = default;
+SET GLOBAL temptable_max_ram = 1073741824;
 SELECT count_alloc > 0
 FROM performance_schema.memory_summary_global_by_event_name
 WHERE event_name = 'memory/temptable/physical_disk';
@@ -72,8 +72,8 @@ t AS t5,
 t AS t6
 ORDER BY 1
 LIMIT 2;
-SET GLOBAL temptable_max_ram = default;
-SET GLOBAL temptable_use_mmap = default;
+SET GLOBAL temptable_max_ram = 1073741824;
+SET GLOBAL temptable_use_mmap = true;
 Warnings:
 Warning	1287	'temptable_use_mmap' is deprecated and will be removed in a future release.
 SELECT @@global.temptable_use_mmap;
@@ -116,8 +116,8 @@ WHERE event_name = 'memory/temptable/physical_disk';
 sum_number_of_bytes_alloc = 4*1024*1024 + 64
 1
 DROP TABLE t;
-SET GLOBAL temptable_max_ram = default;
-SET GLOBAL temptable_max_mmap = default;
-SET GLOBAL temptable_use_mmap = default;
+SET GLOBAL temptable_max_ram = 1073741824;
+SET GLOBAL temptable_max_mmap = 1073741824;
+SET GLOBAL temptable_use_mmap = true;
 Warnings:
 Warning	1287	'temptable_use_mmap' is deprecated and will be removed in a future release.

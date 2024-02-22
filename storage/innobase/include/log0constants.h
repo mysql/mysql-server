@@ -479,7 +479,7 @@ constexpr ulong INNODB_LOG_FLUSH_NOTIFIER_SPIN_DELAY_DEFAULT = 0;
 constexpr ulong INNODB_LOG_FLUSH_NOTIFIER_TIMEOUT_DEFAULT = 10;
 
 /** Default value of innodb_log_buffer_size (in bytes). */
-constexpr ulong INNODB_LOG_BUFFER_SIZE_DEFAULT = 16 * 1024 * 1024UL;
+constexpr ulong INNODB_LOG_BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024UL;
 
 /** Minimum allowed value of innodb_log_buffer_size. */
 constexpr ulong INNODB_LOG_BUFFER_SIZE_MIN = 256 * 1024UL;

@@ -1,1 +1,1 @@
---mysqlx=OFF
+--mysqlx=OFF --innodb-read-io-threads=4

@@ -358,6 +358,9 @@ TEST_F(
   temptable::Allocator<uint8_t> allocator(&shared_block,
                                           table_resource_monitor);
 
+  /* Set appropriate temptable_max_mmap */
+  MemoryMonitorHijackProbe::max_mmap_set(1 << 30 /* 1 GiB */);
+
   // RAM consumption should be greater or equal than
   // shared_block_n_elements bytes at this point
   EXPECT_EQ(MemoryMonitorReadOnlyProbe::ram_consumption(), 0);
@@ -454,6 +457,9 @@ TEST_F(
   // Set some artificially low RAM threshold
   MemoryMonitorHijackProbe::max_ram_set(128);
 
+  /* Set appropriate temptable_max_mmap */
+  MemoryMonitorHijackProbe::max_mmap_set(1 << 30 /* 1 GiB */);
+
   // Size of the shared_block we will request must exceed the RAM threshold
   size_t shared_block_n_elements = 1024;
   EXPECT_GT(MemoryMonitorReadOnlyProbe::ram_consumption() +
@@ -502,6 +508,9 @@ TEST_F(TempTableAllocator, block_size_cap) {
   constexpr size_t alloc_size = 1_MiB;
   constexpr size_t n_allocate = ALLOCATOR_MAX_BLOCK_BYTES / alloc_size + 10;
   std::array<uint8_t *, n_allocate> a;
+
+  /* Set appropriate temptable_max_mmap */
+  MemoryMonitorHijackProbe::max_mmap_set(1 << 30 /* 1 GiB */);
 
   for (size_t i = 0; i < n_allocate; ++i) {
     a[i] = allocator.allocate(alloc_size);
@@ -696,6 +705,10 @@ TEST_F(TempTableAllocator,
   temptable::Block shared_block;
   temptable::Allocator<uint8_t> a1(&shared_block, table_resource_monitor);
   temptable::Allocator<uint8_t> a2(&shared_block, table_resource_monitor);
+
+  /* Set appropriate temptable_max_mmap */
+  MemoryMonitorHijackProbe::max_mmap_set(1 << 30 /* 1 GiB */);
+
   auto r11 = a1.allocate(512_KiB);
   temptable::Block b11 = temptable::Block(temptable::Chunk(r11));
   EXPECT_EQ(b11, shared_block);

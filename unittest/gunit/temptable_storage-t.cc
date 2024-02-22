@@ -31,6 +31,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace temptable_storage_unittest {
 
 TEST(StorageTest, Iterate) {
+  /* Set appropriate temptable_max_mmap */
+  temptable_use_mmap = 1;
+  temptable_max_mmap = 1073741824;
+
   std::thread t([]() {
     temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
     temptable::Block shared_block;
@@ -67,6 +71,11 @@ TEST(StorageTest, Iterate) {
 TEST(StorageTest, AllocatorRebind) {
   // Bug in VS2019 error C3409 if we do the same as above.
   // Turns out it is the rebind which confuses the compiler.
+
+  /* Set appropriate temptable_max_mmap */
+  temptable_use_mmap = 1;
+  temptable_max_mmap = 1073741824;
+
   auto thread_function = []() {
     temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
     temptable::Block shared_block;

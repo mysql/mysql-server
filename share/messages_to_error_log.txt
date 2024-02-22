@@ -7158,7 +7158,7 @@ ER_IB_MSG_540
 ER_IB_MSG_541
   eng "%s"
 
-ER_IB_MSG_542
+OBSOLETE_ER_IB_MSG_542
   eng "%s"
 
 ER_IB_MSG_543
@@ -12721,6 +12721,9 @@ ER_BULK_READER_ZSTD_ERROR_LOG
 
 ER_SECONDARY_ENGINE_DDL_TRACK_PROGRESS
   eng "%s"
+
+ER_IB_MSG_INNODB_FLUSH_METHOD
+  eng "Using innodb_flush_method=%s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

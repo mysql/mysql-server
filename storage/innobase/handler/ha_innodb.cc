@@ -358,25 +358,6 @@ enum default_row_format_enum {
   DEFAULT_ROW_FORMAT_DYNAMIC = 2,
 };
 
-#if defined(_WIN32) || defined(_WIN64)
-#include <Windows.h>
-static double get_mem_GlobalMemoryStatus() {
-  MEMORYSTATUSEX ms;
-  ms.dwLength = sizeof(ms);
-  GlobalMemoryStatusEx(&ms);
-  return (((double)ms.ullTotalPhys) / GB);
-}
-#undef get_sys_mem
-#define get_sys_mem get_mem_GlobalMemoryStatus
-#else
-static double get_mem_sysconf() {
-  return (((double)sysconf(_SC_PHYS_PAGES)) *
-          ((double)sysconf(_SC_PAGESIZE) / GB));
-}
-#undef get_sys_mem
-#define get_sys_mem get_mem_sysconf
-#endif /* defined(_WIN32) || defined(_WIN64) */
-
 /** Release all acquired services from mysql server. */
 static void release_plugin_services() {
   if (reg_svc == nullptr) {
@@ -1116,7 +1097,10 @@ static MYSQL_THDVAR_STR(tmpdir, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
 
 static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
                           "Number of threads to do parallel read.", nullptr,
-                          nullptr, 4,                   /* Default. */
+                          nullptr,
+                          std::max(ulong{std::thread::hardware_concurrency() /
+                                         8},
+                                   4UL),                /* Default. */
                           1,                            /* Minimum. */
                           Parallel_reader::MAX_THREADS, /* Maximum. */
                           0);
@@ -4505,6 +4489,43 @@ static void innodb_undo_tablespaces_deprecate() {
   }
 }
 
+template <size_t N>
+static bool innodb_variable_is_set(const char (&var_name)[N]) {
+  enum enum_variable_source source;
+  ut_a(sysvar_source_svc != nullptr);
+  const auto svc_result = sysvar_source_svc->get(var_name, N - 1, &source);
+  ut_a(!svc_result);
+  return source != COMPILED;
+}
+
+static bool innodb_redo_log_capacity_is_set() {
+  return innodb_variable_is_set("innodb_redo_log_capacity");
+}
+
+bool innodb_log_file_size_is_set() {
+  return innodb_variable_is_set("innodb_log_file_size");
+}
+
+bool innodb_log_n_files_is_set() {
+  return innodb_variable_is_set("innodb_log_files_in_group");
+}
+
+static inline bool innodb_buffer_pool_instances_is_set() {
+  return innodb_variable_is_set("innodb_buffer_pool_instances");
+}
+
+static inline bool innodb_page_cleaners_is_set() {
+  return innodb_variable_is_set("innodb_page_cleaners");
+}
+
+static inline bool innodb_io_capacity_max_is_set() {
+  return innodb_variable_is_set("innodb_io_capacity_max");
+}
+
+static inline bool innodb_flush_method_is_set() {
+  return innodb_variable_is_set("innodb_flush_method");
+}
+
 /** Initialize and normalize innodb_buffer_pool_size. */
 static void innodb_buffer_pool_size_init() {
 #ifdef UNIV_DEBUG
@@ -4519,7 +4540,7 @@ static void innodb_buffer_pool_size_init() {
             variable_name, static_cast<unsigned int>(strlen(variable_name)),
             &source)) {
       if (source == COMPILED) {
-        double server_mem = get_sys_mem();
+        double server_mem = my_physical_memory() / GB;
 
         if (server_mem < 1.0) {
           ;
@@ -4538,42 +4559,25 @@ static void innodb_buffer_pool_size_init() {
     }
   }
 
-  if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
-    if (srv_buf_pool_instances == srv_buf_pool_instances_default) {
-#if defined(_WIN32) && !defined(_WIN64)
-      /* Do not allocate too large of a buffer pool on
-      Windows 32-bit systems, which can have trouble
-      allocating larger single contiguous memory blocks. */
-      srv_buf_pool_instances =
-          std::min(static_cast<ulong>(MAX_BUFFER_POOLS),
-                   static_cast<ulong>(srv_buf_pool_size / (128 * 1024 * 1024)));
-#else  /* defined(_WIN32) && !defined(_WIN64) */
-      /* Default to 8 instances when size > 1GB. */
-      srv_buf_pool_instances = 8;
-#endif /* defined(_WIN32) && !defined(_WIN64) */
-    }
-  } else {
-    /* If buffer pool is less than 1 GiB, assume fewer
-    threads. Also use only one buffer pool instance. */
-    if (srv_buf_pool_instances != srv_buf_pool_instances_default &&
-        srv_buf_pool_instances != 1) {
-      /* We can't distinguish whether the user has explicitly
-      started mysqld with --innodb-buffer-pool-instances=0,
-      (srv_buf_pool_instances_default is 0) or has not
-      specified that option at all. Thus we have the
-      limitation that if the user started with =0, we
-      will not emit a warning here, but we should actually
-      do so. */
+  if (srv_buf_pool_size < BUF_POOL_SIZE_THRESHOLD) {
+    /* 1 bp instance when bp size < 1GB */
+    if (innodb_buffer_pool_instances_is_set() && srv_buf_pool_instances != 1) {
       ib::info(ER_IB_MSG_534)
-          << "Adjusting innodb_buffer_pool_instances"
-             " from "
+          << "Adjusting innodb_buffer_pool_instances from "
           << srv_buf_pool_instances
-          << " to 1"
-             " since innodb_buffer_pool_size is less than "
-          << BUF_POOL_SIZE_THRESHOLD / (1024 * 1024) << " MiB";
+          << " to 1 since innodb_buffer_pool_size is less than "
+          << BUF_POOL_SIZE_THRESHOLD / MB << " MiB";
     }
-
     srv_buf_pool_instances = 1;
+  } else if (!innodb_buffer_pool_instances_is_set()) {
+    /* Calculate bp instances using hints from bp size, chunk size and CPUs */
+    const auto bp_hint_ull = srv_buf_pool_size / (srv_buf_pool_chunk_unit * 2);
+    ulong bp_hint = bp_hint_ull > std::numeric_limits<ulong>::max()
+                        ? std::numeric_limits<ulong>::max()
+                        : static_cast<ulong>(bp_hint_ull);
+    ulong cpu_hint = ulong{std::thread::hardware_concurrency() / 4};
+
+    srv_buf_pool_instances = std::clamp(std::min(bp_hint, cpu_hint), 1UL, 64UL);
   }
 
 #ifdef UNIV_DEBUG
@@ -4597,26 +4601,9 @@ static void innodb_buffer_pool_size_init() {
   srv_buf_pool_curr_size = srv_buf_pool_size;
 }
 
-template <size_t N>
-static bool innodb_variable_is_set(const char (&var_name)[N]) {
-  enum enum_variable_source source;
-  ut_a(sysvar_source_svc != nullptr);
-  const auto svc_result = sysvar_source_svc->get(var_name, N - 1, &source);
-  ut_a(!svc_result);
-  return source != COMPILED;
-}
-
-static bool innodb_redo_log_capacity_is_set() {
-  return innodb_variable_is_set("innodb_redo_log_capacity");
-}
-
-bool innodb_log_file_size_is_set() {
-  return innodb_variable_is_set("innodb_log_file_size");
-}
-
-bool innodb_log_n_files_is_set() {
-  return innodb_variable_is_set("innodb_log_files_in_group");
-}
+/** Update the mysql_sysvar_redo_log_capacity's default value
+@param [in] new_def  New default value */
+static void innodb_redo_log_capacity_update_default(ulonglong new_def);
 
 /** Initialize srv_redo_log_capacity / srv_redo_log_capacity_used. */
 static void innodb_redo_log_capacity_init() {
@@ -4654,57 +4641,14 @@ static void innodb_redo_log_capacity_init() {
   }
 
   if (srv_dedicated_server) {
-    double auto_buf_pool_size_in_gb;
-    static const char *var_name_buf_pool_size = "innodb_buffer_pool_size";
-    enum enum_variable_source source;
-
-    auto_buf_pool_size_in_gb = static_cast<double>(srv_buf_pool_size / GB);
-
-    /* If user has set buffer pool size in .cnf, we will not use it as base
-    line for log_file_size auto tuning, instead, we will get the value of
-    possible tuned buffer pool size. */
-    if (!sysvar_source_svc->get(
-            var_name_buf_pool_size,
-            static_cast<unsigned int>(strlen(var_name_buf_pool_size)),
-            &source)) {
-      if (source != COMPILED) {
-        double server_mem = get_sys_mem();
-
-#ifdef UNIV_DEBUG_DEDICATED
-        server_mem = srv_debug_system_mem_size / GB;
-#endif /* UNIV_DEBUG_DEDICATED */
-
-        if (server_mem < 1.0) {
-          ;
-        } else if (server_mem <= 4.0) {
-          auto_buf_pool_size_in_gb = static_cast<double>(server_mem * 0.5);
-        } else
-          auto_buf_pool_size_in_gb = static_cast<double>(server_mem * 0.75);
-      }
-    }
-
     if (!capacity_set) {
-      /* We update srv_redo_log_capacity (underlying sysvar variable),
-      because that is what innodb_dedicated_server is expected to do. */
-      if (auto_buf_pool_size_in_gb < 1.0) {
-        ut_ad(srv_redo_log_capacity == 100 * 1024 * 1024);
-      } else if (auto_buf_pool_size_in_gb < 8.0) {
-        srv_redo_log_capacity =
-            static_cast<ulong>(round(auto_buf_pool_size_in_gb)) * 512ULL * MB;
-      } else if (auto_buf_pool_size_in_gb <= 128.0) {
-        srv_redo_log_capacity =
-            static_cast<ulong>(round(auto_buf_pool_size_in_gb * 0.75)) * GB;
-      } else {
-        constexpr os_offset_t LOG_CAPACITY_FOR_BIG_DEDICATED_SERVER = 128 * GB;
-
-        static_assert(
-            LOG_CAPACITY_FOR_BIG_DEDICATED_SERVER <= LOG_CAPACITY_MAX,
-            "Redo log capacity, for the dedicated server, is too big.");
-
-        srv_redo_log_capacity = LOG_CAPACITY_FOR_BIG_DEDICATED_SERVER;
-      }
+      /* Growth of REDO has high correlation with num of concurrent users which
+depends on num of CPUs */
+      srv_redo_log_capacity = std::clamp(
+          std::min(std::thread::hardware_concurrency() / 2, 16U) * GB,
+          LOG_CAPACITY_MIN, LOG_CAPACITY_MAX);
       srv_redo_log_capacity_used = srv_redo_log_capacity;
-
+      innodb_redo_log_capacity_update_default(srv_redo_log_capacity);
     } else {
       ut_a(srv_redo_log_capacity_used % MB == 0);
       ib::warn(ER_IB_MSG_LOG_PARAMS_DEDICATED_SERVER_IGNORED,
@@ -4720,6 +4664,10 @@ static void innodb_redo_log_capacity_init() {
   ut_a(srv_redo_log_capacity_used <= LOG_CAPACITY_MAX);
   ut_a(srv_redo_log_capacity_used % MB == 0);
 }
+
+/** Update the mysql_sysvar_io_capacity_max's default value
+@param [in] new_def  New default value */
+static void innodb_io_capacity_max_update_default(ulong new_def);
 
 /** Initialize, validate and normalize the InnoDB startup parameters.
 @return failure code
@@ -4849,6 +4797,13 @@ static int innodb_init_params() {
 
   assert(innodb_change_buffering <= IBUF_USE_ALL);
 
+  /* Update innodb_io_capacity_max based on current io capacity */
+  if (!innodb_io_capacity_max_is_set()) {
+    srv_max_io_capacity = std::clamp(ulong{2 * srv_io_capacity}, 100UL,
+                                     ulong{SRV_MAX_IO_CAPACITY_LIMIT});
+    innodb_io_capacity_max_update_default(srv_max_io_capacity);
+  }
+
   /* Check that interdependent parameters have sane values. */
   if (srv_max_buf_pool_modified_pct < srv_max_dirty_pages_pct_lwm) {
     log_errlog(WARNING_LEVEL, ER_INNODB_DIRTY_WATER_MARK_NOT_LOW,
@@ -4856,16 +4811,12 @@ static int innodb_init_params() {
     srv_max_dirty_pages_pct_lwm = srv_max_buf_pool_modified_pct;
   }
 
+  /* Is it needed anymore? */
   if (srv_max_io_capacity == SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT) {
     if (srv_io_capacity >= SRV_MAX_IO_CAPACITY_LIMIT / 2) {
       /* Avoid overflow. */
       srv_max_io_capacity = SRV_MAX_IO_CAPACITY_LIMIT;
-    } else {
-      /* The user has not set the value. We should
-      set it based on innodb_io_capacity. */
-      srv_max_io_capacity = std::max(2 * srv_io_capacity, 2000UL);
     }
-
   } else if (srv_max_io_capacity < srv_io_capacity) {
     log_errlog(WARNING_LEVEL, ER_INNODB_IO_CAPACITY_EXCEEDS_MAX,
                srv_max_io_capacity);
@@ -4966,26 +4917,12 @@ static int innodb_init_params() {
 #endif
 
 #ifndef _WIN32
-  /* Check if innodb_dedicated_server == ON and O_DIRECT is supported */
-  if (srv_dedicated_server && sysvar_source_svc != nullptr &&
-      os_is_o_direct_supported()) {
-    static const char *variable_name = "innodb_flush_method";
-    enum enum_variable_source source;
-
-    if (!sysvar_source_svc->get(variable_name, strlen(variable_name),
-                                &source)) {
-      /* If innodb_flush_method is not specified explicitly */
-      if (source == COMPILED) {
-        innodb_flush_method = static_cast<ulong>(SRV_UNIX_O_DIRECT_NO_FSYNC);
-      } else {
-        ib::warn(ER_IB_MSG_542)
-            << "Option innodb_dedicated_server"
-               " is ignored for innodb_flush_method"
-               "because innodb_flush_method="
-            << innodb_flush_method_names[innodb_flush_method]
-            << " is specified explicitly.";
-      }
-    }
+  if (!innodb_flush_method_is_set()) {
+    innodb_flush_method = os_is_o_direct_supported()
+                              ? static_cast<ulong>(SRV_UNIX_O_DIRECT)
+                              : static_cast<ulong>(SRV_UNIX_FSYNC);
+    ib::info(ER_IB_MSG_INNODB_FLUSH_METHOD,
+             innodb_flush_method_names[innodb_flush_method]);
   }
 
   srv_unix_file_flush_method =
@@ -5056,9 +4993,11 @@ static int innodb_init_params() {
     srv_buf_pool_curr_size = srv_buf_pool_size_org;
   }
 
-  if (srv_n_page_cleaners > srv_buf_pool_instances) {
-    /* limit of page_cleaner parallelizability
-    is number of buffer pool instances. */
+  if (!innodb_page_cleaners_is_set() ||
+      srv_n_page_cleaners > srv_buf_pool_instances) {
+    /* More Page Cleaners than the Buffer Pool instances will cause the excess
+    Page Cleaners to be idle, as Page Clearer Coordinator creates exactly
+    srv_buf_pool_instances flushing tasks */
     srv_n_page_cleaners = srv_buf_pool_instances;
   }
 
@@ -22230,7 +22169,7 @@ static MYSQL_SYSVAR_BOOL(
 static MYSQL_SYSVAR_ULONG(
     io_capacity, srv_io_capacity, PLUGIN_VAR_RQCMDARG,
     "Number of IOPs the server can do. Tunes the background IO rate", nullptr,
-    innodb_io_capacity_update, 200, 100, ~0UL, 0);
+    innodb_io_capacity_update, 10000, 100, ~0UL, 0);
 
 static MYSQL_SYSVAR_ULONG(io_capacity_max, srv_max_io_capacity,
                           PLUGIN_VAR_RQCMDARG,
@@ -22238,6 +22177,10 @@ static MYSQL_SYSVAR_ULONG(io_capacity_max, srv_max_io_capacity,
                           nullptr, innodb_io_capacity_max_update,
                           SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT, 100,
                           SRV_MAX_IO_CAPACITY_LIMIT, 0);
+
+static void innodb_io_capacity_max_update_default(ulong new_def) {
+  mysql_sysvar_io_capacity_max.def_val = new_def;
+}
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(background_drop_list_empty,
@@ -22298,12 +22241,17 @@ static MYSQL_SYSVAR_ULONG(
     1,                     /* Minimum value */
     5000, 0);              /* Maximum value */
 
-static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
-                          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-                          "Purge threads can be from 1 to 32. Default is 4.",
-                          nullptr, nullptr, 4,   /* Default setting */
-                          1,                     /* Minimum value */
-                          MAX_PURGE_THREADS, 0); /* Maximum value */
+/* Many purge threads may waste CPU - set default to 1 on small shapes */
+static MYSQL_SYSVAR_ULONG(
+    purge_threads, srv_n_purge_threads,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "Purge threads can be from 1 to 32. Default is 1 if number of available "
+    "CPUs is 16 or less, 4 otherwise.",
+    nullptr, nullptr,
+    (std::thread::hardware_concurrency() <= 16 ? 1UL
+                                               : 4UL), /* Default setting */
+    1,                                                 /* Minimum value */
+    MAX_PURGE_THREADS, 0);                             /* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
                           PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -22357,11 +22305,12 @@ static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
                             PLUGIN_VAR_NOPERSIST,
                         "Path to InnoDB log files.", nullptr, nullptr, nullptr);
 
-static MYSQL_SYSVAR_ULONG(
-    page_cleaners, srv_n_page_cleaners,
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-    "Page cleaner threads can be from 1 to 64. Default is 4.", nullptr, nullptr,
-    4, 1, 64, 0);
+/* Default value is updated in innodb_init_params to number of bp instances */
+static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
+                          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+                          "Page cleaner threads can be from 1 to 64. Default "
+                          "is number of buffer pool instances.",
+                          nullptr, nullptr, 1, 1, 64, 0);
 
 static MYSQL_SYSVAR_DOUBLE(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
                            PLUGIN_VAR_RQCMDARG,
@@ -22457,7 +22406,7 @@ static MYSQL_SYSVAR_BOOL(
     adaptive_hash_index, srv_btr_search_enabled, PLUGIN_VAR_OPCMDARG,
     "Enable InnoDB adaptive hash index (enabled by default). "
     " Disable with --skip-innodb-adaptive-hash-index.",
-    nullptr, innodb_adaptive_hash_index_update, true);
+    nullptr, innodb_adaptive_hash_index_update, false);
 
 /** Number of distinct partitions of AHI.
 Each partition is protected by its own latch and so we have parts number
@@ -22499,8 +22448,7 @@ static MYSQL_SYSVAR_BOOL(
     dedicated_server, srv_dedicated_server,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST | PLUGIN_VAR_READONLY,
     "Automatically scale innodb_buffer_pool_size and innodb_redo_log_capacity "
-    "based on system memory. Also set innodb_flush_method=O_DIRECT_NO_FSYNC, "
-    "if supported",
+    "based on system memory.",
     nullptr, nullptr, false);
 
 static MYSQL_SYSVAR_DOUBLE(
@@ -22514,11 +22462,6 @@ static MYSQL_SYSVAR_DOUBLE(
     nullptr, nullptr, FSEG_RESERVE_PCT_DFLT, FSEG_RESERVE_PCT_MIN,
     FSEG_RESERVE_PCT_MAX, 0);
 
-/* If the default value of innodb_buffer_pool_size is increased to be more than
-BUF_POOL_SIZE_THRESHOLD (srv/srv0start.cc), then srv_buf_pool_instances_default
-can be removed and 8 used instead. The problem with the current setup is that
-with 128MiB default buffer pool size and 8 instances by default we would emit
-a warning when no options are specified. */
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, srv_buf_pool_curr_size,
                              PLUGIN_VAR_RQCMDARG |
                                  PLUGIN_VAR_PERSIST_AS_READ_ONLY,
@@ -22557,9 +22500,8 @@ static MYSQL_SYSVAR_BOOL(
 
 static MYSQL_SYSVAR_BOOL(use_fdatasync, srv_use_fdatasync, PLUGIN_VAR_NOCMDARG,
                          "Use fdatasync() instead of the default fsync().",
-                         nullptr, nullptr, false);
+                         nullptr, nullptr, true);
 
-// clang-format off
 static MYSQL_SYSVAR_ENUM(
     doublewrite, dblwr::g_mode, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
     "Enable InnoDB doublewrite buffer (enabled by default)."
@@ -22573,25 +22515,23 @@ static MYSQL_SYSVAR_BOOL(
 
 static MYSQL_SYSVAR_STR(
     doublewrite_dir, innobase_doublewrite_dir, PLUGIN_VAR_READONLY,
-    "Use a separate directory for the doublewrite buffer files, ", nullptr, nullptr,
-    nullptr);
+    "Use a separate directory for the doublewrite buffer files, ", nullptr,
+    nullptr, nullptr);
 
-static MYSQL_SYSVAR_ULONG(
-    doublewrite_pages, dblwr::n_pages,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Number of double write pages per thread" , nullptr, nullptr, 0, 0, 512, 0);
+static MYSQL_SYSVAR_ULONG(doublewrite_pages, dblwr::n_pages,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                          "Number of double write pages per thread", nullptr,
+                          nullptr, 128, 1, 512, 0);
 
-static MYSQL_SYSVAR_ULONG(
-    doublewrite_files, dblwr::n_files,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Number of double write files", nullptr, nullptr, 0, 0, 256, 0);
+static MYSQL_SYSVAR_ULONG(doublewrite_files, dblwr::n_files,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                          "Number of double write files", nullptr, nullptr, 2,
+                          1, 256, 0);
 
-static MYSQL_SYSVAR_ULONG(
-    doublewrite_batch_size, dblwr::batch_size,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Number of double write pages to write in a batch", nullptr, nullptr,
-    0, 0, 256, 0);
-// clang-format on
+static MYSQL_SYSVAR_ULONG(doublewrite_batch_size, dblwr::batch_size,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                          "Number of double write pages to write in a batch",
+                          nullptr, nullptr, 0, 0, 256, 0);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_instances, srv_buf_pool_instances,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -22619,6 +22559,13 @@ static MYSQL_SYSVAR_BOOL(
     "Dump the buffer pool into a file named @@innodb_buffer_pool_filename",
     nullptr, nullptr, true);
 
+#ifdef HAVE_MADV_DONTDUMP
+#define BP_IN_CORE_DEFAULT false
+#else
+#define BP_IN_CORE_DEFAULT true
+#endif
+
+/* Turning this OFF by default requires madvise support from OS */
 static MYSQL_SYSVAR_BOOL(
     buffer_pool_in_core_file, srv_buffer_pool_in_core_file, PLUGIN_VAR_NOCMDARG,
     "This option has no effect if @@core_file is OFF. "
@@ -22626,10 +22573,12 @@ static MYSQL_SYSVAR_BOOL(
     " be generated only if it is possible to exclude buffer pool from it. "
     "As soon as it will be determined that such exclusion is impossible a "
     "warning will be emitted and @@core_file will be set to OFF to prevent "
-    "generating a core dump. "
-    "If this option is enabled (which is the default), then core dumping "
-    "logic will not be affected. ",
-    nullptr, innodb_srv_buffer_pool_in_core_file_update, true);
+    "generating a core dump. If this option is enabled then core dumping logic "
+    "will not be affected. This option is disabled by default if the platforms "
+    "supports MADV_DONTDUMP, otherwise it is enabled by default.",
+    nullptr, innodb_srv_buffer_pool_in_core_file_update, BP_IN_CORE_DEFAULT);
+
+#undef BP_IN_CORE_DEFAULT
 
 static MYSQL_SYSVAR_ULONG(
     buffer_pool_dump_pct, srv_buf_pool_dump_pct, PLUGIN_VAR_RQCMDARG,
@@ -22775,7 +22724,9 @@ static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
 static MYSQL_SYSVAR_ULONG(read_io_threads, srv_n_read_io_threads,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                           "Number of background read I/O threads in InnoDB.",
-                          nullptr, nullptr, 4, 1, 64, 0);
+                          nullptr, nullptr,
+                          std::max(4U, std::thread::hardware_concurrency() / 2),
+                          1, 64, 0);
 
 static MYSQL_SYSVAR_ULONG(write_io_threads, srv_n_write_io_threads,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -22826,6 +22777,10 @@ static MYSQL_SYSVAR_ULONGLONG(
     "Limitation for total size of redo log files on disk (expressed in bytes).",
     nullptr, innodb_redo_log_capacity_update, 100 * 1024 * 1024,
     LOG_CAPACITY_MIN, LOG_CAPACITY_MAX, MB);
+
+static void innodb_redo_log_capacity_update_default(ulonglong new_def) {
+  mysql_sysvar_redo_log_capacity.def_val = new_def;
+}
 
 #ifdef UNIV_DEBUG_DEDICATED
 static MYSQL_SYSVAR_ULONG(
@@ -23149,7 +23104,7 @@ static MYSQL_SYSVAR_BOOL(
     numa_interleave, srv_numa_interleave,
     PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
     "Use NUMA interleave memory policy to allocate InnoDB buffer pool.",
-    nullptr, nullptr, false);
+    nullptr, nullptr, true);
 #endif /* HAVE_LIBNUMA */
 
 static MYSQL_SYSVAR_BOOL(
@@ -23183,12 +23138,11 @@ static MYSQL_SYSVAR_ULONG(api_bk_commit_interval, ib_bk_commit_interval,
                           1,                      /* Minimum value */
                           1024 * 1024 * 1024, 0); /* Maximum value */
 
-static MYSQL_SYSVAR_ENUM(change_buffering, innodb_change_buffering,
-                         PLUGIN_VAR_RQCMDARG,
-                         "Buffer changes to reduce random access:"
-                         " OFF, ON, inserting, deleting, changing, or purging.",
-                         nullptr, nullptr, IBUF_USE_ALL,
-                         &innodb_change_buffering_typelib);
+static MYSQL_SYSVAR_ENUM(
+    change_buffering, innodb_change_buffering, PLUGIN_VAR_RQCMDARG,
+    "Buffer changes to reduce random access:"
+    " OFF (default), ON, inserting, deleting, changing, or purging.",
+    nullptr, nullptr, IBUF_USE_NONE, &innodb_change_buffering_typelib);
 
 static MYSQL_SYSVAR_UINT(
     change_buffer_max_size, srv_change_buffer_max_size, PLUGIN_VAR_RQCMDARG,
@@ -23343,13 +23297,11 @@ static MYSQL_SYSVAR_BOOL(trx_purge_view_update_only_debug,
                          "purge view have been updated"
                          " but the each purges were not done yet.",
                          nullptr, nullptr, false);
-// clang-format off
-static MYSQL_SYSVAR_ULONG(
-        fil_make_page_dirty_debug,
-        srv_fil_make_page_dirty_debug, PLUGIN_VAR_OPCMDARG,
-        "Make the first page of the given tablespace dirty.",
-        nullptr, innodb_make_page_dirty, UINT_MAX32, 0, UINT_MAX32, 0);
-// clang-format on
+static MYSQL_SYSVAR_ULONG(fil_make_page_dirty_debug,
+                          srv_fil_make_page_dirty_debug, PLUGIN_VAR_OPCMDARG,
+                          "Make the first page of the given tablespace dirty.",
+                          nullptr, innodb_make_page_dirty, UINT_MAX32, 0,
+                          UINT_MAX32, 0);
 
 static MYSQL_SYSVAR_ULONG(saved_page_number_debug, srv_saved_page_number_debug,
                           PLUGIN_VAR_OPCMDARG, "An InnoDB page number.",

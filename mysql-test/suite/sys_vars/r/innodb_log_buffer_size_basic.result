@@ -83,7 +83,7 @@ SET GLOBAL innodb_log_buffer_size = 2048*1024;
 SELECT @@innodb_log_buffer_size;
 @@innodb_log_buffer_size
 2097152
-SET @@GLOBAL.innodb_log_buffer_size=16777216;
+SET @@GLOBAL.innodb_log_buffer_size=67108864;
 SELECT @@innodb_log_buffer_size;
 @@innodb_log_buffer_size
-16777216
+67108864

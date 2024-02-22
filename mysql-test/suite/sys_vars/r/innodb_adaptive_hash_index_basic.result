@@ -1,28 +1,28 @@
 SET @start_global_value = @@global.innodb_adaptive_hash_index;
 SELECT @start_global_value;
 @start_global_value
-1
+0
 Valid values are 'ON' and 'OFF' 
 select @@global.innodb_adaptive_hash_index in (0, 1);
 @@global.innodb_adaptive_hash_index in (0, 1)
 1
 select @@global.innodb_adaptive_hash_index;
 @@global.innodb_adaptive_hash_index
-1
+0
 select @@session.innodb_adaptive_hash_index;
 ERROR HY000: Variable 'innodb_adaptive_hash_index' is a GLOBAL variable
 show global variables like 'innodb_adaptive_hash_index';
 Variable_name	Value
-innodb_adaptive_hash_index	ON
+innodb_adaptive_hash_index	OFF
 show session variables like 'innodb_adaptive_hash_index';
 Variable_name	Value
-innodb_adaptive_hash_index	ON
+innodb_adaptive_hash_index	OFF
 select * from performance_schema.global_variables where variable_name='innodb_adaptive_hash_index';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_adaptive_hash_index	ON
+innodb_adaptive_hash_index	OFF
 select * from performance_schema.session_variables where variable_name='innodb_adaptive_hash_index';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_adaptive_hash_index	ON
+innodb_adaptive_hash_index	OFF
 set global innodb_adaptive_hash_index='OFF';
 select @@global.innodb_adaptive_hash_index;
 @@global.innodb_adaptive_hash_index
@@ -89,4 +89,4 @@ ERROR 42000: Variable 'innodb_adaptive_hash_index' can't be set to the value of 
 SET @@global.innodb_adaptive_hash_index = @start_global_value;
 SELECT @@global.innodb_adaptive_hash_index;
 @@global.innodb_adaptive_hash_index
-1
+0

@@ -172,6 +172,14 @@ bool os_is_o_direct_supported() {
   file_handle =
       ::open(file_name, O_CREAT | O_TRUNC | O_WRONLY | O_DIRECT, S_IRWXU);
 
+  /* If Failed due to no O_DIRECT support, errno EINVAL is set, but file is
+still created. See Kernel Bugzilla Bug 218049 */
+  if (file_handle == -1 && errno == EINVAL) {
+    unlink(file_name);
+    ut::free(file_name);
+    return false;
+  }
+
   /* If Failed */
   if (file_handle == -1) {
     ut::free(file_name);

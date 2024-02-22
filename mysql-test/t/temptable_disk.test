@@ -50,7 +50,7 @@ ORDER BY 1
 LIMIT 2;
 -- enable_result_log
 
-SET GLOBAL temptable_max_ram = default;
+SET GLOBAL temptable_max_ram = 1073741824;
 
 # There should be no allocations on the physical disk
 SELECT count_alloc > 0
@@ -92,8 +92,8 @@ ORDER BY 1
 LIMIT 2;
 -- enable_result_log
 
-SET GLOBAL temptable_max_ram = default;
-SET GLOBAL temptable_use_mmap = default;
+SET GLOBAL temptable_max_ram = 1073741824;
+SET GLOBAL temptable_use_mmap = true;
 
 SELECT @@global.temptable_use_mmap;
 
@@ -149,6 +149,6 @@ WHERE event_name = 'memory/temptable/physical_disk';
 
 DROP TABLE t;
 
-SET GLOBAL temptable_max_ram = default;
-SET GLOBAL temptable_max_mmap = default;
-SET GLOBAL temptable_use_mmap = default;
+SET GLOBAL temptable_max_ram = 1073741824;
+SET GLOBAL temptable_max_mmap = 1073741824;
+SET GLOBAL temptable_use_mmap = true;

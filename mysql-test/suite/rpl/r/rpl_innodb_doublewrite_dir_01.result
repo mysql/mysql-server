@@ -37,7 +37,7 @@ SELECT @@innodb_doublewrite_files;
 2
 SELECT @@innodb_doublewrite_pages;
 @@innodb_doublewrite_pages
-2
+128
 SELECT @@innodb_doublewrite_batch_size;
 @@innodb_doublewrite_batch_size
 0

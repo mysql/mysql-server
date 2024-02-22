@@ -1,0 +1,2 @@
+# temptable_max_ram depends on system memory, set to 1 GB
+--temptable-max-ram=1073741824

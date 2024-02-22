@@ -17,6 +17,9 @@ SET GLOBAL innodb_fast_shutdown=0;
 # temporary workaround for Bug#22284224
 SET GLOBAL innodb_purge_stop_now = ON;
 
+SET @saved_ahi = @@global.innodb_adaptive_hash_index;
+SET GLOBAL innodb_adaptive_hash_index = ON;
+
 # To load mysql.* tables into cache
 SELECT COUNT(*) FROM t1;
 
@@ -48,3 +51,4 @@ if ($diff != 3) {
 DROP TABLE t1;
 # temporary workaround for Bug#22284224
 SET GLOBAL innodb_purge_run_now = ON;
+SET GLOBAL innodb_adaptive_hash_index = @saved_ahi;

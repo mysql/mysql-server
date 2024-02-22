@@ -2761,16 +2761,12 @@ dberr_t dblwr::open() noexcept {
   /* Batch segments per dblwr file. */
   uint32_t segments_per_file{};
 
-  if (dblwr::n_files == 0) {
-    dblwr::n_files = 2;
-  }
+  ut_a(dblwr::n_files != 0);
 
   ib::info(ER_IB_MSG_DBLWR_1324)
       << "Double write buffer files: " << dblwr::n_files;
 
-  if (dblwr::n_pages == 0) {
-    dblwr::n_pages = srv_n_write_io_threads;
-  }
+  ut_a(dblwr::n_pages != 0);
 
   ib::info(ER_IB_MSG_DBLWR_1323)
       << "Double write buffer pages per instance: " << dblwr::n_pages;

@@ -41,7 +41,7 @@ SET GLOBAL temptable_max_ram = 2097152;
 let $memory_key = memory/temptable/physical_disk;
 let $test_query = SELECT * FROM t AS t1, t AS t2, t AS t3, t AS t4, t AS t5, t AS t6 ORDER BY 1 LIMIT 2;
 --source include/mem_cnt_check_err.inc
-SET GLOBAL temptable_max_ram = default;
+SET GLOBAL temptable_max_ram = 1073741824;
 DROP TABLE t;
 
 --enable_query_log
