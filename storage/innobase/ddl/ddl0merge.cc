@@ -321,20 +321,28 @@ dberr_t Merge_file_sort::Output_file::write(const mrec_t *mrec,
   if (unlikely(m_ptr + rec_size + need >= m_buffer.first + m_buffer.second)) {
     const size_t n_write = m_ptr - m_buffer.first;
     const auto len = ut_uint64_align_down(n_write, IO_BLOCK_SIZE);
-    auto err = ddl::pwrite(m_file.get(), m_buffer.first, len, m_offset);
+    if (len != 0) {
+      auto err = ddl::pwrite(m_file.get(), m_buffer.first, len, m_offset);
 
-    if (err != DB_SUCCESS) {
-      return err;
+      if (err != DB_SUCCESS) {
+        return err;
+      }
+
+      ut_a(n_write >= len);
+      const auto n_move = n_write - len;
+
+      m_ptr = m_buffer.first;
+      memmove(m_ptr, m_ptr + len, n_move);
+      m_ptr += n_move;
+
+      m_offset += len;
     }
 
-    ut_a(n_write >= len);
-    const auto n_move = n_write - len;
-
-    m_ptr = m_buffer.first;
-    memmove(m_ptr, m_ptr + len, n_move);
-    m_ptr += n_move;
-
-    m_offset += len;
+    if (unlikely(m_ptr + rec_size + need >= m_buffer.first + m_buffer.second)) {
+      // Should be caught earlier
+      ut_d(ut_error);
+      ut_o(return DB_TOO_BIG_RECORD);
+    }
   }
 
   m_last_mrec = m_ptr;
