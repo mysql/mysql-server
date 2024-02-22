@@ -44,10 +44,10 @@ void QPManager::BuildQPConnection(MetaManager* meta_man) {
                                                             meta_man->opened_rnic,
                                                             &local_mr);
     assert(log_buf_qp != nullptr);
-    std::fstream f;
-    f.open("/usr/local/mysql/myerror.log", std::ios::out|std::ios::app);
-    f << "finish build qps\n";
-    f.close();
+    //    std::fstream f;
+    //    f.open("/usr/local/mysql/myerror.log", std::ios::out|std::ios::app);
+    //    f << "finish build qps\n";
+    //    f.close();
     // Queue pair connection, exchange queue pair info via TCP
     ConnStatus rc;
     do {
