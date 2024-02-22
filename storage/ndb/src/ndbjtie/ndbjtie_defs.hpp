@@ -58,23 +58,9 @@ JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jint, Uint32, Uint32)
 JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jlong, Int64, Int64)
 JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jlong, Uint64, Uint64)
 
-// XXXXX temporary, for testing
-#if 1
+// Don't make compilers choose between the const and non-const versions
+// of otherwise identical methods.
 #define NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION 1
-#define NDBJTIE_USE_WRAPPED_VARIANT_FOR_OVERLOADED_FUNCTION 1
-#define NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION 1
-#else
-
-// workaround for MS Visual Studio compilers (disambiguation of overloads)
-// (VC7 = VS2003 = 1310, VC8 = VS2005 = 1400, VC9 = VS2008 = 1500, ...?):
-#if defined(_MSC_VER)
-//#  if (1300 <= _MSC_VER) && (_MSC_VER <= 1600)
-#define NDBJTIE_USE_WRAPPED_VARIANT_FOR_OVERLOADED_FUNCTION 1
-#define NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION 1
-//#  endif
-#endif
-
-#endif
 
 // XXX: document why clearing cdelegate in wrapper object upon delete
 #define JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE 1
