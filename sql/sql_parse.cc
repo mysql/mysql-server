@@ -1585,14 +1585,7 @@ static void check_secondary_engine_statement(THD *thd,
   // query.
   thd->clear_error();
 
-  // Tell performance schema that the statement is restarted.
-  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
-
   mysql_thread_set_secondary_engine(use_secondary_engine);
-
-  thd->m_statement_psi = MYSQL_START_STATEMENT(
-      &thd->m_statement_state, com_statement_info[thd->get_command()].m_key,
-      thd->db().str, thd->db().length, thd->charset(), nullptr);
 
   mysql_statement_set_secondary_engine(thd->m_statement_psi,
                                        use_secondary_engine);
@@ -1607,16 +1600,8 @@ static void check_secondary_engine_statement(THD *thd,
   thd->set_query(query_string, query_length);
   parser_state->reset(query_string, query_length);
 
-  // Disable the general log. The query was written to the general log in the
-  // first attempt to execute it. No need to write it twice.
-  const uint64_t saved_option_bits = thd->variables.option_bits;
-  thd->variables.option_bits |= OPTION_LOG_OFF;
-
   // Restart the statement.
-  dispatch_sql_command(thd, parser_state);
-
-  // Restore the original option bits.
-  thd->variables.option_bits = saved_option_bits;
+  dispatch_sql_command(thd, parser_state, /*is_retry=*/true);
 
   // Check if the restarted statement failed, and if so, if it needs
   // another restart/fallback to the primary storage engine.
@@ -5168,9 +5153,13 @@ void statement_id_to_session(THD *thd) {
 
   @param thd          Current session.
   @param parser_state Parser state.
+  @param is_retry     True if this is a retry of the statement in a different
+                      storage engine. Some logging (general log and performance
+                      schema) should be skipped in that case, as the query was
+                      already logged in the first round.
 */
 
-void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
+void dispatch_sql_command(THD *thd, Parser_state *parser_state, bool is_retry) {
   DBUG_TRACE;
   DBUG_PRINT("dispatch_sql_command", ("query: '%s'", thd->query().str));
   statement_id_to_session(thd);
@@ -5247,7 +5236,7 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
       thd->set_query_for_display(thd->query().str, thd->query().length);
     }
 
-    if (!(opt_general_log_raw || thd->slave_thread)) {
+    if (!(opt_general_log_raw || thd->slave_thread || is_retry)) {
       if (thd->rewritten_query().length())
         query_logger.general_log_write(thd, COM_QUERY,
                                        thd->rewritten_query().ptr(),
@@ -5265,8 +5254,11 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
   DEBUG_SYNC_C("sql_parse_after_rewrite");
 
   if (!err) {
-    thd->m_statement_psi = MYSQL_REFINE_STATEMENT(
-        thd->m_statement_psi, sql_statement_info[thd->lex->sql_command].m_key);
+    if (!is_retry) {
+      thd->m_statement_psi = MYSQL_REFINE_STATEMENT(
+          thd->m_statement_psi,
+          sql_statement_info[thd->lex->sql_command].m_key);
+    }
 
     if (mqh_used && thd->get_user_connect() &&
         check_mqh(thd, lex->sql_command)) {
@@ -5335,8 +5327,10 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
     thd->set_query_for_display(thd->query().str, thd->query().length);
 
     /* Instrument this broken statement as "statement/sql/error" */
-    thd->m_statement_psi = MYSQL_REFINE_STATEMENT(
-        thd->m_statement_psi, sql_statement_info[SQLCOM_END].m_key);
+    if (!is_retry) {
+      thd->m_statement_psi = MYSQL_REFINE_STATEMENT(
+          thd->m_statement_psi, sql_statement_info[SQLCOM_END].m_key);
+    }
 
     assert(thd->is_error());
     DBUG_PRINT("info",

@@ -35,8 +35,6 @@ End of init
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
 > tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT * FROM t1', app[], call[])
-> tm_stmt_end: trace statement (depth=1, user=root, query='SELECT * FROM t1', query1='SELECT * FROM t1', digest='SELECT * FROM `t1`', app[], call[])
-> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='SELECT * FROM t1')
 > tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT * FROM t1', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT * FROM t1', digest='SELECT * FROM `t1`', app[], call[])

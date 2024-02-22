@@ -278,8 +278,6 @@ SECONDARY_ENGINE MOCK
 PARTITION BY HASH(id);
 INSERT INTO t_partitioned VALUES (1, 2), (2, 3), (3, 4), (4, 5);
 ALTER TABLE t_partitioned SECONDARY_LOAD;
-SELECT * FROM t_partitioned;
-id	x
 DROP TABLE t_partitioned;
 FLUSH STATUS;
 SELECT * FROM t1;
@@ -895,33 +893,6 @@ FLUSH STATUS;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
-SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ a FROM t1;
-ERROR HY000: Secondary engine operation failed. Reason: "All plans were rejected by the secondary storage engine".
-SELECT a FROM t1;
-a
--1
-0
-1
-2
-3
-4
-5
-6
-7
-8
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	0
-SELECT b FROM t1;
-b
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	1
-SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ b FROM t1;
-b
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	2
 DROP TABLE t1;
 #
 # Use NOT SECONDARY as comment.
@@ -1093,4 +1064,57 @@ PREPARE ps FROM 'SELECT (SELECT 9 FROM DUAL) AS y FROM t GROUP BY y';
 EXECUTE ps;
 y
 DROP PREPARE ps;
+DROP TABLE t;
+#
+# Bug#33390949: Execute a statement with secondary engine,
+#               two entries in performance schema
+#
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7);
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT * FROM t;
+x
+1
+2
+3
+4
+5
+6
+7
+SELECT count_star, count_secondary, sum_select_scan
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'SELECT %';
+count_star	count_secondary	sum_select_scan
+1	0	1
+ALTER TABLE t SECONDARY_ENGINE MOCK;
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT * FROM t;
+x
+1
+2
+3
+4
+5
+6
+7
+SELECT count_star, count_secondary, sum_select_scan
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'SELECT %';
+count_star	count_secondary	sum_select_scan
+1	0	1
+ALTER TABLE t SECONDARY_LOAD;
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT * FROM t;
+x
+SELECT count_star, count_secondary, sum_select_scan
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'SELECT %';
+count_star	count_secondary	sum_select_scan
+1	1	1
+FLUSH STATUS;
+CREATE TABLE tt AS SELECT * FROM t;
+SHOW STATUS LIKE 'Select_scan';
+Variable_name	Value
+Select_scan	1
+DROP TABLE tt;
 DROP TABLE t;

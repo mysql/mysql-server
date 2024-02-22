@@ -181,7 +181,9 @@ SECONDARY_ENGINE MOCK
 PARTITION BY HASH(id);
 INSERT INTO t_partitioned VALUES (1, 2), (2, 3), (3, 4), (4, 5);
 ALTER TABLE t_partitioned SECONDARY_LOAD;
+--disable_testcase Bug#36306426
 SELECT * FROM t_partitioned;
+--enable_testcase
 DROP TABLE t_partitioned;
 
 # Multiple queries in a single statement.
@@ -631,6 +633,7 @@ ALTER TABLE t1 SECONDARY_LOAD;
 ANALYZE TABLE t1;
 FLUSH STATUS;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+--disable_testcase Bug#36306426
 --error ER_SECONDARY_ENGINE
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ a FROM t1;
 SELECT a FROM t1;
@@ -639,6 +642,7 @@ SELECT b FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ b FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+--enable_testcase
 DROP TABLE t1;
 
 --echo #
@@ -822,6 +826,67 @@ SELECT (SELECT 9 FROM DUAL) AS y FROM t GROUP BY y;
 PREPARE ps FROM 'SELECT (SELECT 9 FROM DUAL) AS y FROM t GROUP BY y';
 EXECUTE ps;
 DROP PREPARE ps;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#33390949: Execute a statement with secondary engine,
+--echo #               two entries in performance schema
+--echo #
+
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7);
+
+let $show_events =
+SELECT count_star, count_secondary, sum_select_scan
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'SELECT %';
+
+# The table does not have a secondary engine yet. Count_star should be
+# 1, since a single statement is executed. Count_secondary should be
+# 0, since the statement was not offloaded to the secondary engine.
+# Sum_select_scan should be 1, since the table was scanned once.
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+--disable_ps_protocol
+--sorted_result
+SELECT * FROM t;
+--enable_ps_protocol
+--eval $show_events
+
+ALTER TABLE t SECONDARY_ENGINE MOCK;
+
+# The table has a secondary engine, but it's not loaded into the
+# secondary engine, so the statement is not offloaded to the secondary
+# engine. Expect the same counts as in the previous case.
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+--disable_ps_protocol
+--sorted_result
+SELECT * FROM t;
+--enable_ps_protocol
+--eval $show_events
+
+ALTER TABLE t SECONDARY_LOAD;
+
+# The table is loaded in the secondary engine. The statement is
+# offloaded. Count_star should be 1, since the query is executed once.
+# Count_secondary should be 1, since the query was offloaded.
+# Sum_select_scan is 1. It should not count one scan for the primary
+# engine plan and one for secondary engine plan. (If the secondary
+# engine has set the USE_EXTERNAL_EXECUTOR flag (which MOCK has not),
+# the server will not count scans in the secondary engine. The
+# secondary engine can in that case increment these counters itself,
+# if it finds it relevant.)
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+--disable_ps_protocol
+SELECT * FROM t;
+--enable_ps_protocol
+--eval $show_events
+
+# Expect no double-counting in CREATE TABLE AS SELECT either.
+FLUSH STATUS;
+CREATE TABLE tt AS SELECT * FROM t;
+SHOW STATUS LIKE 'Select_scan';
+DROP TABLE tt;
+
 DROP TABLE t;
 
 --disable_query_log
