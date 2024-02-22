@@ -1085,10 +1085,10 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
      QPConnection
      */
     THD *thd = log.m_remote_buf_thd;
-    thd->coro_sched = new CoroutineScheduler(thd->thread_id(), CORO_NUM);
+    thd->coro_sched = new CoroutineScheduler(0, CORO_NUM);
     auto local_rdma_region_range =
       RDMARegionAllocator::get_instance()->GetThreadLocalRegion(
-          thd->thread_id());
+          0);
     // rdma_buffer_allocator is used to manage the local buffer used for RDMA
     // operations
     thd->rdma_buffer_allocator = new RDMABufferAllocator(
@@ -1101,7 +1101,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // thd->qp_manager = new QPManager(thd->thread_id());
     std::cout << "QPMgr::get_instance in log0buf \n";
     thd->qp_manager = QPManager::get_instance();
-    thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
+    // thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
 
     thd->rdma_allocated_ = true;
   }

@@ -233,6 +233,8 @@ static THD *init_new_thd(Channel_info *channel_info) {
      QPConnection
 
   */
+  /*
+  std::cout << "begin init RDMA manager in connection handler per thread\n";
   thd->coro_sched = new CoroutineScheduler(thd->thread_id(), CORO_NUM);
   auto local_rdma_region_range =
       RDMARegionAllocator::get_instance()->GetThreadLocalRegion(
@@ -247,9 +249,10 @@ static THD *init_new_thd(Channel_info *channel_info) {
       Connection_handler_manager::get_instance()->max_threads);
   // thd->qp_manager = new QPManager(thd->thread_id());
   thd->qp_manager = QPManager::get_instance();
-  thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
+  // thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
 
   thd->rdma_allocated_ = true;
+  */
   return thd;
 }
 

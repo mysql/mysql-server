@@ -18,7 +18,7 @@ class QPManager {
     std::cout << "next_qp_mgr_idx_: " << next_qp_mgr_idx_ << "  qp_mgr_num_: " << qp_mgr_num_ << "\n";
     assert(next_qp_mgr_idx_ < qp_mgr_num_);
     assert(global_qp_mgr_[next_qp_mgr_idx_] != nullptr);
-    return global_qp_mgr_[next_qp_mgr_idx_ ++];
+    return global_qp_mgr_[next_qp_mgr_idx_++];
   }
   static void BuildALLQPConnection(MetaManager* meta_man);
   void BuildQPConnection(MetaManager* meta_man);

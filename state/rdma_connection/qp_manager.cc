@@ -12,6 +12,7 @@ void QPManager::BuildALLQPConnection(MetaManager* meta_man) {
   for(int i = 0; i < qp_mgr_num_; ++i ) {
     global_qp_mgr_[i]->BuildQPConnection(meta_man);
   }
+  std::cout << "finish build all qp_connections\n";
 }
 
 void QPManager::BuildQPConnection(MetaManager* meta_man) {
@@ -89,6 +90,8 @@ bool QPManager::create_instance(int qp_mgr_num) {
       global_qp_mgr_[i] = new (std::nothrow) QPManager(i);
     if(global_qp_mgr_[i] == nullptr) res = true;
   }
+  next_qp_mgr_idx_ = 0;
+  std::cout << "create instance success: next_qp_mgr_idx: " << next_qp_mgr_idx_ << "\n";
   return res;
   // if(global_qp_mgr_ == nullptr) {
   //   global_qp_mgr_ = new (std::nothrow) QPManager(0);

@@ -3,7 +3,7 @@
         "node_id": 0,
         "local_port": 12307,
         "txn_list_size_GB": 1,
-        "log_buf_size_GB": 1,
+        "log_buf_size_GB": 4,
         "lock_buf_size_GB": 1
     },
     "master_node": {
